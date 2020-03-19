@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
 import crypto from 'crypto'
+import devalue from 'devalue'
 import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
@@ -28,6 +29,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
+  CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -62,7 +64,7 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getPageSizeInKb,
-  hasCustomAppGetInitialProps,
+  hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
@@ -90,13 +92,13 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-  fallback: string
+  fallback: string | false
   dataRoute: string
   dataRouteRegex: string
 }
 
 export type PrerenderManifest = {
-  version: number
+  version: 2
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   preview: __ApiPreviewProps
@@ -113,21 +115,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const headers: Header[] = []
   const rewrites: Rewrite[] = []
   const redirects: Redirect[] = []
-  const headers: Header[] = []
 
   if (typeof config.experimental.redirects === 'function') {
-    redirects.push(...(await config.experimental.redirects()))
-    checkCustomRoutes(redirects, 'redirect')
+    const _redirects = await config.experimental.redirects()
+    checkCustomRoutes(_redirects, 'redirect')
+    redirects.push(..._redirects)
   }
   if (typeof config.experimental.rewrites === 'function') {
-    rewrites.push(...(await config.experimental.rewrites()))
-    checkCustomRoutes(rewrites, 'rewrite')
+    const _rewrites = await config.experimental.rewrites()
+    checkCustomRoutes(_rewrites, 'rewrite')
+    rewrites.push(..._rewrites)
   }
   if (typeof config.experimental.headers === 'function') {
-    headers.push(...(await config.experimental.headers()))
-    checkCustomRoutes(headers, 'header')
+    const _headers = await config.experimental.headers()
+    checkCustomRoutes(_headers, 'header')
+    headers.push(..._headers)
   }
 
   if (ciEnvironment.isCI) {
@@ -221,10 +226,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
   )
-  const hasPages404 =
-    config.experimental.pages404 &&
-    mappedPages['/404'] &&
-    mappedPages['/404'].startsWith('private-next-pages')
+  const hasPages404 = Boolean(
+    mappedPages['/404'] && mappedPages['/404'].startsWith('private-next-pages')
+  )
+  let hasNonStaticErrorPage: boolean
 
   if (hasPublicDir) {
     try {
@@ -285,7 +290,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 1,
-    pages404: !!hasPages404,
+    pages404: true,
     basePath: config.experimental.basePath,
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
@@ -430,6 +435,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()
+  const ssgFallbackPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
@@ -450,6 +456,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   staticCheckWorkers.getStdout().pipe(process.stdout)
   staticCheckWorkers.getStderr().pipe(process.stderr)
+
+  const runtimeEnvConfig = {
+    publicRuntimeConfig: config.publicRuntimeConfig,
+    serverRuntimeConfig: config.serverRuntimeConfig,
+  }
+
+  hasNonStaticErrorPage =
+    hasCustomErrorPage &&
+    (await hasCustomGetInitialProps(
+      path.join(
+        distDir,
+        ...(isLikeServerless
+          ? ['serverless', 'pages']
+          : ['server', 'static', buildId, 'pages']),
+        '_error.js'
+      ),
+      runtimeEnvConfig
+    ))
 
   const analysisBegin = process.hrtime()
   await Promise.all(
@@ -476,17 +500,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let isStatic = false
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
+      let hasSsgFallback: boolean = false
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomAppGetInitialProps(
+        customAppGetInitialProps = hasCustomGetInitialProps(
           isLikeServerless
             ? serverBundle
             : path.join(
@@ -531,6 +552,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
+            if (result.prerenderFallback) {
+              hasSsgFallback = true
+              ssgFallbackPages.add(page)
+            }
           } else if (result.hasServerProps) {
             serverPropsPages.add(page)
           } else if (result.isStatic && customAppGetInitialProps === false) {
@@ -539,12 +564,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
 
           if (hasPages404 && page === '/404') {
-            if (!result.isStatic) {
+            if (!result.isStatic && !result.hasStaticProps) {
               throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps
-            if (customAppGetInitialProps) {
+            if (customAppGetInitialProps && !result.hasStaticProps) {
               staticPages.delete(page)
             }
           }
@@ -562,17 +587,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
         isSsg,
         isHybridAmp,
         ssgPageRoutes,
+        hasSsgFallback,
       })
     })
   )
   staticCheckWorkers.end()
 
-  if (serverPropsPages.size > 0) {
+  if (serverPropsPages.size > 0 || ssgPages.size > 0) {
     // We update the routes manifest after the build with the
-    // serverProps routes since we can't determine this until after build
-    routesManifest.serverPropsRoutes = {}
-
-    for (const page of serverPropsPages) {
+    // data routes since we can't determine these until after build
+    routesManifest.dataRoutes = getSortedRoutes([
+      ...serverPropsPages,
+      ...ssgPages,
+    ]).map(page => {
       const pagePath = normalizePagePath(page)
       const dataRoute = path.posix.join(
         '/_next/data',
@@ -580,7 +607,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         `${pagePath}.json`
       )
 
-      routesManifest.serverPropsRoutes[page] = {
+      return {
         page,
         dataRouteRegex: isDynamicRoute(page)
           ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
@@ -595,7 +622,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               )}$`
             ).source,
       }
-    }
+    })
 
     await fsWriteFile(
       routesManifestPath,
@@ -606,8 +633,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
-    !customAppGetInitialProps &&
-    ((!hasCustomErrorPage && config.experimental.static404) || hasPages404)
+    !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -667,9 +693,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
 
-            // Override the rendering for the dynamic page to be treated as a
-            // fallback render.
-            defaultMap[page] = { page, query: { __nextFallback: true } }
+            if (ssgFallbackPages.has(page)) {
+              // Override the rendering for the dynamic page to be treated as a
+              // fallback render.
+              defaultMap[page] = { page, query: { __nextFallback: true } }
+            } else {
+              // Remove dynamically routed pages from the default path map when
+              // fallback behavior is disabled.
+              delete defaultMap[page]
+            }
           }
         })
         // Append the "well-known" routes we should prerender for, e.g. blog
@@ -681,7 +713,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         })
 
         if (useStatic404) {
-          defaultMap['/_errors/404'] = {
+          defaultMap['/404'] = {
             page: hasPages404 ? '/404' : '/_error',
           }
         }
@@ -690,6 +722,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       },
       exportTrailingSlash: false,
     }
+
     await exportApp(dir, exportOptions, exportConfig)
 
     // remove server bundles that were exported
@@ -726,18 +759,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsMove(orig, dest)
     }
 
-    if (useStatic404) {
-      await moveExportedPage('/_errors/404', '/_errors/404', false, 'html')
+    // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+    if (!hasPages404 && useStatic404) {
+      await moveExportedPage('/404', '/404', false, 'html')
     }
 
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
+      const isSsgFallback = ssgFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
       let file = normalizePagePath(page)
 
-      // We should always have an HTML file to move for each page
-      await moveExportedPage(page, file, isSsg, 'html')
+      // The dynamic version of SSG pages are only prerendered if the fallback
+      // is enabled. Below, we handle the specific prerenders of these.
+      if (!(isSsg && isDynamic && !isSsgFallback)) {
+        await moveExportedPage(page, file, isSsg, 'html')
+      }
 
       if (hasAmp) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
@@ -756,9 +794,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
         } else {
           // For a dynamic SSG page, we did not copy its data exports and only
-          // copy the fallback HTML file.
+          // copy the fallback HTML file (if present).
           // We must also copy specific versions of this page as defined by
-          // `unstable_getStaticPaths` (additionalSsgPaths).
+          // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')
@@ -792,7 +830,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     eventBuildOptimize(pagePaths, {
       durationInSeconds: analysisEnd[0],
       staticPageCount: staticPages.size,
-      ssrPageCount: pagePaths.length - staticPages.size,
+      staticPropsPageCount: ssgPages.size,
+      serverPropsPageCount: serverPropsPages.size,
+      ssrPageCount:
+        pagePaths.length -
+        (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
     })
   )
@@ -810,14 +852,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
       finalDynamicRoutes[tbdRoute] = {
         routeRegex: getRouteRegex(tbdRoute).re.source,
         dataRoute,
-        fallback: `${normalizedRoute}.html`,
+        fallback: ssgFallbackPages.has(tbdRoute)
+          ? `${normalizedRoute}.html`
+          : false,
         dataRouteRegex: getRouteRegex(
           dataRoute.replace(/\.json$/, '')
         ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
       }
     })
     const prerenderManifest: PrerenderManifest = {
-      version: 1,
+      version: 2,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
       preview: previewProps,
@@ -828,9 +872,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
+    await generateClientSsgManifest(prerenderManifest, {
+      distDir,
+      buildId,
+      isModern: !!config.experimental.modern,
+    })
   } else {
     const prerenderManifest: PrerenderManifest = {
-      version: 1,
+      version: 2,
       routes: {},
       dynamicRoutes: {},
       preview: previewProps,
@@ -840,6 +889,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
+    // No need to call this fn as we already emitted a default SSG manifest:
+    // await generateClientSsgManifest(prerenderManifest, { distDir, buildId })
   }
 
   await fsWriteFile(
@@ -871,6 +922,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       distPath: distDir,
       buildId: buildId,
       pagesDir,
+      useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
       isModern: config.experimental.modern,
@@ -937,4 +989,37 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await telemetry.flush()
+}
+
+function generateClientSsgManifest(
+  prerenderManifest: PrerenderManifest,
+  {
+    buildId,
+    distDir,
+    isModern,
+  }: { buildId: string; distDir: string; isModern: boolean }
+) {
+  const ssgPages: Set<string> = new Set<string>([
+    ...Object.entries(prerenderManifest.routes)
+      // Filter out dynamic routes
+      .filter(([, { srcRoute }]) => srcRoute == null)
+      .map(([route]) => route),
+    ...Object.keys(prerenderManifest.dynamicRoutes),
+  ])
+
+  const clientSsgManifestPaths = [
+    '_ssgManifest.js',
+    isModern && '_ssgManifest.module.js',
+  ]
+    .filter(Boolean)
+    .map(f => path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f as string))
+  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
+    ssgPages
+  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+  clientSsgManifestPaths.forEach(clientSsgManifestPath =>
+    fs.writeFileSync(
+      path.join(distDir, clientSsgManifestPath),
+      clientSsgManifestContent
+    )
+  )
 }

@@ -25,18 +25,12 @@ export default (customRoute = false) => {
       }
 
       if (customRoute) {
-        const newParams: { [k: string]: string } = {}
         for (const key of keys) {
-          // unnamed matches should always be a number while named
-          // should be a string
+          // unnamed params should be removed as they
+          // are not allowed to be used in the destination
           if (typeof key.name === 'number') {
-            newParams[key.name + 1 + ''] = (res.params as any)[key.name + '']
-            delete (res.params as any)[key.name + '']
+            delete (res.params as any)[key.name]
           }
-        }
-        res.params = {
-          ...res.params,
-          ...newParams,
         }
       }
 
@@ -49,8 +43,7 @@ function decodeParam(param: string) {
   try {
     return decodeURIComponent(param)
   } catch (_) {
-    const err = new Error('failed to decode param')
-    // @ts-ignore DECODE_FAILED is handled
+    const err: Error & { code?: string } = new Error('failed to decode param')
     err.code = 'DECODE_FAILED'
     throw err
   }

@@ -47,51 +47,27 @@ By default, Next.js reports TypeScript errors during development for pages you a
 
 If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).
 
-## Pages
+## Static Generation and Server-side Rendering
 
-For function components the `NextPage` type is exported, here's how to use it:
+For `getStaticProps`, `getStaticPaths`, and `getServerSideProps`, you can use the `GetStaticProps`, `GetStaticPaths`, and `GetServerSideProps` types respectively:
 
-```jsx
-import { NextPage } from 'next'
+```ts
+import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
-interface Props {
-  userAgent?: string;
+export const getStaticProps: GetStaticProps = async context => {
+  // ...
 }
 
-const Page: NextPage<Props> = ({ userAgent }) => (
-  <main>Your user agent: {userAgent}</main>
-)
-
-Page.getInitialProps = async ({ req }) => {
-  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
-  return { userAgent }
+export const getStaticPaths: GetStaticPaths = async () => {
+  // ...
 }
 
-export default Page
-```
-
-And for `React.Component` you can use `NextPageContext`:
-
-```jsx
-import React from 'react'
-import { NextPageContext } from 'next'
-
-interface Props {
-  userAgent?: string;
-}
-
-export default class Page extends React.Component<Props> {
-  static async getInitialProps({ req }: NextPageContext) {
-    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
-    return { userAgent }
-  }
-
-  render() {
-    const { userAgent } = this.props
-    return <main>Your user agent: {userAgent}</main>
-  }
+export const getServerSideProps: GetServerSideProps = async context => {
+  // ...
 }
 ```
+
+> If you're using `getInitialProps`, you can [follow the directions on this page](/docs/api-reference/data-fetching/getInitialProps.md#typescript).
 
 ## API Routes
 

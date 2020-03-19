@@ -11,6 +11,10 @@ const mkdirp = promisify(mkdirpOrig)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 
+function toRoute(pathname: string): string {
+  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+}
+
 type SprCacheValue = {
   html: string
   pageData: any
@@ -34,6 +38,8 @@ const getSeedPath = (pathname: string, ext: string): string => {
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
+  pathname = toRoute(pathname)
+
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
@@ -74,7 +80,7 @@ export function initializeSprCache({
 
   if (dev) {
     prerenderManifest = {
-      version: -1,
+      version: -1 as any, // letting us know this doesn't conform to spec
       routes: {},
       dynamicRoutes: {},
       preview: null as any, // `preview` is special case read in next-dev-server

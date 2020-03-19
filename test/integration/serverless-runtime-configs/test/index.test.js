@@ -31,15 +31,16 @@ const nextStart = async (appDir, appPort) => {
   )
 }
 
-describe('Serverless runtime configs', () => {
-  beforeAll(() => cleanUp())
-  afterAll(() => cleanUp())
+const runTests = (oldServerless = false) => {
+  const serverlessMode = oldServerless
+    ? 'serverless'
+    : 'experimental-serverless-trace'
 
   it('should not error on usage of publicRuntimeConfig', async () => {
     await fs.writeFile(
       nextConfigPath,
       `module.exports = {
-      target: 'serverless',
+      target: '${serverlessMode}',
       publicRuntimeConfig: {
         hello: 'world'
       }
@@ -59,7 +60,7 @@ describe('Serverless runtime configs', () => {
     await fs.writeFile(
       nextConfigPath,
       `module.exports = {
-      target: 'serverless',
+      target: '${serverlessMode}',
       serverRuntimeConfig: {
         hello: 'world'
       }
@@ -130,7 +131,7 @@ describe('Serverless runtime configs', () => {
     await fs.writeFile(
       nextConfigPath,
       `module.exports = {
-        target: 'serverless',
+        target: '${serverlessMode}',
         serverRuntimeConfig: {
           hello: 'world'
         },
@@ -150,7 +151,7 @@ describe('Serverless runtime configs', () => {
     await fs.writeFile(
       nextConfigPath,
       `module.exports = {
-        target: 'serverless',
+        target: '${serverlessMode}',
         serverRuntimeConfig: {
           hello: 'world'
         },
@@ -163,5 +164,18 @@ describe('Serverless runtime configs', () => {
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort)
     await testRuntimeConfig(app, appPort)
+  })
+}
+
+describe('Serverless runtime configs', () => {
+  beforeAll(() => cleanUp())
+  afterAll(() => cleanUp())
+
+  describe('legacy serverless mode', () => {
+    runTests(true)
+  })
+
+  describe('experimental-serverless-trace mode', () => {
+    runTests()
   })
 })

@@ -224,8 +224,6 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'package.babel')
     )
 
-    console.log(stderr)
-
     const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
       .exec(stderr)
       .pop()
@@ -322,6 +320,20 @@ describe('Telemetry CLI', () => {
 
     const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
     expect(event1).toMatch(/hasStatic404.*?true/)
+  })
+
+  it('detect page counts correctly for `next build`', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event1).toMatch(/"staticPropsPageCount": 2/)
+    expect(event1).toMatch(/"serverPropsPageCount": 1/)
+    expect(event1).toMatch(/"ssrPageCount": 1/)
+    expect(event1).toMatch(/"staticPageCount": 2/)
+    expect(event1).toMatch(/"totalPageCount": 6/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {

@@ -1,13 +1,14 @@
 declare const __NEXT_DATA__: any
 
-import { resolve, parse, UrlObject } from 'url'
-import React, { Component, Children } from 'react'
-import Router from './router'
+import React, { Children, Component } from 'react'
+import { parse, resolve, UrlObject } from 'url'
+import { PrefetchOptions } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
+import Router from './router'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)
@@ -56,7 +57,7 @@ let observer: IntersectionObserver
 const listeners = new Map()
 const IntersectionObserver =
   typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
-const prefetched: { [href: string]: boolean } = {}
+const prefetched: { [cacheKey: string]: boolean } = {}
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -127,17 +128,27 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
-  getHref() {
+  getPaths() {
     const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    return resolve(pathname, parsedHref)
+    const { href: parsedHref, as: parsedAs } = this.formatUrls(
+      this.props.href,
+      this.props.as
+    )
+    const resolvedHref = resolve(pathname, parsedHref)
+    return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = prefetched[this.getHref()]
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
+      const isPrefetched =
+        prefetched[
+          this.getPaths().join(
+            // Join on an invalid URI character
+            '%'
+          )
+        ]
       if (!isPrefetched) {
         this.cleanUpListeners = listenToIntersections(ref, () => {
           this.prefetch()
@@ -156,8 +167,7 @@ class Link extends Component<LinkProps> {
   })
 
   linkClicked = (e: React.MouseEvent) => {
-    // @ts-ignore target exists on currentTarget
-    const { nodeName, target } = e.currentTarget
+    const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
       ((target && target !== '_self') ||
@@ -201,12 +211,27 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch() {
+  prefetch(options?: PrefetchOptions) {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    const href = this.getHref()
-    Router.prefetch(href)
-    prefetched[href] = true
+    const paths = this.getPaths()
+    // We need to handle a prefetch error here since we may be
+    // loading with priority which can reject but we don't
+    // want to force navigation since this is only a prefetch
+    Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
+      err => {
+        if (process.env.NODE_ENV !== 'production') {
+          // rethrow to show invalid URL errors
+          throw err
+        }
+      }
+    )
+    prefetched[
+      paths.join(
+        // Join on an invalid URI character
+        '%'
+      )
+    ] = true
   }
 
   render() {
@@ -239,7 +264,7 @@ class Link extends Component<LinkProps> {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
         }
-        this.prefetch()
+        this.prefetch({ priority: true })
       },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
