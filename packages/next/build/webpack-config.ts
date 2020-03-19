@@ -217,13 +217,13 @@ export default async function getBaseWebpackConfig(
     ? config.typescript?.ignoreDevErrors
     : config.typescript?.ignoreBuildErrors
 
-  const jsConfigPath = path.join(dir, 'jsconfig.json')
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
     jsConfig = require(tsConfigPath)
   }
 
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
   if (!useTypeScript && (await fileExists(jsConfigPath))) {
     jsConfig = require(jsConfigPath)
   }
