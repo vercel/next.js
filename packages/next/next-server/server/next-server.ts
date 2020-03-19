@@ -900,6 +900,10 @@ export default class Server {
       pathname += `.amp`
     }
 
+    if (!query.amp) {
+      delete query.amp
+    }
+
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq
     delete query._nextDataReq
