@@ -3,12 +3,10 @@ import {
   urlMiddleware,
 } from 'react-relay-network-modern/node8'
 import RelaySSR from 'react-relay-network-modern-ssr/node8/server'
-import { Network, Environment, RecordSource, Store } from 'relay-runtime'
+import { Network, Environment } from 'relay-runtime'
 
 export default {
-  initEnvironment: () => {
-    const source = new RecordSource()
-    const store = new Store(source)
+  initEnvironment: store => {
     const relaySSR = new RelaySSR()
 
     return {
@@ -24,10 +22,7 @@ export default {
       }),
     }
   },
-  createEnvironment: (relayData, key) => {
-    const source = new RecordSource()
-    const store = new Store(source)
-
+  createEnvironment: (relayData, key, store) => {
     return new Environment({
       store,
       network: Network.create(
