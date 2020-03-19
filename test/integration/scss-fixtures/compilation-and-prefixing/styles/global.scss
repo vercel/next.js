@@ -4,3 +4,7 @@ $var: red;
     color: $var;
   }
 }
+
+.flex-parsing {
+  flex: 0 0 calc(50% - var(--vertical-gutter));
+}

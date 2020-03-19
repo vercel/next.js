@@ -1,19 +1,26 @@
 import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
+import {
+  STATIC_PROPS_ID,
+  SERVER_PROPS_ID,
+} from '../../../next-server/lib/constants'
 
-const pageComponentVar = '__NEXT_COMP'
-const prerenderId = '__N_SSG'
-const serverPropsId = '__N_SSP'
-
-export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
-export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
-export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerProps'
+export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
+export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
+export const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps'
 
 const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
   EXPORT_NAME_GET_SERVER_PROPS,
+
+  // legacy methods added so build doesn't fail from importing
+  // server-side only methods
+  `unstable_getStaticProps`,
+  `unstable_getStaticPaths`,
+  `unstable_getServerProps`,
+  `unstable_getServerSideProps`,
 ])
 
 type PluginState = {
@@ -28,34 +35,42 @@ function decorateSsgExport(
   path: NodePath<BabelTypes.Program>,
   state: PluginState
 ) {
+  const gsspName = state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID
+  const gsspId = t.identifier(gsspName)
+
+  const addGsspExport = (
+    path: NodePath<
+      BabelTypes.ExportDefaultDeclaration | BabelTypes.ExportNamedDeclaration
+    >
+  ) => {
+    if (state.done) {
+      return
+    }
+    state.done = true
+
+    // @ts-ignore invalid return type
+    const [pageCompPath] = path.replaceWithMultiple([
+      t.exportNamedDeclaration(
+        t.variableDeclaration(
+          // We use 'var' instead of 'let' or 'const' for ES5 support. Since
+          // this runs in `Program#exit`, no ES2015 transforms (preset env)
+          // will be ran against this code.
+          'var',
+          [t.variableDeclarator(gsspId, t.booleanLiteral(true))]
+        ),
+        [t.exportSpecifier(gsspId, gsspId)]
+      ),
+      path.node,
+    ])
+    path.scope.registerDeclaration(pageCompPath)
+  }
+
   path.traverse({
     ExportDefaultDeclaration(path) {
-      if (state.done) {
-        return
-      }
-      state.done = true
-
-      const prev = path.node.declaration
-      if (prev.type.endsWith('Declaration')) {
-        prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
-      }
-
-      // @ts-ignore invalid return type
-      const [pageCompPath] = path.replaceWithMultiple([
-        t.variableDeclaration('const', [
-          t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
-        ]),
-        t.assignmentExpression(
-          '=',
-          t.memberExpression(
-            t.identifier(pageComponentVar),
-            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
-          ),
-          t.booleanLiteral(true)
-        ),
-        t.exportDefaultDeclaration(t.identifier(pageComponentVar)),
-      ])
-      path.scope.registerDeclaration(pageCompPath)
+      addGsspExport(path)
+    },
+    ExportNamedDeclaration(path) {
+      addGsspExport(path)
     },
   })
 }

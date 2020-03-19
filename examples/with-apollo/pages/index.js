@@ -5,7 +5,7 @@ import Submit from '../components/Submit'
 import PostList from '../components/PostList'
 import { withApollo } from '../lib/apollo'
 
-const IndexPage = props => (
+const IndexPage = () => (
   <App>
     <Header />
     <InfoBox>
@@ -26,4 +26,4 @@ const IndexPage = props => (
   </App>
 )
 
-export default withApollo()(IndexPage)
+export default withApollo({ ssr: true })(IndexPage)

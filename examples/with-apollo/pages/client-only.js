@@ -26,5 +26,4 @@ const ClientOnlyPage = props => (
   </App>
 )
 
-// Disable apollo ssr fetching in favour of automatic static optimization
-export default withApollo({ ssr: false })(ClientOnlyPage)
+export default withApollo()(ClientOnlyPage)
