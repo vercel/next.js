@@ -1,6 +1,16 @@
 # A statically generated blog example using Next.js and TakeShape
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [TakeShape](https://www.takeshape.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [TakeShape](https://www.takeshape.io/) as the data source.
+
+## Demo
+
+### [https://next-blog-takeshape.now.sh/](https://next-blog-takeshape.now.sh/)
+
+### Related examples
+
+- [Blog Starter](/examples/blog-starter)
+- [DatoCMS](/examples/cms-datocms)
+- [Sanity](/examples/cms-sanity)
 
 ## How to use
 
@@ -98,7 +108,7 @@ Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY` should be the API token you just copied.
 - `NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID` should be the project ID, which is a substring in the project page URL: `https://app.takeshape.io/projects/<project-id>/...`
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
+- `NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Your `.env` file should look like this:
 
