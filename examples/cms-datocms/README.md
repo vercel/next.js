@@ -1,10 +1,15 @@
 # A statically generated blog example using Next.js and DatoCMS
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [DatoCMS](https://www.datocms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [DatoCMS](https://www.datocms.com/) as the data source.
 
 ## Demo
 
-### [https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+[https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+
+### Related examples
+
+- [Blog Starter](/examples/blog-starter)
+- [Sanity](/examples/cms-sanity)
 
 ## How to use
 

@@ -10,6 +10,7 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 
 const envConfig = require('../next-server/lib/runtime-config')
 const writeFileP = promisify(writeFile)
@@ -131,12 +132,16 @@ export default async function({
           ...query,
         },
       })
-      const { Component: mod } = await loadComponents(
+      const { Component: mod, getServerSideProps } = await loadComponents(
         distDir,
         buildId,
         page,
         serverless
       )
+
+      if (getServerSideProps) {
+        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
+      }
 
       // if it was auto-exported the HTML is loaded here
       if (typeof mod === 'string') {
@@ -175,6 +180,10 @@ export default async function({
         page,
         serverless
       )
+
+      if (components.getServerSideProps) {
+        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
+      }
 
       // for non-dynamic SSG pages we should have already
       // prerendered the file
