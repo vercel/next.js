@@ -60,7 +60,7 @@ export async function getAllPostsForHome(preview) {
   const data = await fetchAPI(
     `
     query AllPosts($onlyEnabled: Boolean) {
-      allPosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 20, onlyEnabled: $onlyEnabled) {
+      allPosts: getPostList(sort: { field: "date", order: "desc" }, size: 20, onlyEnabled: $onlyEnabled) {
         items {
           slug
           title
@@ -116,7 +116,7 @@ export async function getPostAndMorePosts(slug, preview) {
       filter: { bool: { must_not: { term: {slug: $slug}}}}, , ${
         preview ? '' : 'where: { _status: { eq: "enabled" } },'
       }
-      sort: { field: "_createdAt", order: "desc" }, size: 3, onlyEnabled: $onlyEnabled) {
+      sort: { field: "date", order: "desc" }, size: 2, onlyEnabled: $onlyEnabled) {
       items {
         title
         slug
