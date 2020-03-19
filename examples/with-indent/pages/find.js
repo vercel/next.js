@@ -1,13 +1,13 @@
 import React, { Component } from 'react'
+import { audit } from '@indent/audit'
 import Page from '../components/Page'
-import audit from '@indent/audit'
 
 export default class extends Component {
   state = { sessionId: '' }
 
   static getInitialProps = req => {
     audit.write({
-      event: 'server_side_event'
+      event: 'server_side_event',
     })
 
     return {}
@@ -31,10 +31,12 @@ export default class extends Component {
     audit.write({
       event: 'session/find',
       actor: { email },
-      resources: [{
-        id: sessionId,
-        kind: 'session/id'
-      }]
+      resources: [
+        {
+          id: sessionId,
+          kind: 'session/id',
+        },
+      ],
     })
 
     this.setState({ sessionId: '' })

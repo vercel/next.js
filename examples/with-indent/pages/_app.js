@@ -3,8 +3,8 @@ import Router from 'next/router'
 import audit from '@indent/audit'
 
 audit.init({
-  debug: true,
-  dsn: 'https://replaceme.com'
+  // Find your DSN on Indent Docs https://indent.com/docs/quickstart
+  dsn: '{{INDENT_INPUT_DSN}}',
 })
 
 const pageview = url =>
@@ -13,9 +13,9 @@ const pageview = url =>
     resources: [
       {
         kind: 'http/url',
-        id: url
-      }
-    ]
+        id: url,
+      },
+    ],
   })
 
 if (typeof window !== 'undefined') {
