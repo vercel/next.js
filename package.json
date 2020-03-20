@@ -78,7 +78,7 @@
     "jest-cli": "24.9.0",
     "lerna": "3.14.1",
     "lint-staged": "9.4.2",
-    "mkdirp": "0.5.1",
+    "mkdirp": "1.0.3",
     "moment": "^2.24.0",
     "node-fetch": "2.6.0",
     "node-notifier": "5.4.0",
