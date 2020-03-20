@@ -449,10 +449,6 @@ export async function renderToHTML(
   }
   let props: any
 
-  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
-    await DocumentMiddleware(ctx)
-  }
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -472,6 +468,10 @@ export async function renderToHTML(
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
+
+  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
+    await DocumentMiddleware(ctx)
+  }
 
   try {
     props = await loadGetInitialProps(App, {
