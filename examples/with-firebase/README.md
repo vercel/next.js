@@ -1,4 +1,4 @@
-# With Firebase Client-Side
+# With Firebase
 
 This is a simple set up for Firebase for client side applications.
 
