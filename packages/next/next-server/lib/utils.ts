@@ -81,6 +81,7 @@ export type NEXT_DATA = {
   err?: Error & { statusCode?: number }
   gsp?: boolean
   gssp?: boolean
+  customServer?: boolean
 }
 
 /**
@@ -135,6 +136,8 @@ export type AppPropsType<
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
   router: R
+  __N_SSG?: boolean
+  __N_SSP?: boolean
 }
 
 export type DocumentContext = NextPageContext & {

@@ -64,7 +64,7 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getPageSizeInKb,
-  hasCustomAppGetInitialProps,
+  hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
@@ -230,6 +230,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasPages404 = Boolean(
     mappedPages['/404'] && mappedPages['/404'].startsWith('private-next-pages')
   )
+  let hasNonStaticErrorPage: boolean
 
   if (hasPublicDir) {
     try {
@@ -457,6 +458,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
   staticCheckWorkers.getStdout().pipe(process.stdout)
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
+  const runtimeEnvConfig = {
+    publicRuntimeConfig: config.publicRuntimeConfig,
+    serverRuntimeConfig: config.serverRuntimeConfig,
+  }
+
+  hasNonStaticErrorPage =
+    hasCustomErrorPage &&
+    (await hasCustomGetInitialProps(
+      path.join(
+        distDir,
+        ...(isLikeServerless
+          ? ['serverless', 'pages']
+          : ['server', 'static', buildId, 'pages']),
+        '_error.js'
+      ),
+      runtimeEnvConfig
+    ))
+
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
@@ -486,14 +505,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomAppGetInitialProps(
+        customAppGetInitialProps = hasCustomGetInitialProps(
           isLikeServerless
             ? serverBundle
             : path.join(
@@ -550,12 +565,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
 
           if (hasPages404 && page === '/404') {
-            if (!result.isStatic) {
+            if (!result.isStatic && !result.hasStaticProps) {
               throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps
-            if (customAppGetInitialProps) {
+            if (customAppGetInitialProps && !result.hasStaticProps) {
               staticPages.delete(page)
             }
           }
@@ -619,7 +634,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
-    !customAppGetInitialProps && (!hasCustomErrorPage || hasPages404)
+    !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -908,6 +923,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       distPath: distDir,
       buildId: buildId,
       pagesDir,
+      useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
       isModern: config.experimental.modern,

@@ -100,7 +100,7 @@ class Container extends React.Component {
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) || location.search)) ||
-        (Component && Component.__N_SSG && location.search))
+        (props.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -180,7 +180,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   let initialErr = err
 
   try {
-    Component = await pageLoader.loadPage(page)
+    ;({ page: Component } = await pageLoader.loadPage(page))
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -273,8 +273,7 @@ export async function renderError(props) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-
-  ErrorComponent = await pageLoader.loadPage('/_error')
+  ;({ page: ErrorComponent } = await pageLoader.loadPage('/_error'))
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.

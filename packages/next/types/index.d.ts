@@ -66,13 +66,15 @@ export {
   NextApiHandler,
 }
 
-export type GetStaticProps = (ctx: {
+export type GetStaticProps<
+  P extends { [key: string]: any } = { [key: string]: any }
+> = (ctx: {
   params?: ParsedUrlQuery
   preview?: boolean
   previewData?: any
   env: Env
 }) => Promise<{
-  props: { [key: string]: any }
+  props: P
   revalidate?: number | boolean
 }>
 
@@ -81,7 +83,9 @@ export type GetStaticPaths = () => Promise<{
   fallback: boolean
 }>
 
-export type GetServerSideProps = (context: {
+export type GetServerSideProps<
+  P extends { [key: string]: any } = { [key: string]: any }
+> = (context: {
   req: IncomingMessage
   res: ServerResponse
   params?: ParsedUrlQuery
@@ -89,6 +93,6 @@ export type GetServerSideProps = (context: {
   env: Env
   preview?: boolean
   previewData?: any
-}) => Promise<{ [key: string]: any }>
+}) => Promise<{ props: P }>
 
 export default next
