@@ -1,8 +1,10 @@
 # With Firebase Client-Side
 
-This is a simple set up for Firebase on the client side. All client side, so no custom server.
+This is a simple set up for Firebase for client side applications.
 
-The firebase app is initialized in `firebase/clientApp.js`. You'll need to `import firebase from '<path>/firebase/clientApp'` to use the initialized app. It also uses React Context API to provide user state.
+The firebase app is initialized in `firebase/clientApp.js`, to use you just have to import it anywhere in the app
+
+The React Context API is used to provide user state.
 
 ## Deploy your own
 
@@ -33,10 +35,14 @@ cd with-firebase-client-side
 
 ### Configuration
 
-1. [Create a Firebase project](https://console.firebase.google.com/u/0/) and an app inside of it.
-2. Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git).
-3. Create a `.env` file and copy the contents of `.env.example` into it. You can safely delete the `.env.example` file.
-4. Set each variable on `.env` with your Firebase Configuration (found in "Project settings").
+1. [Create a Firebase project](https://console.firebase.google.com/u/0/) and add a new app to it.
+2. Create a `.env` file and copy the contents of `.env.example` into it:
+
+```bash
+cp .env.example .env
+```
+
+3. Set each variable on `.env` with your Firebase Configuration (found in "Project settings").
 
 Install it and run:
 
