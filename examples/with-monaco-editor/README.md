@@ -16,9 +16,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
+npx create-next-app --example with-monaco-editor with-monaco-editor-app
 # or
-yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
+yarn create next-app --example with-monaco-editor with-monaco-editor-app
 ```
 
 ### Download manually
@@ -26,8 +26,8 @@ yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/DIRECTORY_NAME
-cd DIRECTORY_NAME
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-monaco-editor
+cd with-monaco-editor
 ```
 
 Install it and run:
