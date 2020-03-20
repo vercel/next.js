@@ -7,10 +7,14 @@ const initialState = {
 }
 
 const reducer = createReducer(initialState, {
-  TICK: (state, action) => ({ ...state, lastUpdate: action.payload.lastUpdate, light: !!action.light, }),
-  INCREMENT: (state, action) => ({ ...state, count: state.count + 1, }),
-  DECREMENT: (state, action) => ({ ...state, count: state.count - 1, }),
-  RESET: (state, action) => ({ ...state, count: initialState.count, })
+  TICK: (state, action) => ({
+    ...state,
+    lastUpdate: action.payload.lastUpdate,
+    light: !!action.light,
+  }),
+  INCREMENT: (state, action) => ({ ...state, count: state.count + 1 }),
+  DECREMENT: (state, action) => ({ ...state, count: state.count - 1 }),
+  RESET: (state, action) => ({ ...state, count: initialState.count }),
 })
 
 export const initializeStore = (preloadedState = initialState) => {

@@ -2,15 +2,12 @@ import React from 'react'
 import { useSelector, shallowEqual } from 'react-redux'
 
 const useClock = () => {
-  return useSelector(
-    state => {
-      return {
-        lastUpdate: state.lastUpdate,
-        light: state.light,
-      }
-    },
-    shallowEqual
-  )
+  return useSelector(state => {
+    return {
+      lastUpdate: state.lastUpdate,
+      light: state.light,
+    }
+  }, shallowEqual)
 }
 
 const formatTime = time => {
