@@ -1,9 +1,9 @@
-import React from 'react';
-import dynamic from 'next/dynamic';
+import React from 'react'
+import dynamic from 'next/dynamic'
 
-import sample from '../code-sample';
+import sample from '../code-sample'
 
-const MonacoEditor = dynamic(import('react-monaco-editor'), { ssr: false });
+const MonacoEditor = dynamic(import('react-monaco-editor'), { ssr: false })
 
 function IndexPage() {
   return (
@@ -15,16 +15,16 @@ function IndexPage() {
       onChange={console.log}
       editorDidMount={() => {
         window.MonacoEnvironment.getWorkerUrl = (moduleId, label) => {
-          if (label === 'json') return '_next/static/json.worker.js';
-          if (label === 'css') return '_next/static/css.worker.js';
-          if (label === 'html') return '_next/static/html.worker.js';
+          if (label === 'json') return '_next/static/json.worker.js'
+          if (label === 'css') return '_next/static/css.worker.js'
+          if (label === 'html') return '_next/static/html.worker.js'
           if (label === 'typescript' || label === 'javascript')
-            return '_next/static/ts.worker.js';
-          return '_next/static/editor.worker.js';
-        };
+            return '_next/static/ts.worker.js'
+          return '_next/static/editor.worker.js'
+        }
       }}
     />
-  );
+  )
 }
 
-export default IndexPage;
+export default IndexPage
