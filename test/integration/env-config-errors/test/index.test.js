@@ -13,9 +13,14 @@ import {
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-const appDir = join(__dirname, '..')
+const appDir = join(__dirname, '../app')
 const envFile = join(appDir, '.env')
 const nextConfig = join(appDir, 'next.config.js')
+const nextConfigContent = `
+  experimental: {
+    pageEnv: true
+  }
+`
 
 let app
 let appPort
@@ -109,18 +114,24 @@ const runTests = (isDev = false) => {
 describe('Env Config', () => {
   afterEach(async () => {
     await fs.remove(envFile)
-    await fs.remove(nextConfig)
     try {
       await killApp(app)
     } catch (_) {}
   })
+  afterAll(() => fs.remove(nextConfig))
 
   describe('dev mode', () => {
+    beforeAll(() =>
+      fs.writeFile(nextConfig, `module.exports = { ${nextConfigContent} }`)
+    )
     runTests(true)
   })
 
   describe('server mode', () => {
     beforeAll(async () => {
+      beforeAll(() =>
+        fs.writeFile(nextConfig, `module.exports = { ${nextConfigContent} }`)
+      )
       await nextBuild(appDir)
     })
     runTests()
@@ -130,7 +141,7 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace' }`
+        `module.exports = { target: 'experimental-serverless-trace', ${nextConfigContent} }`
       )
       await nextBuild(appDir)
     })

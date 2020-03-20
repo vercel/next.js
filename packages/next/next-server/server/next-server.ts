@@ -118,7 +118,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
-    env: Env
+    env: Env | false
     previewProps: __ApiPreviewProps
     customServer?: boolean
   }
@@ -148,7 +148,6 @@ export default class Server {
     const phase = this.currentPhase()
     const env = loadEnvConfig(this.dir, dev)
 
-    // TODO: provide env to next.config.js
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
@@ -175,7 +174,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      env,
+      env: this.nextConfig.experimental.pageEnv && env,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
     }

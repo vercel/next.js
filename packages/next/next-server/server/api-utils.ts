@@ -26,7 +26,7 @@ export async function apiResolver(
   params: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  env: Env,
+  env: Env | false,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -41,7 +41,7 @@ export async function apiResolver(
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
 
-    apiReq.env = collectEnv(req.url!, env, config.env)
+    apiReq.env = env ? collectEnv(req.url!, env, config.env) : {}
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))

@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -10,14 +11,31 @@ import {
   findPort,
   launchApp,
   killApp,
+  fetchViaHTTP,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let app
 let appPort
-const appDir = join(__dirname, '..')
+const appDir = join(__dirname, '../app')
 const nextConfig = join(appDir, 'next.config.js')
+
+const nextConfigContent = `
+  experimental: {
+    pageEnv: true,
+
+    async redirects() {
+      return [
+        {
+          source: '/hello',
+          permanent: false,
+          destination: \`/\${process.env.NEXT_APP_TEST_DEST}\`,
+        }
+      ]
+    }
+  }
+`
 
 const getEnvFromHtml = async path => {
   const html = await renderViaHTTP(appPort, path)
@@ -38,6 +56,22 @@ const runTests = (isDev, isServerless, isTestEnv) => {
       })
     })
   }
+
+  it('should provide global env to next.config.js', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location'))
+
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/another')
+  })
+
+  it('should inline global values during build', async () => {
+    const html = await renderViaHTTP(appPort, '/global')
+    const $ = cheerio.load(html)
+    expect($('p').text()).toContain('another')
+  })
 
   describe('Loads .env', () => {
     it('should provide env for SSG', async () => {
@@ -360,7 +394,7 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
+        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY }, ${nextConfigContent} }`
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
@@ -381,7 +415,7 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY, NC_TEST_ENV_FILE_KEY: process.env.TEST_ENV_FILE_KEY, NC_LOCAL_TEST_ENV_FILE_KEY: process.env.LOCAL_TEST_ENV_FILE_KEY } }`
+        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY, NC_TEST_ENV_FILE_KEY: process.env.TEST_ENV_FILE_KEY, NC_LOCAL_TEST_ENV_FILE_KEY: process.env.LOCAL_TEST_ENV_FILE_KEY }, ${nextConfigContent} }`
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
@@ -403,7 +437,7 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
+        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY }, ${nextConfigContent} }`
       )
       const { code } = await nextBuild(appDir, [], {
         env: {
@@ -426,7 +460,7 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace', env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
+        `module.exports = { target: 'experimental-serverless-trace', env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY }, ${nextConfigContent} }`
       )
       const { code } = await nextBuild(appDir, [], {})
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)

@@ -152,7 +152,7 @@ export type RenderOptsPartial = {
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
-  env: Env
+  env: Env | false
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -303,7 +303,7 @@ export async function renderToHTML(
     previewProps,
   } = renderOpts
 
-  const curEnv = collectEnv(pathname, env, pageConfig.env)
+  const curEnv = env ? collectEnv(pathname, env, pageConfig.env) : {}
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
