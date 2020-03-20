@@ -10,7 +10,7 @@ The React Context API is used to provide user state.
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-firebase-client-side)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-firebase)
 
 ## How to use
 
@@ -19,9 +19,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-firebase-client-side with-firebase-client-side-app
+npx create-next-app --example with-firebase with-firebase-app
 # or
-yarn create next-app --example with-firebase-client-side with-firebase-client-side-app
+yarn create next-app --example with-firebase with-firebase-app
 ```
 
 ### Download manually
@@ -29,8 +29,8 @@ yarn create next-app --example with-firebase-client-side with-firebase-client-si
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-client-side
-cd with-firebase-client-side
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase
+cd with-firebase
 ```
 
 ### Configuration
