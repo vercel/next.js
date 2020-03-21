@@ -1,12 +1,9 @@
 /* eslint-env jest */
-import mkdirpModule from 'mkdirp'
+import mkdirp from 'mkdirp'
 import path from 'path'
 import fs from 'fs'
 import execa from 'execa'
 import os from 'os'
-import { promisify } from 'util'
-
-const mkdirp = promisify(mkdirpModule)
 
 const cli = require.resolve('create-next-app/dist/index.js')
 const cwd = path.join(

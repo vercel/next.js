@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'fs'
 import Worker from 'jest-worker'
-import mkdirpModule from 'mkdirp'
+import mkdirp from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
@@ -35,7 +35,6 @@ import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
-const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
 
 const createProgress = (total: number, label = 'Exporting') => {

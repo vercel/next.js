@@ -1,4 +1,4 @@
-import mkdirpModule from 'mkdirp'
+import mkdirp from 'mkdirp'
 import { promisify } from 'util'
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
@@ -14,7 +14,6 @@ import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 
 const envConfig = require('../next-server/lib/runtime-config')
 const writeFileP = promisify(writeFile)
-const mkdirp = promisify(mkdirpModule)
 const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {

@@ -6,7 +6,7 @@ import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
-import mkdirpOrig from 'mkdirp'
+import mkdirp from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { pathToRegexp } from 'path-to-regexp'
@@ -80,7 +80,6 @@ const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
-const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./utils')
 
