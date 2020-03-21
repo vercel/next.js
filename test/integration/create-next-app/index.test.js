@@ -1,7 +1,6 @@
 /* eslint-env jest */
-import mkdirp from 'mkdirp'
 import path from 'path'
-import fs from 'fs'
+import fs from 'fs-extra'
 import execa from 'execa'
 import os from 'os'
 
@@ -18,13 +17,13 @@ const run = (...args) => execa('node', [cli, ...args], { cwd })
 describe('create next app', () => {
   beforeAll(async () => {
     jest.setTimeout(1000 * 60)
-    await mkdirp(cwd)
+    await fs.mkdirp(cwd)
   })
 
   it('non-empty directory', async () => {
     const projectName = 'non-empty-directory'
 
-    await mkdirp(path.join(cwd, projectName))
+    await fs.mkdirp(path.join(cwd, projectName))
     const pkg = path.join(cwd, projectName, 'package.json')
     fs.writeFileSync(pkg, '{ "foo": "bar" }')
 
