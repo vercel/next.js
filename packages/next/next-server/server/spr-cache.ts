@@ -1,13 +1,12 @@
 import fs from 'fs'
 import LRUCache from 'lru-cache'
-import mkdirpOrig from 'mkdirp'
+import mkdirp from 'mkdirp'
 import path from 'path'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
-const mkdirp = promisify(mkdirpOrig)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 
