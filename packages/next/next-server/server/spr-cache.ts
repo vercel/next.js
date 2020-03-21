@@ -1,12 +1,12 @@
 import fs from 'fs'
 import LRUCache from 'lru-cache'
-import mkdirp from 'mkdirp'
 import path from 'path'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
+const mkdir = promisify(fs.mkdir)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 
@@ -182,7 +182,7 @@ export async function setSprCache(
   if (sprOptions.flushToDisk) {
     try {
       const seedPath = getSeedPath(pathname, 'html')
-      await mkdirp(path.dirname(seedPath))
+      await mkdir(path.dirname(seedPath), { recursive: true })
       await writeFile(seedPath, data.html, 'utf8')
       await writeFile(
         getSeedPath(pathname, 'json'),

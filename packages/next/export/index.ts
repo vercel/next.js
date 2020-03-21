@@ -3,11 +3,11 @@ import findUp from 'find-up'
 import {
   copyFile as copyFileOrig,
   existsSync,
+  mkdir as mkdirOrig,
   readFileSync,
   writeFileSync,
 } from 'fs'
 import Worker from 'jest-worker'
-import mkdirp from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
@@ -36,6 +36,7 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const copyFile = promisify(copyFileOrig)
+const mkdir = promisify(mkdirOrig)
 
 const createProgress = (total: number, label = 'Exporting') => {
   let curProgress = 0
@@ -183,7 +184,7 @@ export default async function(
   }
 
   await recursiveDelete(join(outDir))
-  await mkdirp(join(outDir, '_next', buildId))
+  await mkdir(join(outDir, '_next', buildId), { recursive: true })
 
   writeFileSync(
     join(distDir, EXPORT_DETAIL),
@@ -362,8 +363,8 @@ export default async function(
         )
         const jsonDest = join(pagesDataDir, `${route}.json`)
 
-        await mkdirp(dirname(htmlDest))
-        await mkdirp(dirname(jsonDest))
+        await mkdir(dirname(htmlDest), { recursive: true })
+        await mkdir(dirname(jsonDest), { recursive: true })
         await copyFile(`${orig}.html`, htmlDest)
         await copyFile(`${orig}.json`, jsonDest)
       })
