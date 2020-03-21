@@ -17,7 +17,8 @@ The interactive course with quizzes will guide you through everything you need t
 
 ## Setup
 
-We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+We recommend creating a new Next.js app using [create-next-app](https://create-next-app.github.io/), which sets up everything automatically for you. 
+To create a project, run:
 
 ```bash
 npm init next-app
