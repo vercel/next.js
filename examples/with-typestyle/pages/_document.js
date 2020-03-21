@@ -2,7 +2,7 @@ import Document, { Head, Main, NextScript } from 'next/document'
 import { getStyles } from 'typestyle'
 
 export default class MyDocument extends Document {
-  static getInitialProps({ renderPage }) {
+  static getStaticProps({ renderPage }) {
     const page = renderPage()
     const styleTags = getStyles()
     return { ...page, styleTags }

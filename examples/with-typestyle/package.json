@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "typestyle": "^2.0.1"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "typestyle": "2.0.4"
   },
   "license": "ISC"
 }
