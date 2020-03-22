@@ -37,21 +37,49 @@ describe('SCSS Support', () => {
         stderr: true,
       })
       expect(code).toBe(1)
-      expect(stderr.split('Require stack:')[0]).toMatchInlineSnapshot(`
-        "Failed to compile.
-
-        ./styles/global.scss
-        To use Next.js' built-in Sass support, you first need to install \`sass\`.
-        Run \`npm i sass\` or \`yarn add sass\` inside your workspace.
-
-        Learn more: https://err.sh/next.js/install-sass
-        "
-      `)
+      expect(stderr).toContain('Failed to compile.')
+      expect(stderr).toContain(
+        "To use Next.js' built-in Sass support, you first need to install `sass`."
+      )
+      expect(stderr).toContain(
+        'Run `npm i sass` or `yarn add sass` inside your workspace.'
+      )
+      expect(stderr).toContain(
+        'Learn more: https://err.sh/next.js/install-sass'
+      )
     })
   })
 
   describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
+  })
+
+  describe('Basic Module Include Paths Support', () => {
+    const appDir = join(fixturesDir, 'basic-module-include-paths')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))

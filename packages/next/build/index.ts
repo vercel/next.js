@@ -6,7 +6,6 @@ import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
-import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { pathToRegexp } from 'path-to-regexp'
@@ -64,7 +63,7 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getPageSizeInKb,
-  hasCustomAppGetInitialProps,
+  hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
@@ -80,7 +79,7 @@ const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
-const mkdirp = promisify(mkdirpOrig)
+const mkdir = promisify(fs.mkdir)
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -229,6 +228,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasPages404 = Boolean(
     mappedPages['/404'] && mappedPages['/404'].startsWith('private-next-pages')
   )
+  let hasNonStaticErrorPage: boolean
 
   if (hasPublicDir) {
     try {
@@ -300,7 +300,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })),
   }
 
-  await mkdirp(distDir)
+  await mkdir(distDir, { recursive: true })
   // We need to write the manifest with rewrites before build
   // so serverless can import the manifest
   await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
@@ -456,6 +456,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
   staticCheckWorkers.getStdout().pipe(process.stdout)
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
+  const runtimeEnvConfig = {
+    publicRuntimeConfig: config.publicRuntimeConfig,
+    serverRuntimeConfig: config.serverRuntimeConfig,
+  }
+
+  hasNonStaticErrorPage =
+    hasCustomErrorPage &&
+    (await hasCustomGetInitialProps(
+      path.join(
+        distDir,
+        ...(isLikeServerless
+          ? ['serverless', 'pages']
+          : ['server', 'static', buildId, 'pages']),
+        '_error.js'
+      ),
+      runtimeEnvConfig
+    ))
+
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
@@ -485,14 +503,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomAppGetInitialProps(
+        customAppGetInitialProps = hasCustomGetInitialProps(
           isLikeServerless
             ? serverBundle
             : path.join(
@@ -618,7 +632,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
-    !customAppGetInitialProps && (!hasCustomErrorPage || hasPages404)
+    !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -740,7 +754,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
       }
-      await mkdirp(path.dirname(dest))
+      await mkdir(path.dirname(dest), { recursive: true })
       await fsMove(orig, dest)
     }
 
@@ -907,6 +921,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       distPath: distDir,
       buildId: buildId,
       pagesDir,
+      useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
       isModern: config.experimental.modern,
