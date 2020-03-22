@@ -1,5 +1,6 @@
 import { Compiler } from 'webpack'
 import { connectChunkAndModule } from 'webpack/lib/GraphHelpers'
+const webpack5Experiential = parseInt(require('webpack').version) === 5
 
 /**
  * Makes sure there are no dynamic chunks when the target is serverless
@@ -10,11 +11,11 @@ import { connectChunkAndModule } from 'webpack/lib/GraphHelpers'
 export class ServerlessPlugin {
   apply(compiler: Compiler) {
     compiler.hooks.compilation.tap('ServerlessPlugin', compilation => {
-      const optimiseChunksHook = compilation.hooks.optimizeChunksBasic
-        ? compilation.hooks.optimizeChunksBasic
-        : compilation.hooks.optimizeChunks
+      const optimizeHook = webpack5Experiential
+        ? compilation.hooks.optimizeChunks
+        : compilation.hooks.optimizeChunksBasic
 
-      optimiseChunksHook.tap('ServerlessPlugin', chunks => {
+      optimizeHook.tap('ServerlessPlugin', chunks => {
         chunks.forEach(chunk => {
           // If chunk is not an entry point skip them
           if (chunk.hasEntryModule()) {

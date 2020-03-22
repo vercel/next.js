@@ -1,9 +1,12 @@
 import { Compiler, Plugin } from 'webpack'
 import { realpathSync } from 'fs'
+import path from 'path'
+const webpack5Experiential = parseInt(require('webpack').version) === 5
 
 function deleteCache(path: string) {
   try {
-    delete require.cache[realpathSync(path)]
+    if (!webpack5Experiential) delete require.cache[realpathSync(path)]
+    if (webpack5Experiential) delete require.cache[path]
   } catch (e) {
     if (e.code !== 'ENOENT') throw e
   } finally {
@@ -19,15 +22,28 @@ export class NextJsRequireCacheHotReloader implements Plugin {
     compiler.hooks.afterEmit.tapAsync(
       'NextJsRequireCacheHotReloader',
       (compilation, callback) => {
-        const { assets } = compilation
+        const { assets, outputOptions } = compilation
+        const outputPath = outputOptions.path
+
+        // if (!assets['build-manifest.json'] && webpack5Experiential) {
+        //   deleteCache(path.resolve(outputPath, '../', 'build-manifest.json'))
+        // }
 
         if (this.prevAssets) {
           for (const f of Object.keys(assets)) {
-            deleteCache(assets[f].existsAt)
+            if (webpack5Experiential) {
+              deleteCache(path.resolve(outputPath, f))
+            } else {
+              deleteCache(assets[f].existsAt)
+            }
           }
           for (const f of Object.keys(this.prevAssets)) {
             if (!assets[f]) {
-              deleteCache(this.prevAssets[f].existsAt)
+              if (webpack5Experiential) {
+                deleteCache(path.resolve(outputPath, f))
+              } else {
+                deleteCache(this.prevAssets[f].existsAt)
+              }
             }
           }
         }

@@ -2,8 +2,8 @@ import webpack from 'webpack'
 import { RawSource } from 'webpack-sources'
 import { join, relative, dirname } from 'path'
 import { IS_BUNDLED_PAGE_REGEX } from '../../../next-server/lib/constants'
-
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
+const webpack5Experiential = parseInt(require('webpack').version) === 5
 
 // By default webpack keeps initialized modules per-module.
 // This means that if you have 2 entrypoints loaded into the same app
@@ -36,39 +36,75 @@ export default class NextJsSsrImportPlugin {
     compiler.hooks.compilation.tap(
       'NextJsSSRModuleCache',
       (compilation: any) => {
-        compilation.mainTemplate.hooks.localVars.intercept({
-          register(tapInfo: any) {
-            if (tapInfo.name === 'MainTemplate') {
-              const originalFn = tapInfo.fn
-              tapInfo.fn = (source: any, chunk: any) => {
-                // If the chunk is not part of the pages directory we have to keep the original behavior,
-                // otherwise webpack will error out when the file is used before the compilation finishes
-                // this is the case with mini-css-extract-plugin
-                if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
-                  return originalFn(source, chunk)
-                }
-                const pagePath = join(outputPath, dirname(chunk.name))
-                let relativePathToBaseDir = relative(
-                  pagePath,
-                  join(outputPath, SSR_MODULE_CACHE_FILENAME)
-                )
+        if (webpack5Experiential) {
+          const JavascriptModulesPlugin = require('webpack/lib/javascript/JavascriptModulesPlugin')
+          const hooks = JavascriptModulesPlugin.getCompilationHooks(compilation)
+          hooks.renderMain.tap(
+            'NextJsSSRModuleCache',
+            (sourceObj, renderContext) => {
+              const source = sourceObj.source()
+              const { chunk } = renderContext
 
-                // Make sure even in windows, the path looks like in unix
-                // Node.js require system will convert it accordingly
-                const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(
-                  /\\/g,
-                  '/'
-                )
-                return (webpack as any).Template.asString([
-                  source,
-                  '// The module cache',
-                  `var installedModules = require('${relativePathToBaseDirNormalized}');`,
-                ])
+              // If the chunk is not part of the pages directory we have to keep the original behavior,
+              // otherwise webpack will error out when the file is used before the compilation finishes
+              // this is the case with mini-css-extract-plugin
+              if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
+                return sourceObj
               }
+              const pagePath = join(outputPath, dirname(chunk.name))
+              let relativePathToBaseDir = relative(
+                pagePath,
+                join(outputPath, SSR_MODULE_CACHE_FILENAME)
+              )
+
+              // Make sure even in windows, the path looks like in unix
+              // Node.js require system will convert it accordingly
+              const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(
+                /\\/g,
+                '/'
+              )
+              const replacedCache = source.replace(
+                'var __webpack_module_cache__ = {};',
+                `var __webpack_module_cache__ = require('${relativePathToBaseDirNormalized}');`
+              )
+              return replacedCache
             }
-            return tapInfo
-          },
-        })
+          )
+        } else {
+          compilation.mainTemplate.hooks.localVars.intercept({
+            register(tapInfo: any) {
+              if (tapInfo.name === 'MainTemplate') {
+                const originalFn = tapInfo.fn
+                tapInfo.fn = (source: any, chunk: any) => {
+                  // If the chunk is not part of the pages directory we have to keep the original behavior,
+                  // otherwise webpack will error out when the file is used before the compilation finishes
+                  // this is the case with mini-css-extract-plugin
+                  if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
+                    return originalFn(source, chunk)
+                  }
+                  const pagePath = join(outputPath, dirname(chunk.name))
+                  let relativePathToBaseDir = relative(
+                    pagePath,
+                    join(outputPath, SSR_MODULE_CACHE_FILENAME)
+                  )
+
+                  // Make sure even in windows, the path looks like in unix
+                  // Node.js require system will convert it accordingly
+                  const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(
+                    /\\/g,
+                    '/'
+                  )
+                  return (webpack as any).Template.asString([
+                    source,
+                    '// The module cache',
+                    `var installedModules = require('${relativePathToBaseDirNormalized}');`,
+                  ])
+                }
+              }
+              return tapInfo
+            },
+          })
+        }
       }
     )
   }
