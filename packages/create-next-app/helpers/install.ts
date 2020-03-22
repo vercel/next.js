@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import spawn from 'cross-spawn'
 
 export function install(

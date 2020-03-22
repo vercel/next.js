@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import loaderUtils from 'loader-utils'
 import path from 'path'
 import { loader } from 'webpack'

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'

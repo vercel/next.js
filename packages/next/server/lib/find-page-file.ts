@@ -1,5 +1,5 @@
 import { join } from 'path'
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 

@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
 import browserslist from 'browserslist'

@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import Conf from 'conf'
 import { BinaryLike, createHash, randomBytes } from 'crypto'
 import isDockerFunction from 'is-docker'

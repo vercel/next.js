@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 
 export function getGlobalImportError(file: string | null) {
   return `Global CSS ${chalk.bold(

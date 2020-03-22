@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from 'chalk'
 import ciEnvironment from 'ci-info'
 import crypto from 'crypto'
 import devalue from 'devalue'

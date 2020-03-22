@@ -85,7 +85,7 @@
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserslist": "4.8.3",
     "cache-loader": "4.1.0",
-    "chalk": "2.4.2",
+    "chalk": "3.0.0",
     "ci-info": "2.0.0",
     "compression": "1.7.4",
     "conf": "5.0.0",
