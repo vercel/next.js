@@ -1,8 +1,8 @@
-import React from "react";
-import ButtonComponent from "../components/ButtonComponent"
-import CheckboxComponent from "../components/CheckboxComponent"
-import DateTimePickerComponent from "../components/DateTimePickerComponent"
-import DropdownMenuComponent from "../components/DropdownMenuComponent"
+import React from 'react'
+import ButtonComponent from '../components/ButtonComponent'
+import CheckboxComponent from '../components/CheckboxComponent'
+import DateTimePickerComponent from '../components/DateTimePickerComponent'
+import DropdownMenuComponent from '../components/DropdownMenuComponent'
 
 export default () => {
   return (
@@ -10,7 +10,7 @@ export default () => {
       <ButtonComponent />
       <CheckboxComponent />
       <DateTimePickerComponent />
-      <DropdownMenuComponent/>
+      <DropdownMenuComponent />
     </React.Fragment>
-  );
-};
+  )
+}

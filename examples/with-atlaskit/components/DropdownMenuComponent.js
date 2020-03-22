@@ -1,9 +1,9 @@
-import React from "react";
+import React from 'react'
 import DropdownMenu, {
   DropdownItemGroup,
-  DropdownItem
-} from "@atlaskit/dropdown-menu";
-import { Label } from "@atlaskit/field-base";
+  DropdownItem,
+} from '@atlaskit/dropdown-menu'
+import { Label } from '@atlaskit/field-base'
 
 export default () => {
   return (
@@ -22,5 +22,5 @@ export default () => {
         </DropdownItemGroup>
       </DropdownMenu>
     </React.Fragment>
-  );
-};
+  )
+}

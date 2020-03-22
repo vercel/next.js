@@ -1,5 +1,5 @@
-import React from "react";
-import Button, { ButtonGroup } from "@atlaskit/button";
+import React from 'react'
+import Button, { ButtonGroup } from '@atlaskit/button'
 
 export default () => {
   return (
@@ -26,5 +26,5 @@ export default () => {
         <Button>Third Button</Button>
       </ButtonGroup>
     </React.Fragment>
-  );
-};
+  )
+}

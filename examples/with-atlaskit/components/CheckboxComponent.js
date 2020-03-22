@@ -1,5 +1,5 @@
-import React from "react";
-import { Checkbox } from "@atlaskit/checkbox";
+import React from 'react'
+import { Checkbox } from '@atlaskit/checkbox'
 
 export default () => {
   return (
@@ -26,5 +26,5 @@ export default () => {
         testId="cb-invalid"
       />
     </React.Fragment>
-  );
-};
+  )
+}

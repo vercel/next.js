@@ -1,10 +1,10 @@
-import React from "react";
+import React from 'react'
 import {
   DatePicker,
   DateTimePicker,
-  TimePicker
-} from "@atlaskit/datetime-picker";
-import { Label } from "@atlaskit/field-base";
+  TimePicker,
+} from '@atlaskit/datetime-picker'
+import { Label } from '@atlaskit/field-base'
 
 export default () => {
   return (
@@ -20,5 +20,5 @@ export default () => {
         dateFormat="Do MMMM YYYY"
       />
     </React.Fragment>
-  );
-};
+  )
+}
