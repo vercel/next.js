@@ -26,8 +26,8 @@ export function getGlobalCssLoader(
     loader: require.resolve('css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
-      localsConvention: "camelCase",
-      sourceMap: true
+      localsConvention: 'camelCase',
+      sourceMap: true,
     },
   })
 

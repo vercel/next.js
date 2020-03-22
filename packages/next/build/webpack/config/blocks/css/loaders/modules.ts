@@ -27,7 +27,7 @@ export function getCssModuleLoader(
     loader: require.resolve('css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
-      localsConvention: "camelCase",
+      localsConvention: 'camelCase',
       sourceMap: true,
       onlyLocals: ctx.isServer,
       modules: {
