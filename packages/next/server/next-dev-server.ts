@@ -453,19 +453,14 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ) {
-    console.log('renderToHTML')
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
       return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
-    console.log('before try')
-
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      console.log('in try')
-      console.log(pathname)
       await this.hotReloader!.ensurePage(pathname).catch(async (err: Error) => {
         if ((err as any).code !== 'ENOENT') {
           throw err

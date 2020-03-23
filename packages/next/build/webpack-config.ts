@@ -835,7 +835,13 @@ export default async function getBaseWebpackConfig(
                   })
                 )
               }
-              devPlugins.push(new webpack.HotModuleReplacementPlugin())
+              devPlugins.push(
+                new webpack.HotModuleReplacementPlugin({
+                  multiStep: true,
+                  fullBuildTimeout: 5000,
+                  requestTimeout: 1000,
+                })
+              )
             }
 
             return devPlugins

@@ -53,7 +53,6 @@ const getAllEntries = (entries, compiler) =>
       delete entries[page]
       return
     }
-    console.log('adding page', JSON.stringify(page))
     entries[page].status = BUILDING
 
     return {
@@ -97,7 +96,27 @@ export default function onDemandEntryHandler(
   let reloading = false
   let stopped = false
   let reloadCallbacks: EventEmitter | null = new EventEmitter()
+  let multiStepBuild = { promises: [] }
 
+  multiStepBuild.promises.push(
+    new Promise(resolve => {
+      multiStepBuild.additionalPass = resolve
+    })
+  )
+  multiStepBuild.promises.push(
+    new Promise(resolve => {
+      multiStepBuild.done = resolve
+    })
+  )
+
+  multiStepBuild.promises.push(
+    new Promise(resolve => {
+      multiStepBuild.lastDoneEvent = resolve
+    })
+  )
+
+  let callbackSet = []
+  let callCount = []
   for (const compiler of compilers) {
     IS_WEBPACK_5 &&
       new DynamicEntryPlugin(compiler.context, async () => {
@@ -105,8 +124,6 @@ export default function onDemandEntryHandler(
         const allEntries = theEntries
           .filter(Boolean)
           .reduce((result, { name, loadAs, absolutePagePath, page }) => {
-            console.log('w5 loading ', { name, loadAs, absolutePagePath, page })
-
             return {
               ...result,
               [name]: {
@@ -115,24 +132,43 @@ export default function onDemandEntryHandler(
             }
           }, {})
 
-        console.log('adding entry for ', { allEntries })
-
         return allEntries
       }).apply(compiler)
 
     IS_WEBPACK_5 &&
       compiler.hooks.make.intercept({
-        tap(name, type, fn) {
-          return (compilation, context) => {
-            console.log('running tap for ', name, { IS_WEBPACK_5 })
-            if (name === 'DynamicEntryPlugin') {
+        register(tap) {
+          const initialFn = tap.fn
+          const cb = (compilation, callback) => {
+            const res = initialFn(compilation, callback)
+            if (tap.name === 'DynamicEntryPlugin') {
               invalidator.startBuilding()
+              callbackSet.push(res)
             }
-            return fn(compilation, context)
+            return res
           }
+          tap.fn = cb
+          return tap
         },
       })
 
+    if (compiler.name === 'client') {
+      compiler.hooks.additionalPass.tap('NextJsOnDemandEntries', () => {
+        multiStepBuild.additionalPass()
+        clearTimeout(multiStepBuild.timeout)
+      })
+    }
+    compiler.hooks.afterDone.tap('NextJsOnDemandEntries', () => {
+      if (callbackSet.length) {
+        // additionalPass initiated.
+        multiStepBuild.promises[0].then(() => {
+          clearInterval(multiStepBuild.timeout)
+          multiStepBuild.timeout = setTimeout(() => {
+            multiStepBuild.done()
+          }, 600)
+        })
+      }
+    })
     !IS_WEBPACK_5 &&
       compiler.hooks.make.tapPromise(
         'NextJsOnDemandEntries',
@@ -225,6 +261,13 @@ export default function onDemandEntryHandler(
     }
 
     invalidator.doneBuilding()
+    clearTimeout(multiStepBuild.timeout)
+
+    Promise.all([multiStepBuild.promises[0], multiStepBuild.promises[1]]).then(
+      () => {
+        multiStepBuild.lastDoneEvent()
+      }
+    )
 
     if (hardFailedPages.length > 0 && !reloading) {
       console.log(
@@ -377,7 +420,12 @@ export default function onDemandEntryHandler(
 
         function handleCallback(err: Error) {
           if (err) return reject(err)
-          resolve()
+          Promise.all(multiStepBuild.promises).then(() => {
+            Promise.all(callbackSet).then(() => {
+              callbackSet = []
+              resolve()
+            })
+          })
         }
       })
     },
@@ -401,7 +449,6 @@ export default function onDemandEntryHandler(
           })
         } else {
           if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
-
           const { query } = parse(req.url!, true)
           const page = query.page
           if (!page) return next()
