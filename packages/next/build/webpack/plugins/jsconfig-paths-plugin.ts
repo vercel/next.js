@@ -119,14 +119,18 @@ export function patternText({ prefix, suffix }: Pattern): string {
 
 const NODE_MODULES_REGEX = /node_modules/
 
+type Paths = { [match: string]: string[] }
+
 /**
  * Handles tsconfig.json or jsconfig.js "paths" option for webpack
  * Largely based on how the TypeScript compiler handles it:
  * https://github.com/microsoft/TypeScript/blob/1a9c8197fffe3dace5f8dca6633d450a88cba66d/src/compiler/moduleNameResolver.ts#L1362
  */
 export class JsConfigPathsPlugin implements ResolvePlugin {
-  constructor(jsConfig, resolvedBaseUrl) {
-    this.paths = jsConfig.compilerOptions.paths
+  paths: Paths
+  resolvedBaseUrl: string
+  constructor(paths: Paths, resolvedBaseUrl: string) {
+    this.paths = paths
 
     this.resolvedBaseUrl = resolvedBaseUrl
   }
