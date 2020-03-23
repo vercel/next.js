@@ -17,9 +17,11 @@ const reducer = createReducer(initialState, {
   RESET: (state, action) => ({ ...state, count: initialState.count }),
 })
 
-export const initializeStore = (preloadedState = initialState) => {
+const initializeStore = (preloadedState = initialState) => {
   return configureStore({
     reducer,
     preloadedState,
   })
 }
+
+export const store = initializeStore()

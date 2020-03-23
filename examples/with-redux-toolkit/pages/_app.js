@@ -1,9 +1,8 @@
 import React from 'react'
 import { Provider } from 'react-redux'
-import withRedux from 'next-redux-wrapper'
-import { initializeStore } from '../store'
+import { store } from '../store'
 
-const MyApp = ({ Component, pageProps, store }) => {
+const MyApp = ({ Component, pageProps }) => {
   return (
     <Provider store={store}>
       <Component {...pageProps} />
@@ -11,4 +10,4 @@ const MyApp = ({ Component, pageProps, store }) => {
   )
 }
 
-export default withRedux(initializeStore)(MyApp)
+export default MyApp
