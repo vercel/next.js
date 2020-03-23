@@ -11,6 +11,7 @@ export default function HelloPage(): JSX.Element {
   console.log(router.pathname)
   return (
     <div>
+      <p>One trillion dollars: {1_000_000_000_000}</p>
       {hello()} <World />
       <Router />
       <Link />
