@@ -6,6 +6,8 @@ In this simple example, we integrate Apollo seamlessly with Next by wrapping our
 
 On initial page load, while on the server and inside `getInitialProps`, we invoke the Apollo method, [`getDataFromTree`](https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree). This method returns a promise; at the point in which the promise resolves, our Apollo Client store is completely initialized.
 
+For more information on how this example works, check out this [code walkthrough](https://usecodeflow.com/tutorials/view/zeit/next.js/tree/befb50/ck7ovpr9900000vlenu7ya359).
+
 This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
 
 Note: Do not be alarmed that you see two renders being executed. Apollo recursively traverses the React render tree looking for Apollo query components. When it has done that, it fetches all these queries and then passes the result to a cache. This cache is then used to render the data on the server side (another React render).
