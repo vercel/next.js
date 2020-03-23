@@ -6,7 +6,6 @@ import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
-import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { pathToRegexp } from 'path-to-regexp'
@@ -80,7 +79,7 @@ const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
-const mkdirp = promisify(mkdirpOrig)
+const mkdir = promisify(fs.mkdir)
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -301,7 +300,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })),
   }
 
-  await mkdirp(distDir)
+  await mkdir(distDir, { recursive: true })
   // We need to write the manifest with rewrites before build
   // so serverless can import the manifest
   await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
@@ -755,7 +754,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
       }
-      await mkdirp(path.dirname(dest))
+      await mkdir(path.dirname(dest), { recursive: true })
       await fsMove(orig, dest)
     }
 
