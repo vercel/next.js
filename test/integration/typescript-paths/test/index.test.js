@@ -37,5 +37,10 @@ describe('TypeScript Features', () => {
       const $ = await get$('/resolve-fallback')
       expect($('body').text()).toMatch(/Hello from only b/)
     })
+
+    it('should resolve a single matching alias', async () => {
+      const $ = await get$('/single-alias')
+      expect($('body').text()).toMatch(/Hello/)
+    })
   })
 })
