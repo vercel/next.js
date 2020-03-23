@@ -147,60 +147,63 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
     const target = resolver.ensureHook('resolve')
     resolver
       .getHook('described-resolve')
-      .tapPromise('JsConfigPathsPlugin', async (request, resolveContext) => {
-        // Exclude node_modules from paths support (speeds up resolving)
-        if (request.path.match(NODE_MODULES_REGEX)) {
-          return
-        }
-
-        const moduleName = request.request
-
-        // If the module name does not match any of the patterns in `paths` we hand off resolving to webpack
-        const matchedPattern = matchPatternOrExact(pathsKeys, moduleName)
-        if (!matchedPattern) {
-          return
-        }
-
-        const matchedStar = isString(matchedPattern)
-          ? undefined
-          : matchedText(matchedPattern, moduleName)
-        const matchedPatternText = isString(matchedPattern)
-          ? matchedPattern
-          : patternText(matchedPattern)
-
-        let triedPaths = []
-
-        for (const subst of paths[matchedPatternText]) {
-          const path = matchedStar ? subst.replace('*', matchedStar) : subst
-          const candidate = join(baseDirectory, path)
-          const [err, result] = await new Promise((resolve, reject) => {
-            const obj = Object.assign({}, request, {
-              request: candidate,
-            })
-            resolver.doResolve(
-              target,
-              obj,
-              `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
-              resolveContext,
-              (err, result) => {
-                resolve([err, result])
-              }
-            )
-          })
-
-          // There's multiple paths values possible, so we first have to iterate them all first before throwing an error
-          if (err || result === undefined) {
-            triedPaths.push(candidate)
-            continue
+      .tapPromise(
+        'JsConfigPathsPlugin',
+        async (request: any, resolveContext: any) => {
+          // Exclude node_modules from paths support (speeds up resolving)
+          if (request.path.match(NODE_MODULES_REGEX)) {
+            return
           }
 
-          return result
-        }
+          const moduleName = request.request
 
-        throw new Error(`
+          // If the module name does not match any of the patterns in `paths` we hand off resolving to webpack
+          const matchedPattern = matchPatternOrExact(pathsKeys, moduleName)
+          if (!matchedPattern) {
+            return
+          }
+
+          const matchedStar = isString(matchedPattern)
+            ? undefined
+            : matchedText(matchedPattern, moduleName)
+          const matchedPatternText = isString(matchedPattern)
+            ? matchedPattern
+            : patternText(matchedPattern)
+
+          let triedPaths = []
+
+          for (const subst of paths[matchedPatternText]) {
+            const path = matchedStar ? subst.replace('*', matchedStar) : subst
+            const candidate = join(baseDirectory, path)
+            const [err, result] = await new Promise((resolve, reject) => {
+              const obj = Object.assign({}, request, {
+                request: candidate,
+              })
+              resolver.doResolve(
+                target,
+                obj,
+                `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
+                resolveContext,
+                (err: any, result: any | undefined) => {
+                  resolve([err, result])
+                }
+              )
+            })
+
+            // There's multiple paths values possible, so we first have to iterate them all first before throwing an error
+            if (err || result === undefined) {
+              triedPaths.push(candidate)
+              continue
+            }
+
+            return result
+          }
+
+          throw new Error(`
       Request "${moduleName}" matched tsconfig.json or jsconfig.json "paths" pattern ${matchedPatternText} but could not be resolved.
       Tried paths: ${triedPaths.join(' ')}
       `)
-      })
+        }
+      )
   }
 }
