@@ -205,6 +205,19 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should handle throw ENOENT correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/enoent')
+    const html = await res.text()
+
+    if (dev) {
+      expect(html).toContain('oof')
+    } else {
+      expect(res.status).toBe(500)
+      expect(html).toContain('Internal Server Error')
+      expect(html).not.toContain('This page could not be found')
+    }
+  })
+
   it('should have gssp in __NEXT_DATA__', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
