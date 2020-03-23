@@ -217,6 +217,22 @@ export default async function getBaseWebpackConfig(
     ? config.typescript?.ignoreDevErrors
     : config.typescript?.ignoreBuildErrors
 
+  let jsConfig
+  // jsconfig is a subset of tsconfig
+  if (useTypeScript) {
+    jsConfig = require(tsConfigPath)
+  }
+
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
+  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+    jsConfig = require(jsConfigPath)
+  }
+
+  let resolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
@@ -889,6 +905,11 @@ export default async function getBaseWebpackConfig(
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
+  // Support tsconfig and jsconfig baseUrl
+  if (resolvedBaseUrl) {
+    webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
+  }
+
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
     customAppFile,
@@ -897,6 +918,7 @@ export default async function getBaseWebpackConfig(
     hasSupportCss: !!config.experimental.css,
     hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
+    sassOptions: config.experimental.sassOptions,
   })
 
   if (typeof config.webpack === 'function') {

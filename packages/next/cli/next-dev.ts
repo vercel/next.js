@@ -33,9 +33,8 @@ const nextDev: cliCommand = argv => {
       Usage
         $ next dev <dir> -p <port number>
 
-      <dir> represents where the compiled folder should go.
-      If no directory is provided, the folder will be created in the current directory.
-      You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         --port, -p      A port number on which to start the application

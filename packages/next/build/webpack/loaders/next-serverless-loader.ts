@@ -327,7 +327,7 @@ const nextServerlessLoader: loader.Loader = function() {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
