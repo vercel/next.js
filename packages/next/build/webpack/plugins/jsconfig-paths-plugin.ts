@@ -1,3 +1,8 @@
+/**
+ * This webpack resolver is largely based on TypeScript's "paths" handling
+ * The TypeScript license can be found here:
+ * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
+ */
 import { ResolvePlugin } from 'webpack'
 import { join } from 'path'
 
@@ -34,20 +39,11 @@ export function tryParsePattern(pattern: string): Pattern | undefined {
       }
 }
 
-export function startsWith(str: string, prefix: string): boolean {
-  return str.lastIndexOf(prefix, 0) === 0
-}
-
-export function endsWith(str: string, suffix: string): boolean {
-  const expectedPos = str.length - suffix.length
-  return expectedPos >= 0 && str.indexOf(suffix, expectedPos) === expectedPos
-}
-
 function isPatternMatch({ prefix, suffix }: Pattern, candidate: string) {
   return (
     candidate.length >= prefix.length + suffix.length &&
-    startsWith(candidate, prefix) &&
-    endsWith(candidate, suffix)
+    candidate.startsWith(prefix) &&
+    candidate.endsWith(suffix)
   )
 }
 
@@ -121,122 +117,13 @@ export function patternText({ prefix, suffix }: Pattern): string {
   return `${prefix}*${suffix}`
 }
 
-/**
- * Iterates through 'array' by index and performs the callback on each element of array until the callback
- * returns a truthy value, then returns that value.
- * If no such value is found, the callback is applied to each element of array and undefined is returned.
- */
-export function forEach<T, U>(
-  array: readonly T[] | undefined,
-  callback: (element: T, index: number) => U | undefined
-): U | undefined {
-  if (array) {
-    for (let i = 0; i < array.length; i++) {
-      const result = callback(array[i], i)
-      if (result) {
-        return result
-      }
-    }
-  }
-  return undefined
-}
-
-export const directorySeparator = '/'
-const backslashRegExp = /\\/g
-
-/**
- * Normalize path separators, converting `\` into `/`.
- */
-export function normalizeSlashes(path: string): string {
-  return path.replace(backslashRegExp, directorySeparator)
-}
-
-/**
- * Formats a parsed path consisting of a root component (at index 0) and zero or more path
- * segments (at indices > 0).
- *
- * ```ts
- * getPathFromPathComponents(["/", "path", "to", "file.ext"]) === "/path/to/file.ext"
- * ```
- */
-export function getPathFromPathComponents(pathComponents: readonly string[]) {
-  if (pathComponents.length === 0) return ''
-
-  const root =
-    pathComponents[0] && ensureTrailingDirectorySeparator(pathComponents[0])
-  return root + pathComponents.slice(1).join(directorySeparator)
-}
-
-const slash = 0x2f
-const backslash = 0x5c
-
-/**
- * Determines whether a charCode corresponds to `/` or `\`.
- */
-export function isAnyDirectorySeparator(charCode: number): boolean {
-  return charCode === slash || charCode === backslash
-}
-
-/**
- * Determines whether a path has a trailing separator (`/` or `\\`).
- */
-export function hasTrailingDirectorySeparator(path: string) {
-  return (
-    path.length > 0 && isAnyDirectorySeparator(path.charCodeAt(path.length - 1))
-  )
-}
-
-export function ensureTrailingDirectorySeparator(path: string) {
-  if (!hasTrailingDirectorySeparator(path)) {
-    return path + directorySeparator
-  }
-
-  return path
-}
-
-export function some<T>(
-  array: readonly T[] | undefined,
-  predicate?: (value: T) => boolean
-): boolean {
-  if (array) {
-    if (predicate) {
-      for (const v of array) {
-        if (predicate(v)) {
-          return true
-        }
-      }
-    } else {
-      return array.length > 0
-    }
-  }
-  return false
-}
-
-/**
- * Reduce an array of path components to a more simplified path by navigating any
- * `"."` or `".."` entries in the path.
- */
-export function reducePathComponents(components: readonly string[]) {
-  if (!some(components)) return []
-  const reduced = [components[0]]
-  for (let i = 1; i < components.length; i++) {
-    const component = components[i]
-    if (!component) continue
-    if (component === '.') continue
-    if (component === '..') {
-      if (reduced.length > 1) {
-        if (reduced[reduced.length - 1] !== '..') {
-          reduced.pop()
-          continue
-        }
-      } else if (reduced[0]) continue
-    }
-    reduced.push(component)
-  }
-  return reduced
-}
-
 const NODE_MODULES_REGEX = /node_modules/
+
+/**
+ * Handles tsconfig.json or jsconfig.js "paths" option for webpack
+ * Largely based on how the TypeScript compiler handles it:
+ * https://github.com/microsoft/TypeScript/blob/1a9c8197fffe3dace5f8dca6633d450a88cba66d/src/compiler/moduleNameResolver.ts#L1362
+ */
 export class JsConfigPathsPlugin implements ResolvePlugin {
   constructor(jsConfig, resolvedBaseUrl) {
     this.paths = jsConfig.compilerOptions.paths
