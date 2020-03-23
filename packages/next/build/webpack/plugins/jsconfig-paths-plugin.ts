@@ -246,6 +246,12 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
   apply(resolver: any) {
     const paths = this.paths
     const pathsKeys = Object.keys(paths)
+
+    // If no aliases are added bail out
+    if (pathsKeys.length === 0) {
+      return
+    }
+
     const baseDirectory = this.resolvedBaseUrl
     const target = resolver.ensureHook('resolve')
     resolver
