@@ -223,7 +223,7 @@ export default async function({
       }
     }
 
-    if (curRenderOpts.inAmpMode) {
+    if (curRenderOpts.inAmpMode && !curRenderOpts.ampSkipValidation) {
       await validateAmp(html, path, curRenderOpts.ampValidatorPath)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
@@ -252,7 +252,9 @@ export default async function({
           )
         }
 
-        await validateAmp(ampHtml, page + '?amp=1')
+        if (!curRenderOpts.ampSkipValidation) {
+          await validateAmp(ampHtml, page + '?amp=1')
+        }
         await mkdir(ampBaseDir, { recursive: true })
         await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
       }

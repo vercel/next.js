@@ -43,6 +43,7 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
@@ -908,6 +909,16 @@ export default async function getBaseWebpackConfig(
   // Support tsconfig and jsconfig baseUrl
   if (resolvedBaseUrl) {
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
+  }
+
+  if (
+    config.experimental.jsconfigPaths &&
+    jsConfig?.compilerOptions?.paths &&
+    resolvedBaseUrl
+  ) {
+    webpackConfig.resolve?.plugins?.push(
+      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+    )
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
