@@ -111,7 +111,7 @@
     "json5": "2.1.1",
     "jsonwebtoken": "8.5.1",
     "launch-editor": "2.2.1",
-    "loader-utils": "1.2.3",
+    "loader-utils": "2.0.0",
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
     "mini-css-extract-plugin": "0.8.0",
