@@ -42,5 +42,10 @@ describe('TypeScript Features', () => {
       const $ = await get$('/single-alias')
       expect($('body').text()).toMatch(/Hello/)
     })
+
+    it('should not resolve to .d.ts files', async () => {
+      const $ = await get$('/alias-to-d-ts')
+      expect($('body').text()).toMatch(/Not aliased to d\.ts file/)
+    })
   })
 })
