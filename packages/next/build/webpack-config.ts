@@ -477,6 +477,7 @@ export default async function getBaseWebpackConfig(
       ? undefined
       : !isServerless
       ? [
+          { 'next/router': 'next/dist/client/router.js' },
           (context, request, callback) => {
             const notExternalModules = [
               'next/app',
@@ -572,7 +573,7 @@ export default async function getBaseWebpackConfig(
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
           '@ampproject/toolbox-optimizer', // except this one
-        ].concat(webpack5Experiential ? ['enhanced-resolve'] : []),
+        ].concat(webpack5Experiential ? ['enhanced-resolve',{ 'next/router': 'next/dist/client/router.js' }] : []),
     optimization: {
       checkWasmTypes: false,
       nodeEnv: false,
@@ -837,9 +838,7 @@ export default async function getBaseWebpackConfig(
               }
               devPlugins.push(
                 new webpack.HotModuleReplacementPlugin({
-                  multiStep: true,
-                  fullBuildTimeout: 5000,
-                  requestTimeout: 1000,
+                  multiStep: true
                 })
               )
             }
