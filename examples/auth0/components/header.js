@@ -8,7 +8,7 @@ function Header({ SSRUser }) {
     user = SSRUser
   }
 
-  const authHeader = () => (
+  const AuthHeader = () => (
     <>
       <li>
         <Link href="/profile">
@@ -26,7 +26,7 @@ function Header({ SSRUser }) {
     </>
   )
 
-  const unAuthHeader = () => (
+  const UnAuthHeader = () => (
     <>
       <>
         <li>
@@ -49,7 +49,7 @@ function Header({ SSRUser }) {
   return (
     <header>
       <nav>
-        <ul>{user ? authHeader() : unAuthHeader()}</ul>
+        <ul>{user ? <AuthHeader /> : <UnAuthHeader />}</ul>
       </nav>
 
       <style jsx global>{`
