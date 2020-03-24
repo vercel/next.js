@@ -8,9 +8,14 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
 } from '../../lib/constants'
+import { isSerializableProps } from '../../lib/is-serializable-props'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
-import { AMP_RENDER_TARGET } from '../lib/constants'
+import {
+  AMP_RENDER_TARGET,
+  STATIC_PROPS_ID,
+  SERVER_PROPS_ID,
+} from '../lib/constants'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
@@ -181,6 +186,9 @@ function renderDocument(
     htmlProps,
     bodyTags,
     headTags,
+    gsp,
+    gssp,
+    customServer,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -201,6 +209,9 @@ function renderDocument(
     bodyTags: any
     headTags: any
     isFallback?: boolean
+    gsp?: boolean
+    gssp?: boolean
+    customServer?: boolean
   }
 ): string {
   return (
@@ -221,6 +232,9 @@ function renderDocument(
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+            gsp, // whether the page is getStaticProps
+            gssp, // whether the page is getServerSideProps
+            customServer, // whether the user is using a custom server
           },
           dangerousAsPath,
           canonicalBase,
@@ -315,7 +329,8 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
-  const isSpr = !!getStaticProps
+  const isSSG = !!getStaticProps
+  const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -326,7 +341,7 @@ export async function renderToHTML(
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
-    !isSpr &&
+    !isSSG &&
     !getServerSideProps
 
   if (
@@ -349,7 +364,7 @@ export async function renderToHTML(
     )
   }
 
-  if (hasPageGetInitialProps && isSpr) {
+  if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
@@ -357,17 +372,17 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (getServerSideProps && isSpr) {
+  if (getServerSideProps && isSSG) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!getStaticPaths && !isSpr) {
+  if (!!getStaticPaths && !isSSG) {
     throw new Error(
       `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
     )
   }
 
-  if (isSpr && pageIsDynamic && !getStaticPaths) {
+  if (isSSG && pageIsDynamic && !getStaticPaths) {
     throw new Error(
       `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
         `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
@@ -403,12 +418,12 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
 
-    if (pathname === '/404' && !isAutoExport) {
+    if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
       throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
-  if (isSpr) renderOpts.nextExport = false
+  if (isSSG) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -466,11 +481,20 @@ export async function renderToHTML(
       ctx,
     })
 
-    if (isSpr && !isFallback) {
+    if (isSSG) {
+      props[STATIC_PROPS_ID] = true
+    }
+
+    let previewData: string | false | object | undefined
+
+    if ((isSSG || getServerSideProps) && !isFallback) {
       // Reads of this are cached on the `req` object, so this should resolve
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
-      const previewData = tryGetPreviewData(req, res, previewProps)
+      previewData = tryGetPreviewData(req, res, previewProps)
+    }
+
+    if (isSSG && !isFallback) {
       const data = await getStaticProps!({
         ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(previewData !== false
@@ -484,6 +508,16 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+      }
+
+      if (
+        (dev || isBuildTimeSSG) &&
+        !isSerializableProps(pathname, 'getStaticProps', data.props)
+      ) {
+        // this fn should throw an error instead of ever returning `false`
+        throw new Error(
+          'invariant: getStaticProps did not return valid props. Please report this.'
+        )
       }
 
       if (typeof data.revalidate === 'number') {
@@ -523,33 +557,50 @@ export async function renderToHTML(
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
+
+    if (getServerSideProps) {
+      props[SERVER_PROPS_ID] = true
+    }
+
+    if (getServerSideProps && !isFallback) {
+      const data = await getServerSideProps({
+        req,
+        res,
+        query,
+        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
+      })
+
+      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+      if (invalidKeys.length) {
+        throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      if (
+        (dev || isBuildTimeSSG) &&
+        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+      ) {
+        // this fn should throw an error instead of ever returning `false`
+        throw new Error(
+          'invariant: getServerSideProps did not return valid props. Please report this.'
+        )
+      }
+
+      props.pageProps = data.props
+      ;(renderOpts as any).pageData = props
+    }
   } catch (err) {
-    if (!dev || !err) throw err
+    if (isDataReq || !dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
     console.error(err)
   }
 
-  if (getServerSideProps && !isFallback) {
-    const data = await getServerSideProps({
-      req,
-      res,
-      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-      query,
-    })
-
-    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
-
-    if (invalidKeys.length) {
-      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
-    }
-
-    props.pageProps = data.props
-    ;(renderOpts as any).pageData = props
-  }
-
   if (
-    !isSpr && // we only show this warning for legacy pages
+    !isSSG && // we only show this warning for legacy pages
     !getServerSideProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
@@ -571,7 +622,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSpr) return null
+  if (isResSent(res) && !isSSG) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -628,7 +679,7 @@ export async function renderToHTML(
     documentCtx
   )
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSpr) return null
+  if (isResSent(res) && !isSSG) return null
 
   if (!docProps || typeof docProps.html !== 'string') {
     const message = `"${getDisplayName(
@@ -680,6 +731,8 @@ export async function renderToHTML(
     files,
     lowPriorityFiles,
     polyfillFiles,
+    gsp: !!getStaticProps ? true : undefined,
+    gssp: !!getServerSideProps ? true : undefined,
   })
 
   if (inAmpMode && html) {

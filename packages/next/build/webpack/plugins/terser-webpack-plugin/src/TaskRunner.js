@@ -2,8 +2,7 @@ import { join } from 'path'
 import minify from './minify'
 import { promisify } from 'util'
 import Worker from 'jest-worker'
-import { writeFile, readFile } from 'fs'
-import mkdirp from 'mkdirp'
+import { mkdirSync, writeFile, readFile } from 'fs'
 
 const worker = require.resolve('./minify')
 const writeFileP = promisify(writeFile)
@@ -12,7 +11,9 @@ const readFileP = promisify(readFile)
 export default class TaskRunner {
   constructor({ distDir, cpus, cache, workerThreads }) {
     if (cache) {
-      mkdirp.sync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
+      mkdirSync((this.cacheDir = join(distDir, 'cache', 'next-minifier')), {
+        recursive: true,
+      })
     }
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022

@@ -63,7 +63,6 @@ if (!foundCommand && args['--help']) {
 
     Options
       --version, -v   Version number
-      --inspect       Enable the Node.js inspector
       --help, -h      Displays this message
 
     For more information run a command with the --help flag
@@ -77,7 +76,7 @@ const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 if (args['--inspect'])
   throw new Error(
-    `Use env variable NODE_OPTIONS instead: NODE_OPTIONS="--inspect" next ${command}`
+    `--inspect flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${command}`
   )
 
 // Make sure the `next <subcommand> --help` case is covered

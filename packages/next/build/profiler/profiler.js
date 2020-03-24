@@ -1,5 +1,4 @@
 import path from 'path'
-import mkdirp from 'mkdirp'
 import fs from 'fs'
 
 let inspector
@@ -92,7 +91,7 @@ export const createTrace = outputPath => {
   const profiler = new Profiler(inspector)
   if (/\/|\\/.test(outputPath)) {
     const dirPath = path.dirname(outputPath)
-    mkdirp.sync(dirPath)
+    fs.mkdirSync(dirPath, { recursive: true })
   }
   const fsStream = fs.createWriteStream(outputPath)
 
