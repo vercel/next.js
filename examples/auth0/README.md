@@ -97,4 +97,4 @@ This sample tries to cover a few topics:
 - Loading the user on the server side and adding it as part of SSR (`/pages/advanced/ssr-profile.js`)
 - Loading the user on the client side and using fast/cached SSR pages (`/pages/profile.js`)
 - API Routes which can load the current user (`/pages/api/me.js`)
-- Using Context API and hooks to make the user available throughout the application (`/lib/user.js`, `/lib/authProvider.js`)
+- Using hooks to make the user available throughout the application (`/lib/user.js`)
