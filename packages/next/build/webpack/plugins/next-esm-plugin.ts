@@ -49,10 +49,6 @@ type BabelConfigItem = string | [string] | [string, any]
 
 const PLUGIN_NAME = 'NextEsmPlugin'
 
-// Matches all variations of preset-env as a filepath.
-// Example: /project/foo/node_modules/babel-preset-react-app/dependencies.js
-const IS_PRESET_ENV = /(^|[\\/])(babel-preset-react-app\/dependencies(\.js)?|@babel\/(preset-)?env)([\\/]|$)/
-
 // Matches Babel preset paths that support the useBuiltIns option
 const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
 
@@ -168,14 +164,8 @@ export default class NextEsmPlugin implements Plugin {
             opts.useBuiltIns = true
           }
 
-          if (IS_PRESET_ENV.test(name)) {
-            presets.push([
-              require.resolve('@babel/preset-modules'),
-              { loose: true },
-            ])
-          } else {
-            presets.push([name, opts])
-          }
+          presets.push([name, opts])
+
           return presets
         },
         []
