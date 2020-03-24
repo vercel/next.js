@@ -149,17 +149,19 @@ export default async function(
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
+  let hasApiRoutes = false
 
   for (const page of pages) {
     // _document and _app are not real pages
     // _error is exported as 404.html later on
     // API Routes are Node.js functions
-    if (
-      page === '/_document' ||
-      page === '/_app' ||
-      page === '/_error' ||
-      page.match(API_ROUTE)
-    ) {
+
+    if (page.match(API_ROUTE)) {
+      hasApiRoutes = true
+      continue
+    }
+
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
@@ -267,7 +269,10 @@ export default async function(
     // Remove API routes
     route => !exportPathMap[route].page.match(API_ROUTE)
   )
-  const hasApiRoutes = exportPaths.length !== filteredPaths.length
+
+  if (filteredPaths.length !== exportPaths.length) {
+    hasApiRoutes = true
+  }
 
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
