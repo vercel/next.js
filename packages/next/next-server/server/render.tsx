@@ -38,6 +38,8 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { UnwrapPromise } from '../../lib/coalesced-function'
+import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
@@ -497,12 +499,23 @@ export async function renderToHTML(
     }
 
     if (isSSG && !isFallback) {
-      const data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      })
+      let data: UnwrapPromise<ReturnType<GetStaticProps>>
+
+      try {
+        data = await getStaticProps!({
+          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+        })
+      } catch (err) {
+        // remove not found error code to prevent triggering legacy
+        // 404 rendering
+        if (err.code === 'ENOENT') {
+          delete err.code
+        }
+        throw err
+      }
 
       const invalidKeys = Object.keys(data).filter(
         key => key !== 'revalidate' && key !== 'props'
@@ -565,15 +578,26 @@ export async function renderToHTML(
     }
 
     if (getServerSideProps && !isFallback) {
-      const data = await getServerSideProps({
-        req,
-        res,
-        query,
-        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      })
+      let data: UnwrapPromise<ReturnType<GetServerSideProps>>
+
+      try {
+        data = await getServerSideProps({
+          req,
+          res,
+          query,
+          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+        })
+      } catch (err) {
+        // remove not found error code to prevent triggering legacy
+        // 404 rendering
+        if (err.code === 'ENOENT') {
+          delete err.code
+        }
+        throw err
+      }
 
       const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
