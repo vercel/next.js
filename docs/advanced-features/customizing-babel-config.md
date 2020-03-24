@@ -34,7 +34,7 @@ The `next/babel` presets includes:
 - plugin-transform-runtime
 - styled-jsx
 
-To configure these presets/plugins, **do not** add them as their own presets or plugins in your custom `.babelrc`. Instead, configure them on the `next/babel` preset, like so:
+To configure these presets/plugins, **do not** add them to `presets` or `plugins` in your custom `.babelrc`. Instead, configure them on the `next/babel` preset, like so:
 
 ```json
 {
