@@ -1,38 +1,15 @@
 // This import is only needed when checking authentication status directly from getServerSideProps
 import auth0 from '../../lib/auth0'
 import ProfileCard from '../../components/profile-card'
-import Header from '../../components/header'
-import Head from 'next/head'
+import Layout from '../../components/layout'
 
 function SSRProfile({ user }) {
   return (
     <>
-      <Head>
-        <title>Next.js with Auth0</title>
-      </Head>
-      <Header SSRUser={user} />
-      <main>
-        <div className="container">
-          <h1>Profile (server rendered)</h1>
-          <ProfileCard SSRUser={user} />
-        </div>
-      </main>
-      <style jsx global>
-        {`
-          body {
-            margin: 0;
-            color: #333;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-              Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue',
-              sans-serif;
-          }
-
-          .container {
-            max-width: 42rem;
-            margin: 1.5rem auto;
-          }
-        `}
-      </style>
+      <Layout user={user}>
+        <h1>Profile (server rendered)</h1>
+        <ProfileCard user={user}/>
+      </Layout>        
     </>
   )
 }

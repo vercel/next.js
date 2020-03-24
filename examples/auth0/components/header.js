@@ -1,13 +1,6 @@
 import Link from 'next/link'
-import { AuthContext } from '../lib/authProvider'
-import { useContext } from 'react'
 
-function Header({ SSRUser }) {
-  let { user } = useContext(AuthContext)
-  if (SSRUser) {
-    user = SSRUser
-  }
-
+function Header({ user }) {
   const AuthHeader = () => (
     <>
       <li>

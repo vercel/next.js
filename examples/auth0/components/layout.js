@@ -1,15 +1,17 @@
 import Head from 'next/head'
 import Header from './header'
 
-function Layout({ children }) {
+function Layout({ user, loading = false, children }) {
   return (
     <>
       <Head>
         <title>Next.js with Auth0</title>
       </Head>
-      <Header />
+      <Header user={user} />
       <main>
-        <div className="container">{children}</div>
+        <div className="container">
+          {loading ? <p>Loading...</p>: children}
+        </div>
       </main>
       <style jsx global>
         {`

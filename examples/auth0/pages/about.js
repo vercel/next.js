@@ -1,10 +1,10 @@
 import Layout from '../components/layout'
-import AuthProvider from '../lib/authProvider'
+import { useFetchUser } from '../lib/user'
 
 function About() {
+  const { user, loading } = useFetchUser()
   return (
-    <AuthProvider>
-      <Layout>
+      <Layout user={user} loading={loading}>
         <h1>About</h1>
         <p>
           This is the about page, navigating between this page and <i>Home</i>{' '}
@@ -12,8 +12,7 @@ function About() {
           <i>Profile</i> page it takes more time because it uses SSR to fetch
           the user first;
         </p>
-      </Layout>
-    </AuthProvider>
+      </Layout>    
   )
 }
 

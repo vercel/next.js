@@ -1,15 +1,15 @@
 import Layout from '../components/layout'
 import ProfileCard from '../components/profile-card'
-import AuthProvider from '../lib/authProvider'
+import { useFetchUser } from '../lib/user'
 
 function Profile() {
+  const { user, loading } = useFetchUser({ required: true })
+
   return (
-    <AuthProvider>
-      <Layout>
+      <Layout user={user} loading={loading}>        
         <h1>Profile (client rendered)</h1>
-        <ProfileCard />
+        <ProfileCard user={user}/>
       </Layout>
-    </AuthProvider>
   )
 }
 

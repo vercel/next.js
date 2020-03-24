@@ -1,10 +1,12 @@
 import Layout from '../components/layout'
-import AuthProvider from './../lib/authProvider'
+import { useFetchUser } from '../lib/user'
 
 function Home() {
+  const { user } = useFetchUser()
+  if (user) { window.location = "/profile"; }
+
   return (
-    <AuthProvider>
-      <Layout>
+      <Layout >
         <h1>Next.js and Auth0 Example</h1>
         <p>
           To test the login click in <i>Login</i>
@@ -14,7 +16,6 @@ function Home() {
           and <i>Logout</i>
         </p>
       </Layout>
-    </AuthProvider>
   )
 }
 
