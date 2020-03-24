@@ -2,11 +2,13 @@
 
 #### Why This Warning Occurred
 
-An `exportPathMap` path was matched to an API route. `next export` will not prerender API routes to HTML.
+An `exportPathMap` path was matched to an API route. Statically exporting a Next.js application via `next export` disables API routes.
+
+This command is meant for static-only hosts, and is not necessary to make your application static. Pages in your application without server-side data dependencies will be automatically statically exported by `next build`, including pages powered by `getStaticProps`
 
 #### Possible Ways to Fix It
 
-Remove any paths using API routes from your `exportPathMap` in `next.config.js`.
+Use `next build` with platforms that don't require `next export` like https://zeit.co or remove any paths using API routes from your `exportPathMap` in `next.config.js`.
 
 ### Useful Links
 

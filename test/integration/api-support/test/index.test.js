@@ -385,7 +385,7 @@ function runTests(dev = false) {
         { stdout: true }
       )
       expect(stdout).toContain(
-        'API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
+        'https://err.sh/zeit/next.js/api-routes-static-export'
       )
     })
 

@@ -277,9 +277,22 @@ export default async function(
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.yellow(
-        '  API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
-      )
+      chalk.bold.red(`Attention`) +
+        ': ' +
+        chalk.yellow(
+          `Statically exporting a Next.js application via \`next export\` disables API routes.`
+        ) +
+        `\n` +
+        chalk.yellow(
+          `This command is meant for static-only hosts, and is` +
+            ' ' +
+            chalk.bold(`not necessary to make your application static.`)
+        ) +
+        `\n` +
+        chalk.yellow(
+          `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+        ) +
+        `\nLearn more: https://err.sh/zeit/next.js/api-routes-static-export`
     )
   }
 
