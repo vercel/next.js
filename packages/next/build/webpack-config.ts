@@ -43,6 +43,7 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
@@ -216,6 +217,22 @@ export default async function getBaseWebpackConfig(
   const ignoreTypeScriptErrors = dev
     ? config.typescript?.ignoreDevErrors
     : config.typescript?.ignoreBuildErrors
+
+  let jsConfig
+  // jsconfig is a subset of tsconfig
+  if (useTypeScript) {
+    jsConfig = require(tsConfigPath)
+  }
+
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
+  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+    jsConfig = require(jsConfigPath)
+  }
+
+  let resolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+  }
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -887,6 +904,21 @@ export default async function getBaseWebpackConfig(
           ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
+  }
+
+  // Support tsconfig and jsconfig baseUrl
+  if (resolvedBaseUrl) {
+    webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
+  }
+
+  if (
+    config.experimental.jsconfigPaths &&
+    jsConfig?.compilerOptions?.paths &&
+    resolvedBaseUrl
+  ) {
+    webpackConfig.resolve?.plugins?.push(
+      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+    )
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {

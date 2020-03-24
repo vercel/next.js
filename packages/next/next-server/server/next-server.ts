@@ -820,7 +820,7 @@ export default class Server {
           components,
           query: {
             ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq }
+              ? { _nextDataReq: query._nextDataReq, amp: query.amp }
               : query),
             ...(params || {}),
           },
@@ -897,6 +897,14 @@ export default class Server {
     const isSSG = !!components.getStaticProps
     const isServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
+
+    if (isSSG && query.amp) {
+      pathname += `.amp`
+    }
+
+    if (!query.amp) {
+      delete query.amp
+    }
 
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq
@@ -986,7 +994,9 @@ export default class Server {
     }
 
     // Compute the SPR cache key
-    const urlPathname = parseUrl(req.url || '').pathname!
+    const urlPathname = `${parseUrl(req.url || '').pathname!}${
+      query.amp ? '.amp' : ''
+    }`
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
       : urlPathname
