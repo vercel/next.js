@@ -10,9 +10,9 @@ If you're new to Next.js we recommend that you start with the [learn course](htt
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
-If you have any issues with our docummentation feel free to leave us feedback using the input at the top and bottom of our documentation pages. For bugs and feature requests you can [create an issue](https://github.com/zeit/next.js/issues/new/choose).
+If you find any issues with our documentation, feel free to leave us feedback using the form at the bottom of each page. For bugs and feature requests, you can [create an issue](https://github.com/zeit/next.js/issues/new/choose) on GitHub.
 
-If you want to engage with the Next.js community you're welcome to join us on [GitHub Discussions](https://github.com/zeit/next.js/discussions).
+If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/zeit/next.js/discussions).
 
 #### System Requirements
 
