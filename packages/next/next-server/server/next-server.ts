@@ -119,6 +119,7 @@ export default class Server {
     dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
+    ampOptimizerConfig?: { [key: string]: any }
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -172,6 +173,7 @@ export default class Server {
       generateEtags,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
+      ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
