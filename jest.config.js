@@ -6,4 +6,10 @@ module.exports = {
   globalSetup: '<rootDir>/jest-global-setup.js',
   globalTeardown: '<rootDir>/jest-global-teardown.js',
   testEnvironment: '<rootDir>/jest-environment.js',
+  "reporters": [
+    "default",
+    ["jest-html-reporter", {
+      "pageTitle": "Test Report"
+    }]
+  ]
 }
