@@ -68,7 +68,8 @@ module.exports = (
   const isLaxModern =
     isModern ||
     (options['preset-env']?.targets &&
-      options['preset-env'].targets.esmodules === true)
+      options['preset-env'].targets.esmodules === true &&
+      options['preset-env'].bugfixes === true)
 
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
