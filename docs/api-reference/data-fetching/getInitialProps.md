@@ -4,15 +4,12 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
-## Recommended: `getStaticProps` or `getServerSideProps`
-
-If you're using Next.js 9.3 or newer, we recommend that you use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
-
-These new data fetching methods allow you to have a granular choice between static generation and server-side rendering.
-
-Learn more on the [Pages documentation](/docs/basic-features/pages.md) and the [Data fetching documentation](/docs/basic-features/data-fetching.md):
-
-## `getInitialProps` (for older versions of Next.js)
+> **Recommended: [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)**
+>
+> If you're using Next.js 9.3 or newer, we recommend that you use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
+>
+> These new data fetching methods allow you to have a granular choice between static generation and server-side rendering.
+> Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data fetching](/docs/basic-features/data-fetching.md):
 
 <details>
   <summary><b>Examples</b></summary>

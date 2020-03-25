@@ -149,17 +149,19 @@ export default async function(
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
+  let hasApiRoutes = false
 
   for (const page of pages) {
     // _document and _app are not real pages
     // _error is exported as 404.html later on
     // API Routes are Node.js functions
-    if (
-      page === '/_document' ||
-      page === '/_app' ||
-      page === '/_error' ||
-      page.match(API_ROUTE)
-    ) {
+
+    if (page.match(API_ROUTE)) {
+      hasApiRoutes = true
+      continue
+    }
+
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
@@ -234,6 +236,8 @@ export default async function(
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
+    ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
+    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -265,14 +269,30 @@ export default async function(
     // Remove API routes
     route => !exportPathMap[route].page.match(API_ROUTE)
   )
-  const hasApiRoutes = exportPaths.length !== filteredPaths.length
+
+  if (filteredPaths.length !== exportPaths.length) {
+    hasApiRoutes = true
+  }
 
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.yellow(
-        '  API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
-      )
+      chalk.bold.red(`Attention`) +
+        ': ' +
+        chalk.yellow(
+          `Statically exporting a Next.js application via \`next export\` disables API routes.`
+        ) +
+        `\n` +
+        chalk.yellow(
+          `This command is meant for static-only hosts, and is` +
+            ' ' +
+            chalk.bold(`not necessary to make your application static.`)
+        ) +
+        `\n` +
+        chalk.yellow(
+          `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+        ) +
+        `\nLearn more: https://err.sh/zeit/next.js/api-routes-static-export`
     )
   }
 
