@@ -7,6 +7,12 @@ With Next.js you can use multiple apps as a single app using it's [multi-zones f
   - To also support the plain `next dev` scenario, `assetPrefix` is set dynamically based on the `BUILDING_FOR_NOW` environment variable, see [`now.json`](now.json) and [`blog/next.config.js`](blog/next.config.js).
   - Images and other `/static` assets have to be prefixed manually, e.g., `` <img src={`${process.env.ASSET_PREFIX}/static/image.png`} /> ``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-zones)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -28,7 +34,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-zones
 ```
 
-For every app, install the dependencies and run the dev server:
+For every app, install dependencies and run the dev server:
 
 ```bash
 npm install
@@ -40,13 +46,4 @@ yarn dev
 
 The `home` app will start in the default port (http://localhost:3000), and `blog` will start on http://localhost:4000.
 
-## Production Deployment
-
-Every app has to be deployed independently to [ZEIT Now](https://zeit.co/now), like so:
-
-```bash
-now blog
-now home
-```
-
-> **Note:** The rewrite destination in your `now.json` file in the `home` app must be adjusted to point to your deployment.
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
