@@ -150,4 +150,32 @@ describe('create next app', () => {
       fs.existsSync(path.join(cwd, projectName, '.gitignore'))
     ).toBeTruthy()
   })
+
+  it('Should ask for an example', async () => {
+    const question = async (...args) => {
+      return new Promise((resolve, reject) => {
+        const res = run(...args)
+
+        let timeout = setTimeout(() => {
+          if (!res.killed) {
+            res.kill()
+            reject(new Error('Missing request to select example name'))
+          }
+        }, 2000)
+
+        res.stdout.on('data', data => {
+          const stdout = data.toString()
+          if (stdout.includes('y/N')) {
+            res.kill()
+            clearTimeout(timeout)
+            resolve(stdout)
+          }
+        })
+      })
+    }
+
+    expect(await question('no-example', '--example')).toMatch(
+      /You forgot to select an example, would you like to pick one now/
+    )
+  })
 })
