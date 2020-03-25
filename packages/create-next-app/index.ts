@@ -22,7 +22,7 @@ const program = new Commander.Command(packageJson.name)
   })
   .option('--use-npm')
   .option(
-    '-e, --example <name>|<github-url>',
+    '-e, --example [name]|[github-url]',
     `
 
   An example to bootstrap the app with. You can use an example name
@@ -112,33 +112,21 @@ async function run() {
 
     if (wantsRes.wantsExample) {
       const examplesJSON = await listExamples()
-      const options = examplesJSON.map((example: any) => {
-        return { title: example.name, value: example.name }
-      })
-
+      const choices = examplesJSON.map((example: any) => ({
+        title: example.name,
+        value: example.name,
+      }))
       // The search function built into `prompts` isn’t very helpful:
       // someone searching for `styled-components` would get no results since
       // the example is called `with-styled-components`, and `prompts` searches
       // the beginnings of titles.
-
-      // To solve this, we implement a basic fuzzy search here.
-      const fuzzyMatch = (pattern: string, str: string) => {
-        pattern = '.*' + pattern.split('').join('.*') + '.*'
-        const re = new RegExp(pattern)
-        return re.test(str)
-      }
-
-      const fuzzySuggest = (input: any, choices: any) =>
-        Promise.resolve(
-          choices.filter((choice: any) => fuzzyMatch(input, choice.title))
-        )
-
       const nameRes = await prompts({
         type: 'autocomplete',
         name: 'exampleName',
         message: 'Pick an example',
-        suggest: fuzzySuggest,
-        choices: options,
+        choices,
+        suggest: (input: any, choices: any) =>
+          choices.filter((choice: any) => choice.title.includes(input)),
       })
 
       if (!nameRes.exampleName) {
