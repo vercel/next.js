@@ -68,14 +68,14 @@ module.exports = (
   const isLaxModern =
     isModern ||
     (options['preset-env']?.targets &&
-      options['preset-env'].targets.esmodules === true &&
-      options['preset-env'].bugfixes === true)
+      options['preset-env'].targets.esmodules === true)
 
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
+    bugfixes: true,
     ...options['preset-env'],
   }
 
