@@ -16,14 +16,14 @@ For example, let's say you have the following apps:
 
 With multi zones support, you can merge both these apps into a single one allowing your customers to browse it using a single URL, but you can develop and deploy both apps independently.
 
-### How to define a zone
+## How to define a zone
 
 There are no special zones related APIs. You only need to do following:
 
 - Make sure to keep only the pages you need in your app, meaning that an app can't have pages from another app, if app `A` has `/blog` then app `B` shouldn't have it too.
 - Make sure to add an [assetPrefix](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) to avoid conflicts with static files.
 
-### How to merge zones
+## How to merge zones
 
 You can merge zones using any HTTP proxy.
 
