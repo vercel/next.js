@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -322,6 +323,11 @@ function runTests(dev = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
+  it('should work with child_process correctly', async () => {
+    const data = await renderViaHTTP(appPort, '/api/child-process')
+    expect(data).toBe('hi')
+  })
+
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/')
@@ -372,6 +378,17 @@ function runTests(dev = false) {
       )
     })
   } else {
+    it('should show warning with next export', async () => {
+      const { stdout } = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        { stdout: true }
+      )
+      expect(stdout).toContain(
+        'https://err.sh/zeit/next.js/api-routes-static-export'
+      )
+    })
+
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
         await fs.readFile(

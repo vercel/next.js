@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
@@ -42,8 +43,11 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
+  ReactSyncScriptsConformanceCheck,
+  DuplicatePolyfillsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -88,9 +92,8 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
       'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
       'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-      // TODO: re-enable when `native-url` supports Safari 10
-      // // Replace: full URL polyfill with platform-based polyfill
-      // url: require.resolve('native-url'),
+      // Replace: full URL polyfill with platform-based polyfill
+      url: require.resolve('native-url'),
     }
   )
 }
@@ -214,6 +217,22 @@ export default async function getBaseWebpackConfig(
   const ignoreTypeScriptErrors = dev
     ? config.typescript?.ignoreDevErrors
     : config.typescript?.ignoreBuildErrors
+
+  let jsConfig
+  // jsconfig is a subset of tsconfig
+  if (useTypeScript) {
+    jsConfig = require(tsConfigPath)
+  }
+
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
+  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+    jsConfig = require(jsConfigPath)
+  }
+
+  let resolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+  }
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -426,6 +445,26 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
+  const conformanceConfig = Object.assign(
+    {
+      ReactSyncScriptsConformanceCheck: {
+        enabled: true,
+      },
+      MinificationConformanceCheck: {
+        enabled: true,
+      },
+      DuplicatePolyfillsConformanceCheck: {
+        enabled: true,
+        BlockedAPIToBePolyfilled: Object.assign(
+          [],
+          ['fetch'],
+          config.conformance?.DuplicatePolyfillsConformanceCheck
+            ?.BlockedAPIToBePolyfilled || []
+        ),
+      },
+    },
+    config.conformance
+  )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? undefined
@@ -558,6 +597,9 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     context: dir,
+    node: {
+      setImmediate: false,
+    },
     // Kept as function to be backwards compatible
     entry: async () => {
       return {
@@ -842,9 +884,41 @@ export default async function getBaseWebpackConfig(
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
-          tests: [new MinificationConformanceCheck()],
+          tests: [
+            !isServer &&
+              conformanceConfig.MinificationConformanceCheck.enabled &&
+              new MinificationConformanceCheck(),
+            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
+              new ReactSyncScriptsConformanceCheck({
+                AllowedSources:
+                  conformanceConfig.ReactSyncScriptsConformanceCheck
+                    .allowedSources || [],
+              }),
+            !isServer &&
+              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
+              new DuplicatePolyfillsConformanceCheck({
+                BlockedAPIToBePolyfilled:
+                  conformanceConfig.DuplicatePolyfillsConformanceCheck
+                    .BlockedAPIToBePolyfilled,
+              }),
+          ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
+  }
+
+  // Support tsconfig and jsconfig baseUrl
+  if (resolvedBaseUrl) {
+    webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
+  }
+
+  if (
+    config.experimental.jsconfigPaths &&
+    jsConfig?.compilerOptions?.paths &&
+    resolvedBaseUrl
+  ) {
+    webpackConfig.resolve?.plugins?.push(
+      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+    )
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
@@ -855,6 +929,7 @@ export default async function getBaseWebpackConfig(
     hasSupportCss: !!config.experimental.css,
     hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
+    sassOptions: config.experimental.sassOptions,
   })
 
   if (typeof config.webpack === 'function') {
@@ -922,6 +997,17 @@ export default async function getBaseWebpackConfig(
       ) ?? false
 
     if (hasUserCssConfig) {
+      // only show warning for one build
+      if (isServer) {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            chalk.bold(
+              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+            ) +
+            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+        )
+      }
+
       if (webpackConfig.module?.rules.length) {
         // Remove default CSS Loader
         webpackConfig.module.rules = webpackConfig.module.rules.filter(

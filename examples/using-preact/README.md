@@ -1,11 +1,6 @@
 # Preact example
 
-This example uses [Preact](https://github.com/preactjs/preact) instead of React. It's a React like UI framework which is fast and small. Here we've customized Next.js to use Preact instead of React.
-
-Here's how we did it:
-
-- Use `next.config.js` to customize our webpack config by aliasing React to `preact/compat`
-- Use `server.js` to make our server use Preact by aliasing React to `preact/compat`
+This example uses [Preact](https://github.com/preactjs/preact) instead of React. It's a React like UI framework which is fast and small.
 
 ## How to use
 
@@ -38,4 +33,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

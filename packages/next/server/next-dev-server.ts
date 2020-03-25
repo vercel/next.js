@@ -30,6 +30,7 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
+import Worker from 'jest-worker'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -53,6 +54,8 @@ export default class DevServer extends Server {
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
+    ;(this.renderOpts as any).ampSkipValidation =
+      this.nextConfig.experimental?.amp?.skipValidation ?? false
     ;(this.renderOpts as any).ampValidator = (
       html: string,
       pathname: string
@@ -79,6 +82,18 @@ export default class DevServer extends Server {
     }
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
+    this.staticPathsWorker = new Worker(
+      require.resolve('./static-paths-worker'),
+      {
+        maxRetries: 0,
+        numWorkers: this.nextConfig.experimental.cpus,
+      }
+    ) as Worker & {
+      loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+    }
+
+    this.staticPathsWorker.getStdout().pipe(process.stdout)
+    this.staticPathsWorker.getStderr().pipe(process.stderr)
   }
 
   protected currentPhase() {
@@ -140,6 +155,10 @@ export default class DevServer extends Server {
       return
     }
 
+    const regexPageExtension = new RegExp(
+      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    )
+
     let resolved = false
     return new Promise(resolve => {
       const pagesDir = this.pagesDir
@@ -163,18 +182,13 @@ export default class DevServer extends Server {
         const dynamicRoutedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
-          if (accuracy === undefined) {
+          if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
 
           let pageName =
             '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-
-          pageName = pageName.replace(
-            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
-
+          pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
           if (!isDynamicRoute(pageName)) {
@@ -436,8 +450,7 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: { [key: string]: string },
-    options = {}
+    query: { [key: string]: string }
   ) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -464,13 +477,11 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
-        if (this.nextConfig.experimental.pages404) {
-          try {
-            await this.hotReloader!.ensurePage('/404')
-          } catch (err) {
-            if (err.code !== 'ENOENT') {
-              throw err
-            }
+        try {
+          await this.hotReloader!.ensurePage('/404')
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            throw err
           }
         }
 
@@ -479,7 +490,7 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-    const html = await super.renderToHTML(req, res, pathname, query, options)
+    const html = await super.renderToHTML(req, res, pathname, query)
     return html
   }
 

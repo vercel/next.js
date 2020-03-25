@@ -68,15 +68,23 @@ module.exports = {
           destination: '/api/hello',
         },
         {
-          source: '/api-hello-regex/(.*)',
-          destination: '/api/hello?name=:1',
+          source: '/api-hello-regex/:first(.*)',
+          destination: '/api/hello?name=:first*',
         },
         {
           source: '/api-hello-param/:name',
-          destination: '/api/hello?name=:name',
+          destination: '/api/hello?hello=:name',
+        },
+        {
+          source: '/api-dynamic-param/:name',
+          destination: '/api/dynamic/:name?hello=:name',
         },
         {
           source: '/:path/post-321',
+          destination: '/with-params',
+        },
+        {
+          source: '/unnamed-params/nested/(.*)/:test/(.*)',
           destination: '/with-params',
         },
       ]
@@ -155,7 +163,7 @@ module.exports = {
         },
         {
           source: '/unnamed/(first|second)/(.*)',
-          destination: '/:1/:2',
+          destination: '/got-unnamed',
           permanent: false,
         },
         {
@@ -166,6 +174,16 @@ module.exports = {
         {
           source: '/redirect-override',
           destination: '/thank-you-next',
+          permanent: false,
+        },
+        {
+          source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
+          destination: '/:first/:second',
+          permanent: false,
+        },
+        {
+          source: '/catchall-redirect/:path*',
+          destination: '/somewhere',
           permanent: false,
         },
       ]

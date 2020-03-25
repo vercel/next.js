@@ -9,6 +9,8 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { readFile } from 'fs-extra'
+import { parse } from 'url'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -163,6 +165,21 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
+  it('should not have unhandledRejection when failing to prefetch on link', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.addEventListener('unhandledrejection', function (err) {
+        window.hadUnhandledReject = true;
+      })
+      window.next.router.push('/invalid-prefetch');
+    })()`)
+
+    expect(await browser.eval('window.hadUnhandledReject')).toBeFalsy()
+
+    await browser.elementByCss('#invalid-link').moveTo()
+    expect(await browser.eval('window.hadUnhandledReject')).toBeFalsy()
+  })
+
   it('should not prefetch when prefetch is explicitly set to false', async () => {
     const browser = await webdriver(appPort, '/opt-out')
 
@@ -212,5 +229,95 @@ describe('Prefetching Links in viewport', () => {
     await waitFor(2 * 1000)
     const calledPrefetch = await browser.eval(`window.calledPrefetch`)
     expect(calledPrefetch).toBe(false)
+  })
+
+  it('should prefetch with a different asPath for a prefetched page', async () => {
+    // info: both `/` and `/not-de-duped` ref the `/first` page, which we want
+    // to see prefetched twice.
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.calledPrefetch = false
+      window.next.router.prefetch = function() {
+        window.calledPrefetch = true
+      }
+      window.next.router.push('/not-de-duped')
+    })()`)
+    await waitFor(2 * 1000)
+    const calledPrefetch = await browser.eval(`window.calledPrefetch`)
+    expect(calledPrefetch).toBe(true)
+  })
+
+  it('should correctly omit pre-generaged dynamic pages from SSG manifest', async () => {
+    const content = await readFile(
+      join(appDir, '.next', 'static', 'test-build', '_ssgManifest.js'),
+      'utf8'
+    )
+
+    let self = {}
+    // eslint-disable-next-line no-eval
+    eval(content)
+    expect([...self.__SSG_MANIFEST].sort()).toMatchInlineSnapshot(`
+      Array [
+        "/ssg/basic",
+        "/ssg/catch-all/[...slug]",
+        "/ssg/dynamic-nested/[slug1]/[slug2]",
+        "/ssg/dynamic/[slug]",
+      ]
+    `)
+  })
+
+  it('should prefetch data files', async () => {
+    const browser = await webdriver(appPort, '/ssg/fixture')
+    await waitFor(2 * 1000) // wait for prefetching to occur
+
+    const links = await browser.elementsByCss('link[rel=prefetch][as=fetch]')
+
+    const hrefs = []
+    for (const link of links) {
+      const href = await link.getAttribute('href')
+      hrefs.push(href)
+    }
+    hrefs.sort()
+
+    expect(hrefs.map(href => parse(href).pathname)).toMatchInlineSnapshot(`
+      Array [
+        "/_next/data/test-build/ssg/basic.json",
+        "/_next/data/test-build/ssg/catch-all/foo.json",
+        "/_next/data/test-build/ssg/catch-all/foo/bar.json",
+        "/_next/data/test-build/ssg/catch-all/one.json",
+        "/_next/data/test-build/ssg/catch-all/one/two.json",
+        "/_next/data/test-build/ssg/dynamic-nested/foo/bar.json",
+        "/_next/data/test-build/ssg/dynamic-nested/one/two.json",
+        "/_next/data/test-build/ssg/dynamic/one.json",
+        "/_next/data/test-build/ssg/dynamic/two.json",
+      ]
+    `)
+  })
+
+  it('should prefetch data files when mismatched', async () => {
+    const browser = await webdriver(appPort, '/ssg/fixture/mismatch')
+    await waitFor(2 * 1000) // wait for prefetching to occur
+
+    const links = await browser.elementsByCss('link[rel=prefetch][as=fetch]')
+
+    const hrefs = []
+    for (const link of links) {
+      const href = await link.getAttribute('href')
+      hrefs.push(href)
+    }
+    hrefs.sort()
+
+    expect(hrefs.map(href => parse(href).pathname)).toMatchInlineSnapshot(`
+      Array [
+        "/_next/data/test-build/ssg/catch-all/foo.json",
+        "/_next/data/test-build/ssg/catch-all/foo/bar.json",
+        "/_next/data/test-build/ssg/catch-all/one.json",
+        "/_next/data/test-build/ssg/catch-all/one/two.json",
+        "/_next/data/test-build/ssg/dynamic-nested/foo/bar.json",
+        "/_next/data/test-build/ssg/dynamic-nested/one/two.json",
+        "/_next/data/test-build/ssg/dynamic/one.json",
+        "/_next/data/test-build/ssg/dynamic/two.json",
+      ]
+    `)
   })
 })
