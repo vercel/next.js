@@ -10,6 +10,8 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ## How to use
 
+[Try it on CodeSandbox](https://codesandbox.io/s/github/zeit/next.js/tree/canary/examples/basic-css)
+
 ### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:

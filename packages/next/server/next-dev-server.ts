@@ -54,6 +54,8 @@ export default class DevServer extends Server {
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
+    ;(this.renderOpts as any).ampSkipValidation =
+      this.nextConfig.experimental?.amp?.skipValidation ?? false
     ;(this.renderOpts as any).ampValidator = (
       html: string,
       pathname: string
