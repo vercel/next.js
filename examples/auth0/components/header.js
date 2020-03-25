@@ -1,51 +1,46 @@
 import Link from 'next/link'
 
-function Header({ user }) {
-  const AuthHeader = () => (
-    <>
-      <li>
-        <Link href="/profile">
-          <a>Client-rendered profile</a>
-        </Link>
-      </li>
-      <li>
-        <Link href="/advanced/ssr-profile">
-          <a>Server rendered profile (advanced)</a>
-        </Link>
-      </li>
-      <li>
-        <a href="/api/logout">Logout</a>
-      </li>
-    </>
-  )
-
-  const UnAuthHeader = () => (
-    <>
-      <>
-        <li>
-          <Link href="/">
-            <a>Home</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/about">
-            <a>About</a>
-          </Link>
-        </li>
-      </>
-      <li>
-        <a href="/api/login">Login</a>
-      </li>
-    </>
-  )
-
+function Header({ user, loading }) {
   return (
     <header>
       <nav>
-        <ul>{user ? <AuthHeader /> : <UnAuthHeader />}</ul>
+        <ul>
+          <li>
+            <Link href="/">
+              <a>Home</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/about">
+              <a>About</a>
+            </Link>
+          </li>
+          {!loading &&
+            (user ? (
+              <>
+                <li>
+                  <Link href="/profile">
+                    <a>Client-rendered profile</a>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/advanced/ssr-profile">
+                    <a>Server rendered profile (advanced)</a>
+                  </Link>
+                </li>
+                <li>
+                  <a href="/api/logout">Logout</a>
+                </li>
+              </>
+            ) : (
+              <li>
+                <a href="/api/login">Login</a>
+              </li>
+            ))}
+        </ul>
       </nav>
 
-      <style jsx global>{`
+      <style jsx>{`
         header {
           padding: 0.2rem;
           color: #fff;

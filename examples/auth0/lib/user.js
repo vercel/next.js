@@ -5,19 +5,31 @@ export async function fetchUser(cookie = '') {
   if (typeof window !== 'undefined' && window.__user) {
     return window.__user
   }
-  const response = await fetch('/api/me', cookie ? { headers: { cookie } } : {})
-  if (!response.ok) {
+
+  const res = await fetch(
+    '/api/me',
+    cookie
+      ? {
+          headers: {
+            cookie,
+          },
+        }
+      : {}
+  )
+
+  if (!res.ok) {
     delete window.__user
     return null
   }
-  const userData = await response.json()
+
+  const json = await res.json()
   if (typeof window !== 'undefined') {
-    window.__user = userData
+    window.__user = json
   }
-  return userData
+  return json
 }
 
-export function useFetchUser({ required = false } = {}) {
+export function useFetchUser({ required } = {}) {
   const [loading, setLoading] = useState(
     () => !(typeof window !== 'undefined' && window.__user)
   )
@@ -25,6 +37,7 @@ export function useFetchUser({ required = false } = {}) {
     if (typeof window === 'undefined') {
       return null
     }
+
     return window.__user || null
   })
 
