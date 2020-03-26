@@ -1,9 +1,9 @@
-import nextConnect from 'next-connect';
-import auth from '../../middleware/auth';
+import nextConnect from 'next-connect'
+import auth from '../../middleware/auth'
 
-const handler = nextConnect();
+const handler = nextConnect()
 handler.use(auth).get((req, res) => {
-  res.json({ user: req.user });
-});
+  res.json({ user: req.user })
+})
 
-export default handler;
+export default handler

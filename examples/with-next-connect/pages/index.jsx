@@ -1,21 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
-import { useUser, usePost } from '../lib/hooks';
+import { useState, useRef, useEffect } from 'react'
+import { useUser, usePost } from '../lib/hooks'
 
 function Editor() {
-  const [, { mutate }] = usePost();
+  const [, { mutate }] = usePost()
   async function handleSubmit(e) {
-    e.preventDefault();
+    e.preventDefault()
     const body = {
       content: e.currentTarget.content.value,
-    };
-    e.currentTarget.content.value = '';
+    }
+    e.currentTarget.content.value = ''
     const res = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    });
-    const allPosts = await res.json();
-    mutate(allPosts);
+    })
+    const allPosts = await res.json()
+    mutate(allPosts)
   }
   return (
     <>
@@ -29,7 +29,7 @@ function Editor() {
           margin: 0 0 0 0.5rem;
         }
       `}</style>
-      <form onSubmit={handleSubmit} autocomplete="off">
+      <form onSubmit={handleSubmit} autoComplete="off">
         <input
           type="text"
           name="content"
@@ -39,41 +39,41 @@ function Editor() {
         <button type="submit">Post</button>
       </form>
     </>
-  );
+  )
 }
 
 function Post({ post }) {
-  const [, { mutate }] = usePost();
-  const [isEditing, setIsEditing] = useState(false);
-  const inputRef = useRef();
+  const [, { mutate }] = usePost()
+  const [isEditing, setIsEditing] = useState(false)
+  const inputRef = useRef()
   async function handleDelete() {
     const res = await fetch(`/api/posts/${post.id}`, {
       method: 'DELETE',
-    });
-    const allPosts = await res.json();
-    mutate(allPosts);
+    })
+    const allPosts = await res.json()
+    mutate(allPosts)
   }
 
   async function handleSave(e) {
-    e.preventDefault();
+    e.preventDefault()
     const body = {
       content: inputRef.current.value,
-    };
+    }
     const res = await fetch(`/api/posts/${post.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    });
-    const allPosts = await res.json();
-    mutate(allPosts);
-    setIsEditing(false);
+    })
+    const allPosts = await res.json()
+    mutate(allPosts)
+    setIsEditing(false)
   }
 
   useEffect(() => {
     if (isEditing) {
-      inputRef.current.value = post.content;
+      inputRef.current.value = post.content
     }
-  }, [post, isEditing]);
+  }, [post, isEditing])
 
   return (
     <>
@@ -92,7 +92,7 @@ function Post({ post }) {
       `}</style>
       <div className="post">
         {isEditing ? (
-          <form onSubmit={handleSave} autocomplete="off">
+          <form onSubmit={handleSave} autoComplete="off">
             <label>
               <input ref={inputRef} />
             </label>
@@ -105,11 +105,15 @@ function Post({ post }) {
               <button type="button" onClick={() => setIsEditing(true)}>
                 Edit
               </button>
-              <button type="button" onClick={handleDelete} style={{
-                color: '#000',
-                backgroundColor: 'transparent',
-                marginLeft: '.5rem'
-              }}>
+              <button
+                type="button"
+                onClick={handleDelete}
+                style={{
+                  color: '#000',
+                  backgroundColor: 'transparent',
+                  marginLeft: '.5rem',
+                }}
+              >
                 Delete
               </button>
             </div>
@@ -117,11 +121,11 @@ function Post({ post }) {
         )}
       </div>
     </>
-  );
+  )
 }
 
 function PostList() {
-  const [posts] = usePost();
+  const [posts] = usePost()
   return (
     <>
       <style jsx>{`
@@ -131,16 +135,16 @@ function PostList() {
         }
       `}</style>
       {posts?.length ? (
-        posts.map((post) => <Post key={post.id} post={post} />)
+        posts.map(post => <Post key={post.id} post={post} />)
       ) : (
         <p>You have not write anything</p>
       )}
     </>
-  );
+  )
 }
 
 export default function HomePage() {
-  const [user] = useUser();
+  const [user] = useUser()
   return (
     <>
       <style jsx>{`
@@ -171,5 +175,5 @@ export default function HomePage() {
         <p>Sign in to use this app</p>
       )}
     </>
-  );
+  )
 }

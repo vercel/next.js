@@ -1,16 +1,16 @@
-import Link from 'next/link';
-import { useUser } from '../lib/hooks';
+import Link from 'next/link'
+import { useUser } from '../lib/hooks'
 
 function Navbar() {
-    const [user, { mutate }] = useUser();
-    async function handleLogout() {
-        await fetch('/api/logout');
-        mutate(null);
-    }
+  const [user, { mutate }] = useUser()
+  async function handleLogout() {
+    await fetch('/api/logout')
+    mutate(null)
+  }
 
-    return (
-        <>
-        <style jsx>{`
+  return (
+    <>
+      <style jsx>{`
         nav {
           max-width: 1040px;
           margin: auto;
@@ -36,28 +36,32 @@ function Navbar() {
           clear: both;
           display: table;
         }
-        `}</style>
-    <nav>
-      <Link href="/">
-        <a>Next.js CRUD</a>
-      </Link>
-      <div>
-        {!user ? (
-          <Link href="/login">
-          <a>Sign in</a>
+      `}</style>
+      <nav>
+        <Link href="/">
+          <a>Next.js CRUD</a>
         </Link>
-        ) : (
+        <div>
+          {!user ? (
+            <Link href="/login">
+              <a>Sign in</a>
+            </Link>
+          ) : (
             <a role="button" onClick={handleLogout}>
-            Logout
-        </a>
-        )}
-      </div>
-    </nav></>)
+              Logout
+            </a>
+          )}
+        </div>
+      </nav>
+    </>
+  )
 }
 
 export default function Layout({ children }) {
-    return <>
-        <Navbar />
-        <main>{children}</main>
+  return (
+    <>
+      <Navbar />
+      <main>{children}</main>
     </>
+  )
 }

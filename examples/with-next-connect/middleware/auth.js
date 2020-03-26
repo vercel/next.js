@@ -1,6 +1,6 @@
-import cookieSession from 'cookie-session';
-import nextConnect from 'next-connect';
-import passport from '../lib/passport';
+import cookieSession from 'cookie-session'
+import nextConnect from 'next-connect'
+import passport from '../lib/passport'
 
 const auth = nextConnect()
   .use(
@@ -10,6 +10,6 @@ const auth = nextConnect()
     })
   )
   .use(passport.initialize())
-  .use(passport.session());
+  .use(passport.session())
 
-export default auth;
+export default auth
