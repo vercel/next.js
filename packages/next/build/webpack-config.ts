@@ -48,6 +48,7 @@ import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
   DuplicatePolyfillsConformanceCheck,
+  GranularChunksConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -461,6 +462,9 @@ export default async function getBaseWebpackConfig(
           config.conformance?.DuplicatePolyfillsConformanceCheck
             ?.BlockedAPIToBePolyfilled || []
         ),
+      },
+      GranularChunksConformanceCheck: {
+        enabled: true,
       },
     },
     config.conformance
@@ -901,6 +905,12 @@ export default async function getBaseWebpackConfig(
                   conformanceConfig.DuplicatePolyfillsConformanceCheck
                     .BlockedAPIToBePolyfilled,
               }),
+            !isServer &&
+              config.experimental.granularChunks &&
+              conformanceConfig.GranularChunksConformanceCheck.enabled &&
+              new GranularChunksConformanceCheck(
+                splitChunksConfigs.prodGranular
+              ),
           ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),

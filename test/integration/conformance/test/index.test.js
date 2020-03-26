@@ -2,6 +2,7 @@
 /* global jasmine */
 import { join } from 'path'
 import { killApp, nextBuild } from 'next-test-utils'
+import { bold } from 'kleur'
 
 const appDir = join(__dirname, '../')
 let server
@@ -24,10 +25,20 @@ describe('Conformance system', () => {
     )
   })
 
-  it('Should warn about sync external sync scripts', async () => {
+  it('Should warn about duplicate polyfills', async () => {
     const { stderr } = build
     expect(stderr).toContain(
       '[BUILD CONFORMANCE WARNING]: Found polyfill.io loading polyfill for fetch.'
+    )
+  })
+
+  it('Should warn about changes to granularChunks config', async () => {
+    const { stderr } = build
+    expect(stderr).toContain(
+      '[BUILD CONFORMANCE ERROR]: The splitChunks config as part of the granularChunks flag has ' +
+        `been carefully crafted to optimize build size and build times. Please avoid changes to ${bold(
+          'splitChunks.cacheGroups.vendors'
+        )}`
     )
   })
 })
