@@ -50,6 +50,25 @@ module.exports = context => {
       }
     })
 
+    it('should not allow accessing files outside .next/static directory', async () => {
+      const pathsToCheck = [
+        `/_next/static/../server/pages-manifest.json`,
+        `/_next/static/../server/build-manifest.json`,
+        `/_next/static/../BUILD_ID`,
+        `/_next/static/../routes-manifest.json`,
+      ]
+      for (const path of pathsToCheck) {
+        const res = await fetchViaHTTP(context.appPort, path)
+        const text = await res.text()
+        try {
+          expect(res.status).toBe(404)
+          expect(text).toMatch(/This page could not be found/)
+        } catch (err) {
+          throw new Error(`Path ${path} accessible from the browser`)
+        }
+      }
+    })
+
     it("should not leak the user's home directory into the build", async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 

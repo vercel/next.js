@@ -38,6 +38,8 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { collectEnv } from './utils'
+import { Env } from '../../lib/load-env-config'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { GetStaticProps, GetServerSideProps } from '../../types'
 
@@ -154,6 +156,7 @@ export type RenderOptsPartial = {
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  env: Env | false
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -288,6 +291,7 @@ export async function renderToHTML(
     staticMarkup = false,
     ampPath = '',
     App,
+    env = {},
     Document,
     pageConfig = {},
     DocumentMiddleware,
@@ -302,6 +306,8 @@ export async function renderToHTML(
     params,
     previewProps,
   } = renderOpts
+
+  const curEnv = env ? collectEnv(pathname, env, pageConfig.env) : {}
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -503,6 +509,7 @@ export async function renderToHTML(
 
       try {
         data = await getStaticProps!({
+          env: curEnv,
           ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
@@ -585,6 +592,7 @@ export async function renderToHTML(
           req,
           res,
           query,
+          env: curEnv,
           ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
