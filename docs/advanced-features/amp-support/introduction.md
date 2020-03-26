@@ -21,7 +21,7 @@ To enable AMP support for a page, and to learn more about the different AMP conf
 
 ## Caveats
 
-- Only CSS-in-JS is supported, [CSS Modules](docs/basic-features/built-in-css-support.md) aren't supported by AMP pages at the moment.
+- Only CSS-in-JS is supported. [CSS Modules](/docs/basic-features/built-in-css-support.md) aren't supported by AMP pages at the moment.
 
 ## Related
 
