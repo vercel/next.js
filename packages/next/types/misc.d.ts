@@ -43,6 +43,12 @@ declare module 'next/dist/compiled/text-table' {
   export = textTable
 }
 
+declare module 'next/dist/compiled/dotenv' {
+  import dotenv from 'dotenv'
+
+  export = dotenv
+}
+
 declare module 'next/dist/compiled/arg/index.js' {
   function arg<T extends arg.Spec>(
     spec: T,
