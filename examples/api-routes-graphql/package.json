@@ -9,7 +9,6 @@
   "dependencies": {
     "apollo-server-micro": "2.11.0",
     "graphql": "14.6.0",
-    "isomorphic-unfetch": "3.0.0",
     "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1",
