@@ -81,7 +81,7 @@ export type GetStaticPaths = () => Promise<{
   fallback: boolean
 }>
 
-export interface GetSerSidePropsContext {
+export interface GetServerSidePropsContext {
   req: IncomingMessage
   res: ServerResponse
   params?: ParsedUrlQuery
@@ -92,6 +92,6 @@ export interface GetSerSidePropsContext {
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any }
-> = (context: GetSerSidePropsContext) => Promise<{ props: P }>
+> = (context: GetServerSidePropsContext) => Promise<{ props: P }>
 
 export default next
