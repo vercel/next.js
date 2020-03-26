@@ -2,19 +2,16 @@
 /// <reference types="react" />
 /// <reference types="react-dom" />
 
-import React from 'react'
-import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
-
+import { ParsedUrlQuery } from 'querystring'
+import React from 'react'
 import {
-  NextPageContext,
-  NextComponentType,
-  NextApiResponse,
-  NextApiRequest,
   NextApiHandler,
-  // @ts-ignore This path is generated at build time and conflicts otherwise
+  NextApiRequest,
+  NextApiResponse,
+  NextComponentType,
+  NextPageContext,
 } from '../dist/next-server/lib/utils'
-
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
@@ -64,13 +61,17 @@ export {
   NextApiHandler,
 }
 
-export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any }
-> = (ctx: {
+export interface GetStaticPropsContext {
   params?: ParsedUrlQuery
   preview?: boolean
   previewData?: any
-}) => Promise<{
+}
+
+export type GetStaticProps<
+  P extends { [key: string]: any } = { [key: string]: any }
+> = (
+  ctx: GetStaticPropsContext
+) => Promise<{
   props: P
   revalidate?: number | boolean
 }>
@@ -80,15 +81,17 @@ export type GetStaticPaths = () => Promise<{
   fallback: boolean
 }>
 
-export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any }
-> = (context: {
+export interface GetSerSidePropsContext {
   req: IncomingMessage
   res: ServerResponse
   params?: ParsedUrlQuery
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
-}) => Promise<{ props: P }>
+}
+
+export type GetServerSideProps<
+  P extends { [key: string]: any } = { [key: string]: any }
+> = (context: GetSerSidePropsContext) => Promise<{ props: P }>
 
 export default next
