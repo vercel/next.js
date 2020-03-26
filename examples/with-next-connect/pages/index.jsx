@@ -168,7 +168,7 @@ export default function HomePage() {
       {user ? (
         <>
           <Editor />
-          <h2>Your posts</h2>
+          <h2>{user.username}'s posts</h2>
           <PostList />
         </>
       ) : (
