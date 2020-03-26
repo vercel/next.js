@@ -15,7 +15,8 @@ handler
     // Here you will edit the post in the database
     // db.updatePostByIdAndUserId(id, req.user.id, content);
     // We will use req.session for demo purpose
-    req.session.posts[req.session.posts.findIndex(post => post.id)].content = content; 
+    const editingPost = req.session.posts.find(post => post.id === id);
+    editingPost.content = content; 
     res.json({ posts: req.session.posts });
   })
   .delete((req, res) => {

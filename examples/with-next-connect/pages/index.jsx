@@ -140,7 +140,7 @@ function PostList() {
 }
 
 export default function HomePage() {
-  const [user, { mutate }] = useUser();
+  const [user] = useUser();
   return (
     <>
       <style jsx>{`

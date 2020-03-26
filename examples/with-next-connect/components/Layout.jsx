@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import useSWR from 'swr';
 import { useUser } from '../lib/hooks';
 
 function Navbar() {
