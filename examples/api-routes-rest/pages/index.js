@@ -1,4 +1,4 @@
-import fetch from 'isomorphic-unfetch'
+import fetch from 'node-fetch'
 import Link from 'next/link'
 
 const Index = ({ users }) => (
@@ -13,11 +13,11 @@ const Index = ({ users }) => (
   </ul>
 )
 
-Index.getInitialProps = async () => {
+export async function getStaticProps() {
   const response = await fetch('http://localhost:3000/api/users')
   const users = await response.json()
 
-  return { users }
+  return { props: { users } }
 }
 
 export default Index
