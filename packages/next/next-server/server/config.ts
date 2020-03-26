@@ -54,6 +54,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     sassOptions: {},
+    pageEnv: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

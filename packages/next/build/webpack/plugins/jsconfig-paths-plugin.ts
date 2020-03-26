@@ -174,6 +174,12 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
 
           for (const subst of paths[matchedPatternText]) {
             const path = matchedStar ? subst.replace('*', matchedStar) : subst
+
+            // Ensure .d.ts is not matched
+            if (path.endsWith('.d.ts')) {
+              continue
+            }
+
             const candidate = join(baseDirectory, path)
             const [err, result] = await new Promise((resolve, reject) => {
               const obj = Object.assign({}, request, {
