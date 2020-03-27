@@ -108,7 +108,7 @@
     "is-docker": "2.0.0",
     "is-wsl": "2.1.1",
     "jest-worker": "24.9.0",
-    "json5": "2.1.1",
+    "json5": "2.1.2",
     "jsonwebtoken": "8.5.1",
     "launch-editor": "2.2.1",
     "loader-utils": "2.0.0",
