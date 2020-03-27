@@ -30,8 +30,8 @@ Optionally you can provide [MDX options](https://github.com/mdx-js/mdx#options):
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
-    mdPlugins: [],
-    hastPlugins: [],
+    remarkPlugins: [],
+    rehypePlugins: [],
   },
 })
 module.exports = withMDX()
