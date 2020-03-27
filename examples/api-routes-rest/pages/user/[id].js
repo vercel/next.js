@@ -1,19 +1,18 @@
-import fetch from 'node-fetch'
+import useSwr from 'swr'
+import { withRouter } from 'next/router'
 
-const User = ({ user }) => <div>{user.name}</div>
-
-export async function getStaticPaths() {
-  const response = await fetch(`http://localhost:3000/api/users`)
-  const users = await response.json()
-
-  const paths = users.map(user => `/user/${user.id}`)
-  return { paths, fallback: false }
+const fetcher = async url => {
+  const response = await fetch(url)
+  return await response.json()
 }
 
-export async function getStaticProps({ params }) {
-  const response = await fetch(`http://localhost:3000/api/user/${params.id}`)
-  const user = await response.json()
-  return { props: { user } }
+const User = ({ router }) => {
+  const { data, error } = useSwr(`/api/user/${router.query.id}`, fetcher)
+
+  if (error) return <div>Failed to load users</div>
+  if (!data) return <div>Loading...</div>
+
+  return <div>{data.name}</div>
 }
 
-export default User
+export default withRouter(User)
