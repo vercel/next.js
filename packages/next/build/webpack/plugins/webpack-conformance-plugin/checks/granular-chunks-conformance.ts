@@ -18,7 +18,7 @@ export interface GranularChunksConformanceCheck
 function getWarningMessage(modifiedProp: string) {
   return (
     `${CONFORMANCE_WARNING_PREFIX}: The splitChunks config as part of the granularChunks flag has ` +
-    `been carefully crafted to optimize build size and build times. Modifying - ${red(
+    `been carefully crafted to optimize build size and build times. Modifying - ${bold(
       modifiedProp
     )} could result in slower builds and increased code duplication`
   )
