@@ -32,7 +32,11 @@ export async function getStaticPaths() {
           slug: '2019-09-06_its_not_the_problem_you_want_to_solve_boiiiiii',
         },
       },
-      { params: { slug: '2019-09-06_why_did_the_chicken_cross_the_road' } },
+      {
+        params: {
+          slug: '2019-09-06_why_did_the_chicken_cross_the_road',
+        },
+      },
     ],
     fallback: false,
   }
