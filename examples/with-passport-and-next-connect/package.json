@@ -1,5 +1,5 @@
 {
-  "name": "with-next-connect",
+  "name": "with-passport-and-next-connect",
   "scripts": {
     "dev": "next",
     "build": "next build",

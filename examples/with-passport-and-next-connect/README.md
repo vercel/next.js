@@ -8,7 +8,7 @@ The example shows how to do a login and logout. It also allows authenticated use
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-next-connect)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-passport-and-next-connect)
 
 ## How to use
 
@@ -17,9 +17,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-next-connect with-next-connect-app
+npx create-next-app --example with-passport-and-next-connect with-passport-and-next-connect-app
 # or
-yarn create next-app --example with-next-connect with-next-connect-app
+yarn create next-app --example with-passport-and-next-connect with-passport-and-next-connect-app
 ```
 
 ### Download manually
@@ -27,8 +27,8 @@ yarn create next-app --example with-next-connect with-next-connect-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-next-connect
-cd with-next-connect
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-passport-and-next-connect
+cd with-passport-and-next-connect
 ```
 
 Install it and run:
