@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { resolve } from 'path'
+
 import arg from 'next/dist/compiled/arg/index.js'
-import { existsSync } from 'fs'
-import startServer from '../server/lib/start-server'
-import { printAndExit } from '../server/lib/utils'
-import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
+import { existsSync } from 'fs'
+import { printAndExit } from '../server/lib/utils'
+import { resolve } from 'path'
+import startServer from '../server/lib/start-server'
+import { startedDevelopmentServer } from '../build/output'
 
 const nextDev: cliCommand = argv => {
   const args = arg(
@@ -51,7 +52,7 @@ const nextDev: cliCommand = argv => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const port = args['--port'] || 3000
+  const port = args['--port'] || (process.env.PORT && +process.env.PORT) || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
   startedDevelopmentServer(appUrl)
