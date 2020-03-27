@@ -5,6 +5,7 @@
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
+import { Env } from '../lib/load-env-config'
 
 import {
   NextPageContext,
@@ -54,6 +55,7 @@ export type PageConfig = {
      */
     bodyParser?: { sizeLimit?: number | string } | false
   }
+  env?: Array<string>
 }
 
 export {
@@ -68,6 +70,7 @@ export interface GetStaticPropsContext {
   params?: ParsedUrlQuery
   preview?: boolean
   previewData?: any
+  env: Env
 }
 
 export type GetStaticProps<
@@ -89,6 +92,7 @@ export interface GetServerSidePropsContext {
   res: ServerResponse
   params?: ParsedUrlQuery
   query: ParsedUrlQuery
+  env: Env
   preview?: boolean
   previewData?: any
 }

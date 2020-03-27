@@ -11,6 +11,7 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { readFileSync } from 'fs'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -56,6 +57,12 @@ const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
+}
+
+function parseJsonFile(path: string) {
+  const JSON5 = require('json5')
+  const contents = readFileSync(path)
+  return JSON5.parse(contents)
 }
 
 function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
@@ -221,12 +228,12 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
-    jsConfig = require(tsConfigPath)
+    jsConfig = parseJsonFile(tsConfigPath)
   }
 
   const jsConfigPath = path.join(dir, 'jsconfig.json')
   if (!useTypeScript && (await fileExists(jsConfigPath))) {
-    jsConfig = require(jsConfigPath)
+    jsConfig = parseJsonFile(jsConfigPath)
   }
 
   let resolvedBaseUrl
@@ -707,6 +714,17 @@ export default async function getBaseWebpackConfig(
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
+        ...(config.experimental.pageEnv
+          ? Object.keys(process.env).reduce(
+              (prev: { [key: string]: string }, key: string) => {
+                if (key.startsWith('NEXT_APP_')) {
+                  prev[key] = process.env[key]!
+                }
+                return prev
+              },
+              {}
+            )
+          : {}),
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
