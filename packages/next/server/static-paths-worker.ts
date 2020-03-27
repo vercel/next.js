@@ -1,8 +1,7 @@
 import { buildStaticPaths } from '../build/utils'
 import { loadComponents } from '../next-server/server/load-components'
 
-// store initial require modules so we don't clear them below
-const initialCache = new Set(Object.keys(require.cache))
+let workerWasUsed = false
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
@@ -13,14 +12,11 @@ export async function loadStaticPaths(
   pathname: string,
   serverless: boolean
 ) {
-  // we need to clear any modules manually here since the
-  // require-cache-hot-loader doesn't affect require cache here
-  // since we're in a separate process
-  Object.keys(require.cache).forEach(mod => {
-    if (!initialCache.has(mod)) {
-      delete require.cache[mod]
-    }
-  })
+  // we only want to use each worker once to prevent any invalid
+  // caches
+  if (workerWasUsed) {
+    process.exit(1)
+  }
 
   const components = await loadComponents(
     distDir,
@@ -37,5 +33,6 @@ export async function loadStaticPaths(
     )
   }
 
+  workerWasUsed = true
   return buildStaticPaths(pathname, components.getStaticPaths)
 }
