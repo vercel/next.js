@@ -24,12 +24,27 @@ const Post = ({ blogpost }) => {
   )
 }
 
-Post.getInitialProps = async ({ query }) => {
-  const { slug } = query
-  const blogpost = await import(`../../../content/blogPosts/${slug}.md`).catch(
-    () => null
-  )
-  return { blogpost }
+export async function getStaticPaths() {
+  return {
+    paths: [
+      {
+        params: {
+          slug: '2019-09-06_its_not_the_problem_you_want_to_solve_boiiiiii',
+        },
+      },
+      { params: { slug: '2019-09-06_why_did_the_chicken_cross_the_road' } },
+    ],
+    fallback: false,
+  }
+}
+
+export async function getStaticProps({ params }) {
+  const blog = await import(
+    `../../../content/blogPosts/${params.slug}.md`
+  ).catch(() => null)
+  let blogpost = JSON.stringify(blog)
+  blogpost = JSON.parse(blogpost)
+  return { props: { blogpost } }
 }
 
 export default Post
