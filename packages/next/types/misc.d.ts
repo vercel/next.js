@@ -4,7 +4,6 @@ declare module 'webpack/lib/DynamicEntryPlugin'
 declare module 'unfetch'
 declare module 'launch-editor'
 declare module 'styled-jsx/server'
-declare module 'browserslist'
 
 declare module 'cssnano-simple' {
   import { Plugin } from 'postcss'
@@ -55,6 +54,7 @@ declare module 'next/dist/compiled/babel--types' {
   import m from '@babel/types'
   export = m
 }
+declare module 'next/dist/compiled/browserslist'
 declare module 'next/dist/compiled/dotenv' {
   import m from 'dotenv'
   export = m
