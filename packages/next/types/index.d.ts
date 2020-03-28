@@ -78,8 +78,10 @@ export type GetStaticProps<
   revalidate?: number | boolean
 }>
 
-export type GetStaticPaths = () => Promise<{
-  paths: Array<string | { params: ParsedUrlQuery }>
+export type GetStaticPaths<
+  P extends ParsedUrlQuery = ParsedUrlQuery
+> = () => Promise<{
+  paths: Array<string | { params: P }>
   fallback: boolean
 }>
 
