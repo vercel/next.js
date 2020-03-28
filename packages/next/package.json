@@ -1,6 +1,6 @@
 {
   "name": "@module-federation/next",
-  "version": "9.3.2-beta.2",
+  "version": "9.3.2-beta.3",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
