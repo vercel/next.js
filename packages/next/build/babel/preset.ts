@@ -1,4 +1,4 @@
-import { PluginItem } from '@babel/core'
+import { PluginItem } from 'next/dist/compiled/babel--core'
 const env = process.env.NODE_ENV
 const isProduction = env === 'production'
 const isDevelopment = env === 'development'
@@ -95,7 +95,7 @@ module.exports = (
     }
   }
 
-  // specify a preset to use instead of @babel/preset-env:
+  // specify a preset to use instead of @babel/preset-env
   const customModernPreset =
     isLaxModern && options['experimental-modern-preset']
 
@@ -103,11 +103,11 @@ module.exports = (
     sourceType: 'unambiguous',
     presets: [
       customModernPreset || [
-        require('@babel/preset-env').default,
+        require('next/dist/compiled/babel--preset-env').default,
         presetEnvConfig,
       ],
       [
-        require('@babel/preset-react'),
+        require('next/dist/compiled/babel--preset-react'),
         {
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
@@ -116,7 +116,10 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      [require('@babel/preset-typescript'), { allowNamespaces: true }],
+      [
+        require('next/dist/compiled/babel--preset-typescript'),
+        { allowNamespaces: true },
+      ],
     ],
     plugins: [
       [
@@ -138,20 +141,20 @@ module.exports = (
           lib: true,
         },
       ],
-      require('@babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel--plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
-        require('@babel/plugin-proposal-class-properties'),
+        require('next/dist/compiled/babel--plugin-proposal-class-properties'),
         options['class-properties'] || {},
       ],
       [
-        require('@babel/plugin-proposal-object-rest-spread'),
+        require('next/dist/compiled/babel--plugin-proposal-object-rest-spread'),
         {
           useBuiltIns: true,
         },
       ],
       !isServer && [
-        require('@babel/plugin-transform-runtime'),
+        require('next/dist/compiled/babel--plugin-transform-runtime'),
         {
           corejs: false,
           helpers: true,
@@ -169,20 +172,27 @@ module.exports = (
       ],
       require('./plugins/amp-attributes'),
       isProduction && [
-        require('babel-plugin-transform-react-remove-prop-types'),
+        require('next/dist/compiled/babel-plugin-transform-react-remove-prop-types'),
         {
           removeImport: true,
         },
       ],
-      require('@babel/plugin-proposal-optional-chaining'),
-      require('@babel/plugin-proposal-nullish-coalescing-operator'),
-      isServer && require('@babel/plugin-syntax-bigint'),
-      [require('@babel/plugin-proposal-numeric-separator').default, false],
+      require('next/dist/compiled/babel--plugin-proposal-optional-chaining'),
+      require('next/dist/compiled/babel--plugin-proposal-nullish-coalescing-operator'),
+      isServer && require('next/dist/compiled/babel--plugin-syntax-bigint'),
+      [
+        require('next/dist/compiled/babel--plugin-proposal-numeric-separator')
+          .default,
+        false,
+      ],
     ].filter(Boolean),
     overrides: [
       {
         test: /\.tsx?$/,
-        plugins: [require('@babel/plugin-proposal-numeric-separator').default],
+        plugins: [
+          require('next/dist/compiled/babel--plugin-proposal-numeric-separator')
+            .default,
+        ],
       },
     ],
   }

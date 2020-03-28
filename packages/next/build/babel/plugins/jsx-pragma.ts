@@ -1,5 +1,5 @@
-import { NodePath, PluginObj } from '@babel/core'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj } from 'next/dist/compiled/babel--core'
+import * as BabelTypes from 'next/dist/compiled/babel--types'
 
 export default function({
   types: t,
@@ -7,7 +7,7 @@ export default function({
   types: typeof BabelTypes
 }): PluginObj<any> {
   return {
-    inherits: require('babel-plugin-syntax-jsx'),
+    inherits: require('next/dist/compiled/babel-plugin-syntax-jsx'),
     visitor: {
       JSXElement(path, state) {
         state.set('jsx', true)

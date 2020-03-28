@@ -170,7 +170,7 @@ export default class NextEsmPlugin implements Plugin {
 
           if (IS_PRESET_ENV.test(name)) {
             presets.push([
-              require.resolve('@babel/preset-modules'),
+              require.resolve('next/dist/compiled/babel--preset-modules'),
               { loose: true },
             ])
           } else {

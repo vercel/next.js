@@ -1,4 +1,4 @@
-import babelLoader from 'babel-loader'
+import babelLoader from 'next/dist/compiled/babel-loader'
 import { basename, join } from 'path'
 import hash from 'string-hash'
 
@@ -44,7 +44,7 @@ module.exports = babelLoader.custom(babel => {
     { type: 'plugin' }
   )
   const commonJsItem = babel.createConfigItem(
-    require('@babel/plugin-transform-modules-commonjs'),
+    require('next/dist/compiled/babel--plugin-transform-modules-commonjs'),
     { type: 'plugin' }
   )
 
@@ -180,7 +180,7 @@ module.exports = babelLoader.custom(babel => {
       }
 
       options.plugins.push([
-        require.resolve('babel-plugin-transform-define'),
+        require.resolve('next/dist/compiled/babel-plugin-transform-define'),
         {
           'process.env.NODE_ENV': development ? 'development' : 'production',
           'typeof window': isServer ? 'undefined' : 'object',
