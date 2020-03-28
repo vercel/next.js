@@ -10,6 +10,6 @@ const auth = nextConnect()
     })
   )
   .use(passport.initialize())
-  .use(passport.session())
+  .use(passport.session()) // this middleware will populate req.user
 
 export default auth

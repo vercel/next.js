@@ -23,8 +23,8 @@ handler
       id: nanoid(),
       content,
     }
-    // Here you will add the posts to the database
-    // db.createPost(req.user.id, post)
+    // Here you will add the post under the user id to the database
+    // db.createPost(post, req.user.id)
     // We will use req.session for demo purpose
     req.session.posts = req.session.posts.concat([post])
     res.json({ posts: req.session.posts })
