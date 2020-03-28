@@ -1,4 +1,4 @@
-import { parse } from 'content-type'
+import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'cookie'
 import { IncomingMessage, ServerResponse } from 'http'
 import { PageConfig } from 'next/types'
