@@ -99,18 +99,18 @@ async function run() {
     process.exit(1)
   }
 
-  // --example flag included, but no example path provided, i.e.:
-  // $ create-next-app --example
-  if (program.example && typeof program.example !== 'string') {
-    const wantsRes = await prompts({
-      type: 'confirm',
-      name: 'wantsExample',
-      message:
-        'You forgot to select an example, would you like to pick one now?',
-      initial: false,
+  if (!program.example) {
+    const template = await prompts({
+      type: 'select',
+      name: 'value',
+      message: 'Pick a template',
+      choices: [
+        { title: 'Default starter app', value: 'default' },
+        { title: 'Example from the Next.js repo', value: 'example' },
+      ],
     })
 
-    if (wantsRes.wantsExample) {
+    if (template.value === 'example') {
       const examplesJSON = await listExamples()
       const choices = examplesJSON.map((example: any) => ({
         title: example.name,
@@ -130,17 +130,11 @@ async function run() {
       })
 
       if (!nameRes.exampleName) {
-        console.error(
-          'Could not locate an example with that name. Creating project from blank starter instead.'
-        )
+        console.error('Could not locate an example with that name.')
+        process.exit(1)
       }
 
       program.example = nameRes.exampleName
-
-      // If the user says 'no' to choosing from examples, they are warned that the default
-      // template is being used.
-    } else {
-      console.warn(chalk.yellow('Creating project from blank starter instead.'))
     }
   }
 
