@@ -120,7 +120,13 @@ export default singletonRouter as SingletonRouter
 export { default as withRouter } from './with-router'
 
 export function useRouter() {
-  return React.useContext(RouterContext)
+  if (process.browser) {
+    return React.useContext(RouterContext)
+  }
+  if(React.useContext(RouterContext)) {
+    return React.useContext(RouterContext)
+  }
+  return global.router
 }
 
 // INTERNAL APIS
@@ -131,7 +137,6 @@ export function useRouter() {
 // This is used in client side when we are initilizing the app.
 // This should **not** use inside the server.
 export const createRouter = (...args: RouterArgs) => {
-  // console.log('args',args)
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach(cb => cb())
   singletonRouter.readyCallbacks = []
@@ -161,6 +166,5 @@ export function makePublicRouterInstance(router: Router): NextRouter {
       return _router[field](...args)
     }
   })
-console.log(instance)
   return instance
 }

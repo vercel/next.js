@@ -827,7 +827,6 @@ export default class Server {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless
         )
-
         return {
           components,
           query: {

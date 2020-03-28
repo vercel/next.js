@@ -81,14 +81,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
           'next-plugin-loader?middleware=unstable-enhance-app-server!'
         ).then(mod => mod.default(ctx))
       : []
-
     const enhanceApp = (App: any) => {
       for (const enhancer of enhancers) {
         App = enhancer(App)
       }
       return (props: any) => <App {...props} />
     }
-
     const { html, head } = await ctx.renderPage({ enhanceApp })
     const styles = [
       ...flush(),

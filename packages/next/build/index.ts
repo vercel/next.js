@@ -331,6 +331,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   ])
 
   const clientConfig = configs[0]
+
   if (
     clientConfig.optimization &&
     (clientConfig.optimization.minimize !== true ||
@@ -372,10 +373,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (buildSpinner) {
     buildSpinner.stopAndPersist()
   }
-  console.log('There were errors!')
-  console.log(result)
-  console.log(JSON.stringify(result, null, 2))
-  // result = formatWebpackMessages(result)
+  console.log()
+
+  result = formatWebpackMessages(result)
 
   if (result.errors.length > 0) {
     // Only keep the first error. Others are often indicative

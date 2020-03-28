@@ -28,30 +28,7 @@ export default class NextJsSsrImportPlugin {
       (compilation, callback) => {
         compilation.assets[SSR_MODULE_CACHE_FILENAME] = new RawSource(`
       /* This cache is used by webpack for instantiated modules */
-      let cacheObject = {
-      'next/router': require('next/router')
-      }
-      let handler = {
-      set:function(obj,prop,value){
-      // console.log(prop, value);
-        obj[prop] = value;
-      if(prop === 'next/router') {
-      // console.log('looking for router',Object.freeze(value));
-     return true
-      }
-        // if(value && !cacheObject[prop]) {
-        //    cacheObject[prop] = Object.seal(value);
-        // }
-        // Object.assign(obj,cacheObject);
-        return true
-      },
-      get:function(target,name){
-      // console.log('get',name,target[name])
-      return target[name]
-      }}
-      
-      // new Proxy({},handler)
-      module.exports = new Proxy({},handler)
+      module.exports = {}
       `)
         callback()
       }
