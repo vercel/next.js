@@ -9,6 +9,20 @@ export async function ncc_arg(task, opts) {
     .target('dist/compiled/arg')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_async_retry(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('async-retry')))
+    .ncc({ packageName: 'async-retry' })
+    .target('dist/compiled/async-retry')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_async_sema(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('async-sema')))
+    .ncc({ packageName: 'async-sema' })
+    .target('dist/compiled/async-sema')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_babel__core(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('@babel/core')))
@@ -271,6 +285,8 @@ export async function ncc_unistore(task, opts) {
 export async function precompile(task) {
   await task.parallel([
     'ncc_arg',
+    'ncc_async_retry',
+    'ncc_async_sema',
     'ncc_babel__core',
     'ncc_babel__plugin_proposal_class_properties',
     'ncc_babel__plugin_proposal_nullish_coalescing_operator',
