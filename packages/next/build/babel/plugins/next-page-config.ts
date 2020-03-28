@@ -1,5 +1,5 @@
-import { NodePath, PluginObj } from '@babel/core'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj } from 'next/dist/compiled/babel--core'
+import * as BabelTypes from 'next/dist/compiled/babel--types'
 import { PageConfig } from 'next/types'
 
 const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
