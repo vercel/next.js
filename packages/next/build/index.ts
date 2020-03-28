@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
+import chalk from 'next/dist/compiled/chalk'
+import ciEnvironment from 'next/dist/compiled/ci-info'
 import crypto from 'crypto'
 import devalue from 'devalue'
 import escapeStringRegexp from 'escape-string-regexp'
