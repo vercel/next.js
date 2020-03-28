@@ -67,9 +67,10 @@ export {
 }
 
 export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any }
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (ctx: {
-  params?: ParsedUrlQuery
+  params?: Q
   preview?: boolean
   previewData?: any
   env: Env
@@ -86,11 +87,12 @@ export type GetStaticPaths<
 }>
 
 export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any }
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (context: {
   req: IncomingMessage
   res: ServerResponse
-  params?: ParsedUrlQuery
+  params?: Q
   query: ParsedUrlQuery
   env: Env
   preview?: boolean
