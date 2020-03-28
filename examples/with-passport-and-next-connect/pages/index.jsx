@@ -18,17 +18,7 @@ function Editor() {
     mutate(allPosts)
   }
   return (
-    <>
-      <style jsx>{`
-        form {
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-        }
-        button {
-          margin: 0 0 0 0.5rem;
-        }
-      `}</style>
+    <div className="form-container">
       <form onSubmit={handleSubmit} autoComplete="off">
         <input
           type="text"
@@ -36,9 +26,11 @@ function Editor() {
           placeholder="write something silly"
           required
         />
+        <div className="submit">
         <button type="submit">Post</button>
+        </div>
       </form>
-    </>
+    </div>
   )
 }
 
@@ -79,15 +71,14 @@ function Post({ post }) {
     <>
       <style jsx>{`
         .post {
-          padding: 0.5rem 1rem;
-          margin-bottom: 1rem;
-          border-radius: 8px;
-          box-shadow: 0 5px 10px rgba(0, 0, 0, 0.12);
+          max-width: 21rem;
+          margin: 0 auto 0.25rem;
+          padding: 1rem;
+          border: 1px solid #ccc;
+          border-radius: 4px;
         }
-        .buttons {
-          display: flex;
-          flex-direction: row;
-          align-items: center;
+        .delete {
+          border: none;
         }
       `}</style>
       <div className="post">
@@ -96,23 +87,21 @@ function Post({ post }) {
             <label>
               <input ref={inputRef} />
             </label>
-            <button>Save</button>
+            <div className="submit">
+              <button type="submit">Save</button>
+            </div>
           </form>
         ) : (
           <>
             <p>{post.content}</p>
-            <div className="buttons">
+            <div className="submit">
               <button type="button" onClick={() => setIsEditing(true)}>
                 Edit
               </button>
               <button
                 type="button"
+                className="delete"
                 onClick={handleDelete}
-                style={{
-                  color: '#000',
-                  backgroundColor: 'transparent',
-                  marginLeft: '.5rem',
-                }}
               >
                 Delete
               </button>
@@ -130,7 +119,6 @@ function PostList() {
     <>
       <style jsx>{`
         p {
-          color: #999;
           text-align: center;
         }
       `}</style>
@@ -147,33 +135,41 @@ export default function HomePage() {
   const [user] = useUser()
   return (
     <>
-      <style jsx>{`
-        h1 {
-          text-align: center;
-          font-size: 3rem;
-          font-weight: 700;
-        }
-        p {
-          color: #999;
-          text-align: center;
-        }
-      `}</style>
       <h1>
-        CRUD Example
-        <br />
-        <a href="https://github.com/hoangvvo/next-connect">
-          next-connect
-        </a> + <a href="http://www.passportjs.org/">Passport.js</a>
+        <a href="http://www.passportjs.org/">Passport.js</a> +{' '}
+        <a href="https://github.com/hoangvvo/next-connect">next-connect</a>{' '}
+        Example
       </h1>
-      {user ? (
+      <p>Steps to test the example:</p>
+      <ol>
+        <li>
+          Click Login and enter any username and <code>hackme</code> as
+          password.
+        </li>
+        <li>
+          You'll be redirected to Home. You now have access to the post editor
+          and your posts
+        </li>
+        <li>Click Logout. You will no longer be able to access your posts.</li>
+      </ol>
+
+      {user && (
         <>
+          <p>Currently logged in as: {JSON.stringify(user)}</p>
           <Editor />
-          <h2>{user.username}'s posts</h2>
+          <h2>My posts</h2>
           <PostList />
         </>
-      ) : (
-        <p>Sign in to use this app</p>
       )}
+
+      <style jsx>{`
+        h2 {
+          text-align: center;
+        }
+        li {
+          margin-bottom: 0.5rem;
+        }
+      `}</style>
     </>
   )
 }
