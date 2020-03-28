@@ -53,7 +53,7 @@ export default function LoginPage() {
             <input type="password" name="password" required />
           </label>
           <div className="submit">
-          <button type="submit">Login</button>
+            <button type="submit">Login</button>
           </div>
         </form>
       </div>

@@ -27,7 +27,7 @@ function Editor() {
           required
         />
         <div className="submit">
-        <button type="submit">Post</button>
+          <button type="submit">Post</button>
         </div>
       </form>
     </div>
@@ -98,11 +98,7 @@ function Post({ post }) {
               <button type="button" onClick={() => setIsEditing(true)}>
                 Edit
               </button>
-              <button
-                type="button"
-                className="delete"
-                onClick={handleDelete}
-              >
+              <button type="button" className="delete" onClick={handleDelete}>
                 Delete
               </button>
             </div>
