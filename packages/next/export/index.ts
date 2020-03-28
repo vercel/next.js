@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import findUp from 'find-up'
 import {
   copyFile as copyFileOrig,
