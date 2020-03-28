@@ -4,7 +4,6 @@ declare module 'webpack/lib/DynamicEntryPlugin'
 declare module 'unfetch'
 declare module 'launch-editor'
 declare module 'styled-jsx/server'
-declare module 'async-retry'
 declare module 'browserslist'
 
 declare module 'cssnano-simple' {
@@ -13,6 +12,11 @@ declare module 'cssnano-simple' {
   export = cssnanoSimple
 }
 
+declare module 'next/dist/compiled/async-retry'
+declare module 'next/dist/compiled/async-sema' {
+  import m from 'async-sema'
+  export = m
+}
 declare module 'next/dist/compiled/arg/index.js' {
   function arg<T extends arg.Spec>(
     spec: T,
