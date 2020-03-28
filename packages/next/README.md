@@ -10,7 +10,7 @@
   <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
     <img alt="" src="https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
   </a>
-  <a aria-label="join us in spectrum" href="https://github.com/zeit/next.js/discussions">
+  <a aria-label="Join the community on GitHub" href="https://github.com/zeit/next.js/discussions">
     <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
   </a>
 </p>
