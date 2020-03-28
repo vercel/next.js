@@ -3,7 +3,7 @@ import Router from 'next/router'
 import Link from 'next/link'
 import { useUser } from '../lib/hooks'
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [user, { mutate }] = useUser()
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -12,18 +12,23 @@ export default function LoginPage() {
     const body = {
       username: e.currentTarget.username.value,
       password: e.currentTarget.password.value,
+      name: e.currentTarget.name.value,
     }
-    const res = await fetch('/api/login', {
+    if (body.password !== e.currentTarget.rpassword.value) {
+      setErrorMsg(`The passwords don't match`)
+      return
+    }
+    const res = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (res.status === 200) {
+    if (res.status === 201) {
       const userObj = await res.json()
       // set user to useSWR state
       mutate(userObj)
     } else {
-      setErrorMsg('Incorrect username or password. Try better!')
+      setErrorMsg(await res.text())
     }
   }
 
@@ -34,7 +39,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1>Login to Example</h1>
+      <h1>Sign up to Example</h1>
       {errorMsg && <p className="error">{errorMsg}</p>}
       <div className="form-container">
         <form onSubmit={onSubmit}>
@@ -46,10 +51,18 @@ export default function LoginPage() {
             <span>Password</span>
             <input type="password" name="password" required />
           </label>
+          <label>
+            <span>Repeat password</span>
+            <input type="password" name="rpassword" required />
+          </label>
+          <label>
+            <span>Name</span>
+            <input type="text" name="name" required />
+          </label>
           <div className="submit">
-            <button type="submit">Login</button>
-            <Link href="/signup">
-              <a>I don't have an account</a>
+            <button type="submit">Sign up</button>
+            <Link href="/login">
+              <a>I already have an account</a>
             </Link>
           </div>
         </form>

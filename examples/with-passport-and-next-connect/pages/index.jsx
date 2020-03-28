@@ -1,127 +1,17 @@
-import { useState, useRef, useEffect } from 'react'
-import { useUser, usePost } from '../lib/hooks'
+import { useUser, fetcher } from '../lib/hooks'
+import useSWR from 'swr'
 
-function Editor() {
-  const [, { mutate }] = usePost()
-  async function handleSubmit(e) {
-    e.preventDefault()
-    const body = {
-      content: e.currentTarget.content.value,
-    }
-    e.currentTarget.content.value = ''
-    const res = await fetch('/api/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const allPosts = await res.json()
-    mutate(allPosts)
-  }
-  return (
-    <div className="form-container">
-      <form onSubmit={handleSubmit} autoComplete="off">
-        <input
-          type="text"
-          name="content"
-          placeholder="write something silly"
-          required
-        />
-        <div className="submit">
-          <button type="submit">Post</button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-function Post({ post }) {
-  const [, { mutate }] = usePost()
-  const [isEditing, setIsEditing] = useState(false)
-  const inputRef = useRef()
-  async function handleDelete() {
-    const res = await fetch(`/api/posts/${post.id}`, {
-      method: 'DELETE',
-    })
-    const allPosts = await res.json()
-    mutate(allPosts)
-  }
-
-  async function handleSave(e) {
-    e.preventDefault()
-    const body = {
-      content: inputRef.current.value,
-    }
-    const res = await fetch(`/api/posts/${post.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const allPosts = await res.json()
-    mutate(allPosts)
-    setIsEditing(false)
-  }
-
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current.value = post.content
-    }
-  }, [post, isEditing])
-
+function UserList() {
+  const { data: { users } = {} } = useSWR('/api/users', fetcher)
   return (
     <>
-      <style jsx>{`
-        .post {
-          max-width: 21rem;
-          margin: 0 auto 0.25rem;
-          padding: 1rem;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-        }
-        .delete {
-          border: none;
-        }
-      `}</style>
-      <div className="post">
-        {isEditing ? (
-          <form onSubmit={handleSave} autoComplete="off">
-            <label>
-              <input ref={inputRef} />
-            </label>
-            <div className="submit">
-              <button type="submit">Save</button>
-            </div>
-          </form>
-        ) : (
-          <>
-            <p>{post.content}</p>
-            <div className="submit">
-              <button type="button" onClick={() => setIsEditing(true)}>
-                Edit
-              </button>
-              <button type="button" className="delete" onClick={handleDelete}>
-                Delete
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </>
-  )
-}
-
-function PostList() {
-  const [posts] = usePost()
-  return (
-    <>
-      <style jsx>{`
-        p {
-          text-align: center;
-        }
-      `}</style>
-      {posts?.length ? (
-        posts.map(post => <Post key={post.id} post={post} />)
-      ) : (
-        <p>You have not write anything</p>
+      <h2>All users</h2>
+      {!!users?.length && (
+        <ul>
+          {users.map(user => (
+            <li key={user.username}>{JSON.stringify(user)}</li>
+          ))}
+        </ul>
       )}
     </>
   )
@@ -136,32 +26,36 @@ export default function HomePage() {
         <a href="https://github.com/hoangvvo/next-connect">next-connect</a>{' '}
         Example
       </h1>
-      <p>Steps to test the example:</p>
+      <h2>Steps to test the example:</h2>
+      <h3>Sign up</h3>
       <ol>
+        <li>Click Sign up and enter a username and password.</li>
+        <li>You will be logged in and redirected home.</li>
+        <li>Click Logout. You will be redirected home.</li>
         <li>
-          Click Login and enter any username and <code>hackme</code> as
-          password.
+          Try sign up again with the same username, you will see an error.
         </li>
-        <li>
-          You'll be redirected to Home. You now have access to the post editor
-          and your posts
-        </li>
-        <li>Click Logout. You will no longer be able to access your posts.</li>
       </ol>
-
-      {user && (
-        <>
-          <p>Currently logged in as: {JSON.stringify(user)}</p>
-          <Editor />
-          <h2>My posts</h2>
-          <PostList />
-        </>
-      )}
-
+      <h3>Sign in</h3>
+      <ol>
+        <li>Click Login and login again using the same credential.</li>
+        <li>You will see an error if you use incorrect credential.</li>
+        <li>Otherwise, you will be authenticated and redirected home.</li>
+      </ol>
+      <h3>Edit profile</h3>
+      <ol>
+        <li>Click Profile</li>
+        <li>Enter a new name and click Update profile.</li>
+        <li>Notice how the name in Your profile has changed.</li>
+        <li>Click Delete profile</li>
+        <li>
+          The user is removed and is no longer shown in All users section in
+          Home
+        </li>
+      </ol>
+      {user && <p>Currently logged in as: {JSON.stringify(user)}</p>}
+      <UserList />
       <style jsx>{`
-        h2 {
-          text-align: center;
-        }
         li {
           margin-bottom: 0.5rem;
         }

@@ -5,7 +5,7 @@ function Navbar() {
   const [user, { mutate }] = useUser()
   async function handleLogout() {
     await fetch('/api/logout')
-    mutate(null)
+    mutate({ user: null })
   }
 
   return (
@@ -20,17 +20,29 @@ function Navbar() {
           {user ? (
             <>
               <li>
+                <Link href="/profile">
+                  <a>Profile</a>
+                </Link>
+              </li>
+              <li>
                 <a role="button" onClick={handleLogout}>
                   Logout
                 </a>
               </li>
             </>
           ) : (
-            <li>
-              <Link href="/login">
-                <a>Login</a>
-              </Link>
-            </li>
+            <>
+              <li>
+                <Link href="/signup">
+                  <a>Sign up</a>
+                </Link>
+              </li>
+              <li>
+                <Link href="/login">
+                  <a>Login</a>
+                </Link>
+              </li>
+            </>
           )}
         </ul>
       </nav>
@@ -126,6 +138,14 @@ export default function Layout({ children }) {
         }
         .submit > button:hover {
           border-color: #888;
+        }
+        .submit > a {
+          text-decoration: none;
+        }
+        .error {
+          color: brown;
+          margin: 0.5rem 0;
+          text-align: center;
         }
       `}</style>
       <Navbar />

@@ -2,33 +2,34 @@ import passport from 'passport'
 import LocalStrategy from 'passport-local'
 
 passport.serializeUser(function(user, done) {
-  // In practice, we do not serialize the whole user object but just the id
-  // done(null, user.id)
-  done(null, user)
+  done(null, user.username)
 })
 
-passport.deserializeUser(function(id, done) {
-  // In practice, id will just be an id, but it is the whole user object in this case
-  // Otherwise, id would be used to query the database
+passport.deserializeUser(function(req, id, done) {
+  // Here you find the user based on id in the database
   // db.findUserById(id).then((user) => {
   //  done(null, user);
   // });
-  done(null, id)
+  const user = req.session.users.find(user => user.username === id)
+  done(null, user)
 })
 
 passport.use(
-  new LocalStrategy((username, password, done) => {
-    // Here you should lookup for the user in your DB and compare the password
-    // const user = await db.findUserByUsername(username)
-    // const hash = await argon2.hash(password);
-    // const passwordsMatch = user.hash === hash
-    if (password === 'hackme') {
-      done(null, { username })
-    } else {
-      // return null if the password is incorrect
-      done(null, null)
+  new LocalStrategy(
+    { passReqToCallback: true },
+    (req, username, password, done) => {
+      // Here you should lookup for the user in your DB and compare the password
+      // const user = await db.findUserByUsername(username)
+      // const hash = await argon2.hash(password);
+      // const passwordsMatch = user.hash === hash
+      const user = req.session.users.find(user => user.username === username)
+      if (!user || user.password !== password) {
+        done(null, null)
+      } else {
+        done(null, user)
+      }
     }
-  })
+  )
 )
 
 export default passport

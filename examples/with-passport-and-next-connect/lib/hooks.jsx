@@ -1,15 +1,11 @@
 import useSWR from 'swr'
 
-const fetcher = url => fetch(url).then(r => r.json())
-
-export function usePost() {
-  const { data, mutate } = useSWR('/api/posts', fetcher)
-  const posts = data?.posts
-  return [posts, { mutate }]
-}
+export const fetcher = url => fetch(url).then(r => r.json())
 
 export function useUser() {
   const { data, mutate } = useSWR('/api/user', fetcher)
+  // if data is not defined, the query has not completed
+  const loading = !data
   const user = data?.user
-  return [user, { mutate }]
+  return [user, { mutate, loading }]
 }
