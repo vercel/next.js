@@ -256,6 +256,20 @@ export async function ncc_browserslist(task, opts) {
     .target('dist/compiled/browserslist')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_chalk(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('chalk')))
+    .ncc({ packageName: 'chalk' })
+    .target('dist/compiled/chalk')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_ci_info(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ci-info')))
+    .ncc({ packageName: 'ci-info' })
+    .target('dist/compiled/ci-info')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_dotenv(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('dotenv')))
@@ -325,6 +339,8 @@ export async function precompile(task) {
     'ncc_babel_plugin_transform_define',
     'ncc_babel_plugin_transform_react_remove_prop_types',
     'ncc_browserslist',
+    'ncc_chalk',
+    'ncc_ci_info',
     'ncc_dotenv',
     'ncc_dotenv_expand',
     'ncc_nanoid',
