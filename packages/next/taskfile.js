@@ -2,6 +2,15 @@ const notifier = require('node-notifier')
 const relative = require('path').relative
 
 // eslint-disable-next-line camelcase
+export async function ncc_amphtml_validator(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('amphtml-validator'))
+    )
+    .ncc({ packageName: 'amphtml-validator' })
+    .target('dist/compiled/amphtml-validator')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_arg(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('arg')))
@@ -284,6 +293,7 @@ export async function ncc_unistore(task, opts) {
 
 export async function precompile(task) {
   await task.parallel([
+    'ncc_amphtml_validator',
     'ncc_arg',
     'ncc_async_retry',
     'ncc_async_sema',
