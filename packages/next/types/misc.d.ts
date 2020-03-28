@@ -11,7 +11,10 @@ declare module 'cssnano-simple' {
   const cssnanoSimple: Plugin<{}>
   export = cssnanoSimple
 }
-
+declare module 'next/dist/compiled/amphtml-validator' {
+  import m from 'amphtml-validator'
+  export = m
+}
 declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
