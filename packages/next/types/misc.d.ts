@@ -55,6 +55,14 @@ declare module 'next/dist/compiled/babel--types' {
   export = m
 }
 declare module 'next/dist/compiled/browserslist'
+declare module 'next/dist/compiled/chalk' {
+  import m from 'chalk'
+  export = m
+}
+declare module 'next/dist/compiled/ci-info' {
+  import m from 'ci-info'
+  export = m
+}
 declare module 'next/dist/compiled/dotenv' {
   import m from 'dotenv'
   export = m
