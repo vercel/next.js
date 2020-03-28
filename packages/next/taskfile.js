@@ -249,6 +249,13 @@ export async function ncc_babel_plugin_transform_react_remove_prop_types(
     .target('dist/compiled/babel-plugin-transform-react-remove-prop-types')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_browserslist(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('browserslist')))
+    .ncc({ packageName: 'browserslist' })
+    .target('dist/compiled/browserslist')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_dotenv(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('dotenv')))
@@ -317,6 +324,7 @@ export async function precompile(task) {
     'ncc_babel_plugin_syntax_jsx',
     'ncc_babel_plugin_transform_define',
     'ncc_babel_plugin_transform_react_remove_prop_types',
+    'ncc_browserslist',
     'ncc_dotenv',
     'ncc_dotenv_expand',
     'ncc_nanoid',
