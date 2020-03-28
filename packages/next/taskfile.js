@@ -270,6 +270,20 @@ export async function ncc_ci_info(task, opts) {
     .target('dist/compiled/ci-info')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_compression(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('compression')))
+    .ncc({ packageName: 'compression' })
+    .target('dist/compiled/compression')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_content_type(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('content-type')))
+    .ncc({ packageName: 'content-type' })
+    .target('dist/compiled/content-type')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_dotenv(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('dotenv')))
@@ -341,6 +355,8 @@ export async function precompile(task) {
     'ncc_browserslist',
     'ncc_chalk',
     'ncc_ci_info',
+    'ncc_compression',
+    'ncc_content_type',
     'ncc_dotenv',
     'ncc_dotenv_expand',
     'ncc_nanoid',

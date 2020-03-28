@@ -63,6 +63,14 @@ declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
 }
+declare module 'next/dist/compiled/compression' {
+  import m from 'compression'
+  export = m
+}
+declare module 'next/dist/compiled/content-type' {
+  import m from 'content-type'
+  export = m
+}
 declare module 'next/dist/compiled/dotenv' {
   import m from 'dotenv'
   export = m
