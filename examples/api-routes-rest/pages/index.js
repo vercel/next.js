@@ -1,13 +1,11 @@
 import useSwr from 'swr'
 import Link from 'next/link'
 
-const fetcher = async url => {
-  const res = await fetch(url)
-  return res.json()
-}
+const fetcher = url => fetch(url).then(res => res.json())
 
-const Index = () => {
+export default function Index() {
   const { data, error } = useSwr('/api/users', fetcher)
+
   if (error) return <div>Failed to load users</div>
   if (!data) return <div>Loading...</div>
 
@@ -23,5 +21,3 @@ const Index = () => {
     </ul>
   )
 }
-
-export default Index
