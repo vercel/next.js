@@ -3,7 +3,7 @@ import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'http-proxy'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
-import { join, resolve, sep } from 'path'
+import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { PrerenderManifest } from '../../build'
@@ -346,7 +346,11 @@ export default class Server {
             match: route('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
-              const p = join(this.dir, 'static', ...(params.path || []))
+              const p = join(
+                this.dir,
+                'static',
+                ...(params.path || []).map(encodeURIComponent)
+              )
               await this.serveStatic(req, res, p, parsedUrl)
               return {
                 finished: true,
@@ -705,14 +709,15 @@ export default class Server {
         match: route('/:path*'),
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
-          const path = `/${(params.path || []).join('/')}`
+          const pathParts: string[] = params.path || []
+          const path = `/${pathParts.join('/')}`
 
           if (publicFiles.has(path)) {
             await this.serveStatic(
               req,
               res,
               // we need to re-encode it since send decodes it
-              join(this.dir, 'public', encodeURIComponent(path)),
+              join(this.publicDir, ...pathParts.map(encodeURIComponent)),
               parsedUrl
             )
             return {
@@ -1350,18 +1355,77 @@ export default class Server {
     }
   }
 
-  private isServeableUrl(path: string): boolean {
-    const resolved = resolve(path)
-    if (
-      resolved.indexOf(join(this.distDir) + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'public') + sep) !== 0
-    ) {
-      // Seems like the user is trying to traverse the filesystem.
+  private _validFilesystemPathSet: Set<string> | null = null
+  private getFilesystemPaths(): Set<string> {
+    if (this._validFilesystemPathSet) {
+      return this._validFilesystemPathSet
+    }
+
+    const pathUserFilesStatic = join(this.dir, 'static')
+    let userFilesStatic: string[] = []
+    if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
+      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map(f =>
+        join('.', 'static', f)
+      )
+    }
+
+    let userFilesPublic: string[] = []
+    if (this.publicDir && fs.existsSync(this.publicDir)) {
+      userFilesPublic = recursiveReadDirSync(this.publicDir).map(f =>
+        join('.', 'public', f)
+      )
+    }
+
+    let nextFilesStatic: string[] = []
+    nextFilesStatic = recursiveReadDirSync(
+      join(this.distDir, 'static')
+    ).map(f => join('.', relative(this.dir, this.distDir), 'static', f))
+
+    return (this._validFilesystemPathSet = new Set<string>([
+      ...nextFilesStatic,
+      ...userFilesPublic,
+      ...userFilesStatic,
+    ]))
+  }
+
+  protected isServeableUrl(untrustedFileUrl: string): boolean {
+    // This method mimics what the version of `send` we use does:
+    // 1. decodeURIComponent:
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
+    // 2. resolve:
+    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+
+    let decodedUntrustedFilePath: string
+    try {
+      // (1) Decode the URL so we have the proper file name
+      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
+    } catch {
       return false
     }
 
-    return true
+    // (2) Resolve "up paths" to determine real request
+    const untrustedFilePath = resolve(decodedUntrustedFilePath)
+
+    // don't allow null bytes anywhere in the file path
+    if (untrustedFilePath.indexOf('\0') !== -1) {
+      return false
+    }
+
+    // Check if .next/static, static and public are in the path.
+    // If not the path is not available.
+    if (
+      (untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
+        untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
+        untrustedFilePath.startsWith(join(this.dir, 'public') + sep)) === false
+    ) {
+      return false
+    }
+
+    // Check against the real filesystem paths
+    const filesystemUrls = this.getFilesystemPaths()
+    const resolved = relative(this.dir, untrustedFilePath)
+    return filesystemUrls.has(resolved)
   }
 
   protected readBuildId(): string {
