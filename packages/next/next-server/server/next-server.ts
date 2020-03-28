@@ -1,4 +1,4 @@
-import compression from 'compression'
+import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'http-proxy'
