@@ -4,7 +4,7 @@ This example creates a basic [CRUD](https://en.wikipedia.org/wiki/Create,_read,_
 
 The example shows how to do a login and logout. It also allows authenticated user to edit or remove their own profile. It utilizes [SWR](https://swr.now.sh/).
 
-The database is mocked using the cookie session.
+The users database is mocked using the cookie session (using `req.session.users`). Follow the comments in code to add a database.
 
 ## Deploy your own
 
