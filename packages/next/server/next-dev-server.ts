@@ -1,4 +1,4 @@
-import AmpHtmlValidator from 'amphtml-validator'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import crypto from 'crypto'
 import findUp from 'find-up'
 import fs from 'fs'
