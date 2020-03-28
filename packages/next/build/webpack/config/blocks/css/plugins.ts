@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
-import browserslist from 'browserslist'
+import browserslist from 'next/dist/compiled/browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
