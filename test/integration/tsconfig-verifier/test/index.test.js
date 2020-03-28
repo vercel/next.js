@@ -70,21 +70,35 @@ describe('Fork ts checker plugin', () => {
     expect(parsedTsConfig.exclude[0]).toBe('node_modules')
   })
 
-  it('Updates an existing tsconfig.json with required value', async () => {
+  it('Throws error if there is an existing tsconfig.json with a different required value', async () => {
     await killApp(app)
 
     let parsedTsConfig = await readJSON(tsConfig)
     parsedTsConfig.compilerOptions.esModuleInterop = false
 
     await writeJSON(tsConfig, parsedTsConfig)
+    let output = ''
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchApp(appDir, appPort, {
+      onStdout: msg => (output += msg),
+      onStderr: msg => (output += msg),
+    })
 
+    expect(output).toMatch(
+      /The following changes are required for next.js, please update your tsconfig.json file:/
+    )
+    expect(output).toMatch(
+      /- compilerOptions.esModuleInterop must be true \(requirement for babel\)/
+    )
+
+    // Check if the tsconfig file is not overriden.
     parsedTsConfig = await readJSON(tsConfig)
-    expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(true)
+    expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(false)
+    await remove(tsConfig)
   })
 
   it('Renders a TypeScript page correctly', async () => {
+    app = await launchApp(appDir, appPort)
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/Hello TypeScript/)
   })

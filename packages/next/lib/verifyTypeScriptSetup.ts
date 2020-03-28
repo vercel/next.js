@@ -252,14 +252,14 @@ export async function verifyTypeScriptSetup(
     const coloredOption = chalk.cyan('compilerOptions.' + option)
 
     if (suggested != null) {
-      if (parsedCompilerOptions[option] === undefined) {
-        appTsConfig.compilerOptions[option] = suggested
-        messages.push(
-          `${coloredOption} to be ${chalk.bold(
-            'suggested'
-          )} value: ${chalk.cyan.bold(suggested)} (this can be changed)`
-        )
-      }
+      // if (parsedCompilerOptions[option] === undefined) {
+      //   appTsConfig.compilerOptions[option] = suggested
+      //   messages.push(
+      //     `${coloredOption} to be ${chalk.bold(
+      //       'suggested'
+      //     )} value: ${chalk.cyan.bold(suggested)} (this can be changed)`
+      //   )
+      // }
     } else if (parsedCompilerOptions[option] !== valueToCheck) {
       appTsConfig.compilerOptions[option] = value
       messages.push(
@@ -292,8 +292,8 @@ export async function verifyTypeScriptSetup(
       console.info()
     } else {
       console.warn(
-        chalk.bold(
-          'The following changes are being made to your',
+        chalk.red.bold(
+          'The following changes are required for next.js, please update your',
           chalk.cyan('tsconfig.json'),
           'file:'
         )
@@ -302,6 +302,8 @@ export async function verifyTypeScriptSetup(
         console.warn('  - ' + message)
       })
       console.warn()
+      process.exit(1)
+      return
     }
     await writeJson(tsConfigPath, appTsConfig)
   }
