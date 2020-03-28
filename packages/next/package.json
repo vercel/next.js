@@ -1,6 +1,6 @@
 {
-  "name": "next",
-  "version": "9.3.2",
+  "name": "@module-federation/next",
+  "version": "9.3.2-beta.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -48,7 +48,8 @@
     "prepublish": "npm run release && yarn types",
     "types": "echo 0",
     "typesReal": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
-    "typescript": "tsc --noEmit --declaration"
+    "typescript": "tsc --noEmit --declaration",
+    "postinstall": "cd ../; npx move-cli . ../"
   },
   "taskr": {
     "requires": [
