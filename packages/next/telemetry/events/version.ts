@@ -26,7 +26,7 @@ type EventCliSessionStarted = {
 function hasBabelConfig(dir: string): boolean {
   try {
     const noopFile = path.join(dir, 'noop.js')
-    const res = require('next/dist/compiled/babel--core').loadPartialConfig({
+    const res = require('@babel/core').loadPartialConfig({
       cwd: dir,
       filename: noopFile,
       sourceFileName: noopFile,
