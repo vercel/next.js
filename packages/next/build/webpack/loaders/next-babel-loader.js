@@ -1,6 +1,6 @@
 import babelLoader from 'next/dist/compiled/babel-loader'
 import { basename, join } from 'path'
-import hash from 'string-hash'
+import hash from 'next/dist/compiled/string-hash'
 
 // increment 'j' to invalidate cache
 // eslint-disable-next-line no-useless-concat
