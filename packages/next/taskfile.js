@@ -363,6 +363,13 @@ export async function ncc_is_wsl(task, opts) {
     .target('dist/compiled/is-wsl')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_json5(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('json5')))
+    .ncc({ packageName: 'json5' })
+    .target('dist/compiled/json5')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -433,6 +440,7 @@ export async function precompile(task) {
     'ncc_http_proxy',
     'ncc_is_docker',
     'ncc_is_wsl',
+    'ncc_json5',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',

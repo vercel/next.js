@@ -1,6 +1,6 @@
 import findUp from 'find-up'
 import fs from 'fs'
-import JSON5 from 'json5'
+import JSON5 from 'next/dist/compiled/json5'
 
 type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>
