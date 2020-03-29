@@ -164,6 +164,10 @@ declare module 'next/dist/compiled/send' {
   import m from 'send'
   export = m
 }
+declare module 'next/dist/compiled/source-map' {
+  import m from 'source-map'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
