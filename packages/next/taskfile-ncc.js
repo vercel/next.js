@@ -1,6 +1,6 @@
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
-const { basename, dirname, extname, join, relative } = require('path')
+const { basename, dirname, extname, join } = require('path')
 
 module.exports = function(task) {
   // eslint-disable-next-line require-yield
@@ -33,35 +33,9 @@ module.exports = function(task) {
 // n.b. types intended for development usage only.
 function writePackageManifest(packageName) {
   const packagePath = require.resolve(packageName + '/package.json')
-  let { name, main, author, license, types, typings } = require(packagePath)
+  let { name, main, author, license } = require(packagePath)
   if (!main) {
     main = 'index.js'
-  }
-
-  let typesFile = types || typings
-  if (typesFile) {
-    // if they provide a types directory resolve it
-    if (extname(typesFile) === '') {
-      typesFile = join(typesFile, 'index.d.ts')
-    }
-
-    typesFile = require.resolve(join(packageName, typesFile))
-  } else {
-    try {
-      const typesPackage = `@types/${packageName}`
-
-      const { types, typings } = require(join(typesPackage, `package.json`))
-      typesFile = types || typings
-      if (typesFile) {
-        if (!typesFile.endsWith('.d.ts')) {
-          typesFile += '.d.ts'
-        }
-
-        typesFile = require.resolve(join(typesPackage, typesFile))
-      }
-    } catch (_) {
-      typesFile = undefined
-    }
   }
 
   const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
@@ -84,12 +58,7 @@ function writePackageManifest(packageName) {
           {},
           { name, main: `${basename(main, '.' + extname(main))}` },
           author ? { author } : undefined,
-          license ? { license } : undefined,
-          typesFile
-            ? {
-                types: relative(compiledPackagePath, typesFile),
-              }
-            : undefined
+          license ? { license } : undefined
         )
       ) + '\n',
   })
