@@ -335,6 +335,13 @@ export async function ncc_fresh(task, opts) {
     .target('dist/compiled/fresh')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_gzip_size(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('gzip-size')))
+    .ncc({ packageName: 'gzip-size' })
+    .target('dist/compiled/gzip-size')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -401,6 +408,7 @@ export async function precompile(task) {
     'ncc_escape_string_regexp',
     'ncc_etag',
     'ncc_fresh',
+    'ncc_gzip_size',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',

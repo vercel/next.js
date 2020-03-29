@@ -1,5 +1,5 @@
 import chalk from 'next/dist/compiled/chalk'
-import gzipSize from 'gzip-size'
+import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
