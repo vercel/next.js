@@ -349,6 +349,20 @@ export async function ncc_http_proxy(task, opts) {
     .target('dist/compiled/http-proxy')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_is_docker(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('is-docker')))
+    .ncc({ packageName: 'is-docker' })
+    .target('dist/compiled/is-docker')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_is_wsl(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('is-wsl')))
+    .ncc({ packageName: 'is-wsl' })
+    .target('dist/compiled/is-wsl')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -417,6 +431,8 @@ export async function precompile(task) {
     'ncc_fresh',
     'ncc_gzip_size',
     'ncc_http_proxy',
+    'ncc_is_docker',
+    'ncc_is_wsl',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',
