@@ -1,6 +1,6 @@
 import { NextPage } from 'next'
 
-const Static: NextPage = (props) => {
+const Static: NextPage = props => {
   console.log('static props', props)
   return <div>{new Date().getTime()}</div>
 }
