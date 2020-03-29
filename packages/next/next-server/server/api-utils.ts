@@ -1,5 +1,5 @@
 import { parse } from 'next/dist/compiled/content-type'
-import { CookieSerializeOptions } from 'cookie'
+import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import { IncomingMessage, ServerResponse } from 'http'
 import { PageConfig } from 'next/types'
 import getRawBody from 'raw-body'
@@ -181,7 +181,7 @@ export function getCookieParser(req: IncomingMessage) {
       return {}
     }
 
-    const { parse } = require('cookie')
+    const { parse } = require('next/dist/compiled/cookie')
     return parse(Array.isArray(header) ? header.join(';') : header)
   }
 }
@@ -384,7 +384,9 @@ function setPreviewData<T>(
     )
   }
 
-  const { serialize } = require('cookie') as typeof import('cookie')
+  const {
+    serialize,
+  } = require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -417,7 +419,9 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
     return res
   }
 
-  const { serialize } = require('cookie') as typeof import('cookie')
+  const {
+    serialize,
+  } = require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
