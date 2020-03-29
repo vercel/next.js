@@ -8,7 +8,7 @@ import {
   IConformanceTestStatus,
 } from './TestInterface'
 import { NodePath } from 'ast-types/lib/node-path'
-import { visit } from 'recast'
+import { visit } from 'next/dist/compiled/recast'
 
 export { MinificationConformanceCheck } from './checks/minification-conformance-check'
 export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
