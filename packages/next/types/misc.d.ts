@@ -67,6 +67,10 @@ declare module 'next/dist/compiled/compression' {
   import m from 'compression'
   export = m
 }
+declare module 'next/dist/compiled/conf' {
+  import m from 'conf'
+  export = m
+}
 declare module 'next/dist/compiled/content-type' {
   import m from 'content-type'
   export = m
