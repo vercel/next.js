@@ -6,8 +6,7 @@ module.exports = function(task) {
   // eslint-disable-next-line require-yield
   task.plugin('ncc', {}, function*(file, options) {
     return ncc(join(__dirname, file.dir, file.base), {
-      // cannot bundle
-      externals: ['chokidar'],
+      filename: file.base,
       minify: true,
       ...options,
     }).then(({ code, assets }) => {
@@ -20,7 +19,7 @@ module.exports = function(task) {
       )
 
       if (options && options.packageName) {
-        writePackageManifest.call(this, options.packageName)
+        writePackageManifest.call(this, options.packageName, file.base)
       }
 
       file.data = Buffer.from(code, 'utf8')
@@ -31,12 +30,9 @@ module.exports = function(task) {
 // This function writes a minimal `package.json` file for a compiled package.
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
-function writePackageManifest(packageName) {
+function writePackageManifest(packageName, main) {
   const packagePath = require.resolve(packageName + '/package.json')
-  let { name, main, author, license } = require(packagePath)
-  if (!main) {
-    main = 'index.js'
-  }
+  let { name, author, license } = require(packagePath)
 
   const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
 
