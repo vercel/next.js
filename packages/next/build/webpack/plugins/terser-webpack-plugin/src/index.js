@@ -1,7 +1,7 @@
 /* eslint-disable
   no-param-reassign
 */
-import stringHash from 'string-hash'
+import stringHash from 'next/dist/compiled/string-hash'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map'
 import { SourceMapSource, RawSource } from 'webpack-sources'
 import { RequestShortener } from 'webpack'
