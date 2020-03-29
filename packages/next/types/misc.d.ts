@@ -100,6 +100,10 @@ declare module 'next/dist/compiled/fresh' {
   import m from 'fresh'
   export = m
 }
+declare module 'next/dist/compiled/gzip-size' {
+  import m from 'gzip-size'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
