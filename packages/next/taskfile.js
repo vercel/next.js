@@ -291,6 +291,13 @@ export async function ncc_cookie(task, opts) {
     .target('dist/compiled/cookie')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_devalue(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('devalue')))
+    .ncc({ packageName: 'devalue' })
+    .target('dist/compiled/devalue')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_dotenv(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('dotenv')))
@@ -365,6 +372,7 @@ export async function precompile(task) {
     'ncc_compression',
     'ncc_content_type',
     'ncc_cookie',
+    'ncc_devalue',
     'ncc_dotenv',
     'ncc_dotenv_expand',
     'ncc_nanoid',

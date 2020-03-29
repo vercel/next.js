@@ -1,4 +1,4 @@
-import devalue from 'devalue'
+import devalue from 'next/dist/compiled/devalue'
 import escapeRegexp from 'escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
