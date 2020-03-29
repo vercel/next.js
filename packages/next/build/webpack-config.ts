@@ -60,7 +60,7 @@ const escapePathVariables = (value: any) => {
 }
 
 function parseJsonFile(path: string) {
-  const JSON5 = require('json5')
+  const JSON5 = require('next/dist/compiled/json5')
   const contents = readFileSync(path)
   return JSON5.parse(contents)
 }

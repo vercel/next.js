@@ -116,6 +116,10 @@ declare module 'next/dist/compiled/is-wsl' {
   import m from 'is-wsl'
   export = m
 }
+declare module 'next/dist/compiled/json5' {
+  import m from 'json5'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
