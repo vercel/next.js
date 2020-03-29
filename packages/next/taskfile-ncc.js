@@ -5,6 +5,10 @@ const { basename, dirname, extname, join } = require('path')
 module.exports = function(task) {
   // eslint-disable-next-line require-yield
   task.plugin('ncc', {}, function*(file, options) {
+    if (options.externals && options.packageName) {
+      options.externals = { ...options.externals }
+      delete options.externals[options.packageName]
+    }
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
       minify: true,
