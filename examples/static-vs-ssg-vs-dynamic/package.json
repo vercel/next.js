@@ -1,0 +1,23 @@
+{
+  "name": "with-unstated-next",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "shx rm -rf .next && next build",
+    "start": "next start",
+    "export": "shx rm -rf out && next export"
+  },
+  "dependencies": {
+    "next": "^9.3.2",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^13.9.5",
+    "@types/react": "^16.9.27",
+    "@types/react-dom": "^16.9.5",
+    "prettier": "^2.0.2",
+    "shx": "0.3.2",
+    "typescript": "^3.8.3"
+  }
+}
