@@ -383,6 +383,13 @@ export async function ncc_etag(task, opts) {
     .target('dist/compiled/etag')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_find_up(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('find-up')))
+    .ncc({ packageName: 'find-up', externals })
+    .target('dist/compiled/find-up')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_fresh(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('fresh')))
@@ -583,6 +590,7 @@ export async function precompile(task) {
     'ncc_dotenv_expand',
     'ncc_escape_string_regexp',
     'ncc_etag',
+    'ncc_find_up',
     'ncc_fresh',
     'ncc_gzip_size',
     'ncc_http_proxy',

@@ -100,6 +100,10 @@ declare module 'next/dist/compiled/etag' {
   import m from 'etag'
   export = m
 }
+declare module 'next/dist/compiled/find-up' {
+  import m from 'find-up'
+  export = m
+}
 declare module 'next/dist/compiled/fresh' {
   import m from 'fresh'
   export = m

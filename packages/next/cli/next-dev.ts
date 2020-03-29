@@ -67,9 +67,12 @@ const nextDev: cliCommand = argv => {
     .catch(err => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('find-up').sync('package.json', {
-          cwd: dir,
-        })
+        const pkgAppPath = require('next/dist/compiled/find-up').sync(
+          'package.json',
+          {
+            cwd: dir,
+          }
+        )
         const appPackage = require(pkgAppPath)
         if (appPackage.scripts) {
           const nextScript = Object.entries(appPackage.scripts).find(

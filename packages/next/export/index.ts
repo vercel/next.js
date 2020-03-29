@@ -1,5 +1,5 @@
 import chalk from 'next/dist/compiled/chalk'
-import findUp from 'find-up'
+import findUp from 'next/dist/compiled/find-up'
 import {
   copyFile as copyFileOrig,
   existsSync,

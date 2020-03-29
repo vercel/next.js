@@ -1,4 +1,4 @@
-import findUp from 'find-up'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
