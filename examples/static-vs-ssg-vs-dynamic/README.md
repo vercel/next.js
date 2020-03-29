@@ -45,7 +45,7 @@ Page                                                           Size     First Lo
 
 ### Pure static pages
 
-Look in `./pages/static.tsx` to folow along.
+Look in `./pages/static.tsx` to follow along.
 
 Static page generation is the simplest form. Everything is initialized client-side. This is
 most like your standard React app.
@@ -79,7 +79,7 @@ Key steps:
 
 ### Server-side generated pages
 
-Look in `./pages/ssg.tsx` to folow along.
+Look in `./pages/ssg.tsx` to follow along.
 
 A server-side generated page (SSG) is slightly more advanced. It's still a static page in the end,
 but there is a chance to query data server-side at `yarn build` time. To do this, we take
@@ -118,7 +118,7 @@ Key steps:
 
 ### Server (dynamic) pages
 
-Look in `./pages/server.tsx` to folow along.
+Look in `./pages/server.tsx` to follow along.
 
 A server (dynamic) page does SSR at each web request. Nothing happens at `yarn build`,
 and everything happens at `yarn start` when a request comes in. To do this, we take
