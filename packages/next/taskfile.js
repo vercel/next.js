@@ -1,6 +1,37 @@
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
+export async function next__polyfill_nomodule(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@next/polyfill-nomodule'))
+    )
+    .target('dist/build/polyfills')
+}
+
+export async function finally_polyfill(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('finally-polyfill'))
+    )
+    .target('dist/build/polyfills')
+}
+
+export async function unfetch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('unfetch')))
+    .target('dist/build/polyfills')
+}
+
+export async function browser_polyfills(task) {
+  await task.parallel([
+    'next__polyfill_nomodule',
+    'finally_polyfill',
+    'unfetch',
+  ])
+}
+
 const externals = {
   '@babel/core': 'next/dist/compiled/babel--core',
   '@babel/helper-plugin-utils': 'next/dist/compiled/babel--helper-plugin-utils',
@@ -553,6 +584,7 @@ export async function ncc_unistore(task, opts) {
 
 export async function precompile(task) {
   await task.parallel([
+    'browser_polyfills',
     'ncc_amphtml_validator',
     'ncc_arg',
     'ncc_async_retry',
