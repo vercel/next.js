@@ -96,6 +96,10 @@ declare module 'next/dist/compiled/etag' {
   import m from 'etag'
   export = m
 }
+declare module 'next/dist/compiled/fresh' {
+  import m from 'fresh'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
