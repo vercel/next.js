@@ -1,6 +1,6 @@
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import crypto from 'crypto'
-import findUp from 'find-up'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Worker from 'jest-worker'
