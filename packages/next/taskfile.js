@@ -394,6 +394,13 @@ export async function ncc_lodash_curry(task, opts) {
     .target('dist/compiled/lodash.curry')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_lru_cache(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('lru-cache')))
+    .ncc({ packageName: 'lru-cache' })
+    .target('dist/compiled/lru-cache')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -468,6 +475,7 @@ export async function precompile(task) {
     'ncc_jsonwebtoken',
     'ncc_launch_editor',
     'ncc_lodash_curry',
+    'ncc_lru_cache',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',
