@@ -328,6 +328,13 @@ export async function ncc_etag(task, opts) {
     .target('dist/compiled/etag')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_fresh(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('fresh')))
+    .ncc({ packageName: 'fresh' })
+    .target('dist/compiled/fresh')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -393,6 +400,7 @@ export async function precompile(task) {
     'ncc_dotenv_expand',
     'ncc_escape_string_regexp',
     'ncc_etag',
+    'ncc_fresh',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',
