@@ -1,5 +1,5 @@
 {
-  "name": "@module-federation/next",
+  "name": "next",
   "version": "9.3.2-beta.3",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
@@ -116,7 +116,7 @@
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
     "mini-css-extract-plugin": "0.9.0",
-    "mkdirp": "0.5.1",
+    "mkdirp": "1.0.3",
     "native-url": "0.2.6",
     "node-fetch": "2.6.0",
     "ora": "3.4.0",

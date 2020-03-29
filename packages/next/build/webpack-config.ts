@@ -50,6 +50,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
+var LiveReloadPlugin = require('./webpack/plugins/livereload.js').default
 
 let NextEsmPlugin: any
 
@@ -572,13 +573,7 @@ export default async function getBaseWebpackConfig(
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
           '@ampproject/toolbox-optimizer', // except this one
-        ].concat(
-          webpack5Experiential
-            ? [
-                'enhanced-resolve',
-              ]
-            : []
-        ),
+        ].concat(webpack5Experiential ? ['enhanced-resolve'] : []),
     optimization: {
       checkWasmTypes: false,
       nodeEnv: false,
@@ -843,6 +838,8 @@ export default async function getBaseWebpackConfig(
               }
               !webpack5Experiential &&
                 devPlugins.push(new webpack.HotModuleReplacementPlugin())
+              webpack5Experiential &&
+                devPlugins.push(new LiveReloadPlugin({ appendScriptTag: true }))
             }
 
             return devPlugins
