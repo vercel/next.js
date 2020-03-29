@@ -128,6 +128,10 @@ declare module 'next/dist/compiled/launch-editor' {
   import m from 'launch-editor'
   export = m
 }
+declare module 'next/dist/compiled/lodash.curry' {
+  import m from 'lodash.curry'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
