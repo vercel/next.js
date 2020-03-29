@@ -697,7 +697,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  loader: 'thread-loader',
+                  loader: require.resolve('next/dist/compiled/thread-loader'),
                   options: {
                     workers: 2,
                     workerParallelJobs: Infinity,
