@@ -120,6 +120,10 @@ declare module 'next/dist/compiled/json5' {
   import m from 'json5'
   export = m
 }
+declare module 'next/dist/compiled/jsonwebtoken' {
+  import m from 'jsonwebtoken'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid

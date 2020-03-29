@@ -302,7 +302,7 @@ export function tryGetPreviewData(
 
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
-  const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
+  const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
   let encryptedPreviewData: string
   try {
     encryptedPreviewData = jsonwebtoken.verify(
@@ -360,7 +360,7 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
-  const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
+  const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
     encryptWithSecret(
