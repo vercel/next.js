@@ -496,6 +496,13 @@ export async function ncc_resolve(task, opts) {
     .target('dist/compiled/resolve')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_send(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('send')))
+    .ncc({ packageName: 'send' })
+    .target('dist/compiled/send')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_text_table(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('text-table')))
@@ -564,6 +571,7 @@ export async function precompile(task) {
     'ncc_raw_body',
     'ncc_recast',
     'ncc_resolve',
+    'ncc_send',
     'ncc_text_table',
     'ncc_unistore',
   ])

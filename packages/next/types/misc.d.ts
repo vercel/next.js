@@ -160,7 +160,10 @@ declare module 'next/dist/compiled/resolve/index.js' {
   import m from 'resolve'
   export = m
 }
-
+declare module 'next/dist/compiled/send' {
+  import m from 'send'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
