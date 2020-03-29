@@ -15,6 +15,16 @@
   </a>
 </p>
 
+## Installation of Webpack 5 Compatible Next.js
+Running the following command will alias `@module-federation/next` as `next`. 
+
+
+`yarn add next@npm:@module-federation/next`
+
+`npm i next@npm:@module-federation/next`
+
+Doing so allows no implementation changes to use. You would still consume as `require("next/head")` and so on. 
+
 ## Getting Started
 
 Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
