@@ -1,0 +1,15 @@
+.footer-bg {
+  position: relative;
+  background: #efefef;
+  padding: 15rem 0 7rem;
+}
+.footer-bg > svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -6rem;
+  transform: rotate(180deg);
+}
+.footer-copyright.copyright-bg {
+  background: #fff;
+}

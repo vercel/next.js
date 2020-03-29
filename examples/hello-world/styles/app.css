@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i,900,900i&display=swap');
+
+.Hero {
+  background-image: url('/media/wallpaper3.jpg');
+  height: 920px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.HeroGroup {
+  margin: 0 auto;
+  max-width: 500px;
+  padding: 150px 50px;
+  text-align: center;
+}
+
+.Hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 60px;
+  line-height: 1.2;
+  opacity: 0;
+  animation: HeroAnimations;
+  animation-duration: 3s;
+  animation-delay: 0.1s;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.03, 0.8, 0.2, 1);
+}
+
+.Hero p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 30px;
+  line-height: 1.5;
+  animation: HeroAnimations 3s 0.2s forwards cubic-bezier(0.03, 0.8, 0.2, 1);
+  opacity: 0;
+}
+
+.Hero a {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 9px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  transition: 0.8s cubic-bezier(0.02, 0.8, 0.2, 1);
+}
+
+.Hero a:hover {
+  background: #fff;
+  color: #000;
+}
+
+@media (max-width: 640px) {
+  .HeroGroup {
+    padding: 100px 20px;
+  }
+  .Hero h1 {
+    font-size: 40px;
+  }
+  .Hero p {
+    font-size: 24px;
+  }
+}
+
+@keyframes HeroAnimations {
+  0% {
+    opacity: 0;
+    transform: translateX(-1000px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes LogoHeroAnimations {
+  0% {
+    opacity: 0;
+    transform: translateX(1000px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0px);
+  }
+}
+.Hero svg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.Hero .logos {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-gap: 40px;
+  margin: 100px 0;
+  justify-items: center;
+}
+
+@media (max-width: 640px) {
+  .Hero .logos {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.Cards h2 {
+  margin: 50px 20px;
+  font-size: 60px;
+  text-align: center;
+  font-weight: 700;
+  background: -webkit-linear-gradient(104deg, #4a548c 0%, #050a27 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.CardGroup {
+  margin: 50px 40px 100px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 40px;
+  justify-items: center;
+}
+
+@media (max-width: 1060px) {
+  .CardGroup {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .CardGroup {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}

@@ -1,0 +1,225 @@
+.page-banner {
+  position: relative;
+  z-index: 1;
+  background: url('/static/media/gpcodersimages/javascript-banner.jpg')
+    no-repeat center;
+  background-size: cover;
+}
+.page-banner:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: #162b43;
+  opacity: 0.85;
+  z-index: -1;
+}
+.page-banner > svg {
+  position: absolute;
+  bottom: -5rem;
+  left: 0;
+}
+.pagebanner-text {
+  padding: 25rem 0;
+  max-width: 70rem;
+  font-size: 2.4rem;
+}
+.pagebanner-text h1 {
+  font-size: 6.5rem;
+  font-weight: 300;
+  color: #fff;
+  margin-bottom: 2rem;
+}
+.sec-padding {
+  padding: 10rem 0 8rem;
+}
+.whyus-col.list-col4 li {
+  width: 25%;
+}
+.whyus-col.list-col4 li .singlecol {
+  min-height: auto;
+}
+.jstabtop-box {
+  background: #162b43;
+  padding: 16rem 0 16rem;
+  position: relative;
+}
+.jstabtop-box svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -7rem;
+  transform: rotate(180deg);
+}
+.jstab-sec .ant-tabs {
+  margin-top: -14rem;
+  position: relative;
+  padding-bottom: 9rem;
+}
+.jstab-sec .introbox {
+  background: #fff;
+  padding: 6rem;
+  box-shadow: 0 24px 42px 0 rgba(36, 44, 58, 0.12);
+  margin-bottom: 10rem;
+}
+.jstab-sec .introbox .imgbox {
+  max-width: 20rem;
+}
+.jstab-sec .introbox.vanillaintro {
+  background: #eb4552;
+}
+.jstab-sec .introbox.angularintro {
+  background: #3792e4;
+}
+.jstab-sec .introbox.reactintro {
+  background: #61dafb;
+}
+.jstab-sec .introbox.vueintro {
+  background: #41b883;
+}
+.jstab-sec .introbox.nodeintro {
+  background: #43853d;
+}
+.ant-tabs {
+  font-size: 2rem;
+}
+.jstab-sec .ant-tabs-bar {
+  border: 0;
+  margin-bottom: 3rem;
+  text-align: center;
+}
+.jstab-sec .ant-tabs-nav .ant-tabs-tab {
+  height: 50px;
+  padding: 0 2rem;
+  line-height: 46px;
+  background: transparent;
+  border: 2px solid #fff;
+  font-size: 1.6rem;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: #fff;
+  margin: 0 2rem;
+  min-width: 15rem;
+  text-align: center;
+}
+.jstab-sec .ant-tabs-nav-container {
+  height: 50px;
+  margin-bottom: 0;
+}
+.jstab-sec .ant-tabs-ink-bar {
+  display: none !important;
+}
+.jstab-sec .ant-tabs-nav .ant-tabs-tab-active {
+  background: #fff;
+  color: #222;
+}
+.projs-sec ul {
+  justify-content: space-between;
+  font-size: 1.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 10rem;
+}
+.projs-sec ul li {
+  padding: 0 1.5rem;
+}
+.projs-sec .circle-box {
+  width: 11rem;
+  height: 11rem;
+  border-radius: 100%;
+  box-shadow: 0 24px 42px 0 rgba(36, 44, 58, 0.12);
+  margin: 0 auto 2rem;
+  line-height: 11rem;
+}
+.projs-sec .circle-box img {
+  height: 6rem;
+  width: auto;
+}
+.jstab-sec .ant-tabs-tab-btn-disabled,
+.jstab-sec .ant-tabs-tab-btn-disabled:hover,
+.jstab-sec .ant-tabs-tab-prev,
+.jstab-sec .ant-tabs-tab-next {
+  color: #fff;
+}
+.tabcompany-sec .single-col {
+  overflow: hidden;
+  box-shadow: 0 0px 2rem rgba(36, 44, 58, 0.1);
+  margin-bottom: 3rem;
+}
+.tabcompany-sec {
+  padding: 0 1rem;
+}
+.tabcompany-sec .box-content {
+  padding: 3rem 2rem 1px;
+  position: relative;
+  z-index: 1;
+  min-height: 23rem;
+}
+.tabcompany-sec .box-content:before {
+  content: '';
+  height: 70px;
+  position: absolute;
+  left: -3rem;
+  right: -3rem;
+  bottom: -25px;
+  background: #fff;
+  z-index: -1;
+  transform: rotate(-8deg);
+}
+.tabcompany-sec .imgbox {
+  position: relative;
+}
+.tabcompany-sec .imgbox:before {
+  position: absolute;
+  content: '';
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+@media (max-width: 1120px) {
+  .jstab-sec .ant-tabs-nav .ant-tabs-tab {
+    margin: 0 1rem;
+  }
+  .projs-sec ul li {
+    width: 33.33%;
+  }
+}
+@media (max-width: 991px) {
+  .whyus-col.list-col4 li {
+    width: 50%;
+  }
+}
+@media (max-width: 767px) {
+  .jstab-sec .ant-tabs-nav .ant-tabs-tab {
+    padding: 0 1rem;
+    min-width: 13rem;
+  }
+  .projs-sec ul {
+    margin-bottom: 6rem;
+  }
+  .projs-sec ul li {
+    width: 50%;
+  }
+  .jstab-sec .introbox {
+    padding: 4rem 3rem 2rem;
+    margin-bottom: 5rem;
+  }
+  .jstab-sec .introbox .imgbox {
+    margin-bottom: 3rem;
+  }
+}
+@media (max-width: 480px) {
+  .whyus-col.list-col4 li {
+    width: 100%;
+  }
+  .pagebanner-text h1 {
+    font-size: 4rem;
+  }
+  .pagebanner-text {
+    padding: 23rem 0;
+    font-size: 2rem;
+  }
+}

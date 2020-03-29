@@ -1,0 +1,464 @@
+html {
+  font-size: 10px;
+}
+body {
+  font-size: 2rem;
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', sans-serif;
+  line-height: 1.5;
+  color: #222;
+  font-weight: 300;
+}
+.container {
+  max-width: 1200px;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  padding: 0;
+  line-height: 1.1;
+}
+a {
+  color: #222;
+  text-decoration: none;
+  display: inline-block;
+}
+p {
+  margin-bottom: 2rem;
+}
+img {
+  max-width: 100%;
+}
+ul,
+li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.btn {
+  font-size: 1.4rem;
+  text-transform: uppercase;
+  padding: 1.3rem 3rem;
+  height: auto;
+}
+.btn-outline-secondary {
+  color: #fff;
+  border-color: #fff;
+}
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus {
+  color: #222;
+  background: #fff;
+}
+
+.btn-primary {
+  background-color: #eb4552;
+  border-color: #eb4552;
+}
+.btn-white {
+  background-color: #fff;
+  border-color: #fff;
+}
+.btn-white:hover,
+.btn-white:focus {
+  background-color: transparent;
+  color: #fff;
+}
+.btn-secondary {
+  background-color: #162b43;
+  border-color: #162b43;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #df3643;
+  border-color: #df3643;
+  box-shadow: none;
+}
+.btn-secondary:hover,
+.btn-secondary:focus {
+  background-color: #222;
+  border-color: #222;
+  box-shadow: none;
+}
+.font-900,
+.sub-heading.font-900 {
+  font-weight: 900;
+}
+.widget-title {
+  font-size: 6rem;
+  font-weight: 900;
+  margin-bottom: 2rem;
+  opacity: 1;
+}
+
+.sub-heading {
+  font-size: 3rem;
+  font-weight: 300;
+  margin-bottom: 2rem;
+}
+.text-white .sub-heading,
+.text-white .widget-title {
+  color: #fff;
+}
+.home-banner {
+  background: url('/static/media/gpcodersimages/home-banner.jpg') no-repeat
+    center;
+  min-height: 105vh;
+  background-size: cover;
+  position: relative;
+  z-index: 1;
+}
+.home-banner::before {
+  position: absolute;
+  content: '';
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: -1;
+}
+.home-banner svg {
+  position: absolute;
+  bottom: -5rem;
+  left: 0;
+}
+.home-banner h1 {
+  font-size: 6.5rem;
+  color: #fff;
+  font-weight: 300;
+  margin-bottom: 2rem;
+  opacity: 0;
+  animation: HeroAnimations;
+  animation-duration: 3s;
+  animation-delay: 0.1s;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.03, 0.8, 0.2, 1);
+}
+.banner-text {
+  max-width: 100rem;
+  margin: 0 auto;
+  font-size: 2.4rem;
+  padding-top: 29vh;
+  padding-bottom: 14vh;
+}
+.bannerlogos-sec {
+  animation: LogoHeroAnimations 3s 0.2s forwards cubic-bezier(0.03, 0.8, 0.2, 1);
+  opacity: 0;
+}
+.bannerlogos {
+  max-width: 60rem;
+  float: right;
+}
+.bannerlogos-sec .sub-heading {
+  text-align: left;
+}
+.tech-border {
+  height: 3px;
+  width: 3rem;
+  background: #eb4552;
+  margin-bottom: 7px;
+  display: block;
+}
+.font-24 {
+  font-size: 2.4rem;
+}
+.font-300 {
+  font-weight: 300;
+}
+.sec-paddingfull {
+  padding: 10rem 0;
+}
+.portfolio-slider {
+  padding: 0 3%;
+  margin-bottom: -23rem;
+  position: relative;
+  z-index: 2;
+}
+.portfolio-slider .img-box {
+  padding: 10px;
+}
+.portfolio-slider .img-box a {
+  display: block;
+  position: relative;
+}
+.portfolio-slider .slick-slide img {
+  width: 100%;
+}
+.slick-prev:before,
+.slick-next:before {
+  font-family: 'FontAwesome';
+  font-size: 5rem;
+}
+.slick-prev,
+.slick-next {
+  top: auto;
+  transform: none;
+  bottom: -6rem;
+  width: 5rem;
+  height: 5rem;
+}
+.slick-next {
+  right: 0;
+}
+.slick-prev {
+  left: auto;
+  right: 6rem;
+}
+.slick-dots {
+  bottom: -4.5rem;
+  display: block;
+  width: 70%;
+  text-align: left;
+  left: -7px;
+}
+.slick-dots li {
+  margin: 0 2px;
+}
+.slick-dots li.slick-active button:before {
+  color: #fff;
+  opacity: 1;
+}
+
+.slick-dots li button:before {
+  color: #fff;
+  font-size: 1.2rem;
+  opacity: 0.5;
+}
+
+.portfolio-slider .title-text {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: block;
+  color: #fff;
+  background: #222;
+  font-size: 2.4rem;
+  padding: 2.6rem 2rem;
+  width: 100%;
+  text-align: center;
+}
+.title-text.smartcurcumin {
+  background: #fb9925;
+}
+.title-text.opus {
+  background: #1a9fc8;
+}
+.title-text.postive-sol {
+  background: #7dbd38;
+}
+.title-text.weddingman {
+  background: #ff0037;
+}
+.portfolio-slider .slick-slider .slick-slide {
+  line-height: 0;
+}
+.portfolio-cta-sec {
+  background: #eb4552;
+  padding: 32rem 0 6rem;
+  position: relative;
+}
+.portfolio-cta-sec .topsvg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -6rem;
+  transform: rotate(180deg);
+}
+.technology-sec {
+  background: #162b43;
+}
+.technology-sec .iconbox {
+  background: #5495ff;
+  padding: 4rem 3rem 3rem;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  box-shadow: 0 -10px 40px 0 rgba(20, 24, 39, 0.14),
+    0 45px 66px 0 rgba(36, 44, 58, 0.42);
+}
+.technology-sec .icon-list {
+  flex-wrap: wrap;
+}
+.technology-sec .icon-list li {
+  width: 25%;
+  padding: 0 1.5rem;
+  min-height: 96px;
+  margin-bottom: 16px;
+  font-size: 1.6rem;
+  text-align: center;
+}
+.technology-sec .icon-list li img {
+  height: 70px;
+  padding: 1rem;
+  width: auto;
+  max-width: none;
+}
+.technology-sec svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6rem;
+}
+.max-width86 {
+  max-width: 86rem;
+  margin: 0 auto;
+}
+.custom-sol-sec .imgbox {
+  padding: 1.5rem;
+  box-shadow: 0 0 10px #ddd;
+}
+.quality-sec {
+  background: url('/static/media/gpcodersimages/b-w-bg2.jpg') no-repeat center
+    bottom;
+  padding: 25rem 0;
+  position: relative;
+  z-index: 2;
+  background-size: cover;
+}
+.quality-sec .process-box {
+  max-width: 66rem;
+  margin: 0 auto;
+  background: #5495ff;
+  padding: 6rem 7rem;
+  -webkit-box-shadow: 0 -10px 40px 0 rgba(20, 24, 39, 0.14),
+    0 45px 66px 0 rgba(36, 44, 58, 0.42);
+  box-shadow: 0 -10px 40px 0 rgba(20, 24, 39, 0.14),
+    0 45px 66px 0 rgba(36, 44, 58, 0.42);
+}
+.whyus-col ul {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.whyus-col li {
+  width: 50%;
+  flex-grow: 1;
+  padding: 0 2rem;
+}
+.whyus-col li .singlecol {
+  -webkit-box-shadow: 0 24px 42px 0 rgba(36, 44, 58, 0.12);
+  box-shadow: 0 24px 42px 0 rgba(36, 44, 58, 0.12);
+  padding: 3rem 2rem 1rem;
+  margin-bottom: 4rem;
+  font-size: 1.6rem;
+  min-height: 180px;
+  line-height: 1.4;
+}
+.whyus-col li .singlecol img {
+  margin-bottom: 2rem;
+  height: 8rem;
+  width: auto;
+  max-width: none;
+}
+@media (max-width: 1120px) {
+}
+@media (max-width: 1120px) {
+}
+@media (max-width: 1120px) {
+  .home-banner h1 {
+    font-size: 4.5rem;
+  }
+  .banner-text {
+    font-size: 2rem;
+    padding-top: 30vh;
+    padding-bottom: 15vh;
+  }
+  .widget-title {
+    font-size: 4rem;
+  }
+  body {
+    font-size: 1.7rem;
+    line-height: 1.7;
+  }
+  .sub-heading {
+    font-size: 2.4rem;
+  }
+  .font-24 {
+    font-size: 2rem;
+  }
+  .custom-sol-sec .widget-title {
+    margin-top: 5rem;
+  }
+  .portfolio-slider .title-text {
+    font-size: 1.8rem;
+  }
+}
+@media (max-width: 991px) {
+  .technology-sec .iconbox {
+    padding: 3rem 2rem 2rem;
+  }
+  .widget-title {
+    font-size: 3.5rem;
+  }
+
+  .sec-paddingfull {
+    padding: 8rem 0;
+  }
+  .technology-sec .icon-list li img {
+    height: 60px;
+  }
+  .technology-sec .icon-list li {
+    padding: 0 1rem;
+    min-height: 90px;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+  }
+
+  .home-banner {
+    min-height: 90vh;
+  }
+  .home-banner h1 {
+    font-size: 4rem;
+  }
+}
+@media (max-width: 767px) {
+  .why-us {
+    text-align: center;
+  }
+  .bannerlogos-sec .sub-heading {
+    display: none;
+  }
+  .home-banner .logo-list li {
+    padding: 1rem 1rem;
+  }
+  .technology-sec .iconbox {
+    position: static;
+    margin-bottom: 5rem;
+  }
+  .custom-sol-sec .imgbox {
+    margin-bottom: 3rem;
+  }
+}
+@media (max-width: 480px) {
+  .home-banner h1 {
+    font-size: 3rem;
+  }
+
+  .banner-text {
+    font-size: 1.7rem;
+    padding-top: 20vh;
+    padding-bottom: 7vh;
+  }
+  .widget-title {
+    font-size: 2.8rem;
+  }
+  html {
+    font-size: 8px;
+  }
+  .custom-sol-sec .widget-title {
+    margin-top: 0;
+  }
+  .home-banner {
+    min-height: 75rem;
+  }
+  .technology-sec {
+    padding-bottom: 10rem;
+  }
+}

@@ -1,0 +1,137 @@
+.site-header {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 111;
+  padding: 2.5rem 0;
+  transition: 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button:focus {
+  outline: none;
+}
+.headerScrolled.site-header {
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px 0;
+  backdrop-filter: blur(20px);
+  position: fixed;
+}
+.ant-menu-horizontal > .ant-menu-item a {
+  font-size: 1.6rem;
+  color: #fff;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+.ant-menu-dark {
+  background-color: transparent;
+}
+.ant-menu.ant-menu-dark .ant-menu-item-selected,
+.ant-menu-submenu-popup.ant-menu-dark .ant-menu-item-selected {
+  background-color: transparent;
+}
+.HeaderMain > nav {
+  width: 83%;
+}
+.site-logo {
+  margin-right: 16%;
+  width: 16.5rem;
+}
+.mobilebarsMenu {
+  display: none;
+}
+.get-quote-model.ant-modal {
+  top: 60px;
+}
+.get-quote-model .ant-modal-content {
+  border-radius: 20px;
+  min-width: 480px;
+  max-width: 700px;
+  max-height: calc(100vh - 112px);
+  padding: 50px 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.get-quote-model .ant-modal-footer {
+  display: none;
+}
+.get-quote-model .ant-modal-body {
+  overflow-y: auto;
+  clear: both;
+  flex-grow: 1;
+  padding: 0;
+}
+.get-quote-model .ant-modal-close svg {
+  height: 2.4rem;
+  width: 2.4rem;
+}
+.get-quote-model .ant-modal-close {
+  right: 5px;
+}
+.get-quote-model form {
+  max-width: 35rem;
+  margin: 0 auto;
+}
+/*--responsive css--*/
+@media (max-width: 1120px) {
+  .site-logo {
+    margin-right: 9%;
+  }
+  .HeaderMain > nav {
+    width: 80%;
+    align-items: center;
+  }
+  .HeaderMain {
+    justify-content: space-between;
+  }
+}
+@media (max-width: 991px) {
+  .mobilebarsMenu {
+    display: block;
+    position: absolute;
+    right: 0;
+    top: 0.5rem;
+    background: transparent;
+    border-color: #fff;
+    height: 4rem;
+    width: 4rem;
+    text-align: center;
+    padding: 0;
+  }
+  .ant-menu-dark.ant-menu-horizontal {
+    display: none;
+  }
+  .HeaderMain {
+    display: block !important;
+    position: relative;
+  }
+  .HeaderMain > nav {
+    width: 100%;
+    padding: 0;
+  }
+
+  .HeaderMain .btn {
+    position: absolute;
+    right: 6rem;
+    top: 0;
+  }
+  .site-logo {
+    margin-right: 0;
+    padding: 7px 0;
+  }
+}
+@media (max-width: 480px) {
+  .get-quote-model .ant-modal-content {
+    min-width: 340px;
+  }
+  .mobilebarsMenu {
+    top: 0.1rem;
+  }
+  .site-logo {
+    max-width: 17rem;
+    padding: 5px 0;
+  }
+  .HeaderMain .btn {
+    padding: 1rem 2rem;
+  }
+}

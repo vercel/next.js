@@ -1,0 +1,102 @@
+.footer-top {
+  background: #eb4552;
+  position: relative;
+  padding: 23rem 0;
+}
+.bottom-wave {
+  bottom: -6rem;
+}
+.bottom-wave,
+.top-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.top-wave {
+  top: -6rem;
+  transform: rotate(180deg);
+}
+.footer-top .singlecol {
+  margin-bottom: 3rem;
+}
+
+.footer-top .iconbox {
+  width: 10rem;
+  height: 10rem;
+  border-radius: 100%;
+  border: 2px solid #fff;
+  margin: 0 auto 2rem;
+  font-size: 4rem;
+  line-height: 9rem;
+}
+.footer-top .sub-heading {
+  text-transform: uppercase;
+  font-weight: 900;
+}
+.footer-top a {
+  color: #fff;
+  text-decoration: none;
+}
+.footer-form {
+  position: relative;
+  padding: 4rem 0;
+}
+.footer-form form {
+  max-width: 90rem;
+  margin: 0 auto;
+}
+.form-control {
+  height: 5rem;
+  font-size: 16px;
+}
+.form-control:focus {
+  border-color: #ddd;
+  box-shadow: none;
+}
+textarea.form-control {
+  height: 12rem;
+}
+.form-group {
+  margin-bottom: 30px;
+}
+.footer-copyright {
+  background: #f5f5f5;
+  font-size: 1.4rem;
+  padding: 1rem 0;
+}
+.footer-copyright .social {
+  text-align: right;
+}
+.footer-copyright .social a {
+  height: 3rem;
+  width: 3rem;
+  line-height: 3rem;
+  border-radius: 100%;
+  background-color: #fff;
+  text-align: center;
+  margin-left: 3px;
+  line-height: 3rem;
+  transition: 0.5s;
+}
+.footer-copyright .social a:hover {
+  color: #fff;
+  background: #eb4552;
+}
+@media (max-width: 991px) {
+  .footer-top {
+    padding: 18rem 0;
+  }
+}
+@media (max-width: 767px) {
+  .footer-top {
+    padding: 15rem 0;
+  }
+  .footer-copyright .social {
+    margin-top: 5px;
+    text-align: center;
+  }
+  .footer-copyright {
+    padding: 1.5rem 0;
+    text-align: center;
+  }
+}

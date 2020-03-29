@@ -1,0 +1,41 @@
+.service-list {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 1.6rem;
+  margin-bottom: 2rem;
+}
+.service-list li {
+  width: 50%;
+  position: relative;
+  padding-left: 2.5rem;
+  margin-bottom: 1rem;
+}
+.service-list li:before {
+  content: '\f058';
+  position: absolute;
+  left: 0;
+  top: -1px;
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  color: #eb4552;
+}
+.sec-paddingbottom {
+  padding-bottom: 8rem;
+}
+.service-row .projs-sec ul li {
+  width: 16.66%;
+  margin-bottom: 2rem;
+}
+.page-banner.service-banner {
+  background-image: url('/static/media/gpcodersimages/service-banner.jpg');
+}
+@media (max-width: 1120px) {
+  .service-row .projs-sec ul li {
+    width: 33.33%;
+  }
+}
+@media (max-width: 767px) {
+  .service-row .projs-sec ul li {
+    width: 50%;
+  }
+}
