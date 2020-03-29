@@ -108,6 +108,14 @@ declare module 'next/dist/compiled/http-proxy' {
   import m from 'http-proxy'
   export = m
 }
+declare module 'next/dist/compiled/is-docker' {
+  import m from 'is-docker'
+  export = m
+}
+declare module 'next/dist/compiled/is-wsl' {
+  import m from 'is-wsl'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
