@@ -1,6 +1,12 @@
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
+const allExternals = {
+  chalk: 'next/dist/compiled/chalk',
+  'source-map': 'next/dist/compiled/source-map',
+  'node-fetch': 'next/dist/compiled/node-fetch',
+}
+
 // eslint-disable-next-line camelcase
 export async function ncc_amphtml_validator(task, opts) {
   await task
@@ -23,7 +29,7 @@ export async function ncc_async_retry(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('async-retry')))
     .ncc({
       packageName: 'async-retry',
-      externals: { 'node-fetch': 'next/dist/compiled/node-fetch' },
+      externals: allExternals,
     })
     .target('dist/compiled/async-retry')
 }
@@ -53,6 +59,7 @@ export async function ncc_babel__helper_plugin_utils(task, opts) {
 }
 // eslint-disable-next-line camelcase
 const babelExternals = {
+  ...allExternals,
   '@babel/core': 'next/dist/compiled/babel--core',
   '@babel/helper-plugin-utils': 'next/dist/compiled/babel--helper-plugin-utils',
 }
@@ -470,7 +477,7 @@ export async function ncc_ora(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('ora')))
     .ncc({
       packageName: 'ora',
-      externals: { chalk: 'next/dist/compiled/chalk' },
+      externals: allExternals,
     })
     .target('dist/compiled/ora')
 }
@@ -485,7 +492,7 @@ export async function ncc_raw_body(task, opts) {
 export async function ncc_recast(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('recast')))
-    .ncc({ packageName: 'recast' })
+    .ncc({ packageName: 'recast', externals: allExternals })
     .target('dist/compiled/recast')
 }
 // eslint-disable-next-line camelcase
@@ -501,6 +508,13 @@ export async function ncc_send(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('send')))
     .ncc({ packageName: 'send' })
     .target('dist/compiled/send')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_source_map(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('source-map')))
+    .ncc({ packageName: 'source-map' })
+    .target('dist/compiled/source-map')
 }
 // eslint-disable-next-line camelcase
 export async function ncc_text_table(task, opts) {
@@ -572,6 +586,7 @@ export async function precompile(task) {
     'ncc_recast',
     'ncc_resolve',
     'ncc_send',
+    'ncc_source_map',
     'ncc_text_table',
     'ncc_unistore',
   ])
