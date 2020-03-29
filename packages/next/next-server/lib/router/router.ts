@@ -3,6 +3,7 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { parse, UrlObject } from 'url'
+import isEqual from 'lodash.isequal'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -62,6 +63,7 @@ type RouteInfo = {
   __N_SSG?: boolean
   __N_SSP?: boolean
   props?: any
+  query?: ParsedUrlQuery
   err?: Error
   error?: any
 }
@@ -187,6 +189,7 @@ export default class Router implements BaseRouter {
         Component,
         props: initialProps,
         err,
+        query,
         __N_SSG: initialProps && initialProps.__N_SSG,
         __N_SSP: initialProps && initialProps.__N_SSP,
       }
@@ -517,15 +520,19 @@ export default class Router implements BaseRouter {
   getRouteInfo(
     route: string,
     pathname: string,
-    query: any,
+    query: ParsedUrlQuery,
     as: string,
     shallow: boolean = false
   ): Promise<RouteInfo> {
     const cachedRouteInfo = this.components[route]
 
     // If there is a shallow route transition possible
-    // If the route is already rendered on the screen.
-    if (shallow && cachedRouteInfo && this.route === route) {
+    // If the route is already rendered on the screen and cached.
+    if (
+      cachedRouteInfo &&
+      isEqual(cachedRouteInfo.query, query) &&
+      (shallow || this.route === route)
+    ) {
       return Promise.resolve(cachedRouteInfo)
     }
 
@@ -630,6 +637,7 @@ export default class Router implements BaseRouter {
                 } as any
               )
         ).then(props => {
+          routeInfo.query = query
           routeInfo.props = props
           this.components[route] = routeInfo
           return routeInfo
