@@ -377,6 +377,16 @@ export async function ncc_jsonwebtoken(task, opts) {
     .target('dist/compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_launch_editor(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('launch-editor')))
+    .ncc({
+      packageName: 'launch-editor',
+      externals: { chalk: 'next/dist/compiled/chalk' },
+    })
+    .target('dist/compiled/launch-editor')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -449,6 +459,7 @@ export async function precompile(task) {
     'ncc_is_wsl',
     'ncc_json5',
     'ncc_jsonwebtoken',
+    'ncc_launch_editor',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',
