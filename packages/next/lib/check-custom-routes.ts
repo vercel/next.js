@@ -1,4 +1,4 @@
-import * as pathToRegexp from 'path-to-regexp'
+import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,

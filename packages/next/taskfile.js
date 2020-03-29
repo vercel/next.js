@@ -582,6 +582,12 @@ export async function ncc_unistore(task, opts) {
     .target('dist/compiled/unistore')
 }
 
+export async function path_to_regexp(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('path-to-regexp')))
+    .target('dist/compiled/path-to-regexp')
+}
+
 export async function precompile(task) {
   await task.parallel([
     'browser_polyfills',
@@ -646,6 +652,7 @@ export async function precompile(task) {
     'ncc_terser',
     'ncc_text_table',
     'ncc_unistore',
+    'path_to_regexp',
   ])
 }
 
