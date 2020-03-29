@@ -531,6 +531,13 @@ export async function ncc_strip_ansi(task, opts) {
     .target('dist/compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_terser(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('terser')))
+    .ncc({ packageName: 'terser' })
+    .target('dist/compiled/terser')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_text_table(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('text-table')))
@@ -603,6 +610,7 @@ export async function precompile(task) {
     'ncc_source_map',
     'ncc_string_hash',
     'ncc_strip_ansi',
+    'ncc_terser',
     'ncc_text_table',
     'ncc_unistore',
   ])
