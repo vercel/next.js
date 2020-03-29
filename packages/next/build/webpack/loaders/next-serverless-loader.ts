@@ -1,5 +1,5 @@
 import devalue from 'next/dist/compiled/devalue'
-import escapeRegexp from 'escape-string-regexp'
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { loader } from 'webpack'
