@@ -44,80 +44,10 @@ declare module 'next/dist/compiled/babel--core' {
   import m from '@babel/core'
   export = m
 }
-
-/*declare module 'next/dist/compiled/babel--plugin-proposal-class-properties' {
-  import m from '@babel/plugin-proposal-class-properties'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-proposal-nullish-coalescing-operator' {
-  import m from '@babel/plugin-proposal-nullish-coalescing-operator'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-proposal-numeric-separator' {
-  import m from '@babel/plugin-proposal-numeric-separator'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-proposal-object-rest-spread' {
-  import m from '@babel/plugin-proposal-object-rest-spread'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-proposal-optional-chaining' {
-  import m from '@babel/plugin-proposal-optional-chaining'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-syntax-bigint' {
-  import m from '@babel/plugin-syntax-bigint'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-syntax-dynamic-import' {
-  import m from '@babel/plugin-syntax-dynamic-import'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-transform-modules-commonjs' {
-  import m from '@babel/plugin-transform-modules-commonjs'
-  export = m
-}
-declare module 'next/dist/compiled/babel--plugin-transform-runtime' {
-  import m from '@babel/plugin-transform-runtime'
-  export = m
-}
-declare module 'next/dist/compiled/babel--preset-env' {
-  import m from '@babel/preset-env'
-  export = m
-}
-declare module 'next/dist/compiled/babel--preset-modules' {
-  import m from '@babel/preset-modules'
-  export = m
-}
-declare module 'next/dist/compiled/babel--preset-react' {
-  import m from '@babel/preset-react'
-  export = m
-}
-declare module 'next/dist/compiled/babel--preset-typescript' {
-  import m from '@babel/preset-typescript'
-  export = m
-}*/
 declare module 'next/dist/compiled/babel--types' {
   import m from '@babel/types'
   export = m
 }
-/*declare module 'next/dist/compiled/babel-loader' {
-  import m from 'babel-loader'
-  export = m
-}
-declare module 'next/dist/compiled/babel-plugin-syntax-jsx' {
-  import m from 'babel-plugin-syntax-jsx'
-  export = m
-}
-declare module 'next/dist/compiled/babel-plugin-transform-define' {
-  import m from 'babel-plugin-transform-define'
-  export = m
-}
-declare module 'next/dist/compiled/babel-plugin-transform-react-remove-prop-types' {
-  import m from 'babel-plugin-transform-react-remove-prop-types'
-  export = m
-}*/
-
 declare module 'next/dist/compiled/dotenv' {
   import m from 'dotenv'
   export = m
