@@ -443,6 +443,34 @@ function runTests(dev) {
     expect(res.status).toBe(200)
   })
 
+  it('should serve file with space from static folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with plus from static folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello+copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world +')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file from static folder encoded', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello%20copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with %20 from static folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello%2520copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world %20')
+    expect(res.status).toBe(200)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
