@@ -1,7 +1,7 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
-import Proxy from 'http-proxy'
+import Proxy from 'next/dist/compiled/http-proxy'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'

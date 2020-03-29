@@ -104,6 +104,10 @@ declare module 'next/dist/compiled/gzip-size' {
   import m from 'gzip-size'
   export = m
 }
+declare module 'next/dist/compiled/http-proxy' {
+  import m from 'http-proxy'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
