@@ -8,7 +8,7 @@ import fs from 'fs'
 import Worker from 'jest-worker'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import { pathToRegexp } from 'path-to-regexp'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
