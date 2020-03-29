@@ -140,7 +140,14 @@ declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
 }
-
+declare module 'next/dist/compiled/node-fetch' {
+  import m from 'node-fetch'
+  export = m
+}
+declare module 'next/dist/compiled/ora' {
+  import m from 'ora'
+  export = m
+}
 declare module 'next/dist/compiled/resolve/index.js' {
   import m from 'resolve'
   export = m
