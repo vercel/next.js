@@ -37,6 +37,10 @@ const externals = {
   // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
+  // dependents: thread-loader
+  'neo-async': 'neo-async',
+  'loader-runner': 'loader-runner',
+  'loader-utils': 'loader-utils',
 }
 
 // eslint-disable-next-line camelcase
@@ -366,6 +370,14 @@ export async function ncc_text_table(task, opts) {
     .target('dist/compiled/text-table')
 }
 // eslint-disable-next-line camelcase
+externals['thread-loader'] = 'next/dist/compiled/thread-loader'
+export async function ncc_thread_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('thread-loader')))
+    .ncc({ packageName: 'thread-loader', externals })
+    .target('dist/compiled/thread-loader')
+}
+// eslint-disable-next-line camelcase
 externals['unistore'] = 'next/dist/compiled/unistore'
 export async function ncc_unistore(task, opts) {
   await task
@@ -452,6 +464,7 @@ export async function precompile(task) {
     'ncc_strip_ansi',
     'ncc_terser',
     'ncc_text_table',
+    'ncc_thread_loader',
     'ncc_unistore',
     'ncc_webpack_dev_middleware',
     'ncc_webpack_hot_middleware',
