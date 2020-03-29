@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { compile as compilePathToRegex } from 'path-to-regexp'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
