@@ -1,6 +1,6 @@
-import { NodePath, PluginObj } from 'next/dist/compiled/babel--core'
-import commonjsPlugin from 'next/dist/compiled/babel--plugin-transform-modules-commonjs'
-import { Program } from 'next/dist/compiled/babel--types'
+import { NodePath, PluginObj } from '@babel/core'
+import commonjsPlugin from '@babel/plugin-transform-modules-commonjs'
+import { Program } from '@babel/types'
 
 // Rewrite imports using next/<something> to next-server/<something>
 export default function NextToNextServer(...args: any): PluginObj {
