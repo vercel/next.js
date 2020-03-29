@@ -57,7 +57,6 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.0.1",
     "@babel/core": "7.7.2",
     "@babel/plugin-proposal-class-properties": "7.7.0",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.7.4",
@@ -116,6 +115,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
+    "@ampproject/toolbox-optimizer": "2.0.1",
     "@next/polyfill-nomodule": "9.3.4-canary.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
