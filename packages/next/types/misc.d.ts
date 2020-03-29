@@ -92,6 +92,10 @@ declare module 'next/dist/compiled/escape-string-regexp' {
   import m from 'escape-string-regexp'
   export = m
 }
+declare module 'next/dist/compiled/etag' {
+  import m from 'etag'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
