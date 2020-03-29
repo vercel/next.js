@@ -77,6 +77,15 @@ export async function ncc_async_sema(task, opts) {
     .target('dist/compiled/async-sema')
 }
 // eslint-disable-next-line camelcase
+externals['autodll-webpack-plugin'] =
+  'next/dist/compiled/autodll-webpack-plugin'
+export async function ncc_autodll_webpack_plugin(task, opts) {
+  await task
+    .source(opts.src || 'build/bundles/autodll-webpack-plugin.js')
+    .ncc({ packageName: 'autodll-webpack-plugin', externals })
+    .target('dist/compiled/autodll-webpack-plugin')
+}
+// eslint-disable-next-line camelcase
 // NB: Used by other dependencies, but Zeit version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['chalk'] = 'next/dist/compiled/chalk'
@@ -408,6 +417,7 @@ export async function precompile(task) {
     'ncc_arg',
     'ncc_async_retry',
     'ncc_async_sema',
+    'ncc_autodll_webpack_plugin',
     'ncc_chalk',
     'ncc_ci_info',
     'ncc_compression',
