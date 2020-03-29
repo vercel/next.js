@@ -75,6 +75,10 @@ declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
   export = m
 }
+declare module 'next/dist/compiled/devalue' {
+  import m from 'devalue'
+  export = m
+}
 declare module 'next/dist/compiled/dotenv' {
   import m from 'dotenv'
   export = m
