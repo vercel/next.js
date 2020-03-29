@@ -1,7 +1,7 @@
 import chalk from 'next/dist/compiled/chalk'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
