@@ -370,6 +370,13 @@ export async function ncc_json5(task, opts) {
     .target('dist/compiled/json5')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_jsonwebtoken(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('jsonwebtoken')))
+    .ncc({ packageName: 'jsonwebtoken' })
+    .target('dist/compiled/jsonwebtoken')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -441,6 +448,7 @@ export async function precompile(task) {
     'ncc_is_docker',
     'ncc_is_wsl',
     'ncc_json5',
+    'ncc_jsonwebtoken',
     'ncc_nanoid',
     'ncc_resolve',
     'ncc_text_table',
