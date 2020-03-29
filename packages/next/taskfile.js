@@ -21,7 +21,10 @@ export async function ncc_arg(task, opts) {
 export async function ncc_async_retry(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('async-retry')))
-    .ncc({ packageName: 'async-retry' })
+    .ncc({
+      packageName: 'async-retry',
+      externals: { 'node-fetch': 'next/dist/compiled/node-fetch' },
+    })
     .target('dist/compiled/async-retry')
 }
 // eslint-disable-next-line camelcase
@@ -408,6 +411,23 @@ export async function ncc_nanoid(task, opts) {
     .target('dist/compiled/nanoid')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_node_fetch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
+    .ncc({ packageName: 'node-fetch' })
+    .target('dist/compiled/node-fetch')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_ora(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ora')))
+    .ncc({
+      packageName: 'ora',
+      externals: { chalk: 'next/dist/compiled/chalk' },
+    })
+    .target('dist/compiled/ora')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_resolve(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('resolve')))
@@ -477,6 +497,8 @@ export async function precompile(task) {
     'ncc_lodash_curry',
     'ncc_lru_cache',
     'ncc_nanoid',
+    'ncc_node_fetch',
+    'ncc_ora',
     'ncc_resolve',
     'ncc_text_table',
     'ncc_unistore',
