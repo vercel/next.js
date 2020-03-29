@@ -48,16 +48,6 @@ export async function ncc_amphtml_validator(task, opts) {
     .target('dist/compiled/amphtml-validator')
 }
 // eslint-disable-next-line camelcase
-export async function ncc_ampproject__toolbox_optimizer(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
-    )
-    .ncc({ packageName: '@ampproject/toolbox-optimizer', externals })
-    .target('dist/compiled/ampproject--toolbox-optimizer')
-}
-// eslint-disable-next-line camelcase
 export async function ncc_arg(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('arg')))
@@ -353,7 +343,6 @@ export async function precompile(task) {
   await task.parallel([
     'browser_polyfills',
     'ncc_amphtml_validator',
-    'ncc_ampproject__toolbox_optimizer',
     'ncc_arg',
     'ncc_async_retry',
     'ncc_async_sema',
