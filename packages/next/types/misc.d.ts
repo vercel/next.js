@@ -168,6 +168,14 @@ declare module 'next/dist/compiled/source-map' {
   import m from 'source-map'
   export = m
 }
+declare module 'next/dist/compiled/string-hash' {
+  import m from 'string-hash'
+  export = m
+}
+declare module 'next/dist/compiled/strip-ansi' {
+  import m from 'strip-ansi'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,

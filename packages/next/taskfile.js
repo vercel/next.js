@@ -517,6 +517,20 @@ export async function ncc_source_map(task, opts) {
     .target('dist/compiled/source-map')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_string_hash(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('string-hash')))
+    .ncc({ packageName: 'string-hash' })
+    .target('dist/compiled/string-hash')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_strip_ansi(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('strip-ansi')))
+    .ncc({ packageName: 'strip-ansi' })
+    .target('dist/compiled/strip-ansi')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_text_table(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('text-table')))
@@ -587,6 +601,8 @@ export async function precompile(task) {
     'ncc_resolve',
     'ncc_send',
     'ncc_source_map',
+    'ncc_string_hash',
+    'ncc_strip_ansi',
     'ncc_text_table',
     'ncc_unistore',
   ])
