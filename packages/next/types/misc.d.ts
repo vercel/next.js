@@ -156,6 +156,10 @@ declare module 'next/dist/compiled/ora' {
   import m from 'ora'
   export = m
 }
+declare module 'next/dist/compiled/path-to-regexp' {
+  import m from 'path-to-regexp'
+  export = m
+}
 declare module 'next/dist/compiled/raw-body' {
   import m from 'raw-body'
   export = m
