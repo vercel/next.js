@@ -33,8 +33,6 @@ export async function browser_polyfills(task) {
 }
 
 const externals = {
-  '@babel/core': 'next/dist/compiled/babel--core',
-  '@babel/helper-plugin-utils': 'next/dist/compiled/babel--helper-plugin-utils',
   chalk: 'next/dist/compiled/chalk',
   'source-map': 'next/dist/compiled/source-map',
   'node-fetch': 'next/dist/compiled/node-fetch',
@@ -74,267 +72,8 @@ export async function ncc_async_sema(task, opts) {
     .target('dist/compiled/async-sema')
 }
 // eslint-disable-next-line camelcase
-export async function ncc_babel__core(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('@babel/core')))
-    .ncc({ packageName: '@babel/core', externals })
-    .target('dist/compiled/babel--core')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__helper_plugin_utils(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('@babel/helper-plugin-utils'))
-    )
-    .ncc({ packageName: '@babel/helper-plugin-utils', externals })
-    .target('dist/compiled/babel--helper-plugin-utils')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_proposal_class_properties(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/plugin-proposal-class-properties')
-        )
-    )
-    .ncc({
-      packageName: '@babel/plugin-proposal-class-properties',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-proposal-class-properties')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_proposal_nullish_coalescing_operator(
-  task,
-  opts
-) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/plugin-proposal-nullish-coalescing-operator')
-        )
-    )
-    .ncc({
-      packageName: '@babel/plugin-proposal-nullish-coalescing-operator',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-proposal-nullish-coalescing-operator')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_proposal_numeric_separator(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/plugin-proposal-numeric-separator')
-        )
-    )
-    .ncc({
-      packageName: '@babel/plugin-proposal-numeric-separator',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-proposal-numeric-separator')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_proposal_object_rest_spread(
-  task,
-  opts
-) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/plugin-proposal-object-rest-spread')
-        )
-    )
-    .ncc({
-      packageName: '@babel/plugin-proposal-object-rest-spread',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-proposal-object-rest-spread')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_proposal_optional_chaining(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/plugin-proposal-optional-chaining')
-        )
-    )
-    .ncc({
-      packageName: '@babel/plugin-proposal-optional-chaining',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-proposal-optional-chaining')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_syntax_bigint(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('@babel/plugin-syntax-bigint'))
-    )
-    .ncc({
-      packageName: '@babel/plugin-syntax-bigint',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-syntax-bigint')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_syntax_dynamic_import(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          // eslint-disable-next-line no-useless-concat
-          require.resolve('@babel/plugin-syntax-dynamic-i' + 'mport')
-        )
-    )
-    .ncc({
-      // eslint-disable-next-line no-useless-concat
-      packageName: '@babel/plugin-syntax-dynamic-i' + 'mport',
-      externals,
-    })
-    // eslint-disable-next-line no-useless-concat
-    .target('dist/compiled/babel--plugin-syntax-dynamic-i' + 'mport')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_transform_modules_commonjs(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/plugin-transform-modules-commonjs')
-        )
-    )
-    .ncc({
-      packageName: '@babel/plugin-transform-modules-commonjs',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-transform-modules-commonjs')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__plugin_transform_runtime(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('@babel/plugin-transform-runtime'))
-    )
-    .ncc({
-      packageName: '@babel/plugin-transform-runtime',
-      externals,
-    })
-    .target('dist/compiled/babel--plugin-transform-runtime')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__preset_env(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('@babel/preset-env'))
-    )
-    .ncc({ packageName: '@babel/preset-env', externals })
-    .target('dist/compiled/babel--preset-env')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__preset_modules(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('@babel/preset-modules'))
-    )
-    .ncc({ packageName: '@babel/preset-modules', externals })
-    .target('dist/compiled/babel--preset-modules')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__preset_react(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('@babel/preset-react'))
-    )
-    .ncc({ packageName: '@babel/preset-react', externals })
-    .target('dist/compiled/babel--preset-react')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__preset_typescript(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('@babel/preset-typescript'))
-    )
-    .ncc({ packageName: '@babel/preset-typescript', externals })
-    .target('dist/compiled/babel--preset-typescript')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel__types(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('@babel/types')))
-    .ncc({ packageName: '@babel/types', externals })
-    .target('dist/compiled/babel--types')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('babel-loader')))
-    .ncc({ packageName: 'babel-loader', externals })
-    .target('dist/compiled/babel-loader')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel_plugin_syntax_jsx(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('babel-plugin-syntax-jsx'))
-    )
-    .ncc({ packageName: 'babel-plugin-syntax-jsx', externals })
-    .target('dist/compiled/babel-plugin-syntax-jsx')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel_plugin_transform_define(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('babel-plugin-transform-define'))
-    )
-    .ncc({ packageName: 'babel-plugin-transform-define', externals })
-    .target('dist/compiled/babel-plugin-transform-define')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_babel_plugin_transform_react_remove_prop_types(
-  task,
-  opts
-) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('babel-plugin-transform-react-remove-prop-types')
-        )
-    )
-    .ncc({
-      packageName: 'babel-plugin-transform-react-remove-prop-types',
-      externals,
-    })
-    .target('dist/compiled/babel-plugin-transform-react-remove-prop-types')
-}
-// eslint-disable-next-line camelcase
-export async function ncc_browserslist(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('browserslist')))
-    .ncc({ packageName: 'browserslist' })
-    .target('dist/compiled/browserslist')
-}
-// eslint-disable-next-line camelcase
+// NB: Used by other dependencies, but Zeit version is a duplicate
+// version so can be inlined anyway (although may change in future)
 export async function ncc_chalk(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('chalk')))
@@ -526,6 +265,8 @@ export async function ncc_recast(task, opts) {
     .target('dist/compiled/recast')
 }
 // eslint-disable-next-line camelcase
+// NB: Used by other dependencies, but Zeit version is a duplicate
+// version so can be inlined anyway (although may change in future)
 export async function ncc_resolve(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('resolve')))
@@ -540,6 +281,8 @@ export async function ncc_send(task, opts) {
     .target('dist/compiled/send')
 }
 // eslint-disable-next-line camelcase
+// NB: Used by other dependencies, but Zeit version is a duplicate
+// version so can be inlined anyway (although may change in future)
 export async function ncc_source_map(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('source-map')))
@@ -603,28 +346,6 @@ export async function precompile(task) {
     'ncc_arg',
     'ncc_async_retry',
     'ncc_async_sema',
-    'ncc_babel__core',
-    'ncc_babel__helper_plugin_utils',
-    'ncc_babel__plugin_proposal_class_properties',
-    'ncc_babel__plugin_proposal_nullish_coalescing_operator',
-    'ncc_babel__plugin_proposal_numeric_separator',
-    'ncc_babel__plugin_proposal_object_rest_spread',
-    'ncc_babel__plugin_proposal_optional_chaining',
-    'ncc_babel__plugin_syntax_bigint',
-    // eslint-disable-next-line no-useless-concat
-    'ncc_babel__plugin_syntax_dynamic_i' + 'mport',
-    'ncc_babel__plugin_transform_modules_commonjs',
-    'ncc_babel__plugin_transform_runtime',
-    'ncc_babel__preset_env',
-    'ncc_babel__preset_modules',
-    'ncc_babel__preset_react',
-    'ncc_babel__preset_typescript',
-    'ncc_babel__types',
-    'ncc_babel_loader',
-    'ncc_babel_plugin_syntax_jsx',
-    'ncc_babel_plugin_transform_define',
-    'ncc_babel_plugin_transform_react_remove_prop_types',
-    'ncc_browserslist',
     'ncc_chalk',
     'ncc_ci_info',
     'ncc_compression',
