@@ -1,4 +1,4 @@
-import curry from 'lodash.curry'
+import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
 import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
