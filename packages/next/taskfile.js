@@ -428,6 +428,13 @@ export async function ncc_ora(task, opts) {
     .target('dist/compiled/ora')
 }
 // eslint-disable-next-line camelcase
+export async function ncc_raw_body(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('raw-body')))
+    .ncc({ packageName: 'raw-body' })
+    .target('dist/compiled/raw-body')
+}
+// eslint-disable-next-line camelcase
 export async function ncc_resolve(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('resolve')))
@@ -499,6 +506,7 @@ export async function precompile(task) {
     'ncc_nanoid',
     'ncc_node_fetch',
     'ncc_ora',
+    'ncc_raw_body',
     'ncc_resolve',
     'ncc_text_table',
     'ncc_unistore',

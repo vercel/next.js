@@ -148,6 +148,10 @@ declare module 'next/dist/compiled/ora' {
   import m from 'ora'
   export = m
 }
+declare module 'next/dist/compiled/raw-body' {
+  import m from 'raw-body'
+  export = m
+}
 declare module 'next/dist/compiled/resolve/index.js' {
   import m from 'resolve'
   export = m
