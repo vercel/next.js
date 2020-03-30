@@ -1,11 +1,21 @@
 import fs from 'fs'
 import path from 'path'
 import chalk from 'chalk'
+import findUp from 'find-up'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
-import findUp from 'find-up'
 
 export type Env = { [key: string]: string }
+
+const packageJsonHasDep = (packageJsonPath: string, dep: string): boolean => {
+  const { dependencies, devDependencies } = require(packageJsonPath)
+  const allPackages = Object.keys({
+    ...dependencies,
+    ...devDependencies,
+  })
+
+  return allPackages.some(pkg => pkg === dep)
+}
 
 export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
   const packageJson = findUp.sync('package.json', { cwd: dir })
@@ -14,14 +24,22 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
   // can't check for an experimental flag in next.config.js
   // since we want to load the env before loading next.config.js
   if (packageJson) {
-    const { dependencies, devDependencies } = require(packageJson)
-    const allPackages = Object.keys({
-      ...dependencies,
-      ...devDependencies,
-    })
-
-    if (allPackages.some(pkg => pkg === 'dotenv')) {
+    // check main `package.json` first
+    if (packageJsonHasDep(packageJson, 'dotenv')) {
       return false
+    }
+    // check for a yarn.lock or lerna.json file in case it's a monorepo
+    const monorepoFile = findUp.sync(['yarn.lock', 'lerna.json'], { cwd: dir })
+
+    if (monorepoFile) {
+      const monorepoRoot = path.dirname(monorepoFile)
+      const monorepoPackageJson = path.join(monorepoRoot, 'package.json')
+
+      try {
+        if (packageJsonHasDep(monorepoPackageJson, 'dotenv')) {
+          return false
+        }
+      } catch (_) {}
     }
   } else {
     // we should always have a package.json but disable in case we don't
