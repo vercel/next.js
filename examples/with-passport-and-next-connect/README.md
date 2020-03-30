@@ -1,8 +1,8 @@
-# User CRUD using next-connect and Passport
+# next-connect and Passport
 
 This example creates a basic [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) app using [next-connect](https://github.com/hoangvvo/next-connect). It features cookie based authentication using [Passport.js](http://www.passportjs.org/).
 
-The example shows how to do a login and logout. It also allows authenticated user to edit or remove their own profile. It utilizes [SWR](https://swr.now.sh/).
+The example shows how to do a sign up, login, logout, and account deactivation. It utilizes [SWR](https://swr.now.sh/).
 
 The users database is mocked using the cookie session (using `req.session.users`). Follow the comments in code to add a database.
 
