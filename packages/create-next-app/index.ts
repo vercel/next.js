@@ -110,6 +110,12 @@ async function run() {
       ],
     })
 
+    if (!template.value) {
+      console.log()
+      console.log('Please specify the template')
+      process.exit(1)
+    }
+
     if (template.value === 'example') {
       const examplesJSON = await listExamples()
       const choices = examplesJSON.map((example: any) => ({
@@ -132,9 +138,8 @@ async function run() {
       })
 
       if (!nameRes.exampleName) {
-        console.error(
-          'Please specify an example or use the default starter app.'
-        )
+        console.log()
+        console.log('Please specify an example or use the default starter app.')
         process.exit(1)
       }
 
