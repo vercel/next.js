@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.3.3",
+  "version": "9.3.4-canary.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -74,7 +74,7 @@
     "@babel/preset-typescript": "7.7.2",
     "@babel/runtime": "7.7.2",
     "@babel/types": "7.7.4",
-    "@next/polyfill-nomodule": "9.3.3",
+    "@next/polyfill-nomodule": "9.3.4-canary.0",
     "amphtml-validator": "1.0.30",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
