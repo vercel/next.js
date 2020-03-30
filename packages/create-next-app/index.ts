@@ -125,12 +125,16 @@ async function run() {
         name: 'exampleName',
         message: 'Pick an example',
         choices,
-        suggest: (input: any, choices: any) =>
-          choices.filter((choice: any) => choice.title.includes(input)),
+        suggest: (input: any, choices: any) => {
+          const regex = new RegExp(input, 'i')
+          return choices.filter((choice: any) => regex.test(choice.title))
+        },
       })
 
       if (!nameRes.exampleName) {
-        console.error('Could not locate an example with that name.')
+        console.error(
+          'Please specify an example or use the default starter app.'
+        )
         process.exit(1)
       }
 
