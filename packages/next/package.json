@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.3.4-canary.0",
+  "version": "9.3.4-canary.1",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -104,7 +104,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.3.4-canary.0",
+    "@next/polyfill-nomodule": "9.3.4-canary.1",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
