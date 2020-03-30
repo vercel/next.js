@@ -214,6 +214,14 @@ export async function ncc_etag(task, opts) {
     .target('dist/compiled/etag')
 }
 // eslint-disable-next-line camelcase
+externals['file-loader'] = 'next/dist/compiled/file-loader'
+export async function ncc_file_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('file-loader')))
+    .ncc({ packageName: 'file-loader', externals })
+    .target('dist/compiled/file-loader')
+}
+// eslint-disable-next-line camelcase
 externals['find-up'] = 'next/dist/compiled/find-up'
 export async function ncc_find_up(task, opts) {
   await task
@@ -475,6 +483,7 @@ export async function precompile(task) {
     'ncc_dotenv_expand',
     'ncc_escape_string_regexp',
     'ncc_etag',
+    'ncc_file_loader',
     'ncc_find_up',
     'ncc_fresh',
     'ncc_gzip_size',
