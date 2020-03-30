@@ -136,7 +136,7 @@ const runTests = (isDev = false) => {
     const { pathname, query } = url.parse(res.headers.get('location'), true)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/somewhere')
-    expect(query).toEqual({ path: 'hello/world' })
+    expect(query).toEqual({})
   })
 
   it('should server static files through a rewrite', async () => {
@@ -181,8 +181,6 @@ const runTests = (isDev = false) => {
     expect(query).toEqual({
       first: 'hello',
       second: 'world',
-      name: 'world',
-      section: 'hello',
     })
   })
 
