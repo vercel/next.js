@@ -80,10 +80,10 @@ function runTests(startServer = nextStart) {
       .map(cookie.parse)
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'Strict' })
+    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'Lax' })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'Strict' })
+    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'Lax' })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
 
@@ -148,14 +148,14 @@ function runTests(startServer = nextStart) {
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({
       Path: '/',
-      SameSite: 'Strict',
+      SameSite: 'Lax',
       Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
     expect(cookies[1]).toMatchObject({
       Path: '/',
-      SameSite: 'Strict',
+      SameSite: 'Lax',
       Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
