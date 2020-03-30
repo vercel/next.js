@@ -33,14 +33,30 @@ export async function browser_polyfills(task) {
 }
 
 const externals = {
-  chokidar: 'chokidar',
+  // Babel
+  '@babel/core': '@babel/core',
+
+  // Browserslist (post-css plugins)
+  browserslist: 'browserslist',
+
+  // Webpack indirect and direct dependencies:
+  webpack: 'webpack',
   // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
+  chokidar: 'chokidar',
+  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader
+  'find-cache-dir': 'find-cache-dir',
   // dependents: thread-loader
-  'neo-async': 'neo-async',
   'loader-runner': 'loader-runner',
+  // dependents: thread-loader, babel-loader
   'loader-utils': 'loader-utils',
+  // dependents: babel-loader
+  mkdirp: 'mkdirp',
+  // dependents: thread-loader, cache-loader
+  'neo-async': 'neo-async',
+  // dependents: cache-loader, style-loader, file-loader
+  'schema-utils': 'schema-utils',
 }
 
 // eslint-disable-next-line camelcase
@@ -88,6 +104,22 @@ export async function ncc_autodll_webpack_plugin(task, opts) {
     .source(opts.src || 'build/bundles/autodll-webpack-plugin.js')
     .ncc({ packageName: 'autodll-webpack-plugin', externals })
     .target('dist/compiled/autodll-webpack-plugin')
+}
+// eslint-disable-next-line camelcase
+externals['babel-loader'] = 'next/dist/compiled/babel-loader'
+export async function ncc_babel_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('babel-loader')))
+    .ncc({ packageName: 'babel-loader', externals })
+    .target('dist/compiled/babel-loader')
+}
+// eslint-disable-next-line camelcase
+externals['cache-loader'] = 'next/dist/compiled/cache-loader'
+export async function ncc_cache_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cache-loader')))
+    .ncc({ packageName: 'cache-loader', externals })
+    .target('dist/compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
 // NB: Used by other dependencies, but Zeit version is a duplicate
@@ -430,6 +462,8 @@ export async function precompile(task) {
     'ncc_async_retry',
     'ncc_async_sema',
     'ncc_autodll_webpack_plugin',
+    'ncc_babel_loader',
+    'ncc_cache_loader',
     'ncc_chalk',
     'ncc_ci_info',
     'ncc_compression',
