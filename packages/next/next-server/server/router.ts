@@ -64,15 +64,8 @@ export const prepareDestination = (
 
   // add params to query
   for (const [name, value] of Object.entries(params)) {
-    if (
-      isRedirect &&
-      new RegExp(`:${name}(?!\\w)`).test(
-        parsedDestination.pathname + (parsedDestination.hash || '')
-      )
-    ) {
-      // Don't add segment to query if used in destination
-      // and it's a redirect so that we don't pollute the query
-      // with unwanted values
+    if (isRedirect) {
+      // Don't add path segments to query unless manually specified
       continue
     }
 
