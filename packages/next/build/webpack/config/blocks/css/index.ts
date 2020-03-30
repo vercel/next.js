@@ -283,7 +283,7 @@ export const css = curry(async function css(
             use: {
               // `file-loader` always emits a URL reference, where `url-loader`
               // might inline the asset as a data URI
-              loader: require.resolve('file-loader'),
+              loader: require.resolve('next/dist/compiled/file-loader'),
               options: {
                 // Hash the file for immutable cacheability
                 name: 'static/media/[name].[hash].[ext]',
