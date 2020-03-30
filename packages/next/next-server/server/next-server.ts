@@ -1238,9 +1238,14 @@ export default class Server {
         }
       }
     } catch (err) {
-      this.logError(err)
-      res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
+      if (err && err.code === 'ENOENT') {
+        res.statusCode = 404
+        return await this.renderErrorToHTML(null, req, res, pathname, query)
+      } else {
+        this.logError(err)
+        res.statusCode = 500
+        return await this.renderErrorToHTML(err, req, res, pathname, query)
+      }
     }
 
     res.statusCode = 404
