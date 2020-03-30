@@ -62,15 +62,12 @@ export const prepareDestination = (
     destQuery[key] = value
   }
 
-  // add params to query
-  for (const [name, value] of Object.entries(params)) {
-    if (isRedirect) {
-      // Don't add path segments to query unless manually specified
-      continue
-    }
-
-    if (!(name in destQuery)) {
-      destQuery[name] = Array.isArray(value) ? value.join('/') : value
+  // add params to query if it's not a redirect
+  if (!isRedirect) {
+    for (const [name, value] of Object.entries(params)) {
+      if (!(name in destQuery)) {
+        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+      }
     }
   }
 
