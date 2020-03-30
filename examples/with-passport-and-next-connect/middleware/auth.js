@@ -5,8 +5,8 @@ import passport from '../lib/passport'
 const auth = nextConnect()
   .use(
     cookieSession({
-      name: 'session',
-      keys: ['hackme'], // This should be kept securely, preferably in env vars
+      name: 'sess',
+      secret: 'hackme', // This should be kept securely, preferably in env vars
     })
   )
   .use(passport.initialize())
