@@ -1,4 +1,4 @@
-import babelLoader from 'babel-loader'
+import babelLoader from 'next/dist/compiled/babel-loader'
 import { basename, join } from 'path'
 import hash from 'next/dist/compiled/string-hash'
 
