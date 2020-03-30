@@ -471,6 +471,13 @@ function runTests(dev) {
     expect(res.status).toBe(200)
   })
 
+  // This makes sure we handle trailing slashes consistently until it is
+  // configurable
+  it('should 404 with trailing slash for dynamic route', async () => {
+    const res = await fetchViaHTTP(appPort, '/blog/post-1/')
+    expect(res.status).toBe(404)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')

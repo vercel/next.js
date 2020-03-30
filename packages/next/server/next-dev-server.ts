@@ -200,7 +200,7 @@ export default class DevServer extends Server {
 
         this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
           page,
-          match: getRouteMatcher(getRouteRegex(page)),
+          match: getRouteMatcher(getRouteRegex(page, false)),
         }))
         this.router.setDynamicRoutes(this.dynamicRoutes)
 

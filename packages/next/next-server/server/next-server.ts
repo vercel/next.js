@@ -738,7 +738,7 @@ export default class Server {
     )
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
-      match: getRouteMatcher(getRouteRegex(page)),
+      match: getRouteMatcher(getRouteRegex(page, false)),
     }))
   }
 

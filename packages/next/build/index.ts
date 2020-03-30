@@ -300,7 +300,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     headers: headers.map(r => buildCustomRoute(r, 'header')),
     dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
       page,
-      regex: getRouteRegex(page).re.source,
+      regex: getRouteRegex(page, false).re.source,
     })),
   }
 

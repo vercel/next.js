@@ -1,5 +1,6 @@
 export function getRouteRegex(
-  normalizedRoute: string
+  normalizedRoute: string,
+  trailingSlash = true
 ): {
   re: RegExp
   groups: { [groupName: string]: { pos: number; repeat: boolean } }
@@ -29,7 +30,10 @@ export function getRouteRegex(
   )
 
   return {
-    re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+    re: new RegExp(
+      '^' + parameterizedRoute + (trailingSlash ? '(?:/)?$' : '$'),
+      'i'
+    ),
     groups,
   }
 }
