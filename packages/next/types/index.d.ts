@@ -5,7 +5,8 @@
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
-import { Env } from '../lib/load-env-config'
+// @ts-ignore This path is generated at build time and conflicts otherwise
+import { Env } from '../dist/lib/load-env-config'
 
 import {
   NextPageContext,
