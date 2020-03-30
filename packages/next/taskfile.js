@@ -254,6 +254,14 @@ export async function ncc_http_proxy(task, opts) {
     .target('dist/compiled/http-proxy')
 }
 // eslint-disable-next-line camelcase
+externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
+export async function ncc_ignore_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ignore-loader')))
+    .ncc({ packageName: 'ignore-loader', externals })
+    .target('dist/compiled/ignore-loader')
+}
+// eslint-disable-next-line camelcase
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
@@ -488,6 +496,7 @@ export async function precompile(task) {
     'ncc_fresh',
     'ncc_gzip_size',
     'ncc_http_proxy',
+    'ncc_ignore_loader',
     'ncc_is_docker',
     'ncc_is_wsl',
     'ncc_json5',
