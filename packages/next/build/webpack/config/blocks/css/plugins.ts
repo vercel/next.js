@@ -84,9 +84,9 @@ function getDefaultPlugins(
   } catch {}
 
   return [
-    require.resolve('postcss-flexbugs-fixes'),
+    require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     [
-      require.resolve('postcss-preset-env'),
+      require.resolve('next/dist/compiled/postcss-preset-env'),
       {
         browsers: browsers ?? ['defaults'],
         autoprefixer: {
