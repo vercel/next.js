@@ -25,7 +25,7 @@ export function observeLayoutShift(onPerfEntry) {
           // Force any pending records to be dispatched.
           observer.takeRecords()
           observer.disconnect()
-          removeEventListener('visibilitychange', clsObserver, true)
+          document.removeEventListener('visibilitychange', clsObserver, true)
           onPerfEntry({
             name: 'cumulative-layout-shift',
             value: cumulativeScore,
@@ -55,7 +55,7 @@ export function observeLargestContentfulPaint(onPerfEntry) {
       'visibilitychange',
       function lcpObserver() {
         if (lcp && document.visibilityState === 'hidden') {
-          removeEventListener('visibilitychange', lcpObserver, true)
+          document.removeEventListener('visibilitychange', lcpObserver, true)
           onPerfEntry({
             name: 'largest-contentful-paint',
             value: lcp,
