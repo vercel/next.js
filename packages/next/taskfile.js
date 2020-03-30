@@ -172,6 +172,14 @@ export async function ncc_cookie(task, opts) {
     .target('dist/compiled/cookie')
 }
 // eslint-disable-next-line camelcase
+externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+export async function ncc_cssnano_simple(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
+    .ncc({ packageName: 'cssnano-simple', externals })
+    .target('dist/compiled/cssnano-simple')
+}
+// eslint-disable-next-line camelcase
 externals['devalue'] = 'next/dist/compiled/devalue'
 export async function ncc_devalue(task, opts) {
   await task
@@ -342,6 +350,35 @@ export async function ncc_ora(task, opts) {
     .target('dist/compiled/ora')
 }
 // eslint-disable-next-line camelcase
+externals['postcss-flexbugs-fixes'] =
+  'next/dist/compiled/postcss-flexbugs-fixes'
+export async function ncc_postcss_flexbugs_fixes(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-flexbugs-fixes'))
+    )
+    .ncc({ packageName: 'postcss-flexbugs-fixes', externals })
+    .target('dist/compiled/postcss-flexbugs-fixes')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-loader'] = 'next/dist/compiled/postcss-loader'
+export async function ncc_postcss_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('postcss-loader')))
+    .ncc({ packageName: 'postcss-loader', externals })
+    .target('dist/compiled/postcss-loader')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-preset-env'] = 'next/dist/compiled/postcss-preset-env'
+export async function ncc_postcss_preset_env(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-preset-env'))
+    )
+    .ncc({ packageName: 'postcss-preset-env', externals })
+    .target('dist/compiled/postcss-preset-env')
+}
+// eslint-disable-next-line camelcase
 externals['raw-body'] = 'next/dist/compiled/raw-body'
 export async function ncc_raw_body(task, opts) {
   await task
@@ -486,6 +523,7 @@ export async function precompile(task) {
     'ncc_conf',
     'ncc_content_type',
     'ncc_cookie',
+    'ncc_cssnano_simple',
     'ncc_devalue',
     'ncc_dotenv',
     'ncc_dotenv_expand',
@@ -507,6 +545,9 @@ export async function precompile(task) {
     'ncc_nanoid',
     'ncc_node_fetch',
     'ncc_ora',
+    'ncc_postcss_flexbugs_fixes',
+    'ncc_postcss_loader',
+    'ncc_postcss_preset_env',
     'ncc_raw_body',
     'ncc_recast',
     'ncc_resolve',

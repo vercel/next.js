@@ -71,6 +71,10 @@ declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
   export = m
 }
+declare module 'next/dist/compiled/cssnano-simple' {
+  import m from 'cssnano-simple'
+  export = m
+}
 declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
