@@ -141,7 +141,7 @@ function runTests(startServer = nextStart) {
 
     const cookies = res.headers
       .get('set-cookie')
-      .replace(/(=\w{3}),/g, '$1')
+      .replace(/(=(?!Lax)\w{3}),/g, '$1')
       .split(',')
       .map(cookie.parse)
 
@@ -266,7 +266,7 @@ describe('Prerender Preview Mode', () => {
 
       const cookies = res.headers
         .get('set-cookie')
-        .replace(/(=\w{3}),/g, '$1')
+        .replace(/(=(?!Lax)\w{3}),/g, '$1')
         .split(',')
         .map(cookie.parse)
 
