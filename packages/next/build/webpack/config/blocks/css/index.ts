@@ -183,7 +183,7 @@ export const css = curry(async function css(
               regexCssGlobal,
               (scssEnabled && regexSassGlobal) as RegExp,
             ].filter(Boolean),
-            use: require.resolve('ignore-loader'),
+            use: require.resolve('next/dist/compiled/ignore-loader'),
           },
         ],
       })
