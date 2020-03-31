@@ -116,7 +116,7 @@ export default async function({
     let html
     let curRenderOpts = {}
     let renderMethod = renderToHTML
-    console.log(path)
+
     const renderedDuringBuild = getStaticProps => {
       return !buildExport && getStaticProps && !isDynamicRoute(path)
     }

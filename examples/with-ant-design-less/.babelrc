@@ -2,8 +2,7 @@
   "presets": ["next/babel"],
   "plugins": [
     [
-      "import",
-      {
+      "import", {
         "libraryName": "antd",
         "style": true
       }

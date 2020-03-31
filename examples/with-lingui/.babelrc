@@ -1,4 +1,8 @@
 {
-  "presets": ["next/babel"],
-  "plugins": ["macros"]
+  "presets": [
+    "next/babel"
+  ],
+  "plugins": [
+    "macros"
+  ]
 }

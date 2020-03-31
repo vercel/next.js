@@ -59,7 +59,6 @@
     "browserstack-local": "1.4.0",
     "caniuse-lite": "^1.0.30001019",
     "cheerio": "0.22.0",
-    "chromedriver": "80.0.1",
     "clone": "2.1.2",
     "cookie": "0.4.0",
     "coveralls": "3.0.3",
@@ -77,7 +76,6 @@
     "get-port": "5.0.0",
     "isomorphic-unfetch": "3.0.0",
     "jest-cli": "24.9.0",
-    "jest-html-reporter": "2.8.2",
     "lerna": "3.14.1",
     "lint-staged": "9.4.2",
     "moment": "^2.24.0",
@@ -106,8 +104,7 @@
     "tree-kill": "1.2.1",
     "typescript": "3.7.3",
     "wait-port": "0.2.2",
-    "webpack-bundle-analyzer": "3.6.1",
-    "webpack-livereload-plugin": "2.3.0"
+    "webpack-bundle-analyzer": "3.6.1"
   },
   "resolutions": {
     "browserslist": "^4.8.3",

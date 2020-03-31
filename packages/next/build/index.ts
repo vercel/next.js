@@ -669,8 +669,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const tbdPrerenderRoutes: string[] = []
 
   if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
-    console.log({ staticPages, ssgPages })
-    // const combinedPages = [...staticPages, ...ssgPages]
     const combinedPages = [...staticPages, ...ssgPages]
     const exportApp = require('../export').default
 

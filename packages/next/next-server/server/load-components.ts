@@ -41,14 +41,6 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
 }
-const webpack5Experiential = parseInt(require('webpack').version) === 5
-
-// might be a hack, but on-demand-entries-handler would not require updated versions of manifest files.
-// used for webpack 5
-// function require(module) {
-//   delete require.cache[require.resolve(module)]
-//   return require(module)
-// }
 
 export async function loadComponents(
   distDir: string,

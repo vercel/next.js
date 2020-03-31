@@ -16,14 +16,14 @@
 </p>
 
 ## Installation of Webpack 5 Compatible Next.js
-Running the following command will alias `@module-federation/next` as `next`. 
 
+Running the following command will alias `@module-federation/next` as `next`.
 
 `yarn add next@npm:@module-federation/next`
 
 `npm i next@npm:@module-federation/next`
 
-Doing so allows no implementation changes to use. You would still consume as `require("next/head")` and so on. 
+Doing so allows no implementation changes to use. You would still consume as `require("next/head")` and so on.
 
 ## Getting Started
 
