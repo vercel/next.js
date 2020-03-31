@@ -3,7 +3,7 @@ import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../next-server/server/render'
 import { access, mkdir as mkdirOrig, writeFile } from 'fs'
-import AmpHtmlValidator from 'amphtml-validator'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../next-server/server/load-components'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
@@ -223,7 +223,7 @@ export default async function({
       }
     }
 
-    if (curRenderOpts.inAmpMode) {
+    if (curRenderOpts.inAmpMode && !curRenderOpts.ampSkipValidation) {
       await validateAmp(html, path, curRenderOpts.ampValidatorPath)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
@@ -252,7 +252,9 @@ export default async function({
           )
         }
 
-        await validateAmp(ampHtml, page + '?amp=1')
+        if (!curRenderOpts.ampSkipValidation) {
+          await validateAmp(ampHtml, page + '?amp=1')
+        }
         await mkdir(ampBaseDir, { recursive: true })
         await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
       }

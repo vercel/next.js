@@ -1,4 +1,4 @@
-import * as chalk from 'chalk'
+import * as chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
 import browserslist from 'browserslist'
@@ -84,9 +84,9 @@ function getDefaultPlugins(
   } catch {}
 
   return [
-    require.resolve('postcss-flexbugs-fixes'),
+    require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     [
-      require.resolve('postcss-preset-env'),
+      require.resolve('next/dist/compiled/postcss-preset-env'),
       {
         browsers: browsers ?? ['defaults'],
         autoprefixer: {

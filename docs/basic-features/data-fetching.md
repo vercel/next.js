@@ -131,7 +131,7 @@ export async function getStaticProps() {
 
   const posts = filenames.map(filename => {
     const filePath = path.join(postsDirectory, filename)
-    const fileContents = fs.readFileSync(fullPath, 'utf8')
+    const fileContents = fs.readFileSync(filePath, 'utf8')
 
     // Generally you would parse/transform the contents
     // For example you can transform markdown to HTML here

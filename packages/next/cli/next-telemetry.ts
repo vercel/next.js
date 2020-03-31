@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import * as chalk from 'chalk'
+import * as chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 
 import { cliCommand } from '../bin/next'

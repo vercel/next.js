@@ -1065,6 +1065,16 @@ describe('SSG Prerender', () => {
       await killApp(app)
     })
 
+    it('should work with firebase import and getStaticPaths', async () => {
+      const html = await renderViaHTTP(appPort, '/blog/post-1')
+      expect(html).toContain('post-1')
+      expect(html).not.toContain('Error: Failed to load')
+
+      const html2 = await renderViaHTTP(appPort, '/blog/post-1')
+      expect(html2).toContain('post-1')
+      expect(html2).not.toContain('Error: Failed to load')
+    })
+
     it('should not cache getStaticPaths errors', async () => {
       const errMsg = /The `fallback` key must be returned from getStaticPaths/
       await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
@@ -1088,7 +1098,21 @@ describe('SSG Prerender', () => {
   })
 
   describe('serverless mode', () => {
+    const blogPagePath = join(appDir, 'pages/blog/[post]/index.js')
+    let origBlogPageContent
+
     beforeAll(async () => {
+      // remove firebase import since it breaks in legacy serverless mode
+      origBlogPageContent = await fs.readFile(blogPagePath, 'utf8')
+
+      await fs.writeFile(
+        blogPagePath,
+        origBlogPageContent.replace(
+          `import 'firebase/firestore'`,
+          `// import 'firebase/firestore'`
+        )
+      )
+
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'serverless' }`,
@@ -1106,7 +1130,10 @@ describe('SSG Prerender', () => {
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(blogPagePath, origBlogPageContent)
+      await killApp(app)
+    })
 
     it('renders data correctly', async () => {
       const port = await findPort()

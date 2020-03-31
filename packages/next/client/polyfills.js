@@ -1,1 +1,1 @@
-import '@next/polyfill-nomodule'
+import 'next/dist/build/polyfills/polyfill-nomodule'
