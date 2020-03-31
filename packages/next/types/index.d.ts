@@ -5,8 +5,6 @@
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
-// @ts-ignore This path is generated at build time and conflicts otherwise
-import { Env } from '../dist/lib/load-env-config'
 
 import {
   NextPageContext,
@@ -68,30 +66,32 @@ export {
 }
 
 export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any }
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (ctx: {
-  params?: ParsedUrlQuery
+  params?: Q
   preview?: boolean
   previewData?: any
-  env: Env
 }) => Promise<{
   props: P
   revalidate?: number | boolean
 }>
 
-export type GetStaticPaths = () => Promise<{
-  paths: Array<string | { params: ParsedUrlQuery }>
+export type GetStaticPaths<
+  P extends ParsedUrlQuery = ParsedUrlQuery
+> = () => Promise<{
+  paths: Array<string | { params: P }>
   fallback: boolean
 }>
 
 export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any }
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (context: {
   req: IncomingMessage
   res: ServerResponse
-  params?: ParsedUrlQuery
+  params?: Q
   query: ParsedUrlQuery
-  env: Env
   preview?: boolean
   previewData?: any
 }) => Promise<{ props: P }>
