@@ -48,7 +48,7 @@ declare module 'next/dist/compiled/arg/index.js' {
 }
 
 declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
+  import * as m from 'chalk'
   export = m
 }
 declare module 'next/dist/compiled/ci-info' {
