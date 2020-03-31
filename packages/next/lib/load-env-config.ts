@@ -29,7 +29,10 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       return false
     }
     // check for a yarn.lock or lerna.json file in case it's a monorepo
-    const monorepoFile = findUp.sync(['yarn.lock', 'lerna.json'], { cwd: dir })
+    const monorepoFile = findUp.sync(
+      ['yarn.lock', 'lerna.json', 'package-lock.json'],
+      { cwd: dir }
+    )
 
     if (monorepoFile) {
       const monorepoRoot = path.dirname(monorepoFile)
