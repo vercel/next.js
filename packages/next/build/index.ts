@@ -1,14 +1,14 @@
-import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
+import chalk from 'next/dist/compiled/chalk'
+import ciEnvironment from 'next/dist/compiled/ci-info'
 import crypto from 'crypto'
-import devalue from 'devalue'
-import escapeStringRegexp from 'escape-string-regexp'
-import findUp from 'find-up'
+import devalue from 'next/dist/compiled/devalue'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import { pathToRegexp } from 'path-to-regexp'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
@@ -71,6 +71,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { loadEnvConfig } from '../lib/load-env-config'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -109,6 +110,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
+
+  // attempt to load global env values so they are available in next.config.js
+  loadEnvConfig(dir)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
