@@ -93,7 +93,6 @@
     "sass-loader": "8.0.2",
     "style-loader": "1.0.0",
     "styled-jsx": "3.2.5",
-    "url": "0.11.0",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
     "webpack": "4.42.0",
