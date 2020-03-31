@@ -627,10 +627,10 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should handle failed param decoding', async () => {
+  it('should handle invalid param encoding', async () => {
     const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
-    expect(html).toMatch(/400/)
-    expect(html).toMatch(/Bad Request/)
+    expect(html).toMatch(/404/)
+    expect(html).toMatch(/This page could not be found/)
   })
 
   it('should replace static pages with HTML files', async () => {
