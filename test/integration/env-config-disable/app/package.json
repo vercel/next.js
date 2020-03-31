@@ -1,0 +1,6 @@
+{
+  "name": "env-config",
+  "devDependencies": {
+    "dotenv": "latest"
+  }
+}
