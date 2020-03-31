@@ -14762,6 +14762,11 @@ safe-buffer@>=5.1.0, safe-buffer@^5.0.1, safe-buffer@^5.1.0, safe-buffer@^5.1.1,
   resolved "https://registry.yarnpkg.com/safe-buffer/-/safe-buffer-5.2.0.tgz#b74daec49b1148f88c64b68d49b1e815c1f2f519"
   integrity sha512-fZEwUGbVl7kouZs1jCdMLdt95hdIv0ZeHg6L7qPeciMZhZ+/gdesW4wgTARkrFWEpspjEATAzUGPG8N2jJiwbg==
 
+safe-decode-uri-component@1.2.1:
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/safe-decode-uri-component/-/safe-decode-uri-component-1.2.1.tgz#ddd30c57e6797a3b0671888393a4984b454e2129"
+  integrity sha512-j0PKk0v8qPOD0goqRAvoI7GKy+HwLHXEpXaQlA1IqJ65jjiILRK1InlfNdIKUUUYuLtERADaJumgYKNfyQBO+w==
+
 safe-regex@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/safe-regex/-/safe-regex-1.1.0.tgz#40a3669f3b077d1e943d44629e157dd48023bf2e"

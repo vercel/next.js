@@ -1,4 +1,6 @@
 import { getRouteRegex } from './route-regex'
+// @ts-ignore no types
+import safeDecodeUriComponent from 'safe-decode-uri-component'
 
 export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
   const { re, groups } = routeRegex
@@ -8,7 +10,7 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
       return false
     }
 
-    const decode = decodeURIComponent
+    const decode = safeDecodeUriComponent
     const params: { [paramName: string]: string | string[] } = {}
 
     Object.keys(groups).forEach((slugName: string) => {

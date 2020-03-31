@@ -187,6 +187,7 @@
     "react-error-overlay": "5.1.6",
     "recast": "0.18.5",
     "resolve": "1.11.0",
+    "safe-decode-uri-component": "1.2.1",
     "send": "0.17.1",
     "source-map": "0.6.1",
     "string-hash": "1.1.3",

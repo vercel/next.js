@@ -1,4 +1,6 @@
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+// @ts-ignore no types
+import safeDecodeUriComponent from 'safe-decode-uri-component'
 
 export { pathToRegexp }
 
@@ -41,7 +43,7 @@ export default (customRoute = false) => {
 
 function decodeParam(param: string) {
   try {
-    return decodeURIComponent(param)
+    return safeDecodeUriComponent(param)
   } catch (_) {
     const err: Error & { code?: string } = new Error('failed to decode param')
     err.code = 'DECODE_FAILED'

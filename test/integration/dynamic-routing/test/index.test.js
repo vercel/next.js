@@ -410,6 +410,11 @@ function runTests(dev) {
     expect(scrollPosition).toBe(7232)
   })
 
+  it('should handle improperly encoded URL', async () => {
+    const html = await renderViaHTTP(appPort, '/%')
+    expect(html).toMatch(/This is .*?%/)
+  })
+
   it('should prioritize public files over dynamic route', async () => {
     const data = await renderViaHTTP(appPort, '/hello.txt')
     expect(data).toMatch(/hello world/)
