@@ -13,11 +13,12 @@ export function getRouteRegex(
 
   const groups: { [groupName: string]: { pos: number; repeat: boolean } } = {}
   let groupIndex = 1
+  let isCatchAll = false
 
   const parameterizedRoute = escapedRoute.replace(
     /\/\\\[([^/]+?)\\\](?=\/|$)/g,
     (_, $1) => {
-      const isCatchAll = /^(\\\.){3}/.test($1)
+      isCatchAll = /^(\\\.){3}/.test($1)
       groups[
         $1
           // Un-escape key
@@ -31,7 +32,9 @@ export function getRouteRegex(
 
   return {
     re: new RegExp(
-      '^' + parameterizedRoute + (trailingSlash ? '(?:/)?$' : '$'),
+      '^' +
+        parameterizedRoute +
+        (trailingSlash || isCatchAll ? '(?:/)?$' : '$'),
       'i'
     ),
     groups,

@@ -790,7 +790,7 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
-            )}\\/catchall\\/(.+?)\\.json$`
+            )}\\/catchall\\/(.+?)(?:\\/)?\\.json$`
           ),
           page: '/catchall/[...slug]',
         },
@@ -798,7 +798,7 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
-            )}\\/catchall\\-explicit\\/(.+?)\\.json$`
+            )}\\/catchall\\-explicit\\/(.+?)(?:\\/)?\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
         },
@@ -861,7 +861,7 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`
           ),
-          routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+          routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)$'),
         },
         '/blog/[post]/[comment]': {
           fallback: '/blog/[post]/[comment].html',
@@ -869,9 +869,7 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
-          routeRegex: normalizeRegEx(
-            '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-          ),
+          routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)$'),
         },
         '/non-json/[p]': {
           dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
@@ -879,7 +877,7 @@ const runTests = (dev = false, looseMode = false) => {
             `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           fallback: '/non-json/[p].html',
-          routeRegex: normalizeRegEx('^\\/non\\-json\\/([^\\/]+?)(?:\\/)?$'),
+          routeRegex: normalizeRegEx('^\\/non\\-json\\/([^\\/]+?)$'),
         },
         '/user/[user]/profile': {
           fallback: '/user/[user]/profile.html',
@@ -887,22 +885,20 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
-          routeRegex: normalizeRegEx(
-            `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
-          ),
+          routeRegex: normalizeRegEx(`^\\/user\\/([^\\/]+?)\\/profile$`),
         },
         '/catchall/[...slug]': {
           fallback: '/catchall/[...slug].html',
           routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
-            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)(?:\\/)?\\.json$`
           ),
         },
         '/catchall-explicit/[...slug]': {
           dataRoute: `/_next/data/${buildId}/catchall-explicit/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
-            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-explicit\\/(.+?)(?:\\/)?\\.json$`
           ),
           fallback: false,
           routeRegex: normalizeRegEx(

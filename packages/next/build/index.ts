@@ -613,10 +613,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       return {
         page,
         dataRouteRegex: isDynamicRoute(page)
-          ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
-              /\(\?:\\\/\)\?\$$/,
-              '\\.json$'
-            )
+          ? getRouteRegex(
+              dataRoute.replace(/\.json$/, ''),
+              false
+            ).re.source.replace(/\$$/, '\\.json$')
           : new RegExp(
               `^${path.posix.join(
                 '/_next/data',
@@ -853,14 +853,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       finalDynamicRoutes[tbdRoute] = {
-        routeRegex: getRouteRegex(tbdRoute).re.source,
+        routeRegex: getRouteRegex(tbdRoute, false).re.source,
         dataRoute,
         fallback: ssgFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
         dataRouteRegex: getRouteRegex(
-          dataRoute.replace(/\.json$/, '')
-        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+          dataRoute.replace(/\.json$/, ''),
+          false
+        ).re.source.replace(/\$$/, '\\.json$'),
       }
     })
     const prerenderManifest: PrerenderManifest = {

@@ -537,7 +537,7 @@ function runTests(dev) {
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
-              )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
+              )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?\\.json$`
             ),
             page: '/p1/p2/all-ssg/[...rest]',
           },
@@ -545,7 +545,7 @@ function runTests(dev) {
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
-              )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
+              )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?\\.json$`
             ),
             page: '/p1/p2/nested-all-ssg/[...rest]',
           },
@@ -553,7 +553,7 @@ function runTests(dev) {
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
-              )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
+              )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?\\.json$`
             ),
             page: '/p1/p2/predefined-ssg/[...rest]',
           },
@@ -562,12 +562,12 @@ function runTests(dev) {
           {
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
-              '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
+              '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)$'
             ),
           },
           {
             page: '/on-mount/[post]',
-            regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)$'),
           },
           {
             page: '/p1/p2/all-ssg/[...rest]',
@@ -591,21 +591,19 @@ function runTests(dev) {
           },
           {
             page: '/[name]',
-            regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/([^\\/]+?)$'),
           },
           {
             page: '/[name]/comments',
-            regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments$'),
           },
           {
             page: '/[name]/on-mount-redir',
-            regex: normalizeRegEx(
-              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
-            ),
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/on\\-mount\\-redir$'),
           },
           {
             page: '/[name]/[comment]',
-            regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)$'),
           },
         ],
       })

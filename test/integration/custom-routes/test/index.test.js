@@ -691,15 +691,15 @@ const runTests = (isDev = false) => {
         dynamicRoutes: [
           {
             page: '/another/[id]',
-            regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/another\\/([^\\/]+?)$'),
           },
           {
             page: '/api/dynamic/[slug]',
-            regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)$'),
           },
           {
             page: '/blog/[post]',
-            regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)$'),
           },
         ],
       })
