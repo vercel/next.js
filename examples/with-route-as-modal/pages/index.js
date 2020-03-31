@@ -1,12 +1,13 @@
-import React from 'react'
-import PostCard from '../components/PostCard'
-import Modal from 'react-modal'
 import { useRouter } from 'next/router'
+import Modal from 'react-modal'
 import Post from '../components/Post'
+import PostCard from '../components/PostCard'
+
+Modal.setAppElement('#__next')
 
 const posts = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-const RootPage = () => {
+const Index = () => {
   const router = useRouter()
 
   return (
@@ -27,4 +28,4 @@ const RootPage = () => {
   )
 }
 
-export default RootPage
+export default Index

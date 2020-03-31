@@ -1,18 +1,10 @@
-import React from 'react'
-import Router from 'next/router'
+import Link from 'next/link'
 
 const PostCard = ({ id }) => {
   return (
-    <a
-      className="postCard"
-      href={`/posts/${id}`}
-      onClick={e => {
-        e.preventDefault()
-        Router.push(`/?postId=${id}`, `/post/${id}`)
-      }}
-    >
-      {id}
-    </a>
+    <Link href={`/?postId=${id}`} as={`/post/${id}`}>
+      <a className="postCard">{id}</a>
+    </Link>
   )
 }
 

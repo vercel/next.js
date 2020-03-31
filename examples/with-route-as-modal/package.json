@@ -1,6 +1,5 @@
 {
   "name": "with-route-as-modal",
-  "main": "index.js",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",

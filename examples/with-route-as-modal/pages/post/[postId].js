@@ -1,6 +1,5 @@
-import React from 'react'
-import Post from '../../components/Post'
 import { useRouter } from 'next/router'
+import Post from '../../components/Post'
 
 const PostPage = () => {
   const router = useRouter()
