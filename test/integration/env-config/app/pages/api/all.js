@@ -19,7 +19,13 @@ export const config = {
   ],
 }
 
+const items = {}
+
+config.env.forEach(name => {
+  items[name] = process.env[name]
+})
+
 export default async (req, res) => {
   // Only for testing, don't do this...
-  res.json(req.env)
+  res.json(items)
 }
