@@ -8,8 +8,6 @@ import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
-import { collectEnv } from './utils'
-import { Env } from '../../lib/load-env-config'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -26,7 +24,6 @@ export async function apiResolver(
   params: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  env: Env | false,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -40,8 +37,6 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
-
-    apiReq.env = env ? collectEnv(req.url!, env, config.env) : {}
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))

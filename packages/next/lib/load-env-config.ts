@@ -70,10 +70,10 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
     }
   }
 
-  // load global env values prefixed with `NEXT_APP_` to process.env
+  // load global env values prefixed with `NEXT_PUBLIC_` to process.env
   for (const key of Object.keys(combinedEnv)) {
     if (
-      key.startsWith('NEXT_APP_') &&
+      key.startsWith('NEXT_PUBLIC_') &&
       typeof process.env[key] === 'undefined'
     ) {
       process.env[key] = combinedEnv[key]

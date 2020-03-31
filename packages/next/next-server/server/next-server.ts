@@ -61,7 +61,7 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
-import { loadEnvConfig, Env } from '../../lib/load-env-config'
+import { loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -118,7 +118,6 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
-    env: Env | false
     previewProps: __ApiPreviewProps
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
@@ -147,7 +146,7 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    const env = loadEnvConfig(this.dir, dev)
+    loadEnvConfig(this.dir, dev)
 
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
@@ -175,7 +174,6 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      env: this.nextConfig.experimental.pageEnv && env,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
@@ -693,7 +691,6 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      this.renderOpts.env,
       this.onErrorMiddleware
     )
     return true
