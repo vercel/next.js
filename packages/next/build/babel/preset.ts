@@ -95,7 +95,7 @@ module.exports = (
     }
   }
 
-  // specify a preset to use instead of @babel/preset-env:
+  // specify a preset to use instead of @babel/preset-env
   const customModernPreset =
     isLaxModern && options['experimental-modern-preset']
 

@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
@@ -34,7 +34,6 @@ import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
-import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -60,7 +59,7 @@ const escapePathVariables = (value: any) => {
 }
 
 function parseJsonFile(path: string) {
-  const JSON5 = require('json5')
+  const JSON5 = require('next/dist/compiled/json5')
   const contents = readFileSync(path)
   return JSON5.parse(contents)
 }
@@ -688,7 +687,7 @@ export default async function getBaseWebpackConfig(
                 // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
                 // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
                 {
-                  loader: 'cache-loader',
+                  loader: 'next/dist/compiled/cache-loader',
                   options: {
                     cacheContext: dir,
                     cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
@@ -698,7 +697,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  loader: 'thread-loader',
+                  loader: require.resolve('next/dist/compiled/thread-loader'),
                   options: {
                     workers: 2,
                     workerParallelJobs: Infinity,
@@ -813,7 +812,9 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (!isServer) {
-              const AutoDllPlugin = importAutoDllPlugin({ distDir })
+              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
+                distDir
+              )
               devPlugins.push(
                 new AutoDllPlugin({
                   filename: '[name]_[hash].js',
