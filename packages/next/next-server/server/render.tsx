@@ -38,6 +38,10 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { collectEnv } from './utils'
+import { Env } from '../../lib/load-env-config'
+import { UnwrapPromise } from '../../lib/coalesced-function'
+import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
@@ -146,10 +150,13 @@ export type RenderOptsPartial = {
   hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  ampSkipValidation?: boolean
+  ampOptimizerConfig?: { [key: string]: any }
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  env: Env | false
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -284,6 +291,7 @@ export async function renderToHTML(
     staticMarkup = false,
     ampPath = '',
     App,
+    env = {},
     Document,
     pageConfig = {},
     DocumentMiddleware,
@@ -298,6 +306,8 @@ export async function renderToHTML(
     params,
     previewProps,
   } = renderOpts
+
+  const curEnv = env ? collectEnv(pathname, env, pageConfig.env) : {}
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -495,12 +505,24 @@ export async function renderToHTML(
     }
 
     if (isSSG && !isFallback) {
-      const data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      })
+      let data: UnwrapPromise<ReturnType<GetStaticProps>>
+
+      try {
+        data = await getStaticProps!({
+          env: curEnv,
+          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+        })
+      } catch (err) {
+        // remove not found error code to prevent triggering legacy
+        // 404 rendering
+        if (err.code === 'ENOENT') {
+          delete err.code
+        }
+        throw err
+      }
 
       const invalidKeys = Object.keys(data).filter(
         key => key !== 'revalidate' && key !== 'props'
@@ -563,15 +585,27 @@ export async function renderToHTML(
     }
 
     if (getServerSideProps && !isFallback) {
-      const data = await getServerSideProps({
-        req,
-        res,
-        query,
-        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      })
+      let data: UnwrapPromise<ReturnType<GetServerSideProps>>
+
+      try {
+        data = await getServerSideProps({
+          req,
+          res,
+          query,
+          env: curEnv,
+          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+        })
+      } catch (err) {
+        // remove not found error code to prevent triggering legacy
+        // 404 rendering
+        if (err.code === 'ENOENT') {
+          delete err.code
+        }
+        throw err
+      }
 
       const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
@@ -743,9 +777,9 @@ export async function renderToHTML(
       html.substring(0, ampRenderIndex) +
       `<!-- __NEXT_DATA__ -->${docProps.html}` +
       html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
-    html = await optimizeAmp(html)
+    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
 
-    if (renderOpts.ampValidator) {
+    if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
     }
   }

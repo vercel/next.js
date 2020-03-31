@@ -45,7 +45,7 @@ export function getCssModuleLoader(
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('postcss-loader'),
+    loader: require.resolve('next/dist/compiled/postcss-loader'),
     options: {
       ident: '__nextjs_postcss',
       plugins: postCssPlugins,

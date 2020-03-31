@@ -1,5 +1,5 @@
-import devalue from 'devalue'
-import escapeRegexp from 'escape-string-regexp'
+import devalue from 'next/dist/compiled/devalue'
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { loader } from 'webpack'
@@ -181,6 +181,7 @@ const nextServerlessLoader: loader.Loader = function() {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
+            process.env,
             onError
           )
         } catch (err) {
@@ -257,6 +258,7 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         previewProps: ${encodedPreviewProps},
+        env: process.env,
         ..._renderOpts
       }
       let _nextData = false
@@ -327,7 +329,7 @@ const nextServerlessLoader: loader.Loader = function() {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {

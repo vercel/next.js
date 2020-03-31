@@ -1,13 +1,14 @@
-import chalk from 'chalk'
-import findUp from 'find-up'
+import chalk from 'next/dist/compiled/chalk'
+import findUp from 'next/dist/compiled/find-up'
 import {
   copyFile as copyFileOrig,
   existsSync,
+  exists as existsOrig,
+  mkdir as mkdirOrig,
   readFileSync,
   writeFileSync,
 } from 'fs'
 import Worker from 'jest-worker'
-import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
@@ -34,9 +35,11 @@ import loadConfig, {
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { loadEnvConfig } from '../lib/load-env-config'
 
-const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
+const mkdir = promisify(mkdirOrig)
+const exists = promisify(existsOrig)
 
 const createProgress = (total: number, label = 'Exporting') => {
   let curProgress = 0
@@ -149,17 +152,19 @@ export default async function(
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
+  let hasApiRoutes = false
 
   for (const page of pages) {
     // _document and _app are not real pages
     // _error is exported as 404.html later on
     // API Routes are Node.js functions
-    if (
-      page === '/_document' ||
-      page === '/_app' ||
-      page === '/_error' ||
-      page.match(API_ROUTE)
-    ) {
+
+    if (page.match(API_ROUTE)) {
+      hasApiRoutes = true
+      continue
+    }
+
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
@@ -184,7 +189,7 @@ export default async function(
   }
 
   await recursiveDelete(join(outDir))
-  await mkdirp(join(outDir, '_next', buildId))
+  await mkdir(join(outDir, '_next', buildId), { recursive: true })
 
   writeFileSync(
     join(distDir, EXPORT_DETAIL),
@@ -226,6 +231,7 @@ export default async function(
     dir,
     buildId,
     nextExport: true,
+    env: loadEnvConfig(dir),
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
@@ -234,6 +240,8 @@ export default async function(
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
+    ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
+    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -265,14 +273,30 @@ export default async function(
     // Remove API routes
     route => !exportPathMap[route].page.match(API_ROUTE)
   )
-  const hasApiRoutes = exportPaths.length !== filteredPaths.length
+
+  if (filteredPaths.length !== exportPaths.length) {
+    hasApiRoutes = true
+  }
 
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.yellow(
-        '  API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
-      )
+      chalk.bold.red(`Attention`) +
+        ': ' +
+        chalk.yellow(
+          `Statically exporting a Next.js application via \`next export\` disables API routes.`
+        ) +
+        `\n` +
+        chalk.yellow(
+          `This command is meant for static-only hosts, and is` +
+            ' ' +
+            chalk.bold(`not necessary to make your application static.`)
+        ) +
+        `\n` +
+        chalk.yellow(
+          `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+        ) +
+        `\nLearn more: https://err.sh/zeit/next.js/api-routes-static-export`
     )
   }
 
@@ -361,12 +385,21 @@ export default async function(
             subFolders && route !== '/index' ? `${sep}index` : ''
           }.html`
         )
+        const ampHtmlDest = join(
+          outDir,
+          `${route}.amp${subFolders ? `${sep}index` : ''}.html`
+        )
         const jsonDest = join(pagesDataDir, `${route}.json`)
 
-        await mkdirp(dirname(htmlDest))
-        await mkdirp(dirname(jsonDest))
+        await mkdir(dirname(htmlDest), { recursive: true })
+        await mkdir(dirname(jsonDest), { recursive: true })
         await copyFile(`${orig}.html`, htmlDest)
         await copyFile(`${orig}.json`, jsonDest)
+
+        if (await exists(`${orig}.amp.html`)) {
+          await mkdir(dirname(ampHtmlDest), { recursive: true })
+          await copyFile(`${orig}.amp.html`, ampHtmlDest)
+        }
       })
     )
   }
