@@ -179,6 +179,7 @@ async function notifyUpdate() {
       )
       console.log()
     }
+    process.exit()
   } catch {
     // ignore error
   }
