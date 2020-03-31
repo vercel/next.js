@@ -43,6 +43,7 @@ describe('TypeScript Features', () => {
     it('should render the page', async () => {
       const $ = await get$('/hello')
       expect($('body').text()).toMatch(/Hello World/)
+      expect($('body').text()).toMatch(/1000000000000/)
     })
 
     it('should report type checking to stdout', async () => {

@@ -4,6 +4,7 @@ import { ComponentType } from 'react'
 import { format, URLFormatOptions, UrlObject } from 'url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
+import { Env } from '../../lib/load-env-config'
 
 /**
  * Types used by both next and next-server
@@ -186,6 +187,8 @@ export type NextApiRequest = IncomingMessage & {
   }
 
   body: any
+
+  env: Env
 }
 
 /**
