@@ -226,12 +226,13 @@ export default async function(
     }
   }
 
+  loadEnvConfig(dir)
+
   // Start the rendering process
   const renderOpts = {
     dir,
     buildId,
     nextExport: true,
-    env: loadEnvConfig(dir),
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
