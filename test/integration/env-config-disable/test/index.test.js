@@ -36,7 +36,7 @@ const runTests = () => {
       await killApp(app)
 
       expect(html).toContain('hi')
-      expect(stderr.length).toBe(0)
+      expect(stderr).not.toContain('Failed to load env')
     })
   })
 
@@ -60,7 +60,7 @@ const runTests = () => {
       await killApp(app)
 
       expect(html).toContain('hi')
-      expect(stderr.length).toBe(0)
+      expect(stderr).not.toContain('Failed to load env')
     })
   })
 }

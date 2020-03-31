@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import chalk from 'chalk'
-import findUp from 'find-up'
+import chalk from 'next/dist/compiled/chalk'
+import findUp from 'next/dist/compiled/find-up'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
 
@@ -67,6 +67,13 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
     const dotEnvPath = path.join(dir, envFile)
 
     try {
+      const stats = fs.statSync(dotEnvPath)
+
+      // make sure to only attempt to read files
+      if (!stats.isFile()) {
+        continue
+      }
+
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
       let result: DotenvConfigOutput = {}
       result.parsed = dotenv.parse(contents)
@@ -80,7 +87,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       Object.assign(combinedEnv, result.parsed)
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        console.log(
+        console.error(
           `> ${chalk.cyan.bold('Error: ')} Failed to load env from ${envFile}`,
           err
         )
@@ -88,10 +95,10 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
     }
   }
 
-  // load global env values prefixed with `NEXT_APP_` to process.env
+  // load global env values prefixed with `NEXT_PUBLIC_` to process.env
   for (const key of Object.keys(combinedEnv)) {
     if (
-      key.startsWith('NEXT_APP_') &&
+      key.startsWith('NEXT_PUBLIC_') &&
       typeof process.env[key] === 'undefined'
     ) {
       process.env[key] = combinedEnv[key]
