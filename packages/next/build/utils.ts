@@ -88,7 +88,7 @@ export async function printTreeView(
       .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
+    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
       string,
       string,
       string
@@ -203,7 +203,11 @@ export async function printTreeView(
   const sharedFilesSize = sizeData.sizeCommonFiles
   const sharedFiles = sizeData.sizeCommonFile
 
-  messages.push(['+ shared by all', getPrettySize(sharedFilesSize), ''])
+  messages.push([
+    '+ First Load JS shared by all',
+    getPrettySize(sharedFilesSize),
+    '',
+  ])
   const sharedFileKeys = Object.keys(sharedFiles)
   const sharedCssFiles: string[] = []
   ;[
@@ -463,7 +467,10 @@ async function computeFromManifest(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
+    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
+      if (f.endsWith('.css')) return size
+      return size + stat
+    }, 0),
   }
 
   cachedBuildManifest = manifest
@@ -488,7 +495,7 @@ function sum(a: number[]): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-export async function getPageSizeInKb(
+export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
@@ -503,8 +510,7 @@ export async function getPageSizeInKb(
   )
 
   const fnFilterModern = (entry: string) =>
-    (entry.endsWith('.js') && entry.endsWith('.module.js') === isModern) ||
-    entry.endsWith('.css')
+    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
 
   const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
   const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
