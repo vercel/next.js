@@ -190,10 +190,11 @@ const nextServerlessLoader: loader.Loader = function() {
 
           if (err.code === 'DECODE_FAILED') {
             res.statusCode = 400
+            res.end('Bad Request')
           } else {
             res.statusCode = 500
+            res.end('Internal Server Error')
           }
-          res.end('Internal Server Error')
         }
       }
     `
