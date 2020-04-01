@@ -784,6 +784,18 @@ export default class Server {
     query: ParsedUrlQuery = {},
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    if (!pathname.startsWith('/')) {
+      if (process.env.NODE_ENV !== 'production') {
+        throw new Error(
+          `Cannot render page with path "${pathname}", did you mean "/${pathname}"?`
+        )
+      } else {
+        console.warn(
+          `Cannot render page with path "${pathname}", did you mean "/${pathname}"?`
+        )
+      }
+    }
+
     const url: any = req.url
 
     if (
