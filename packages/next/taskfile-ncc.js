@@ -38,7 +38,7 @@ function writePackageManifest(packageName, main) {
   const packagePath = require.resolve(packageName + '/package.json')
   let { name, author, license } = require(packagePath)
 
-  const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
+  const compiledPackagePath = join(__dirname, `compiled/${packageName}`)
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
   if (existsSync(potentialLicensePath)) {
