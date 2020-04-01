@@ -6,7 +6,7 @@ import Layout from '../components/layout'
 import getHost from '../utils/get-host'
 
 const Profile = props => {
-  const { name, login, bio, avatarUrl } = props.json.data
+  const { name, login, bio, avatarUrl } = props.data
 
   const syncLogout = event => {
     if (event.key === 'logout') {
@@ -74,12 +74,8 @@ export async function getServerSideProps(ctx) {
     })
 
     if (response.ok) {
-      const json = await response.json()
-      return {
-        props: {
-          json,
-        },
-      }
+      const props = await response.json()
+      return { props }
     } else {
       // https://github.com/developit/unfetch#caveats
       return await redirectOnError()
