@@ -665,6 +665,7 @@ export async function isPageStatic(
   runtimeEnvConfig: any
 ): Promise<{
   isStatic?: boolean
+  isAmpOnly?: boolean
   isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
@@ -756,6 +757,7 @@ export async function isPageStatic(
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
+      isAmpOnly: config.amp === true,
       prerenderRoutes,
       prerenderFallback,
       hasStaticProps,
