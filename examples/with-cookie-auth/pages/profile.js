@@ -1,13 +1,28 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import Router from 'next/router'
 import fetch from 'isomorphic-unfetch'
 import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
-import { withAuthSync } from '../utils/auth'
 import getHost from '../utils/get-host'
 
 const Profile = props => {
-  const { name, login, bio, avatarUrl } = props.data
+  const { name, login, bio, avatarUrl } = props.json.data
+
+  const syncLogout = event => {
+    if (event.key === 'logout') {
+      console.log('logged out from storage!')
+      Router.push('/login')
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener('storage', syncLogout)
+
+    return () => {
+      window.removeEventListener('storage', syncLogout)
+      window.localStorage.removeItem('logout')
+    }
+  }, [])
 
   return (
     <Layout>
@@ -41,7 +56,7 @@ const Profile = props => {
   )
 }
 
-Profile.getInitialProps = async ctx => {
+export async function getServerSideProps(ctx) {
   const { token } = nextCookie(ctx)
   const apiUrl = getHost(ctx.req) + '/api/profile'
 
@@ -59,9 +74,12 @@ Profile.getInitialProps = async ctx => {
     })
 
     if (response.ok) {
-      const js = await response.json()
-      console.log('js', js)
-      return js
+      const json = await response.json()
+      return {
+        props: {
+          json,
+        },
+      }
     } else {
       // https://github.com/developit/unfetch#caveats
       return await redirectOnError()
@@ -72,4 +90,4 @@ Profile.getInitialProps = async ctx => {
   }
 }
 
-export default withAuthSync(Profile)
+export default Profile
