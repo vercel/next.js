@@ -88,7 +88,7 @@ export async function printTreeView(
       .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'JS Weight'].map(entry => chalk.underline(entry)) as [
+    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
       string,
       string,
       string
@@ -204,7 +204,7 @@ export async function printTreeView(
   const sharedFiles = sizeData.sizeCommonFile
 
   messages.push([
-    '+ JS weight shared by all',
+    '+ First Load JS shared by all',
     getPrettySize(sharedFilesSize),
     '',
   ])
