@@ -1,5 +1,5 @@
-import devalue from 'devalue'
-import escapeRegexp from 'escape-string-regexp'
+import devalue from 'next/dist/compiled/devalue'
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { loader } from 'webpack'
@@ -181,7 +181,6 @@ const nextServerlessLoader: loader.Loader = function() {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
-            process.env,
             onError
           )
         } catch (err) {
