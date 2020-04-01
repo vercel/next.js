@@ -49,7 +49,7 @@ Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm
 
 ### Notes
 
-When wrapping a [Link](https://nextjs.org/docs/api-reference/next/link) from `next/link` within a styled-component, the [as](https://styled-components.com/docs/api#as-polymorphic-prop) prop provided by `styled` will collide with the Link's `as` prop and cause styled-components to throw an `Invalid tag` error. To avoid this, you can either use the recommended [forwardAs](https://styled-components.com/docs/api#forwardedas-prop) prop from styled-components or use a different named prop to pass to a `styled` Link.
+When wrapping a [Link](https://nextjs.org/docs/api-reference/next/link) from `next/link` within a styled-component, the [as](https://styled-components.com/docs/api#as-polymorphic-prop) prop provided by `styled` will collide with the Link's `as` prop and cause styled-components to throw an `Invalid tag` error. To avoid this, you can either use the recommended [forwardedAs](https://styled-components.com/docs/api#forwardedas-prop) prop from styled-components or use a different named prop to pass to a `styled` Link.
 
 <details>
 <summary>Click to expand workaround example</summary>
@@ -62,8 +62,8 @@ import React from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 
-const StyledLink = ({ className, children, href, forwardAs }) => (
-  <Link href={href} as={forwardAs} passHref>
+const StyledLink = ({ as, children, className, href }) => (
+  <Link href={href} as={as} passHref>
     <a className={className}>{children}</a>
   </Link>
 )
@@ -92,7 +92,7 @@ import React from 'react'
 import StyledLink from '../components/StyledLink'
 
 export default () => (
-  <StyledLink href="/post/[pid]" forwardAs="/post/abc">
+  <StyledLink href="/post/[pid]" forwardedAs="/post/abc">
     First post
   </StyledLink>
 )
