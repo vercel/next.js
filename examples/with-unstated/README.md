@@ -1,8 +1,8 @@
 # Unstated example
 
-This example shows how to integrate Unstated in Next.js. For more info about Unstated you can visit [here](https://github.com/jamiebuilds/unstated). The example is basically same as [redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux).
+This example shows how to integrate [Unstated Next](https://github.com/jamiebuilds/unstated-next) with Next.js.
 
-The "counter" shows you how to preserve state from server to client and share the state within different page, you can expect the same state for "counter" when switching between Index and About page, observe that "counter" behaves differently from the "clock" example.
+There are two pages, `/` and `/about`, both render a counter and a timer, the state is saved for the current page and resetted when switching to a different page. To keep a shared state between pages you can add the state providers to `pages/_app.js` instead of using the page.
 
 ## Deploy your own
 
