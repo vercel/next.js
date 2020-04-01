@@ -1,0 +1,5 @@
+{
+  "name": "etag",
+  "main": "index.js",
+  "license": "MIT"
+}

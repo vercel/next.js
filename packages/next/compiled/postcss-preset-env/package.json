@@ -1,0 +1,6 @@
+{
+  "name": "postcss-preset-env",
+  "main": "index.js",
+  "author": "Jonathan Neal <jonathantneal@hotmail.com>",
+  "license": "CC0-1.0"
+}

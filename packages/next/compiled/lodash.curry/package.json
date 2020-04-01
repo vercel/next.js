@@ -1,0 +1,6 @@
+{
+  "name": "lodash.curry",
+  "main": "index.js",
+  "author": "John-David Dalton <john.david.dalton@gmail.com> (http://allyoucanleet.com/)",
+  "license": "MIT"
+}

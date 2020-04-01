@@ -1,0 +1,6 @@
+{
+  "name": "async-sema",
+  "main": "index.js",
+  "author": "Olli Vanhoja",
+  "license": "MIT"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "dotenv-expand",
+  "main": "main.js",
+  "author": "motdotla",
+  "license": "BSD-2-Clause"
+}

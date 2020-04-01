@@ -1,0 +1,6 @@
+{
+  "name": "recast",
+  "main": "main.js",
+  "author": "Ben Newman <bn@cs.stanford.edu>",
+  "license": "MIT"
+}

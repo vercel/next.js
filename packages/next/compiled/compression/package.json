@@ -1,0 +1,5 @@
+{
+  "name": "compression",
+  "main": "index.js",
+  "license": "MIT"
+}

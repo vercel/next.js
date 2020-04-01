@@ -1,0 +1,6 @@
+{
+  "name": "webpack-dev-middleware",
+  "main": "index.js",
+  "author": "Tobias Koppers @sokra",
+  "license": "MIT"
+}
