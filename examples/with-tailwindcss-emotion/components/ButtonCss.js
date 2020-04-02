@@ -16,6 +16,7 @@
 import { css, cx } from '@emotion/css'
 import tw from '@tailwindcssinjs/macro'
 
+//"react native style"
 const styles = {
   button: css(tw`
     relative
@@ -32,23 +33,19 @@ const styles = {
     active:bg-gray-700
     transition duration-150 ease-in-out
   `),
-  iconWrapper: css(tw`
-    absolute left-0 inset-y-0
-    flex items-center
-    pl-3
-  `),
-  icon: css(tw`
-    h-5 w-5
-    text-gray-500
-    group-hover:text-gray-400
-    transition ease-in-out duration-150
-  `),
 }
 
 const ButtonCss = ({ className, children, ...props }) => (
   <button {...props} className={cx(styles.button, 'group', className)}>
-    <span className={styles.iconWrapper}>
-      <svg className={styles.icon} fill="currentColor" viewBox="0 0 20 20">
+    {/* inline style */}
+    <span className={css(tw`absolute left-0 inset-y-0 flex items-center pl-3`)}>
+      <svg
+        className={css(
+          tw`h-5 w-5 text-gray-500 group-hover:text-gray-400 transition ease-in-out duration-150`
+        )}
+        fill="currentColor"
+        viewBox="0 0 20 20"
+      >
         <path
           fillRule="evenodd"
           d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
