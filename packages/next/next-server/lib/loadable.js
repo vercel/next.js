@@ -164,9 +164,13 @@ function createLoadableComponent(loadFn, options) {
     const context = React.useContext(LoadableContext)
     const state = useSubscription(subscription)
 
-    React.useImperativeHandle(ref, () => ({
-      retry: subscription.retry,
-    }))
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        retry: subscription.retry,
+      }),
+      []
+    )
 
     if (context && Array.isArray(opts.modules)) {
       opts.modules.forEach(moduleName => {
@@ -174,19 +178,21 @@ function createLoadableComponent(loadFn, options) {
       })
     }
 
-    if (state.loading || state.error) {
-      return React.createElement(opts.loading, {
-        isLoading: state.loading,
-        pastDelay: state.pastDelay,
-        timedOut: state.timedOut,
-        error: state.error,
-        retry: subscription.retry,
-      })
-    } else if (state.loaded) {
-      return opts.render(state.loaded, props)
-    } else {
-      return null
-    }
+    return React.useMemo(() => {
+      if (state.loading || state.error) {
+        return React.createElement(opts.loading, {
+          isLoading: state.loading,
+          pastDelay: state.pastDelay,
+          timedOut: state.timedOut,
+          error: state.error,
+          retry: subscription.retry,
+        })
+      } else if (state.loaded) {
+        return opts.render(state.loaded, props)
+      } else {
+        return null
+      }
+    }, [props, state])
   }
 
   LoadableComponent.preload = () => init()
@@ -243,12 +249,12 @@ class LoadableSubscription {
 
     this._res.promise
       .then(() => {
-        this._update()
+        this._update({})
         this._clearTimeouts()
       })
       // eslint-disable-next-line handle-callback-err
       .catch(err => {
-        this._update()
+        this._update({})
         this._clearTimeouts()
       })
     this._update({})
@@ -257,6 +263,9 @@ class LoadableSubscription {
   _update(partial) {
     this._state = {
       ...this._state,
+      error: this._res.error,
+      loaded: this._res.loaded,
+      loading: this._res.loading,
       ...partial,
     }
     this._callbacks.forEach(callback => callback())
@@ -268,12 +277,7 @@ class LoadableSubscription {
   }
 
   getCurrentValue() {
-    return {
-      ...this._state,
-      error: this._res.error,
-      loaded: this._res.loaded,
-      loading: this._res.loading,
-    }
+    return this._state
   }
 
   subscribe(callback) {
