@@ -38,4 +38,4 @@ export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'The `revalidate` property is not yet available for general use.\n' +
   'To try the experimental implementation, please use `unstable_revalidate` instead.\n' +
   "We're excited for you to try this feature—please share all feedback on the RFC:\n" +
-  'https://github.com/zeit/next.js/discussions/11552'
+  'https://nextjs.link/issg'
