@@ -471,6 +471,11 @@ function runTests(dev) {
     expect(res.status).toBe(200)
   })
 
+  it('should respond with bad request with invalid encoding', async () => {
+    const res = await fetchViaHTTP(appPort, '/%')
+    expect(res.status).toBe(400)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
