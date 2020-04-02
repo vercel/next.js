@@ -18,7 +18,7 @@ export async function getStaticProps() {
       world: text,
       time: new Date().getTime(),
     },
-    revalidate: true,
+    unstable_revalidate: true,
   }
 }
 

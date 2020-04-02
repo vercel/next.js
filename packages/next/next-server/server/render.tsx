@@ -7,6 +7,7 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
+  UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
 import { isInAmpMode } from '../lib/amp'
@@ -518,8 +519,12 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'revalidate' && key !== 'props'
+        key => key !== 'unstable_revalidate' && key !== 'props'
       )
+
+      if (invalidKeys.includes('revalidate')) {
+        throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
@@ -535,41 +540,41 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.revalidate === 'number') {
-        if (!Number.isInteger(data.revalidate)) {
+      if (typeof data.unstable_revalidate === 'number') {
+        if (!Number.isInteger(data.unstable_revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.unstable_revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
-                data.revalidate
+                data.unstable_revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.revalidate <= 0) {
+        } else if (data.unstable_revalidate <= 0) {
           throw new Error(
             `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.revalidate > 31536000) {
+        } else if (data.unstable_revalidate > 31536000) {
           // if it's greater than a year for some reason error
           console.warn(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === true) {
+      } else if (data.unstable_revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.revalidate = 1
+        data.unstable_revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.revalidate = false
+        data.unstable_revalidate = false
       }
 
       props.pageProps = data.props
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).revalidate = data.unstable_revalidate
       ;(renderOpts as any).pageData = props
     }
 

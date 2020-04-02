@@ -42,7 +42,7 @@ export async function getStaticProps({ params }) {
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
-    revalidate: 10,
+    unstable_revalidate: 10,
   }
 }
 

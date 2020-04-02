@@ -20,7 +20,7 @@ export const getStaticProps: GetStaticProps<Props, Params> = async ({
 }) => {
   return {
     props: { data: params!.slug },
-    revalidate: false,
+    unstable_revalidate: false,
   }
 }
 
