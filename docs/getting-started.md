@@ -14,7 +14,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 #### System Requirements
 
-- [Node.js 10](https://nodejs.org/) or later
+- [Node.js 10.13](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
