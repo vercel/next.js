@@ -33,9 +33,10 @@ We can model this in two ways:
   - `/api/posts.js`
   - `/api/posts/[postId].js`
 - Option 2:
+
   - `/api/posts/index.js`
   - `/api/posts/[postId].js`
-  
+
 Both are equivalent. A third option of only using `/api/posts/[postId].js` is not valid because Dynamic Routes (including Catch-all routes - see below) do not have an `undefined` state and `GET api/posts/` will not match `/api/posts/[postId].js` under any circumstances.
 
 ### Catch all API routes
