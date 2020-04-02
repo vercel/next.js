@@ -164,9 +164,13 @@ function createLoadableComponent(loadFn, options) {
     const context = React.useContext(LoadableContext)
     const state = useSubscription(subscription)
 
-    React.useImperativeHandle(ref, () => ({
-      retry: subscription.retry,
-    }))
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        retry: subscription.retry,
+      }),
+      []
+    )
 
     if (context && Array.isArray(opts.modules)) {
       opts.modules.forEach(moduleName => {
