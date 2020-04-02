@@ -74,7 +74,7 @@ export type GetStaticProps<
   previewData?: any
 }) => Promise<{
   props: P
-  revalidate?: number | boolean
+  unstable_revalidate?: number | boolean
 }>
 
 export type GetStaticPaths<
