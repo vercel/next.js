@@ -1,6 +1,6 @@
 # Shallow Routing Example
 
-With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
+With shallow routing, we could change the URL without actually running the `getServerSideProps` every time you change the URL.
 
 We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
 

@@ -6,17 +6,6 @@ import { format } from 'url'
 let counter = 1
 
 class Index extends React.Component {
-  static getInitialProps({ res }) {
-    if (res) {
-      return { initialPropsCounter: 1 }
-    }
-
-    counter++
-    return {
-      initialPropsCounter: counter,
-    }
-  }
-
   reload() {
     const { pathname, query } = Router
     Router.push(format({ pathname, query }))
@@ -44,13 +33,27 @@ class Index extends React.Component {
         <button onClick={() => this.incrementStateCounter()}>
           Change State Counter
         </button>
-        <p>"getInitialProps" ran for "{initialPropsCounter}" times.</p>
-        <p>
-          Counter: "{router.query.counter || 0}
-          ".
-        </p>
+        <p>"getServerSideProps" ran for "{initialPropsCounter}" times.</p>
+        <p>Counter: "{router.query.counter || 0}".</p>
       </div>
     )
+  }
+}
+
+export async function getServerSideProps({ res }) {
+  if (res) {
+    return {
+      props: {
+        initialPropsCounter: 1,
+      },
+    }
+  } else {
+    counter++
+    return {
+      props: {
+        initialPropsCounter: counter,
+      },
+    }
   }
 }
 
