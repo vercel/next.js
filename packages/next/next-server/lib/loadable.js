@@ -174,19 +174,21 @@ function createLoadableComponent(loadFn, options) {
       })
     }
 
-    if (state.loading || state.error) {
-      return React.createElement(opts.loading, {
-        isLoading: state.loading,
-        pastDelay: state.pastDelay,
-        timedOut: state.timedOut,
-        error: state.error,
-        retry: subscription.retry,
-      })
-    } else if (state.loaded) {
-      return opts.render(state.loaded, props)
-    } else {
-      return null
-    }
+    return React.useMemo(() => {
+      if (state.loading || state.error) {
+        return React.createElement(opts.loading, {
+          isLoading: state.loading,
+          pastDelay: state.pastDelay,
+          timedOut: state.timedOut,
+          error: state.error,
+          retry: subscription.retry,
+        })
+      } else if (state.loaded) {
+        return opts.render(state.loaded, props)
+      } else {
+        return null
+      }
+    }, [props, state])
   }
 
   LoadableComponent.preload = () => init()
@@ -257,6 +259,9 @@ class LoadableSubscription {
   _update(partial) {
     this._state = {
       ...this._state,
+      error: this._res.error,
+      loaded: this._res.loaded,
+      loading: this._res.loading,
       ...partial,
     }
     this._callbacks.forEach(callback => callback())
@@ -268,12 +273,7 @@ class LoadableSubscription {
   }
 
   getCurrentValue() {
-    return {
-      ...this._state,
-      error: this._res.error,
-      loaded: this._res.loaded,
-      loading: this._res.loading,
-    }
+    return this._state
   }
 
   subscribe(callback) {
