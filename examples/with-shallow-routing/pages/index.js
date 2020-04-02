@@ -4,7 +4,7 @@ import { format } from 'url'
 
 let counter = 0
 
-export async function getServerSideProps({ res }) {
+export async function getServerSideProps() {
   counter++
   return { props: { initialPropsCounter: counter } }
 }
