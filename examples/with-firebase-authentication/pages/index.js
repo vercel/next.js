@@ -5,16 +5,21 @@ import 'firebase/firestore'
 import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
-export default class Index extends Component {
-  static async getInitialProps({ req, query }) {
-    const user = req && req.session ? req.session.decodedToken : null
-    // don't fetch anything from firebase if the user is not found
-    // const snap = user && await req.firebaseServer.database().ref('messages').once('value')
-    // const messages = snap && snap.val()
-    const messages = null
-    return { user, messages }
+export async function getServerSideProps({ req, query }) {
+  const user = req && req.session ? req.session.decodedToken : null
+  // don't fetch anything from firebase if the user is not found
+  // const snap = user && await req.firebaseServer.database().ref('messages').once('value')
+  // const messages = snap && snap.val()
+  const messages = null
+  return {
+    props: {
+      user,
+      messages,
+    },
   }
+}
 
+export default class Index extends Component {
   constructor(props) {
     super(props)
     this.state = {
