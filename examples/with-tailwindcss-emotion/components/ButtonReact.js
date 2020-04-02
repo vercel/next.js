@@ -12,7 +12,7 @@
 */
 
 /** @jsx jsx */
-import { jsx, css } from '@emotion/react'
+import { jsx } from '@emotion/react'
 import tw from '@tailwindcssinjs/macro'
 
 const styles = {
