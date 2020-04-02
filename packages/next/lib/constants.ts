@@ -33,3 +33,5 @@ export const SERVER_PROPS_SSG_CONFLICT = `You can not use getStaticProps with ge
 export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/next.js/404-get-initial-props`
 
 export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gss-export`
+
+export const UNSTABLE_REVALIDATE_RENAME_ERROR = `\`revalidate\` was renamed to \`unstable_revalidate\` while this feature is being iterated on. Please rename it`
