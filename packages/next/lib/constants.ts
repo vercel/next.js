@@ -34,4 +34,4 @@ export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have get
 
 export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gss-export`
 
-export const UNSTABLE_REVALIDATE_RENAME_ERROR = `\`revalidate\` was renamed to \`unstable_revalidate\` while this feature is being iterated on. Please rename it`
+export const UNSTABLE_REVALIDATE_RENAME_ERROR = `The \`revalidate\` field is currently called \`unstable_revalidate\`\nWe are excited for you to try this feature, please rename it for now. See the RFC for more info here https://github.com/zeit/next.js/discussions/11552`
