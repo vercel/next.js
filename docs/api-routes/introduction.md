@@ -8,7 +8,6 @@ description: Next.js supports API Routes, which allow you to build your API with
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes">Basic API Routes</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-micro">API Routes with Micro</a></li>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-graphql">API Routes with GraphQL</a></li>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-rest">API Routes with REST</a></li>
