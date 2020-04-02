@@ -1,15 +1,14 @@
-import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
+import chalk from 'next/dist/compiled/chalk'
+import ciEnvironment from 'next/dist/compiled/ci-info'
 import crypto from 'crypto'
-import devalue from 'devalue'
-import escapeStringRegexp from 'escape-string-regexp'
-import findUp from 'find-up'
+import devalue from 'next/dist/compiled/devalue'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
-import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import { pathToRegexp } from 'path-to-regexp'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
@@ -63,8 +62,8 @@ import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
   collectPages,
-  getPageSizeInKb,
-  hasCustomAppGetInitialProps,
+  getJsPageSizeInKb,
+  hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
@@ -72,6 +71,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { loadEnvConfig } from '../lib/load-env-config'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -80,7 +80,7 @@ const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
-const mkdirp = promisify(mkdirpOrig)
+const mkdir = promisify(fs.mkdir)
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -110,6 +110,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
+
+  // attempt to load global env values so they are available in next.config.js
+  loadEnvConfig(dir)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -229,6 +232,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasPages404 = Boolean(
     mappedPages['/404'] && mappedPages['/404'].startsWith('private-next-pages')
   )
+  let hasNonStaticErrorPage: boolean
 
   if (hasPublicDir) {
     try {
@@ -300,7 +304,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })),
   }
 
-  await mkdirp(distDir)
+  await mkdir(distDir, { recursive: true })
   // We need to write the manifest with rewrites before build
   // so serverless can import the manifest
   await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
@@ -456,11 +460,29 @@ export default async function build(dir: string, conf = null): Promise<void> {
   staticCheckWorkers.getStdout().pipe(process.stdout)
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
+  const runtimeEnvConfig = {
+    publicRuntimeConfig: config.publicRuntimeConfig,
+    serverRuntimeConfig: config.serverRuntimeConfig,
+  }
+
+  hasNonStaticErrorPage =
+    hasCustomErrorPage &&
+    (await hasCustomGetInitialProps(
+      path.join(
+        distDir,
+        ...(isLikeServerless
+          ? ['serverless', 'pages']
+          : ['server', 'static', buildId, 'pages']),
+        '_error.js'
+      ),
+      runtimeEnvConfig
+    ))
+
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
       const actualPage = normalizePagePath(page)
-      const [selfSize, allSize] = await getPageSizeInKb(
+      const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
         buildId,
@@ -485,14 +507,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomAppGetInitialProps(
+        customAppGetInitialProps = hasCustomGetInitialProps(
           isLikeServerless
             ? serverBundle
             : path.join(
@@ -527,6 +545,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (result.isAmpOnly) {
+            // ensure all AMP only bundles got removed
+            try {
+              await fsUnlink(
+                path.join(
+                  distDir,
+                  'static',
+                  buildId,
+                  'pages',
+                  actualPage + '.js'
+                )
+              )
+            } catch (err) {
+              if (err.code !== 'ENOENT') {
+                throw err
+              }
+            }
           }
 
           if (result.hasStaticProps) {
@@ -618,7 +655,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
-    !customAppGetInitialProps && (!hasCustomErrorPage || hasPages404)
+    !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -740,7 +777,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
       }
-      await mkdirp(path.dirname(dest))
+      await mkdir(path.dirname(dest), { recursive: true })
       await fsMove(orig, dest)
     }
 
@@ -907,6 +944,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       distPath: distDir,
       buildId: buildId,
       pagesDir,
+      useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
       isModern: config.experimental.modern,

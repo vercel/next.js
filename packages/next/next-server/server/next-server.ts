@@ -1,9 +1,9 @@
-import compression from 'compression'
+import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
-import Proxy from 'http-proxy'
+import Proxy from 'next/dist/compiled/http-proxy'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
-import { join, resolve, sep } from 'path'
+import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { PrerenderManifest } from '../../build'
@@ -52,6 +52,7 @@ import Router, {
   Route,
 } from './router'
 import { sendHTML } from './send-html'
+import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import {
   getFallback,
@@ -60,6 +61,7 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
+import { loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -118,6 +120,7 @@ export default class Server {
     dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
+    ampOptimizerConfig?: { [key: string]: any }
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -143,6 +146,8 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
+    loadEnvConfig(this.dir, dev)
+
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
@@ -171,6 +176,7 @@ export default class Server {
       generateEtags,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
+      ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -338,7 +344,11 @@ export default class Server {
             match: route('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
-              const p = join(this.dir, 'static', ...(params.path || []))
+              const p = join(
+                this.dir,
+                'static',
+                ...(params.path || []).map(encodeURIComponent)
+              )
               await this.serveStatic(req, res, p, parsedUrl)
               return {
                 finished: true,
@@ -696,14 +706,15 @@ export default class Server {
         match: route('/:path*'),
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
-          const path = `/${(params.path || []).join('/')}`
+          const pathParts: string[] = params.path || []
+          const path = `/${pathParts.join('/')}`
 
           if (publicFiles.has(path)) {
             await this.serveStatic(
               req,
               res,
               // we need to re-encode it since send decodes it
-              join(this.dir, 'public', encodeURIComponent(path)),
+              join(this.publicDir, ...pathParts.map(encodeURIComponent)),
               parsedUrl
             )
             return {
@@ -817,7 +828,7 @@ export default class Server {
           components,
           query: {
             ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq }
+              ? { _nextDataReq: query._nextDataReq, amp: query.amp }
               : query),
             ...(params || {}),
           },
@@ -895,6 +906,14 @@ export default class Server {
     const isServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
 
+    if (isSSG && query.amp) {
+      pathname += `.amp`
+    }
+
+    if (!query.amp) {
+      delete query.amp
+    }
+
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq
     delete query._nextDataReq
@@ -932,11 +951,11 @@ export default class Server {
           sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
-            'application/json',
+            'json',
             !this.renderOpts.dev
               ? {
-                  revalidate: -1,
-                  private: isPreviewMode, // Leave to user-land caching
+                  private: isPreviewMode,
+                  stateful: true, // non-SSG data request
                 }
               : undefined
           )
@@ -955,11 +974,11 @@ export default class Server {
         sendPayload(
           res,
           JSON.stringify(props),
-          'application/json',
+          'json',
           !this.renderOpts.dev
             ? {
-                revalidate: -1,
-                private: isPreviewMode, // Leave to user-land caching
+                private: isPreviewMode,
+                stateful: true, // GSSP data request
               }
             : undefined
         )
@@ -971,18 +990,21 @@ export default class Server {
         ...opts,
       })
 
-      if (html && isServerProps && isPreviewMode) {
-        sendPayload(res, html, 'text/html; charset=utf-8', {
-          revalidate: -1,
+      if (html && isServerProps) {
+        sendPayload(res, html, 'html', {
           private: isPreviewMode,
+          stateful: true, // GSSP request
         })
+        return null
       }
 
       return html
     }
 
     // Compute the SPR cache key
-    const urlPathname = parseUrl(req.url || '').pathname!
+    const urlPathname = `${parseUrl(req.url || '').pathname!}${
+      query.amp ? '.amp' : ''
+    }`
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
       : urlPathname
@@ -1000,9 +1022,16 @@ export default class Server {
       sendPayload(
         res,
         data,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate !== undefined && !this.renderOpts.dev
-          ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
+        isDataReq ? 'json' : 'html',
+        !this.renderOpts.dev
+          ? {
+              private: isPreviewMode,
+              stateful: false, // GSP response
+              revalidate:
+                cachedData.curRevalidate !== undefined
+                  ? cachedData.curRevalidate
+                  : /* default to minimum revalidate (this should be an invariant) */ 1,
+            }
           : undefined
       )
 
@@ -1105,7 +1134,12 @@ export default class Server {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
           prepareServerlessUrl(req, query)
-          html = await (components.Component as any).renderReqToHTML(req, res)
+          const renderResult = await (components.Component as any).renderReqToHTML(
+            req,
+            res,
+            'passthrough'
+          )
+          html = renderResult.html
         } else {
           html = (await renderToHTML(req, res, pathname, query, {
             ...components,
@@ -1114,7 +1148,7 @@ export default class Server {
         }
       }
 
-      sendPayload(res, html, 'text/html; charset=utf-8')
+      sendPayload(res, html, 'html')
     }
 
     const {
@@ -1125,9 +1159,13 @@ export default class Server {
       sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+        isDataReq ? 'json' : 'html',
         !this.renderOpts.dev
-          ? { revalidate: sprRevalidate, private: isPreviewMode }
+          ? {
+              private: isPreviewMode,
+              stateful: false, // GSP response
+              revalidate: sprRevalidate,
+            }
           : undefined
       )
     }
@@ -1314,18 +1352,77 @@ export default class Server {
     }
   }
 
-  private isServeableUrl(path: string): boolean {
-    const resolved = resolve(path)
-    if (
-      resolved.indexOf(join(this.distDir) + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'public') + sep) !== 0
-    ) {
-      // Seems like the user is trying to traverse the filesystem.
+  private _validFilesystemPathSet: Set<string> | null = null
+  private getFilesystemPaths(): Set<string> {
+    if (this._validFilesystemPathSet) {
+      return this._validFilesystemPathSet
+    }
+
+    const pathUserFilesStatic = join(this.dir, 'static')
+    let userFilesStatic: string[] = []
+    if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
+      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map(f =>
+        join('.', 'static', f)
+      )
+    }
+
+    let userFilesPublic: string[] = []
+    if (this.publicDir && fs.existsSync(this.publicDir)) {
+      userFilesPublic = recursiveReadDirSync(this.publicDir).map(f =>
+        join('.', 'public', f)
+      )
+    }
+
+    let nextFilesStatic: string[] = []
+    nextFilesStatic = recursiveReadDirSync(
+      join(this.distDir, 'static')
+    ).map(f => join('.', relative(this.dir, this.distDir), 'static', f))
+
+    return (this._validFilesystemPathSet = new Set<string>([
+      ...nextFilesStatic,
+      ...userFilesPublic,
+      ...userFilesStatic,
+    ]))
+  }
+
+  protected isServeableUrl(untrustedFileUrl: string): boolean {
+    // This method mimics what the version of `send` we use does:
+    // 1. decodeURIComponent:
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
+    // 2. resolve:
+    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+
+    let decodedUntrustedFilePath: string
+    try {
+      // (1) Decode the URL so we have the proper file name
+      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
+    } catch {
       return false
     }
 
-    return true
+    // (2) Resolve "up paths" to determine real request
+    const untrustedFilePath = resolve(decodedUntrustedFilePath)
+
+    // don't allow null bytes anywhere in the file path
+    if (untrustedFilePath.indexOf('\0') !== -1) {
+      return false
+    }
+
+    // Check if .next/static, static and public are in the path.
+    // If not the path is not available.
+    if (
+      (untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
+        untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
+        untrustedFilePath.startsWith(join(this.dir, 'public') + sep)) === false
+    ) {
+      return false
+    }
+
+    // Check against the real filesystem paths
+    const filesystemUrls = this.getFilesystemPaths()
+    const resolved = relative(this.dir, untrustedFilePath)
+    return filesystemUrls.has(resolved)
   }
 
   protected readBuildId(): string {
@@ -1346,38 +1443,6 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
-}
-
-function sendPayload(
-  res: ServerResponse,
-  payload: any,
-  type: string,
-  options?: { revalidate: number | false; private: boolean }
-) {
-  // TODO: ETag? Cache-Control headers? Next-specific headers?
-  res.setHeader('Content-Type', type)
-  res.setHeader('Content-Length', Buffer.byteLength(payload))
-  if (options != null) {
-    if (options?.private) {
-      res.setHeader(
-        'Cache-Control',
-        `private, no-cache, no-store, max-age=0, must-revalidate`
-      )
-    } else if (options?.revalidate) {
-      res.setHeader(
-        'Cache-Control',
-        options.revalidate < 0
-          ? `no-cache, no-store, must-revalidate`
-          : `s-maxage=${options.revalidate}, stale-while-revalidate`
-      )
-    } else if (options?.revalidate === false) {
-      res.setHeader(
-        'Cache-Control',
-        `s-maxage=31536000, stale-while-revalidate`
-      )
-    }
-  }
-  res.end(payload)
 }
 
 function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
