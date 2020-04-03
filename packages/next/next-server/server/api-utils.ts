@@ -391,7 +391,8 @@ function setPreviewData<T>(
       : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -399,7 +400,8 @@ function setPreviewData<T>(
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -430,7 +432,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, '', {
@@ -439,7 +442,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
     }),
   ])
