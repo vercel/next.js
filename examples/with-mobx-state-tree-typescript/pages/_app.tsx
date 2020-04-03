@@ -10,28 +10,6 @@ interface IOwnProps {
 }
 
 class MyApp extends App {
-  public static async getInitialProps({ Component, router, ctx }) {
-    //
-    // Use getInitialProps as a step in the lifecycle when
-    // we can initialize our store
-    //
-    const isServer = typeof window === 'undefined'
-    const store = initializeStore(isServer)
-    //
-    // Check whether the page being rendered by the App has a
-    // static getInitialProps method and if so call it
-    //
-    let pageProps = {}
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-    return {
-      initialState: getSnapshot(store),
-      isServer,
-      pageProps,
-    }
-  }
-
   private store: IStore
 
   constructor(props) {
@@ -46,6 +24,31 @@ class MyApp extends App {
         <Component {...pageProps} />
       </Provider>
     )
+  }
+}
+
+export async function getStaticProps({ Component, ctx }) {
+  //
+  // Use getStaticProps as a step in the lifecycle when
+  // we can initialize our store
+  //
+  const isServer = typeof window === 'undefined'
+  const store = initializeStore(isServer)
+  //
+  // Check whether the page being rendered by the App has a
+  // static getStaticProps method and if so call it
+  //
+  let pageProps = {}
+  if (Component.getStaticProps) {
+    pageProps = await Component.getStaticProps(ctx)
+  }
+
+  return {
+    props: {
+      initialState: getSnapshot(store),
+      isServer,
+      pageProps,
+    },
   }
 }
 
