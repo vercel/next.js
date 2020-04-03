@@ -46,7 +46,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>How do I fetch data?</summary>
-  <p>It's up to you. You can use the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">fetch API</a> inside your React components, or <a href="/docs/api-reference/data-fetching/getInitialProps.md">getInitialProps</a> for initial data population.</p>
+  <p>It's up to you. You can use the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">fetch API</a> inside your React components, or <a href="/docs/basic-features/data-fetching.md">Data fetching</a> for initial data population.</p>
 </details>
 
 <details>
