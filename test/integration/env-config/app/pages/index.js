@@ -30,7 +30,7 @@ export async function getStaticProps() {
     // Do not pass any sensitive values here as they will
     // be made PUBLICLY available in `pageProps`
     props: { env: items },
-    revalidate: 1,
+    unstable_revalidate: 1,
   }
 }
 
