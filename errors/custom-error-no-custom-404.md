@@ -6,7 +6,7 @@ You added a custom `/_error` page without adding a custom `/404` page. Adding a 
 
 #### Possible Ways to Fix It
 
-Add a `/404` page to your pages folder with the 404 page you would like to show.
+Add a `pages/404.js` with the 404 page you would like to show.
 
 ### Useful Links
 
