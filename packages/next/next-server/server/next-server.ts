@@ -1,6 +1,6 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
