@@ -49,7 +49,7 @@ In this example we are going to display a digital clock that updates every secon
 
 This example is a mobx-react-lite port of the [with-mobx](https://github.com/zeit/next.js/tree/master/examples/with-mobx) example. MobX support has been implemented using React Hooks.
 
-Our page is located at `pages/index.js` so it will map the route `/`. To get the initial data for rendering we are implementing the static method `getInitialProps`, initializing the MobX store and returning the initial timestamp to be rendered. The root component for the render method is a React context provider that allows us to send the store down to children components so they can access to the state when required.
+Our page is located at `pages/index.js` so it will map the route `/`. To get the initial data for rendering we are implementing the static method `getStaticProps`, initializing the MobX store and returning the initial timestamp to be rendered. The root component for the render method is a React context provider that allows us to send the store down to children components so they can access to the state when required.
 
 To pass the initial timestamp from the server to the client we pass it as a prop called `lastUpdate` so then it's available when the client takes over.
 

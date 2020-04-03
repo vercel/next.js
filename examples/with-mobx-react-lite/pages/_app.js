@@ -3,21 +3,6 @@ import React from 'react'
 import { InjectStoreContext, initializeData } from '../store'
 
 class MyMobxApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-    const initialStoreData = initializeData()
-
-    // Provide the store to getInitialProps of pages
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps({ ...ctx, initialStoreData })
-    }
-
-    return {
-      pageProps,
-      initialStoreData,
-    }
-  }
-
   render() {
     const { Component, pageProps, initialStoreData } = this.props
     return (
@@ -27,4 +12,22 @@ class MyMobxApp extends App {
     )
   }
 }
+
+export async function getStaticProps({ Component, ctx }) {
+  let pageProps = {}
+  const initialStoreData = initializeData()
+
+  // Provide the store to getStaticProps of pages
+  if (Component.getStaticProps) {
+    pageProps = await Component.getStaticProps({ ...ctx, initialStoreData })
+  }
+
+  return {
+    props: {
+      pageProps,
+      initialStoreData,
+    },
+  }
+}
+
 export default MyMobxApp
