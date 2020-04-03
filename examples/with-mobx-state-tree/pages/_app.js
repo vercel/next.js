@@ -4,29 +4,33 @@ import { getSnapshot } from 'mobx-state-tree'
 import App from 'next/app'
 import { initializeStore } from '../stores/store'
 
-export default class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    //
-    // Use getInitialProps as a step in the lifecycle when
-    // we can initialize our store
-    //
-    const isServer = typeof window === 'undefined'
-    const store = initializeStore(isServer)
-    //
-    // Check whether the page being rendered by the App has a
-    // static getInitialProps method and if so call it
-    //
-    let pageProps = {}
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-    return {
+export async function getStaticProps({ Component, ctx }) {
+  //
+  // Use getStaticProps as a step in the lifecycle when
+  // we can initialize our store
+  //
+  const isServer = typeof window === 'undefined'
+  const store = initializeStore(isServer)
+  //
+  // Check whether the page being rendered by the App has a
+  // static getStaticProps method and if so call it
+  //
+  let pageProps = {}
+
+  if (Component.getStaticProps) {
+    pageProps = await Component.getStaticProps(ctx)
+  }
+
+  return {
+    props: {
       initialState: getSnapshot(store),
       isServer,
       pageProps,
-    }
+    },
   }
+}
 
+export default class MyApp extends App {
   constructor(props) {
     super(props)
     this.store = initializeStore(props.isServer, props.initialState)
