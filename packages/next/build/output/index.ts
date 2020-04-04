@@ -1,4 +1,4 @@
-import * as chalk from 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'

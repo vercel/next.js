@@ -1,4 +1,4 @@
-import * as chalk from 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'

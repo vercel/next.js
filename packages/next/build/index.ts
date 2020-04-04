@@ -1,4 +1,4 @@
-import * as chalk from 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 import ciEnvironment from 'next/dist/compiled/ci-info'
 import crypto from 'crypto'
 import devalue from 'next/dist/compiled/devalue'

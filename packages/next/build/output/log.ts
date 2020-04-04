@@ -1,4 +1,4 @@
-import * as chalk from 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 const prefixes = {
   wait: `[ ${chalk.cyan('wait')} ] `,

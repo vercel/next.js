@@ -1,4 +1,4 @@
-import * as chalk from 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'

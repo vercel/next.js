@@ -1,4 +1,4 @@
-import * as chalk from 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 export function getGlobalImportError(file: string | null) {
   return `Global CSS ${chalk.bold(

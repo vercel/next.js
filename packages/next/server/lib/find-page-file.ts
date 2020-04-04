@@ -1,5 +1,5 @@
 import { join } from 'path'
-import * as chalk 'next/dist/compiled/chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 
