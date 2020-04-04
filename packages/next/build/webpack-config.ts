@@ -716,7 +716,7 @@ export default async function getBaseWebpackConfig(
         ...(config.experimental.pageEnv
           ? Object.keys(process.env).reduce(
               (prev: { [key: string]: string }, key: string) => {
-                if (key.startsWith('NEXT_APP_')) {
+                if (key.startsWith('NEXT_PUBLIC_')) {
                   prev[key] = process.env[key]!
                 }
                 return prev

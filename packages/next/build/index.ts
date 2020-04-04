@@ -62,7 +62,7 @@ import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
   collectPages,
-  getPageSizeInKb,
+  getJsPageSizeInKb,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
@@ -482,7 +482,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await Promise.all(
     pageKeys.map(async page => {
       const actualPage = normalizePagePath(page)
-      const [selfSize, allSize] = await getPageSizeInKb(
+      const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
         buildId,
@@ -545,6 +545,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (result.isAmpOnly) {
+            // ensure all AMP only bundles got removed
+            try {
+              await fsUnlink(
+                path.join(
+                  distDir,
+                  'static',
+                  buildId,
+                  'pages',
+                  actualPage + '.js'
+                )
+              )
+            } catch (err) {
+              if (err.code !== 'ENOENT') {
+                throw err
+              }
+            }
           }
 
           if (result.hasStaticProps) {

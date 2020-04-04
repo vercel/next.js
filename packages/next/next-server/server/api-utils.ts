@@ -8,8 +8,6 @@ import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
-import { collectEnv } from './utils'
-import { Env } from '../../lib/load-env-config'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -26,7 +24,6 @@ export async function apiResolver(
   params: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  env: Env | false,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -40,8 +37,6 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
-
-    apiReq.env = env ? collectEnv(req.url!, env, config.env) : {}
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
@@ -396,7 +391,8 @@ function setPreviewData<T>(
       : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -404,7 +400,8 @@ function setPreviewData<T>(
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -435,7 +432,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, '', {
@@ -444,7 +442,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
     }),
   ])
