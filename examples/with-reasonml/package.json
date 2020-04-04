@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",
+    "babel-types": "6.26.0",
     "bs-platform": "^7.1.0",
     "concurrently": "^5.1.0"
   }
