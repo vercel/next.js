@@ -151,6 +151,7 @@ const nextServerlessLoader: loader.Loader = function() {
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
+
       ${handleRewrites}
 
       export default async (req, res) => {
@@ -186,8 +187,14 @@ const nextServerlessLoader: loader.Loader = function() {
         } catch (err) {
           console.error(err)
           await onError(err)
-          res.statusCode = 500
-          res.end('Internal Server Error')
+
+          if (err.code === 'DECODE_FAILED') {
+            res.statusCode = 400
+            res.end('Bad Request')
+          } else {
+            res.statusCode = 500
+            res.end('Internal Server Error')
+          }
         }
       }
     `
@@ -261,26 +268,37 @@ const nextServerlessLoader: loader.Loader = function() {
         ..._renderOpts
       }
       let _nextData = false
+      let parsedUrl
 
-      const parsedUrl = handleRewrites(parse(req.url, true))
-
-      if (parsedUrl.pathname.match(/_next\\/data/)) {
-        _nextData = true
-        parsedUrl.pathname = parsedUrl.pathname
-          .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
-          .replace(/\\.json$/, '')
-      }
-
-      const renderOpts = Object.assign(
-        {
-          Component,
-          pageConfig: config,
-          nextExport: fromExport
-        },
-        options,
-      )
       try {
-        ${page === '/_error' ? `res.statusCode = 404` : ''}
+        parsedUrl = handleRewrites(parse(req.url, true))
+
+        if (parsedUrl.pathname.match(/_next\\/data/)) {
+          _nextData = true
+          parsedUrl.pathname = parsedUrl.pathname
+            .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
+            .replace(/\\.json$/, '')
+        }
+
+        const renderOpts = Object.assign(
+          {
+            Component,
+            pageConfig: config,
+            nextExport: fromExport
+          },
+          options,
+        )
+
+        ${
+          page === '/_error'
+            ? `
+          if (!res.statusCode) {
+            res.statusCode = 404
+          }
+        `
+            : ''
+        }
+
         ${
           pageIsDynamicRoute
             ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
@@ -349,27 +367,27 @@ const nextServerlessLoader: loader.Loader = function() {
         if (renderMode) return { html: result, renderOpts }
         return result
       } catch (err) {
+        if (!parsedUrl) {
+          parsedUrl = parse(req.url, true)
+        }
+
         if (err.code === 'ENOENT') {
           res.statusCode = 404
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            getStaticProps: undefined,
-            getStaticPaths: undefined,
-            getServerSideProps: undefined,
-            Component: Error
-          }))
-          return result
+        } else if (err.code === 'DECODE_FAILED') {
+          res.statusCode = 400
         } else {
           console.error(err)
           res.statusCode = 500
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            getStaticProps: undefined,
-            getStaticPaths: undefined,
-            getServerSideProps: undefined,
-            Component: Error,
-            err
-          }))
-          return result
         }
+
+        const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+          getStaticProps: undefined,
+          getStaticPaths: undefined,
+          getServerSideProps: undefined,
+          Component: Error,
+          err: res.statusCode === 404 ? undefined : err
+        }))
+        return result
       }
     }
     export async function render (req, res) {
