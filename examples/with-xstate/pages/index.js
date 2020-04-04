@@ -29,8 +29,12 @@ const IndexPage = ({ count }) => {
   )
 }
 
-IndexPage.getInitialProps = async () => {
-  return { count: 999 }
+export async function getStaticProps() {
+  return {
+    props: {
+      count: 999,
+    },
+  }
 }
 
 export default IndexPage
