@@ -1,29 +1,28 @@
-import React from 'react'
+import React, { Component } from 'react'
 import Link from 'next/link'
 import { inject, observer } from 'mobx-react'
 import Clock from './Clock'
+import { store } from '../stores/store'
 
 @inject('store')
 @observer
-class SampleComponent extends React.Component {
+class SampleComponent extends Component {
   componentDidMount() {
-    this.props.store.start()
+    store.start()
   }
 
   componentWillUnmount() {
-    this.props.store.stop()
+    store.stop()
   }
 
   render() {
+    const { title, linkTo } = this.props
     return (
       <div>
-        <h1>{this.props.title}</h1>
-        <Clock
-          lastUpdate={this.props.store.lastUpdate}
-          light={this.props.store.light}
-        />
+        <h1>{title}</h1>
+        <Clock lastUpdate={store.lastUpdate} light={store.light} />
         <nav>
-          <Link href={this.props.linkTo}>
+          <Link href={linkTo}>
             <a>Navigate</a>
           </Link>
         </nav>

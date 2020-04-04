@@ -1,6 +1,4 @@
-import { types, applySnapshot } from 'mobx-state-tree'
-
-let store = null
+import { types } from 'mobx-state-tree'
 
 const Store = types
   .model({
@@ -29,15 +27,8 @@ const Store = types
     return { start, stop, update }
   })
 
-export function initializeStore(isServer, snapshot = null) {
-  if (isServer) {
-    store = Store.create({ lastUpdate: Date.now() })
-  }
-  if (store === null) {
-    store = Store.create({ lastUpdate: Date.now() })
-  }
-  if (snapshot) {
-    applySnapshot(store, snapshot)
-  }
-  return store
-}
+let store = Store.create({
+  lastUpdate: Date.now(),
+})
+
+export { store }
