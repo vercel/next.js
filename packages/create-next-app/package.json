@@ -32,7 +32,7 @@
     "@types/prompts": "2.0.1",
     "@types/tar": "4.0.3",
     "@zeit/ncc": "^0.20.4",
-    "chalk": "3.0.0",
+    "chalk": "4.0.0",
     "commander": "2.20.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",

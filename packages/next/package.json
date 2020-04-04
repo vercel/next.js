@@ -150,7 +150,7 @@
     "babel-loader": "8.0.6",
     "babel-plugin-dynamic-import-node": "2.3.0",
     "cache-loader": "4.1.0",
-    "chalk": "3.0.0",
+    "chalk": "4.0.0",
     "ci-info": "2.0.0",
     "compression": "1.7.4",
     "conf": "5.0.0",
