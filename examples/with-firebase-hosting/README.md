@@ -68,6 +68,16 @@ npm run deploy
 
 </details>
 
+### Typescript
+
+To use Typescript, simply follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
+
+i.e: `npm install --save-dev typescript @types/react @types/node`
+
+Then you can create components and pages in `.tsx` or `.ts`
+
+**Only `src/next.config.js` and `firebaseFunctions.js` must remain in `*.js` format.**
+
 ## Important
 
 - [`firebase.json`](firebase.json:#L7) outlines the catchall rewrite rule for our Cloud Function.
