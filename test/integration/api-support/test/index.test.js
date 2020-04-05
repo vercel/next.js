@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -377,6 +378,17 @@ function runTests(dev = false) {
       )
     })
   } else {
+    it('should show warning with next export', async () => {
+      const { stdout } = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        { stdout: true }
+      )
+      expect(stdout).toContain(
+        'https://err.sh/zeit/next.js/api-routes-static-export'
+      )
+    })
+
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
         await fs.readFile(

@@ -11,6 +11,7 @@ import {
   launchApp,
   killApp,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -20,6 +21,12 @@ let appPort
 let app
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+
+const fsExists = file =>
+  fs
+    .access(file)
+    .then(() => true)
+    .catch(() => false)
 
 const runTests = (isDev = false) => {
   it('should load an amp first page correctly', async () => {
@@ -51,12 +58,6 @@ const runTests = (isDev = false) => {
   })
 
   if (!isDev) {
-    const fsExists = file =>
-      fs
-        .access(file)
-        .then(() => true)
-        .catch(() => false)
-
     const builtPage = file => join(builtServerPagesDir, file)
 
     it('should output prerendered files correctly during build', async () => {
@@ -120,5 +121,32 @@ describe('AMP SSG Support', () => {
     })
     afterAll(() => killApp(app))
     runTests(true)
+  })
+  describe('export mode', () => {
+    let buildId
+
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      await nextExport(appDir, { outdir: join(appDir, 'out') })
+      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    })
+
+    it('should have copied SSG files correctly', async () => {
+      const outFile = file => join(appDir, 'out', file)
+
+      expect(await fsExists(outFile('amp.html'))).toBe(true)
+      expect(await fsExists(outFile('index.html'))).toBe(true)
+      expect(await fsExists(outFile('hybrid.html'))).toBe(true)
+      expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
+      expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+
+      expect(
+        await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
+      ).toBe(true)
+
+      expect(
+        await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
+      ).toBe(true)
+    })
   })
 })

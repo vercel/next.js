@@ -1,57 +1,37 @@
-import React from 'react'
+import { useRouter } from 'next/router'
 import Link from 'next/link'
-import Router, { withRouter } from 'next/router'
 import { format } from 'url'
 
-let counter = 1
+let counter = 0
 
-class Index extends React.Component {
-  static getInitialProps({ res }) {
-    if (res) {
-      return { initialPropsCounter: 1 }
-    }
-
-    counter++
-    return {
-      initialPropsCounter: counter,
-    }
-  }
-
-  reload() {
-    const { pathname, query } = Router
-    Router.push(format({ pathname, query }))
-  }
-
-  incrementStateCounter() {
-    const { router } = this.props
-    const currentCounter = router.query.counter
-      ? parseInt(router.query.counter)
-      : 0
-    const href = `/?counter=${currentCounter + 1}`
-    Router.push(href, href, { shallow: true })
-  }
-
-  render() {
-    const { initialPropsCounter, router } = this.props
-
-    return (
-      <div>
-        <h2>This is the Home Page</h2>
-        <Link href="/about">
-          <a>About</a>
-        </Link>
-        <button onClick={() => this.reload()}>Reload</button>
-        <button onClick={() => this.incrementStateCounter()}>
-          Change State Counter
-        </button>
-        <p>"getInitialProps" ran for "{initialPropsCounter}" times.</p>
-        <p>
-          Counter: "{router.query.counter || 0}
-          ".
-        </p>
-      </div>
-    )
-  }
+export async function getServerSideProps() {
+  counter++
+  return { props: { initialPropsCounter: counter } }
 }
 
-export default withRouter(Index)
+export default function Index({ initialPropsCounter }) {
+  const router = useRouter()
+  const { pathname, query } = router
+  const reload = () => {
+    router.push(format({ pathname, query }))
+  }
+  const incrementCounter = () => {
+    const currentCounter = query.counter ? parseInt(query.counter) : 0
+    const href = `/?counter=${currentCounter + 1}`
+
+    router.push(href, href, { shallow: true })
+  }
+
+  return (
+    <div>
+      <h2>This is the Home Page</h2>
+      <Link href="/about">
+        <a>About</a>
+      </Link>
+      <button onClick={reload}>Reload</button>
+      <button onClick={incrementCounter}>Change State Counter</button>
+      <p>"getServerSideProps" ran for "{initialPropsCounter}" times.</p>
+      <p>Counter: "{query.counter || 0}".</p>
+    </div>
+  )
+}

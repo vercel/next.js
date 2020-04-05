@@ -1,5 +1,5 @@
-import retry from 'async-retry'
-import fetch from 'node-fetch'
+import retry from 'next/dist/compiled/async-retry'
+import fetch from 'next/dist/compiled/node-fetch'
 
 export function _postPayload(endpoint: string, body: object) {
   return (
