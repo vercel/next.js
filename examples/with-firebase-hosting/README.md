@@ -66,40 +66,28 @@ npm run serve
 npm run deploy
 ```
 
-#### Clean dist folder
-
-```bash
-npm run clean
-```
-
 </details>
 
 ## Important
 
-- The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
-- `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-- Specifying [`"engines": {"node": "8"}`](package.json#L5-L7) in the `package.json` is required for firebase functions
-  to be deployed on Node 8 rather than Node 6
-  ([Firebase Blog Announcement](https://firebase.googleblog.com/2018/08/cloud-functions-for-firebase-config-node-8-timeout-memory-region.html))
-  . This is matched in [`src/functions/.babelrc`](src/functions/.babelrc) so that babel output somewhat compacter and moderner code.
+- [`firebase.json`](firebase.json:#L7) outlines the catchall rewrite rule for our Cloud Function.
+- The empty `public/.gitignore` file is to ensure `public/` dir exists as it is required for Firebase Hosting. It is [configured](firebase.json:#L4) (by [default](https://firebase.google.com/docs/hosting/full-config#ignore)) that dotfiles (`public/.*`) are ignored from bein publicly served.
+- The Cloud Function is named `nextjsFunc` (changeable [here](firebaseFunctions.js#L16) and [here](firebase.json#L8)).
+- `public/*` files are statically served through [Firebase hosting](https://firebase.google.com/docs/hosting/full-config#public), not through [NextJs server](https://nextjs.org/docs/basic-features/static-file-serving).
+- Specifying [`"engines": {"node": "10"}`](package.json#L5-L7) in `package.json` is required and the [latest supported](https://firebase.google.com/docs/functions/manage-functions#set_nodejs_version) by firebase functions.
 
 ### Customization
 
-Next App and Next Server development are separated into two different folders:
+Next App is in `src/` directory.
 
-- app - `src/app/`
-- server - `src/functions/`
+The crucial files for the setup:
 
-If you wish to modify any configuration of the Next App, you should only modify the contents of `src/app`.
+- `.firebaserc`
+- `firebase.json`
+- `firebaseFunctions.js`
+- `src/next.config.js`
+- In `package.json`; `firebase-*` packages and `engines` field
 
-For instance, the `.babelrc` in `src/functions` is used only to compile the Firebase Cloud Functions code, which is our the Next Server code. If you wish to customize the `.babelrc` for the Next App compilation, then you should create one at `src/app/.babelrc` and follow the [customization guide](https://github.com/zeit/next.js#customizing-babel-config).
+## Caveat
 
-### \_app.js
-
-If using `_app.js` you may receive the following error on your deployed Cloud Function:
-
-```
-{ Error: Cannot find module '@babel/runtime/regenerator'...
-```
-
-Despite next.js having `@babel/runtime` as a dependency, you must install it as a dependency directly in this project.
+- As firebase functions requires `"engines": {"node": "10"}` to be specified (in `package.json`), if you are yarn (instead of npm), you will need to add flag [`--ignore-engines`](https://classic.yarnpkg.com/en/docs/cli/install/#toc-yarn-install-ignore-engines).
