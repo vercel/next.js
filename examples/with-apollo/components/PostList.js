@@ -5,8 +5,8 @@ import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
 export const ALL_POSTS_QUERY = gql`
-  query allPosts($first: Int!, $skip: Int!) {
-    allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
+  query allPosts {
+    allPosts {
       id
       title
       votes
@@ -27,7 +27,8 @@ export default function PostList() {
   const { loading, error, data, fetchMore, networkStatus } = useQuery(
     ALL_POSTS_QUERY,
     {
-      variables: allPostsQueryVars,
+      // TODO: resolve
+      //variables: allPostsQueryVars,
       // Setting this value to true will make the component rerender when
       // the "networkStatus" changes, so we are able to know if it is fetching
       // more data
@@ -55,6 +56,7 @@ export default function PostList() {
   }
 
   if (error) return <ErrorMessage message="Error loading posts." />
+
   if (loading && !loadingMorePosts) return <div>Loading</div>
 
   const { allPosts, _allPostsMeta } = data
