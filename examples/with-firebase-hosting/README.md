@@ -11,7 +11,7 @@ If you are having issues, feel free to tag @jthegedus in the [issue you create o
 - Create a project through the [firebase web console](https://console.firebase.google.com/)
 - Login to the Firebase CLI tool with `firebase login`
 - Grab the **projectID** from [`firebase projects:list`](https://firebase.google.com/docs/cli#admin-commands) or the web consoles URL: `https://console.firebase.google.com/project/<projectID>`
-</details>
+  </details>
 
 ## How to use
 
