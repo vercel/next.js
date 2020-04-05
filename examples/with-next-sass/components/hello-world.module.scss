@@ -1,5 +1,8 @@
+@use '@material/typography';
+
 $color: red;
 
 .hello {
   color: $color;
+  @include typography.typography('headline4');
 }

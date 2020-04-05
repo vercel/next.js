@@ -5,6 +5,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@material/typography": "^5.1.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
