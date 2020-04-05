@@ -1,12 +1,12 @@
-const nextEnv = require("next-env");
-const dotenvLoad = require("dotenv-load");
+const nextEnv = require('next-env')
+const dotenvLoad = require('dotenv-load')
 
-dotenvLoad();
+dotenvLoad()
 
-const withNextEnv = nextEnv();
+const withNextEnv = nextEnv()
 
 module.exports = withNextEnv({
   devIndicators: {
-    autoPrerender: false
-  }
-});
+    autoPrerender: false,
+  },
+})

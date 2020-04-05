@@ -4,7 +4,7 @@ This example shows how you can use [Magic](https://magic.link/) to add paswordle
 
 ## Configure Magic
 
-Login to your [Magic](https://magic.link/) account and add new application to get your keys. Don't forget to put keys in ```.env``` (look for ```.env.template``` for example) and upload them as secrets to [ZEIT Now](https://zeit.co/now). 
+Login to your [Magic](https://magic.link/) account and add new application to get your keys. Don't forget to put keys in `.env` (look for `.env.template` for example) and upload them as secrets to [ZEIT Now](https://zeit.co/now).
 
 ```
 now secrets add MAGICTESTSECRETKEY VALUE
@@ -22,7 +22,6 @@ npx create-next-app --example magic magic
 yarn create next-app --example magic magic
 ```
 
-
 ## About
 
-Use ```/welcome``` page to sign up/login to app and then checkout ```/``` page to see your email. Session is stored in cookie called ```coolcookie```.
+Use `/welcome` page to sign up/login to app and then checkout `/` page to see your email. Session is stored in cookie called `coolcookie`.
