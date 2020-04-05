@@ -10,7 +10,7 @@ export type RepoInfo = {
 }
 
 export async function isUrlOk(url: string) {
-  const res = await got(url).catch((e) => e)
+  const res = await got(url).catch(e => e)
   return res.statusCode === 200
 }
 
@@ -26,7 +26,7 @@ export async function getRepoInfo(
   if (t === undefined) {
     const infoResponse = await got(
       `https://api.github.com/repos/${username}/${name}`
-    ).catch((e) => e)
+    ).catch(e => e)
     if (infoResponse.statusCode !== 200) {
       return
     }
