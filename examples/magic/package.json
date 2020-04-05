@@ -1,0 +1,20 @@
+{
+  "name": "magic-example",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@magic-sdk/admin": "0.1.0-beta.10",
+    "cookie": "^0.4.0",
+    "dotenv-load": "^2.0.0",
+    "magic-sdk": "0.1.0-beta.14",
+    "next": "9.3.4",
+    "next-env": "^1.1.1",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  }
+}
