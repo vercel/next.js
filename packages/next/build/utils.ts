@@ -3,7 +3,7 @@ import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
