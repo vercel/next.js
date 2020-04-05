@@ -2,7 +2,7 @@ import React, { useCallback, useState } from "react";
 
 import { Magic } from "magic-sdk"
 
-const Welcome = ({MAGICTESPUBLICKEY}) => {
+const Welcome = ({MAGIC_TEST_PUBLICKEY}) => {
   const [disabled, setDisabled] = useState(false);
   const handleSubmit = useCallback(
     async (e) => {
@@ -11,7 +11,7 @@ const Welcome = ({MAGICTESPUBLICKEY}) => {
       const elements = e.currentTarget.elements;
       const email = elements.email.value;
       if (email) {
-        const magic = new Magic(MAGICTESPUBLICKEY);
+        const magic = new Magic(MAGIC_TEST_PUBLICKEY);
         const didToken = await magic.auth.loginWithMagicLink({ email });
         const serverUrl = window.location.origin;
         const result = await fetch(`${serverUrl}/api/magic/login`, {
@@ -26,7 +26,7 @@ const Welcome = ({MAGICTESPUBLICKEY}) => {
         }
       }
     },
-    []
+    [MAGIC_TEST_PUBLICKEY]
   );
   return (
     <>
@@ -57,7 +57,7 @@ const Welcome = ({MAGICTESPUBLICKEY}) => {
 };
 
 Welcome.getInitialProps = async () => {
-  return {MAGICTESPUBLICKEY: process.env.MAGICTESPUBLICKEY}
+  return {MAGIC_TEST_PUBLICKEY: process.env.MAGICTESTPUBLICKEY}
 }
 
 export default Welcome;

@@ -1,6 +1,6 @@
 {
   "env": {
     "MAGICTESTSECRETKEY": "@magictestsecretkey",
-    "MAGICTESPUBLICKEY": "@magictespublickey"
+    "MAGICTESTPUBLICKEY": "@magictestpublickey"
   }
 }
