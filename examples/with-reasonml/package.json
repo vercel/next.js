@@ -10,7 +10,6 @@
   },
   "license": "ISC",
   "dependencies": {
-    "babel-plugin-bucklescript": "^0.5.3",
     "next": "latest",
     "next-transpile-modules": "^3.0.2",
     "react": "^16.12.0",
