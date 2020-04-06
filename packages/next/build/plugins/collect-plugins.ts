@@ -134,11 +134,6 @@ async function collectPluginMeta(
   }
 }
 
-type SeparatedPlugins = {
-  appMiddlewarePlugins: PluginMetaData[]
-  documentMiddlewarePlugins: PluginMetaData[]
-}
-
 // clean package name so it can be used as variable
 export const getPluginId = (pkg: string): string => {
   pkg = pkg.replace(/\W/g, '')
@@ -254,6 +249,4 @@ async function _collectPlugins(
 
 // only execute it once between server/client configs
 // since the plugins need to match
-export const collectPlugins = execOnce(
-  _collectPlugins
-) as typeof _collectPlugins
+export const collectPlugins = execOnce(_collectPlugins)
