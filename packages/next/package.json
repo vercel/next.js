@@ -84,7 +84,7 @@
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",
-    "mkdirp": "^0.5.3",
+    "mkdirp": "0.5.3",
     "native-url": "0.3.1",
     "pnp-webpack-plugin": "1.5.0",
     "postcss": "7.0.27",
@@ -97,7 +97,7 @@
     "styled-jsx": "3.2.5",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
-    "webpack": "4.42.0",
+    "webpack": "4.42.1",
     "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
