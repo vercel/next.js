@@ -2,13 +2,12 @@
 
 yarn --cwd packages/next ncc-compiled
 
-changes=$(git status -s)
-
-# Make sure to exit with 1 if there are changes after running pre-ncc
+# Make sure to exit with 1 if there are changes after running ncc-compiled
 # step to ensure we get any changes committed
 
-if [[ ! -z $changes ]];then
+if [[ ! -z $(git status -s) ]];then
   echo "Detected changes"
-  echo $changes
+  git status
+  ls node_modules/chalk
   exit 1
 fi
