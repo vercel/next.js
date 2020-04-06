@@ -2,7 +2,7 @@
 /* global jasmine */
 import { join } from 'path'
 import { killApp, nextBuild } from 'next-test-utils'
-import { bold } from 'kleur'
+import chalk from 'chalk'
 
 const appDir = join(__dirname, '../')
 let server
@@ -36,7 +36,7 @@ describe('Conformance system', () => {
     const { stderr } = build
     expect(stderr).toContain(
       '[BUILD CONFORMANCE ERROR]: The splitChunks config as part of the granularChunks flag has ' +
-        `been carefully crafted to optimize build size and build times. Please avoid changes to ${bold(
+        `been carefully crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
           'splitChunks.cacheGroups.vendors'
         )}`
     )
