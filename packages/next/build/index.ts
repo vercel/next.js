@@ -1,14 +1,14 @@
-import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
+import chalk from 'next/dist/compiled/chalk'
+import ciEnvironment from 'next/dist/compiled/ci-info'
 import crypto from 'crypto'
-import devalue from 'devalue'
-import escapeStringRegexp from 'escape-string-regexp'
-import findUp from 'find-up'
+import devalue from 'next/dist/compiled/devalue'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import { pathToRegexp } from 'path-to-regexp'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
@@ -62,7 +62,7 @@ import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
   collectPages,
-  getPageSizeInKb,
+  getJsPageSizeInKb,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
@@ -482,7 +482,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await Promise.all(
     pageKeys.map(async page => {
       const actualPage = normalizePagePath(page)
-      const [selfSize, allSize] = await getPageSizeInKb(
+      const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
         buildId,
@@ -545,6 +545,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (result.isAmpOnly) {
+            // ensure all AMP only bundles got removed
+            try {
+              await fsUnlink(
+                path.join(
+                  distDir,
+                  'static',
+                  buildId,
+                  'pages',
+                  actualPage + '.js'
+                )
+              )
+            } catch (err) {
+              if (err.code !== 'ENOENT') {
+                throw err
+              }
+            }
           }
 
           if (result.hasStaticProps) {

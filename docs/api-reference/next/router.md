@@ -87,7 +87,7 @@ Router.push(url, as, options)
 - `url` - The URL to navigate to. This is usually the name of a `page`
 - `as` - Optional decorator for the URL that will be shown in the browser. Defaults to `url`
 - `options` - Optional object with the following configuration options:
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning `getInitialProps`. Defaults to `false`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning `getServerSideProps` or `getInitialProps`. Defaults to `false`
 
 > You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 

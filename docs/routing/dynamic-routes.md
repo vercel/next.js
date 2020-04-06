@@ -11,7 +11,7 @@ description: Dynamic Routes are pages that allow you to add custom params to you
   </ul>
 </details>
 
-Defining routes by using predefined paths is not always enough for complex applications, in Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, and others).
+Defining routes by using predefined paths is not always enough for complex applications. In Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, and others).
 
 Consider the following page `pages/post/[pid].js`:
 

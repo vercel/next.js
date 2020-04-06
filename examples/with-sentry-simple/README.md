@@ -46,7 +46,7 @@ Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm
 This is a simple example showing how to use [Sentry](https://sentry.io) to catch & report errors on both client + server side.
 
 - `_app.js` renders on both the server and client. It initializes Sentry to catch any unhandled exceptions
-- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overriden so those exceptions can be passed along to Sentry
+- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
 - `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
 
 **Note**: Source maps will not be sent to Sentry when running locally (because Sentry cannot access your `localhost`). To accurately test client-side source maps, please deploy to Now.
@@ -84,7 +84,7 @@ Sentry.init({
 
 ### Hosting source maps vs. uploading them to Sentry
 
-This example shows how to generate your own source maps, which are hosted alongside your JavaScript bundles in production. But that has the potential for innaccurate results in Sentry.
+This example shows how to generate your own source maps, which are hosted alongside your JavaScript bundles in production. But that has the potential for inaccurate results in Sentry.
 
 Sentry will attempt to [fetch the source map](https://docs.sentry.io/platforms/javascript/sourcemaps/#hosting--uploading) when it is processing an exception, as long as the "Enable JavaScript source fetching" setting is turned on for your Sentry project.
 

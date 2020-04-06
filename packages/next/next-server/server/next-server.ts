@@ -1,7 +1,8 @@
-import compression from 'compression'
+import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
+import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
-import Proxy from 'http-proxy'
+import Proxy from 'next/dist/compiled/http-proxy'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
@@ -60,8 +61,9 @@ import {
   initializeSprCache,
   setSprCache,
 } from './spr-cache'
+import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
-import { loadEnvConfig, Env } from '../../lib/load-env-config'
+import { loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -118,7 +120,6 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
-    env: Env | false
     previewProps: __ApiPreviewProps
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
@@ -147,7 +148,7 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    const env = loadEnvConfig(this.dir, dev)
+    loadEnvConfig(this.dir, dev)
 
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
@@ -175,7 +176,6 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      env: this.nextConfig.experimental.pageEnv && env,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
@@ -693,7 +693,6 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      this.renderOpts.env,
       this.onErrorMiddleware
     )
     return true
@@ -1270,6 +1269,15 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
+  private customErrorNo404Warn = execOnce(() => {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.yellow(
+          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://err.sh/next.js/custom-error-no-custom-404`
+        )
+    )
+  })
+
   public async renderErrorToHTML(
     err: Error | null,
     req: IncomingMessage,
@@ -1290,6 +1298,14 @@ export default class Server {
 
     if (!result) {
       result = await this.findPageComponents('/_error', query)
+    }
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      !using404Page &&
+      (await this.hasPage('/_error'))
+    ) {
+      this.customErrorNo404Warn()
     }
 
     let html: string | null
