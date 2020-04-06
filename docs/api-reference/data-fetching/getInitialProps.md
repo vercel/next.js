@@ -134,6 +134,13 @@ export default class Page extends React.Component<Props> {
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
+  <a href="/docs/basic-features/data-fetching.md">
+    <b>Data Fetching:</b>
+    <small>Learn more about data fetching in Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
   <a href="/docs/basic-features/pages.md">
     <b>Pages:</b>
     <small>Learn more about what pages are in Next.js.</small>
@@ -141,8 +148,8 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching.md">
-    <b>Data Fetching:</b>
-    <small>Learn more about data fetching in Next.js.</small>
+  <a href="/docs/advanced-features/automatic-static-optimization.md">
+    <b>Automatic Static Optimization:</b>
+    <small>Learn about how Nextjs automatically optimizes your pages.</small>
   </a>
 </div>
