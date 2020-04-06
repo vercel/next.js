@@ -20,6 +20,25 @@ export default (req, res) => {
 
 Now, a request to `/api/post/abc` will respond with the text: `Post: abc`.
 
+### Index routes and Dynamic API routes
+
+A very common RESTful pattern is to set up routes like this:
+
+- `GET api/posts/` - gets a list of posts, probably paginated
+- `GET api/posts/12345` - gets post id 12345
+
+We can model this in two ways:
+
+- Option 1:
+  - `/api/posts.js`
+  - `/api/posts/[postId].js`
+- Option 2:
+
+  - `/api/posts/index.js`
+  - `/api/posts/[postId].js`
+
+Both are equivalent. A third option of only using `/api/posts/[postId].js` is not valid because Dynamic Routes (including Catch-all routes - see below) do not have an `undefined` state and `GET api/posts/` will not match `/api/posts/[postId].js` under any circumstances.
+
 ### Catch all API routes
 
 API Routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
