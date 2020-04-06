@@ -148,10 +148,19 @@ describe('Custom Server', () => {
   describe('Error when rendering without starting slash', () => {
     afterEach(() => killApp(server))
 
-    it('should throw in dev mode', async () => {
-      await startServer()
+    it('should warn in dev mode', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
       const html = await renderViaHTTP(appPort, '/no-slash')
-      expect(html).toContain('Cannot render page with path "dashboard"')
+      expect(html).toContain('made it to dashboard')
+      expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
 
     it('should warn in production mode', async () => {

@@ -787,13 +787,9 @@ export default class Server {
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
-      const noSlashError = `Cannot render page with path "${pathname}", did you mean "/${pathname}"?`
-
-      if (process.env.NODE_ENV !== 'production') {
-        throw new Error(noSlashError)
-      } else {
-        console.warn(noSlashError)
-      }
+      console.warn(
+        `Cannot render page with path "${pathname}", did you mean "/${pathname}"?. See more info here: https://err.sh/next.js/render-no-starting-slash`
+      )
     }
 
     const url: any = req.url
