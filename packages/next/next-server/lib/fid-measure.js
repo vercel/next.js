@@ -17,9 +17,6 @@ export default onPerfEntry => {
           startTime: event.timeStamp,
           duration: delay,
         })
-        // ;['Next.js-hydration', 'Next.js-before-hydration'].forEach(measure =>
-        //   performance.clearMeasures(measure)
-        // )
       } else {
         onPerfEntry({
           name: 'first-input-delay-before-hydration',
