@@ -51,7 +51,7 @@ describe('create next app', () => {
     const projectName = 'empty-directory'
     const res = await runStarter(projectName)
 
-    expect(res.code).toBe(0)
+    expect(res.exitCode).toBe(0)
     expect(
       fs.existsSync(path.join(cwd, projectName, 'package.json'))
     ).toBeTruthy()
@@ -76,7 +76,7 @@ describe('create next app', () => {
   it('valid example', async () => {
     const projectName = 'valid-example'
     const res = await run(projectName, '--example', 'basic-css')
-    expect(res.code).toBe(0)
+    expect(res.exitCode).toBe(0)
 
     expect(
       fs.existsSync(path.join(cwd, projectName, 'package.json'))
@@ -98,7 +98,7 @@ describe('create next app', () => {
       'https://github.com/zeit/next-learn-demo/tree/master/1-navigate-between-pages'
     )
 
-    expect(res.code).toBe(0)
+    expect(res.exitCode).toBe(0)
     expect(
       fs.existsSync(path.join(cwd, projectName, 'package.json'))
     ).toBeTruthy()
@@ -123,7 +123,7 @@ describe('create next app', () => {
       '1-navigate-between-pages'
     )
 
-    expect(res.code).toBe(0)
+    expect(res.exitCode).toBe(0)
     expect(
       fs.existsSync(path.join(cwd, projectName, 'package.json'))
     ).toBeTruthy()
@@ -148,7 +148,7 @@ describe('create next app', () => {
       '1-navigate-between-pages'
     )
 
-    expect(res.code).toBe(0)
+    expect(res.exitCode).toBe(0)
     expect(
       fs.existsSync(path.join(cwd, projectName, 'package.json'))
     ).toBeTruthy()
@@ -197,7 +197,7 @@ describe('create next app', () => {
 
     const res = await runExample('no-example')
 
-    expect(res.code).toBe(0)
+    expect(res.exitCode).toBe(0)
     expect(res.stdout).toMatch(/Downloading files for example hello-world/)
   })
 })
