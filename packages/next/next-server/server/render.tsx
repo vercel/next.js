@@ -509,7 +509,7 @@ export async function renderToHTML(
       process.env.NODE_ENV !== 'production'
     ) {
       console.warn(
-        `"pageProps" was returned from "_app" for a "${pathname}" with ${
+        `"pageProps" was returned from "_app" for page "${pathname}" with ${
           isSSG ? 'getStaticProps' : 'getServerSideProps'
         } and will be overridden.\nSee here for more info: https://err.sh/next.js/gssp-pageprops-conflict`
       )

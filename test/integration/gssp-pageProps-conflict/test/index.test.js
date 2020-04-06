@@ -33,7 +33,7 @@ describe('pageProps GSSP conflict', () => {
 
     expect(html).toContain('hello from gssp')
     expect(stderr).toContain(
-      `"pageProps" was returned from "_app" for a "/" with getServerSideProps`
+      `"pageProps" was returned from "_app" for page "/" with getServerSideProps`
     )
   })
 
@@ -57,7 +57,7 @@ describe('pageProps GSSP conflict', () => {
 
     expect(html).toContain('hello from gsp')
     expect(stderr).toContain(
-      `"pageProps" was returned from "_app" for a "/" with getStaticProps`
+      `"pageProps" was returned from "_app" for page "/" with getStaticProps`
     )
   })
 })
