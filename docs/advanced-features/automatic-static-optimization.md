@@ -4,7 +4,7 @@ description: Next.js automatically optimizes your app to be static HTML whenever
 
 # Automatic Static Optimization
 
-Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements. This determination is made by the absence of `getInitialProps` in the page.
+Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements. This determination is made by the absence of `getServerSideProps` and `getInitialProps` in the page.
 
 This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
 
@@ -14,9 +14,13 @@ One of the main benefits of this feature is that optimized pages require no serv
 
 ## How it works
 
-If `getInitialProps` is present, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
+If `getServerSideProps` or `getInitialProps` is present in a page, Next.js will use its default behavior and render the page on-demand, per-request (meaning [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering)).
 
-If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering the page to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client-side after hydration.
+If the above is not the case, Next.js will **statically optimize** your page automatically by prerendering the page to static HTML.
+
+During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client-side after hydration.
+
+> **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will always be available inside the `query` object.
 
 `next build` will emit `.html` files for statically optimized pages. For example, the result for the page `pages/about.js` would be:
 
@@ -24,7 +28,7 @@ If `getInitialProps` is absent, Next.js will **statically optimize** your page a
 .next/server/static/${BUILD_ID}/about.html
 ```
 
-And if you add `getInitialProps` to the page, it will then be JavaScript, like so:
+And if you add `getServerSideProps` to the page, it will then be JavaScript, like so:
 
 ```bash
 .next/server/static/${BUILD_ID}/about.js
