@@ -503,6 +503,18 @@ export async function renderToHTML(
       props[STATIC_PROPS_ID] = true
     }
 
+    if (
+      (isSSG || getServerSideProps) &&
+      props.pageProps &&
+      process.env.NODE_ENV !== 'production'
+    ) {
+      console.warn(
+        `"pageProps" was returned from "_app" for a "${pathname}" with ${
+          isSSG ? 'getStaticProps' : 'getServerSideProps'
+        } and will be overridden.\nSee here for more info: https://err.sh/next.js/gssp-pageprops-conflict`
+      )
+    }
+
     let previewData: string | false | object | undefined
 
     if ((isSSG || getServerSideProps) && !isFallback) {
