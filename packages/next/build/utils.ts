@@ -96,13 +96,13 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
 
-  if (useStatic404) {
-    pageInfos.set('/404', {
-      ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-      static: true,
-    } as any)
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+    static: useStatic404,
+  } as any)
+
+  if (!list.includes('/404')) {
     list = [...list, '/404']
   }
 
@@ -120,8 +120,8 @@ export async function printTreeView(
       e =>
         !(
           e === '/_document' ||
-          (!hasCustomApp && e === '/_app') ||
-          (!hasCustomError && e === '/_error')
+          e === '/_error' ||
+          (!hasCustomApp && e === '/_app')
         )
     )
     .sort((a, b) => a.localeCompare(b))

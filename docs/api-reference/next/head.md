@@ -67,4 +67,5 @@ In this case only the second `<meta name="viewport" />` is rendered.
 
 > The contents of `head` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `head`, without making assumptions about what other pages added.
 
-> `title` and `meta` elements need to be contained as **direct** children of the `Head` element, or wrapped into maximum one level of `<React.Fragment>`, otherwise the meta tags won't be correctly picked up on client-side navigations.
+`title`, `meta` or any other elements (e.g.`script`) need to be contained as **direct** children of the `Head` element,
+or wrapped into maximum one level of `<React.Fragment>`, otherwise the tags won't be correctly picked up on client-side navigations.
