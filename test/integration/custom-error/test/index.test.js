@@ -17,10 +17,16 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
-const runTests = () => {
+const runTests = isDev => {
   it('renders custom _error successfully', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/Custom error/)
+    expect(html).toMatch(isDev ? /oof/ : /Custom error/)
+  })
+
+  it('renders 404 page when ENOENT error is thrown', async () => {
+    const html = await renderViaHTTP(appPort, '/throw-404')
+    expect(html).toContain('Custom error')
+    expect(html).not.toContain('to 404 we go')
   })
 }
 
@@ -56,6 +62,8 @@ describe('Custom _error', () => {
       expect(html).toContain('An error 404 occurred on server')
       expect(stderr).toMatch(customErrNo404Match)
     })
+
+    runTests(true)
   })
 
   describe('production mode', () => {
