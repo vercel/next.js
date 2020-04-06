@@ -1,6 +1,1 @@
-{
-  "name": "launch-editor",
-  "main": "index.js",
-  "author": "Evan You",
-  "license": "MIT"
-}
+{"name":"launch-editor","main":"index.js","author":"Evan You","license":"MIT"}

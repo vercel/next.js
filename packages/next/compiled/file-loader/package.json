@@ -1,6 +1,1 @@
-{
-  "name": "file-loader",
-  "main": "cjs.js",
-  "author": "Tobias Koppers @sokra",
-  "license": "MIT"
-}
+{"name":"file-loader","main":"cjs.js","author":"Tobias Koppers @sokra","license":"MIT"}
