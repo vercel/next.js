@@ -1,4 +1,4 @@
-import { bold } from 'kleur'
+import { bold } from 'chalk'
 import {
   IWebpackConformanceTest,
   IConformanceTestResult,
