@@ -4,6 +4,12 @@ const IntlPolyfill = require('intl')
 Intl.NumberFormat = IntlPolyfill.NumberFormat
 Intl.DateTimeFormat = IntlPolyfill.DateTimeFormat
 
+// Polyfill DOMParser for **pre-v4** react-intl used by formatjs.
+// Only needed when using FormattedHTMLMessage. Make sure to install `xmldom`.
+// See: https://github.com/zeit/next.js/issues/10533
+// const { DOMParser } = require('xmldom')
+// global.DOMParser = DOMParser
+
 const { readFileSync } = require('fs')
 const { basename } = require('path')
 const { createServer } = require('http')
