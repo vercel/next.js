@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import 'firebase/firestore'
 
 export async function getStaticPaths() {
   return {
@@ -41,7 +42,7 @@ export async function getStaticProps({ params }) {
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
-    revalidate: 10,
+    unstable_revalidate: 10,
   }
 }
 
