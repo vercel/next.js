@@ -15,12 +15,7 @@ export default onPerfEntry => {
         onPerfEntry({
           name: 'first-input-delay-after-hydration',
           startTime: event.timeStamp,
-          value: delay,
-        })
-        onPerfEntry({
-          name: 'time-to-first-input-after-hydration',
-          startTime: hydrateEnd,
-          value: event.timeStamp - hydrateEnd,
+          duration: delay,
         })
         // ;['Next.js-hydration', 'Next.js-before-hydration'].forEach(measure =>
         //   performance.clearMeasures(measure)
@@ -29,7 +24,7 @@ export default onPerfEntry => {
         onPerfEntry({
           name: 'first-input-delay-before-hydration',
           startTime: event.timeStamp,
-          value: delay,
+          duration: delay,
         })
       }
     }

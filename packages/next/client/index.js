@@ -175,16 +175,6 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
         entryType,
       })
     }
-  } else {
-    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
-      console.log({
-        name,
-        startTime,
-        value,
-        duration,
-        entryType,
-      })
-    }
   }
 
   let initialErr = err
