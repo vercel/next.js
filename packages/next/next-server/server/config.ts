@@ -136,10 +136,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       if (!!value && value.constructor === Object) {
-        config[key] = Object.keys(defaultConfig[key]).reduce<any>((c, k) => {
-          c[k] = value[k] ?? defaultConfig[key][k]
-          return c
-        }, {})
+        config[key] = {
+          ...defaultConfig[key],
+          ...Object.keys(value).reduce<any>((c, k) => {
+            const v = value[k]
+            if (v !== undefined && v !== null) {
+              c[k] = v
+            }
+            return c
+          }, {}),
+        }
       } else {
         config[key] = value
       }
