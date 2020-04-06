@@ -260,6 +260,46 @@ const runTests = (dev = false) => {
     expect(data.pageProps.params).toEqual({ path: ['first'] })
   })
 
+  it('should have original req.url for /_next/data request dynamic page', async () => {
+    const curUrl = `/_next/data/${buildId}/blog/post-1.json`
+    const data = await renderViaHTTP(appPort, curUrl)
+    const { appProps } = JSON.parse(data)
+
+    expect(appProps).toEqual({
+      url: curUrl,
+      query: { post: 'post-1' },
+      asPath: curUrl,
+      pathname: '/blog/[post]',
+    })
+  })
+
+  it('should have original req.url for /_next/data request', async () => {
+    const curUrl = `/_next/data/${buildId}/something.json`
+    const data = await renderViaHTTP(appPort, curUrl)
+    const { appProps } = JSON.parse(data)
+
+    expect(appProps).toEqual({
+      url: curUrl,
+      query: {},
+      asPath: curUrl,
+      pathname: '/something',
+    })
+  })
+
+  it('should have correct req.url and query for direct visit dynamic page', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1')
+    const $ = cheerio.load(html)
+    expect($('#app-url').text()).toContain('/blog/post-1')
+    expect(JSON.parse($('#app-query').text())).toEqual({ post: 'post-1' })
+  })
+
+  it('should have correct req.url and query for direct visit', async () => {
+    const html = await renderViaHTTP(appPort, '/something')
+    const $ = cheerio.load(html)
+    expect($('#app-url').text()).toContain('/something')
+    expect(JSON.parse($('#app-query').text())).toEqual({})
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
       await renderViaHTTP(appPort, `/_next/data/${buildId}/something.json`)
