@@ -4,6 +4,10 @@
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
+  "repository": {
+    "url": "zeit/next.js",
+    "directory": "packages/next-polyfill-nomodule"
+  },
   "scripts": {
     "prepublish": "microbundle src/index.js -f iife --no-sourcemap --external none",
     "build": "microbundle watch src/index.js -f iife --no-sourcemap --external none"
