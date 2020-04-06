@@ -220,29 +220,24 @@ export class Head extends Component<
 
     return (
       dedupe(dynamicImports)
-        .map((bundle: any) => {
-          // `dynamicImports` will contain both `.js` and `.module.js` when the
-          // feature is enabled. This clause will filter down to the modern
-          // variants only.
-          if (!bundle.file.endsWith(getOptionalModernScriptVariant('.js'))) {
-            return null
-          }
-
-          return (
-            <link
-              rel="preload"
-              key={bundle.file}
-              href={`${assetPrefix}/_next/${encodeURI(
-                bundle.file
-              )}${_devOnlyInvalidateCacheQueryString}`}
-              as="script"
-              nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
-        // Filter out nulled scripts
-        .filter(Boolean)
+        // `dynamicImports` will contain both `.js` and `.module.js` when the
+        // feature is enabled. This clause will filter down to the modern
+        // variants only.
+        .filter((bundle: any) =>
+          bundle.file.endsWith(getOptionalModernScriptVariant('.js'))
+        )
+        .map((bundle: any) => (
+          <link
+            rel="preload"
+            key={bundle.file}
+            href={`${assetPrefix}/_next/${encodeURI(
+              bundle.file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            nonce={this.props.nonce}
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        ))
     )
   }
 
