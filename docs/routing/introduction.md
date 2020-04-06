@@ -84,6 +84,24 @@ function Home() {
 export default Home
 ```
 
+The `as` prop can also be generated dynamically. For example, to show a list of posts which have been passed to the page as a prop:
+
+```jsx
+function Home({ posts }) {
+  return (
+    <ul>
+      {posts.map(post => (
+        <li key={post.id}>
+          <Link href="/blog/[slug]" as={`/blog/${post.slug}`}>
+            <a>{post.title}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
 ## Injecting the router
 
 <details>
