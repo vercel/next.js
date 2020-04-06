@@ -12,6 +12,7 @@ import {
   fetchViaHTTP,
   check,
   File,
+  nextBuild,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -23,7 +24,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const context = {}
 
-const startServer = async (optEnv = {}) => {
+const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
   const env = Object.assign(
@@ -37,7 +38,8 @@ const startServer = async (optEnv = {}) => {
     scriptPath,
     /ready on/i,
     env,
-    /ReferenceError: options is not defined/
+    /ReferenceError: options is not defined/,
+    opts
   )
 }
 
@@ -140,6 +142,45 @@ describe('Custom Server', () => {
           await browser.close()
         }
       }
+    })
+  })
+
+  describe('Error when rendering without starting slash', () => {
+    afterEach(() => killApp(server))
+
+    it('should warn in dev mode', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+      const html = await renderViaHTTP(appPort, '/no-slash')
+      expect(html).toContain('made it to dashboard')
+      expect(stderr).toContain('Cannot render page with path "dashboard"')
+    })
+
+    it('should warn in production mode', async () => {
+      const { code } = await nextBuild(appDir)
+      expect(code).toBe(0)
+
+      let stderr = ''
+
+      await startServer(
+        { NODE_ENV: 'production' },
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+
+      const html = await renderViaHTTP(appPort, '/no-slash')
+      expect(html).toContain('made it to dashboard')
+      expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
   })
 })
