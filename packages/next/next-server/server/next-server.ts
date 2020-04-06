@@ -787,14 +787,12 @@ export default class Server {
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
+      const noSlashError = `Cannot render page with path "${pathname}", did you mean "/${pathname}"?`
+
       if (process.env.NODE_ENV !== 'production') {
-        throw new Error(
-          `Cannot render page with path "${pathname}", did you mean "/${pathname}"?`
-        )
+        throw new Error(noSlashError)
       } else {
-        console.warn(
-          `Cannot render page with path "${pathname}", did you mean "/${pathname}"?`
-        )
+        console.warn(noSlashError)
       }
     }
 
