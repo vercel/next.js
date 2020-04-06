@@ -117,33 +117,51 @@ async function run() {
     }
 
     if (template.value === 'example') {
-      const examplesJSON = await listExamples()
-      const choices = examplesJSON.map((example: any) => ({
-        title: example.name,
-        value: example.name,
-      }))
-      // The search function built into `prompts` isn’t very helpful:
-      // someone searching for `styled-components` would get no results since
-      // the example is called `with-styled-components`, and `prompts` searches
-      // the beginnings of titles.
-      const nameRes = await prompts({
-        type: 'autocomplete',
-        name: 'exampleName',
-        message: 'Pick an example',
-        choices,
-        suggest: (input: any, choices: any) => {
-          const regex = new RegExp(input, 'i')
-          return choices.filter((choice: any) => regex.test(choice.title))
-        },
-      })
+      let examplesJSON: any
 
-      if (!nameRes.exampleName) {
+      try {
+        examplesJSON = await listExamples()
+      } catch (error) {
         console.log()
-        console.log('Please specify an example or use the default starter app.')
-        process.exit(1)
+        console.log(
+          'Failed to fetch the list of examples with the following error:'
+        )
+        console.error(error)
+        console.log()
+        console.log('Switching to the default starter app')
+        console.log()
       }
 
-      program.example = nameRes.exampleName
+      if (examplesJSON) {
+        const choices = examplesJSON.map((example: any) => ({
+          title: example.name,
+          value: example.name,
+        }))
+        // The search function built into `prompts` isn’t very helpful:
+        // someone searching for `styled-components` would get no results since
+        // the example is called `with-styled-components`, and `prompts` searches
+        // the beginnings of titles.
+        const nameRes = await prompts({
+          type: 'autocomplete',
+          name: 'exampleName',
+          message: 'Pick an example',
+          choices,
+          suggest: (input: any, choices: any) => {
+            const regex = new RegExp(input, 'i')
+            return choices.filter((choice: any) => regex.test(choice.title))
+          },
+        })
+
+        if (!nameRes.exampleName) {
+          console.log()
+          console.log(
+            'Please specify an example or use the default starter app.'
+          )
+          process.exit(1)
+        }
+
+        program.example = nameRes.exampleName
+      }
     }
   }
 

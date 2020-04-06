@@ -169,7 +169,6 @@ describe('create next app', () => {
 
       function pickExample(data) {
         if (/hello-world/.test(data.toString())) {
-          console.log('YO')
           res.stdout.removeListener('data', pickExample)
           res.stdin.write('\n')
         }
