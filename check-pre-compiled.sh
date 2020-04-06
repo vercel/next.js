@@ -8,6 +8,5 @@ yarn --cwd packages/next ncc-compiled
 if [[ ! -z $(git status -s) ]];then
   echo "Detected changes"
   git status
-  ls node_modules/chalk
   exit 1
 fi
