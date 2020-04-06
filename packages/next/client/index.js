@@ -175,6 +175,16 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
         entryType,
       })
     }
+  } else {
+    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
+      console.log({
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+      })
+    }
   }
 
   let initialErr = err
@@ -347,13 +357,15 @@ function markHydrateComplete() {
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
   if (onPerfEntry) {
-    import('../next-server/lib/fid-measure')
-      .then(mod => {
-        mod.default(onPerfEntry)
-      })
-      .catch(err => {
-        console.error('Error measuring FID', err)
-      })
+    if (process.env.__NEXT_FID_POLYFILL) {
+      import('../next-server/lib/fid-measure')
+        .then(mod => {
+          mod.default(onPerfEntry)
+        })
+        .catch(err => {
+          console.error('Error measuring First Input Delay', err)
+        })
+    }
 
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
     performance.getEntriesByName('beforeRender').forEach(onPerfEntry)

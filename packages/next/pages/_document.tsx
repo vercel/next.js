@@ -279,7 +279,11 @@ export class Head extends Component<
         })
   }
 
-  getFidPolyfill(): JSX.Element {
+  getFidPolyfill(): JSX.Element | null {
+    if (!process.env.__NEXT_FID_POLYFILL) {
+      return null
+    }
+
     return (
       <script
         dangerouslySetInnerHTML={{
@@ -474,7 +478,6 @@ export class Head extends Component<
                 }}
               />
             </noscript>
-            {this.getFidPolyfill()}
             <script async src="https://cdn.ampproject.org/v0.js" />
           </>
         )}
@@ -527,9 +530,9 @@ export class Head extends Component<
                 <noscript id="__next_css__DO_NOT_USE__" />
               )}
             {styles || null}
-            {this.getFidPolyfill()}
           </>
         )}
+        {this.getFidPolyfill()}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )
