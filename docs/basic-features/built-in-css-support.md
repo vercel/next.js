@@ -15,14 +15,15 @@ For example, consider the following stylesheet named `styles.css`:
 
 ```css
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', system-ui;
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
 }
 ```
 
-Create a [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) if not already present.
+Create a [`pages/_app.js` file](/docs/advanced-features/custom-app) if not already present.
 Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
 ```jsx
@@ -35,7 +36,7 @@ export default function MyApp({ Component, pageProps }) {
 ```
 
 These styles (`styles.css`) will apply to all pages and components in your application.
-Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](https://nextjs.org/docs/advanced-features/custom-app)**.
+Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](/docs/advanced-features/custom-app)**.
 
 In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
 
@@ -172,7 +173,18 @@ Sass support has the same benefits and restrictions as the built-in CSS support 
 
 ## Less and Stylus Support
 
-To support importing `.less` or `.styl` files you can use the following plugins:
+To support importing `.less` or `.styl` files you can use the following plugins:
 
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/advanced-features/customizing-postcss-config.md">
+    <b>Customizing PostCSS Config:</b>
+    <small>Extend the PostCSS config and plugins added by Next.js with your own.</small>
+  </a>
+</div>

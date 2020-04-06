@@ -30,7 +30,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 - `pages/blog/[slug].js` → `/blog/:slug` (`/blog/hello-world`)
 - `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
-- `pages/post/[...all]` → `/post/*` (`/post/2020/id/title`)
+- `pages/post/[...all].js` → `/post/*` (`/post/2020/id/title`)
 
 ## Linking between pages
 
@@ -82,6 +82,24 @@ function Home() {
 }
 
 export default Home
+```
+
+The `as` prop can also be generated dynamically. For example, to show a list of posts which have been passed to the page as a prop:
+
+```jsx
+function Home({ posts }) {
+  return (
+    <ul>
+      {posts.map(post => (
+        <li key={post.id}>
+          <Link href="/blog/[slug]" as={`/blog/${post.slug}`}>
+            <a>{post.title}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
 ```
 
 ## Injecting the router

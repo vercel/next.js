@@ -1,4 +1,4 @@
-import curry from 'lodash.curry'
+import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
 import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
@@ -43,6 +43,7 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
+        sassOptions: ctx.sassOptions,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead
@@ -182,7 +183,7 @@ export const css = curry(async function css(
               regexCssGlobal,
               (scssEnabled && regexSassGlobal) as RegExp,
             ].filter(Boolean),
-            use: require.resolve('ignore-loader'),
+            use: require.resolve('next/dist/compiled/ignore-loader'),
           },
         ],
       })
@@ -282,7 +283,7 @@ export const css = curry(async function css(
             use: {
               // `file-loader` always emits a URL reference, where `url-loader`
               // might inline the asset as a data URI
-              loader: require.resolve('file-loader'),
+              loader: require.resolve('next/dist/compiled/file-loader'),
               options: {
                 // Hash the file for immutable cacheability
                 name: 'static/media/[name].[hash].[ext]',

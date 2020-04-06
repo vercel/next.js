@@ -11,13 +11,13 @@ const readline = require('readline').createInterface({
   output: process.stdout,
 })
 
-// In order to set up a database, we need a server key, so let's ask the user for a key.
-readline.question(`Please provide the FaunaDB server key\n`, serverKey => {
+// In order to set up a database, we need an admin key, so let's ask the user for a key.
+readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
   // A graphql schema can be imported in override or merge mode: 'https://docs.fauna.com/fauna/current/api/graphql/endpoints#import'
   const options = {
     model: 'merge',
     uri: 'https://graphql.fauna.com/import',
-    headers: { Authorization: `Bearer ${serverKey}` },
+    headers: { Authorization: `Bearer ${adminKey}` },
   }
   const stream = fs.createReadStream('./schema.gql').pipe(request.post(options))
 
@@ -42,9 +42,9 @@ readline.question(`Please provide the FaunaDB server key\n`, serverKey => {
       console.error(`Could not import schema, closing`)
     })
     .then(res => {
-      // The GraphQL schema is important, this means that we now have a GuestbookEntry Colleciton and an entries index.
+      // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
-      var client = new faunadb.Client({ secret: serverKey })
+      var client = new faunadb.Client({ secret: adminKey })
       return client
         .query(
           q.CreateRole({
@@ -52,7 +52,7 @@ readline.question(`Please provide the FaunaDB server key\n`, serverKey => {
             privileges: [
               {
                 resource: q.Collection('GuestbookEntry'),
-                actions: { read: true, write: true },
+                actions: { read: true, write: true, create: true },
               },
               {
                 resource: q.Index('entries'),
@@ -79,9 +79,9 @@ readline.question(`Please provide the FaunaDB server key\n`, serverKey => {
       console.error(`Failed to create role, closing`)
     })
     .then(res => {
-      // The GraphQL schema is important, this means that we now have a GuestbookEntry Colleciton and an entries index.
+      // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
-      var client = new faunadb.Client({ secret: serverKey })
+      var client = new faunadb.Client({ secret: adminKey })
       return client
         .query(
           q.CreateKey({

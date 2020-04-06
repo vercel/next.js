@@ -1,0 +1,12 @@
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+name: Generate Pull Request Stats
+
+jobs:
+  stats:
+    name: PR Stats
+    runs-on: ubuntu-latest
+    steps:
+      - uses: zeit/next-stats-action@master

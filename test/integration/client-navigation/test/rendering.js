@@ -17,6 +17,14 @@ export default function(render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    it('should handle undefined prop in head server-side', async () => {
+      const html = await render('/head')
+      const $ = cheerio.load(html)
+      const value = 'content' in $('meta[name="empty-content"]').attr()
+
+      expect(value).toBe(false)
+    })
+
     test('renders with fragment syntax', async () => {
       const html = await render('/fragment-syntax')
       expect(html.includes('My component!')).toBeTruthy()
@@ -44,7 +52,7 @@ export default function(render, fetch) {
     test('header renders default viewport', async () => {
       const html = await render('/default-head')
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>'
+        '<meta name="viewport" content="width=device-width"/>'
       )
     })
 

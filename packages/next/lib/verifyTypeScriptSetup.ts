@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
@@ -123,7 +123,6 @@ export async function verifyTypeScriptSetup(
   }
 
   const tsPath = await checkDependencies({ dir, isYarn })
-  // @ts-ignore
   const ts = (await import(tsPath)) as typeof import('typescript')
 
   const compilerOptions: any = {

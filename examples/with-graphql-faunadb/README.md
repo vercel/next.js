@@ -6,7 +6,7 @@ This simple Guestbook SPA example shows you how to use [FaunaDB's GraphQL endpoi
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-graphql-faunadb)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-graphql-faunadb)
 
 ## Why FaunaDB
 
@@ -16,7 +16,7 @@ By importing a `.gql` or `.graphql` schema into FaunaDB ([see our sample schema 
 
 You can start with this template [using `create-next-app`](#using-create-next-app) or by [downloading the repository manually](#download-manually).
 
-To use a live FaunaDB database, create a database at [dashboard.fauna.com](https://dashboard.fauna.com/) and generate a server token by going to the **Security** tab on the left and then click **New Key**. Give the new key a name and select the 'Server' Role. Copy the token since the setup script will ask for it. Do not use it in the frontend, it has superpowers which you don't want to give to your users.
+To use a live FaunaDB database, create a database at [dashboard.fauna.com](https://dashboard.fauna.com/) and generate an admin token by going to the **Security** tab on the left and then click **New Key**. Give the new key a name and select the 'Admin' Role. Copy the token since the setup script will ask for it. Do not use it in the frontend, it has superpowers which you don't want to give to your users.
 
 The database can then be set up with the delivered setup by running:
 
@@ -24,7 +24,7 @@ The database can then be set up with the delivered setup by running:
 yarn setup
 ```
 
-This script will ask for the server token. Once you provide it with a valid token, this is what the script automatically does for you:
+This script will ask for the admin token. Once you provide it with a valid token, this is what the script automatically does for you:
 
 - **Import the GraphQL schema**, by importing a GraphQL schema in FaunaDB, FaunaDB automatically sets up collections and indexes to support your queries. This is now done for you with this script but can also be done from the [dashboard.fauna.com](https://dashboard.fauna.com/) UI by going to the GraphQL tab
 - **Create a role suitable for the Client**, FaunaDB has a security system that allows you to define which resources can be accessed for a specific token. That's how we limit our clients powers, feel free to look at the scripts/setup.js script to see how we make roles and tokens.
@@ -67,8 +67,4 @@ Make sure to leave us a guestbook message in our [live demo](https://with-graphq
 
 ### Deploy
 
-Deploy it to the cloud with [now](https://zeit.co/now)! [Install now](https://zeit.co/download) on your development machine before proceeding:
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

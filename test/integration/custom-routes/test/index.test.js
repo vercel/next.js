@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
@@ -17,19 +18,22 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
+  initNextServerScript,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
+let externalServerHits = new Set()
+let nextConfigRestoreContent
 let nextConfigContent
-let buildId
+let externalServerPort
+let externalServer
 let stdout = ''
+let buildId
 let appPort
 let app
-
-const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
@@ -40,6 +44,14 @@ const runTests = (isDev = false) => {
   it('should handle chained rewrites successfully', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/multi-rewrites/)
+  })
+
+  it('should not match dynamic route immediately after applying header', async () => {
+    const res = await fetchViaHTTP(appPort, '/blog/post-321')
+    expect(res.headers.get('x-something')).toBe('applied-everywhere')
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('p').text()).path).toBe('blog')
   })
 
   it('should handle chained redirects successfully', async () => {
@@ -92,19 +104,39 @@ const runTests = (isDev = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, hash } = url.parse(res.headers.get('location'))
+    const { pathname, hash, query } = url.parse(
+      res.headers.get('location'),
+      true
+    )
     expect(res.status).toBe(301)
     expect(pathname).toBe('/docs/v2/network/status-codes')
     expect(hash).toBe('#500')
+    expect(query).toEqual({})
   })
 
   it('should redirect successfully with provided statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect2', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname, query } = url.parse(res.headers.get('location'), true)
     expect(res.status).toBe(301)
     expect(pathname).toBe('/')
+    expect(query).toEqual({})
+  })
+
+  it('should redirect successfully with catchall', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/catchall-redirect/hello/world',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/somewhere')
+    expect(query).toEqual({})
   })
 
   it('should server static files through a rewrite', async () => {
@@ -146,7 +178,10 @@ const runTests = (isDev = false) => {
     const { pathname, query } = url.parse(res.headers.get('location'), true)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
-    expect(query).toEqual({ first: 'hello', second: 'world' })
+    expect(query).toEqual({
+      first: 'hello',
+      second: 'world',
+    })
   })
 
   it('should overwrite param values correctly', async () => {
@@ -154,6 +189,22 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/this-should-be-the-value/)
     expect(html).not.toMatch(/first/)
     expect(html).toMatch(/second/)
+  })
+
+  // current routes order do not allow rewrites to override page
+  // but allow redirects to
+  it('should not allow rewrite to override page file', async () => {
+    const html = await renderViaHTTP(appPort, '/nav')
+    expect(html).toContain('to-hello')
+  })
+
+  it('show allow redirect to override the page', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect-override', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/thank-you-next')
   })
 
   it('should work successfully on the client', async () => {
@@ -229,13 +280,20 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should support proxying to external resource', async () => {
+    const res = await fetchViaHTTP(appPort, '/proxy-me/first')
+    expect(res.status).toBe(200)
+    expect([...externalServerHits]).toEqual(['/first?path=first'])
+    expect(await res.text()).toContain('hi from external')
+  })
+
   it('should support unnamed parameters correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/unnamed/first/final', undefined, {
       redirect: 'manual',
     })
     const { pathname } = url.parse(res.headers.get('location') || '')
     expect(res.status).toBe(307)
-    expect(pathname).toBe('/first/final')
+    expect(pathname).toBe('/got-unnamed')
   })
 
   it('should support named like unnamed parameters correctly', async () => {
@@ -268,13 +326,62 @@ const runTests = (isDev = false) => {
   it('should handle api rewrite with un-named param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-regex/hello/world')
     expect(JSON.parse(data)).toEqual({
-      query: { '1': 'hello/world', name: 'hello/world' },
+      query: { name: 'hello/world', first: 'hello/world' },
     })
   })
 
   it('should handle api rewrite with param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-param/hello')
-    expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
+    expect(JSON.parse(data)).toEqual({
+      query: { name: 'hello', hello: 'hello' },
+    })
+  })
+
+  it('should handle encoded value in the pathname correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/redirect/me/to-about/' + encodeURI('\\google.com'),
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    const { pathname, hostname, query } = url.parse(
+      res.headers.get('location') || '',
+      true
+    )
+    expect(res.status).toBe(307)
+    expect(pathname).toBe(encodeURI('/\\google.com/about'))
+    expect(hostname).not.toBe('google.com')
+    expect(query).toEqual({})
+  })
+
+  it('should handle unnamed parameters with multi-match successfully', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/unnamed-params/nested/first/second/hello/world'
+    )
+    const params = JSON.parse(
+      cheerio
+        .load(html)('p')
+        .text()
+    )
+    expect(params).toEqual({ test: 'hello' })
+  })
+
+  it('should handle named regex parameters with multi-match successfully', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/docs/integrations/v2-some/thing',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/integrations/-some/thing')
   })
 
   if (!isDev) {
@@ -294,8 +401,17 @@ const runTests = (isDev = false) => {
 
       expect(manifest).toEqual({
         version: 1,
+        pages404: true,
         basePath: '',
         redirects: [
+          {
+            destination: '/:lang/about',
+            regex: normalizeRegEx(
+              '^\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))$'
+            ),
+            source: '/redirect/me/to-about/:lang',
+            statusCode: 307,
+          },
           {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',
@@ -377,7 +493,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
           },
           {
-            destination: '/:1/:2',
+            destination: '/got-unnamed',
             regex: normalizeRegEx(
               '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
             ),
@@ -388,6 +504,28 @@ const runTests = (isDev = false) => {
             destination: '/:0',
             regex: normalizeRegEx('^\\/named-like-unnamed(?:\\/([^\\/]+?))$'),
             source: '/named-like-unnamed/:0',
+            statusCode: 307,
+          },
+          {
+            destination: '/thank-you-next',
+            regex: normalizeRegEx('^\\/redirect-override$'),
+            source: '/redirect-override',
+            statusCode: 307,
+          },
+          {
+            destination: '/:first/:second',
+            regex: normalizeRegEx(
+              '^\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)$'
+            ),
+            source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
+            statusCode: 307,
+          },
+          {
+            destination: '/somewhere',
+            regex: normalizeRegEx(
+              '^\\/catchall-redirect(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-redirect/:path*',
             statusCode: 307,
           },
         ],
@@ -420,12 +558,29 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
             source: '/my-headers/(.*)',
           },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'applied-everywhere',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/:path*',
+          },
         ],
         rewrites: [
           {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
             source: '/to-another',
+          },
+          {
+            destination: '/404',
+            regex: '^\\/nav$',
+            source: '/nav',
           },
           {
             source: '/hello-world',
@@ -494,25 +649,53 @@ const runTests = (isDev = false) => {
             source: '/hidden/_next/:path*',
           },
           {
+            destination: `http://localhost:${externalServerPort}/:path*`,
+            regex: normalizeRegEx(
+              '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/proxy-me/:path*',
+          },
+          {
             destination: '/api/hello',
             regex: normalizeRegEx('^\\/api-hello$'),
             source: '/api-hello',
           },
           {
-            destination: '/api/hello?name=:1',
+            destination: '/api/hello?name=:first*',
             regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
-            source: '/api-hello-regex/(.*)',
+            source: '/api-hello-regex/:first(.*)',
           },
           {
-            destination: '/api/hello?name=:name',
+            destination: '/api/hello?hello=:name',
             regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
             source: '/api-hello-param/:name',
+          },
+          {
+            destination: '/api/dynamic/:name?hello=:name',
+            regex: normalizeRegEx('^\\/api-dynamic-param(?:\\/([^\\/]+?))$'),
+            source: '/api-dynamic-param/:name',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
+            source: '/:path/post-321',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx(
+              '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))$'
+            ),
+            source: '/unnamed-params/nested/(.*)/:test/(.*)',
           },
         ],
         dynamicRoutes: [
           {
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          {
+            page: '/api/dynamic/[slug]',
+            regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
           },
           {
             page: '/blog/[post]',
@@ -529,14 +712,22 @@ const runTests = (isDev = false) => {
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
       expect(cleanStdout).toContain('Rewrites')
-      expect(cleanStdout).toMatch(/Source.*?Destination.*?statusCode/i)
+      expect(cleanStdout).toContain('Headers')
+      expect(cleanStdout).toMatch(/source.*?/i)
+      expect(cleanStdout).toMatch(/destination.*?/i)
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
-        expect(cleanStdout).toMatch(
-          new RegExp(
-            `${escapeRegex(route.source)}.*?${escapeRegex(route.destination)}`
-          )
-        )
+        expect(cleanStdout).toContain(route.source)
+        expect(cleanStdout).toContain(route.destination)
+      }
+
+      for (const route of manifest.headers) {
+        expect(cleanStdout).toContain(route.source)
+
+        for (const header of route.headers) {
+          expect(cleanStdout).toContain(header.key)
+          expect(cleanStdout).toContain(header.value)
+        }
       }
     })
   } else {
@@ -550,6 +741,32 @@ const runTests = (isDev = false) => {
 }
 
 describe('Custom routes', () => {
+  beforeEach(() => {
+    externalServerHits = new Set()
+  })
+  beforeAll(async () => {
+    externalServerPort = await findPort()
+    externalServer = http.createServer((req, res) => {
+      externalServerHits.add(req.url)
+      res.end('hi from external')
+    })
+    await new Promise((resolve, reject) => {
+      externalServer.listen(externalServerPort, error => {
+        if (error) return reject(error)
+        resolve()
+      })
+    })
+    nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
+    await fs.writeFile(
+      nextConfigPath,
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+    )
+  })
+  afterAll(async () => {
+    externalServer.close()
+    await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+  })
+
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -595,10 +812,77 @@ describe('Custom routes', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
-      await killApp(app)
       await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
+      await killApp(app)
     })
 
     runTests()
+  })
+
+  describe('raw serverless mode', () => {
+    beforeAll(async () => {
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace(/\/\/ target/, 'target'),
+        'utf8'
+      )
+      await nextBuild(appDir)
+
+      appPort = await findPort()
+      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
+        ...process.env,
+        PORT: appPort,
+      })
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
+      await killApp(app)
+    })
+
+    it('should apply rewrites in lambda correctly for page route', async () => {
+      const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
+      const data = JSON.parse(
+        cheerio
+          .load(html)('p')
+          .text()
+      )
+      expect(data).toEqual({
+        first: 'first',
+        second: 'second',
+        section: 'first',
+        name: 'second',
+      })
+    })
+
+    it('should apply rewrites in lambda correctly for dynamic route', async () => {
+      const html = await renderViaHTTP(appPort, '/blog/post-1')
+      expect(html).toContain('post-2')
+    })
+
+    it('should apply rewrites in lambda correctly for API route', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(appPort, '/api-hello-param/first')
+      )
+      expect(data).toEqual({
+        query: {
+          name: 'first',
+          hello: 'first',
+        },
+      })
+    })
+
+    it('should apply rewrites in lambda correctly for dynamic API route', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(appPort, '/api-dynamic-param/first')
+      )
+      expect(data).toEqual({
+        query: {
+          slug: 'first',
+          name: 'first',
+          hello: 'first',
+        },
+      })
+    })
   })
 })

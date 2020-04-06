@@ -81,6 +81,10 @@
           "title": "Advanced Features",
           "routes": [
             {
+              "title": "Preview Mode",
+              "path": "/docs/advanced-features/preview-mode.md"
+            },
+            {
               "title": "Dynamic Import",
               "path": "/docs/advanced-features/dynamic-import.md"
             },
@@ -144,8 +148,16 @@
             {
               "title": "`src` Directory",
               "path": "/docs/advanced-features/src-directory.md"
+            },
+            {
+              "title": "Multi Zones",
+              "path": "/docs/advanced-features/multi-zones.md"
             }
           ]
+        },
+        {
+          "title": "Upgrade Guide",
+          "path": "/docs/upgrading.md"
         },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]

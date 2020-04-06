@@ -1,8 +1,6 @@
 # Dynamic Routing example
 
-This example shows usage of dynamic routing.
-
-This example contains two dynamic pages:
+This example shows how to do [dynamic routing](https://nextjs.org/docs/routing/dynamic-routes) in Next.js. It contains two dynamic routes:
 
 1. `pages/post/[id]/index.js`
    - e.g. matches `/post/my-example` (`/post/:id`)
@@ -16,7 +14,7 @@ You can use `next/link` as displayed in this example to route to these pages cli
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing)
 
 ## How to use
 
@@ -49,8 +47,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [Now](https://zeit.co/now) ([download](https://zeit.co/download)):
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

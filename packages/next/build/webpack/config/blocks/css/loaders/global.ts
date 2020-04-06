@@ -5,8 +5,8 @@ import { getClientStyleLoader } from './client'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: postcss.AcceptedPlugin[],
-  preProcessors: webpack.RuleSetUseItem[] = []
+  postCssPlugins: readonly postcss.AcceptedPlugin[],
+  preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
 
@@ -29,7 +29,7 @@ export function getGlobalCssLoader(
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('postcss-loader'),
+    loader: require.resolve('next/dist/compiled/postcss-loader'),
     options: {
       ident: '__nextjs_postcss',
       plugins: postCssPlugins,
@@ -40,7 +40,7 @@ export function getGlobalCssLoader(
   loaders.push(
     // Webpack loaders run like a stack, so we need to reverse the natural
     // order of preprocessors.
-    ...preProcessors.reverse()
+    ...preProcessors.slice().reverse()
   )
 
   return loaders

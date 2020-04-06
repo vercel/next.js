@@ -1,14 +1,17 @@
-import AmpHtmlValidator from 'amphtml-validator'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import crypto from 'crypto'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
-import { join, relative } from 'path'
+import Worker from 'jest-worker'
+import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import checkCustomRoutes from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -19,19 +22,20 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import Router, { route, Params } from '../next-server/server/router'
-import { eventVersion } from '../telemetry/events'
+import Router, { Params, route } from '../next-server/server/router'
+import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import checkCustomRoutes from '../lib/check-custom-routes'
+import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
   )
 }
 
@@ -51,6 +55,8 @@ export default class DevServer extends Server {
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
+    ;(this.renderOpts as any).ampSkipValidation =
+      this.nextConfig.experimental?.amp?.skipValidation ?? false
     ;(this.renderOpts as any).ampValidator = (
       html: string,
       pathname: string
@@ -77,6 +83,28 @@ export default class DevServer extends Server {
     }
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
+    this.staticPathsWorker = new Worker(
+      require.resolve('./static-paths-worker'),
+      {
+        maxRetries: 0,
+        numWorkers: this.nextConfig.experimental.cpus,
+        forkOptions: {
+          env: {
+            ...process.env,
+            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+            // is the main Next.js one
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          },
+        },
+      }
+    ) as Worker & {
+      loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+    }
+
+    this.staticPathsWorker.getStdout().pipe(process.stdout)
+    this.staticPathsWorker.getStderr().pipe(process.stderr)
   }
 
   protected currentPhase() {
@@ -106,7 +134,7 @@ export default class DevServer extends Server {
         const { page, query = {} } = exportPathMap[path]
 
         // We use unshift so that we're sure the routes is defined before Next's default routes
-        this.router.add({
+        this.router.addFsRoute({
           match: route(path),
           type: 'route',
           name: `${path} exportpathmap route`,
@@ -138,6 +166,10 @@ export default class DevServer extends Server {
       return
     }
 
+    const regexPageExtension = new RegExp(
+      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    )
+
     let resolved = false
     return new Promise(resolve => {
       const pagesDir = this.pagesDir
@@ -161,18 +193,13 @@ export default class DevServer extends Server {
         const dynamicRoutedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
-          if (accuracy === undefined) {
+          if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
 
           let pageName =
             '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-
-          pageName = pageName.replace(
-            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
-
+          pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
           if (!isDynamicRoute(pageName)) {
@@ -220,6 +247,7 @@ export default class DevServer extends Server {
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
       config: this.nextConfig,
+      previewProps: this.getPreviewProps(),
       buildId: this.buildId,
     })
     await super.prepare()
@@ -230,7 +258,7 @@ export default class DevServer extends Server {
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
-      eventVersion({
+      eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -262,7 +290,8 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ) {
     const { pathname } = parsedUrl
-    const path = `/${(params.path || []).join('/')}`
+    const pathParts = params.path || []
+    const path = `/${pathParts.join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
     if (await this.hasPublicFile(path)) {
@@ -274,7 +303,7 @@ export default class DevServer extends Server {
         await this.renderError(err, req, res, pathname!, {})
         return true
       }
-      await this.servePublic(req, res, path)
+      await this.servePublic(req, res, pathParts)
       return true
     }
 
@@ -311,6 +340,18 @@ export default class DevServer extends Server {
     return this.customRoutes
   }
 
+  private _devCachedPreviewProps: __ApiPreviewProps | undefined
+  protected getPreviewProps() {
+    if (this._devCachedPreviewProps) {
+      return this._devCachedPreviewProps
+    }
+    return (this._devCachedPreviewProps = {
+      previewModeId: crypto.randomBytes(16).toString('hex'),
+      previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+      previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+    })
+  }
+
   private async loadCustomRoutes() {
     const result = {
       redirects: [],
@@ -336,13 +377,7 @@ export default class DevServer extends Server {
   }
 
   generateRoutes() {
-    const {
-      routes,
-      fsRoutes,
-      catchAllRoute,
-      dynamicRoutes,
-      pageChecker,
-    } = super.generateRoutes()
+    const { fsRoutes, ...otherRoutes } = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
@@ -359,7 +394,30 @@ export default class DevServer extends Server {
       },
     })
 
-    return { routes, fsRoutes, catchAllRoute, dynamicRoutes, pageChecker }
+    fsRoutes.push({
+      match: route('/:path*'),
+      type: 'route',
+      name: 'Catchall public directory route',
+      fn: async (req, res, params, parsedUrl) => {
+        const { pathname } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // Used in development to check public directory paths
+        if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
+          return {
+            finished: true,
+          }
+        }
+
+        return {
+          finished: false,
+        }
+      },
+    })
+
+    return { fsRoutes, ...otherRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
@@ -404,8 +462,7 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: { [key: string]: string },
-    options = {}
+    query: { [key: string]: string }
   ) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -432,12 +489,20 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
+        try {
+          await this.hotReloader!.ensurePage('/404')
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            throw err
+          }
+        }
+
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       }
       if (!this.quiet) console.error(err)
     }
-    const html = await super.renderToHTML(req, res, pathname, query, options)
+    const html = await super.renderToHTML(req, res, pathname, query)
     return html
   }
 
@@ -483,9 +548,12 @@ export default class DevServer extends Server {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
-  servePublic(req: IncomingMessage, res: ServerResponse, path: string) {
-    const p = join(this.publicDir, encodeURIComponent(path))
-    // we need to re-encode it since send decodes it
+  private servePublic(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathParts: string[]
+  ) {
+    const p = join(this.publicDir, ...pathParts.map(encodeURIComponent))
     return this.serveStatic(req, res, p)
   }
 
@@ -504,5 +572,45 @@ export default class DevServer extends Server {
 
     // Return the very first error we found.
     return errors[0]
+  }
+
+  protected isServeableUrl(untrustedFileUrl: string): boolean {
+    // This method mimics what the version of `send` we use does:
+    // 1. decodeURIComponent:
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
+    // 2. resolve:
+    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+
+    let decodedUntrustedFilePath: string
+    try {
+      // (1) Decode the URL so we have the proper file name
+      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
+    } catch {
+      return false
+    }
+
+    // (2) Resolve "up paths" to determine real request
+    const untrustedFilePath = resolve(decodedUntrustedFilePath)
+
+    // don't allow null bytes anywhere in the file path
+    if (untrustedFilePath.indexOf('\0') !== -1) {
+      return false
+    }
+
+    // During development mode, files can be added while the server is running.
+    // Checks for .next/static, .next/server, static and public.
+    // Note that in development .next/server is available for error reporting purposes.
+    // see `packages/next/next-server/server/next-server.ts` for more details.
+    if (
+      untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
+      untrustedFilePath.startsWith(join(this.distDir, 'server') + sep) ||
+      untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
+      untrustedFilePath.startsWith(join(this.dir, 'public') + sep)
+    ) {
+      return true
+    }
+
+    return false
   }
 }

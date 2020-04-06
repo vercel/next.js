@@ -1,20 +1,21 @@
-import chalk from 'chalk'
-import gzipSize from 'gzip-size'
+import chalk from 'next/dist/compiled/chalk'
+import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
 import {
-  Redirect,
-  Rewrite,
-  getRedirectStatus,
-} from '../lib/check-custom-routes'
-import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+} from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
+import { GetStaticPaths } from 'next/types'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -41,6 +42,7 @@ export interface PageInfo {
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
+  hasSsgFallback: boolean
   serverBundle: string
 }
 
@@ -55,6 +57,7 @@ export async function printTreeView(
     pageExtensions,
     buildManifest,
     isModern,
+    useStatic404,
   }: {
     distPath: string
     buildId: string
@@ -62,6 +65,7 @@ export async function printTreeView(
     pageExtensions: string[]
     buildManifest: BuildManifestShape
     isModern: boolean
+    useStatic404: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
@@ -74,8 +78,17 @@ export async function printTreeView(
     return chalk.red.bold(size)
   }
 
+  const getCleanName = (fileName: string) =>
+    fileName
+      // Trim off `static/`
+      .replace(/^static\//, '')
+      // Re-add `static/` for root files
+      .replace(/^<buildId>/, 'static')
+      // Remove file hash
+      .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
+    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
       string,
       string,
       string
@@ -83,7 +96,23 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
+
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+    static: useStatic404,
+  } as any)
+
+  if (!list.includes('/404')) {
+    list = [...list, '/404']
+  }
+
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    buildId,
+    isModern,
+    pageInfos
+  )
 
   const pageList = list
     .slice()
@@ -91,8 +120,8 @@ export async function printTreeView(
       e =>
         !(
           e === '/_document' ||
-          (!hasCustomApp && e === '/_app') ||
-          (!hasCustomError && e === '/_error')
+          e === '/_error' ||
+          (!hasCustomApp && e === '/_app')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -135,6 +164,24 @@ export async function printTreeView(
         : '',
     ])
 
+    const uniqueCssFiles =
+      buildManifest.pages[item]?.filter(
+        file => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
+      ) || []
+
+    if (uniqueCssFiles.length > 0) {
+      const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+      uniqueCssFiles.forEach((file, index, { length }) => {
+        const innerSymbol = index === length - 1 ? '└' : '├'
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
+          prettyBytes(sizeData.sizeUniqueFiles[file]),
+          '',
+        ])
+      })
+    }
+
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
       const previewPages = totalRoutes === 4 ? 4 : 3
@@ -153,36 +200,40 @@ export async function printTreeView(
     }
   })
 
-  const sharedData = await getSharedSizes(
-    distPath,
-    buildManifest,
-    buildId,
-    isModern,
-    pageInfos
-  )
+  const sharedFilesSize = sizeData.sizeCommonFiles
+  const sharedFiles = sizeData.sizeCommonFile
 
-  messages.push(['+ shared by all', getPrettySize(sharedData.total), ''])
-  Object.keys(sharedData.files)
-    .map(e => e.replace(buildId, '<buildId>'))
-    .sort()
-    .forEach((fileName, index, { length }) => {
-      const innerSymbol = index === length - 1 ? '└' : '├'
+  messages.push([
+    '+ First Load JS shared by all',
+    getPrettySize(sharedFilesSize),
+    '',
+  ])
+  const sharedFileKeys = Object.keys(sharedFiles)
+  const sharedCssFiles: string[] = []
+  ;[
+    ...sharedFileKeys
+      .filter(file => {
+        if (file.endsWith('.css')) {
+          sharedCssFiles.push(file)
+          return false
+        }
+        return true
+      })
+      .map(e => e.replace(buildId, '<buildId>'))
+      .sort(),
+    ...sharedCssFiles.map(e => e.replace(buildId, '<buildId>')).sort(),
+  ].forEach((fileName, index, { length }) => {
+    const innerSymbol = index === length - 1 ? '└' : '├'
 
-      const originalName = fileName.replace('<buildId>', buildId)
-      const cleanName = fileName
-        // Trim off `static/`
-        .replace(/^static\//, '')
-        // Re-add `static/` for root files
-        .replace(/^<buildId>/, 'static')
-        // Remove file hash
-        .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+    const originalName = fileName.replace('<buildId>', buildId)
+    const cleanName = getCleanName(fileName)
 
-      messages.push([
-        `  ${innerSymbol} ${cleanName}`,
-        prettyBytes(sharedData.files[originalName]),
-        '',
-      ])
-    })
+    messages.push([
+      `  ${innerSymbol} ${cleanName}`,
+      prettyBytes(sharedFiles[originalName]),
+      '',
+    ])
+  })
 
   console.log(
     textTable(messages, {
@@ -200,7 +251,7 @@ export async function printTreeView(
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
-          )} or ${chalk.cyan('getServerProps')})`,
+          )} or ${chalk.cyan('getServerSideProps')})`,
         ],
         [
           '○',
@@ -228,43 +279,62 @@ export async function printTreeView(
 export function printCustomRoutes({
   redirects,
   rewrites,
+  headers,
 }: {
   redirects: Redirect[]
   rewrites: Rewrite[]
+  headers: Header[]
 }) {
   const printRoutes = (
-    routes: Redirect[] | Rewrite[],
-    type: 'Redirects' | 'Rewrites'
+    routes: Redirect[] | Rewrite[] | Header[],
+    type: 'Redirects' | 'Rewrites' | 'Headers'
   ) => {
     const isRedirects = type === 'Redirects'
+    const isHeaders = type === 'Headers'
     console.log(chalk.underline(type))
     console.log()
 
-    console.log(
-      textTable(
-        [
-          [
-            'Source',
-            'Destination',
-            ...(isRedirects ? ['statusCode'] : []),
-          ].map(str => chalk.bold(str)),
-          ...Object.entries(routes).map(([key, route]) => {
-            return [
-              route.source,
-              route.destination,
-              ...(isRedirects
-                ? [getRedirectStatus(route as Redirect) + '']
-                : []),
-            ]
-          }),
-        ],
-        {
-          align: ['l', 'l', 'l'],
-          stringLength: str => stripAnsi(str).length,
+    /*
+        ┌ source
+        ├ permanent/statusCode
+        └ destination
+     */
+    const routesStr = (routes as any[])
+      .map((route: { source: string }) => {
+        let routeStr = `┌ source: ${route.source}\n`
+
+        if (!isHeaders) {
+          const r = route as Rewrite
+          routeStr += `${isRedirects ? '├' : '└'} destination: ${
+            r.destination
+          }\n`
         }
-      )
-    )
-    console.log()
+        if (isRedirects) {
+          const r = route as Redirect
+          routeStr += `└ ${
+            r.statusCode
+              ? `status: ${r.statusCode}`
+              : `permanent: ${r.permanent}`
+          }\n`
+        }
+
+        if (isHeaders) {
+          const r = route as Header
+          routeStr += `└ headers:\n`
+
+          for (let i = 0; i < r.headers.length; i++) {
+            const header = r.headers[i]
+            const last = i === headers.length - 1
+
+            routeStr += `  ${last ? '└' : '├'} ${header.key}: ${header.value}\n`
+          }
+        }
+
+        return routeStr
+      })
+      .join('\n')
+
+    console.log(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -273,12 +343,16 @@ export function printCustomRoutes({
   if (rewrites.length) {
     printRoutes(rewrites, 'Rewrites')
   }
+  if (headers.length) {
+    printRoutes(headers, 'Headers')
+  }
 }
 
 type BuildManifestShape = { pages: { [k: string]: string[] } }
 type ComputeManifestShape = {
   commonFiles: string[]
   uniqueFiles: string[]
+  sizeUniqueFiles: { [file: string]: number }
   sizeCommonFile: { [file: string]: number }
   sizeCommonFiles: number
 }
@@ -307,6 +381,9 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach(key => {
+    // prevent duplicate '/' and '/index'
+    if (key === '/index') return
+
     if (key === '/_polyfills') {
       return
     }
@@ -323,8 +400,6 @@ async function computeFromManifest(
     ++expected
     manifest.pages[key].forEach(file => {
       if (
-        // Filter out CSS
-        !file.endsWith('.js') ||
         // Select Modern or Legacy scripts
         file.endsWith('.module.js') !== isModern
       ) {
@@ -369,14 +444,33 @@ async function computeFromManifest(
     stats = []
   }
 
+  let uniqueStats: [string, number][]
+  try {
+    uniqueStats = await Promise.all(
+      uniqueFiles.map(
+        async f =>
+          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+      )
+    )
+  } catch (_) {
+    uniqueStats = []
+  }
+
   lastCompute = {
     commonFiles,
     uniqueFiles,
+    sizeUniqueFiles: uniqueStats.reduce(
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
+      {}
+    ),
     sizeCommonFile: stats.reduce(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
+    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
+      if (f.endsWith('.css')) return size
+      return size + stat
+    }, 0),
   }
 
   cachedBuildManifest = manifest
@@ -401,24 +495,7 @@ function sum(a: number[]): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-export async function getSharedSizes(
-  distPath: string,
-  buildManifest: BuildManifestShape,
-  buildId: string,
-  isModern: boolean,
-  pageInfos: Map<string, PageInfo>
-): Promise<{ total: number; files: { [page: string]: number } }> {
-  const data = await computeFromManifest(
-    buildManifest,
-    distPath,
-    buildId,
-    isModern,
-    pageInfos
-  )
-  return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
-}
-
-export async function getPageSizeInKb(
+export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
@@ -474,15 +551,132 @@ export async function getPageSizeInKb(
   return [-1, -1]
 }
 
+export async function buildStaticPaths(
+  page: string,
+  getStaticPaths: GetStaticPaths
+): Promise<{ paths: string[]; fallback: boolean }> {
+  const prerenderPaths = new Set<string>()
+  const _routeRegex = getRouteRegex(page)
+  const _routeMatcher = getRouteMatcher(_routeRegex)
+
+  // Get the default list of allowed params.
+  const _validParamKeys = Object.keys(_routeMatcher(page))
+
+  const staticPathsResult = await getStaticPaths()
+
+  const expectedReturnVal =
+    `Expected: { paths: [], fallback: boolean }\n` +
+    `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+
+  if (
+    !staticPathsResult ||
+    typeof staticPathsResult !== 'object' ||
+    Array.isArray(staticPathsResult)
+  ) {
+    throw new Error(
+      `Invalid value returned from getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
+    )
+  }
+
+  const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
+    key => !(key === 'paths' || key === 'fallback')
+  )
+
+  if (invalidStaticPathKeys.length > 0) {
+    throw new Error(
+      `Extra keys returned from getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+        ', '
+      )}) ${expectedReturnVal}`
+    )
+  }
+
+  if (typeof staticPathsResult.fallback !== 'boolean') {
+    throw new Error(
+      `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
+        expectedReturnVal
+    )
+  }
+
+  const toPrerender = staticPathsResult.paths
+
+  if (!Array.isArray(toPrerender)) {
+    throw new Error(
+      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+        `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
+    )
+  }
+
+  toPrerender.forEach(entry => {
+    // For a string-provided path, we must make sure it matches the dynamic
+    // route.
+    if (typeof entry === 'string') {
+      const result = _routeMatcher(entry)
+      if (!result) {
+        throw new Error(
+          `The provided path \`${entry}\` does not match the page: \`${page}\`.`
+        )
+      }
+
+      prerenderPaths?.add(entry)
+    }
+    // For the object-provided path, we must make sure it specifies all
+    // required keys.
+    else {
+      const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+      if (invalidKeys.length) {
+        throw new Error(
+          `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
+            `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
+            `\n\n\treturn { params: { ${_validParamKeys
+              .map(k => `${k}: ...`)
+              .join(', ')} } }` +
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
+        )
+      }
+
+      const { params = {} } = entry
+      let builtPage = page
+      _validParamKeys.forEach(validParamKey => {
+        const { repeat } = _routeRegex.groups[validParamKey]
+        const paramValue = params[validParamKey]
+        if (
+          (repeat && !Array.isArray(paramValue)) ||
+          (!repeat && typeof paramValue !== 'string')
+        ) {
+          throw new Error(
+            `A required parameter (${validParamKey}) was not provided as ${
+              repeat ? 'an array' : 'a string'
+            } in getStaticPaths for ${page}`
+          )
+        }
+
+        builtPage = builtPage.replace(
+          `[${repeat ? '...' : ''}${validParamKey}]`,
+          repeat
+            ? (paramValue as string[]).map(encodeURIComponent).join('/')
+            : encodeURIComponent(paramValue as string)
+        )
+      })
+
+      prerenderPaths?.add(builtPage)
+    }
+  })
+
+  return { paths: [...prerenderPaths], fallback: staticPathsResult.fallback }
+}
+
 export async function isPageStatic(
   page: string,
   serverBundle: string,
   runtimeEnvConfig: any
 ): Promise<{
-  static?: boolean
-  prerender?: boolean
+  isStatic?: boolean
+  isAmpOnly?: boolean
   isHybridAmp?: boolean
+  hasServerProps?: boolean
+  hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
+  prerenderFallback?: boolean | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -494,13 +688,35 @@ export async function isPageStatic(
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.unstable_getStaticProps
-    const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasStaticProps = !!mod.getStaticProps
+    const hasStaticPaths = !!mod.getStaticPaths
+    const hasServerProps = !!mod.getServerSideProps
+    const hasLegacyServerProps = !!mod.unstable_getServerProps
+    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
+    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
       throw new Error(
-        `unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.`
+        `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticPaths) {
+      throw new Error(
+        `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticProps) {
+      throw new Error(
+        `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
+      )
+    }
+
+    if (hasLegacyServerProps) {
+      throw new Error(
+        `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
       )
     }
 
@@ -510,93 +726,48 @@ export async function isPageStatic(
       throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
     }
 
+    if (hasGetInitialProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+    }
+
+    if (hasStaticProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_SSG_CONFLICT)
+    }
+
+    const pageIsDynamic = isDynamicRoute(page)
     // A page cannot have static parameters if it is not a dynamic page.
-    if (hasStaticProps && hasStaticPaths && !isDynamicRoute(page)) {
+    if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
-        `unstable_getStaticPaths can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+        `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+          `\nLearn more: https://nextjs.org/docs#dynamic-routing`
       )
     }
 
-    let prerenderPaths: string[] | undefined
+    if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
+      throw new Error(
+        `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+          `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+      )
+    }
+
+    let prerenderRoutes: Array<string> | undefined
+    let prerenderFallback: boolean | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderPaths = [] as string[]
-
-      const _routeRegex = getRouteRegex(page)
-      const _routeMatcher = getRouteMatcher(_routeRegex)
-
-      // Get the default list of allowed params.
-      const _validParamKeys = Object.keys(_routeMatcher(page))
-
-      const toPrerender: Array<
-        { params?: { [key: string]: string } } | string
-      > = await mod.unstable_getStaticPaths()
-      toPrerender.forEach(entry => {
-        // For a string-provided path, we must make sure it matches the dynamic
-        // route.
-        if (typeof entry === 'string') {
-          const result = _routeMatcher(entry)
-          if (!result) {
-            throw new Error(
-              `The provided path \`${entry}\` does not match the page: \`${page}\`.`
-            )
-          }
-
-          prerenderPaths!.push(entry)
-        }
-        // For the object-provided path, we must make sure it specifies all
-        // required keys.
-        else {
-          const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
-          if (invalidKeys.length) {
-            throw new Error(
-              `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
-                `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
-                `\n\n\treturn { params: { ${_validParamKeys
-                  .map(k => `${k}: ...`)
-                  .join(', ')} } }` +
-                `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
-            )
-          }
-
-          const { params = {} } = entry
-          let builtPage = page
-          _validParamKeys.forEach(validParamKey => {
-            const { repeat } = _routeRegex.groups[validParamKey]
-            const paramValue: string | string[] = params[validParamKey] as
-              | string
-              | string[]
-            if (
-              (repeat && !Array.isArray(paramValue)) ||
-              (!repeat && typeof paramValue !== 'string')
-            ) {
-              throw new Error(
-                `A required parameter (${validParamKey}) was not provided as ${
-                  repeat ? 'an array' : 'a string'
-                }.`
-              )
-            }
-
-            builtPage = builtPage.replace(
-              `[${repeat ? '...' : ''}${validParamKey}]`,
-              encodeURIComponent(
-                repeat
-                  ? (paramValue as string[]).join('/')
-                  : (paramValue as string)
-              )
-            )
-          })
-
-          prerenderPaths!.push(builtPage)
-        }
-      })
+      ;({
+        paths: prerenderRoutes,
+        fallback: prerenderFallback,
+      } = await buildStaticPaths(page, mod.getStaticPaths))
     }
 
     const config = mod.config || {}
     return {
-      static: !hasStaticProps && !hasGetInitialProps,
+      isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes: prerenderPaths,
-      prerender: hasStaticProps,
+      isAmpOnly: config.amp === true,
+      prerenderRoutes,
+      prerenderFallback,
+      hasStaticProps,
+      hasServerProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
@@ -604,14 +775,14 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomAppGetInitialProps(
-  _appBundle: string,
+export function hasCustomGetInitialProps(
+  bundle: string,
   runtimeEnvConfig: any
 ): boolean {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(_appBundle)
+  let mod = require(bundle)
 
-  if (_appBundle.endsWith('_app.js')) {
+  if (bundle.endsWith('_app.js') || bundle.endsWith('_error.js')) {
     mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page

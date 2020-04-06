@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import findUp from 'find-up'
+import chalk from 'next/dist/compiled/chalk'
+import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
 
@@ -41,8 +41,9 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    jsconfigPaths: false,
     css: true,
-    scss: false,
+    scss: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -52,7 +53,8 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    static404: false,
+    sassOptions: {},
+    pageEnv: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -89,7 +91,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (key === 'distDir') {
         if (typeof value !== 'string') {
-          return config
+          throw new Error(
+            `Specified distDir is not a string, found type "${typeof value}"`
+          )
         }
         const userDistDir = value.trim()
 
@@ -100,7 +104,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
             `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
           )
         }
-        // make sure distDir isn't an empty string which can result the provided
+        // make sure distDir isn't an empty string as it can result in the provided
         // directory being deleted in development mode
         if (userDistDir.length === 0) {
           throw new Error(
@@ -198,7 +202,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-function normalizeConfig(phase: string, config: any) {
+export function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 
@@ -230,6 +234,14 @@ export default function loadConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
+
+    if (Object.keys(userConfig).length === 0) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
+      )
+    }
+
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(
         `Specified target is invalid. Provided: "${
@@ -245,20 +257,6 @@ export default function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
-    }
-
-    if (
-      userConfig.target &&
-      userConfig.target !== 'server' &&
-      ((userConfig.publicRuntimeConfig &&
-        Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
-        (userConfig.serverRuntimeConfig &&
-          Object.keys(userConfig.serverRuntimeConfig).length !== 0))
-    ) {
-      // TODO: change error message tone to "Only compatible with [fat] server mode"
-      throw new Error(
-        'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
-      )
     }
 
     if (

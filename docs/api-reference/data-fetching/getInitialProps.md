@@ -4,6 +4,13 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
+> **Recommended: [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)**
+>
+> If you're using Next.js 9.3 or newer, we recommend that you use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
+>
+> These new data fetching methods allow you to have a granular choice between static generation and server-side rendering.
+> Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data fetching](/docs/basic-features/data-fetching.md):
+
 <details>
   <summary><b>Examples</b></summary>
   <ul>
@@ -76,9 +83,62 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 - `getInitialProps` can **not** be used in children components, only in the default export of every page
 - If you are using server-side only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
 
+## TypeScript
+
+If you're using TypeScript, you can use the `NextPage` type for functional components:
+
+```jsx
+import { NextPage } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
+)
+
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
+}
+
+export default Page
+```
+
+And for `React.Component`, you can use `NextPageContext`:
+
+```jsx
+import React from 'react'
+import { NextPageContext } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+export default class Page extends React.Component<Props> {
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
+  }
+
+  render() {
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
+  }
+}
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/data-fetching.md">
+    <b>Data Fetching:</b>
+    <small>Learn more about data fetching in Next.js.</small>
+  </a>
+</div>
 
 <div class="card">
   <a href="/docs/basic-features/pages.md">
@@ -88,8 +148,8 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching.md">
-    <b>Data Fetching:</b>
-    <small>Learn more about data fetching in Next.js.</small>
+  <a href="/docs/advanced-features/automatic-static-optimization.md">
+    <b>Automatic Static Optimization:</b>
+    <small>Learn about how Nextjs automatically optimizes your pages.</small>
   </a>
 </div>

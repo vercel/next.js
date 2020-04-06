@@ -1,14 +1,14 @@
 # Shallow Routing Example
 
-With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
+With [Shallow Routing](https://nextjs.org/docs/routing/shallow-routing), we can change the URL without running data fetching methods (like `getStaticProps` and `getServerSideProps`) again.
 
-We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
+We do this by passing the `shallow: true` option to `Router.push` or `Router.replace`.
 
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing)
 
 ## How to use
 
@@ -41,8 +41,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

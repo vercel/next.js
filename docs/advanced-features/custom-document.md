@@ -37,6 +37,12 @@ export default MyDocument
 
 `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
 
+Custom attributes are allowed as props, like `lang`:
+
+```jsx
+<Html lang="en">
+```
+
 The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md#context-object), with one addition:
 
 - `renderPage`: `Function` - a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
@@ -47,6 +53,7 @@ The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/
 - React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead
 - `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md)
 - Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`. Those variables will be `undefined` when a page is being statically exported by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or by [`next export`](/docs/advanced-features/static-html-export.md)
+- Common errors include adding a `<title>` in the `<Head />` tag or using `styled-jsx`. These should be avoided in `pages/_document.js` as they lead to unexpected behavior
 
 ## Customizing `renderPage`
 

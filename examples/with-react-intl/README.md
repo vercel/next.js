@@ -33,11 +33,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ### Features of this example app
 
@@ -60,5 +56,18 @@ $ npm start
 ```
 
 You can then switch your browser's language preferences to French and refresh the page to see the UI update accordingly.
+
+### FormattedHTMLMessage support (react-intl pre-v4)
+
+Out of the box, this example does not support the use of the `FormattedHTMLMessage` component on the server due to `DOMParser` not being present in a Node environment.
+This functionality is deprecated and has been removed as of react-intl 4.0
+If you still want to enable this feature, you should install a `DOMParser` implementation (e.g. `xmldom` or `jsdom`) and enable the polyfill in `server.js`:
+
+```js
+// Polyfill Node with `DOMParser` required by formatjs.
+// See: https://github.com/zeit/next.js/issues/10533
+const { DOMParser } = require('xmldom')
+global.DOMParser = DOMParser
+```
 
 [react intl]: https://github.com/yahoo/react-intl

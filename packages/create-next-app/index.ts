@@ -21,8 +21,23 @@ const program = new Commander.Command(packageJson.name)
   })
   .option('--use-npm')
   .option(
-    '-e, --example <example-path>',
-    'an example to bootstrap the app with'
+    '-e, --example <name>|<github-url>',
+    `
+
+  An example to bootstrap the app with. You can use an example name
+  from the official Next.js repo or a GitHub URL. The URL can use
+  any branch and/or subdirectory
+`
+  )
+  .option(
+    '--example-path <path-to-example>',
+    `
+
+  In a rare case, your GitHub URL might contain a branch name with
+  a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
+  In this case, you must specify the path to the example separately:
+  --example-path foo/bar
+`
   )
   .allowUnknownOption()
   .parse(process.argv)
@@ -89,6 +104,7 @@ async function run() {
     example:
       (typeof program.example === 'string' && program.example.trim()) ||
       undefined,
+    examplePath: program.examplePath,
   })
 }
 

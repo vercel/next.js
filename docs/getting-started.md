@@ -10,17 +10,31 @@ If you're new to Next.js we recommend that you start with the [learn course](htt
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
+If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/zeit/next.js/discussions).
+
 #### System Requirements
 
-- [Node.js 10](https://nodejs.org/) or later
+- [Node.js 10.13](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
 
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+
+```bash
+npm init next-app
+# or
+yarn create next-app
+```
+
+After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
+
+## Manual Setup
+
 Install `next`, `react` and `react-dom` in your project:
 
 ```bash
-npm install --save next react react-dom
+npm install next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
@@ -39,7 +53,7 @@ These scripts refer to the different stages of developing an application:
 - `build` - Runs `next build` which builds the application for production usage
 - `start` - Runs `next start` which starts a Next.js production server
 
-Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory.
+Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
 
 Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even add dynamic route parameters with the filename.
 

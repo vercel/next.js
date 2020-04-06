@@ -2,8 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-// eslint-disable-next-line camelcase
-export async function unstable_getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
   return {
     props: {
       world: 'world',
@@ -11,7 +10,7 @@ export async function unstable_getStaticProps({ params }) {
       time: new Date().getTime(),
       random: Math.random(),
     },
-    revalidate: false,
+    unstable_revalidate: false,
   }
 }
 

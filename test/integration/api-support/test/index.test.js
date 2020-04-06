@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -118,16 +119,32 @@ function runTests(dev = false) {
   })
 
   it('should return error exceeded body limit', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: JSON.stringify(json),
-    })
+    let res
+    let error
 
-    expect(data.status).toEqual(413)
-    expect(data.statusText).toEqual('Body exceeded 1mb limit')
+    try {
+      res = await fetchViaHTTP(appPort, '/api/parse', null, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+        body: JSON.stringify(json),
+      })
+    } catch (err) {
+      error = err
+    }
+
+    if (error) {
+      // This is a temporary workaround for testing since node doesn't handle
+      // closed connections when POSTing data to an endpoint correctly
+      // https://github.com/nodejs/node/issues/12339
+      // TODO: investigate re-enabling this after above issue has been
+      // addressed in node or `node-fetch`
+      expect(error.code).toBe('EPIPE')
+    } else {
+      expect(res.status).toEqual(413)
+      expect(res.statusText).toEqual('Body exceeded 1mb limit')
+    }
   })
 
   it('should parse bigger body then 1mb', async () => {
@@ -306,6 +323,11 @@ function runTests(dev = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
+  it('should work with child_process correctly', async () => {
+    const data = await renderViaHTTP(appPort, '/api/child-process')
+    expect(data).toBe('hi')
+  })
+
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/')
@@ -344,10 +366,29 @@ function runTests(dev = false) {
         signal: controller.signal,
       }).catch(() => {})
       expect(stderr).toContain(
-        `API resolved without sending a response for /api/test-no-end, this may result in a stalled requests`
+        `API resolved without sending a response for /api/test-no-end, this may result in stalled requests.`
+      )
+    })
+
+    it('should not show warning when the API resolves and the response is piped', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      await fetchViaHTTP(appPort, `/api/test-res-pipe`, { port: appPort })
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for /api/test-res-pipe`
       )
     })
   } else {
+    it('should show warning with next export', async () => {
+      const { stdout } = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        { stdout: true }
+      )
+      expect(stdout).toContain(
+        'https://err.sh/zeit/next.js/api-routes-static-export'
+      )
+    })
+
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
         await fs.readFile(

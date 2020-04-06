@@ -1,8 +1,14 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
+import url from 'url'
 import { join, resolve as resolvePath } from 'path'
-import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  getBrowserBodyText,
+  waitFor,
+  fetchViaHTTP,
+} from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
@@ -41,6 +47,25 @@ module.exports = context => {
       for (const path of pathsToCheck) {
         const data = await renderViaHTTP(context.appPort, path)
         expect(data.includes('cool-version')).toBeFalsy()
+      }
+    })
+
+    it('should not allow accessing files outside .next/static directory', async () => {
+      const pathsToCheck = [
+        `/_next/static/../server/pages-manifest.json`,
+        `/_next/static/../server/build-manifest.json`,
+        `/_next/static/../BUILD_ID`,
+        `/_next/static/../routes-manifest.json`,
+      ]
+      for (const path of pathsToCheck) {
+        const res = await fetchViaHTTP(context.appPort, path)
+        const text = await res.text()
+        try {
+          expect(res.status).toBe(404)
+          expect(text).toMatch(/This page could not be found/)
+        } catch (err) {
+          throw new Error(`Path ${path} accessible from the browser`)
+        }
       }
     })
 
@@ -151,6 +176,42 @@ module.exports = context => {
       )
       await checkInjected(browser)
       await browser.close()
+    })
+
+    it('should handle encoded value in the pathname correctly \\', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/' + encodeURI('\\google.com'),
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe(encodeURI('/\\google.com/about'))
+      expect(hostname).not.toBe('google.com')
+    })
+
+    it('should handle encoded value in the pathname correctly %', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/%25google.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/%25google.com/about')
+      expect(hostname).not.toBe('google.com')
     })
   })
 }

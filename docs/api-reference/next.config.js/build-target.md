@@ -8,7 +8,7 @@ Next.js supports various build targets, each changing the way your application i
 
 ## `server` target
 
-> This is the default target, however, we highly recommend the [`serverless` target](#serverless-target). The `serverless` target enforces additional constraints to keep you in the [Pit of Success](https://blog.codinghorror.com/falling-into-the-pit-of-success/).
+> This is the default target, however, we highly recommend the [`serverless` target](#serverless-target). The `serverless` target enforces [additional constraints](https://rauchg.com/2020/2019-in-review#serverless-upgrades-itself) to keep you in the [Pit of Success](https://blog.codinghorror.com/falling-into-the-pit-of-success/).
 
 This target is compatible with both `next start` and [custom server](/docs/advanced-features/custom-server.md) setups (it's mandatory for a custom server).
 
@@ -16,9 +16,11 @@ Your application will be built and deployed as a monolith. This is the default t
 
 ## `serverless` target
 
-> Deployments to [ZEIT Now](https://zeit.co/home) will automatically enable this target. You do not need to opt-into it yourself, but you can.
+> Deployments to [ZEIT Now](https://zeit.co) will automatically enable this target. You do not need to opt-into it yourself, but you can.
 
-This target will output each page in a self-contained Serverless Function. It's only compatible with `next start` or Serverless deployment platforms (like ZEIT Now) — you cannot use the custom server API.
+This target will output independent pages that don't require a monolithic server.
+
+It's only compatible with `next start` or Serverless deployment platforms (like [ZEIT Now](https://zeit.co)) — you cannot use the custom server API.
 
 To opt-into this target, set the following configuration in your `next.config.js`:
 
