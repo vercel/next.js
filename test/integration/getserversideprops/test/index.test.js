@@ -1,21 +1,23 @@
 /* eslint-env jest */
 /* global jasmine */
-import fs from 'fs-extra'
-import { join } from 'path'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
+import fs from 'fs-extra'
 import {
-  renderViaHTTP,
+  check,
   fetchViaHTTP,
   findPort,
-  launchApp,
+  getBrowserBodyText,
   killApp,
-  waitFor,
+  launchApp,
   nextBuild,
   nextStart,
   normalizeRegEx,
+  renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
@@ -66,15 +68,33 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/custom-cache.json$`
+    ),
+    page: '/custom-cache',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
     ),
     page: '/default-revalidate',
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent.json$`
+    ),
+    page: '/enoent',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys.json$`
     ),
     page: '/invalid-keys',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json.json$`
+    ),
+    page: '/non-json',
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -191,6 +211,31 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should handle throw ENOENT correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/enoent')
+    const html = await res.text()
+
+    if (dev) {
+      expect(html).toContain('oof')
+    } else {
+      expect(res.status).toBe(500)
+      expect(html).toContain('Internal Server Error')
+      expect(html).not.toContain('This page could not be found')
+    }
+  })
+
+  it('should have gssp in __NEXT_DATA__', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).gssp).toBe(true)
+  })
+
+  it('should not have gssp in __NEXT_DATA__ for non-GSSP page', async () => {
+    const html = await renderViaHTTP(appPort, '/normal')
+    const $ = cheerio.load(html)
+    expect('gssp' in JSON.parse($('#__NEXT_DATA__').text())).toBe(false)
+  })
+
   it('should supply query values SSR', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
@@ -283,10 +328,10 @@ const runTests = (dev = false) => {
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
     await waitFor(500)
-    await browser.eval('window.beforeClick = true')
+    await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('true')
+    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
   })
 
   it('should always call getServerSideProps without caching', async () => {
@@ -357,6 +402,23 @@ const runTests = (dev = false) => {
         `Keys that need to be moved: world, query, params, time, random`
       )
     })
+
+    it('should show error for invalid JSON returned from getServerSideProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json')
+      expect(html).toContain(
+        'Error serializing `.time` returned from `getServerSideProps`'
+      )
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#non-json').click()
+
+      await check(
+        () => getBrowserBodyText(browser),
+        /Error serializing `.time` returned from `getServerSideProps`/
+      )
+    })
   } else {
     it('should not fetch data on mount', async () => {
       const browser = await webdriver(appPort, '/blog/post-100')
@@ -377,12 +439,42 @@ const runTests = (dev = false) => {
       expect(dataRoutes).toEqual(expectedManifestRoutes())
     })
 
-    it('should set no-cache, no-store, must-revalidate header', async () => {
-      const res = await fetchViaHTTP(
+    it('should set default caching header', async () => {
+      const resPage = await fetchViaHTTP(appPort, `/something`)
+      expect(resPage.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+
+      const resData = await fetchViaHTTP(
         appPort,
         `/_next/data/${buildId}/something.json`
       )
-      expect(res.headers.get('cache-control')).toContain('no-cache')
+      expect(resData.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    })
+
+    it('should respect custom caching header', async () => {
+      const resPage = await fetchViaHTTP(appPort, `/custom-cache`)
+      expect(resPage.headers.get('cache-control')).toBe('public, max-age=3600')
+
+      const resData = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/custom-cache.json`
+      )
+      expect(resData.headers.get('cache-control')).toBe('public, max-age=3600')
+    })
+
+    it('should not show error for invalid JSON returned from getServerSideProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json')
+      expect(html).not.toContain('Error serializing')
+      expect(html).toContain('hello ')
+    })
+
+    it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#non-json').click()
+      await check(() => getBrowserBodyText(browser), /hello /)
     })
   }
 }

@@ -57,7 +57,7 @@ let observer: IntersectionObserver
 const listeners = new Map()
 const IntersectionObserver =
   typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
-const prefetched: { [href: string]: boolean } = {}
+const prefetched: { [cacheKey: string]: boolean } = {}
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -139,10 +139,16 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = prefetched[this.getPaths()[0]]
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
+      const isPrefetched =
+        prefetched[
+          this.getPaths().join(
+            // Join on an invalid URI character
+            '%'
+          )
+        ]
       if (!isPrefetched) {
         this.cleanUpListeners = listenToIntersections(ref, () => {
           this.prefetch()
@@ -208,17 +214,24 @@ class Link extends Component<LinkProps> {
   prefetch(options?: PrefetchOptions) {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    const [href, asPath] = this.getPaths()
+    const paths = this.getPaths()
     // We need to handle a prefetch error here since we may be
     // loading with priority which can reject but we don't
     // want to force navigation since this is only a prefetch
-    Router.prefetch(href, asPath, options).catch(err => {
-      if (process.env.NODE_ENV !== 'production') {
-        // rethrow to show invalid URL errors
-        throw err
+    Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
+      err => {
+        if (process.env.NODE_ENV !== 'production') {
+          // rethrow to show invalid URL errors
+          throw err
+        }
       }
-    })
-    prefetched[href] = true
+    )
+    prefetched[
+      paths.join(
+        // Join on an invalid URI character
+        '%'
+      )
+    ] = true
   }
 
   render() {

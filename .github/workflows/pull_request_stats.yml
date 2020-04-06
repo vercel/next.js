@@ -10,5 +10,3 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: zeit/next-stats-action@master
-        env:
-          COMMENT_ENDPOINT: https://next-stats.jjsweb.site/api/comment

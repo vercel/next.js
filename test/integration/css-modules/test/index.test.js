@@ -40,6 +40,7 @@ describe('Basic CSS Module Support', () => {
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
+    expect(stdout).toContain('.css')
   })
 
   it(`should've emitted a single CSS file`, async () => {

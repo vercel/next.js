@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import gzipSize from 'gzip-size'
+import chalk from 'next/dist/compiled/chalk'
+import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
@@ -57,6 +57,7 @@ export async function printTreeView(
     pageExtensions,
     buildManifest,
     isModern,
+    useStatic404,
   }: {
     distPath: string
     buildId: string
@@ -64,6 +65,7 @@ export async function printTreeView(
     pageExtensions: string[]
     buildManifest: BuildManifestShape
     isModern: boolean
+    useStatic404: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
@@ -76,8 +78,17 @@ export async function printTreeView(
     return chalk.red.bold(size)
   }
 
+  const getCleanName = (fileName: string) =>
+    fileName
+      // Trim off `static/`
+      .replace(/^static\//, '')
+      // Re-add `static/` for root files
+      .replace(/^<buildId>/, 'static')
+      // Remove file hash
+      .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
+    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
       string,
       string,
       string
@@ -85,7 +96,23 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
+
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+    static: useStatic404,
+  } as any)
+
+  if (!list.includes('/404')) {
+    list = [...list, '/404']
+  }
+
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    buildId,
+    isModern,
+    pageInfos
+  )
 
   const pageList = list
     .slice()
@@ -93,8 +120,8 @@ export async function printTreeView(
       e =>
         !(
           e === '/_document' ||
-          (!hasCustomApp && e === '/_app') ||
-          (!hasCustomError && e === '/_error')
+          e === '/_error' ||
+          (!hasCustomApp && e === '/_app')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -137,6 +164,24 @@ export async function printTreeView(
         : '',
     ])
 
+    const uniqueCssFiles =
+      buildManifest.pages[item]?.filter(
+        file => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
+      ) || []
+
+    if (uniqueCssFiles.length > 0) {
+      const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+      uniqueCssFiles.forEach((file, index, { length }) => {
+        const innerSymbol = index === length - 1 ? '└' : '├'
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
+          prettyBytes(sizeData.sizeUniqueFiles[file]),
+          '',
+        ])
+      })
+    }
+
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
       const previewPages = totalRoutes === 4 ? 4 : 3
@@ -155,36 +200,40 @@ export async function printTreeView(
     }
   })
 
-  const sharedData = await getSharedSizes(
-    distPath,
-    buildManifest,
-    buildId,
-    isModern,
-    pageInfos
-  )
+  const sharedFilesSize = sizeData.sizeCommonFiles
+  const sharedFiles = sizeData.sizeCommonFile
 
-  messages.push(['+ shared by all', getPrettySize(sharedData.total), ''])
-  Object.keys(sharedData.files)
-    .map(e => e.replace(buildId, '<buildId>'))
-    .sort()
-    .forEach((fileName, index, { length }) => {
-      const innerSymbol = index === length - 1 ? '└' : '├'
+  messages.push([
+    '+ First Load JS shared by all',
+    getPrettySize(sharedFilesSize),
+    '',
+  ])
+  const sharedFileKeys = Object.keys(sharedFiles)
+  const sharedCssFiles: string[] = []
+  ;[
+    ...sharedFileKeys
+      .filter(file => {
+        if (file.endsWith('.css')) {
+          sharedCssFiles.push(file)
+          return false
+        }
+        return true
+      })
+      .map(e => e.replace(buildId, '<buildId>'))
+      .sort(),
+    ...sharedCssFiles.map(e => e.replace(buildId, '<buildId>')).sort(),
+  ].forEach((fileName, index, { length }) => {
+    const innerSymbol = index === length - 1 ? '└' : '├'
 
-      const originalName = fileName.replace('<buildId>', buildId)
-      const cleanName = fileName
-        // Trim off `static/`
-        .replace(/^static\//, '')
-        // Re-add `static/` for root files
-        .replace(/^<buildId>/, 'static')
-        // Remove file hash
-        .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+    const originalName = fileName.replace('<buildId>', buildId)
+    const cleanName = getCleanName(fileName)
 
-      messages.push([
-        `  ${innerSymbol} ${cleanName}`,
-        prettyBytes(sharedData.files[originalName]),
-        '',
-      ])
-    })
+    messages.push([
+      `  ${innerSymbol} ${cleanName}`,
+      prettyBytes(sharedFiles[originalName]),
+      '',
+    ])
+  })
 
   console.log(
     textTable(messages, {
@@ -303,6 +352,7 @@ type BuildManifestShape = { pages: { [k: string]: string[] } }
 type ComputeManifestShape = {
   commonFiles: string[]
   uniqueFiles: string[]
+  sizeUniqueFiles: { [file: string]: number }
   sizeCommonFile: { [file: string]: number }
   sizeCommonFiles: number
 }
@@ -331,6 +381,9 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach(key => {
+    // prevent duplicate '/' and '/index'
+    if (key === '/index') return
+
     if (key === '/_polyfills') {
       return
     }
@@ -347,8 +400,6 @@ async function computeFromManifest(
     ++expected
     manifest.pages[key].forEach(file => {
       if (
-        // Filter out CSS
-        !file.endsWith('.js') ||
         // Select Modern or Legacy scripts
         file.endsWith('.module.js') !== isModern
       ) {
@@ -393,14 +444,33 @@ async function computeFromManifest(
     stats = []
   }
 
+  let uniqueStats: [string, number][]
+  try {
+    uniqueStats = await Promise.all(
+      uniqueFiles.map(
+        async f =>
+          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+      )
+    )
+  } catch (_) {
+    uniqueStats = []
+  }
+
   lastCompute = {
     commonFiles,
     uniqueFiles,
+    sizeUniqueFiles: uniqueStats.reduce(
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
+      {}
+    ),
     sizeCommonFile: stats.reduce(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
+    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
+      if (f.endsWith('.css')) return size
+      return size + stat
+    }, 0),
   }
 
   cachedBuildManifest = manifest
@@ -425,24 +495,7 @@ function sum(a: number[]): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-export async function getSharedSizes(
-  distPath: string,
-  buildManifest: BuildManifestShape,
-  buildId: string,
-  isModern: boolean,
-  pageInfos: Map<string, PageInfo>
-): Promise<{ total: number; files: { [page: string]: number } }> {
-  const data = await computeFromManifest(
-    buildManifest,
-    distPath,
-    buildId,
-    isModern,
-    pageInfos
-  )
-  return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
-}
-
-export async function getPageSizeInKb(
+export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
@@ -618,6 +671,7 @@ export async function isPageStatic(
   runtimeEnvConfig: any
 ): Promise<{
   isStatic?: boolean
+  isAmpOnly?: boolean
   isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
@@ -709,6 +763,7 @@ export async function isPageStatic(
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
+      isAmpOnly: config.amp === true,
       prerenderRoutes,
       prerenderFallback,
       hasStaticProps,
@@ -720,14 +775,14 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomAppGetInitialProps(
-  _appBundle: string,
+export function hasCustomGetInitialProps(
+  bundle: string,
   runtimeEnvConfig: any
 ): boolean {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(_appBundle)
+  let mod = require(bundle)
 
-  if (_appBundle.endsWith('_app.js')) {
+  if (bundle.endsWith('_app.js') || bundle.endsWith('_error.js')) {
     mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page

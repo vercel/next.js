@@ -1,3 +1,4 @@
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
@@ -10,6 +11,7 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { readFileSync } from 'fs'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -32,7 +34,6 @@ import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
-import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -42,8 +43,11 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
+  ReactSyncScriptsConformanceCheck,
+  DuplicatePolyfillsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -52,6 +56,12 @@ const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
+}
+
+function parseJsonFile(path: string) {
+  const JSON5 = require('next/dist/compiled/json5')
+  const contents = readFileSync(path)
+  return JSON5.parse(contents)
 }
 
 function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
@@ -213,6 +223,22 @@ export default async function getBaseWebpackConfig(
   const ignoreTypeScriptErrors = dev
     ? config.typescript?.ignoreDevErrors
     : config.typescript?.ignoreBuildErrors
+
+  let jsConfig
+  // jsconfig is a subset of tsconfig
+  if (useTypeScript) {
+    jsConfig = parseJsonFile(tsConfigPath)
+  }
+
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
+  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+    jsConfig = parseJsonFile(jsConfigPath)
+  }
+
+  let resolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+  }
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -425,6 +451,26 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
+  const conformanceConfig = Object.assign(
+    {
+      ReactSyncScriptsConformanceCheck: {
+        enabled: true,
+      },
+      MinificationConformanceCheck: {
+        enabled: true,
+      },
+      DuplicatePolyfillsConformanceCheck: {
+        enabled: true,
+        BlockedAPIToBePolyfilled: Object.assign(
+          [],
+          ['fetch'],
+          config.conformance?.DuplicatePolyfillsConformanceCheck
+            ?.BlockedAPIToBePolyfilled || []
+        ),
+      },
+    },
+    config.conformance
+  )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? undefined
@@ -641,7 +687,7 @@ export default async function getBaseWebpackConfig(
                 // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
                 // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
                 {
-                  loader: 'cache-loader',
+                  loader: 'next/dist/compiled/cache-loader',
                   options: {
                     cacheContext: dir,
                     cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
@@ -651,7 +697,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  loader: 'thread-loader',
+                  loader: require.resolve('next/dist/compiled/thread-loader'),
                   options: {
                     workers: 2,
                     workerParallelJobs: Infinity,
@@ -667,6 +713,17 @@ export default async function getBaseWebpackConfig(
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
+        ...(config.experimental.pageEnv
+          ? Object.keys(process.env).reduce(
+              (prev: { [key: string]: string }, key: string) => {
+                if (key.startsWith('NEXT_PUBLIC_')) {
+                  prev[key] = process.env[key]!
+                }
+                return prev
+              },
+              {}
+            )
+          : {}),
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
@@ -755,7 +812,9 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (!isServer) {
-              const AutoDllPlugin = importAutoDllPlugin({ distDir })
+              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
+                distDir
+              )
               devPlugins.push(
                 new AutoDllPlugin({
                   filename: '[name]_[hash].js',
@@ -844,9 +903,41 @@ export default async function getBaseWebpackConfig(
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
-          tests: [new MinificationConformanceCheck()],
+          tests: [
+            !isServer &&
+              conformanceConfig.MinificationConformanceCheck.enabled &&
+              new MinificationConformanceCheck(),
+            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
+              new ReactSyncScriptsConformanceCheck({
+                AllowedSources:
+                  conformanceConfig.ReactSyncScriptsConformanceCheck
+                    .allowedSources || [],
+              }),
+            !isServer &&
+              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
+              new DuplicatePolyfillsConformanceCheck({
+                BlockedAPIToBePolyfilled:
+                  conformanceConfig.DuplicatePolyfillsConformanceCheck
+                    .BlockedAPIToBePolyfilled,
+              }),
+          ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
+  }
+
+  // Support tsconfig and jsconfig baseUrl
+  if (resolvedBaseUrl) {
+    webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
+  }
+
+  if (
+    config.experimental.jsconfigPaths &&
+    jsConfig?.compilerOptions?.paths &&
+    resolvedBaseUrl
+  ) {
+    webpackConfig.resolve?.plugins?.push(
+      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+    )
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
@@ -857,6 +948,7 @@ export default async function getBaseWebpackConfig(
     hasSupportCss: !!config.experimental.css,
     hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
+    sassOptions: config.experimental.sassOptions,
   })
 
   if (typeof config.webpack === 'function') {
@@ -924,6 +1016,17 @@ export default async function getBaseWebpackConfig(
       ) ?? false
 
     if (hasUserCssConfig) {
+      // only show warning for one build
+      if (isServer) {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            chalk.bold(
+              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+            ) +
+            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+        )
+      }
+
       if (webpackConfig.module?.rules.length) {
         // Remove default CSS Loader
         webpackConfig.module.rules = webpackConfig.module.rules.filter(

@@ -1,9 +1,10 @@
-import AmpHtmlValidator from 'amphtml-validator'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import crypto from 'crypto'
-import findUp from 'find-up'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
-import { join, relative } from 'path'
+import Worker from 'jest-worker'
+import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
@@ -30,7 +31,7 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import Worker from 'jest-worker'
+import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -54,6 +55,8 @@ export default class DevServer extends Server {
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
+    ;(this.renderOpts as any).ampSkipValidation =
+      this.nextConfig.experimental?.amp?.skipValidation ?? false
     ;(this.renderOpts as any).ampValidator = (
       html: string,
       pathname: string
@@ -85,6 +88,16 @@ export default class DevServer extends Server {
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
+        forkOptions: {
+          env: {
+            ...process.env,
+            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+            // is the main Next.js one
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          },
+        },
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -277,7 +290,8 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ) {
     const { pathname } = parsedUrl
-    const path = `/${(params.path || []).join('/')}`
+    const pathParts = params.path || []
+    const path = `/${pathParts.join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
     if (await this.hasPublicFile(path)) {
@@ -289,7 +303,7 @@ export default class DevServer extends Server {
         await this.renderError(err, req, res, pathname!, {})
         return true
       }
-      await this.servePublic(req, res, path)
+      await this.servePublic(req, res, pathParts)
       return true
     }
 
@@ -448,8 +462,7 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: { [key: string]: string },
-    options = {}
+    query: { [key: string]: string }
   ) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -489,7 +502,7 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-    const html = await super.renderToHTML(req, res, pathname, query, options)
+    const html = await super.renderToHTML(req, res, pathname, query)
     return html
   }
 
@@ -535,9 +548,12 @@ export default class DevServer extends Server {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
-  servePublic(req: IncomingMessage, res: ServerResponse, path: string) {
-    const p = join(this.publicDir, encodeURIComponent(path))
-    // we need to re-encode it since send decodes it
+  private servePublic(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathParts: string[]
+  ) {
+    const p = join(this.publicDir, ...pathParts.map(encodeURIComponent))
     return this.serveStatic(req, res, p)
   }
 
@@ -556,5 +572,45 @@ export default class DevServer extends Server {
 
     // Return the very first error we found.
     return errors[0]
+  }
+
+  protected isServeableUrl(untrustedFileUrl: string): boolean {
+    // This method mimics what the version of `send` we use does:
+    // 1. decodeURIComponent:
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
+    // 2. resolve:
+    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+
+    let decodedUntrustedFilePath: string
+    try {
+      // (1) Decode the URL so we have the proper file name
+      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
+    } catch {
+      return false
+    }
+
+    // (2) Resolve "up paths" to determine real request
+    const untrustedFilePath = resolve(decodedUntrustedFilePath)
+
+    // don't allow null bytes anywhere in the file path
+    if (untrustedFilePath.indexOf('\0') !== -1) {
+      return false
+    }
+
+    // During development mode, files can be added while the server is running.
+    // Checks for .next/static, .next/server, static and public.
+    // Note that in development .next/server is available for error reporting purposes.
+    // see `packages/next/next-server/server/next-server.ts` for more details.
+    if (
+      untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
+      untrustedFilePath.startsWith(join(this.distDir, 'server') + sep) ||
+      untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
+      untrustedFilePath.startsWith(join(this.dir, 'public') + sep)
+    ) {
+      return true
+    }
+
+    return false
   }
 }

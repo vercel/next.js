@@ -63,8 +63,20 @@ describe('Static 404 page', () => {
       ).toBe(true)
     })
 
-    it('should not export 404 page with custom _error', async () => {
-      await fs.writeFile(errorPage, `export { default } from 'next/error'`)
+    it('should not export 404 page with custom _error GIP', async () => {
+      await fs.writeFile(
+        errorPage,
+        `
+        import Error from 'next/error'
+        export default class MyError extends Error {
+          static getInitialProps() {
+            return {
+              statusCode: 404
+            }
+          }
+        }
+      `
+      )
       await nextBuild(appDir)
       await fs.remove(errorPage)
       expect(await fs.exists(static404)).toBe(false)

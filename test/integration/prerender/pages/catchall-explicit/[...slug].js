@@ -7,7 +7,7 @@ export async function getStaticProps({ params: { slug } }) {
     props: {
       slug,
     },
-    revalidate: 1,
+    unstable_revalidate: 1,
   }
 }
 

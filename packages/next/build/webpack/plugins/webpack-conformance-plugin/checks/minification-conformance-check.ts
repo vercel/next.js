@@ -4,12 +4,22 @@ import {
   IConformanceTestStatus,
 } from '../TestInterface'
 import { CONFORMANCE_ERROR_PREFIX } from '../constants'
+const EARLY_EXIT_RESULT: IConformanceTestResult = {
+  result: IConformanceTestStatus.SUCCESS,
+}
 
 export class MinificationConformanceCheck implements IWebpackConformanceTest {
   public buildStared(options: any): IConformanceTestResult {
+    if (options.output.path.endsWith('/server')) {
+      return EARLY_EXIT_RESULT
+    }
     // TODO(prateekbh@): Implement warning for using Terser maybe?
-
-    if (options.optimization.minimize === false) {
+    const { optimization } = options
+    if (
+      optimization &&
+      (optimization.minimize !== true ||
+        (optimization.minimizer && optimization.minimizer.length === 0))
+    ) {
       return {
         result: IConformanceTestStatus.FAILED,
         errors: [
@@ -19,9 +29,7 @@ export class MinificationConformanceCheck implements IWebpackConformanceTest {
         ],
       }
     } else {
-      return {
-        result: IConformanceTestStatus.SUCCESS,
-      }
+      return EARLY_EXIT_RESULT
     }
   }
 }

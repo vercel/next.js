@@ -4,6 +4,7 @@ import { ComponentType } from 'react'
 import { format, URLFormatOptions, UrlObject } from 'url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
+import { Env } from '../../lib/load-env-config'
 
 /**
  * Types used by both next and next-server
@@ -78,6 +79,9 @@ export type NEXT_DATA = {
   isFallback?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
+  gsp?: boolean
+  gssp?: boolean
+  customServer?: boolean
 }
 
 /**
@@ -132,6 +136,8 @@ export type AppPropsType<
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
   router: R
+  __N_SSG?: boolean
+  __N_SSP?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
@@ -153,6 +159,7 @@ export type DocumentProps = DocumentInitialProps & {
   hasCssMode: boolean
   devFiles: string[]
   files: string[]
+  lowPriorityFiles: string[]
   polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
@@ -180,6 +187,8 @@ export type NextApiRequest = IncomingMessage & {
   }
 
   body: any
+
+  env: Env
 }
 
 /**
