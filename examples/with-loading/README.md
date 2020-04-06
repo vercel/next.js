@@ -1,6 +1,6 @@
 # Example app with page loading indicator
 
-Sometimes when switching between pages, Next.js needs to download pages(chunks) from the server before rendering the page. And it may also need to wait for the data. So while doing these tasks, browser might be non responsive.
+Sometimes when switching between pages, Next.js needs to download pages(chunks) from the server before rendering the page. And it may also need to wait for the data. So while doing these tasks, the browser might be non responsive.
 
 We can simply fix this issue by showing a loading indicator. That's what this examples shows.
 

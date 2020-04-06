@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
-    "now-build": "next build",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {

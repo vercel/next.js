@@ -27,10 +27,10 @@ SOFTWARE.
 
 import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
-import * as ErrorOverlay from 'react-error-overlay'
-import stripAnsi from 'strip-ansi'
+import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { rewriteStacktrace } from './source-map-support'
-import fetch from 'unfetch'
+import fetch from 'next/dist/build/polyfills/unfetch'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js

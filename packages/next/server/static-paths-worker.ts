@@ -1,8 +1,7 @@
-import { join } from 'path'
 import { buildStaticPaths } from '../build/utils'
-import { getPagePath } from '../next-server/server/require'
 import { loadComponents } from '../next-server/server/load-components'
-import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../next-server/lib/constants'
+
+let workerWasUsed = false
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
@@ -13,13 +12,11 @@ export async function loadStaticPaths(
   pathname: string,
   serverless: boolean
 ) {
-  // we need to clear any modules manually here since the
-  // require-cache-hot-loader doesn't affect require cache here
-  // since we're in a separate process
-  delete require.cache[join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)]
-
-  const pagePath = await getPagePath(pathname, distDir, serverless, true)
-  delete require.cache[pagePath]
+  // we only want to use each worker once to prevent any invalid
+  // caches
+  if (workerWasUsed) {
+    process.exit(1)
+  }
 
   const components = await loadComponents(
     distDir,
@@ -36,5 +33,6 @@ export async function loadStaticPaths(
     )
   }
 
+  workerWasUsed = true
   return buildStaticPaths(pathname, components.getStaticPaths)
 }
