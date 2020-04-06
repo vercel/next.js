@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-When calling `app.render(req, res, path)` the `path` did not begin with a slash (`/`). This can cause unexpected behavior and should be corrected.
+When calling `app.render(req, res, path)` the `path` did not begin with a slash (`/`). This causes unexpected behavior and should be corrected.
 
 #### Possible Ways to Fix It
 
