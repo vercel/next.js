@@ -34,10 +34,7 @@ const AboutPage = () => (
         . This method returns a promise; at the point in which the promise
         resolves, our Apollo Client store is completely initialized.
       </p>
-      <p>
-        This example relies on <a href="http://graph.cool">graph.cool</a> for
-        its GraphQL backend.
-      </p>
+      <p>This example relies on mocked data for its backend.</p>
     </article>
   </App>
 )
