@@ -1,10 +1,9 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
-import { inject, observer } from 'mobx-react'
+import { observer } from 'mobx-react'
 import Clock from './Clock'
 import { store } from '../stores/store'
 
-@inject('store')
 @observer
 class SampleComponent extends Component {
   componentDidMount() {
