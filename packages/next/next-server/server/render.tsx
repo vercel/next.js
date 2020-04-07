@@ -584,8 +584,7 @@ export async function renderToHTML(
         data.unstable_revalidate = false
       }
 
-      if (!props.pageProps) props.pageProps = {}
-      Object.assign(props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.unstable_revalidate
@@ -634,8 +633,7 @@ export async function renderToHTML(
         )
       }
 
-      if (!props.pageProps) props.pageProps = {}
-      Object.assign(props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
