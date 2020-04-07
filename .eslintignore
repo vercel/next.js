@@ -4,3 +4,4 @@ node_modules
 **/dist/**
 examples/with-ioc/**
 examples/with-kea/**
+packages/next/compiled/**/*
