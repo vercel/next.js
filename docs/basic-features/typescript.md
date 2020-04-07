@@ -97,7 +97,7 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 
 ## Custom `App`
 
-If you have a [custom `App` ](/docs/advanced-features/custom-app), you can use the built-in type `AppProps`, like so:
+If you have a [custom `App` ](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
 import { AppProps } from 'next/app'
