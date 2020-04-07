@@ -473,10 +473,17 @@ export default async function getBaseWebpackConfig(
   )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
-      ? undefined
+      ? // make sure importing "next" is handled gracefully for client
+        // bundles in case a user imported types and it wasn't removed
+        // TODO: should we warn/error for this instead?
+        ['next']
       : !isServerless
       ? [
           (context, request, callback) => {
+            if (request === 'next') {
+              return callback(undefined, `commonjs ${request}`)
+            }
+
             const notExternalModules = [
               'next/app',
               'next/document',
