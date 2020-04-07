@@ -32,6 +32,20 @@ jobs:
           key: ${{ github.sha }}
       - run: yarn lint
 
+  checkPrecompiled:
+    name: Check Pre-compiled
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/cache@v1
+        id: restore-build
+        with:
+          path: '.'
+          key: ${{ github.sha }}
+      - run: ./check-pre-compiled.sh
+
   testAll:
     name: Test All
     runs-on: ubuntu-latest
@@ -59,7 +73,7 @@ jobs:
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
-    needs: [lint, testAll]
+    needs: [lint, checkPrecompiled, testAll]
     steps:
       - run: exit 0
 
