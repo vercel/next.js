@@ -16,7 +16,7 @@ describe('Errors on conflict between public file and page file', () => {
   it('Throws error during development', async () => {
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort)
-    const conflicts = ['/another/conflict', '/another/index', '/hello']
+    const conflicts = ['/another/conflict', '/hello']
 
     for (const conflict of conflicts) {
       const html = await renderViaHTTP(appPort, conflict)
