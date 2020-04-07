@@ -39,3 +39,5 @@ export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'To try the experimental implementation, please use `unstable_revalidate` instead.\n' +
   "We're excited for you to try this feature—please share all feedback on the RFC:\n" +
   'https://nextjs.link/issg'
+
+export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's component and must be exported from the page. See more info here: https://err.sh/next.js/gssp-component-member`
