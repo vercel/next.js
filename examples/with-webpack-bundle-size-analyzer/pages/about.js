@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import faker from 'faker'
 
 const About = ({ name }) => {
   return (
@@ -19,10 +20,10 @@ const About = ({ name }) => {
 }
 
 export async function getStaticProps() {
-  // Runs only in the client
+  const name = faker.name.findName()
   return {
     props: {
-      name: 'Arunoda',
+      name,
     },
   }
 }

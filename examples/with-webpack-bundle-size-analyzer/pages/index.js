@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import faker from 'faker'
 
 const Index = ({ name }) => {
   return (
@@ -18,16 +19,12 @@ const Index = ({ name }) => {
   )
 }
 
-export async function getServerSideProps({ req }) {
-  if (req) {
-    // Runs only in the server
-    const faker = require('faker')
-    const name = faker.name.findName()
-    return {
-      props: {
-        name,
-      },
-    }
+export async function getServerSideProps() {
+  const name = faker.name.findName()
+  return {
+    props: {
+      name,
+    },
   }
 }
 
