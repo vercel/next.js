@@ -11,8 +11,13 @@
     <img alt="" src="https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="Join the community on GitHub" href="https://github.com/zeit/next.js/discussions">
-    <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
+    <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">  
+</p>
+<p align="center">
   </a>
+    <a aria-label="Join the spectrum chat" href="https://spectrum.chat/next-js">
+      <img alt="" src="https://withspectrum.github.io/badge/badge.svg">
+    </a>
 </p>
 
 ## Getting Started
