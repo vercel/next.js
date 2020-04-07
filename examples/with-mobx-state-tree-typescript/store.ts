@@ -43,7 +43,7 @@ export function initializeStore(snapshot = null) {
   const _store = store ?? Store.create({ lastUpdate: 0 })
 
   // If your page has Next.js data fetching methods that use a Mobx store, it will
-  // get hydrated here, check `pages/ssg.js` and `pages/ssr.js for more details
+  // get hydrated here, check `pages/ssg.tsx` and `pages/ssr.tsx` for more details
   if (snapshot) {
     applySnapshot(_store, snapshot)
   }
