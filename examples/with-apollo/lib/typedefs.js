@@ -3,7 +3,6 @@ import gql from 'graphql-tag'
 export const typeDefs = gql`
   type Post {
     id: ID!
-    createdAt: String!
     title: String!
     updatedAt: String!
     url: String!
@@ -15,7 +14,7 @@ export const typeDefs = gql`
   }
 
   type Query {
-    allPosts: [Post!]!
+    allPosts(first: Int!, skip: Int!): [Post!]!
     _allPostsMeta: PostsMeta!
   }
 `

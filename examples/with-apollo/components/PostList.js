@@ -5,13 +5,12 @@ import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
 export const ALL_POSTS_QUERY = gql`
-  query allPosts {
-    allPosts {
+  query allPosts($first: Int!, $skip: Int!) {
+    allPosts(first: $first, skip: $skip) {
       id
       title
       votes
       url
-      createdAt
     }
     _allPostsMeta {
       count
@@ -20,15 +19,14 @@ export const ALL_POSTS_QUERY = gql`
 `
 export const allPostsQueryVars = {
   skip: 0,
-  first: 10,
+  first: 5,
 }
 
 export default function PostList() {
   const { loading, error, data, fetchMore, networkStatus } = useQuery(
     ALL_POSTS_QUERY,
     {
-      // TODO: resolve
-      //variables: allPostsQueryVars,
+      variables: allPostsQueryVars,
       // Setting this value to true will make the component rerender when
       // the "networkStatus" changes, so we are able to know if it is fetching
       // more data
