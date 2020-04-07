@@ -1,19 +1,19 @@
+import useSWR from 'swr'
 import Person from '../components/Person'
-import fetch from 'node-fetch'
 
-const Index = ({ people }) => (
-  <ul>
-    {people.map((p, i) => (
-      <Person key={i} person={p} />
-    ))}
-  </ul>
-)
+const fetcher = url => fetch(url).then(res => res.json())
 
-export async function getServerSideProps() {
-  const response = await fetch('http://localhost:3000/api/people')
-  const people = await response.json()
+export default function Index() {
+  const { data, error } = useSWR('/api/people', fetcher)
 
-  return { props: { people } }
+  if (error) return <div>Failed to load</div>
+  if (!data) return <div>Loading...</div>
+
+  return (
+    <ul>
+      {data.map((p, i) => (
+        <Person key={i} person={p} />
+      ))}
+    </ul>
+  )
 }
-
-export default Index
