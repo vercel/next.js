@@ -4,7 +4,8 @@ import { Counter, Toggle } from '../components'
 import { toggleMachine } from '../machines/toggleMachine'
 import { counterMachine } from '../machines/counterMachine'
 
-const IndexPage = ({ count }) => {
+const IndexPage = () => {
+  const count = 999
   const [toggleCurrent, toggleSend] = useMachine(toggleMachine)
   const [counterCurrent, counterSend] = useMachine(counterMachine, {
     context: { count },
@@ -27,14 +28,6 @@ const IndexPage = ({ count }) => {
       />
     </div>
   )
-}
-
-export async function getStaticProps() {
-  return {
-    props: {
-      count: 999,
-    },
-  }
 }
 
 export default IndexPage
