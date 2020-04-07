@@ -52,7 +52,7 @@ describe('Client Navigation', () => {
       '/nav/as-path-using-router',
       '/nav/url-prop-change',
 
-      '/nested-cdm/index',
+      '/nested-cdm',
     ]
     await Promise.all(
       prerender.map(route => renderViaHTTP(context.appPort, route))

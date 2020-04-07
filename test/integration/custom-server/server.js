@@ -29,7 +29,7 @@ app.prepare().then(() => {
     }
 
     if (/dashboard/.test(req.url)) {
-      return app.render(req, res, '/dashboard/index')
+      return app.render(req, res, '/dashboard')
     }
 
     if (/static\/hello\.text/.test(req.url)) {
