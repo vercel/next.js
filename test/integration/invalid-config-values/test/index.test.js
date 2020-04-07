@@ -36,28 +36,4 @@ describe('Handles valid/invalid assetPrefix', () => {
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
     expect(stderr).not.toMatch(/Specified assetPrefix is not a string/)
   })
-
-  it('should error on wrong usage of assetPrefix', async () => {
-    await fs.writeFile(
-      nextConfigPath,
-      `module.exports = {
-        assetPrefix: null
-      }`
-    )
-
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).toMatch(/Specified assetPrefix is not a string/)
-  })
-
-  it('should error on usage of assetPrefix with undefined as value', async () => {
-    await fs.writeFile(
-      nextConfigPath,
-      `module.exports = {
-        assetPrefix: undefined
-      }`
-    )
-
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).toMatch(/Specified assetPrefix is not a string/)
-  })
 })
