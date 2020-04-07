@@ -503,18 +503,6 @@ export async function renderToHTML(
       props[STATIC_PROPS_ID] = true
     }
 
-    if (
-      (isSSG || getServerSideProps) &&
-      props.pageProps &&
-      process.env.NODE_ENV !== 'production'
-    ) {
-      console.warn(
-        `"pageProps" was returned from "_app" for page "${pathname}" with ${
-          isSSG ? 'getStaticProps' : 'getServerSideProps'
-        } and will be overridden.\nSee here for more info: https://err.sh/next.js/gssp-pageprops-conflict`
-      )
-    }
-
     let previewData: string | false | object | undefined
 
     if ((isSSG || getServerSideProps) && !isFallback) {
@@ -596,7 +584,8 @@ export async function renderToHTML(
         data.unstable_revalidate = false
       }
 
-      props.pageProps = data.props
+      if (!props.pageProps) props.pageProps = {}
+      Object.assign(props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.unstable_revalidate
@@ -645,7 +634,8 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = data.props
+      if (!props.pageProps) props.pageProps = {}
+      Object.assign(props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
