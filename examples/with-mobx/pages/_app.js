@@ -1,37 +1,24 @@
-import App from 'next/app'
-import React from 'react'
-import { fetchInitialStoreState, Store } from '../store'
+import { useMemo, useEffect } from 'react'
+import { Store } from '../store'
 import { Provider } from 'mobx-react'
 
-class MyMobxApp extends App {
-  state = {
-    store: new Store(),
-  }
+export default function App({ Component, pageProps }) {
+  const store = useMemo(() => {
+    return new Store()
+  }, [])
 
-  // Fetching serialized(JSON) store state
-  static async getInitialProps(appContext) {
-    const appProps = await App.getInitialProps(appContext)
-    const initialStoreState = await fetchInitialStoreState()
-
-    return {
-      ...appProps,
-      initialStoreState,
+  useEffect(() => {
+    // If your page has Next.js data fetching methods returning a state for the Mobx store,
+    // then you can hydrate it here.
+    const { initialState } = pageProps
+    if (initialState) {
+      store.hydrate(initialState)
     }
-  }
+  }, [store, pageProps])
 
-  // Hydrate serialized state to store
-  static getDerivedStateFromProps(props, state) {
-    state.store.hydrate(props.initialStoreState)
-    return state
-  }
-
-  render() {
-    const { Component, pageProps } = this.props
-    return (
-      <Provider store={this.state.store}>
-        <Component {...pageProps} />
-      </Provider>
-    )
-  }
+  return (
+    <Provider store={store}>
+      <Component {...pageProps} />
+    </Provider>
+  )
 }
-export default MyMobxApp

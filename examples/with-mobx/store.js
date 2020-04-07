@@ -1,9 +1,8 @@
 import { action, observable } from 'mobx'
 import { useStaticRendering } from 'mobx-react'
 
-const isServer = typeof window === 'undefined'
 // eslint-disable-next-line react-hooks/rules-of-hooks
-useStaticRendering(isServer)
+useStaticRendering(typeof window === 'undefined')
 
 export class Store {
   @observable lastUpdate = 0
@@ -25,9 +24,4 @@ export class Store {
   }
 
   stop = () => clearInterval(this.timer)
-}
-
-export async function fetchInitialStoreState() {
-  // You can do anything to fetch initial store state
-  return {}
 }
