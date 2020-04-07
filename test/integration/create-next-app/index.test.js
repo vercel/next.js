@@ -29,7 +29,7 @@ const runStarter = (...args) => {
 
 describe('create next app', () => {
   beforeAll(async () => {
-    jest.setTimeout(1000 * 60)
+    jest.setTimeout(1000 * 60 * 2)
     await fs.mkdirp(cwd)
   })
 
