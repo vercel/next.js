@@ -1,31 +1,31 @@
-import React from 'react'
 import Link from 'next/link'
+import faker from 'faker'
 
-export default class Index extends React.Component {
-  static getInitialProps({ req }) {
-    if (req) {
-      // Runs only in the server
-      const faker = require('faker')
-      const name = faker.name.findName()
-      return { name }
-    }
-
-    // Runs only in the client
-    return { name: 'Arunoda' }
-  }
-
-  render() {
-    const { name } = this.props
-    return (
+const Index = ({ name }) => {
+  return (
+    <div>
+      <h1>Home Page</h1>
+      <p>Welcome, {name}.</p>
+      <p>
+        This page is using getServerSideProps, so the name will be different
+        every time the page is rendered.
+      </p>
       <div>
-        <h1>Home Page</h1>
-        <p>Welcome, {name}</p>
-        <div>
-          <Link href="/about">
-            <a>About Page</a>
-          </Link>
-        </div>
+        <Link href="/about">
+          <a>About Page</a>
+        </Link>
       </div>
-    )
+    </div>
+  )
+}
+
+export async function getServerSideProps() {
+  const name = faker.name.findName()
+  return {
+    props: {
+      name,
+    },
   }
 }
+
+export default Index
