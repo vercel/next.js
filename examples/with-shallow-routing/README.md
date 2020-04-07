@@ -1,8 +1,8 @@
 # Shallow Routing Example
 
-With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
+With [Shallow Routing](https://nextjs.org/docs/routing/shallow-routing), we can change the URL without running data fetching methods (like `getStaticProps` and `getServerSideProps`) again.
 
-We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
+We do this by passing the `shallow: true` option to `Router.push` or `Router.replace`.
 
 ## Deploy your own
 

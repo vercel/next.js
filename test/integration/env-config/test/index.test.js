@@ -30,7 +30,7 @@ const nextConfigContent = `
         {
           source: '/hello',
           permanent: false,
-          destination: \`/\${process.env.NEXT_APP_TEST_DEST}\`,
+          destination: \`/\${process.env.NEXT_PUBLIC_TEST_DEST}\`,
         }
       ]
     }
