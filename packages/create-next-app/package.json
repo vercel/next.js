@@ -27,7 +27,6 @@
     "prepublish": "yarn release"
   },
   "devDependencies": {
-    "@types/got": "9.6.2",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/tar": "4.0.3",
@@ -36,7 +35,7 @@
     "commander": "2.20.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
-    "got": "9.6.0",
+    "got": "10.7.0",
     "make-dir": "3.0.0",
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
