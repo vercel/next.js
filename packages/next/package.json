@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.3.5-canary.2",
+  "version": "9.3.5-canary.4",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -79,10 +79,12 @@
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserslist": "4.8.3",
     "css-loader": "3.3.0",
+    "find-cache-dir": "3.3.1",
     "fork-ts-checker-webpack-plugin": "3.1.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",
+    "mkdirp": "0.5.3",
     "native-url": "0.3.1",
     "pnp-webpack-plugin": "1.5.0",
     "postcss": "7.0.27",
@@ -95,7 +97,7 @@
     "styled-jsx": "3.2.5",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
-    "webpack": "4.42.0",
+    "webpack": "4.42.1",
     "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
@@ -103,7 +105,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.3.5-canary.2",
+    "@next/polyfill-nomodule": "9.3.5-canary.4",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
