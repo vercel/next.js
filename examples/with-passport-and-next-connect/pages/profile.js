@@ -5,12 +5,15 @@ import { useUser } from '../lib/hooks'
 function ProfileEdit() {
   const [user, { mutate }] = useUser()
   const nameRef = useRef()
+
   useEffect(() => {
     if (!user) return
     nameRef.current.value = user.name
   }, [user])
+
   async function handleEditProfile(e) {
     e.preventDefault()
+
     const body = {
       name: nameRef.current.value,
     }
@@ -20,17 +23,21 @@ function ProfileEdit() {
       body: JSON.stringify(body),
     })
     const updatedUser = await res.json()
+
     mutate(updatedUser)
   }
+
   async function handleDeleteProfile() {
     const res = await fetch(`/api/user`, {
       method: 'DELETE',
     })
+
     if (res.status === 204) {
       mutate({ user: null })
       Router.replace('/')
     }
   }
+
   return (
     <>
       <div className="form-container">
@@ -62,10 +69,12 @@ function ProfileEdit() {
 
 export default function ProfilePage() {
   const [user, { loading }] = useUser()
+
   useEffect(() => {
     // redirect user to login if not authenticated
     if (!loading && !user) Router.replace('/login')
   }, [user, loading])
+
   return (
     <>
       <h1>Profile</h1>
