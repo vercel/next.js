@@ -53,14 +53,14 @@ function runTests(startServer = nextStart) {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   it('should return prerendered page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   it('should throw error when setting too large of preview data', async () => {
@@ -74,16 +74,16 @@ function runTests(startServer = nextStart) {
     const res = await fetchViaHTTP(appPort, '/api/preview', { lets: 'goooo' })
     expect(res.status).toBe(200)
 
-    const cookies = res.headers
-      .get('set-cookie')
-      .split(',')
-      .map(cookie.parse)
+    const originalCookies = res.headers.get('set-cookie').split(',')
+    const cookies = originalCookies.map(cookie.parse)
+
+    expect(originalCookies.every(c => c.includes('; Secure;')))
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'Strict' })
+    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'Strict' })
+    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
 
@@ -141,70 +141,28 @@ function runTests(startServer = nextStart) {
 
     const cookies = res.headers
       .get('set-cookie')
-      .replace(/(=\w{3}),/g, '$1')
+      .replace(/(=(?!Lax)\w{3}),/g, '$1')
       .split(',')
       .map(cookie.parse)
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({
       Path: '/',
-      SameSite: 'Strict',
+      SameSite: 'None',
       Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
     expect(cookies[1]).toMatchObject({
       Path: '/',
-      SameSite: 'Strict',
+      SameSite: 'None',
       Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
 
-  /** @type import('next-webdriver').Chain */
-  let browser
-  it('should start the client-side browser', async () => {
-    browser = await webdriver(
-      appPort,
-      '/api/preview?' + qs.stringify({ client: 'mode' })
-    )
-  })
-
-  it('should fetch preview data on SSR', async () => {
-    await browser.get(`http://localhost:${appPort}/`)
-    await browser.waitForElementByCss('#props-pre')
-    // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
-    // await new Promise(resolve => setTimeout(resolve, 2000))
-    expect(await browser.elementById('props-pre').text()).toBe(
-      'true and {"client":"mode"}'
-    )
-  })
-
-  it('should fetch preview data on CST', async () => {
-    await browser.get(`http://localhost:${appPort}/to-index`)
-    await browser.waitForElementByCss('#to-index')
-    await browser.eval('window.itdidnotrefresh = "hello"')
-    await browser.elementById('to-index').click()
-    await browser.waitForElementByCss('#props-pre')
-    expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
-    expect(await browser.elementById('props-pre').text()).toBe(
-      'true and {"client":"mode"}'
-    )
-  })
-
-  it('should fetch prerendered data', async () => {
-    await browser.get(`http://localhost:${appPort}/api/reset`)
-
-    await browser.get(`http://localhost:${appPort}/`)
-    await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toBe(
-      'undefined and undefined'
-    )
-  })
-
   afterAll(async () => {
-    await browser.close()
     await killApp(app)
   })
 }
@@ -268,14 +226,56 @@ describe('Prerender Preview Mode', () => {
 
       const cookies = res.headers
         .get('set-cookie')
-        .replace(/(=\w{3}),/g, '$1')
+        .replace(/(=(?!Lax)\w{3}),/g, '$1')
         .split(',')
         .map(cookie.parse)
 
       expect(cookies.length).toBe(2)
     })
 
+    /** @type import('next-webdriver').Chain */
+    let browser
+    it('should start the client-side browser', async () => {
+      browser = await webdriver(
+        appPort,
+        '/api/preview?' + qs.stringify({ client: 'mode' })
+      )
+    })
+
+    it('should fetch preview data on SSR', async () => {
+      await browser.get(`http://localhost:${appPort}/`)
+      await browser.waitForElementByCss('#props-pre')
+      // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
+      // await new Promise(resolve => setTimeout(resolve, 2000))
+      expect(await browser.elementById('props-pre').text()).toBe(
+        'true and {"client":"mode"}'
+      )
+    })
+
+    it('should fetch preview data on CST', async () => {
+      await browser.get(`http://localhost:${appPort}/to-index`)
+      await browser.waitForElementByCss('#to-index')
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await browser.elementById('to-index').click()
+      await browser.waitForElementByCss('#props-pre')
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+      expect(await browser.elementById('props-pre').text()).toBe(
+        'true and {"client":"mode"}'
+      )
+    })
+
+    it('should fetch prerendered data', async () => {
+      await browser.get(`http://localhost:${appPort}/api/reset`)
+
+      await browser.get(`http://localhost:${appPort}/`)
+      await browser.waitForElementByCss('#props-pre')
+      expect(await browser.elementById('props-pre').text()).toBe(
+        'false and null'
+      )
+    })
+
     afterAll(async () => {
+      await browser.close()
       await killApp(app)
     })
   })

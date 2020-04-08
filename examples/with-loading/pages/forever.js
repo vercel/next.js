@@ -1,12 +1,10 @@
-import React from 'react'
-
 const ForeverPage = () => <p>This page was rendered for a while!</p>
 
-ForeverPage.getInitialProps = async () => {
+export async function getServerSideProps() {
   await new Promise(resolve => {
     setTimeout(resolve, 3000)
   })
-  return {}
+  return { props: {} }
 }
 
 export default ForeverPage

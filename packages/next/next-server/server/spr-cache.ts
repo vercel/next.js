@@ -1,15 +1,18 @@
 import fs from 'fs'
-import LRUCache from 'lru-cache'
-import mkdirpOrig from 'mkdirp'
+import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
-const mkdirp = promisify(mkdirpOrig)
+const mkdir = promisify(fs.mkdir)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
+
+function toRoute(pathname: string): string {
+  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+}
 
 type SprCacheValue = {
   html: string
@@ -34,6 +37,8 @@ const getSeedPath = (pathname: string, ext: string): string => {
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
+  pathname = toRoute(pathname)
+
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
@@ -177,7 +182,7 @@ export async function setSprCache(
   if (sprOptions.flushToDisk) {
     try {
       const seedPath = getSeedPath(pathname, 'html')
-      await mkdirp(path.dirname(seedPath))
+      await mkdir(path.dirname(seedPath), { recursive: true })
       await writeFile(seedPath, data.html, 'utf8')
       await writeFile(
         getSeedPath(pathname, 'json'),

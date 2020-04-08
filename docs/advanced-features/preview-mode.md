@@ -74,7 +74,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 ```js
 export default async (req, res) => {
   // Check the secret and next parameters
-  // This secret should only be know to this API route and the CMS
+  // This secret should only be known to this API route and the CMS
   if (req.query.secret !== 'MY_SECRET_TOKEN' || !req.query.slug) {
     return res.status(401).json({ message: 'Invalid token' })
   }
@@ -153,7 +153,9 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 
 Take a look at the following examples to learn more:
 
-- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms)
+- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
+- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
+- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
 
 ## More Details
 
