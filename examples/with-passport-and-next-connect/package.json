@@ -6,7 +6,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "cookie-session": "^1.4.0",
+    "@hapi/iron": "6.0.0",
+    "cookie": "0.4.0",
     "next": "latest",
     "next-connect": "^0.6.1",
     "passport": "^0.4.1",

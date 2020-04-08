@@ -1,10 +1,10 @@
 # next-connect and Passport
 
-This example creates a basic [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) app using [next-connect](https://github.com/hoangvvo/next-connect) and cookie based authentication with [Passport.js](http://www.passportjs.org/).
+This example creates a basic [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) app using [next-connect](https://github.com/hoangvvo/next-connect) and authentication with [Passport.js](http://www.passportjs.org/). The cookie is securely encrypted using [@hapi/iron](https://github.com/hapijs/iron).
 
 The example shows how to do a sign up, login, logout, and account deactivation. It utilizes [SWR](https://swr.now.sh/) to fetch the API.
 
-The users database is mocked using the cookie session (using `req.session.users`). Follow the comments in code to add a database.
+For demo purpose, the users database is stored in the cookie session (`req.session.users`). You need to replace it with a database to store users. Follow the instructions commented in code to add a database.
 
 ## Deploy your own
 
