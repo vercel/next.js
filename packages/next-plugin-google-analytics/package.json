@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-google-analytics",
-  "version": "9.3.5-canary.4",
+  "version": "9.3.5-canary.5",
   "repository": {
     "url": "zeit/next.js",
     "directory": "packages/next-plugin-google-analytics"

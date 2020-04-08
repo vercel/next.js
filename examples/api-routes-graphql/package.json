@@ -7,12 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "apollo-server-micro": "2.6.7",
-    "graphql": "14.4.2",
-    "isomorphic-unfetch": "3.0.0",
+    "apollo-server-micro": "2.11.0",
+    "graphql": "14.6.0",
     "next": "latest",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "swr": "0.1.18"
   },
   "license": "ISC"
 }
