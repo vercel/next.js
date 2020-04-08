@@ -1,14 +1,13 @@
-import chalk from 'next/dist/compiled/chalk'
-import ciEnvironment from 'next/dist/compiled/ci-info'
 import crypto from 'crypto'
+import fs from 'fs'
+import Worker from 'jest-worker'
+import chalk from 'next/dist/compiled/chalk'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
-import fs from 'fs'
-import Worker from 'jest-worker'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
-import path from 'path'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import path from 'path'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
@@ -23,6 +22,7 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
+import { loadEnvConfig } from '../lib/load-env-config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -48,6 +48,7 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
   eventBuildOptimize,
@@ -71,7 +72,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import { loadEnvConfig } from '../lib/load-env-config'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
