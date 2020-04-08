@@ -1,8 +1,8 @@
 import { inject, observer } from 'mobx-react'
 import Link from 'next/link'
 import React from 'react'
-import { IStore } from '../stores/store'
-import { Clock } from './Clock'
+import { IStore } from '../store'
+import Clock from './Clock'
 
 interface IOwnProps {
   store?: IStore
@@ -48,4 +48,4 @@ class SampleComponent extends React.Component<IOwnProps> {
   }
 }
 
-export { SampleComponent }
+export default SampleComponent
