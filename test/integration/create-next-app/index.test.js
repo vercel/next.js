@@ -29,7 +29,7 @@ const runStarter = (...args) => {
 
 describe('create next app', () => {
   beforeAll(async () => {
-    jest.setTimeout(1000 * 60 * 3)
+    jest.setTimeout(1000 * 60 * 2)
     await fs.mkdirp(cwd)
   })
 
@@ -47,18 +47,22 @@ describe('create next app', () => {
     }
   })
 
-  it('empty directory', async () => {
-    const projectName = 'empty-directory'
-    const res = await runStarter(projectName)
+  // TODO: investigate why this test stalls on yarn install when
+  // stdin is piped instead of inherited on windows
+  if (process.platform !== 'win32') {
+    it('empty directory', async () => {
+      const projectName = 'empty-directory'
+      const res = await runStarter(projectName)
 
-    expect(res.exitCode).toBe(0)
-    expect(
-      fs.existsSync(path.join(cwd, projectName, 'package.json'))
-    ).toBeTruthy()
-    expect(
-      fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-    ).toBeTruthy()
-  })
+      expect(res.exitCode).toBe(0)
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+      ).toBeTruthy()
+    })
+  }
 
   it('invalid example name', async () => {
     const projectName = 'invalid-example-name'
@@ -163,41 +167,45 @@ describe('create next app', () => {
     ).toBeTruthy()
   })
 
-  it('should allow to manually select an example', async () => {
-    const runExample = (...args) => {
-      const res = run(...args)
+  // TODO: investigate why this test stalls on yarn install when
+  // stdin is piped instead of inherited on windows
+  if (process.platform !== 'win32') {
+    it('should allow to manually select an example', async () => {
+      const runExample = (...args) => {
+        const res = run(...args)
 
-      function pickExample(data) {
-        if (/hello-world/.test(data.toString())) {
-          res.stdout.removeListener('data', pickExample)
-          res.stdin.write('\n')
+        function pickExample(data) {
+          if (/hello-world/.test(data.toString())) {
+            res.stdout.removeListener('data', pickExample)
+            res.stdin.write('\n')
+          }
         }
+
+        function searchExample(data) {
+          if (/Pick an example/.test(data.toString())) {
+            res.stdout.removeListener('data', searchExample)
+            res.stdin.write('hello-world')
+            res.stdout.on('data', pickExample)
+          }
+        }
+
+        function selectExample(data) {
+          if (/Pick a template/.test(data.toString())) {
+            res.stdout.removeListener('data', selectExample)
+            res.stdin.write('\u001b[B\n') // Down key and enter
+            res.stdout.on('data', searchExample)
+          }
+        }
+
+        res.stdout.on('data', selectExample)
+
+        return res
       }
 
-      function searchExample(data) {
-        if (/Pick an example/.test(data.toString())) {
-          res.stdout.removeListener('data', searchExample)
-          res.stdin.write('hello-world')
-          res.stdout.on('data', pickExample)
-        }
-      }
+      const res = await runExample('no-example')
 
-      function selectExample(data) {
-        if (/Pick a template/.test(data.toString())) {
-          res.stdout.removeListener('data', selectExample)
-          res.stdin.write('\u001b[B\n') // Down key and enter
-          res.stdout.on('data', searchExample)
-        }
-      }
-
-      res.stdout.on('data', selectExample)
-
-      return res
-    }
-
-    const res = await runExample('no-example')
-
-    expect(res.exitCode).toBe(0)
-    expect(res.stdout).toMatch(/Downloading files for example hello-world/)
-  })
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).toMatch(/Downloading files for example hello-world/)
+    })
+  }
 })
