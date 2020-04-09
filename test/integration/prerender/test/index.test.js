@@ -129,6 +129,11 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/enoent': {
+    dataRoute: `/_next/data/${buildId}/enoent.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: null,
+  },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
     initialRevalidateSeconds: false,
@@ -505,6 +510,12 @@ const runTests = (dev = false, looseMode = false) => {
     //   )
     // })
 
+    it('should handle throw ENOENT correctly', async () => {
+      const res = await fetchViaHTTP(appPort, '/enoent')
+      const html = await res.text()
+      expect(html).toContain('oof')
+    })
+
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
       await fs.writeFile(
@@ -809,6 +820,12 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/default-revalidate.json$`
           ),
           page: '/default-revalidate',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent.json$`
+          ),
+          page: '/enoent',
         },
         {
           dataRouteRegex: normalizeRegEx(
