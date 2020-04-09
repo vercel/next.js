@@ -154,7 +154,7 @@
     "babel-plugin-dynamic-import-node": "2.3.0",
     "cache-loader": "4.1.0",
     "chalk": "2.4.2",
-    "ci-info": "2.0.0",
+    "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "compression": "1.7.4",
     "conf": "5.0.0",
     "content-type": "1.0.4",
