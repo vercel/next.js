@@ -7,7 +7,7 @@ function linkResolver(doc) {
   }
 
   // Fallback for other types, in case new custom types get created
-  return `/${doc.id}`
+  return `/${doc.uid}`
 }
 
 export default async (req, res) => {
