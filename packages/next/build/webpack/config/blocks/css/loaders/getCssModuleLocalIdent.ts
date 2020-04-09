@@ -29,17 +29,22 @@ export function getCssModuleLocalIdent(
   )
 
   // Have webpack interpolate the `[folder]` or `[name]` to its real value.
-  return loaderUtils
-    .interpolateName(
-      context,
-      fileNameOrFolder + '_' + exportName + '__' + hash,
-      options
-    )
-    .replace(
-      // Webpack name interpolation returns `about.module_root__2oFM9` for
-      // `.root {}` inside a file named `about.module.css`. Let's simplify
-      // this.
-      /\.module_/,
-      '_'
-    )
+  return (
+    loaderUtils
+      .interpolateName(
+        context,
+        fileNameOrFolder + '_' + exportName + '__' + hash,
+        options
+      )
+      .replace(
+        // Webpack name interpolation returns `about.module_root__2oFM9` for
+        // `.root {}` inside a file named `about.module.css`. Let's simplify
+        // this.
+        /\.module_/,
+        '_'
+      )
+      // replace `[` and `]` from dynamic routes as they aren't valid
+      // characters for CSS names
+      .replace(/(\[|\])/g, '_')
+  )
 }
