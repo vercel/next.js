@@ -1,5 +1,6 @@
 import nextConnect from 'next-connect'
 import auth from '../../middleware/auth'
+import { getAllUsers, createUser, findUserByUsername } from '../../lib/db'
 
 const handler = nextConnect()
 
@@ -7,25 +8,21 @@ handler
   .use(auth)
   .get((req, res) => {
     // For demo purpose only. You will never have an endpoint which returns all users.
-    req.session.users = req.session.users || []
-    res.json({ users: req.session.users })
+    // Remove this in production
+    res.json({ users: getAllUsers(req) })
   })
   .post((req, res) => {
     const { username, password, name } = req.body
-    // Here you should check if the username has already been used
-    // const user = await db.findUserByUsername(username);
-    // const usernameExisted === !!user;
-    const usernameExisted = req.session.users.some(
-      user => user.username === username
-    )
+    if (!username || !password || !name) {
+      return res.status(400).send('Missing fields')
+    }
+    // Here you check if the username has already been used
+    const usernameExisted = !!findUserByUsername(req, username)
     if (usernameExisted) {
-      res.status(409).send('The username has already been used')
-      return
+      return res.status(409).send('The username has already been used')
     }
     const user = { username, password, name }
-    // Here you should insert the user into the database
-    // await db.createUser(user);
-    req.session.users.push(user)
+    createUser(req, user)
     req.logIn(user, err => {
       if (err) throw err
       // Log the signed up user in

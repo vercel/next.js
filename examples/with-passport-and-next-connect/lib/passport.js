@@ -1,28 +1,24 @@
 import passport from 'passport'
 import LocalStrategy from 'passport-local'
+import { findUserByUsername } from '../lib/db'
 
 passport.serializeUser(function(user, done) {
+  // serialize the username into session
   done(null, user.username)
 })
 
 passport.deserializeUser(function(req, id, done) {
-  // Here you find the user based on id in the database
-  // db.findUserById(id).then((user) => {
-  //  done(null, user);
-  // });
-  const user = req.session.users.find(user => user.username === id)
+  // deserialize the username back into user object
+  const user = findUserByUsername(req, id)
   done(null, user)
 })
 
 passport.use(
   new LocalStrategy(
     { passReqToCallback: true },
-    (req, username, password, done) => {
-      // Here you should lookup for the user in your DB and compare the password
-      // const user = await db.findUserByUsername(username)
-      // const hash = await argon2.hash(password);
-      // const passwordsMatch = user.hash === hash
-      const user = req.session.users.find(user => user.username === username)
+   (req, username, password, done) => {
+      // Here you lookup the user in your DB and compare the password/hashed password
+      const user = findUserByUsername(req, username)
       if (!user || user.password !== password) {
         done(null, null)
       } else {
