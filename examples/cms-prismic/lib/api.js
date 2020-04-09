@@ -41,7 +41,7 @@ export async function getPreviewPostBySlug(slug) {
   const data = await fetchAPI(
     `
     query PostBySlug($slug: String!) {
-      post(uid: $slug lang: "en-us") {
+      post(uid: $slug, lang: "en-us") {
         _meta {
           uid
         }
@@ -78,7 +78,7 @@ export async function getAllPostsForHome(previewData) {
   const data = await fetchAPI(
     `
     query {
-      allPosts {
+      allPosts(sortBy: date_DESC) {
         edges {
           node {
             date
@@ -110,7 +110,7 @@ export async function getPostAndMorePosts(slug, previewData) {
   const data = await fetchAPI(
     `
   query PostBySlug($slug: String!) {
-    post(uid: $slug lang: "en-us") {
+    post(uid: $slug, lang: "en-us") {
       title
       content
       date
@@ -125,6 +125,26 @@ export async function getPostAndMorePosts(slug, previewData) {
         uid
       }
     }
+
+   morePosts: allPosts(sortBy: date_DESC, first: 3) {
+      edges {
+        node {
+          title
+          content
+          date
+          coverimage
+          author {
+            ...on Author {
+              name
+              picture
+            }
+          }
+          _meta {
+            uid
+          }
+        }
+      }
+    }
   }
   `,
     {
@@ -134,5 +154,10 @@ export async function getPostAndMorePosts(slug, previewData) {
       },
     }
   )
+
+  data.morePosts = data.morePosts.edges
+    .filter(({ node }) => node._meta.uid !== slug)
+    .slice(0, 2)
+
   return data
 }
