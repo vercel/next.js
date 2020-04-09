@@ -22,6 +22,9 @@ handler
       return res.status(409).send('The username has already been used')
     }
     const user = { username, password, name }
+    // Security-wise, you must hash the password before saving it
+    // const hashedPass = await argon2.hash(password);
+    // const user = { username, password: hashedPass, name }
     createUser(req, user)
     req.logIn(user, err => {
       if (err) throw err

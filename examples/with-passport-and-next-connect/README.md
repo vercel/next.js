@@ -4,7 +4,9 @@ This example creates a basic [CRUD](https://en.wikipedia.org/wiki/Create,_read,_
 
 The example shows how to do a sign up, login, logout, and account deactivation. It utilizes [SWR](https://swr.now.sh/) to fetch the API.
 
-For demo purpose, the users database is stored in the cookie session. You need to replace it with an actual database to store users. Follow the instructions in [db.js](lib/db.js) to add a database.
+For demo purpose, the users database is stored in the cookie session. You need to replace it with an actual database to store users in [db.js](lib/db.js).
+
+In production, you must also use a password hashing library, such as [argon2](https://github.com/ranisalt/node-argon2) or [bcrypt](https://www.npmjs.com/package/bcrypt).
 
 ## Deploy your own
 
