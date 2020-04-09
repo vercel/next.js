@@ -7,7 +7,6 @@
   },
   "dependencies": {
     "@hapi/iron": "6.0.0",
-    "argon2": "0.26.2",
     "cookie": "0.4.0",
     "next": "latest",
     "next-connect": "^0.6.1",
