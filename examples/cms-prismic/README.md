@@ -2,6 +2,10 @@
 
 This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [Prismic](https://prismic.io/) as the data source.
 
+## Demo
+
+### [https://next-blog-prismic.now.sh/](https://next-blog-prismic.now.sh/)
+
 ## How to use
 
 ### Using `create-next-app`
