@@ -133,6 +133,7 @@ export async function getPostAndMorePosts(slug, previewData) {
           content
           date
           coverimage
+          excerpt
           author {
             ...on Author {
               name

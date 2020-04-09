@@ -42,6 +42,8 @@ Next, add these fields (you don't have to modify the settings):
 - `name` - **Key Text** field
 - `picture` - **Image** field
 
+Save the type and continue.
+
 ### Step 3. Create a `post` type
 
 From the repository page, create a new **custom type**:
@@ -58,23 +60,25 @@ Next, add these fields (you don't have to modify the settings unless specified):
 - `author` - **Content relationship** field, you may also add `author` to the **Constraint to custom type** option to only accept documents from the `author` type.
 - `slug` - **UID** field.
 
+Save the type and continue.
+
 ### Step 4. Populate Content
 
 Go to the **Content** page, it's in the menu at the top left, then click on **Create new** and select the **author** type:
 
-- You just need **1 author record**.
+- You just need **1 author document**.
 - Use dummy data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
-Next, select **Post** and create a new record.
+Next, select **Post** and create a new document.
 
-- We recommend creating at least **2 Post records**.
+- We recommend creating at least **2 Post documents**.
 - Use dummy data for the text.
 - You can write markdown for the **content** field.
 - For images, you can download them from [Unsplash](https://unsplash.com/).
 - Pick the **author** you created earlier.
 
-**Important:** For each post record, you need to click **Publish** after saving. If not, the post will be in the draft state.
+**Important:** For each document, you need to click **Publish** after saving. If not, the document will be in the draft state.
 
 ### Step 5. Set up environment variables
 
@@ -114,9 +118,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 7. Try preview mode
 
-On your repository page, go to **Settings**, click on **Previews** and then on **Create a Preview**.
-
-We're going to create a preview mode for development, fill the form like so:
+On your repository page, go to **Settings**, click on **Previews** and then **Create a New Preview** for development, fill the form like so:
 
 - **Site Name**: may be anything, like `development`
 - **Domain of Your Application**: `http://localhost:3000`
@@ -138,7 +140,7 @@ To deploy on ZEIT Now, you need to set the environment variables with **Now Secr
 
 Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
 
-```
+```bash
 now secrets add next_example_cms_prismic_api_token <NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>
 now secrets add next_example_cms_prismic_repository_name <NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>
 ```
