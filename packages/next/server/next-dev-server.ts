@@ -237,9 +237,9 @@ export default class DevServer extends Server {
     await this.loadCustomRoutes()
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
-      if (redirects.length || rewrites.length) {
+      if (redirects.length || rewrites.length || headers.length) {
         this.router = new Router(this.generateRoutes())
       }
     }
