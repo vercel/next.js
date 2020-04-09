@@ -32,7 +32,7 @@ export const SERVER_PROPS_SSG_CONFLICT = `You can not use getStaticProps with ge
 
 export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/next.js/404-get-initial-props`
 
-export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gss-export`
+export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gssp-export`
 
 export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'The `revalidate` property is not yet available for general use.\n' +

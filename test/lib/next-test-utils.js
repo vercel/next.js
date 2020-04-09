@@ -21,7 +21,8 @@ export function initNextServerScript(
   scriptPath,
   successRegexp,
   env,
-  failRegexp
+  failRegexp,
+  opts
 ) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
@@ -32,6 +33,10 @@ export function initNextServerScript(
         resolve(instance)
       }
       process.stdout.write(message)
+
+      if (opts && opts.onStdout) {
+        opts.onStdout(message.toString())
+      }
     }
 
     function handleStderr(data) {
@@ -41,6 +46,10 @@ export function initNextServerScript(
         return reject(new Error('received failRegexp'))
       }
       process.stderr.write(message)
+
+      if (opts && opts.onStderr) {
+        opts.onStderr(message.toString())
+      }
     }
 
     instance.stdout.on('data', handleStdout)
