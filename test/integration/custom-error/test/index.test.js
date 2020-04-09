@@ -14,6 +14,8 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
+
+let stderr = ''
 let appPort
 let app
 
@@ -27,6 +29,12 @@ const runTests = isDev => {
     const html = await renderViaHTTP(appPort, '/throw-404')
     expect(html).toContain('Custom error')
     expect(html).not.toContain('to 404 we go')
+
+    if (isDev) {
+      expect(stderr).toContain(
+        'page "/throw-404" threw an error with a code of ENOENT. This was an internal feature to render the 404 page and should not be relied on'
+      )
+    }
   })
 }
 
@@ -34,9 +42,8 @@ const customErrNo404Match = /You have added a custom \/_error page without a cus
 
 describe('Custom _error', () => {
   describe('dev mode', () => {
-    let stderr = ''
-
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         onStderr(msg) {

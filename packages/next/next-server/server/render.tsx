@@ -42,6 +42,7 @@ import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { GetStaticProps, GetServerSideProps } from '../../types'
+import chalk from 'next/dist/compiled/chalk'
 
 function noRouter() {
   const message =
@@ -637,6 +638,13 @@ export async function renderToHTML(
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
+    if (process.env.NODE_ENV !== 'production' && err?.code === 'ENOENT') {
+      console.warn(
+        chalk.yellow('Warning:') +
+          ` page "${pathname}" threw an error with a code of ENOENT. This was an internal feature to render the 404 page and should not be relied on.\nSee more info here: https://err.sh/next.js/getinitialprops-enoent`
+      )
+    }
+
     if (isDataReq || !dev || !err || err.code === 'ENOENT') throw err
     ctx.err = err
     renderOpts.err = err
