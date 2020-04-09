@@ -115,25 +115,21 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 7. Try preview mode
 
-On DatoCMS, go to one of the posts you've created and:
+On your repository page, go to **Settings**, click on **Previews** and then on **Create a Preview**.
+
+We're going to create a preview mode for development, fill the form like so:
+
+- **Site Name**: may be anything, like `development`
+- **Domain of Your Application**: `http://localhost:3000`
+- **Link Resolver**: `/api/preview`
+
+Once saved, go to one of the posts you've created and:
 
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
-- Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
+- Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in draft state.
+- Right next to the **Publish** button you should see the **Preview** button, displayed with an eye icon. Click on it!
 
-(If it doesn't become draft, you need to go to the model settings for `Post`, go to **Additional Settings**, and turn on **Enable draft/published system**.)
-
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
-
-To enable the Preview Mode, go to this URL:
-
-```
-http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
-```
-
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET`.
-- `<slug>` should be the post's `slug` attribute (you can check on DatoCMS).
-
-You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+You should now be able to see the updated title. To exit the preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
 ### Step 8. Deploy on ZEIT Now
 
@@ -141,11 +137,11 @@ You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filt
 
 To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
 
 ```
-now secrets add next_example_cms_datocms_api_token <NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>
-now secrets add next_example_cms_datocms_preview_secret <NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>
+now secrets add next_example_cms_prismic_api_token <NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>
+now secrets add next_example_cms_prismic_repository_name <NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
