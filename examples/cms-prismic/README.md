@@ -1,6 +1,6 @@
-# A statically generated blog example using Next.js and DatoCMS
+# A statically generated blog example using Next.js and Prismic
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [DatoCMS](https://www.datocms.com/) as the data source.
+This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [Prismic](https://prismic.io/) as the data source.
 
 ## How to use
 
@@ -9,9 +9,9 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-datocms cms-datocms-app
+npm init next-app --example cms-prismic cms-prismic-app
 # or
-yarn create next-app --example cms-datocms cms-datocms-app
+yarn create next-app --example cms-prismic cms-prismic-app
 ```
 
 ### Download manually
@@ -19,51 +19,50 @@ yarn create next-app --example cms-datocms cms-datocms-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-datocms
-cd cms-datocms
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-prismic
+cd cms-prismic
 ```
 
 ## Configuration
 
-### Step 1. Create an account and a project on DatoCMS
+### Step 1. Create an account and a repository on Prismic
 
-First, [create an account on DatoCMS](https://datocms.com).
+First, [create an account on Prismic](https://prismic.io/).
 
-After creating an account, create a **new project** from the dashboard. You can select a **Blank Project**.
+After creating an account, create a **repository** from the [dashboard](https://prismic.io/dashboard/) and assign to it any name of your liking.
 
-### Step 2. Create an `Author` model
+### Step 2. Create an `author` type
 
-From the project setting page, create a new **Model**.
+From the repository page, create a new **custom type**:
 
-- The name should be `Author`.
+- The name should be `author`.
 
 Next, add these fields (you don't have to modify the settings):
 
-- `Name` - **Text** field (**Single-line String**)
-- `Picture` - **Media** field (**Single asset**)
+- `name` - **Key Text** field
+- `picture` - **Image** field
 
-### Step 3. Create a `Post` model
+### Step 3. Create a `post` type
 
-From the project setting page, create a new **Model**:
+From the repository page, create a new **custom type**:
 
-- The name should be `Post`.
-- **Important:** From the "Additional Settings" tab, turn on **Enable draft/published system.** This lets you preview the content.
+- The name should be `post`.
 
 Next, add these fields (you don't have to modify the settings unless specified):
 
-- `Title` - **Text** field (**Single-line String**)
-- `Content` - **Text** field (**Multiple-paragraph Text**)
-- `Excerpt` - **Text** field (**Single-line String**)
-- `Cover Image` - **Media** field (**Single asset**)
-- `Date` - **Date and time** field (**Date**)
-- `Author` - **Links** field (**Single link**) , and from the "Validations" tab under "Accept only specified model", select **Author**.
-- `Slug` - **SEO** field (**Slug**), and from the "Validations" tab under "Reference field" select **Title**.
+- `title` - **Title** field
+- `content` - **Rich Text** field
+- `excerpt` - **Key Text** field
+- `coverimage` - **Image** field
+- `date` - **Date** field
+- `author` - **Content relationship** field, you may also add `author` to the **Constraint to custom type** option to only accept documents from the `author` type.
+- `slug` - **UID** field.
 
 ### Step 4. Populate Content
 
-From the **Content** menu at the top, select **Author** and create a new record.
+Go to the **Content** page, it's in the menu at the top left, then click on **Create new** and select the **author** type:
 
-- You just need **1 Author record**.
+- You just need **1 author record**.
 - Use dummy data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
@@ -71,17 +70,15 @@ Next, select **Post** and create a new record.
 
 - We recommend creating at least **2 Post records**.
 - Use dummy data for the text.
-- You can write markdown for the **Content** field.
-- For the images, you can download ones from [Unsplash](https://unsplash.com/).
-- Pick the **Author** you created earlier.
+- You can write markdown for the **content** field.
+- For images, you can download them from [Unsplash](https://unsplash.com/).
+- Pick the **author** you created earlier.
 
 **Important:** For each post record, you need to click **Publish** after saving. If not, the post will be in the draft state.
 
 ### Step 5. Set up environment variables
 
-Go to the **Settings** menu at the top and click **API tokens**.
-
-Then click **Read-only API token** and copy the token.
+Follow the instructions in [this post](https://intercom.help/prismicio/en/articles/1036153-generating-an-access-token) to generate a new access token.
 
 Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
 
@@ -91,14 +88,15 @@ cp .env.example .env
 
 Then set each variable on `.env`:
 
-- `NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN` should be the API token you just copied.
+- `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
+- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in)
 - `NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
 
 Your `.env` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN=...
-NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET=...
+NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
+NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
 ```
 
 ### Step 6. Run Next.js in development mode

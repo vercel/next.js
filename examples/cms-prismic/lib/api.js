@@ -1,9 +1,9 @@
 import 'isomorphic-unfetch'
 import Prismic from 'prismic-javascript'
 
-const REPOSITORY = 'hello-world-test-12345'
-const REF_API_URL = `https://${REPOSITORY}.cdn.prismic.io/api/v2`
-const GRAPHQL_API_URL = `https://${REPOSITORY}.cdn.prismic.io/graphql`
+const REPOSITORY = process.env.NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME
+const REF_API_URL = `https://${REPOSITORY}.prismic.io/api/v2`
+const GRAPHQL_API_URL = `https://${REPOSITORY}.prismic.io/graphql`
 // export const API_URL = 'https://your-repo-name.cdn.prismic.io/api/v2'
 export const API_TOKEN = process.env.NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN
 
@@ -85,6 +85,13 @@ export async function getAllPostsForHome(previewData) {
             title
             content
             coverimage
+            excerpt
+            author {
+              ...on Author {
+                name
+                picture
+              }
+            }
             _meta {
               uid
             }
@@ -108,6 +115,12 @@ export async function getPostAndMorePosts(slug, previewData) {
       content
       date
       coverimage
+      author {
+        ...on Author {
+          name
+          picture
+        }
+      }
       _meta {
         uid
       }
