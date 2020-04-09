@@ -15,6 +15,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
+- [Prismic](/examples/cms-prismic)
 
 ## How to use
 

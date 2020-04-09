@@ -6,6 +6,13 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 
 ### [https://next-blog-prismic.now.sh/](https://next-blog-prismic.now.sh/)
 
+### Related examples
+
+- [Blog Starter](/examples/blog-starter)
+- [DatoCMS](/examples/cms-datocms)
+- [TakeShape](/examples/cms-takeshape)
+- [Sanity](/examples/cms-sanity)
+
 ## How to use
 
 ### Using `create-next-app`
