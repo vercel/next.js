@@ -449,3 +449,52 @@ describe('CSS Module Composes Usage (External)', () => {
     )
   })
 })
+
+describe('Dynamic Route CSS Module Usage', () => {
+  // This is a very bad feature. Do not use it.
+  const appDir = join(fixturesDir, 'dynamic-route-module')
+
+  let stdout
+  let code
+  let app
+  let appPort
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(() => killApp(app))
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it('should apply styles correctly', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+
+    const background = await browser
+      .elementByCss('#my-div')
+      .getComputedCss('background-color')
+
+    expect(background).toMatch(/rgb(a|)\(255, 0, 0/)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `"._post__home__2Cy-L{background:red}"`
+    )
+  })
+})
