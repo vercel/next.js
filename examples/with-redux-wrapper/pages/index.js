@@ -17,7 +17,8 @@ const Counter = props => {
   return <Page title="Index Page" linkTo="/other" />
 }
 
-Counter.getInitialProps = async ({ store, isServer }) => {
+Counter.getInitialProps = async ({ store, req }) => {
+  const isServer = !!req
   store.dispatch(serverRenderClock(isServer))
   store.dispatch(addCount())
   return { isServer }
