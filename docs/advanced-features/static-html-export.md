@@ -15,7 +15,7 @@ description: Export your Next.js app to static HTML, and run it standalone witho
 
 The exported app supports almost every feature of Next.js, including dynamic routes, prefetching, preloading and dynamic imports.
 
-`next export` works by prerendering all pages to HTML. For [dynamic routes](https://nextjs.org/docs/routing/dynamic-routes), you can export a [`getStaticPaths`](https://nextjs.org/docs/basic-features/data-fetching#getstaticpaths-static-generation) to let the exporter know which HTML pages to generate for that route.
+`next export` works by prerendering all pages to HTML. For [dynamic routes](https://nextjs.org/docs/routing/dynamic-routes), your page can export a [`getStaticPaths`](https://nextjs.org/docs/basic-features/data-fetching#getstaticpaths-static-generation) function to let the exporter know which HTML pages to generate for that route.
 
 > Note that the `fallback: true` mode of `getStaticPaths` is not supported when using `next export`. Fallback mode only works in serverless configurations or when using `next start` or a custom server; for `next export`, the `fallback` parameter will be treated as if it were `false` and any routes not defined by `getStaticPaths` will return a 404.
 
