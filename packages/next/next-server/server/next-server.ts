@@ -825,7 +825,7 @@ export default class Server {
   ): Promise<FindComponentsResult | null> {
     const paths = [
       // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      query.amp ? pathname + '.amp' : null,
       pathname,
     ].filter(Boolean)
     for (const pagePath of paths) {
@@ -1197,17 +1197,15 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
+    const page = normalizePagePath(pathname)
+
     try {
-      const result = await this.findPageComponents(pathname, query)
+      const result = await this.findPageComponents(page, query)
       if (result) {
         try {
-          return await this.renderToHTMLWithComponents(
-            req,
-            res,
-            pathname,
-            result,
-            { ...this.renderOpts }
-          )
+          return await this.renderToHTMLWithComponents(req, res, page, result, {
+            ...this.renderOpts,
+          })
         } catch (err) {
           if (!(err instanceof NoFallbackError)) {
             throw err
@@ -1217,7 +1215,7 @@ export default class Server {
 
       if (this.dynamicRoutes) {
         for (const dynamicRoute of this.dynamicRoutes) {
-          const params = dynamicRoute.match(pathname)
+          const params = dynamicRoute.match(page)
           if (!params) {
             continue
           }
@@ -1247,11 +1245,11 @@ export default class Server {
     } catch (err) {
       this.logError(err)
       res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
+      return await this.renderErrorToHTML(err, req, res, page, query)
     }
 
     res.statusCode = 404
-    return await this.renderErrorToHTML(null, req, res, pathname, query)
+    return await this.renderErrorToHTML(null, req, res, page, query)
   }
 
   public async renderError(

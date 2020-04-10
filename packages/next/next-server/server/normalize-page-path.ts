@@ -15,5 +15,8 @@ export function normalizePagePath(page: string): string {
       `Requested and resolved page mismatch: ${page} ${resolvedPage}`
     )
   }
+
+  page = page.replace(/\/$/, '')
+
   return page
 }
