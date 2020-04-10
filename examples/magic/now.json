@@ -1,0 +1,12 @@
+{
+  "env": {
+    "MAGIC_PUBLISHABLE_KEY": "@magic-publishable-key",
+    "MAGIC_SECRET_KEY": "@magic-secret-key"
+  },
+  "build": {
+    "env": {
+      "MAGIC_PUBLISHABLE_KEY": "@magic-publishable-key",
+      "MAGIC_SECRET_KEY": "@magic-secret-key"
+    }
+  }
+}

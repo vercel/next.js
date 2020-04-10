@@ -1,0 +1,24 @@
+{
+  "name": "magic-next",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@hapi/iron": "6.0.0",
+    "@magic-sdk/admin": "1.0.0",
+    "cookie": "0.4.0",
+    "dotenv-load": "^2.0.0",
+    "express": "4.17.1",
+    "magic-sdk": "1.0.1",
+    "next": "latest",
+    "next-env": "^1.1.1",
+    "passport": "0.4.1",
+    "passport-magic": "1.0.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "swr": "0.1.16"
+  },
+  "license": "ISC"
+}
