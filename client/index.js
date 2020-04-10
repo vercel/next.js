@@ -24,6 +24,11 @@ let ErrorComponent
 
 export const emitter = mitt()
 
+let Enhancer
+export function setEnhancer (_enhancer) {
+  Enhancer = _enhancer
+}
+
 export default () => {
   return Promise.all([
     waitForPage('/_error'),
@@ -105,6 +110,9 @@ export function renderError (error) {
 
 let isInitialRender = true
 function renderReactElement (reactEl, domEl) {
+  // Wrap page in app-level enhancer, if defined
+  reactEl = Enhancer ? createElement(Enhancer, null, reactEl) : reactEl
+
   if (isInitialRender && domEl.firstChild) {
     ReactDOM.hydrate(reactEl, domEl)
     isInitialRender = false
