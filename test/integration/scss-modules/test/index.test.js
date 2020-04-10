@@ -450,7 +450,6 @@ describe('CSS Module Composes Usage (External)', () => {
 })
 
 describe('Dynamic Route CSS Module Usage', () => {
-  // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'dynamic-route-module')
 
   let stdout
