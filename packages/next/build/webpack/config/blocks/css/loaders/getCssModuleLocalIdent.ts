@@ -43,8 +43,11 @@ export function getCssModuleLocalIdent(
         /\.module_/,
         '_'
       )
-      // replace `[` and `]` from dynamic routes as they aren't valid
-      // characters for CSS names
-      .replace(/(\[|\])/g, '_')
+      // Replace any characters not in the below set to prevent invalid
+      // CSS characters
+      .replace(/[^a-zA-Z0-9-_]/g, '_')
+      // CSS classes can also not start with a digit or a hyphen and then a
+      //digit https://www.w3.org/TR/CSS21/syndata.html#characters
+      .replace(/^(\d|_\d|__)/, '')
   )
 }
