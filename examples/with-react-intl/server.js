@@ -4,6 +4,12 @@ const IntlPolyfill = require('intl')
 Intl.NumberFormat = IntlPolyfill.NumberFormat
 Intl.DateTimeFormat = IntlPolyfill.DateTimeFormat
 
+// Fix: https://github.com/zeit/next.js/issues/11777
+// See related issue: https://github.com/andyearnshaw/Intl.js/issues/308
+if (IntlPolyfill.__disableRegExpRestore) {
+  IntlPolyfill.__disableRegExpRestore()
+}
+
 // Polyfill DOMParser for **pre-v4** react-intl used by formatjs.
 // Only needed when using FormattedHTMLMessage. Make sure to install `xmldom`.
 // See: https://github.com/zeit/next.js/issues/10533
