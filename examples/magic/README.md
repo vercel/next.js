@@ -1,6 +1,6 @@
 # Magic Example
 
-This example show how to use [Magic](https://magic.link) with Next.js. The example features cookie based, passwordless authentication with email-based magic links.
+This example show how to use [Magic](https://magic.link) with Next.js. The example features cookie-based, passwordless authentication with email-based magic links.
 
 The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.now.sh).
 
