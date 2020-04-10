@@ -1,5 +1,3 @@
-import Link from 'next/link'
-
 const Form = ({ errorMessage, onSubmit }) => (
   <form onSubmit={onSubmit}>
     <label>
