@@ -491,6 +491,7 @@ Take a look at the following examples to learn more:
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
 - [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
 - [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
+- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## Learn more
 
