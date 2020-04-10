@@ -525,7 +525,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           console.warn(
             chalk.bold.yellow(`Warning: `) +
               chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
               )
           )
           console.warn(
