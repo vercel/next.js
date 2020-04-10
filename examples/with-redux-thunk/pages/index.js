@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { PureComponent } from 'react'
 import { connect } from 'react-redux'
 import Link from 'next/link'
 import { startClock, serverRenderClock } from '../actions'
 import Examples from '../components/examples'
 
-class Index extends React.Component {
+class Index extends PureComponent {
   static getInitialProps({ store, req }) {
     store.dispatch(serverRenderClock(!!req))
 

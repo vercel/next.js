@@ -1,8 +1,9 @@
+import React from 'react'
 import { useSelector } from 'react-redux'
 import Clock from './clock'
 import Counter from './counter'
 
-export default () => {
+const Examples = () => {
   const lastUpdate = useSelector(state => state.timer.lastUpdate)
   const light = useSelector(state => state.timer.light)
 
@@ -13,3 +14,5 @@ export default () => {
     </div>
   )
 }
+
+export default Examples
