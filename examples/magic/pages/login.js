@@ -17,17 +17,19 @@ const Login = () => {
     if (errorMsg) setErrorMsg('')
 
     const body = {
-      email: e.currentTarget.email.value
+      email: e.currentTarget.email.value,
     }
 
     try {
       const magic = new Magic(process.env.MAGIC_PUBLISHABLE_KEY)
-      const didToken = await magic.auth.loginWithMagicLink({ email: body.email })
+      const didToken = await magic.auth.loginWithMagicLink({
+        email: body.email,
+      })
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': "Bearer " + didToken
+          Authorization: 'Bearer ' + didToken,
         },
         body: JSON.stringify(body),
       })

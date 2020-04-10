@@ -22,7 +22,11 @@ const Home = () => {
         </li>
       </ol>
 
-      {user && <p>Currently logged in as:<pre>{JSON.stringify(user, null, 2)}</pre></p>}
+      {user && (
+        <p>
+          Currently logged in as:<pre>{JSON.stringify(user, null, 2)}</pre>
+        </p>
+      )}
 
       <style jsx>{`
         li {

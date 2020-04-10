@@ -15,6 +15,7 @@ Login to the [Magic Dashboard](https://dashboard.magic.link/) and add new applic
 ```
 now secrets add @magic-publishable-key pk_test_*********
 ```
+
 ```
 now secrets add @magic-secret-key sk_test_*********
 ```

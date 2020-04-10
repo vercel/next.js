@@ -7,7 +7,11 @@ const Profile = () => {
   return (
     <Layout>
       <h1>Profile</h1>
-      {user && <p>Your session:<pre>{JSON.stringify(user, null, 2)}</pre></p>}
+      {user && (
+        <p>
+          Your session:<pre>{JSON.stringify(user, null, 2)}</pre>
+        </p>
+      )}
     </Layout>
   )
 }
