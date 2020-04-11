@@ -501,7 +501,9 @@ export default async function getBaseWebpackConfig(
             // not be bundled.
 
             const isLocal: boolean =
-              request.startsWith('.') || request.startsWith('/')
+              request.startsWith('.') ||
+              path.posix.isAbsolute(request) ||
+              path.win32.isAbsolute(request)
             const isLikelyNextExternal =
               isLocal && /[/\\]next-server[/\\]/.test(request)
 
