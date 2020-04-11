@@ -54,6 +54,7 @@ In the `clock` component, we are going to display a digital clock that updates e
 In the `counter` component, we are going to display a user-interactive counter that can be increased or decreased when the provided buttons are pressed.
 
 This example includes two different ways to access the `store` or to `dispatch` actions:
+
 1.) `pages/index.js` will utilize `connect` from `react-redux` to `dispatch` the `startClock` redux action once the component has been mounted in the browser.
 
 2.) `components/counter.js` and `components/examples.js` have access to the redux store using `useSelector` and can dispatch actions using `useDispatch` from `react-redux@^7.1.0`
