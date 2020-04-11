@@ -103,7 +103,8 @@ const nextServerlessLoader: loader.Loader = function() {
         if (params) {
           const { parsedDestination } = prepareDestination(
             rewrite.destination,
-            params
+            params,
+            parsedUrl.query
           )
           Object.assign(parsedUrl.query, parsedDestination.query, params)
           delete parsedDestination.query
