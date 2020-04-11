@@ -1,4 +1,4 @@
-# A statically generated blog example using Next.js and DatoCMS
+# A statically generated blog example using Next.js and Agility CMS
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Agility CMS](https://www.agilitycms.com) as the data source.
 
