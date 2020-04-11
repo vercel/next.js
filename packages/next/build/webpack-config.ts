@@ -503,7 +503,7 @@ export default async function getBaseWebpackConfig(
             const isLocal: boolean =
               request.startsWith('.') ||
               path.posix.isAbsolute(request) ||
-              path.win32.isAbsolute(request)
+              (process.platform === 'win32' && path.win32.isAbsolute(request))
             const isLikelyNextExternal =
               isLocal && /[/\\]next-server[/\\]/.test(request)
 
