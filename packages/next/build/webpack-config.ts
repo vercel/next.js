@@ -502,7 +502,11 @@ export default async function getBaseWebpackConfig(
 
             const isLocal: boolean =
               request.startsWith('.') ||
+              // Always check for unix-style path, as webpack sometimes
+              // normalizes as posix.
               path.posix.isAbsolute(request) ||
+              // When on Windows, we also want to check for Windows-specific
+              // absolute paths.
               (process.platform === 'win32' && path.win32.isAbsolute(request))
             const isLikelyNextExternal =
               isLocal && /[/\\]next-server[/\\]/.test(request)
