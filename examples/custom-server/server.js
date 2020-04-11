@@ -1,5 +1,4 @@
 const { createServer } = require('http')
-const { URL } = require('url')
 const next = require('next')
 
 const port = parseInt(process.env.PORT, 10) || 3000
