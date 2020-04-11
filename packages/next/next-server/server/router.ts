@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { ParsedUrlQuery } from 'querystring'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import pathMatch from './lib/path-match'
 
@@ -36,6 +37,7 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 export const prepareDestination = (
   destination: string,
   params: Params,
+  query: ParsedUrlQuery,
   isRedirect?: boolean
 ) => {
   const parsedDestination = parseUrl(destination, true)
@@ -62,7 +64,8 @@ export const prepareDestination = (
     destQuery[key] = value
   }
 
-  // add params to query if it's not a redirect
+  // add path params to query if it's not a redirect and not
+  // already defined in destination query
   if (!isRedirect) {
     for (const [name, value] of Object.entries(params)) {
       if (!(name in destQuery)) {
@@ -87,6 +90,16 @@ export const prepareDestination = (
     }
     throw err
   }
+
+  // Query merge order lowest priority to highest
+  // 1. initial URL query values
+  // 2. path segment values
+  // 3. destination specified query values
+  parsedDestination.query = {
+    ...query,
+    ...parsedDestination.query,
+  }
+
   return {
     newUrl,
     parsedDestination,
@@ -203,11 +216,6 @@ export default class Router {
 
       // Check if the match function matched
       if (newParams) {
-        // Combine parameters and querystring
-        if (route.type === 'rewrite' || route.type === 'redirect') {
-          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
-        }
-
         const result = await route.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled
