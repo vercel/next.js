@@ -16,7 +16,9 @@ export function normalizePagePath(page: string): string {
     )
   }
 
-  page = page.replace(/\/$/, '')
+  if (!page.startsWith('/api')) {
+    page = page.replace(/\/$/, '')
+  }
 
   return page
 }
