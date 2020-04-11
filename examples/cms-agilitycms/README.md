@@ -2,10 +2,12 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Agility CMS](https://www.agilitycms.com) as the data source.
 
-## Demo
+> `IMPORTANT` - This example does NOT use Agility CMS's [**Page Management**](https://agilitycms.com/resources/posts/page-management-in-agility-cms-vs-other-headless-cmss) features. This currently serves as an example of how you might use Agility CMS if want to maintain control of all pages and page routes from within a Next.js app. See [Agility CMS Next.JS Starter](https://github.com/agility/agilitycms-next-starter-ssg) for how to offload pages to your **Editors**.
 
-TODO: Update this once deployed
-[https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+## Demo
+[`LIVE` - https://next-blog-agilitycms.now.sh/ ](https://next-blog-agilitycms.now.sh/)
+
+[ `PREVIEW MODE` - https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
 
 ### Related examples
 
@@ -18,22 +20,20 @@ TODO: Update this once deployed
 ## How to use
 
 ### Using `create-next-app`
-TODO: Update this section...
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-datocms cms-datocms-app
+npm init next-app --example cms-agilitycms cms-agilitycms-app
 # or
-yarn create next-app --example cms-datocms cms-datocms-app
+yarn create next-app --example cms-agilitycms cms-agilitycms-app
 ```
 
 ### Download manually
 
 Download the example:
-TODO: Update this section...
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-datocms
-cd cms-datocms
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-agilitycms
+cd cms-agilitycms
 ```
 
 ## Configuration
@@ -159,7 +159,7 @@ You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filt
 
 To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_AGILITY_GUID>`, `<NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY>`, `<NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY>`, and `<NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY>` with the corresponding strings in `.env`.
 
 ```
 now secrets add next_example_cms_agility_guid <NEXT_EXAMPLE_CMS_AGILITY_GUID>
@@ -172,36 +172,23 @@ Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https:
 
 ### Step 10. Try preview mode
 
-In Agility CMS, go to one of the posts you've created and:
+Now that you've deployed your app to ZEIT NOW, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
-- **Update the title**. For example, you can add `[Staging]` in front of the title.
-- Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the staging state.
-
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
-
-To enable the Preview Mode, you'll need to add your `localhost` to your **Domain Configuration** in Agility CMS.
+To enable the Preview Mode, you'll need to add your site `https://<your-zeit-now-domain>.sh` to your **Domain Configuration** in Agility CMS.
 
 - Go to **Settings** > **Domain Configuration**
 - Click on the existing **Channel** called `Website`
 - Click on the **+ (New)** button to add a new domain
-- For *Name* use `Local`
-
-
-TODO: Update this - can't set localhost right now to a `localhost`
-- For *Domain URL* use `http://localhost:3000` 
+- For *Name* use `Production`
+- For *Domain URL* use `https://<your-zeit-now-domain>.sh`
 - Check the *Preview Domain* so that it is set to `true`
+- Click **Save** to save your settings
 
-TODO: Update this section
+Go to one of your `Posts` and **Update the title**. For example, you can add `[Staging]` in front of the title. Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the staging state.
 
-```
-http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
-```
+To enter **Preview Mode**, click the `Preview` button on the details of your `Post`. This redirects you to the '/'  homepage, however you will now be in **Preview Mode** so you can navigate to your `Post` you want to view on the website.
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET`.
-- `<slug>` should be the post's `slug` attribute (you can check on DatoCMS).
 
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
-
-TODO: Update this section
 
 

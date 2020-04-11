@@ -60,7 +60,7 @@ export async function getStaticProps({ params, preview = null }) {
 
   return {
     props: {
-      preview,
+      preview: preview??false,
       post: {
         ...data?.post,
         content,
