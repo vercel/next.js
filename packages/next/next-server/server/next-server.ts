@@ -496,10 +496,11 @@ export default class Server {
           match: route.match,
           statusCode: route.statusCode,
           name: `Redirect route`,
-          fn: async (_req, res, params, _parsedUrl) => {
+          fn: async (_req, res, params, parsedUrl) => {
             const { parsedDestination } = prepareDestination(
               route.destination,
               params,
+              parsedUrl.query,
               true
             )
             const updatedDestination = formatUrl(parsedDestination)
@@ -528,10 +529,11 @@ export default class Server {
           type: route.type,
           name: `Rewrite route`,
           match: route.match,
-          fn: async (req, res, params, _parsedUrl) => {
+          fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination(
               route.destination,
-              params
+              params,
+              parsedUrl.query
             )
 
             // external rewrite, proxy it
