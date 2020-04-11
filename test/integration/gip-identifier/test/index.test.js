@@ -38,12 +38,13 @@ const runTests = isDev => {
     return JSON.parse($('#__NEXT_DATA__').text())
   }
 
-  it('should not have gip in NEXT_DATA for page without getInitialProps', async () => {
+  it('should not have gip or appGip in NEXT_DATA for page without getInitialProps', async () => {
     const data = await getData()
     expect(data.gip).toBe(undefined)
+    expect(data.appGip).toBe(undefined)
   })
 
-  it('should not have gip in NEXT_DATA for page with getInitialProps', async () => {
+  it('should have gip in NEXT_DATA for page with getInitialProps', async () => {
     indexPageContent = await fs.readFile(indexPage, 'utf8')
     await fs.writeFile(
       indexPage,
