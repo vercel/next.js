@@ -1215,7 +1215,7 @@ export default class Server {
 
       if (this.dynamicRoutes) {
         for (const dynamicRoute of this.dynamicRoutes) {
-          const params = dynamicRoute.match(page)
+          const params = dynamicRoute.match(pathname)
           if (!params) {
             continue
           }

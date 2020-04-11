@@ -29,6 +29,12 @@ const runTests = () => {
     expect(await res.text()).toContain('hello from index')
   })
 
+  it('should handle /index/ correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/index/')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('hello from index')
+  })
+
   it('should handle /index/index correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/index/index')
     expect(res.status).toBe(404)

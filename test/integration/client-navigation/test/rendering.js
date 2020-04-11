@@ -17,6 +17,12 @@ export default function(render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    test('render page with trailing slash', async () => {
+      const html = await render('/stateless/')
+      expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
+      expect(html.includes('My component!')).toBeTruthy()
+    })
+
     it('should handle undefined prop in head server-side', async () => {
       const html = await render('/head')
       const $ = cheerio.load(html)
@@ -369,12 +375,6 @@ export default function(render, fetch) {
     describe('404', () => {
       it('should 404 on not existent page', async () => {
         const $ = await get$('/non-existent')
-        expect($('h1').text()).toBe('404')
-        expect($('h2').text()).toBe('This page could not be found.')
-      })
-
-      it('should 404 for <page>/', async () => {
-        const $ = await get$('/nav/about/')
         expect($('h1').text()).toBe('404')
         expect($('h2').text()).toBe('This page could not be found.')
       })

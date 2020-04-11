@@ -74,6 +74,19 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should navigate the page with trailing slash', async () => {
+      const browser = await webdriver(context.appPort, '/nav/')
+      const text = await browser
+        .elementByCss('#about-link')
+        .click()
+        .waitForElementByCss('.nav-about')
+        .elementByCss('p')
+        .text()
+
+      expect(text).toBe('This is the about page.')
+      await browser.close()
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()
@@ -986,15 +999,6 @@ describe('Client Navigation', () => {
   describe('with 404 pages', () => {
     it('should 404 on not existent page', async () => {
       const browser = await webdriver(context.appPort, '/non-existent')
-      expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
-      await browser.close()
-    })
-
-    it('should 404 for <page>/', async () => {
-      const browser = await webdriver(context.appPort, '/nav/about/')
       expect(await browser.elementByCss('h1').text()).toBe('404')
       expect(await browser.elementByCss('h2').text()).toBe(
         'This page could not be found.'
