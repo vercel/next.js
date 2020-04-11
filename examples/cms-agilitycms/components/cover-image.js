@@ -13,7 +13,6 @@ export default function CoverImage({ title, responsiveImage, slug }) {
         'hover:shadow-medium transition-shadow duration-200': slug,
       })}
     />
-    // <img src={responsiveImage} alt={title} />
   )
   return (
     <div className="-mx-5 sm:mx-0">

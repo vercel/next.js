@@ -1,21 +1,17 @@
-import { getPreviewPostBySlug } from '../../lib/api'
+import { validatePreview } from '../../lib/api'
 
 export default async (req, res) => {
   // Check the secret and next parameters
   // This secret should only be known to this API route and the CMS
-  if (
-    req.query.secret !== process.env.NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET ||
-    !req.query.slug
-  ) {
-    return res.status(401).json({ message: 'Invalid token' })
-  }
 
-  // Fetch the headless CMS to check if the provided `slug` exists
-  const post = await getPreviewPostBySlug(req.query.slug)
+  //validate our preview key, also validate the requested page to preview exists
+  const validationResp = await validatePreview({ 
+    agilityPreviewKey: req.query.agilitypreviewkey,
+    slug: req.query.slug
+  });
 
-  // If the slug doesn't exist prevent preview mode from being enabled
-  if (!post) {
-    return res.status(401).json({ message: 'Invalid slug' })
+  if(validationResp.error) {
+      return res.status(401).end(`${validationResp.message}`)
   }
 
   // Enable Preview Mode by setting the cookies
@@ -23,6 +19,6 @@ export default async (req, res) => {
 
   // Redirect to the path from the fetched post
   // We don't redirect to req.query.slug as that might lead to open redirect vulnerabilities
-  res.writeHead(307, { Location: `/posts/${post.slug}` })
+  res.writeHead(307, { Location: `${validationResp.slug}` })
   res.end()
 }

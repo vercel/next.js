@@ -6,8 +6,11 @@ import Layout from '../components/layout'
 import { getAllPostsForHome } from '../lib/api'
 import Head from 'next/head'
 import { CMS_NAME } from '../lib/constants'
+import handlePreview from '../lib/handlePreview'
 
 export default function Index({ allPosts }) {
+  handlePreview();
+  
   const heroPost = allPosts[0]
   const morePosts = allPosts.slice(1)
   return (
