@@ -7,13 +7,17 @@
     "start": "next start"
   },
   "dependencies": {
+    "@types/react": "16.9.34",
     "next": "9.3.4",
     "react": "16.13.1",
     "react-dom": "16.13.1"
   },
   "devDependencies": {
     "@types/node": "13.11.1",
-    "@types/react": "16.9.34",
+    "@typescript-eslint/eslint-plugin": "2.27.0",
+    "@typescript-eslint/parser": "2.27.0",
+    "eslint": "6.8.0",
+    "eslint-plugin-react": "7.19.0",
     "typescript": "3.8.3"
   }
 }

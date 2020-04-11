@@ -1,6 +1,7 @@
+import React from 'react'
 import Head from 'next/head'
 
-export default function Home() {
+const App: React.StatelessComponent<{}> = () => {
   return (
     <div className="container">
       <Head>
@@ -202,3 +203,5 @@ export default function Home() {
     </div>
   )
 }
+
+export default App
