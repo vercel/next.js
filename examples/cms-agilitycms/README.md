@@ -174,13 +174,13 @@ Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https:
 
 Now that you've deployed your app to ZEIT NOW, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
-To enable the Preview Mode, you'll need to add your site `https://<your-zeit-now-domain>.sh` to your **Domain Configuration** in Agility CMS.
+To enable the Preview Mode, you'll need to add your site `https://<your-zeit-now-domain>.now.sh` to your **Domain Configuration** in Agility CMS.
 
 - Go to **Settings** > **Domain Configuration**
 - Click on the existing **Channel** called `Website`
 - Click on the **+ (New)** button to add a new domain
 - For *Name* use `Production`
-- For *Domain URL* use `https://<your-zeit-now-domain>.sh`
+- For *Domain URL* use `https://<your-zeit-now-domain>.now.sh`
 - Check the *Preview Domain* so that it is set to `true`
 - Click **Save** to save your settings
 
