@@ -2,13 +2,12 @@
 
 In this example, we authenticate users and store a token in a cookie. The example only shows how the user session works, keeping a user logged in between pages.
 
-This example is backend agnostic and uses [isomorphic-unfetch](https://www.npmjs.com/package/isomorphic-unfetch) to do the API calls on the client and the server.
+The repo includes a minimal passwordless backend built with the [API Routes support](https://nextjs.org/docs/api-routes/introduction) (`pages/api`), and 2 options to work with the pages:
 
-The repo includes a minimal passwordless backend built with the new [API Routes support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro) and the [GitHub API](https://developer.github.com/v3/). The backend allows the user to log in with their GitHub username.
+- client side rendered using swr (`personalized-swr.js`)
+- server side renders using [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering)
 
-Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
-
-The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
+Note that the cookie is created with an API call, this part should be changed to do your own authentication. The cookie is cleared with an API call as well, because it is setup as httponly, so it can't be accesed via javascript, which is recommended to avoid session hijacking.
 
 ## Deploy your own
 

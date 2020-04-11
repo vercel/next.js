@@ -6,11 +6,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "isomorphic-unfetch": "latest",
-    "js-cookie": "latest",
     "next": "latest",
-    "next-cookies": "latest",
+    "nookies": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "swr": "latest"
   }
 }
