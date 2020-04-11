@@ -111,6 +111,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(200)
     })
 
+    it('should render 200 for page with trailing slash', async () => {
+      const res = await fetch(`http://localhost:${appPort}/about/`)
+      expect(res.status).toBe(200)
+    })
+
     it('should render 404 for POST on missing page', async () => {
       const res = await fetch(`http://localhost:${appPort}/fake-page`, {
         method: 'POST',
