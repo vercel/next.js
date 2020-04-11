@@ -4,7 +4,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint --ext .js,.ts,.jsx,.tsx ."
   },
   "dependencies": {
     "@types/react": "16.9.34",
@@ -13,11 +16,17 @@
     "react-dom": "16.13.1"
   },
   "devDependencies": {
+    "@types/enzyme": "3.10.5",
+    "@types/jest": "^23.3.13",
     "@types/node": "13.11.1",
     "@typescript-eslint/eslint-plugin": "2.27.0",
     "@typescript-eslint/parser": "2.27.0",
+    "enzyme": "3.11.0",
+    "enzyme-adapter-react-16": "1.15.2",
     "eslint": "6.8.0",
     "eslint-plugin-react": "7.19.0",
+    "jest": "^23.6.0",
+    "ts-jest": "^23.10.5",
     "typescript": "3.8.3"
   }
 }
