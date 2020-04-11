@@ -2,8 +2,8 @@ import agility from '@agility/content-fetch'
 import { CMS_LANG } from './constants'
 
 const agilityContentFetch = agility.getApi({
-  guid: process.env.AGILITY_GUID,
-  apiKey: process.env.AGILITY_API_FETCH_KEY,
+  guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
+  apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY,
 })
 
 
