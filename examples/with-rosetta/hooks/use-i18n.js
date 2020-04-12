@@ -13,6 +13,7 @@ export default function useI18n(lng) {
     t: (...args) => i18n.t(...args),
     locale: lang => {
       i18n.locale(lang)
+      // force rerender
       setTick(tick => tick + 1)
     },
   }
