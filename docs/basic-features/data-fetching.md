@@ -94,6 +94,27 @@ export const getStaticProps: GetStaticProps = async context => {
 }
 ```
 
+If you want to get inferred typings for your props, you can use `InferredStaticProps<typeof getStaticProps>` like this:
+
+```ts
+import { GetStaticProps, InferredStaticProps } from 'next'
+
+export const getStaticProps: GetStaticProps = async context => {
+  // ...
+  return {
+    props: {
+      posts: await prismaClient.post.fetchMany(),
+    }
+  }
+}
+
+export const MyComponent = ({posts}: InferredStaticProps<typeof getStaticProps>) => (
+  // will resolve posts to type Post[]
+)
+```
+
+This example uses prisma, but it works with any type that can be inferred by Typescript.
+
 ### Reading files: Use `process.cwd()`
 
 Files can be read directly from the filesystem in `getStaticProps`.
@@ -439,6 +460,20 @@ import { GetServerSideProps } from 'next'
 export const getServerSideProps: GetServerSideProps = async context => {
   // ...
 }
+```
+
+If you want to get inferred typings for your props, you can use `InferredServerSideProps<typeof getServerSideProps>` like this:
+
+```ts
+import { InferredServerSideProps } from 'next'
+
+export const getServerSideProps = async (context) => {
+  // ...
+}
+
+export const MyComponent = (props: InferredServerSideProps<typeof getServerSideProps>) => (
+
+)
 ```
 
 ### Technical details
