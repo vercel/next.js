@@ -1,0 +1,17 @@
+{
+  "name": "with-google-signin",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "google-auth-library": "6.0.0",
+    "googleapis": "48.0.0",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "swr": "0.2.0"
+  },
+  "license": "ISC"
+}
