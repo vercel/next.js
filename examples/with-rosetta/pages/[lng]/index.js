@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import Head from 'next/head'
 import useI18n from '../../hooks/use-i18n'
-import { languages } from '../../lib/i18n'
+import { languages, contentLanguageMap } from '../../lib/i18n'
 
 const HomePage = ({ lng }) => {
   const i18n = useI18n(lng)
@@ -9,25 +10,17 @@ const HomePage = ({ lng }) => {
 
   return (
     <div>
-      <h1>{i18n.t('intro.welcome', 'Peter')}</h1>
+      <Head>
+        <meta
+          http-equiv="content-language"
+          content={contentLanguageMap[i18n.activeLocale]}
+        />
+      </Head>
+      <h1>{i18n.t('intro.welcome', { username: 'Peter' })}</h1>
       <h3>{i18n.t('intro.text')}</h3>
+      <div>Current locale: {i18n.activeLocale}</div>
       <Link href="/de">
-        <a
-          style={{
-            lineHeight: 1.5,
-            textAlign: 'center',
-            boxSizing: 'border-box',
-            backgroundColor: 'green',
-            textDecoration: 'inherit',
-            padding: '10px',
-            border: '0 solid #e2e8f0',
-            color: 'white',
-            borderRadius: '.25rem',
-            borderWidth: '1px',
-          }}
-        >
-          Change language SSG
-        </a>
+        <a>Change language SSG to 'de'</a>
       </Link>
     </div>
   )
