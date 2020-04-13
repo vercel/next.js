@@ -23,7 +23,7 @@ const Contact = ({ lng }) => {
 export async function getServerSideProps({ query }) {
   return {
     props: {
-      lng: query.lng || 'en',
+      lng: query.lng || 'en', // OR detect default language based on header OR user setting
     }, // will be passed to the page component as props
   }
 }

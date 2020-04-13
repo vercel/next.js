@@ -2,6 +2,7 @@ import { useContext, useState, useRef, useEffect } from 'react'
 import { I18nContext, defaultLanguage } from '../lib/i18n'
 
 export default function useI18n(loc) {
+  // OR detect language based on navigator.language OR user setting (cookie)
   const activeLocaleRef = useRef(loc || defaultLanguage)
   const [, setTick] = useState(0)
 
