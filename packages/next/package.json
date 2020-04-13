@@ -72,7 +72,7 @@
     "@babel/preset-env": "7.7.1",
     "@babel/preset-modules": "0.1.1",
     "@babel/preset-react": "7.7.0",
-    "@babel/preset-typescript": "7.7.2",
+    "@babel/preset-typescript": "7.9.0",
     "@babel/runtime": "7.7.2",
     "@babel/types": "7.7.4",
     "babel-plugin-syntax-jsx": "6.18.0",
