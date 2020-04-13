@@ -164,7 +164,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const telemetry = new Telemetry({ distDir })
 
   const publicDir = path.join(dir, 'public')
-  const pagesDir = findPagesDir(dir)
+  const pagesDir = findPagesDir(dir, config)
   let publicFiles: string[] = []
   let hasPublicDir = false
 

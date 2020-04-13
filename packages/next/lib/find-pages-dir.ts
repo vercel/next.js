@@ -10,13 +10,18 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-export function findPagesDir(dir: string): string {
+export function findPagesDir(dir: string, nextConfig: any): string {
   // prioritize ./pages over ./src/pages
   let curDir = path.join(dir, 'pages')
   if (existsSync(curDir)) return curDir
 
   curDir = path.join(dir, 'src/pages')
   if (existsSync(curDir)) return curDir
+
+  if (nextConfig.pagesDir) {
+    curDir = nextConfig.pagesDir
+    if (existsSync(curDir)) return curDir
+  }
 
   // Check one level up the tree to see if the pages directory might be there
   if (existsSync(path.join(dir, '..', 'pages'))) {
