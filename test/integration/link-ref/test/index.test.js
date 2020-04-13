@@ -57,8 +57,8 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp(app))
 
-    it('should not show error for functional component with forwardRef', async () => {
-      await noError('/functional')
+    it('should not show error for function component with forwardRef', async () => {
+      await noError('/function')
     })
 
     it('should not show error for class component as child of next/link', async () => {
@@ -83,7 +83,7 @@ describe('Invalid hrefs', () => {
     afterAll(() => killApp(app))
 
     it('should preload with forwardRef', async () => {
-      await didPrefetch('/functional')
+      await didPrefetch('/function')
     })
 
     it('should preload with child ref with React.createRef', async () => {

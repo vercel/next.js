@@ -11,7 +11,7 @@ type Props = {
 }
 
 const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
-  <Layout title="List Example (as Functional Component) | Next.js + TypeScript + Electron Example">
+  <Layout title="List Example (as Function Component) | Next.js + TypeScript + Electron Example">
     <h1>List Example (as Function Component)</h1>
     <p>You are currently on: {pathname}</p>
     <List items={items} />
