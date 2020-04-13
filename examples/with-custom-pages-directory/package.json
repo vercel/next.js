@@ -1,0 +1,15 @@
+{
+  "name": "with-custom-pages-directory",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  }
+}
