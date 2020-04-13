@@ -7,3 +7,7 @@ type DocumentContext = {
 }
 
 export const DocumentContext = React.createContext<DocumentContext>(null as any)
+
+if (process.env.NODE_ENV !== 'production') {
+  DocumentContext.displayName = 'DocumentContext'
+}
