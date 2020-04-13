@@ -822,6 +822,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
         ),
+        'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
+          config.experimental.measureFid
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
