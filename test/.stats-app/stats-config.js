@@ -142,6 +142,12 @@ module.exports = {
         'http://localhost:$PORT/link',
         'http://localhost:$PORT/withRouter',
       ],
+      pagesToBench: ['http://localhost:$PORT/'],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
     },
     {
       title: 'Serverless Mode',
