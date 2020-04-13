@@ -43,7 +43,7 @@
     "rimraf": "3.0.0",
     "tar": "4.4.10",
     "typescript": "3.7.3",
-    "update-check": "1.5.3",
+    "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   }
 }
