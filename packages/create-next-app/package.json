@@ -29,7 +29,9 @@
   "devDependencies": {
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
+    "@types/rimraf": "3.0.0",
     "@types/tar": "4.0.3",
+    "@types/validate-npm-package-name": "3.0.0",
     "@zeit/ncc": "^0.20.4",
     "chalk": "2.4.2",
     "commander": "2.20.0",
