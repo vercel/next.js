@@ -6,7 +6,7 @@ The example shows how to do a sign up, login, logout, and account deactivation. 
 
 For demo purpose, the users database is stored in the cookie session. You need to replace it with an actual database to store users in [db.js](lib/db.js).
 
-In production, you must also use a password hashing library, such as [argon2](https://github.com/ranisalt/node-argon2) or [bcrypt](https://www.npmjs.com/package/bcrypt).
+In production, you must use a password hashing library, such as [argon2](https://github.com/ranisalt/node-argon2) or [bcrypt](https://www.npmjs.com/package/bcrypt).
 
 ## Deploy your own
 
@@ -16,33 +16,12 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-passport-and-next-connect with-passport-and-next-connect-app
 # or
 yarn create next-app --example with-passport-and-next-connect with-passport-and-next-connect-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-passport-and-next-connect
-cd with-passport-and-next-connect
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
 ```
 
 Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

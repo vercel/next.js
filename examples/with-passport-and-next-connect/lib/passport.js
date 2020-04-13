@@ -1,6 +1,6 @@
 import passport from 'passport'
 import LocalStrategy from 'passport-local'
-import { findUserByUsername } from '../lib/db'
+import { findUserByUsername } from './db'
 
 passport.serializeUser(function(user, done) {
   // serialize the username into session
