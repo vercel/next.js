@@ -40,23 +40,4 @@ npm init next-app --example magic magic-app
 yarn create next-app --example magic magic-app
 ```
 
-### Download manually
-
-Download the example [or clone the repo](https://github.com/zeit/next.js):
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/magic
-cd magic
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
