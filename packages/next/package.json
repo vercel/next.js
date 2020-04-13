@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.3.5-canary.3",
+  "version": "9.3.5-canary.9",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -47,7 +47,8 @@
     "release": "taskr release",
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
-    "typescript": "tsc --noEmit --declaration"
+    "typescript": "tsc --noEmit --declaration",
+    "ncc-compiled": "taskr ncc"
   },
   "taskr": {
     "requires": [
@@ -57,7 +58,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.0.1",
+    "@ampproject/toolbox-optimizer": "2.2.0",
     "@babel/core": "7.7.2",
     "@babel/plugin-proposal-class-properties": "7.7.0",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.7.4",
@@ -105,7 +106,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.3.5-canary.3",
+    "@next/polyfill-nomodule": "9.3.5-canary.9",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -153,7 +154,7 @@
     "babel-plugin-dynamic-import-node": "2.3.0",
     "cache-loader": "4.1.0",
     "chalk": "2.4.2",
-    "ci-info": "2.0.0",
+    "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "compression": "1.7.4",
     "conf": "5.0.0",
     "content-type": "1.0.4",
