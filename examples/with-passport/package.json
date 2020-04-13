@@ -8,8 +8,8 @@
   "dependencies": {
     "@hapi/iron": "6.0.0",
     "cookie": "0.4.0",
-    "express": "4.17.1",
     "next": "latest",
+    "next-connect": "0.6.1",
     "passport": "0.4.1",
     "passport-local": "1.0.0",
     "react": "latest",
