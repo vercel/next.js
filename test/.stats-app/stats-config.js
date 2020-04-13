@@ -142,7 +142,10 @@ module.exports = {
         'http://localhost:$PORT/link',
         'http://localhost:$PORT/withRouter',
       ],
-      pagesToBench: ['http://localhost:$PORT/'],
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
       benchOptions: {
         reqTimeout: 60,
         concurrency: 50,
