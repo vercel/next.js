@@ -12,7 +12,7 @@ fastify.register((fastify, opts, next) => {
     .then(() => {
       if (dev) {
         fastify.get('/_next/*', (req, reply) => {
-          return app.handleRequest(req.req, reply.res).then(() => {
+          return handle(req.req, reply.res).then(() => {
             reply.sent = true
           })
         })
