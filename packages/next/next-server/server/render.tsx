@@ -457,9 +457,15 @@ export async function renderToHTML(
 
   // url will always be set
   const asPath: string = req.url as string
-  const router = new ServerRouter(pathname, query, asPath, {
-    isFallback: isFallback,
-  }, basePath)
+  const router = new ServerRouter(
+    pathname,
+    query,
+    asPath,
+    {
+      isFallback: isFallback,
+    },
+    basePath
+  )
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
