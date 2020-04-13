@@ -1,8 +1,34 @@
+const { basename } = require('path')
+const glob = require('glob')
+const areIntlLocalesSupported = require('intl-locales-supported').default
+
+// Get the supported languages by looking for translations in the `lang/` dir.
+const supportedLanguages = glob
+  .sync('./lang/*.json')
+  .map(f => basename(f, '.json'))
+
 // Polyfill Node with `Intl` that has data for all locales.
 // See: https://formatjs.io/guides/runtime-environments/#server
-const IntlPolyfill = require('intl')
-Intl.NumberFormat = IntlPolyfill.NumberFormat
-Intl.DateTimeFormat = IntlPolyfill.DateTimeFormat
+if (global.Intl) {
+  // Determine if the built-in `Intl` has the locale data we need.
+  if (!areIntlLocalesSupported(supportedLanguages)) {
+    // `Intl` exists, but it doesn't have the data we need, so load the
+    // polyfill and patch the constructors we need with the polyfills.
+    const IntlPolyfill = require('intl')
+    Intl.NumberFormat = IntlPolyfill.NumberFormat
+    Intl.DateTimeFormat = IntlPolyfill.DateTimeFormat
+    Intl.__disableRegExpRestore = IntlPolyfill.__disableRegExpRestore
+  }
+} else {
+  // No `Intl`, so use and load the polyfill.
+  global.Intl = require('intl')
+}
+
+// Fix: https://github.com/zeit/next.js/issues/11777
+// See related issue: https://github.com/andyearnshaw/Intl.js/issues/308
+if (Intl.__disableRegExpRestore) {
+  Intl.__disableRegExpRestore()
+}
 
 // Polyfill DOMParser for **pre-v4** react-intl used by formatjs.
 // Only needed when using FormattedHTMLMessage. Make sure to install `xmldom`.
@@ -11,21 +37,14 @@ Intl.DateTimeFormat = IntlPolyfill.DateTimeFormat
 // global.DOMParser = DOMParser
 
 const { readFileSync } = require('fs')
-const { basename } = require('path')
 const { createServer } = require('http')
 const accepts = require('accepts')
-const glob = require('glob')
 const next = require('next')
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
-
-// Get the supported languages by looking for translations in the `lang/` dir.
-const supportedLanguages = glob
-  .sync('./lang/*.json')
-  .map(f => basename(f, '.json'))
 
 // We need to expose React Intl's locale data on the request for the user's
 // locale. This function will also cache the scripts by lang in memory.
