@@ -752,7 +752,7 @@ export default class Router implements BaseRouter {
       }
       const route = delBasePath(toRoute(pathname))
       Promise.all([
-        this.pageLoader.prefetchData(route, delBasePath(asPath)),
+        this.pageLoader.prefetchData(url, delBasePath(asPath)),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
