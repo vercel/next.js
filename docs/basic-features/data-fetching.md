@@ -10,9 +10,9 @@ In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained t
 
 We’ll talk about the three special Next.js functions you can use to fetch data for pre-rendering:
 
-- `getStaticProps` (Static Generation): Fetch data at **build time**.
-- `getStaticPaths` (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
-- `getServerSideProps` (Server-side Rendering): Fetch data on **each request**.
+- [`getStaticProps`](#getstaticprops-static-generation) (Static Generation): Fetch data at **build time**.
+- [`getStaticPaths`](#getstaticpaths-static-generation) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
+- [`getServerSideProps`](#getserversideprops-server-side-rendering) (Server-side Rendering): Fetch data on **each request**.
 
 In addition, we’ll talk briefly about how to do fetch data on the client side.
 
@@ -94,6 +94,65 @@ export const getStaticProps: GetStaticProps = async context => {
 }
 ```
 
+### Reading files: Use `process.cwd()`
+
+Files can be read directly from the filesystem in `getStaticProps`.
+
+In order to do so you have to get the full path to a file.
+
+Since Next.js compiles your code into a separate directory you can't use `__dirname` as the path it will return will be different from the pages directory.
+
+Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
+
+```jsx
+import fs from 'fs'
+import path from 'path'
+
+// posts will be populated at build time by getStaticProps()
+function Blog({ posts }) {
+  return (
+    <ul>
+      {posts.map(post => (
+        <li>
+          <h3>{post.filename}</h3>
+          <p>{post.content}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// This function gets called at build time on server-side.
+// It won't be called on client-side, so you can even do
+// direct database queries. See the "Technical details" section.
+export async function getStaticProps() {
+  const postsDirectory = path.join(process.cwd(), 'posts')
+  const filenames = fs.readdirSync(postsDirectory)
+
+  const posts = filenames.map(filename => {
+    const filePath = path.join(postsDirectory, filename)
+    const fileContents = fs.readFileSync(filePath, 'utf8')
+
+    // Generally you would parse/transform the contents
+    // For example you can transform markdown to HTML here
+
+    return {
+      filename,
+      content: fileContents,
+    }
+  })
+  // By returning { props: posts }, the Blog component
+  // will receive `posts` as a prop at build time
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+export default Blog
+```
+
 ### Technical details
 
 #### Only runs at build time
@@ -152,8 +211,8 @@ The `paths` key determines which paths will be pre-rendered. For example, suppos
 ```js
 return {
   paths: [
-    { params: { id: 1 } },
-    { params: { id: 2 } }
+    { params: { id: '1' } },
+    { params: { id: '2' } }
   ],
   fallback: ...
 }
@@ -229,7 +288,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 In the “fallback” version of a page:
 
 - The page’s props will be empty.
-- Using the [router](/docs/api-reference/next/router.md)), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
+- Using the [router](/docs/api-reference/next/router.md), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
 
 Here’s an example that uses `isFallback`:
 
@@ -336,7 +395,7 @@ export async function getServerSideProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
-- `req`: [The HTTP request object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
+- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: The query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
@@ -428,7 +487,11 @@ function Profile() {
 
 Take a look at the following examples to learn more:
 
+- [Blog Starter using markdown files](https://github.com/zeit/next.js/tree/canary/examples/blog-starter) ([Demo](https://next-blog-starter.now.sh/))
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
+- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
+- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
+- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## Learn more
 

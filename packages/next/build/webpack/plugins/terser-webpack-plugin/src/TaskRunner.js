@@ -2,8 +2,7 @@ import { join } from 'path'
 import minify from './minify'
 import { promisify } from 'util'
 import Worker from 'jest-worker'
-import { writeFile, readFile } from 'fs'
-import mkdirp from 'mkdirp'
+import { mkdirSync, writeFile, readFile } from 'fs'
 
 const worker = require.resolve('./minify')
 const writeFileP = promisify(writeFile)
@@ -12,7 +11,9 @@ const readFileP = promisify(readFile)
 export default class TaskRunner {
   constructor({ distDir, cpus, cache, workerThreads }) {
     if (cache) {
-      mkdirp.sync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
+      mkdirSync((this.cacheDir = join(distDir, 'cache', 'next-minifier')), {
+        recursive: true,
+      })
     }
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
@@ -56,8 +57,16 @@ export default class TaskRunner {
           const done = () => step(index, result)
           if (cachePath) {
             writeFileP(cachePath, JSON.stringify(result), 'utf8')
-              .then(done)
-              .catch(done)
+              // This is important to stay as `.then(fn1, fn2)` and not
+              // `.then(fn1).catch(fn2)` so that we don't double-invoke `step`
+              // when `done` emits an error.
+              .then(done, done)
+              .catch(err => {
+                // Abort task on internal error (`done` failed). This can
+                // happen when users have a bad `package-lock.json` with an
+                // invalid webpack version, etc:
+                callback(err)
+              })
           }
         } catch (error) {
           step(index, { error })
@@ -65,9 +74,22 @@ export default class TaskRunner {
       }
 
       if (this.cacheDir) {
-        readFileP(cachePath, 'utf8')
-          .then(data => step(index, JSON.parse(data)))
-          .catch(() => enqueue())
+        // This is important to stay as `.then(fn1, fn2)` and not
+        // `.then(fn1).catch(fn2)` so that we don't double-invoke `step` when
+        // `step` emits an error.
+        readFileP(cachePath, 'utf8').then(
+          data => {
+            try {
+              step(index, JSON.parse(data))
+            } catch (err) {
+              // Abort task on internal error (`done` failed). This can happen
+              // when users have a bad `package-lock.json` with an invalid
+              // webpack version, etc:
+              callback(err)
+            }
+          },
+          () => enqueue()
+        )
       } else {
         enqueue()
       }

@@ -1,4 +1,4 @@
-import devalue from 'devalue'
+import devalue from 'next/dist/compiled/devalue'
 import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {

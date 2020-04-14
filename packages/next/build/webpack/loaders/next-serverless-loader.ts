@@ -1,5 +1,5 @@
-import devalue from 'devalue'
-import escapeRegexp from 'escape-string-regexp'
+import devalue from 'next/dist/compiled/devalue'
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { loader } from 'webpack'
@@ -103,7 +103,8 @@ const nextServerlessLoader: loader.Loader = function() {
         if (params) {
           const { parsedDestination } = prepareDestination(
             rewrite.destination,
-            params
+            params,
+            parsedUrl.query
           )
           Object.assign(parsedUrl.query, parsedDestination.query, params)
           delete parsedDestination.query
@@ -151,6 +152,7 @@ const nextServerlessLoader: loader.Loader = function() {
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
+
       ${handleRewrites}
 
       export default async (req, res) => {
@@ -175,7 +177,7 @@ const nextServerlessLoader: loader.Loader = function() {
           }
 
           const resolver = require('${absolutePagePath}')
-          apiResolver(
+          await apiResolver(
             req,
             res,
             Object.assign({}, parsedUrl.query, params ),
@@ -186,8 +188,14 @@ const nextServerlessLoader: loader.Loader = function() {
         } catch (err) {
           console.error(err)
           await onError(err)
-          res.statusCode = 500
-          res.end('Internal Server Error')
+
+          if (err.code === 'DECODE_FAILED') {
+            res.statusCode = 400
+            res.end('Bad Request')
+          } else {
+            res.statusCode = 500
+            res.end('Internal Server Error')
+          }
         }
       }
     `
@@ -205,6 +213,7 @@ const nextServerlessLoader: loader.Loader = function() {
     const {renderToHTML} = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
+    const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
@@ -256,29 +265,42 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         previewProps: ${encodedPreviewProps},
+        env: process.env,
+        basePath: "${basePath}",
         ..._renderOpts
       }
       let _nextData = false
+      let parsedUrl
 
-      const parsedUrl = handleRewrites(parse(req.url, true))
-
-      if (parsedUrl.pathname.match(/_next\\/data/)) {
-        _nextData = true
-        parsedUrl.pathname = parsedUrl.pathname
-          .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
-          .replace(/\\.json$/, '')
-      }
-
-      const renderOpts = Object.assign(
-        {
-          Component,
-          pageConfig: config,
-          nextExport: fromExport
-        },
-        options,
-      )
       try {
-        ${page === '/_error' ? `res.statusCode = 404` : ''}
+        parsedUrl = handleRewrites(parse(req.url, true))
+
+        if (parsedUrl.pathname.match(/_next\\/data/)) {
+          _nextData = true
+          parsedUrl.pathname = parsedUrl.pathname
+            .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
+            .replace(/\\.json$/, '')
+        }
+
+        const renderOpts = Object.assign(
+          {
+            Component,
+            pageConfig: config,
+            nextExport: fromExport
+          },
+          options,
+        )
+
+        ${
+          page === '/_error'
+            ? `
+          if (!res.statusCode) {
+            res.statusCode = 404
+          }
+        `
+            : ''
+        }
+
         ${
           pageIsDynamicRoute
             ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
@@ -326,23 +348,17 @@ const nextServerlessLoader: loader.Loader = function() {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
-        if (_nextData && !renderMode) {
-          const payload = JSON.stringify(renderOpts.pageData)
-          res.setHeader('Content-Type', 'application/json')
-          res.setHeader('Content-Length', Buffer.byteLength(payload))
-
-          res.setHeader(
-            'Cache-Control',
-            isPreviewMode
-              ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
-              : getServerSideProps
-              ? \`no-cache, no-store, must-revalidate\`
-              : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
-          )
-          res.end(payload)
-          return null
+        if (!renderMode) {
+          if (_nextData || getStaticProps || getServerSideProps) {
+            sendPayload(res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', {
+              private: isPreviewMode,
+              stateful: !!getServerSideProps,
+              revalidate: renderOpts.revalidate,
+            })
+            return null
+          }
         } else if (isPreviewMode) {
           res.setHeader(
             'Cache-Control',
@@ -353,27 +369,27 @@ const nextServerlessLoader: loader.Loader = function() {
         if (renderMode) return { html: result, renderOpts }
         return result
       } catch (err) {
+        if (!parsedUrl) {
+          parsedUrl = parse(req.url, true)
+        }
+
         if (err.code === 'ENOENT') {
           res.statusCode = 404
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            getStaticProps: undefined,
-            getStaticPaths: undefined,
-            getServerSideProps: undefined,
-            Component: Error
-          }))
-          return result
+        } else if (err.code === 'DECODE_FAILED') {
+          res.statusCode = 400
         } else {
           console.error(err)
           res.statusCode = 500
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            getStaticProps: undefined,
-            getStaticPaths: undefined,
-            getServerSideProps: undefined,
-            Component: Error,
-            err
-          }))
-          return result
         }
+
+        const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+          getStaticProps: undefined,
+          getStaticPaths: undefined,
+          getServerSideProps: undefined,
+          Component: Error,
+          err: res.statusCode === 404 ? undefined : err
+        }))
+        return result
       }
     }
     export async function render (req, res) {

@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import findUp from 'find-up'
+import chalk from 'next/dist/compiled/chalk'
+import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
 
@@ -41,6 +41,7 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    jsconfigPaths: false,
     css: true,
     scss: true,
     documentMiddleware: false,
@@ -52,6 +53,9 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
+    sassOptions: {},
+    pageEnv: false,
+    measureFid: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

@@ -7,6 +7,8 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
+  UNSTABLE_REVALIDATE_RENAME_ERROR,
+  GSSP_COMPONENT_MEMBER_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
 import { isInAmpMode } from '../lib/amp'
@@ -38,6 +40,8 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { UnwrapPromise } from '../../lib/coalesced-function'
+import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
@@ -50,6 +54,7 @@ class ServerRouter implements NextRouter {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
   events: any
   isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
@@ -59,14 +64,15 @@ class ServerRouter implements NextRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    { isFallback }: { isFallback: boolean }
+    { isFallback }: { isFallback: boolean },
+    basePath: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
-
     this.isFallback = isFallback
+    this.basePath = basePath
   }
   push(): any {
     noRouter()
@@ -146,10 +152,13 @@ export type RenderOptsPartial = {
   hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  ampSkipValidation?: boolean
+  ampOptimizerConfig?: { [key: string]: any }
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  basePath: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -189,6 +198,8 @@ function renderDocument(
     gsp,
     gssp,
     customServer,
+    gip,
+    appGip,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -212,6 +223,8 @@ function renderDocument(
     gsp?: boolean
     gssp?: boolean
     customServer?: boolean
+    gip?: boolean
+    appGip?: boolean
   }
 ): string {
   return (
@@ -235,6 +248,8 @@ function renderDocument(
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
             customServer, // whether the user is using a custom server
+            gip, // whether the page has getInitialProps
+            appGip, // whether the _app has getInitialProps
           },
           dangerousAsPath,
           canonicalBase,
@@ -297,6 +312,7 @@ export async function renderToHTML(
     isDataReq,
     params,
     previewProps,
+    basePath,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -343,6 +359,18 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  for (const methodName of [
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    if ((Component as any)[methodName]) {
+      throw new Error(
+        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
+      )
+    }
+  }
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -418,7 +446,7 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
 
-    if (pathname === '/404' && !isAutoExport) {
+    if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
       throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
@@ -428,10 +456,16 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath = req.url as string
-  const router = new ServerRouter(pathname, query, asPath, {
-    isFallback: isFallback,
-  })
+  const asPath: string = req.url as string
+  const router = new ServerRouter(
+    pathname,
+    query,
+    asPath,
+    {
+      isFallback: isFallback,
+    },
+    basePath
+  )
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -495,16 +529,31 @@ export async function renderToHTML(
     }
 
     if (isSSG && !isFallback) {
-      const data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      })
+      let data: UnwrapPromise<ReturnType<GetStaticProps>>
+
+      try {
+        data = await getStaticProps!({
+          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+        })
+      } catch (err) {
+        // remove not found error code to prevent triggering legacy
+        // 404 rendering
+        if (err.code === 'ENOENT') {
+          delete err.code
+        }
+        throw err
+      }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'revalidate' && key !== 'props'
+        key => key !== 'unstable_revalidate' && key !== 'props'
       )
+
+      if (invalidKeys.includes('revalidate')) {
+        throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
@@ -520,41 +569,41 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.revalidate === 'number') {
-        if (!Number.isInteger(data.revalidate)) {
+      if (typeof data.unstable_revalidate === 'number') {
+        if (!Number.isInteger(data.unstable_revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.unstable_revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
-                data.revalidate
+                data.unstable_revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.revalidate <= 0) {
+        } else if (data.unstable_revalidate <= 0) {
           throw new Error(
             `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.revalidate > 31536000) {
+        } else if (data.unstable_revalidate > 31536000) {
           // if it's greater than a year for some reason error
           console.warn(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === true) {
+      } else if (data.unstable_revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.revalidate = 1
+        data.unstable_revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.revalidate = false
+        data.unstable_revalidate = false
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).revalidate = data.unstable_revalidate
       ;(renderOpts as any).pageData = props
     }
 
@@ -563,15 +612,26 @@ export async function renderToHTML(
     }
 
     if (getServerSideProps && !isFallback) {
-      const data = await getServerSideProps({
-        req,
-        res,
-        query,
-        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      })
+      let data: UnwrapPromise<ReturnType<GetServerSideProps>>
+
+      try {
+        data = await getServerSideProps({
+          req,
+          res,
+          query,
+          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+        })
+      } catch (err) {
+        // remove not found error code to prevent triggering legacy
+        // 404 rendering
+        if (err.code === 'ENOENT') {
+          delete err.code
+        }
+        throw err
+      }
 
       const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
@@ -589,7 +649,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
@@ -733,6 +793,8 @@ export async function renderToHTML(
     polyfillFiles,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
+    gip: hasPageGetInitialProps ? true : undefined,
+    appGip: !defaultAppGetInitialProps ? true : undefined,
   })
 
   if (inAmpMode && html) {
@@ -743,9 +805,9 @@ export async function renderToHTML(
       html.substring(0, ampRenderIndex) +
       `<!-- __NEXT_DATA__ -->${docProps.html}` +
       html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
-    html = await optimizeAmp(html)
+    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
 
-    if (renderOpts.ampValidator) {
+    if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
     }
   }

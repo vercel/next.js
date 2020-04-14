@@ -13,6 +13,7 @@ import {
   DocumentInitialProps,
   DocumentProps,
 } from '../next-server/lib/utils'
+import fidPolyfill from '../next-server/lib/fid'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 
@@ -278,6 +279,20 @@ export class Head extends Component<
         })
   }
 
+  getFidPolyfill(): JSX.Element | null {
+    if (!process.env.__NEXT_FID_POLYFILL) {
+      return null
+    }
+
+    return (
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
+        }}
+      />
+    )
+  }
+
   render() {
     const {
       styles,
@@ -517,6 +532,7 @@ export class Head extends Component<
             {styles || null}
           </>
         )}
+        {this.getFidPolyfill()}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )

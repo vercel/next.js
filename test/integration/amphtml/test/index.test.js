@@ -66,7 +66,7 @@ describe('AMP Usage', () => {
 
     it('should not output client pages for AMP only', async () => {
       const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-      const ampOnly = ['only-amp', 'root-hmr']
+      const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
       for (const pg of ampOnly) {
         expect(() =>
           accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
@@ -229,7 +229,7 @@ describe('AMP Usage', () => {
           .first()
           .text()
       ).toMatch(
-        /div.jsx-\d+{color:red;}span.jsx-\d+{color:blue;}body{background-color:green;}/
+        /div.jsx-\d+{color:red}span.jsx-\d+{color:#00f}body{background-color:green}/
       )
     })
 

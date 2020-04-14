@@ -1,9 +1,13 @@
 {
   "name": "@next/polyfill-nomodule",
-  "version": "9.3.1-canary.0",
+  "version": "9.3.5-canary.11",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
+  "repository": {
+    "url": "zeit/next.js",
+    "directory": "packages/next-polyfill-nomodule"
+  },
   "scripts": {
     "prepublish": "microbundle src/index.js -f iife --no-sourcemap --external none",
     "build": "microbundle watch src/index.js -f iife --no-sourcemap --external none"
@@ -12,7 +16,6 @@
     "core-js": "3.6.4",
     "microbundle": "0.11.0",
     "object-assign": "4.1.1",
-    "promise-polyfill": "8.1.3",
     "url-polyfill": "1.1.8",
     "whatwg-fetch": "3.0.0"
   }

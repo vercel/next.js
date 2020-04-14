@@ -1,7 +1,7 @@
 /* eslint-disable
   arrow-body-style
 */
-import { minify as terser, MinifyOptions } from 'terser'
+import { minify as terser, MinifyOptions } from 'next/dist/compiled/terser'
 
 const IS_MODERN_OUTPUT = /\.module\.js$/
 

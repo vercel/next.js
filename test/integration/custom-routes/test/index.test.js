@@ -136,7 +136,7 @@ const runTests = (isDev = false) => {
     const { pathname, query } = url.parse(res.headers.get('location'), true)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/somewhere')
-    expect(query).toEqual({ path: 'hello/world' })
+    expect(query).toEqual({})
   })
 
   it('should server static files through a rewrite', async () => {
@@ -181,8 +181,7 @@ const runTests = (isDev = false) => {
     expect(query).toEqual({
       first: 'hello',
       second: 'world',
-      name: 'world',
-      section: 'hello',
+      a: 'b',
     })
   })
 
@@ -191,6 +190,31 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/this-should-be-the-value/)
     expect(html).not.toMatch(/first/)
     expect(html).toMatch(/second/)
+  })
+
+  it('should handle query for rewrite correctly', async () => {
+    // query merge order lowest priority to highest
+    // 1. initial URL query values
+    // 2. path segment values
+    // 3. destination specified query values
+
+    const html = await renderViaHTTP(
+      appPort,
+      '/query-rewrite/first/second?section=overridden&name=overridden&first=overridden&second=overridden&keep=me'
+    )
+
+    const data = JSON.parse(
+      cheerio
+        .load(html)('p')
+        .text()
+    )
+    expect(data).toEqual({
+      first: 'first',
+      second: 'second',
+      section: 'first',
+      name: 'second',
+      keep: 'me',
+    })
   })
 
   // current routes order do not allow rewrites to override page
@@ -295,9 +319,26 @@ const runTests = (isDev = false) => {
   })
 
   it('should support proxying to external resource', async () => {
-    const res = await fetchViaHTTP(appPort, '/proxy-me/first')
+    const res = await fetchViaHTTP(appPort, '/proxy-me/first?keep=me&and=me')
     expect(res.status).toBe(200)
-    expect([...externalServerHits]).toEqual(['/first?path=first'])
+    expect(
+      [...externalServerHits].map(u => {
+        const { pathname, query } = url.parse(u, true)
+        return {
+          pathname,
+          query,
+        }
+      })
+    ).toEqual([
+      {
+        pathname: '/first',
+        query: {
+          path: 'first',
+          keep: 'me',
+          and: 'me',
+        },
+      },
+    ])
     expect(await res.text()).toContain('hi from external')
   })
 
@@ -925,6 +966,110 @@ describe('Custom routes', () => {
           hello: 'first',
         },
       })
+    })
+  })
+
+  describe('should load custom routes when only one type is used', () => {
+    const runSoloTests = isDev => {
+      const buildAndStart = async () => {
+        if (isDev) {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        } else {
+          const { code } = await nextBuild(appDir)
+          if (code !== 0) throw new Error(`failed to build, got code ${code}`)
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        }
+      }
+
+      it('should work with just headers', async () => {
+        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+        await fs.writeFile(
+          nextConfigPath,
+          nextConfigContent.replace(/(async (?:redirects|rewrites))/g, '$1s')
+        )
+        await buildAndStart()
+
+        const res = await fetchViaHTTP(appPort, '/add-header')
+
+        const res2 = await fetchViaHTTP(appPort, '/docs/github', undefined, {
+          redirect: 'manual',
+        })
+        const res3 = await fetchViaHTTP(appPort, '/hello-world')
+
+        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await killApp(app)
+
+        expect(res.headers.get('x-custom-header')).toBe('hello world')
+        expect(res.headers.get('x-another-header')).toBe('hello again')
+
+        expect(res2.status).toBe(404)
+        expect(res3.status).toBe(404)
+      })
+
+      it('should work with just rewrites', async () => {
+        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+        await fs.writeFile(
+          nextConfigPath,
+          nextConfigContent.replace(/(async (?:redirects|headers))/g, '$1s')
+        )
+        await buildAndStart()
+
+        const res = await fetchViaHTTP(appPort, '/add-header')
+
+        const res2 = await fetchViaHTTP(appPort, '/docs/github', undefined, {
+          redirect: 'manual',
+        })
+        const res3 = await fetchViaHTTP(appPort, '/hello-world')
+
+        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await killApp(app)
+
+        expect(res.headers.get('x-custom-header')).toBeFalsy()
+        expect(res.headers.get('x-another-header')).toBeFalsy()
+
+        expect(res2.status).toBe(404)
+
+        expect(res3.status).toBe(200)
+        expect(await res3.text()).toContain('hello world!')
+      })
+
+      it('should work with just redirects', async () => {
+        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+        await fs.writeFile(
+          nextConfigPath,
+          nextConfigContent.replace(/(async (?:rewrites|headers))/g, '$1s')
+        )
+        await buildAndStart()
+
+        const res = await fetchViaHTTP(appPort, '/add-header')
+
+        const res2 = await fetchViaHTTP(appPort, '/docs/github', undefined, {
+          redirect: 'manual',
+        })
+        const res3 = await fetchViaHTTP(appPort, '/hello world')
+
+        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await killApp(app)
+
+        expect(res.headers.get('x-custom-header')).toBeFalsy()
+        expect(res.headers.get('x-another-header')).toBeFalsy()
+
+        const { pathname } = url.parse(res2.headers.get('location'))
+        expect(res2.status).toBe(301)
+        expect(pathname).toBe('/docs/v2/advanced/now-for-github')
+
+        expect(res3.status).toBe(404)
+      })
+    }
+
+    describe('dev mode', () => {
+      runSoloTests(true)
+    })
+
+    describe('production mode', () => {
+      runSoloTests()
     })
   })
 })

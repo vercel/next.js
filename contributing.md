@@ -20,7 +20,7 @@ Make sure you have `chromedriver` installed for your Chrome version. You can ins
 
 - `brew cask install chromedriver` on Mac OS X
 - `chocolatey install chromedriver` on Windows
-- Or manually downloading it from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and adding the binary to `<next-repo>/node_modules/.bin`
+- Or manually download the version that matches your installed chrome version (if there's no match, download a version under it, but not above) from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and add the binary to `<next-repo>/node_modules/.bin`
 
 Running all tests:
 

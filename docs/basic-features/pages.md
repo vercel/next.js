@@ -6,7 +6,7 @@ description: Next.js pages are React Components exported in a file in the pages 
 
 > This document is for Next.js versions 9.3 and up. If you're using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/pages).
 
-In Next.js, a **page** is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
+In Next.js, a **page** is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `jsx`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
 
 **Example**: If you create `pages/about.js` that exports a React component like below, it will be accessible at `/about`.
 
@@ -246,7 +246,11 @@ We've discussed two forms of pre-rendering for Next.js.
 
 Take a look at the following examples to learn more:
 
+- [Blog Starter using markdown files](https://github.com/zeit/next.js/tree/canary/examples/blog-starter) ([Demo](https://next-blog-starter.now.sh/))
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
+- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
+- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
+- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## Learn more
 
