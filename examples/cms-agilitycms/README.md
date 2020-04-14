@@ -24,6 +24,8 @@ This means you'll not only be definining **Content** for your `Posts` and `Autho
 
 > **NOTE** - `Modules` and `Page Templates` in Agility CMS simply correspond to `React Components` in your website.
 
+Once you've gone through these steps, you'll be able to dynamically manage pages (and what is on them) directly through the CMS without requiring a developer.
+
 
 ## How to use
 
