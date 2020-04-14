@@ -71,7 +71,7 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   previewData?: any
 }
 
-export type GetStaticPropsReturnType<P> = {
+export type GetStaticPropsResult<P> = {
   props: P
   unstable_revalidate?: number | boolean
 }
@@ -79,15 +79,15 @@ export type GetStaticPropsReturnType<P> = {
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
   Q extends ParsedUrlQuery = ParsedUrlQuery
-> = (ctx: GetStaticPropsContext<Q>) => Promise<GetStaticPropsReturnType<P>>
+> = (context: GetStaticPropsContext<Q>) => Promise<GetStaticPropsResult<P>>
 
-export type InferredStaticProps<
+export type StaticProps<
   T,
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = T extends (
-  ctx?: GetStaticPropsContext<Q>
-) => Promise<GetStaticPropsReturnType<infer P>>
-  ? GetStaticPropsReturnType<P>['props']
+  context?: GetStaticPropsContext<Q>
+) => Promise<GetStaticPropsResult<infer P>>
+  ? GetStaticPropsResult<P>['props']
   : never
 
 export type GetStaticPaths<
@@ -106,7 +106,7 @@ export type GetServerSidePropsContext<Q> = {
   previewData?: any
 }
 
-export type GetServerSidePropsReturnType<P> = {
+export type GetServerSidePropsResult<P> = {
   props: P
 }
 
@@ -115,15 +115,15 @@ export type GetServerSideProps<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (
   context: GetServerSidePropsContext<Q>
-) => Promise<GetServerSidePropsReturnType<P>>
+) => Promise<GetServerSidePropsResult<P>>
 
-export type InferredServerSideProps<
+export type ServerSideProps<
   T,
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = T extends (
-  ctx?: GetServerSidePropsContext<Q>
-) => Promise<GetServerSidePropsReturnType<infer P>>
-  ? GetServerSidePropsReturnType<P>['props']
+  context?: GetServerSidePropsContext<Q>
+) => Promise<GetServerSidePropsResult<infer P>>
+  ? GetServerSidePropsResult<P>['props']
   : never
 
 export default next

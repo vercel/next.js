@@ -94,26 +94,34 @@ export const getStaticProps: GetStaticProps = async context => {
 }
 ```
 
-If you want to get inferred typings for your props, you can use `InferredStaticProps<typeof getStaticProps>` like this:
+If you want to get inferred typings for your props, you can use `StaticProps<typeof getStaticProps>` like this:
 
 ```ts
-import { GetStaticProps, InferredStaticProps } from 'next'
+import fetch from 'node-fetch'
+import { GetStaticProps, StaticProps } from 'next'
+
+type Post = {
+  author: string
+  content: string
+}
 
 export const getStaticProps: GetStaticProps = async context => {
-  // ...
+  const res = await fetch(`https://.../posts/`)
+  const posts: Post[] = await res.json()
+
   return {
     props: {
-      posts: await prismaClient.post.fetchMany(),
-    }
+      posts,
+    },
   }
 }
 
-export const MyComponent = ({posts}: InferredStaticProps<typeof getStaticProps>) => (
+function Blog({ posts }: StaticProps<typeof getStaticProps>) {
   // will resolve posts to type Post[]
-)
-```
+}
 
-This example uses prisma, but it works with any type that can be inferred by Typescript.
+export default Blog
+```
 
 ### Reading files: Use `process.cwd()`
 
@@ -462,18 +470,31 @@ export const getServerSideProps: GetServerSideProps = async context => {
 }
 ```
 
-If you want to get inferred typings for your props, you can use `InferredServerSideProps<typeof getServerSideProps>` like this:
+If you want to get inferred typings for your props, you can use `ServerSideProps<typeof getServerSideProps>` like this:
 
 ```ts
-import { InferredServerSideProps } from 'next'
+import fetch from 'node-fetch'
+import { GetServerSideProps, ServerSideProps } from 'next'
 
-export const getServerSideProps = async (context) => {
-  // ...
+type Post = {
+  author: string
+  content: string
 }
 
-export const MyComponent = (props: InferredServerSideProps<typeof getServerSideProps>) => (
+export const getServerSideProps: GetServerSideProps = async () => {
+  const res = await fetch(`https://.../posts/`)
+  const posts: Post[] = await res.json()
 
-)
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+function Blog({ posts }: ServerSideProps<typeof getServerSideProps>) {
+  // will resolve posts to type Post[]
+}
 ```
 
 ### Technical details
