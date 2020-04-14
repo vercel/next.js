@@ -844,7 +844,9 @@ export default async function getBaseWebpackConfig(
           ? {
               'process.env':
                 process.env.NODE_ENV === 'production'
-                  ? {}
+                  ? isServer
+                    ? 'process.env'
+                    : '{}'
                   : `
             new Proxy(${isServer ? 'process.env' : '{}'}, {
               get(target, prop) {
