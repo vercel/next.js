@@ -82,6 +82,8 @@ export type NEXT_DATA = {
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
+  gip?: boolean
+  appGip?: boolean
 }
 
 /**

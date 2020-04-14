@@ -195,6 +195,8 @@ function renderDocument(
     gsp,
     gssp,
     customServer,
+    gip,
+    appGip,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -218,6 +220,8 @@ function renderDocument(
     gsp?: boolean
     gssp?: boolean
     customServer?: boolean
+    gip?: boolean
+    appGip?: boolean
   }
 ): string {
   return (
@@ -241,6 +245,8 @@ function renderDocument(
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
             customServer, // whether the user is using a custom server
+            gip, // whether the page has getInitialProps
+            appGip, // whether the _app has getInitialProps
           },
           dangerousAsPath,
           canonicalBase,
@@ -777,6 +783,8 @@ export async function renderToHTML(
     polyfillFiles,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
+    gip: hasPageGetInitialProps ? true : undefined,
+    appGip: !defaultAppGetInitialProps ? true : undefined,
   })
 
   if (inAmpMode && html) {
