@@ -9,6 +9,7 @@ import {
   findPort,
   killApp,
   launchApp,
+  check,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -25,6 +26,17 @@ const runTests = () => {
   it('hydrates correctly for //', async () => {
     const browser = await webdriver(appPort, '//')
     expect(await browser.eval('window.didHydrate')).toBe(true)
+  })
+
+  it('should be able to navigate after loading //', async () => {
+    const browser = await webdriver(appPort, '//')
+    await browser.eval('window.beforeNav = true')
+    await browser.eval('window.next.router.push("/details")')
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /details/
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(true)
   })
 }
 
