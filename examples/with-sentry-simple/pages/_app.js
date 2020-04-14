@@ -3,8 +3,8 @@ import App from 'next/app'
 import * as Sentry from '@sentry/node'
 
 Sentry.init({
-  // Replace with your project's Sentry DSN
-  dsn: 'https://00000000000000000000000000000000@sentry.io/1111111',
+  enabled: process.env.NODE_ENV === 'production',
+  dsn: process.env.SENTRY_DSN,
 })
 
 class MyApp extends App {

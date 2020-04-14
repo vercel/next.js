@@ -4,7 +4,7 @@
 import stringHash from 'next/dist/compiled/string-hash'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map'
 import { SourceMapSource, RawSource } from 'webpack-sources'
-import { RequestShortener } from 'webpack'
+import RequestShortener from 'webpack/lib/RequestShortener'
 import TaskRunner from './TaskRunner'
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/
@@ -204,8 +204,11 @@ export class TerserPlugin {
 
       taskRunner.run(tasks, (tasksError, results) => {
         if (tasksError) {
-          compilation.errors.push(tasksError)
-
+          try {
+            taskRunner.exit()
+          } finally {
+            callback(tasksError)
+          }
           return
         }
 

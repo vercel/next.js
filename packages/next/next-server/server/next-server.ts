@@ -123,6 +123,7 @@ export default class Server {
     previewProps: __ApiPreviewProps
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
+    basePath: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -179,6 +180,7 @@ export default class Server {
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
+      basePath: this.nextConfig.experimental.basePath,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -265,14 +267,15 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    if (parsedUrl.pathname!.startsWith(this.nextConfig.experimental.basePath)) {
+    const { basePath } = this.nextConfig.experimental
+
+    // if basePath is set require it be present
+    if (basePath && !req.url!.startsWith(basePath)) {
+      return this.render404(req, res, parsedUrl)
+    } else {
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname =
-        parsedUrl.pathname!.replace(
-          this.nextConfig.experimental.basePath,
-          ''
-        ) || '/'
-      req.url = req.url!.replace(this.nextConfig.experimental.basePath, '')
+      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
+      req.url = req.url!.replace(basePath, '')
     }
 
     res.statusCode = 200
@@ -496,10 +499,11 @@ export default class Server {
           match: route.match,
           statusCode: route.statusCode,
           name: `Redirect route`,
-          fn: async (_req, res, params, _parsedUrl) => {
+          fn: async (_req, res, params, parsedUrl) => {
             const { parsedDestination } = prepareDestination(
               route.destination,
               params,
+              parsedUrl.query,
               true
             )
             const updatedDestination = formatUrl(parsedDestination)
@@ -528,10 +532,11 @@ export default class Server {
           type: route.type,
           name: `Rewrite route`,
           match: route.match,
-          fn: async (req, res, params, _parsedUrl) => {
+          fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination(
               route.destination,
-              params
+              params,
+              parsedUrl.query
             )
 
             // external rewrite, proxy it
