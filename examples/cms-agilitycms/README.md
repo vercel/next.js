@@ -2,7 +2,7 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Agility CMS](https://www.agilitycms.com) as the data source.
 
-> `IMPORTANT` - This example does NOT use Agility CMS's [**Page Management**](https://agilitycms.com/resources/posts/page-management-in-agility-cms-vs-other-headless-cmss) features. This currently serves as an example of how you might use Agility CMS if want to maintain control of all pages and page routes from within a Next.js app. See [Agility CMS Next.JS Starter](https://github.com/agility/agilitycms-next-starter-ssg) for how to offload pages to your **Editors**.
+> `IMPORTANT` - This example uses Agility CMS's [**Page Management**](https://agilitycms.com/resources/posts/page-management-in-agility-cms-vs-other-headless-cmss) features. This means that the CMS ultimately drives what pages are available and what content is on each page. This enables **Editors** to focus on managing their pages, while allowing you, (the **Developer**) to focus on building UI components for the editors to compose their pages.
 
 ## Demo
 [`LIVE` - https://next-blog-agilitycms.now.sh/ ](https://next-blog-agilitycms.now.sh/)
@@ -16,6 +16,14 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
+
+### How is this Different from Other CMS Examples?
+We believe **Editors** should have full control their pages and what content is on each page without getting into code.
+
+This means you'll not only be definining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
+
+> **NOTE** - `Modules` and `Page Templates` in Agility CMS simply correspond to `React Components` in your website.
+
 
 ## How to use
 
