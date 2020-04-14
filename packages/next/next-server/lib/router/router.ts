@@ -16,7 +16,7 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
-const basePath = process.env.__NEXT_ROUTER_BASEPATH as string
+const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
   return path.indexOf(basePath) !== 0 ? basePath + path : path
