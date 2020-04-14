@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.3.5-canary.0",
+  "version": "9.3.5-canary.9",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -47,7 +47,8 @@
     "release": "taskr release",
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
-    "typescript": "tsc --noEmit --declaration"
+    "typescript": "tsc --noEmit --declaration",
+    "ncc-compiled": "taskr ncc"
   },
   "taskr": {
     "requires": [
@@ -57,7 +58,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.0.1",
+    "@ampproject/toolbox-optimizer": "2.2.0",
     "@babel/core": "7.7.2",
     "@babel/plugin-proposal-class-properties": "7.7.0",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.7.4",
@@ -79,11 +80,13 @@
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserslist": "4.8.3",
     "css-loader": "3.3.0",
+    "find-cache-dir": "3.3.1",
     "fork-ts-checker-webpack-plugin": "3.1.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",
-    "native-url": "0.2.6",
+    "mkdirp": "0.5.3",
+    "native-url": "0.3.1",
     "pnp-webpack-plugin": "1.5.0",
     "postcss": "7.0.27",
     "prop-types": "15.7.2",
@@ -95,7 +98,7 @@
     "styled-jsx": "3.2.5",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
-    "webpack": "4.42.0",
+    "webpack": "4.42.1",
     "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
@@ -103,7 +106,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.3.5-canary.0",
+    "@next/polyfill-nomodule": "9.3.5-canary.9",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -115,7 +118,7 @@
     "@types/ci-info": "2.0.0",
     "@types/compression": "0.0.36",
     "@types/content-type": "1.1.3",
-    "@types/cookie": "0.3.2",
+    "@types/cookie": "0.3.3",
     "@types/cross-spawn": "6.0.0",
     "@types/dotenv": "8.2.0",
     "@types/etag": "1.8.0",
@@ -151,7 +154,7 @@
     "babel-plugin-dynamic-import-node": "2.3.0",
     "cache-loader": "4.1.0",
     "chalk": "2.4.2",
-    "ci-info": "2.0.0",
+    "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "compression": "1.7.4",
     "conf": "5.0.0",
     "content-type": "1.0.4",

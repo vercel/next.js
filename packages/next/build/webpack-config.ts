@@ -473,10 +473,17 @@ export default async function getBaseWebpackConfig(
   )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
-      ? undefined
+      ? // make sure importing "next" is handled gracefully for client
+        // bundles in case a user imported types and it wasn't removed
+        // TODO: should we warn/error for this instead?
+        ['next']
       : !isServerless
       ? [
           (context, request, callback) => {
+            if (request === 'next') {
+              return callback(undefined, `commonjs ${request}`)
+            }
+
             const notExternalModules = [
               'next/app',
               'next/document',
@@ -490,24 +497,32 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            // make sure we don't externalize anything that is
-            // supposed to be transpiled
-            if (babelIncludeRegexes.some(r => r.test(request))) {
-              return callback()
-            }
+            // We need to externalize internal requests for files intended to
+            // not be bundled.
+
+            const isLocal: boolean =
+              request.startsWith('.') ||
+              // Always check for unix-style path, as webpack sometimes
+              // normalizes as posix.
+              path.posix.isAbsolute(request) ||
+              // When on Windows, we also want to check for Windows-specific
+              // absolute paths.
+              (process.platform === 'win32' && path.win32.isAbsolute(request))
+            const isLikelyNextExternal =
+              isLocal && /[/\\]next-server[/\\]/.test(request)
 
             // Relative requires don't need custom resolution, because they
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            if (request.startsWith('.') || request.startsWith('/')) {
+            if (isLocal && !isLikelyNextExternal) {
               return callback()
             }
 
             // Resolve the import with the webpack provided context, this
             // ensures we're resolving the correct version when multiple
             // exist.
-            let res
+            let res: string
             try {
               res = resolveRequest(request, `${context}/`)
             } catch (err) {
@@ -523,20 +538,36 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            // Bundled Node.js code is relocated without its node_modules tree.
-            // This means we need to make sure its request resolves to the same
-            // package that'll be available at runtime. If it's not identical,
-            // we need to bundle the code (even if it _should_ be external).
-            let baseRes
-            try {
-              baseRes = resolveRequest(request, `${dir}/`)
-            } catch (err) {}
+            let isNextExternal: boolean = false
+            if (isLocal) {
+              isNextExternal = /next[/\\]dist[/\\]next-server[/\\]/.test(res)
+              if (!isNextExternal) {
+                return callback()
+              }
+            }
 
-            // Same as above: if the package, when required from the root,
-            // would be different from what the real resolution would use, we
-            // cannot externalize it.
-            if (baseRes !== res) {
-              return callback()
+            // `isNextExternal` special cases Next.js' internal requires that
+            // should not be bundled. We need to skip the base resolve routine
+            // to prevent it from being bundled (assumes Next.js version cannot
+            // mismatch).
+            if (!isNextExternal) {
+              // Bundled Node.js code is relocated without its node_modules tree.
+              // This means we need to make sure its request resolves to the same
+              // package that'll be available at runtime. If it's not identical,
+              // we need to bundle the code (even if it _should_ be external).
+              let baseRes: string | null
+              try {
+                baseRes = resolveRequest(request, `${dir}/`)
+              } catch (err) {
+                baseRes = null
+              }
+
+              // Same as above: if the package, when required from the root,
+              // would be different from what the real resolution would use, we
+              // cannot externalize it.
+              if (baseRes !== res) {
+                return callback()
+              }
             }
 
             // Default pages have to be transpiled
@@ -559,8 +590,24 @@ export default async function getBaseWebpackConfig(
 
             // Anything else that is standard JavaScript within `node_modules`
             // can be externalized.
-            if (res.match(/node_modules[/\\].*\.js$/)) {
-              return callback(undefined, `commonjs ${request}`)
+            if (isNextExternal || res.match(/node_modules[/\\].*\.js$/)) {
+              const externalRequest = isNextExternal
+                ? // Generate Next.js external import
+                  path.posix.join(
+                    'next',
+                    'dist',
+                    path
+                      .relative(
+                        // Root of Next.js package:
+                        path.join(__dirname, '..'),
+                        res
+                      )
+                      // Windows path normalization
+                      .replace(/\\/g, '/')
+                  )
+                : request
+
+              return callback(undefined, `commonjs ${externalRequest}`)
             }
 
             // Default behavior: bundle the code!
@@ -774,6 +821,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
+        ),
+        'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
+          config.experimental.measureFid
         ),
         ...(isServer
           ? {

@@ -8,6 +8,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  GSSP_COMPONENT_MEMBER_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
 import { isInAmpMode } from '../lib/amp'
@@ -194,6 +195,8 @@ function renderDocument(
     gsp,
     gssp,
     customServer,
+    gip,
+    appGip,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -217,6 +220,8 @@ function renderDocument(
     gsp?: boolean
     gssp?: boolean
     customServer?: boolean
+    gip?: boolean
+    appGip?: boolean
   }
 ): string {
   return (
@@ -240,6 +245,8 @@ function renderDocument(
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
             customServer, // whether the user is using a custom server
+            gip, // whether the page has getInitialProps
+            appGip, // whether the _app has getInitialProps
           },
           dangerousAsPath,
           canonicalBase,
@@ -348,6 +355,18 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  for (const methodName of [
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    if ((Component as any)[methodName]) {
+      throw new Error(
+        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
+      )
+    }
+  }
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -571,7 +590,7 @@ export async function renderToHTML(
         data.unstable_revalidate = false
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.unstable_revalidate
@@ -620,7 +639,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
@@ -764,6 +783,8 @@ export async function renderToHTML(
     polyfillFiles,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
+    gip: hasPageGetInitialProps ? true : undefined,
+    appGip: !defaultAppGetInitialProps ? true : undefined,
   })
 
   if (inAmpMode && html) {

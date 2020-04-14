@@ -13,8 +13,8 @@ export function startedDevelopmentServer(appUrl: string) {
   consoleStore.setState({ appUrl })
 }
 
-let previousClient: any = null
-let previousServer: any = null
+let previousClient: import('webpack').Compiler | null = null
+let previousServer: import('webpack').Compiler | null = null
 
 type CompilerDiagnosticsWithFile = {
   errors: { file: string | undefined; message: string }[] | null
@@ -203,7 +203,7 @@ export function ampValidation(
         .filter(k => k !== page)
         .sort()
         // eslint-disable-next-line no-sequences
-        .reduce((a, c) => ((a[c] = amp[c]), a), {} as any),
+        .reduce((a, c) => ((a[c] = amp[c]), a), {} as AmpPageStatus),
     })
     return
   }
@@ -213,13 +213,13 @@ export function ampValidation(
     amp: Object.keys(newAmp)
       .sort()
       // eslint-disable-next-line no-sequences
-      .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as any),
+      .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as AmpPageStatus),
   })
 }
 
 export function watchCompilers(
-  client: any,
-  server: any,
+  client: import('webpack').Compiler,
+  server: import('webpack').Compiler,
   enableTypeCheckingOnClient: boolean,
   onTypeChecked: (diagnostics: CompilerDiagnostics) => void
 ) {
@@ -285,75 +285,78 @@ export function watchCompilers(
         )
     }
 
-    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: any) => {
-      buildStore.setState({ amp: {} })
+    compiler.hooks.done.tap(
+      `NextJsDone-${key}`,
+      (stats: import('webpack').Stats) => {
+        buildStore.setState({ amp: {} })
 
-      const { errors, warnings } = formatWebpackMessages(
-        stats.toJson({ all: false, warnings: true, errors: true })
-      )
+        const { errors, warnings } = formatWebpackMessages(
+          stats.toJson({ all: false, warnings: true, errors: true })
+        )
 
-      const hasErrors = !!errors?.length
-      const hasWarnings = !!warnings?.length
+        const hasErrors = !!errors?.length
+        const hasWarnings = !!warnings?.length
 
-      onEvent({
-        loading: false,
-        typeChecking: hasTypeChecking,
-        errors: hasErrors ? errors : null,
-        warnings: hasWarnings ? warnings : null,
-      })
-
-      const typePromise = tsMessagesPromise
-
-      if (!hasErrors && typePromise) {
-        typePromise.then(typeMessages => {
-          if (typePromise !== tsMessagesPromise) {
-            // a new compilation started so we don't care about this
-            return
-          }
-
-          const reportFiles = stats.compilation.modules
-            .map((m: any) => (m.resource || '').replace(/\\/g, '/'))
-            .filter(Boolean)
-
-          let filteredErrors = typeMessages.errors
-            ? typeMessages.errors
-                .filter(({ file }) => file && reportFiles.includes(file))
-                .map(({ message }) => message)
-            : null
-          if (filteredErrors && filteredErrors.length < 1) {
-            filteredErrors = null
-          }
-          let filteredWarnings = typeMessages.warnings
-            ? typeMessages.warnings
-                .filter(({ file }) => file && reportFiles.includes(file))
-                .map(({ message }) => message)
-            : null
-          if (filteredWarnings && filteredWarnings.length < 1) {
-            filteredWarnings = null
-          }
-
-          stats.compilation.errors.push(...(filteredErrors || []))
-          stats.compilation.warnings.push(...(filteredWarnings || []))
-          onTypeChecked({
-            errors: stats.compilation.errors.length
-              ? stats.compilation.errors
-              : null,
-            warnings: stats.compilation.warnings.length
-              ? stats.compilation.warnings
-              : null,
-          })
-
-          onEvent({
-            loading: false,
-            typeChecking: false,
-            errors: filteredErrors,
-            warnings: hasWarnings
-              ? [...warnings, ...(filteredWarnings || [])]
-              : filteredWarnings,
-          })
+        onEvent({
+          loading: false,
+          typeChecking: hasTypeChecking,
+          errors: hasErrors ? errors : null,
+          warnings: hasWarnings ? warnings : null,
         })
+
+        const typePromise = tsMessagesPromise
+
+        if (!hasErrors && typePromise) {
+          typePromise.then(typeMessages => {
+            if (typePromise !== tsMessagesPromise) {
+              // a new compilation started so we don't care about this
+              return
+            }
+
+            const reportFiles = stats.compilation.modules
+              .map(m => (m.resource || '').replace(/\\/g, '/'))
+              .filter(Boolean)
+
+            let filteredErrors = typeMessages.errors
+              ? typeMessages.errors
+                  .filter(({ file }) => file && reportFiles.includes(file))
+                  .map(({ message }) => message)
+              : null
+            if (filteredErrors && filteredErrors.length < 1) {
+              filteredErrors = null
+            }
+            let filteredWarnings = typeMessages.warnings
+              ? typeMessages.warnings
+                  .filter(({ file }) => file && reportFiles.includes(file))
+                  .map(({ message }) => message)
+              : null
+            if (filteredWarnings && filteredWarnings.length < 1) {
+              filteredWarnings = null
+            }
+
+            stats.compilation.errors.push(...(filteredErrors || []))
+            stats.compilation.warnings.push(...(filteredWarnings || []))
+            onTypeChecked({
+              errors: stats.compilation.errors.length
+                ? stats.compilation.errors
+                : null,
+              warnings: stats.compilation.warnings.length
+                ? stats.compilation.warnings
+                : null,
+            })
+
+            onEvent({
+              loading: false,
+              typeChecking: false,
+              errors: filteredErrors,
+              warnings: hasWarnings
+                ? [...warnings, ...(filteredWarnings || [])]
+                : filteredWarnings,
+            })
+          })
+        }
       }
-    })
+    )
   }
 
   tapCompiler('client', client, enableTypeCheckingOnClient, status =>

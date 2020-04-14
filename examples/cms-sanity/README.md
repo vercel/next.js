@@ -11,6 +11,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Blog Starter](/examples/blog-starter)
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
+- [Prismic](/examples/cms-prismic)
 
 ## How to use
 

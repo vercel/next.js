@@ -10,9 +10,9 @@ In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained t
 
 We’ll talk about the three special Next.js functions you can use to fetch data for pre-rendering:
 
-- `getStaticProps` (Static Generation): Fetch data at **build time**.
-- `getStaticPaths` (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
-- `getServerSideProps` (Server-side Rendering): Fetch data on **each request**.
+- [`getStaticProps`](#getstaticprops-static-generation) (Static Generation): Fetch data at **build time**.
+- [`getStaticPaths`](#getstaticpaths-static-generation) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
+- [`getServerSideProps`](#getserversideprops-server-side-rendering) (Server-side Rendering): Fetch data on **each request**.
 
 In addition, we’ll talk briefly about how to do fetch data on the client side.
 
@@ -491,6 +491,7 @@ Take a look at the following examples to learn more:
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
 - [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
 - [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
+- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## Learn more
 

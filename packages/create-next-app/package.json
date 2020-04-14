@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "9.3.5-canary.0",
+  "version": "9.3.5-canary.9",
   "keywords": [
     "react",
     "next",
@@ -27,23 +27,23 @@
     "prepublish": "yarn release"
   },
   "devDependencies": {
-    "@types/got": "9.6.2",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
+    "@types/rimraf": "3.0.0",
     "@types/tar": "4.0.3",
+    "@types/validate-npm-package-name": "3.0.0",
     "@zeit/ncc": "^0.20.4",
     "chalk": "2.4.2",
     "commander": "2.20.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
-    "got": "9.6.0",
+    "got": "10.7.0",
     "make-dir": "3.0.0",
-    "promisepipe": "3.0.0",
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
     "tar": "4.4.10",
     "typescript": "3.7.3",
-    "update-check": "1.5.3",
+    "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   }
 }
