@@ -540,7 +540,12 @@ export default async function getBaseWebpackConfig(
 
             let isNextExternal: boolean = false
             if (isLocal) {
-              isNextExternal = /next[/\\]dist[/\\]next-server[/\\]/.test(res)
+              // we need to process next-server/lib/router/router so that
+              // the DefinePlugin can inject process.env values
+              isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
+                res
+              )
+
               if (!isNextExternal) {
                 return callback()
               }
