@@ -63,6 +63,7 @@ import {
 } from './spr-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -483,9 +484,18 @@ export default class Server {
           match: route.match,
           type: route.type,
           name: `${route.type} ${route.source} header route`,
-          fn: async (_req, res, _params, _parsedUrl) => {
+          fn: async (_req, res, params, _parsedUrl) => {
             for (const header of (route as Header).headers) {
-              res.setHeader(header.key, header.value)
+              let { key, value } = header
+              if (key.includes(':')) {
+                // see `prepareDestination` util for explanation for
+                // `validate: false` being used
+                key = compilePathToRegex(key, { validate: false })(params)
+              }
+              if (value.includes(':')) {
+                value = compilePathToRegex(value, { validate: false })(params)
+              }
+              res.setHeader(key, value)
             }
             return { finished: false }
           },
