@@ -63,7 +63,7 @@ import {
 } from './spr-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
-import { compile as compilePathToRegex } from 'path-to-regexp'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
