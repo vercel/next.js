@@ -1,5 +1,5 @@
 //import { Image } from 'react-datocms'
-import Image from '../lib/react-agilitycms-image'
+import Image from '../lib/components/image'
 import cn from 'classnames'
 import Link from 'next/link'
 

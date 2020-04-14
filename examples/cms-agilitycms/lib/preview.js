@@ -1,0 +1,159 @@
+import { agilityContentPreview } from './api'
+import { getParameterByName } from './utils'
+import { CMS_LANG, CMS_CHANNEL } from './constants'
+import crypto from 'crypto'
+
+export function handlePreviewRedirect() {
+
+    if(!process.browser) {
+        //kickout if this is not being executed in the browser
+        return;
+    }
+    
+    //check if we have an `agilitypreviewkey` in the query of this request
+    const agilityPreviewKey = getParameterByName(`agilitypreviewkey`);
+  
+    if(!agilityPreviewKey) {
+        //kickout if we don't have a preview key
+        return;
+    }
+    
+    //redirect this to our preview API route
+    const previewAPIRoute = `/api/preview`;
+    const slug = window.location.pathname;
+
+    //check if we have a `contentid` in the query, if so this is a preview request for a Dynamic Page Item
+    const contentID = getParameterByName(`contentid`);
+
+    //do the redirect
+    let redirectLink = `${previewAPIRoute}?slug=${slug}&agilitypreviewkey=${agilityPreviewKey}`
+    
+    //add-in the contentid if we have it
+    if(contentID) {
+        redirectLink = `${redirectLink}&contentid=${contentID}`;
+    }
+
+    window.location.href = redirectLink;
+
+    return;
+}
+
+//Validates whether the incoming preview request is valid
+export async function validatePreview({ agilityPreviewKey, slug, contentID }) {
+    //Validate the preview key
+    if(!agilityPreviewKey) {
+      return {
+        error: true,
+        message: `Missing agilitypreviewkey.`
+      }
+    }
+  
+    //sanitize incoming key (replace spaces with '+')
+    if(agilityPreviewKey.indexOf(` `) > -1) {
+      agilityPreviewKey = agilityPreviewKey.split(` `).join(`+`);
+    }
+  
+    //compare the preview key being used
+    const correctPreviewKey = generatePreviewKey();
+  
+    if(agilityPreviewKey !== correctPreviewKey) {
+      return {
+        error: true,
+        message: `Invalid agilitypreviewkey.`
+        //message: `Invalid agilitypreviewkey. Incoming key is=${agilityPreviewKey} compared to=${correctPreviewKey}...`
+      }
+    }
+  
+    const validateSlugResponse = await validateSlugForPreview({ slug, contentID });
+    
+    if(validateSlugResponse.error) {
+      //kickout
+      return validateSlugResponse;
+    }
+  
+    //return success
+    return {
+      error: false,
+      message: null,
+      slug: validateSlugResponse.slug
+    }
+  
+  }
+  
+  //Checks that the requested page exists, if not return a 401
+  export async function validateSlugForPreview({ slug, contentID }) {
+
+    //if its for root, allow it and kick out
+    if(slug === `/`) {
+        return {
+            error: false,
+            message: null,
+            slug: `/`
+          }
+    }
+
+    const client = agilityContentPreview();
+
+
+    //this is a standard page
+    const sitemapFlat = await client.getSitemapFlat({
+        channelName: CMS_CHANNEL,
+        languageCode: CMS_LANG
+    })
+    
+    let sitemapNode = null
+
+    if(!contentID) {
+        //For standard pages
+        sitemapNode = sitemapFlat[slug];
+
+    } else {
+        console.log(contentID)
+        //For dynamic pages - need to adjust the actual slug 
+        slug = Object.keys(sitemapFlat).find((key) => {
+            const node = sitemapFlat[key];
+            if(node.contentID == contentID) {
+                return node;
+            }
+        })
+
+        sitemapNode = sitemapFlat[slug]
+    }
+
+    
+    if(!sitemapNode) {
+        return {
+            error: true,
+            message: `Invalid page. '${slug}' was not found in the sitemap. Are you trying to preview a Dynamic Page Item? If so, ensure you have your List Preview Page, Item Preview Page, and Item Preview Query String Parameter set (contentid) .`,
+            slug: null
+        }
+    
+    }
+  
+    return {
+      error: false,
+      message: null,
+      slug: sitemapNode.path
+    }
+  }
+
+  //Generates a preview key to compare agains
+  export function generatePreviewKey() {
+    //the string we want to encode
+    const str = `-1_${process.env.NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY}_Preview`;
+  
+    //build our byte array
+    let data = [];
+    for (var i = 0; i < str.length; ++i)
+    {
+        data.push(str.charCodeAt(i));
+        data.push(0);
+    }
+    
+    //convert byte array to buffer
+    const strBuffer = Buffer.from(data);
+  
+    //encode it!
+    const previewKey = crypto.createHash('sha512').update(strBuffer).digest('base64');
+    return previewKey;
+  }

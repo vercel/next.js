@@ -46,7 +46,7 @@ After creating an account, select the **Blank (advanced users)** to create an bl
 
 ### Step 2. Create an `Author` Content Definition
 
-From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New**  create a new **Content Definition**.
+From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
 
 - The *Title* should be `Author`. This will also pre-populate your *Reference Name* for you.
 
@@ -66,7 +66,7 @@ From within the Agility CMS Content Manager, navigate to **Shared Content** and 
 
 ### Step 4. Create a `Post` Content Definiton
 
-From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New**  create a new **Content Definition**.
+From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
 
 - The *Title* should be `Post`.
 
@@ -88,7 +88,7 @@ Next, add these fields (you don't have to modify any other settings):
 
 When you are done, click **Save & Close** to save your `Author` content definition.
 
-### Step 5. Create a `Dynamic Page List` based on your `Author` Content Definition
+### Step 5. Create a `Dynamic Page List` based on your `Posts` Content Definition
 
 From within the Agility CMS Content Manager, navigate to **Shared Content** and click the **+ (New)** button and set the *Type* to `Dynamic Page List`
 
@@ -113,7 +113,123 @@ Next, select the **Posts** list and create a new content item.
 
 **Important:** For each post content item, you need to click `Publish` after saving. If not, the post will be in the `Staging` state.
 
-### Step 7. Set up environment variables
+### Step 7. Define your `Intro` Module 
+
+Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+
+- The *Title* should be `Intro`
+- The *Description*should be `Displays an intro message.`
+
+In this case, we are not adding any fields to control the output or behaviour, since the content is actually hard-coded in the template.
+
+Click **Save & Close** to save the definition.
+
+### Step 8. Define your `Hero Post` Module 
+
+Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+
+- The *Title* should be `Hero Post`
+- The *Description*should be `Displays the latest Post.`
+
+In this case, we are not adding any fields to control the output or behaviour, since the latest post will be used by default and all of the data is associated to the post itself.
+
+Click **Save & Close** to save the definition.
+
+### Step 9. Define your `More Stories` Module
+
+Navigate to **Settings** > **Module Definitions** and click **New**  to create a new **Module Definition**.
+
+- The *Title* should be `More Stories`
+- The *Description*should be `Displays a listing of Posts.`
+
+Next, add the following field:
+
+- `Title` - **Text** field
+
+Click **Save & Close** to save the definition.
+
+### Step 10. Define your `Post Details` Module
+
+Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+
+- The *Title* should be `Post Details`
+- The *Description*should be `Displays the details of a Post.`
+
+In this case, we are not adding any fields to control the output or behaviour, since the data is associated to the post itself.
+
+Click **Save & Close** to save the definition.
+
+### Step 11. Define a `One Column` Page Template
+
+Navigate to **Settings** > **Page Templates** and click **New** to create a new **Page Template**.
+
+- The *Name* should be `One Column Template`
+- The *Digital Channel Type* should be `Website`
+- Under *Module Zones* click `New (+)`
+    - The *Display Name* should be `Main Content Zone`
+    - The *Reference Name* should be `MainContentZone` (auto-populated)
+    - Click `Save` to apply the `Main Content Zone`
+
+Click **Save & Close** to save the page template.
+
+### Step 12. Add a new Page called `home`
+
+Navigate to **Pages** and click the **New (+)** button in the page tree to create a new **Page**.
+
+- The *Type* should be `Page`
+- The *Page Template* should be `One Column Template`
+- The *Menu Text* should be `Home` - the *Page Title* and *Page Name* fields will be auto-populated and you can leave these values as is.
+
+Click **Save** to create the `/home` page.
+
+Next, add the `Hero Post` and `More Stories` modules to the `Main Content Zone` of the `home` page.
+
+- Click the **New (+)** button on the `Main Content Zone` and select `Intro` to add the module to the page
+- Click **Save & Close** on the module to return back to the page
+
+- Click the **New (+)** button on the `Main Content Zone` and select `Hero Post` to add the module to the page
+- Click **Save & Close** on the module to return back to the page
+
+- Click the **New (+)** button on the `Main Content Zone` and select `More Stories` to add the module to the page
+    - The *Title* field should be set to `More Stories`
+- Click **Save & Close** on the module to return back to the page
+
+**Important:** Click **Publish** on the page in order to publish the page and all of its modules.
+
+### Step 13. Add a new Folder called `posts`
+
+Navigate to **Pages** and click the `Website` channel, then click **New (+)** button in the page tree to create a new **Folder** in the root of the site.
+
+- The *Type* should be `Folder`
+- The *Menu Text* should be `Posts` - the *Folder Name* field will be auto-populated to `posts`
+
+Click **Save** to create the `/posts` folder.
+
+**Important:** Click **Publish** on the folder.
+
+
+### Step 14. Add a new Dynamic Page called `posts-dynamic`
+
+Navigate to **Pages** and select the existing `/posts` folder. Click the **New (+)** button in the page tree to create a new **Dynamic Page** underneath the `posts` page.
+
+- The *Type* should be `Dynamic Page`
+- The *Page Template* should be `One Column Template`
+- The *Build Pages From* should be `
+- The *Sitemap Label* should be `posts-dynamic`
+- The *Page Path Formula* should be `##Slug##`
+- The *Page Title Formula* shoul be `##Title##`
+- The *Menu Text Formula* should be `##Title##`
+
+Click **Save** to create the `/posts/posts-dynamic`dynamic page.
+
+Next, add the `Post Details` module to the `Main Content Zone` of the `posts-dynamic` page.
+
+- Click the **New (+)** button on the `Main Content Zone` and select `Post Details` to add the module to the page
+- Click **Save & Close** on the module to return back to the page
+
+**Important:** Click **Publish** on the page in order to publish the page and all of its modules.
+
+### Step 15. Set up environment variables
 
 Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
 
