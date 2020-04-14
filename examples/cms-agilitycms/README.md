@@ -279,7 +279,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
-### Step 9. Deploy on ZEIT Now
+### Step 16. Deploy on ZEIT Now
 
 You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
@@ -296,7 +296,7 @@ now secrets add next_example_cms_agility_security_key <NEXT_EXAMPLE_CMS_AGILITY_
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
 
-### Step 10. Try preview mode
+### Step 17. Try preview mode
 
 Now that you've deployed your app to ZEIT NOW, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
@@ -312,9 +312,13 @@ To enable the Preview Mode, you'll need to add your site `https://<your-zeit-now
 
 Go to one of your `Posts` and **Update the title**. For example, you can add `[Staging]` in front of the title. Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the staging state.
 
-To enter **Preview Mode**, click the `Preview` button on the details of your `Post`. This redirects you to the '/'  homepage, however you will now be in **Preview Mode** so you can navigate to your `Post` you want to view on the website.
+To enter **Preview Mode**, click the `Preview` button on the details of your `Post`. This redirects you to the `/` page, however you will now be in **Preview Mode** so you can navigate to your `Post` you want to view on the website.
 
+> NOTE - To set up preview so you can click **Preview** from a `Post` and have it load that specific `Post` (as opposed to the `/` page), click on the **Settings** tab of the `Post` list in **Shared Content**. For **Item Preview Page** set it to `~/posts/posts-dynamic` and for **Item Preview Query String Parameter** set it to `contentid`. 
 
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+
+
+
 
 
