@@ -177,7 +177,7 @@ const nextServerlessLoader: loader.Loader = function() {
           }
 
           const resolver = require('${absolutePagePath}')
-          apiResolver(
+          await apiResolver(
             req,
             res,
             Object.assign({}, parsedUrl.query, params ),
