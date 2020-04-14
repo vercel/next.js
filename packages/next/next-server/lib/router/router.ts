@@ -16,10 +16,16 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
-function addBasePath(path: string): string {
-  // variable is always a string
-  const p = process.env.__NEXT_ROUTER_BASEPATH as string
-  return path.indexOf(p) !== 0 ? p + path : path
+const basePath = process.env.__NEXT_ROUTER_BASEPATH as string
+
+export function addBasePath(path: string): string {
+  return path.indexOf(basePath) !== 0 ? basePath + path : path
+}
+
+function delBasePath(path: string): string {
+  return path.indexOf(basePath) === 0
+    ? path.substr(basePath.length) || '/'
+    : path
 }
 
 function toRoute(path: string): string {
@@ -38,6 +44,7 @@ export type BaseRouter = {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
 }
 
 export type NextRouter = BaseRouter &
@@ -133,6 +140,8 @@ export default class Router implements BaseRouter {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
+
   /**
    * Map of all components loaded in `Router`
    */
@@ -206,6 +215,7 @@ export default class Router implements BaseRouter {
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
       isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+    this.basePath = basePath
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
@@ -361,8 +371,11 @@ export default class Router implements BaseRouter {
 
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
-      const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
+      let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
       let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
+
+      url = addBasePath(url)
+      as = addBasePath(as)
 
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
@@ -386,7 +399,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, addBasePath(as), options)
+        this.changeState(method, url, as, options)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -458,7 +471,7 @@ export default class Router implements BaseRouter {
         }
 
         Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, addBasePath(as), options)
+        this.changeState(method, url, as, options)
 
         if (process.env.NODE_ENV !== 'production') {
           const appComp: any = this.components['/_app'].Component
@@ -737,12 +750,10 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-
+      const route = delBasePath(toRoute(pathname))
       Promise.all([
-        this.pageLoader.prefetchData(url, asPath),
-        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
-          toRoute(pathname)
-        ),
+        this.pageLoader.prefetchData(url, delBasePath(asPath)),
+        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
   }
@@ -752,6 +763,7 @@ export default class Router implements BaseRouter {
     const cancel = (this.clc = () => {
       cancelled = true
     })
+    route = delBasePath(route)
 
     const componentResult = await this.pageLoader.loadPage(route)
 

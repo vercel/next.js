@@ -238,6 +238,7 @@ export default async function(
     dev: false,
     staticMarkup: false,
     hotReloader: null,
+    basePath: nextConfig.experimental.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,

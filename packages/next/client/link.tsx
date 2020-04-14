@@ -9,6 +9,7 @@ import {
   getLocationOrigin,
 } from '../next-server/lib/utils'
 import Router from './router'
+import { addBasePath } from '../next-server/lib/router/router'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)
@@ -161,8 +162,8 @@ class Link extends Component<LinkProps> {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: formatUrl(href),
-      as: asHref ? formatUrl(asHref) : asHref,
+      href: addBasePath(formatUrl(href)),
+      as: asHref ? addBasePath(formatUrl(asHref)) : asHref,
     }
   })
 
