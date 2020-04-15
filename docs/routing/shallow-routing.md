@@ -27,7 +27,7 @@ function Page() {
 
   useEffect(() => {
     // Always do navigations after the first render
-    router.push('/?counter=10', null, { shallow: true })
+    router.push('/?counter=10', undefined, { shallow: true })
   }, [])
 
   useEffect(() => {
@@ -43,7 +43,7 @@ If you don't need to add the router object to the page, you can also use the [Ro
 ```jsx
 import Router from 'next/router'
 // Inside your page
-Router.push('/?counter=10', null, { shallow: true })
+Router.push('/?counter=10', undefined, { shallow: true })
 ```
 
 The URL will get updated to `/?counter=10`. and the page won't get replaced, only the state of the route is changed.
