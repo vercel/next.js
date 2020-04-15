@@ -63,6 +63,7 @@ const externals = {
   'schema-utils': 'schema-utils',
   // dependents: terser-webpack-plugin
   'jest-worker': 'jest-worker',
+  cacache: 'cacache',
 }
 
 // eslint-disable-next-line camelcase
@@ -498,13 +499,6 @@ export async function ncc_webpack_hot_middleware(task, opts) {
     .ncc({ packageName: 'webpack-hot-middleware', externals })
     .target('compiled/webpack-hot-middleware')
 }
-externals['cacache'] = 'next/dist/compiled/cacache'
-export async function ncc_cacache(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cacache')))
-    .ncc({ packageName: 'cacache', externals })
-    .target('compiled/cacache')
-}
 externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
 export async function ncc_terser_webpack_plugin(task, opts) {
   await task
@@ -601,7 +595,6 @@ export async function ncc(task) {
       'ncc_unistore',
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
-      'ncc_cacache',
       'ncc_terser_webpack_plugin',
     ])
 }
