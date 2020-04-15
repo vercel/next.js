@@ -1,8 +1,15 @@
 /* eslint-env jest */
 /* global jasmine */
+import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  waitFor,
+} from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -17,9 +24,18 @@ async function get$(path, query) {
 
 describe('TypeScript Features', () => {
   describe('default behavior', () => {
+    let output = ''
+
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort, {})
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          output += msg || ''
+        },
+        onStdout(msg) {
+          output += msg || ''
+        },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -41,6 +57,18 @@ describe('TypeScript Features', () => {
     it('should resolve a single matching alias', async () => {
       const $ = await get$('/single-alias')
       expect($('body').text()).toMatch(/Hello/)
+    })
+
+    it('should have correct module not found error', async () => {
+      const basicPage = join(appDir, 'pages/basic-alias.js')
+      const contents = await fs.readFile(basicPage, 'utf8')
+
+      await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
+      await renderViaHTTP(appPort, '/basic-alias')
+
+      await waitFor(2 * 1000)
+      await fs.writeFile(basicPage, contents)
+      expect(output).toContain(`Module not found: Can't resolve '@c/worldd' in`)
     })
   })
 })
