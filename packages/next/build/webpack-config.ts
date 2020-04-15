@@ -769,7 +769,7 @@ export default async function getBaseWebpackConfig(
           ? Object.keys(process.env).reduce(
               (prev: { [key: string]: string }, key: string) => {
                 if (key.startsWith('NEXT_PUBLIC_')) {
-                  prev[key] = process.env[key]!
+                  prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
                 }
                 return prev
               },
