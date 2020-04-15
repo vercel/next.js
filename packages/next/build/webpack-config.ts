@@ -690,8 +690,12 @@ export default async function getBaseWebpackConfig(
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
-      hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
-      hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
+      hotUpdateChunkFilename: isWebpack5
+        ? 'static/webpack/[id].[fullhash].hot-update.js'
+        : 'static/webpack/[id].[hash].hot-update.js',
+      hotUpdateMainFilename: isWebpack5
+        ? 'static/webpack/[fullhash].hot-update.json'
+        : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
