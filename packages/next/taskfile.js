@@ -41,11 +41,15 @@ const externals = {
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
+  'webpack-sources': 'webpack-sources',
   // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
+  // dependents: terser-webpack-plugin
+  'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
+  'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',
   chokidar: 'chokidar',
-  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader
+  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader, terser-webpack-plugin
   'find-cache-dir': 'find-cache-dir',
   // dependents: thread-loader
   'loader-runner': 'loader-runner',
@@ -57,6 +61,9 @@ const externals = {
   'neo-async': 'neo-async',
   // dependents: cache-loader, style-loader, file-loader
   'schema-utils': 'schema-utils',
+  // dependents: terser-webpack-plugin
+  'jest-worker': 'jest-worker',
+  cacache: 'cacache',
 }
 
 // eslint-disable-next-line camelcase
@@ -492,6 +499,16 @@ export async function ncc_webpack_hot_middleware(task, opts) {
     .ncc({ packageName: 'webpack-hot-middleware', externals })
     .target('compiled/webpack-hot-middleware')
 }
+externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
+export async function ncc_terser_webpack_plugin(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('terser-webpack-plugin'))
+    )
+    .ncc({ packageName: 'terser-webpack-plugin', externals })
+    .target('compiled/terser-webpack-plugin')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -578,6 +595,7 @@ export async function ncc(task) {
       'ncc_unistore',
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
+      'ncc_terser_webpack_plugin',
     ])
 }
 
