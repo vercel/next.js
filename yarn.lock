@@ -16239,7 +16239,7 @@ terser-webpack-plugin@^1.4.3:
 
 "terser-webpack-plugin@gist:1b826e8b64f73158df99990d1b4624fa":
   version "2.3.5"
-  resolved "https://gist.github.com/1b826e8b64f73158df99990d1b4624fa.git#c70bd0328648e6ab4ed633b885bb690ac6d7fd6a"
+  resolved "https://gist.github.com/1b826e8b64f73158df99990d1b4624fa.git#fd45a05cf3bf3cb57ed963fbb21d23246503ca5c"
   dependencies:
     cacache "^13.0.1"
     find-cache-dir "^3.2.0"
