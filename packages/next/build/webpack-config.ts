@@ -53,6 +53,8 @@ import WebpackConformancePlugin, {
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
+const isWebpack5 = parseInt(webpack.version!) === 5
+
 const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
@@ -277,7 +279,10 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    plugins: [PnpWebpackPlugin],
+    plugins: isWebpack5
+      ? // webpack 5+ has the PnP resolver built-in by default:
+        []
+      : [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -681,8 +686,12 @@ export default async function getBaseWebpackConfig(
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
-      hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
-      hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
+      hotUpdateChunkFilename: isWebpack5
+        ? 'static/webpack/[id].[fullhash].hot-update.js'
+        : 'static/webpack/[id].[hash].hot-update.js',
+      hotUpdateMainFilename: isWebpack5
+        ? 'static/webpack/[fullhash].hot-update.json'
+        : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
@@ -881,7 +890,9 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            if (!isServer) {
+            // Webpack 5 has the ability to cache packages persistently, so we
+            // do not need this DLL plugin:
+            if (!isServer && !isWebpack5) {
               const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
                 distDir
               )
@@ -906,18 +917,12 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      !dev && new webpack.HashedModuleIdsPlugin(),
+      // Webpack 5 no longer requires this plugin in production:
+      !isWebpack5 && !dev && new webpack.HashedModuleIdsPlugin(),
       !dev &&
         new webpack.IgnorePlugin({
-          checkResource: (resource: string) => {
-            return /react-is/.test(resource)
-          },
-          checkContext: (context: string) => {
-            return (
-              /next-server[\\/]dist[\\/]/.test(context) ||
-              /next[\\/]dist[\\/]/.test(context)
-            )
-          },
+          resourceRegExp: /react-is/,
+          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
@@ -1008,6 +1013,13 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.plugins?.push(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )
+  }
+
+  if (isWebpack5) {
+    // On by default:
+    delete webpackConfig.output?.futureEmitAssets
+    // No longer polyfills Node.js modules:
+    if (webpackConfig.node) delete webpackConfig.node.setImmediate
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
@@ -1264,6 +1276,17 @@ export default async function getBaseWebpackConfig(
   if (!dev) {
     // entry is always a function
     webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
+  }
+
+  // In webpack 5, the 'var' libraryTarget output requires a name.
+  // TODO: this should be revisited as 'var' was only used to not have the
+  // initial variable exposed. In webpack 4, not setting the library option
+  // would result in the bundle being a self-executing function without the
+  // variable.
+  if (isWebpack5 && !isServer) {
+    webpackConfig.output!.library = webpackConfig.output?.library
+      ? webpackConfig.output.library
+      : 'INTERNAL_NEXT_APP'
   }
 
   return webpackConfig
