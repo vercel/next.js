@@ -36,6 +36,7 @@ const urlPropertyFields = [
   'asPath',
   'components',
   'isFallback',
+  'basePath',
 ]
 const routerEvents = [
   'routeChangeStart',

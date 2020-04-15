@@ -85,7 +85,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ## TypeScript
 
-If you're using TypeScript, you can use the `NextPage` type for functional components:
+If you're using TypeScript, you can use the `NextPage` type for function components:
 
 ```jsx
 import { NextPage } from 'next'

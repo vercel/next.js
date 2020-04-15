@@ -806,6 +806,64 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Ordering with Global CSS and Modules (dev)', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+  })
+
+  describe('Ordering with Global CSS and Modules (prod)', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
+
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+  })
+
   describe('Basic Tailwind CSS', () => {
     const appDir = join(fixturesDir, 'with-tailwindcss')
 
