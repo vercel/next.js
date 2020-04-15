@@ -1261,5 +1261,16 @@ export default async function getBaseWebpackConfig(
     webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
   }
 
+  // in Webpack 5 the 'var' libraryTarget output requires a name
+  // TODO: this should be revisited as 'var' was only used to not have the initial variable exposed
+  // In webpack 4 not setting the library option would result in the bundle being a self-executing function without the variable
+  if (!isServer && isWebpack5) {
+    // @ts-ignore
+    webpackConfig.output.library = webpackConfig.output.library
+      ? // @ts-ignore
+        webpackConfig.output.library
+      : 'INTERNAL_NEXT_APP'
+  }
+
   return webpackConfig
 }
