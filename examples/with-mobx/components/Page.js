@@ -15,11 +15,12 @@ class Page extends React.Component {
   }
 
   render() {
+    console.log("render update", this.props.store.timeString);
     return (
       <div>
         <h1>{this.props.title}</h1>
         <Clock
-          lastUpdate={this.props.store.lastUpdate}
+          timeString={this.props.store.timeString}
           light={this.props.store.light}
         />
         <nav>

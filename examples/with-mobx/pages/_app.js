@@ -1,24 +1,28 @@
 import { useMemo, useEffect } from 'react'
 import { Store } from '../store'
 import { Provider } from 'mobx-react'
+import App, {Container} from 'next/app'
+let store = new Store();
 
-export default function App({ Component, pageProps }) {
-  const store = useMemo(() => {
-    return new Store()
-  }, [])
+export default class MyApp extends App {
 
-  useEffect(() => {
-    // If your page has Next.js data fetching methods returning a state for the Mobx store,
-    // then you can hydrate it here.
-    const { initialState } = pageProps
-    if (initialState) {
-      store.hydrate(initialState)
+  state = {
+    stores: {store}
+  }
+
+  static async getInitialProps ({ Component, router, ctx }) {
+    let pageProps = {};
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
     }
-  }, [store, pageProps])
+    return {pageProps}
+  }
 
-  return (
-    <Provider store={store}>
+  render () {
+    const {Component, pageProps} = this.props;
+    const stores = this.state.stores;
+    return <Provider {...stores} >
       <Component {...pageProps} />
     </Provider>
-  )
+  }
 }
