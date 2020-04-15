@@ -6,8 +6,6 @@ import { languages, contentLanguageMap } from '../../lib/i18n'
 const HomePage = ({ lng }) => {
   const i18n = useI18n(lng)
 
-  console.log(lng)
-
   return (
     <div>
       <Head>
