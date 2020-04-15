@@ -900,7 +900,8 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      !dev && new webpack.HashedModuleIdsPlugin(),
+      // webpack 5 uses deterministic module ids automatically in production
+      !isWebpack5 && !dev && new webpack.HashedModuleIdsPlugin(),
       !dev &&
         new webpack.IgnorePlugin({
           checkResource: (resource: string) => {
