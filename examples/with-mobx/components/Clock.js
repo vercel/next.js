@@ -1,4 +1,4 @@
-import {observer} from 'mobx-react';
+import { observer } from 'mobx-react'
 const Clock = observer(props => {
   return (
     <div className={props.light ? 'light' : ''}>
@@ -18,5 +18,5 @@ const Clock = observer(props => {
       `}</style>
     </div>
   )
-});
-export default Clock;
+})
+export default Clock
