@@ -212,6 +212,14 @@ declare module 'next/dist/compiled/webpack-hot-middleware' {
   import m from 'webpack-hot-middleware'
   export = m
 }
+declare module 'next/dist/compiled/cacache' {
+  import m from 'cacache'
+  export = m
+}
+declare module 'next/dist/compiled/terser-webpack-plugin' {
+  import m from 'terser-webpack-plugin'
+  export = m
+}
 
 declare module 'autodll-webpack-plugin' {
   import webpack from 'webpack'
