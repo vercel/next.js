@@ -52,6 +52,9 @@ import WebpackConformancePlugin, {
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
+// @ts-ignore webpack version is exposed this way
+const isWebpack5 = parseInt(webpack.version) === 5
+
 const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
@@ -276,7 +279,7 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    plugins: [PnpWebpackPlugin],
+    plugins: isWebpack5 ? [] : [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
