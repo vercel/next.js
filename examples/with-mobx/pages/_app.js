@@ -1,7 +1,6 @@
-import { useMemo, useEffect } from 'react'
 import { Store } from '../store'
 import { Provider } from 'mobx-react'
-import App, {Container} from 'next/app'
+import App from 'next/app'
 let store = new Store();
 
 export default class MyApp extends App {

@@ -1,4 +1,4 @@
-import { action, observable, computed, runInAction, reaction } from 'mobx'
+import { action, observable, computed, runInAction } from 'mobx'
 import { useStaticRendering } from 'mobx-react'
 
 // eslint-disable-next-line react-hooks/rules-of-hooks
