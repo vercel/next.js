@@ -279,6 +279,7 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    // webpack 5 has the PnP resolver built-in
     plugins: isWebpack5 ? [] : [PnpWebpackPlugin],
   }
 
@@ -873,7 +874,8 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            if (!isServer) {
+            // webpack 5 has built-in module caching
+            if (!isServer && !isWebpack5) {
               const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
                 distDir
               )
