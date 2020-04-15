@@ -18,7 +18,7 @@ const HomePage = ({ lng }) => {
       <h3>{i18n.t('intro.text')}</h3>
       <div>Current locale: {i18n.activeLocale}</div>
       <Link href="/de">
-        <a>Change language SSG to 'de'</a>
+        <a>Use client-side routing to change language to 'de'</a>
       </Link>
     </div>
   )
