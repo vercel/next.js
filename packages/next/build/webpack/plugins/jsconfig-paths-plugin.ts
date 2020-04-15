@@ -204,11 +204,6 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
 
             return result
           }
-
-          throw new Error(`
-      Request "${moduleName}" matched tsconfig.json or jsconfig.json "paths" pattern ${matchedPatternText} but could not be resolved.
-      Tried paths: ${triedPaths.join(' ')}
-      `)
         }
       )
   }
