@@ -8,7 +8,7 @@
     "@emotion/babel-plugin"
     "@emotion/server"
   
-  These packages can be removed:
+  These packages can be removed if you plan on only using @emotion/css API:
     "@emotion/react"
     "@emotion/styled"
 */

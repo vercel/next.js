@@ -68,18 +68,6 @@ Will be transformed into:
 
 ### tailwind CSS config
 
-You will need to restart dev server when changes are made to `./tailwind.config.js`
-
-Babel cache can prevent you from seeing changes.
-
-Clear the babel cache with:
-
-```bash
-npm run clear:babel-cache
-# or
-yarn run clear:babel-cache
-```
-
 Use this command when you add a tailwind plugin that adds to tailwind's base css.
 
 Generate Tailwind base css:

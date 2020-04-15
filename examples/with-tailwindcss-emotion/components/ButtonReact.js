@@ -5,7 +5,7 @@
     "@emotion/react"
     "@emotion/babel-plugin"
 
-  These packages can be removed:
+  These packages can be removed if you plan on only using @emotion/react API:
     "@emotion/css"
     "@emotion/styled"
     "@emotion/server"
