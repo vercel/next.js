@@ -838,6 +838,27 @@ export default async function getBaseWebpackConfig(
               'global.GENTLY': JSON.stringify(false),
             }
           : undefined),
+        // stub process.env with proxy to warn a missing value is
+        // being accessed
+        ...(config.experimental.pageEnv
+          ? {
+              'process.env':
+                process.env.NODE_ENV === 'production'
+                  ? isServer
+                    ? 'process.env'
+                    : '{}'
+                  : `
+            new Proxy(${isServer ? 'process.env' : '{}'}, {
+              get(target, prop) {
+                if (typeof target[prop] === 'undefined') {
+                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://err.sh/next.js/missing-env-value\`)
+                }
+                return target[prop]
+              }
+            })
+          `,
+            }
+          : {}),
       }),
       !isServer &&
         new ReactLoadablePlugin({
