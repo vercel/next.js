@@ -2,7 +2,7 @@
 
 This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
 More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.js.config` and then
-returned to your react components (including `getInitialProps`) when the program is built with `next build`.
+returned to your react components when the program is built with `next build`.
 
 As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
 `phase` can have the values `PHASE_DEVELOPMENT_SERVER` or `PHASE_PRODUCTION_BUILD` (as defined in `next\constants`). Based on the variable

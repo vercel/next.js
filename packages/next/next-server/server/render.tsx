@@ -54,6 +54,7 @@ class ServerRouter implements NextRouter {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
   events: any
   isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
@@ -63,14 +64,15 @@ class ServerRouter implements NextRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    { isFallback }: { isFallback: boolean }
+    { isFallback }: { isFallback: boolean },
+    basePath: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
-
     this.isFallback = isFallback
+    this.basePath = basePath
   }
   push(): any {
     noRouter()
@@ -156,6 +158,7 @@ export type RenderOptsPartial = {
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  basePath: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -195,6 +198,8 @@ function renderDocument(
     gsp,
     gssp,
     customServer,
+    gip,
+    appGip,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -218,6 +223,8 @@ function renderDocument(
     gsp?: boolean
     gssp?: boolean
     customServer?: boolean
+    gip?: boolean
+    appGip?: boolean
   }
 ): string {
   return (
@@ -241,6 +248,8 @@ function renderDocument(
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
             customServer, // whether the user is using a custom server
+            gip, // whether the page has getInitialProps
+            appGip, // whether the _app has getInitialProps
           },
           dangerousAsPath,
           canonicalBase,
@@ -303,6 +312,7 @@ export async function renderToHTML(
     isDataReq,
     params,
     previewProps,
+    basePath,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -446,10 +456,16 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath = req.url as string
-  const router = new ServerRouter(pathname, query, asPath, {
-    isFallback: isFallback,
-  })
+  const asPath: string = req.url as string
+  const router = new ServerRouter(
+    pathname,
+    query,
+    asPath,
+    {
+      isFallback: isFallback,
+    },
+    basePath
+  )
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -584,7 +600,7 @@ export async function renderToHTML(
         data.unstable_revalidate = false
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.unstable_revalidate
@@ -633,7 +649,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
@@ -777,6 +793,8 @@ export async function renderToHTML(
     polyfillFiles,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
+    gip: hasPageGetInitialProps ? true : undefined,
+    appGip: !defaultAppGetInitialProps ? true : undefined,
   })
 
   if (inAmpMode && html) {
