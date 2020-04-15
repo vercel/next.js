@@ -8,7 +8,7 @@ In `next.config.js` you can configure the fallback language.
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-rosetta-i18n)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-i18n-rosetta)
 
 ## How to use
 
@@ -17,9 +17,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-rosetta-i18n with-rosetta-i18n
+npm init next-app --example with-i18n-rosetta with-i18n-rosetta
 # or
-yarn create next-app --example with-rosetta-i18n with-rosetta-i18n
+yarn create next-app --example with-i18n-rosetta with-i18n-rosetta
 ```
 
 ### Download manually
@@ -27,8 +27,8 @@ yarn create next-app --example with-rosetta-i18n with-rosetta-i18n
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-rosetta-i18n
-cd with-rosetta-i18n
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-i18n-rosetta
+cd with-i18n-rosetta
 ```
 
 Install it and run:
