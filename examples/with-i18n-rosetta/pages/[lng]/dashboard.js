@@ -9,7 +9,7 @@ const Dashboard = () => {
     <div>
       <Head>
         <meta
-          http-equiv="content-language"
+          httpEquiv="content-language"
           content={contentLanguageMap[i18n.activeLocale]}
         />
       </Head>

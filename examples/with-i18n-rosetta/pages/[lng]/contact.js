@@ -9,7 +9,7 @@ const Contact = ({ lng }) => {
   return (
     <div>
       <Head>
-        <meta http-equiv="content-language" content={contentLanguageMap[lng]} />
+        <meta httpEquiv="content-language" content={contentLanguageMap[lng]} />
       </Head>
       <h1>{i18n.t('contact.email')}</h1>
       <div>Current locale: {i18n.activeLocale}</div>
