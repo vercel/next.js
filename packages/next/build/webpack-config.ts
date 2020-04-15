@@ -903,25 +903,10 @@ export default async function getBaseWebpackConfig(
       // webpack 5 uses deterministic module ids automatically in production
       !isWebpack5 && !dev && new webpack.HashedModuleIdsPlugin(),
       !dev &&
-        new webpack.IgnorePlugin(
-          isWebpack5
-            ? {
-                // webpack 5 only accepts regexes for ignoring
-                resourceRegExp: /react-is/,
-                contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
-              }
-            : {
-                checkResource: (resource: string) => {
-                  return /react-is/.test(resource)
-                },
-                checkContext: (context: string) => {
-                  return (
-                    /next-server[\\/]dist[\\/]/.test(context) ||
-                    /next[\\/]dist[\\/]/.test(context)
-                  )
-                },
-              }
-        ),
+        new webpack.IgnorePlugin({
+          resourceRegExp: /react-is/,
+          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
+        }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
