@@ -998,6 +998,13 @@ export default async function getBaseWebpackConfig(
     )
   }
 
+  if (isWebpack5) {
+    // @ts-ignore this property is the default in webpack 5
+    delete webpackConfig.output.futureEmitAssets
+    // @ts-ignore webpack 5 no longer polyfills node.js modules
+    delete webpackConfig.node.setImmediate
+  }
+
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
     customAppFile,
