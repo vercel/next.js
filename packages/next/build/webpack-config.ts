@@ -52,8 +52,7 @@ import WebpackConformancePlugin, {
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-// @ts-ignore webpack version is exposed this way
-const isWebpack5 = parseInt(webpack.version) === 5
+const isWebpack5 = parseInt(webpack.version!) === 5
 
 const escapePathVariables = (value: any) => {
   return typeof value === 'string'
@@ -279,8 +278,10 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    // webpack 5 has the PnP resolver built-in
-    plugins: isWebpack5 ? [] : [PnpWebpackPlugin],
+    plugins: isWebpack5
+      ? // webpack 5+ has the PnP resolver built-in by default:
+        []
+      : [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -895,7 +896,8 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            // webpack 5 has built-in module caching
+            // Webpack 5 has the ability to cache packages persistently, so we
+            // do not need this DLL plugin:
             if (!isServer && !isWebpack5) {
               const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
                 distDir
@@ -921,7 +923,7 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      // webpack 5 uses deterministic module ids automatically in production
+      // Webpack 5 no longer requires this plugin in production:
       !isWebpack5 && !dev && new webpack.HashedModuleIdsPlugin(),
       !dev &&
         new webpack.IgnorePlugin({
@@ -1020,10 +1022,10 @@ export default async function getBaseWebpackConfig(
   }
 
   if (isWebpack5) {
-    // @ts-ignore this property is the default in webpack 5
-    delete webpackConfig.output.futureEmitAssets
-    // @ts-ignore webpack 5 no longer polyfills node.js modules
-    delete webpackConfig.node.setImmediate
+    // On by default:
+    delete webpackConfig.output?.futureEmitAssets
+    // No longer polyfills Node.js modules:
+    if (webpackConfig.node) delete webpackConfig.node.setImmediate
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
@@ -1282,14 +1284,14 @@ export default async function getBaseWebpackConfig(
     webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
   }
 
-  // in Webpack 5 the 'var' libraryTarget output requires a name
-  // TODO: this should be revisited as 'var' was only used to not have the initial variable exposed
-  // In webpack 4 not setting the library option would result in the bundle being a self-executing function without the variable
-  if (!isServer && isWebpack5) {
-    // @ts-ignore
-    webpackConfig.output.library = webpackConfig.output.library
-      ? // @ts-ignore
-        webpackConfig.output.library
+  // In webpack 5, the 'var' libraryTarget output requires a name.
+  // TODO: this should be revisited as 'var' was only used to not have the
+  // initial variable exposed. In webpack 4, not setting the library option
+  // would result in the bundle being a self-executing function without the
+  // variable.
+  if (isWebpack5 && !isServer) {
+    webpackConfig.output!.library = webpackConfig.output?.library
+      ? webpackConfig.output.library
       : 'INTERNAL_NEXT_APP'
   }
 
