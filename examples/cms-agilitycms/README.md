@@ -265,7 +265,7 @@ AGILITY_API_PREVIEW_KEY=...
 AGILITY_SECURITY_KEY=...
 ```
 
-### Step 8. Run Next.js in development mode
+### Step 16. Run Next.js in development mode
 
 ```bash
 npm install
@@ -279,7 +279,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
-### Step 16. Deploy on ZEIT Now
+### Step 17. Deploy on ZEIT Now
 
 You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
@@ -296,7 +296,7 @@ now secrets add next_example_cms_agility_security_key <NEXT_EXAMPLE_CMS_AGILITY_
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
 
-### Step 17. Try preview mode
+### Step 18. Try preview mode
 
 Now that you've deployed your app to ZEIT NOW, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
