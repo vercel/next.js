@@ -55,6 +55,7 @@ const defaultConfig: { [key: string]: any } = {
     basePath: '',
     sassOptions: {},
     pageEnv: false,
+    measureFid: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

@@ -11,8 +11,8 @@
     "mobx-react": "^5.4.3",
     "mobx-state-tree": "^3.11.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
     "typescript": "^3.0.1"
   },
   "devDependencies": {

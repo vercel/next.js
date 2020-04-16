@@ -1,9 +1,9 @@
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { incrementCount, decrementCount, resetCount } from '../store'
+import { incrementCount, decrementCount, resetCount } from '../actions'
 
-export default () => {
-  const count = useSelector(state => state.count)
+const Counter = () => {
+  const count = useSelector(state => state.counter)
   const dispatch = useDispatch()
 
   return (
@@ -17,3 +17,5 @@ export default () => {
     </div>
   )
 }
+
+export default Counter

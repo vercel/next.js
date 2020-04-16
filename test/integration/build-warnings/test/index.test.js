@@ -54,6 +54,8 @@ describe('Build warnings', () => {
         CIRCLECI: '',
         TRAVIS: '',
         SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: '',
+        GITHUB_ACTIONS: '',
+        GITHUB_EVENT_NAME: '',
       },
     })
     expect(stdout).not.toContain('no-cache')
