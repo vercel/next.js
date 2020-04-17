@@ -53,6 +53,8 @@ Next, add these fields (you don't have to modify the settings):
 - `name` - **Key Text** field
 - `picture` - **Image** field
 
+Alternatively, you can copy the JSON in [`types/author.json`](types/author.json), then click on **JSON editor** and paste it there.
+
 Save the type and continue.
 
 ### Step 3. Create a `post` type
@@ -70,6 +72,8 @@ Next, add these fields (you don't have to modify the settings unless specified):
 - `date` - **Date** field
 - `author` - **Content relationship** field, you may also add `author` to the **Constraint to custom type** option to only accept documents from the `author` type.
 - `slug` - **UID** field.
+
+Alternatively, you can copy the JSON in [`types/post.json`](types/post.json), then click on **JSON editor** and paste it there.
 
 Save the type and continue.
 

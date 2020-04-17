@@ -1,8 +1,11 @@
-import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import { readFileSync } from 'fs'
+import chalk from 'next/dist/compiled/chalk'
+import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
+import { MinifyOptions } from 'terser'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -11,7 +14,6 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { readFileSync } from 'fs'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -34,6 +36,7 @@ import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
+import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -42,15 +45,15 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import WebpackConformancePlugin, {
+  DuplicatePolyfillsConformanceCheck,
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
-  DuplicatePolyfillsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
+
+const isWebpack5 = parseInt(webpack.version!) === 5
 
 const escapePathVariables = (value: any) => {
   return typeof value === 'string'
@@ -276,20 +279,15 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    plugins: [PnpWebpackPlugin],
+    plugins: isWebpack5
+      ? // webpack 5+ has the PnP resolver built-in by default:
+        []
+      : [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
 
-  const terserPluginConfig = {
-    cache: true,
-    cpus: config.experimental.cpus,
-    distDir: distDir,
-    parallel: true,
-    sourceMap: false,
-    workerThreads: config.experimental.workerThreads,
-  }
-  const terserOptions = {
+  const terserOptions: MinifyOptions = {
     parse: {
       ecma: 8,
     },
@@ -635,7 +633,8 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
-          ...terserPluginConfig,
+          cache: path.join(distDir, 'cache', 'next-minifier'),
+          parallel: config.experimental.cpus || true,
           terserOptions,
         }),
         // Minify CSS
@@ -687,8 +686,12 @@ export default async function getBaseWebpackConfig(
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
-      hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
-      hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
+      hotUpdateChunkFilename: isWebpack5
+        ? 'static/webpack/[id].[fullhash].hot-update.js'
+        : 'static/webpack/[id].[hash].hot-update.js',
+      hotUpdateMainFilename: isWebpack5
+        ? 'static/webpack/[fullhash].hot-update.json'
+        : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
@@ -765,17 +768,15 @@ export default async function getBaseWebpackConfig(
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
-        ...(config.experimental.pageEnv
-          ? Object.keys(process.env).reduce(
-              (prev: { [key: string]: string }, key: string) => {
-                if (key.startsWith('NEXT_PUBLIC_')) {
-                  prev[key] = process.env[key]!
-                }
-                return prev
-              },
-              {}
-            )
-          : {}),
+        ...Object.keys(process.env).reduce(
+          (prev: { [key: string]: string }, key: string) => {
+            if (key.startsWith('NEXT_PUBLIC_')) {
+              prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
+            }
+            return prev
+          },
+          {}
+        ),
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
@@ -838,6 +839,27 @@ export default async function getBaseWebpackConfig(
               'global.GENTLY': JSON.stringify(false),
             }
           : undefined),
+        // stub process.env with proxy to warn a missing value is
+        // being accessed
+        ...(config.experimental.pageEnv
+          ? {
+              'process.env':
+                process.env.NODE_ENV === 'production'
+                  ? isServer
+                    ? 'process.env'
+                    : '{}'
+                  : `
+            new Proxy(${isServer ? 'process.env' : '{}'}, {
+              get(target, prop) {
+                if (typeof target[prop] === 'undefined') {
+                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://err.sh/next.js/missing-env-value\`)
+                }
+                return target[prop]
+              }
+            })
+          `,
+            }
+          : {}),
       }),
       !isServer &&
         new ReactLoadablePlugin({
@@ -866,7 +888,9 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            if (!isServer) {
+            // Webpack 5 has the ability to cache packages persistently, so we
+            // do not need this DLL plugin:
+            if (!isServer && !isWebpack5) {
               const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
                 distDir
               )
@@ -891,18 +915,12 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      !dev && new webpack.HashedModuleIdsPlugin(),
+      // Webpack 5 no longer requires this plugin in production:
+      !isWebpack5 && !dev && new webpack.HashedModuleIdsPlugin(),
       !dev &&
         new webpack.IgnorePlugin({
-          checkResource: (resource: string) => {
-            return /react-is/.test(resource)
-          },
-          checkContext: (context: string) => {
-            return (
-              /next-server[\\/]dist[\\/]/.test(context) ||
-              /next[\\/]dist[\\/]/.test(context)
-            )
-          },
+          resourceRegExp: /react-is/,
+          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
@@ -985,14 +1003,17 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (
-    config.experimental.jsconfigPaths &&
-    jsConfig?.compilerOptions?.paths &&
-    resolvedBaseUrl
-  ) {
+  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
     webpackConfig.resolve?.plugins?.push(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )
+  }
+
+  if (isWebpack5) {
+    // On by default:
+    delete webpackConfig.output?.futureEmitAssets
+    // No longer polyfills Node.js modules:
+    if (webpackConfig.node) delete webpackConfig.node.setImmediate
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
@@ -1249,6 +1270,17 @@ export default async function getBaseWebpackConfig(
   if (!dev) {
     // entry is always a function
     webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
+  }
+
+  // In webpack 5, the 'var' libraryTarget output requires a name.
+  // TODO: this should be revisited as 'var' was only used to not have the
+  // initial variable exposed. In webpack 4, not setting the library option
+  // would result in the bundle being a self-executing function without the
+  // variable.
+  if (isWebpack5 && !isServer) {
+    webpackConfig.output!.library = webpackConfig.output?.library
+      ? webpackConfig.output.library
+      : 'INTERNAL_NEXT_APP'
   }
 
   return webpackConfig

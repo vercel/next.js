@@ -45,9 +45,10 @@ export default Home
 - `href` - The path inside `pages` directory. This is the only required prop
 - `as` - The path that will be rendered in the browser URL bar. Used for dynamic routes
 - [`passHref`](#forcing-Link-to-expose-href-to-its-child) - Forces `Link` to send the `href` property to its child. Defaults to `false`
-- `prefetch` - Prefetch the page in the background. Defaults to `true`
+- `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages with data requirements will preload `JSON` files with the data for faster page transitions.
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
 - [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
+- [`shallow`](/docs/routing/shallow-routing.md) - Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
 External URLs, and any links that don't require a route navigation using `/pages`, don't need to be handled with `Link`; use the anchor tag for such cases instead.
 
@@ -175,7 +176,7 @@ The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` 
 
 ## Disable scrolling to the top of the page
 
-The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, just like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
+The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
 
 ```jsx
 <Link href="/?counter=10" scroll={false}>
