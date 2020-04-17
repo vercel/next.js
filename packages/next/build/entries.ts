@@ -6,6 +6,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { isTargetLikeServerless } from '../next-server/server/config'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
+import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 
 type PagesMapping = {
@@ -128,10 +129,13 @@ export function createEntrypoints(
     }
 
     if (!isApiRoute) {
-      const pageLoader = `next-client-pages-loader?${stringify({
+      const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-      })}!`
+      }
+      const pageLoader = `next-client-pages-loader?${stringify(
+        pageLoaderOpts
+      )}!`
 
       // Make sure next/router is a dependency of _app or else granularChunks
       // might cause the router to not be able to load causing hydration
