@@ -55,6 +55,7 @@ export type PageConfig = {
     bodyParser?: { sizeLimit?: number | string } | false
   }
   env?: Array<string>
+  unstable_runtimeJS?: false
 }
 
 export {
