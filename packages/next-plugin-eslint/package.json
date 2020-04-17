@@ -1,0 +1,17 @@
+{
+  "name": "@next/eslint-plugin-next",
+  "version": "0.0.0",
+  "description": "ESLint plugin for NextJS.",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "repository": {
+    "url": "zeit/next.js",
+    "directory": "packages/next-plugin-eslint"
+  },
+  "scripts": {
+    "test": "mocha tests --recursive"
+  },
+  "devDependencies": {
+    "mocha": "^3.1.2"
+  }
+}
