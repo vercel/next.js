@@ -336,13 +336,15 @@ export function watchCompilers(
 
             stats.compilation.errors.push(...(filteredErrors || []))
             stats.compilation.warnings.push(...(filteredWarnings || []))
+            const {
+              errors: newErrors,
+              warnings: newWarnings,
+            } = formatWebpackMessages(
+              stats.toJson({ all: false, warnings: true, errors: true })
+            )
             onTypeChecked({
-              errors: stats.compilation.errors.length
-                ? stats.compilation.errors
-                : null,
-              warnings: stats.compilation.warnings.length
-                ? stats.compilation.warnings
-                : null,
+              errors: newErrors?.length ? newErrors : null,
+              warnings: newWarnings?.length ? newWarnings : null,
             })
 
             onEvent({
