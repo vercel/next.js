@@ -132,7 +132,7 @@ export function createEntrypoints(
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-        hotRouterUpdates: false, // HMR API is disabled in Production
+        hotRouterUpdates: true,
       }
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts
