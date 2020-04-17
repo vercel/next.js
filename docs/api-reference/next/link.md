@@ -176,7 +176,7 @@ The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` 
 
 ## Disable scrolling to the top of the page
 
-The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, just like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
+The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
 
 ```jsx
 <Link href="/?counter=10" scroll={false}>
