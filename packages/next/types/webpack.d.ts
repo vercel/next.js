@@ -1044,6 +1044,7 @@ declare module 'webpack' {
       class MainTemplate extends Tapable {
         hooks: {
           jsonpScript?: SyncWaterfallHook<string, Chunk, string>
+          require: SyncWaterfallHook<string, Chunk, string>
           requireExtensions: SyncWaterfallHook<string, Chunk, string>
         }
         outputOptions: Output
