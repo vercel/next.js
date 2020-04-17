@@ -41,7 +41,6 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    jsconfigPaths: false,
     css: true,
     scss: true,
     documentMiddleware: false,

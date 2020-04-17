@@ -768,17 +768,15 @@ export default async function getBaseWebpackConfig(
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
-        ...(config.experimental.pageEnv
-          ? Object.keys(process.env).reduce(
-              (prev: { [key: string]: string }, key: string) => {
-                if (key.startsWith('NEXT_PUBLIC_')) {
-                  prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
-                }
-                return prev
-              },
-              {}
-            )
-          : {}),
+        ...Object.keys(process.env).reduce(
+          (prev: { [key: string]: string }, key: string) => {
+            if (key.startsWith('NEXT_PUBLIC_')) {
+              prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
+            }
+            return prev
+          },
+          {}
+        ),
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
@@ -1005,11 +1003,7 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (
-    config.experimental.jsconfigPaths &&
-    jsConfig?.compilerOptions?.paths &&
-    resolvedBaseUrl
-  ) {
+  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
     webpackConfig.resolve?.plugins?.push(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )

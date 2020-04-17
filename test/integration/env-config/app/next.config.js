@@ -1,7 +1,5 @@
 module.exports = {
   experimental: {
-    pageEnv: true,
-
     async redirects() {
       return [
         {
