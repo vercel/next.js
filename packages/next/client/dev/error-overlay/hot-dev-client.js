@@ -1,29 +1,30 @@
-/* eslint-disable camelcase */
 /**
-MIT License
+ * MIT License
+ *
+ * Copyright (c) 2013-present, Facebook, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
-Copyright (c) 2013-present, Facebook, Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-// This file is based on https://github.com/facebook/create-react-app/blob/v1.1.4/packages/react-dev-utils/webpackHotDevClient.js
-// It's been edited to rely on webpack-hot-middleware and to be more compatible with SSR / Next.js
+// This file is a modified version of the Create React App HMR dev client that
+// can be found here:
+// https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
 import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
@@ -40,10 +41,6 @@ import fetch from 'next/dist/build/polyfills/unfetch'
 // It makes some opinionated choices on top, like adding a syntax error overlay
 // that looks similar to our console output. The error overlay is inspired by:
 // https://github.com/glenjamin/webpack-hot-middleware
-
-// This is a modified version of create-react-app's webpackHotDevClient.js
-// It implements webpack-hot-middleware's EventSource events instead of webpack-dev-server's websocket.
-// https://github.com/facebook/create-react-app/blob/25184c4e91ebabd16fe1cde3d8630830e4a36a01/packages/react-dev-utils/webpackHotDevClient.js
 
 let hadRuntimeError = false
 let customHmrEventHandler
@@ -121,7 +118,7 @@ export default function connect(options) {
 var isFirstCompilation = true
 var mostRecentCompilationHash = null
 var hasCompileErrors = false
-let deferredBuildError = null
+var hmrEventCount = 0
 
 function clearOutdatedErrors() {
   // Clean up outdated compile errors, if any.
@@ -130,12 +127,12 @@ function clearOutdatedErrors() {
       console.clear()
     }
   }
-
-  deferredBuildError = null
 }
 
 // Successful compilation.
 function handleSuccess() {
+  clearOutdatedErrors()
+
   const isHotUpdate = !isFirstCompilation
   isFirstCompilation = false
   hasCompileErrors = false
@@ -143,13 +140,9 @@ function handleSuccess() {
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
     tryApplyUpdates(function onHotUpdateSuccess() {
-      if (deferredBuildError) {
-        deferredBuildError()
-      } else {
-        // Only dismiss it when we're sure it's a hot update.
-        // Otherwise it would flicker right before the reload.
-        ErrorOverlay.dismissBuildError()
-      }
+      // Only dismiss it when we're sure it's a hot update.
+      // Otherwise it would flicker right before the reload.
+      tryDismissErrorOverlay()
     })
   }
 }
@@ -158,23 +151,40 @@ function handleSuccess() {
 function handleWarnings(warnings) {
   clearOutdatedErrors()
 
-  // Print warnings to the console.
-  const formatted = formatWebpackMessages({
-    warnings: warnings,
-    errors: [],
-  })
+  const isHotUpdate = !isFirstCompilation
+  isFirstCompilation = false
+  hasCompileErrors = false
 
-  if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-    for (let i = 0; i < formatted.warnings.length; i++) {
-      if (i === 5) {
-        console.warn(
-          'There were more warnings in other files.\n' +
-            'You can find a complete log in the terminal.'
-        )
-        break
+  function printWarnings() {
+    // Print warnings to the console.
+    const formatted = formatWebpackMessages({
+      warnings: warnings,
+      errors: [],
+    })
+
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      for (let i = 0; i < formatted.warnings.length; i++) {
+        if (i === 5) {
+          console.warn(
+            'There were more warnings in other files.\n' +
+              'You can find a complete log in the terminal.'
+          )
+          break
+        }
+        console.warn(stripAnsi(formatted.warnings[i]))
       }
-      console.warn(stripAnsi(formatted.warnings[i]))
     }
+  }
+
+  printWarnings()
+
+  // Attempt to apply hot updates or reload.
+  if (isHotUpdate) {
+    tryApplyUpdates(function onSuccessfulHotUpdate() {
+      // Only dismiss it when we're sure it's a hot update.
+      // Otherwise it would flicker right before the reload.
+      tryDismissErrorOverlay()
+    })
   }
 }
 
@@ -200,6 +210,15 @@ function handleErrors(errors) {
       console.error(stripAnsi(formatted.errors[i]))
     }
   }
+
+  // Do not attempt to reload now.
+  // We will reload on next success instead.
+}
+
+function tryDismissErrorOverlay() {
+  if (!hasCompileErrors) {
+    ErrorOverlay.dismissBuildError()
+  }
 }
 
 // There is a newer version of the code available.
@@ -213,6 +232,7 @@ function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
+      ++hmrEventCount
       console.log(
         '[HMR] bundle ' + (obj.name ? "'" + obj.name + "' " : '') + 'rebuilding'
       )
@@ -220,46 +240,58 @@ function processMessage(e) {
     }
     case 'built':
     case 'sync': {
-      clearOutdatedErrors()
-
+      if (obj.action === 'built') ++hmrEventCount
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
 
       const { errors, warnings } = obj
       const hasErrors = Boolean(errors && errors.length)
+      if (hasErrors) {
+        return handleErrors(errors)
+      }
 
       const hasWarnings = Boolean(warnings && warnings.length)
+      if (hasWarnings) {
+        return handleWarnings(warnings)
+      }
 
-      if (hasErrors) {
-        // When there is a compilation error coming from SSR we have to reload the page on next successful compile
-        if (obj.action === 'sync') {
-          hadRuntimeError = true
+      return handleSuccess()
+    }
+    case 'typeChecked': {
+      const eventId = ++hmrEventCount
+
+      const [{ errors }] = obj.data
+      const hasErrors = Boolean(errors && errors.length)
+
+      // Disregard event if there are no errors to report.
+      if (!hasErrors) {
+        // We need to _try_ dismissing the error overlay, as code may not have
+        // changed, for example, when only types are updated.
+        // n.b. `handleSuccess` only dismisses the overlay if code was updated.
+        tryDismissErrorOverlay()
+        break
+      }
+
+      function display() {
+        // Another update has started, ignore type update:
+        if (!canApplyUpdates() || eventId !== hmrEventCount) {
+          return
+        }
+
+        // TypeScript errors to not take priority over compillation errors
+        if (hasCompileErrors) {
+          return
         }
 
         handleErrors(errors)
-        break
-      } else if (hasWarnings) {
-        handleWarnings(warnings)
       }
 
-      handleSuccess()
-      break
-    }
-    case 'typeChecked': {
-      const [{ errors, warnings }] = obj.data
-      const hasErrors = Boolean(errors && errors.length)
-
-      const hasWarnings = Boolean(warnings && warnings.length)
-
-      if (hasErrors) {
-        if (canApplyUpdates()) {
-          handleErrors(errors)
-        } else {
-          deferredBuildError = () => handleErrors(errors)
-        }
-      } else if (hasWarnings) {
-        handleWarnings(warnings)
+      // We need to defer this until we're in an idle state.
+      if (canApplyUpdates()) {
+        display()
+      } else {
+        afterApplyUpdates(display)
       }
 
       break
@@ -286,9 +318,22 @@ function isUpdateAvailable() {
 function canApplyUpdates() {
   return module.hot.status() === 'idle'
 }
+function afterApplyUpdates(fn) {
+  if (canApplyUpdates()) {
+    fn()
+  } else {
+    function handler(status) {
+      if (status === 'idle') {
+        module.hot.removeStatusHandler(handler)
+        fn()
+      }
+    }
+    module.hot.addStatusHandler(handler)
+  }
+}
 
 // Attempt to update code on the fly, fall back to a hard reload.
-async function tryApplyUpdates(onHotUpdateSuccess) {
+function tryApplyUpdates(onHotUpdateSuccess) {
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -297,12 +342,11 @@ async function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
-    ErrorOverlay.dismissBuildError()
     return
   }
 
   function handleApplyUpdates(err, updatedModules) {
-    if (err || hadRuntimeError) {
+    if (err || hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn('Error while applying updates, reloading page', err)
       }
@@ -324,17 +368,13 @@ async function tryApplyUpdates(onHotUpdateSuccess) {
     }
   }
 
-  // https://webpack.github.io/docs/hot-module-replacement.html#check
-  try {
-    const updatedModules = await module.hot.check(
-      /* autoApply */ {
-        ignoreUnaccepted: true,
-      }
-    )
-    if (updatedModules) {
+  // https://webpack.js.org/api/hot-module-replacement/#check
+  module.hot.check(/* autoApply */ true).then(
+    updatedModules => {
       handleApplyUpdates(null, updatedModules)
+    },
+    err => {
+      handleApplyUpdates(err, null)
     }
-  } catch (err) {
-    handleApplyUpdates(err, null)
-  }
+  )
 }
