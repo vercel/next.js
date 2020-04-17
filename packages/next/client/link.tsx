@@ -207,21 +207,6 @@ class Link extends Component<LinkProps> {
       if (!success) return
       if (scroll) {
         window.scrollTo(0, 0)
-        const bodyHadTabIndex = document.body.hasAttribute('tabindex')
-        if (!bodyHadTabIndex) {
-          // Body cannot receive focus without tab index -1
-          document.body.setAttribute('tabindex', '-1')
-        }
-        document.body.focus()
-        if (!bodyHadTabIndex) {
-          // If the body did not originally have the tabindex attribute, there's probably a reason for that.
-          // So, let's remove it since we added it there.
-          // This is important because we probably don't want to focus the body if the user clicks on some
-          // parts of the page that is not an interactive element.
-          // This is useful for click+tab interaction, where you click close to a link + tab in order
-          // to focus that link – a fast way for moving the focus exactly where you want it to be.
-          document.body.removeAttribute('tabindex')
-        }
       }
     })
   }
