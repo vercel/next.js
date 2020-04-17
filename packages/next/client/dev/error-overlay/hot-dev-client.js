@@ -266,6 +266,10 @@ function processMessage(e) {
 
       // Disregard event if there are no errors to report.
       if (!hasErrors) {
+        // We need to _try_ dismissing the error overlay, as code may not have
+        // changed, for example, when only types are updated.
+        // n.b. `handleSuccess` only dismisses the overlay if code was updated.
+        tryDismissErrorOverlay()
         break
       }
 
