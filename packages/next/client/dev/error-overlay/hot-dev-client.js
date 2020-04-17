@@ -368,7 +368,7 @@ function tryApplyUpdates(onHotUpdateSuccess) {
     }
   }
 
-  // https://webpack.github.io/docs/hot-module-replacement.html#check
+  // https://webpack.js.org/api/hot-module-replacement/#check
   module.hot.check(/* autoApply */ true).then(
     updatedModules => {
       handleApplyUpdates(null, updatedModules)
