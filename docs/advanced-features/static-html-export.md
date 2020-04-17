@@ -21,7 +21,7 @@ The way `next export` works is by prerendering all pages to HTML; it does so bas
 
 ## How to use it
 
-Simply develop your app as you normally do with Next.js. Then run:
+Develop your app as you normally do with Next.js. Then run:
 
 ```bash
 next build && next export
