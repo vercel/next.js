@@ -1005,11 +1005,7 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (
-    config.experimental.jsconfigPaths &&
-    jsConfig?.compilerOptions?.paths &&
-    resolvedBaseUrl
-  ) {
+  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
     webpackConfig.resolve?.plugins?.push(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )
