@@ -118,7 +118,7 @@ export default function connect(options) {
 var isFirstCompilation = true
 var mostRecentCompilationHash = null
 var hasCompileErrors = false
-var typeCheckCount = 0
+var hmrEventCount = 0
 
 function clearOutdatedErrors() {
   // Clean up outdated compile errors, if any.
@@ -232,6 +232,7 @@ function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
+      ++hmrEventCount
       console.log(
         '[HMR] bundle ' + (obj.name ? "'" + obj.name + "' " : '') + 'rebuilding'
       )
@@ -239,6 +240,7 @@ function processMessage(e) {
     }
     case 'built':
     case 'sync': {
+      if (obj.action === 'built') ++hmrEventCount
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -257,7 +259,7 @@ function processMessage(e) {
       return handleSuccess()
     }
     case 'typeChecked': {
-      const eventId = ++typeCheckCount
+      const eventId = ++hmrEventCount
 
       const [{ errors }] = obj.data
       const hasErrors = Boolean(errors && errors.length)
@@ -269,7 +271,7 @@ function processMessage(e) {
 
       function display() {
         // Another update has started, ignore type update:
-        if (!canApplyUpdates() || eventId !== typeCheckCount) {
+        if (!canApplyUpdates() || eventId !== hmrEventCount) {
           return
         }
 
