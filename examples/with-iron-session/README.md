@@ -1,4 +1,4 @@
-# Example application using [`next-iron-session`](https://github.com/vvo/next-iron/session)
+# Example application using [`next-iron-session`](https://github.com/vvo/next-iron-session)
 
 This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session).
 
