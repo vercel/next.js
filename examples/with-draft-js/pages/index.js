@@ -202,6 +202,7 @@ export default class App extends React.Component {
             handleKeyCommand={this.handleKeyCommand}
             onChange={this.onChange}
             placeholder="Tell a story..."
+            editorKey="foobar"
             spellCheck={false}
             ref={element => {
               this.editor = element
