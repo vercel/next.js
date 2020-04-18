@@ -39,6 +39,18 @@ describe('Production Config Usage', () => {
     })
   })
 
+  describe('with generateBuildId', () => {
+    it('should add the custom buildid', async () => {
+      const browser = await webdriver(appPort, '/')
+      const text = await browser.elementByCss('#mounted').text()
+      expect(text).toMatch(/ComponentDidMount executed on client\./)
+
+      const html = await browser.elementByCss('html').getAttribute('innerHTML')
+      expect(html).toMatch('custom-buildid')
+      await browser.close()
+    })
+  })
+
   describe('env', () => {
     it('should fail with leading __ in env key', async () => {
       const result = await runNextCommand(['build', appDir], {
@@ -68,18 +80,6 @@ describe('Production Config Usage', () => {
       })
 
       expect(result.stderr).not.toMatch(/The key "SOME__ENV__VAR" under/)
-    })
-  })
-
-  describe('with generateBuildId', () => {
-    it('should add the custom buildid', async () => {
-      const browser = await webdriver(appPort, '/')
-      const text = await browser.elementByCss('#mounted').text()
-      expect(text).toMatch(/ComponentDidMount executed on client\./)
-
-      const html = await browser.elementByCss('html').getAttribute('innerHTML')
-      expect(html).toMatch('custom-buildid')
-      await browser.close()
     })
   })
 })

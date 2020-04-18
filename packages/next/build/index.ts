@@ -217,6 +217,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
+    /* dev */ false,
     mappedPages,
     target,
     buildId,
