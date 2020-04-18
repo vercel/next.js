@@ -3,3 +3,5 @@ node_modules
 **/_next/**
 **/dist/**
 packages/next/compiled/**
+packages/next-polyfill-nomodule/**/*.js
+packages/next-polyfill-nomodule/**/*.d.ts
