@@ -1,0 +1,30 @@
+{
+  "name": "@next/react-refresh-utils",
+  "version": "9.3.6-canary.3",
+  "description": "An experimental package providing utilities for React Refresh.",
+  "repository": {
+    "url": "zeit/next.js",
+    "directory": "packages/react-refresh-utils"
+  },
+  "files": [
+    "internal/*.d.ts",
+    "internal/*.js",
+    "*.d.ts",
+    "*.js"
+  ],
+  "author": "Joe Haddad <timer@zeit.co>",
+  "license": "MIT",
+  "scripts": {
+    "prepublish": "tsc -d -p tsconfig.json",
+    "build": "tsc -d -w -p tsconfig.json"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "react-refresh": "0.8.1",
+    "webpack": "^4"
+  },
+  "devDependencies": {
+    "react-refresh": "0.8.1",
+    "webpack": "4.42.1"
+  }
+}
