@@ -61,6 +61,7 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
+  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
@@ -132,6 +133,7 @@ export function createEntrypoints(
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
+        hotRouterUpdates: dev, // Hot router updates only apply in development mode
       }
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts

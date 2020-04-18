@@ -252,6 +252,7 @@ export default class HotReloader {
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
+      /* dev */ true,
       pages,
       'server',
       this.buildId,
@@ -488,6 +489,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
+        hotRouterUpdates: true,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
           pagesBufferLength: number
