@@ -6,3 +6,4 @@ examples/with-ioc/**
 examples/with-kea/**
 packages/next/compiled/**/*
 packages/react-refresh-utils/**/*.js
+**/__tmp__/**
