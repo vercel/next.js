@@ -1,0 +1,10 @@
+{
+  "before:actions": [
+    { "selector": "#increment", "action": "click" },
+    { "selector": "#increment", "action": "click" }
+  ],
+  "dom": [
+    { "selector": "#count", "toBe": "2" },
+    { "selector": "#text", "stringContaining": "tpyo" }
+  ]
+}

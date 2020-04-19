@@ -1,0 +1,6 @@
+{
+  "dom": [
+    { "selector": "#count", "toBe": "2" },
+    { "selector": "#text", "stringContaining": "typo" }
+  ]
+}
