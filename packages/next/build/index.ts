@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import fs from 'fs'
+import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
 import chalk from 'next/dist/compiled/chalk'
 import devalue from 'next/dist/compiled/devalue'
@@ -8,7 +8,6 @@ import findUp from 'next/dist/compiled/find-up'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
-import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
   getRedirectStatus,
@@ -73,14 +72,14 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
 
-const fsAccess = promisify(fs.access)
-const fsUnlink = promisify(fs.unlink)
-const fsRmdir = promisify(fs.rmdir)
-const fsStat = promisify(fs.stat)
-const fsMove = promisify(fs.rename)
-const fsReadFile = promisify(fs.readFile)
-const fsWriteFile = promisify(fs.writeFile)
-const mkdir = promisify(fs.mkdir)
+const fsAccess = promises.access
+const fsUnlink = promises.unlink
+const fsRmdir = promises.rmdir
+const fsStat = promises.stat
+const fsMove = promises.rename
+const fsReadFile = promises.readFile
+const fsWriteFile = promises.writeFile
+const mkdir = promises.mkdir
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -1040,7 +1039,7 @@ function generateClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
   clientSsgManifestPaths.forEach(clientSsgManifestPath =>
-    fs.writeFileSync(
+    writeFileSync(
       path.join(distDir, clientSsgManifestPath),
       clientSsgManifestContent
     )
