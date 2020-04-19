@@ -480,15 +480,19 @@ export default class Server {
           type: route.type,
           name: `${route.type} ${route.source} header route`,
           fn: async (_req, res, params, _parsedUrl) => {
+            const withParams = Object.keys(params).length > 0
             for (const header of (route as Header).headers) {
               let { key, value } = header
-              if (key.includes(':')) {
-                // see `prepareDestination` util for explanation for
-                // `validate: false` being used
-                key = compilePathToRegex(key, { validate: false })(params)
-              }
-              if (value.includes(':')) {
-                value = compilePathToRegex(value, { validate: false })(params)
+              if (withParams) {
+                if (key.includes(':')) {
+                  // see `prepareDestination` util for explanation for
+                  // `validate: false` being used
+                  key = compilePathToRegex(key, { validate: false })(params)
+                }
+                if (value.includes(':')) {
+                  value = value.replace(/:((?![a-z0-9]).)/gi, '\\:$1')
+                  value = compilePathToRegex(value, { validate: false })(params)
+                }
               }
               res.setHeader(key, value)
             }
