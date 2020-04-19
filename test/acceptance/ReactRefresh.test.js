@@ -1,6 +1,6 @@
 /* global jasmine */
 /* eslint-env jest */
-import { sandbox } from '../helpers'
+import { sandbox } from './helpers'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
