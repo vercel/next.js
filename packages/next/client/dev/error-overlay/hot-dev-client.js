@@ -213,6 +213,12 @@ function handleErrors(errors) {
 
   // Do not attempt to reload now.
   // We will reload on next success instead.
+  if (process.env.__NEXT_TEST_MODE) {
+    if (self.__NEXT_HMR_CB) {
+      self.__NEXT_HMR_CB(formatted.errors[0])
+      self.__NEXT_HMR_CB = null
+    }
+  }
 }
 
 function tryDismissErrorOverlay() {
