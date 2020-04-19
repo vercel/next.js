@@ -1,10 +1,9 @@
 import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
-  copyFile as copyFileOrig,
+  promises,
   existsSync,
   exists as existsOrig,
-  mkdir as mkdirOrig,
   readFileSync,
   writeFileSync,
 } from 'fs'
@@ -37,8 +36,6 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 
-const copyFile = promisify(copyFileOrig)
-const mkdir = promisify(mkdirOrig)
 const exists = promisify(existsOrig)
 
 const createProgress = (total: number, label = 'Exporting') => {
@@ -189,7 +186,7 @@ export default async function(
   }
 
   await recursiveDelete(join(outDir))
-  await mkdir(join(outDir, '_next', buildId), { recursive: true })
+  await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
   writeFileSync(
     join(distDir, EXPORT_DETAIL),
@@ -393,14 +390,14 @@ export default async function(
         )
         const jsonDest = join(pagesDataDir, `${route}.json`)
 
-        await mkdir(dirname(htmlDest), { recursive: true })
-        await mkdir(dirname(jsonDest), { recursive: true })
-        await copyFile(`${orig}.html`, htmlDest)
-        await copyFile(`${orig}.json`, jsonDest)
+        await promises.mkdir(dirname(htmlDest), { recursive: true })
+        await promises.mkdir(dirname(jsonDest), { recursive: true })
+        await promises.copyFile(`${orig}.html`, htmlDest)
+        await promises.copyFile(`${orig}.json`, jsonDest)
 
         if (await exists(`${orig}.amp.html`)) {
-          await mkdir(dirname(ampHtmlDest), { recursive: true })
-          await copyFile(`${orig}.amp.html`, ampHtmlDest)
+          await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
+          await promises.copyFile(`${orig}.amp.html`, ampHtmlDest)
         }
       })
     )
