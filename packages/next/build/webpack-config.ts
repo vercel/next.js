@@ -247,17 +247,17 @@ export default async function getBaseWebpackConfig(
     // Disable .mjs for node_modules bundling
     extensions: isServer
       ? [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.js',
           '.mjs',
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.jsx',
           '.json',
           '.wasm',
         ]
       : [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.mjs',
           '.js',
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.jsx',
           '.json',
           '.wasm',
