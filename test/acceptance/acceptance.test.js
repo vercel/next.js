@@ -57,7 +57,7 @@ describe('Acceptance Tests', () => {
           const cwd = path.join(root, '__tmp__')
 
           afterEach(async () => {
-            await waitFor(750)
+            await waitFor(2000)
           })
 
           test('setup: filesystem', async () => {
