@@ -37,7 +37,8 @@ export async function sandbox(id = nanoid()) {
         await new Promise(resolve => setTimeout(resolve, 750))
       },
       async remove(fileName) {
-        await fs.remove(fileName)
+        const fullFileName = path.join(sandboxDirectory, fileName)
+        await fs.remove(fullFileName)
       },
       async evaluate() {
         const input = arguments[0]
