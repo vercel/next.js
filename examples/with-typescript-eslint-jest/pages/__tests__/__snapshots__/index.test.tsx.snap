@@ -1,0 +1,121 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Home page clicking button triggers alert 1`] = `
+<DocumentFragment>
+  <div
+    class="jsx-1276654382 container"
+  >
+    <main
+      class="jsx-1276654382"
+    >
+      <h1
+        class="jsx-1276654382 title"
+      >
+        Welcome to 
+        <a
+          class="jsx-1276654382"
+          href="https://nextjs.org"
+        >
+          Next.js!
+        </a>
+      </h1>
+      <p
+        class="jsx-1276654382 description"
+      >
+        Get started by editing 
+        <code
+          class="jsx-1276654382"
+        >
+          pages/index.tsx
+        </code>
+      </p>
+      <button
+        class="jsx-1276654382"
+      >
+        Test Button
+      </button>
+      <div
+        class="jsx-1276654382 grid"
+      >
+        <a
+          class="jsx-1276654382 card"
+          href="https://nextjs.org/docs"
+        >
+          <h3
+            class="jsx-1276654382"
+          >
+            Documentation →
+          </h3>
+          <p
+            class="jsx-1276654382"
+          >
+            Find in-depth information about Next.js features and API.
+          </p>
+        </a>
+        <a
+          class="jsx-1276654382 card"
+          href="https://nextjs.org/learn"
+        >
+          <h3
+            class="jsx-1276654382"
+          >
+            Learn →
+          </h3>
+          <p
+            class="jsx-1276654382"
+          >
+            Learn about Next.js in an interactive course with quizzes!
+          </p>
+        </a>
+        <a
+          class="jsx-1276654382 card"
+          href="https://github.com/zeit/next.js/tree/master/examples"
+        >
+          <h3
+            class="jsx-1276654382"
+          >
+            Examples →
+          </h3>
+          <p
+            class="jsx-1276654382"
+          >
+            Discover and deploy boilerplate example Next.js projects.
+          </p>
+        </a>
+        <a
+          class="jsx-1276654382 card"
+          href="https://zeit.co/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+        >
+          <h3
+            class="jsx-1276654382"
+          >
+            Deploy →
+          </h3>
+          <p
+            class="jsx-1276654382"
+          >
+            Instantly deploy your Next.js site to a public URL with ZEIT Now.
+          </p>
+        </a>
+      </div>
+    </main>
+    <footer
+      class="jsx-1276654382"
+    >
+      <a
+        class="jsx-1276654382"
+        href="https://zeit.co?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Powered by 
+        <img
+          alt="ZEIT Logo"
+          class="jsx-1276654382"
+          src="/zeit.svg"
+        />
+      </a>
+    </footer>
+  </div>
+</DocumentFragment>
+`;
