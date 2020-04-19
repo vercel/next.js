@@ -72,15 +72,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
 
-const fsAccess = promises.access
-const fsUnlink = promises.unlink
-const fsRmdir = promises.rmdir
-const fsStat = promises.stat
-const fsMove = promises.rename
-const fsReadFile = promises.readFile
-const fsWriteFile = promises.writeFile
-const mkdir = promises.mkdir
-
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -139,7 +130,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (ciEnvironment.isCI) {
     const cacheDir = path.join(distDir, 'cache')
-    const hasCache = await fsAccess(cacheDir)
+    const hasCache = await promises
+      .access(cacheDir)
       .then(() => true)
       .catch(() => false)
 
@@ -181,7 +173,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await verifyTypeScriptSetup(dir, pagesDir)
 
   try {
-    await fsStat(publicDir)
+    await promises.stat(publicDir)
     hasPublicDir = true
   } catch (_) {}
 
@@ -236,7 +228,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (hasPublicDir) {
     try {
-      await fsStat(path.join(publicDir, '_next'))
+      await promises.stat(path.join(publicDir, '_next'))
       throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
     } catch (err) {}
   }
@@ -304,10 +296,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })),
   }
 
-  await mkdir(distDir, { recursive: true })
+  await promises.mkdir(distDir, { recursive: true })
   // We need to write the manifest with rewrites before build
   // so serverless can import the manifest
-  await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
+  await promises.writeFile(
+    routesManifestPath,
+    JSON.stringify(routesManifest),
+    'utf8'
+  )
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -445,8 +441,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const serverPropsPages = new Set<string>()
   const additionalSsgPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
-  const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
-  const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
+  const pagesManifest = JSON.parse(
+    await promises.readFile(manifestPath, 'utf8')
+  )
+  const buildManifest = JSON.parse(
+    await promises.readFile(buildManifestPath, 'utf8')
+  )
 
   let customAppGetInitialProps: boolean | undefined
 
@@ -550,7 +550,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isAmpOnly) {
             // ensure all AMP only bundles got removed
             try {
-              await fsUnlink(
+              await promises.unlink(
                 path.join(
                   distDir,
                   'static',
@@ -646,7 +646,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
     })
 
-    await fsWriteFile(
+    await promises.writeFile(
       routesManifestPath,
       JSON.stringify(routesManifest),
       'utf8'
@@ -750,7 +750,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // remove server bundles that were exported
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
-      await fsUnlink(serverBundle)
+      await promises.unlink(serverBundle)
     }
 
     const moveExportedPage = async (
@@ -777,8 +777,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
       }
-      await mkdir(path.dirname(dest), { recursive: true })
-      await fsMove(orig, dest)
+      await promises.mkdir(path.dirname(dest), { recursive: true })
+      await promises.rename(orig, dest)
     }
 
     // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
@@ -840,8 +840,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     // remove temporary export folder
     await recursiveDelete(exportOptions.outdir)
-    await fsRmdir(exportOptions.outdir)
-    await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
+    await promises.rmdir(exportOptions.outdir)
+    await promises.writeFile(
+      manifestPath,
+      JSON.stringify(pagesManifest),
+      'utf8'
+    )
   }
 
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
@@ -889,7 +893,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       preview: previewProps,
     }
 
-    await fsWriteFile(
+    await promises.writeFile(
       path.join(distDir, PRERENDER_MANIFEST),
       JSON.stringify(prerenderManifest),
       'utf8'
@@ -906,7 +910,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       dynamicRoutes: {},
       preview: previewProps,
     }
-    await fsWriteFile(
+    await promises.writeFile(
       path.join(distDir, PRERENDER_MANIFEST),
       JSON.stringify(prerenderManifest),
       'utf8'
@@ -915,7 +919,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // await generateClientSsgManifest(prerenderManifest, { distDir, buildId })
   }
 
-  await fsWriteFile(
+  await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),
     JSON.stringify({
       version: 1,
@@ -924,7 +928,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }),
     'utf8'
   )
-  await fsUnlink(path.join(distDir, EXPORT_DETAIL)).catch(err => {
+  await promises.unlink(path.join(distDir, EXPORT_DETAIL)).catch(err => {
     if (err.code === 'ENOENT') {
       return Promise.resolve()
     }
