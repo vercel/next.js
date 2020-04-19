@@ -69,7 +69,7 @@ export async function sandbox(id = nanoid()) {
 
             console.log('Application re-loaded.')
             // Slow down tests a bit:
-            await new Promise(resolve => setTimeout(resolve, 250))
+            await new Promise(resolve => setTimeout(resolve, 750))
             return false
           }
           if (status === 'success') {
@@ -83,8 +83,8 @@ export async function sandbox(id = nanoid()) {
           await new Promise(resolve => setTimeout(resolve, 30))
         }
 
-        // Slow down tests a bit:
-        await new Promise(resolve => setTimeout(resolve, 250))
+        // Slow down tests a bit (we don't know how long re-rendering takes):
+        await new Promise(resolve => setTimeout(resolve, 750))
         return true
       },
       async remove(fileName) {
@@ -102,6 +102,16 @@ export async function sandbox(id = nanoid()) {
             `You must pass a function to be evaluated in the browser.`
           )
         }
+      },
+      async getOverlayContent() {
+        await browser.waitForElementByCss('iframe', 10000)
+        const hasIframe = await browser.hasElementByCssSelector('iframe')
+        if (!hasIframe) {
+          throw new Error('Unable to find overlay')
+        }
+        return browser.eval(
+          `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+        )
       },
     },
     function cleanup() {
