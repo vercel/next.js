@@ -29,12 +29,63 @@ export async function sandbox(id = nanoid()) {
   return [
     {
       async patch(fileName, content) {
+        // Register an event for HMR completion
+        await browser.executeScript(function() {
+          window.__HMR_STATE = 'pending'
+
+          var timeout = setTimeout(() => {
+            window.__HMR_STATE = 'timeout'
+          }, 5250)
+          window.__NEXT_HMR_CB = function() {
+            clearTimeout(timeout)
+            window.__HMR_STATE = 'success'
+          }
+        })
+
+        // Update the file on filesystem
         const fullFileName = path.join(sandboxDirectory, fileName)
         const dir = path.dirname(fullFileName)
         await fs.mkdirp(dir)
         await fs.writeFile(fullFileName, content)
-        // TODO: intelligently wait for page to refresh
-        await new Promise(resolve => setTimeout(resolve, 750))
+
+        for (;;) {
+          const status = await browser.executeScript(() => window.__HMR_STATE)
+          if (!status) {
+            await new Promise(resolve => setTimeout(resolve, 750))
+
+            // Wait for application to re-hydrate:
+            await browser.executeAsyncScript(function() {
+              var callback = arguments[arguments.length - 1]
+              if (window.__NEXT_HYDRATED) {
+                callback()
+              } else {
+                var timeout = setTimeout(callback, 10 * 1000)
+                window.__NEXT_HYDRATED_CB = function() {
+                  clearTimeout(timeout)
+                  callback()
+                }
+              }
+            })
+
+            console.log('Application re-loaded.')
+            // Slow down tests a bit:
+            await new Promise(resolve => setTimeout(resolve, 250))
+            return false
+          }
+          if (status === 'success') {
+            console.log('Hot update complete.')
+            break
+          }
+          if (status !== 'pending') {
+            throw new Error(`Application is in inconsistent state: ${status}.`)
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 30))
+        }
+
+        // Slow down tests a bit:
+        await new Promise(resolve => setTimeout(resolve, 250))
+        return true
       },
       async remove(fileName) {
         const fullFileName = path.join(sandboxDirectory, fileName)
