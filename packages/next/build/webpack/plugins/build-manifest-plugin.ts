@@ -6,6 +6,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
@@ -78,6 +79,11 @@ export default class BuildManifestPlugin {
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
         const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
+
+        const reactRefreshChunk = chunks.find(
+          c => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+        )
+        assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
 
         for (const filePath of Object.keys(compilation.assets)) {
           const path = filePath.replace(/\\/g, '/')

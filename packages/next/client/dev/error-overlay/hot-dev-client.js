@@ -26,12 +26,12 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
-import { getEventSourceWrapper } from './eventsource'
-import formatWebpackMessages from './format-webpack-messages'
+import fetch from 'next/dist/build/polyfills/unfetch'
 import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { getEventSourceWrapper } from './eventsource'
+import formatWebpackMessages from './format-webpack-messages'
 import { rewriteStacktrace } from './source-map-support'
-import fetch from 'next/dist/build/polyfills/unfetch'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -365,6 +365,15 @@ function tryApplyUpdates(onHotUpdateSuccess) {
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       tryApplyUpdates()
+    } else {
+      if (process.env.__NEXT_TEST_MODE) {
+        afterApplyUpdates(() => {
+          if (self.__NEXT_HMR_CB) {
+            self.__NEXT_HMR_CB()
+            self.__NEXT_HMR_CB = null
+          }
+        })
+      }
     }
   }
 
