@@ -28,6 +28,13 @@ export async function sandbox(id = nanoid()) {
 
   return [
     {
+      async write(fileName, content) {
+        // Update the file on filesystem
+        const fullFileName = path.join(sandboxDirectory, fileName)
+        const dir = path.dirname(fullFileName)
+        await fs.mkdirp(dir)
+        await fs.writeFile(fullFileName, content)
+      },
       async patch(fileName, content) {
         // Register an event for HMR completion
         await browser.executeScript(function() {
@@ -35,18 +42,14 @@ export async function sandbox(id = nanoid()) {
 
           var timeout = setTimeout(() => {
             window.__HMR_STATE = 'timeout'
-          }, 5250)
+          }, 10000)
           window.__NEXT_HMR_CB = function() {
             clearTimeout(timeout)
             window.__HMR_STATE = 'success'
           }
         })
 
-        // Update the file on filesystem
-        const fullFileName = path.join(sandboxDirectory, fileName)
-        const dir = path.dirname(fullFileName)
-        await fs.mkdirp(dir)
-        await fs.writeFile(fullFileName, content)
+        await this.write(fileName, content)
 
         for (;;) {
           const status = await browser.executeScript(() => window.__HMR_STATE)
