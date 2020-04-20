@@ -6,15 +6,14 @@ import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
 export async function getServerSideProps({ req, query }) {
-  const user = req && req.session ? req.session.decodedToken : null
+  const user = req && req.session && req.session.decodedToken ?
+    req.session.decodedToken : null
   // don't fetch anything from firebase if the user is not found
-  // const snap = user && await req.firebaseServer.database().ref('messages').once('value')
-  // const messages = snap && snap.val()
-  const messages = null
+  const snap = user && Object.fromEntries((await req.firebaseServer.firestore().collection('messages').get()).docs.map(doc => [doc.id, doc.data()]));
   return {
     props: {
       user,
-      messages,
+      messages: snap ? snap : null,
     },
   }
 }
