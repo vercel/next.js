@@ -46,6 +46,11 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/1000000000000/)
     })
 
+    it('should resolve files in correct order', async () => {
+      const $ = await get$('/hello')
+      expect($('#imported-value').text()).toBe('OK')
+    })
+
     it('should report type checking to stdout', async () => {
       expect(output).toContain('waiting for typecheck results...')
     })
