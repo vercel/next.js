@@ -24,13 +24,14 @@ Out of the box, with no configuration, Next.js compiles CSS with the following t
    - [Break Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/break-after)
    - [`font-variant` Property](https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant)
    - [Gap Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/gap)
-   - [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid)
    - [Media Query Ranges](https://developer.mozilla.org/en-US/docs/Web/CSS/Media_Queries/Using_media_queries#Syntax_improvements_in_Level_4)
 
 By default, [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
 
 CSS variables are not compiled because it is [not possible to safely do so](https://github.com/MadLittleMods/postcss-css-variables#caveats).
 If you must use variables, consider using something like [Sass variables](https://sass-lang.com/documentation/variables) which are compiled away by [Sass](https://sass-lang.com/).
+
+> **Note**: To support [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid), you need to enable `grid: "autoplace"` for Autoprefixer. See "Customizing Plugins" below.
 
 ## Customizing Target Browsers
 
