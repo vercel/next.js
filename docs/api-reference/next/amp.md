@@ -22,7 +22,7 @@ export const config = { amp: true }
 The `amp` config accepts the following values:
 
 - `true` - The page will be AMP-only
-- `'hybrid'` - The page will two versions, one with AMP and another one with HTML
+- `'hybrid'` - The page will have two versions, one with AMP and another one with HTML
 
 To learn more about the `amp` config, read the sections below.
 
