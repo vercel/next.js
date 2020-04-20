@@ -43,16 +43,16 @@ function IndexPage() {
       <Head>
         <title>My page title</title>
         <meta
-          name="viewport"
-          content="initial-scale=1.0, width=device-width"
-          key="viewport"
+          property="og:title"
+          content="My page title"
+          key="title"
         />
       </Head>
       <Head>
         <meta
-          name="viewport"
-          content="initial-scale=1.2, width=device-width"
-          key="viewport"
+          property="og:title"
+          content="My new title"
+          key="title"
         />
       </Head>
       <p>Hello world!</p>
@@ -63,7 +63,7 @@ function IndexPage() {
 export default IndexPage
 ```
 
-In this case only the second `<meta name="viewport" />` is rendered.
+In this case only the second `<meta property="og:title" />` is rendered. `meta` tags with duplicate `name` attributes are automatically handled.
 
 > The contents of `head` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `head`, without making assumptions about what other pages added.
 
