@@ -371,6 +371,24 @@ const runTests = () => {
 
     expect(stderr).toContain(`headers must return an array, received undefined`)
   })
+
+  it('should show valid error when segments not in source are used in destination', async () => {
+    await writeConfig(
+      [
+        {
+          source: '/feedback/:type',
+          destination: '/feedback/:id',
+        },
+      ],
+      'rewrites'
+    )
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      `invalid segments used in destination but not source (id) for route {"source":"/feedback/:type","destination":"/feedback/:id"}`
+    )
+  })
 }
 
 describe('Errors on invalid custom routes', () => {
