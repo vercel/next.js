@@ -370,6 +370,16 @@ test('propagates a module that stops accepting in next version', async () => {
   ])
 
   let didFullRefresh = false
+  // Verify the child can accept itself:
+  await session.evaluate(() => (window.log = []))
+  didFullRefresh =
+    didFullRefresh ||
+    !(await session.patch(
+      './bar.js',
+      `window.log.push('init BarV1.1'); export default function Bar() {};`
+    ))
+  expect(await session.evaluate(() => window.log)).toEqual(['init BarV1.1'])
+
   // Now let's change the child to *not* accept itself.
   // We'll expect that now the parent will handle the evaluation.
   await session.evaluate(() => (window.log = []))
@@ -380,9 +390,15 @@ test('propagates a module that stops accepting in next version', async () => {
   // it didn't export a component, so we go higher.
   // We stop at Foo which currently _does_ export a component.
   expect(await session.evaluate(() => window.log)).toEqual([
+    // FIXME: webpack is running the modules too many times, this should
+    // probably be the following:
+    // [
+    //   'init BarV2',
+    //   'init BarV2',
+    //   'init FooV1',
+    // ]
     'init BarV2',
-    'init FooV1',
-    // FIXME: webpack runs this twice instead of once (?)
+    'init FooV1', // FIXME: 👈 this appears to be extra
     'init BarV2',
     'init FooV1',
   ])
