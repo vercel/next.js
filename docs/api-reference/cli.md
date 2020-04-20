@@ -38,3 +38,12 @@ NODE_OPTIONS='--throw-deprecation' next
 NODE_OPTIONS='-r esm' next
 NODE_OPTIONS='--inspect' next
 ```
+
+## Build
+
+`next build` creates an optimized production build of your application. The output displays information about each route.
+
+- **Size** – The number of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
+- **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
+
+The first load is colored green, yellow, or red. Aim for green for performant applications.
