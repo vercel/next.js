@@ -6,6 +6,8 @@ import {
   launchApp,
   renderViaHTTP,
   waitFor,
+  nextBuild,
+  nextStart,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -54,57 +56,113 @@ const checkMissingClient = async (pathname, prop, shouldWarn = false) => {
 }
 
 describe('process.env stubbing', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort, {
-      env: {
-        NEXT_PUBLIC_HI: 'hi',
-        I_SHOULD_BE_HERE: 'hello',
-      },
-      onStderr(msg) {
-        stderr += msg || ''
-      },
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        env: {
+          NEXT_PUBLIC_HI: 'hi',
+          I_SHOULD_BE_HERE: 'hello',
+        },
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+    })
+    afterAll(() => killApp(app))
+
+    describe('server side', () => {
+      it('should not show missing env value when its not missing public', async () => {
+        await checkMissing('/not-missing', 'NEXT_PUBLIC_HI')
+      })
+
+      it('should not show missing env value when its not missing runtime', async () => {
+        await checkMissing('/also-not-missing', 'I_SHOULD_BE_HERE')
+      })
+
+      it('should show missing env value when its missing normal', async () => {
+        await checkMissing('/missing', 'hi', true)
+      })
+
+      it('should show missing env value when its missing GSP', async () => {
+        await checkMissing('/missing-gsp', 'SECRET', true)
+      })
+
+      it('should show missing env value when its missing GSSP', async () => {
+        await checkMissing('/missing-gssp', 'SECRET', true)
+      })
+
+      it('should show missing env value when its missing API', async () => {
+        await checkMissing('/api/hi', 'where_is_it', true)
+      })
+    })
+
+    describe('client side', () => {
+      it('should not show missing env value when its not missing public', async () => {
+        await checkMissingClient('/not-missing', 'NEXT_PUBLIC_HI')
+      })
+
+      it('should show missing env value when its missing runtime', async () => {
+        await checkMissingClient('/also-not-missing', 'I_SHOULD_BE_HERE', true)
+      })
+
+      it('should show missing env value when its missing normal', async () => {
+        await checkMissingClient('/missing', 'hi', true)
+      })
     })
   })
-  afterAll(() => killApp(app))
 
-  describe('server side', () => {
-    it('should not show missing env value when its not missing public', async () => {
-      await checkMissing('/not-missing', 'NEXT_PUBLIC_HI')
+  describe('production mode', () => {
+    beforeAll(async () => {
+      const { code } = await nextBuild(appDir)
+      if (code !== 0) throw new Error(`build failed with code ${code}`)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+    })
+    afterAll(() => killApp(app))
+
+    describe('server side', () => {
+      it('should not show missing env value when its not missing public', async () => {
+        await checkMissing('/not-missing', 'NEXT_PUBLIC_HI')
+      })
+
+      it('should not show missing env value when its not missing runtime', async () => {
+        await checkMissing('/also-not-missing', 'I_SHOULD_BE_HERE')
+      })
+
+      it('should not show missing env value when its missing normal', async () => {
+        await checkMissing('/missing', 'hi')
+      })
+
+      it('should not show missing env value when its missing GSP', async () => {
+        await checkMissing('/missing-gsp', 'SECRET')
+      })
+
+      it('should not show missing env value when its missing GSSP', async () => {
+        await checkMissing('/missing-gssp', 'SECRET')
+      })
+
+      it('should not show missing env value when its missing API', async () => {
+        await checkMissing('/api/hi', 'where_is_it')
+      })
     })
 
-    it('should not show missing env value when its not missing runtime', async () => {
-      await checkMissing('/also-not-missing', 'I_SHOULD_BE_HERE')
-    })
+    describe('client side', () => {
+      it('should not show missing env value when its not missing public', async () => {
+        await checkMissingClient('/not-missing', 'NEXT_PUBLIC_HI')
+      })
 
-    it('should show missing env value when its missing normal', async () => {
-      await checkMissing('/missing', 'hi', true)
-    })
+      it('should not show missing env value when its missing runtime', async () => {
+        await checkMissingClient('/also-not-missing', 'I_SHOULD_BE_HERE')
+      })
 
-    it('should show missing env value when its missing GSP', async () => {
-      await checkMissing('/missing-gsp', 'SECRET', true)
-    })
-
-    it('should show missing env value when its missing GSSP', async () => {
-      await checkMissing('/missing-gssp', 'SECRET', true)
-    })
-
-    it('should show missing env value when its missing API', async () => {
-      await checkMissing('/api/hi', 'where_is_it', true)
-    })
-  })
-
-  describe('client side', () => {
-    it('should not show missing env value when its not missing public', async () => {
-      await checkMissingClient('/not-missing', 'NEXT_PUBLIC_HI')
-    })
-
-    it('should show missing env value when its missing runtime', async () => {
-      await checkMissingClient('/also-not-missing', 'I_SHOULD_BE_HERE', true)
-    })
-
-    it('should show missing env value when its missing normal', async () => {
-      await checkMissingClient('/missing', 'hi', true)
+      it('should not show missing env value when its missing normal', async () => {
+        await checkMissingClient('/missing', 'hi')
+      })
     })
   })
 })
