@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "draft-js": "0.10.5",
+    "draft-js": "^0.11.5",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
