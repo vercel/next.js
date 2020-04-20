@@ -3,8 +3,8 @@ import Head from 'next/head'
 import useI18n from '../../hooks/use-i18n'
 import { languages, contentLanguageMap } from '../../lib/i18n'
 
-const HomePage = ({ lng }) => {
-  const i18n = useI18n(lng)
+const HomePage = ({ lng, lngDict }) => {
+  const i18n = useI18n({ lng, lngDict })
 
   return (
     <div>
@@ -25,8 +25,10 @@ const HomePage = ({ lng }) => {
 }
 
 export async function getStaticProps({ params }) {
+  const { default: lngDict = {} } = await import(`../../locales/${params.lng}`)
+
   return {
-    props: { lng: params.lng },
+    props: { lng: params.lng, lngDict },
   }
 }
 

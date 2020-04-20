@@ -14,11 +14,6 @@ module.exports = {
           destination: '/en/contact',
           permanent: true,
         },
-        {
-          source: '/dashboard',
-          destination: '/en/dashboard',
-          permanent: true,
-        },
       ]
     },
   },

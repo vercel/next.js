@@ -3,26 +3,7 @@ import rosetta from 'rosetta'
 
 // import rosetta from 'rosetta/debug';
 
-const i18n = rosetta({
-  en: {
-    contact: {
-      email: 'en@company.com',
-    },
-    intro: {
-      welcome: 'Welcome, {{username}}!',
-      text: 'I hope you find this useful.',
-    },
-  },
-  de: {
-    contact: {
-      email: 'de@company.com',
-    },
-    intro: {
-      welcome: 'Willkommen, {{username}}!',
-      text: 'Ich hoffe, du findest das nützlich.',
-    },
-  },
-})
+const i18n = rosetta()
 
 export const defaultLanguage = 'en'
 export const languages = ['de', 'en']

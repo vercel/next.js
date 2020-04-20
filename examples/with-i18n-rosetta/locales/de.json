@@ -1,0 +1,9 @@
+{
+  "contact": {
+    "email": "de@company.com"
+  },
+  "intro": {
+    "welcome": "Willkommen, {{username}}!",
+    "text": "Ich hoffe, du findest das nützlich."
+  }
+}
