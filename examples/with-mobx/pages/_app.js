@@ -1,28 +1,12 @@
-import { Store } from '../store'
+import { useStore } from '../store'
 import { Provider } from 'mobx-react'
-import App from 'next/app'
-let store = new Store()
 
-export default class MyApp extends App {
-  state = {
-    stores: { store },
-  }
+export default function App({ Component, pageProps }) {
+  const store = useStore(pageProps.initialState)
 
-  static async getInitialProps({ Component, router, ctx }) {
-    let pageProps = {}
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-    return { pageProps }
-  }
-
-  render() {
-    const { Component, pageProps } = this.props
-    const stores = this.state.stores
-    return (
-      <Provider {...stores}>
-        <Component {...pageProps} />
-      </Provider>
-    )
-  }
+  return (
+    <Provider store={store}>
+      <Component {...pageProps} />
+    </Provider>
+  )
 }
