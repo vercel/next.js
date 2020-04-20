@@ -7,6 +7,7 @@ export default function withSession(handler) {
     // ⚠️ Do not reuse the same password, create a different password for you and store it in a secret management system
     // Example for Zeit's now: https://zeit.co/docs/v2/serverless-functions/env-and-secrets
     password: process.env.SECRET_COOKIE_PASSWORD,
+    cookieName: '__next.js/examples/with-iron-session',
     cookieOptions: {
       // the next line allows to use the session in non-https environements like
       // Next.js dev mode (http://localhost:3000)
