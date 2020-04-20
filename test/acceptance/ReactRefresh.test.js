@@ -391,6 +391,10 @@ test('propagates hot update to all inverse dependencies', async () => {
     'init RootV1',
   ])
 
+  // TODO:
+  // expect(Refresh.performReactRefresh).toHaveBeenCalled()
+  // expect(Refresh.performFullRefresh).not.toHaveBeenCalled()
+
   await cleanup()
 })
 
