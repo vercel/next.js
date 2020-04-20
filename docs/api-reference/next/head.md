@@ -42,18 +42,10 @@ function IndexPage() {
     <div>
       <Head>
         <title>My page title</title>
-        <meta
-          property="og:title"
-          content="My page title"
-          key="title"
-        />
+        <meta property="og:title" content="My page title" key="title" />
       </Head>
       <Head>
-        <meta
-          property="og:title"
-          content="My new title"
-          key="title"
-        />
+        <meta property="og:title" content="My new title" key="title" />
       </Head>
       <p>Hello world!</p>
     </div>
