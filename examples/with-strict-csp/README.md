@@ -1,6 +1,6 @@
 # Strict CSP example
 
-If you want to implement a CSP, the most effective way is to follow the [strict CSP](https://csp.withgoogle.com/docs/strict-csp.html) approach. For it to work, we need to generate a nonce on every request.
+If you want to implement a CSP, follow the [strict CSP](https://csp.withgoogle.com/docs/strict-csp.html) approach. For it to work, we need to generate a nonce on every request.
 
 This example uses [Helmet](https://github.com/helmetjs/helmet) to configure the CSP and add the appropriate headers to all server responses. The nonce is generated with [uuid](https://github.com/kelektiv/node-uuid). Then we can pass the nonce to `<Head>` and `<NextScript>` in the custom `<Document>`.
 

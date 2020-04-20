@@ -11,6 +11,11 @@ const inlineScript = (body, nonce) => (
 export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx)
+
+    if (!ctx.res) {
+      throw new Error('Strict CSP only works on SSR pages!')
+    }
+
     const { nonce } = ctx.res.locals
     return { ...initialProps, nonce }
   }
