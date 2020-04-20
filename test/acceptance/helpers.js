@@ -42,7 +42,7 @@ export async function sandbox(id = nanoid()) {
 
           var timeout = setTimeout(() => {
             window.__HMR_STATE = 'timeout'
-          }, 5250)
+          }, 10000)
           window.__NEXT_HMR_CB = function() {
             clearTimeout(timeout)
             window.__HMR_STATE = 'success'
