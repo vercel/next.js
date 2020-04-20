@@ -25,7 +25,9 @@ const HomePage = ({ lng, lngDict }) => {
 }
 
 export async function getStaticProps({ params }) {
-  const { default: lngDict = {} } = await import(`../../locales/${params.lng}`)
+  const { default: lngDict = {} } = await import(
+    `../../locales/${params.lng}.json`
+  )
 
   return {
     props: { lng: params.lng, lngDict },
