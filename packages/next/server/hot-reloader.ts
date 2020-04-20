@@ -14,6 +14,7 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
@@ -268,6 +269,10 @@ export default class HotReloader {
         join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
       )
 
+    additionalClientEntrypoints[
+      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+    ] = require.resolve(`@next/react-refresh-utils/runtime`)
+
     return Promise.all([
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -489,7 +494,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
-        hotRouterUpdates: true,
+        hotRouterUpdates: this.config.experimental.reactRefresh !== true,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
           pagesBufferLength: number

@@ -1,3 +1,4 @@
+import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
@@ -151,6 +152,22 @@ export default async function getBaseWebpackConfig(
       }
     }
   }
+
+  const hasReactRefresh =
+    dev && !isServer && config.experimental.reactRefresh === true
+
+  // Inject additional features into webpack HMR runtime
+  if (hasReactRefresh) {
+    const injectPath = require.resolve(
+      'webpack/lib/HotModuleReplacement.runtime'
+    )
+    const overridePath = require.resolve(
+      './webpack/lib/HotModuleReplacement.runtime'
+    )
+    require(overridePath)
+    require.cache[injectPath] = require.cache[overridePath]
+  }
+
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -164,6 +181,7 @@ export default async function getBaseWebpackConfig(
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
+        hasReactRefresh,
       },
     },
     // Backwards compat
@@ -759,12 +777,21 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 defaultLoaders.babel,
+                hasReactRefresh
+                  ? require.resolve('@next/react-refresh-utils/loader')
+                  : '',
+              ].filter(Boolean)
+            : hasReactRefresh
+            ? [
+                defaultLoaders.babel,
+                require.resolve('@next/react-refresh-utils/loader'),
               ]
             : defaultLoaders.babel,
         },
       ].filter(Boolean),
     },
     plugins: [
+      hasReactRefresh && new ReactRefreshWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({

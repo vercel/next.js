@@ -105,3 +105,11 @@ Then reference it in the `caches` section of your pipeline's `step`:
       - node
       - nextcache
 ```
+
+#### Heroku
+
+Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-support#custom-caching), add a `cacheDirectories` array in your top-level package.json:
+
+```javascript
+"cacheDirectories": [".next/cache"]
+```
