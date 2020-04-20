@@ -867,15 +867,10 @@ export default async function getBaseWebpackConfig(
             }
           : undefined),
         // stub process.env with proxy to warn a missing value is
-        // being accessed
-        ...(config.experimental.pageEnv
+        // being accessed in development mode
+        ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
           ? {
-              'process.env':
-                process.env.NODE_ENV === 'production'
-                  ? isServer
-                    ? 'process.env'
-                    : '{}'
-                  : `
+              'process.env': `
             new Proxy(${isServer ? 'process.env' : '{}'}, {
               get(target, prop) {
                 if (typeof target[prop] === 'undefined') {
