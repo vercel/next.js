@@ -46,4 +46,4 @@ yarn dev
 
 The `home` app will start in the default port (http://localhost:3000), and `blog` will start on http://localhost:4000.
 
-Deploy it to the cloud with [Verel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -115,7 +115,7 @@ The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECR
 
 ### Deploy
 
-Deploy it to the cloud with [Verel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 **Note**: You must add your Stripe secrets using the Vercel CLI ([Download here](https://vercel.com/download)):
 

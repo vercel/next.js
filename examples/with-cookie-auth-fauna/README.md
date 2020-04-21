@@ -62,4 +62,4 @@ We'll use [now](https://vercel.com/now) to deploy our app, first we need to add 
 now secrets add fauna-secret-key "ENTER YOUR FAUNA SERVER KEY"
 ```
 
-Deploy it to the cloud with [Verel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
