@@ -6,3 +6,6 @@ packages/next/compiled/**
 packages/react-refresh-utils/**/*.js
 packages/react-refresh-utils/**/*.d.ts
 **/__tmp__/**
+# prettier can't handle the `import type {} from ''` syntax yet
+test/integration/typescript-only-remove-type-imports/**/*.ts
+test/integration/typescript-only-remove-type-imports/**/*.tsx

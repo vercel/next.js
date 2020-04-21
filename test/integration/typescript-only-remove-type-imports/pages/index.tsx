@@ -1,4 +1,5 @@
 import type { User } from "../User";
+// eslint-disable-next-line
 import * as UnusedUserStatisticsThatShouldNotBeElided from "../UserStatistics";
 
 const users: User[] = [
