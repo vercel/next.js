@@ -61,7 +61,7 @@ exports[`renders homepage unchanged 1`] = `
       </a>
       <a
         className="card"
-        href="https://zeit.co/import/nextjs"
+        href="https://vercel.com/import/nextjs"
       >
         <h3>
           Deploy →
@@ -74,7 +74,7 @@ exports[`renders homepage unchanged 1`] = `
   </main>
   <footer>
     <a
-      href="https://zeit.co"
+      href="https://vercel.com"
       rel="noopener noreferrer"
       target="_blank"
     >

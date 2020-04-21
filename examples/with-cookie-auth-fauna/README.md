@@ -56,7 +56,7 @@ yarn dev
 
 ### Deploy
 
-We'll use [now](https://zeit.co/now) to deploy our app, first we need to add the server key as a secret using [now secrets](https://zeit.co/docs/v2/serverless-functions/env-and-secrets/?query=secrets#adding-secrets), like so:
+We'll use [now](https://vercel.com/now) to deploy our app, first we need to add the server key as a secret using [now secrets](https://vercel.com/docs/v2/serverless-functions/env-and-secrets/?query=secrets#adding-secrets), like so:
 
 ```bash
 now secrets add fauna-secret-key "ENTER YOUR FAUNA SERVER KEY"
