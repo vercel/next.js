@@ -218,11 +218,37 @@ module.exports = {
           ],
         },
         {
+          source: '/my-other-header/:path',
+          headers: [
+            {
+              key: 'x-path',
+              value: ':path',
+            },
+            {
+              key: 'some:path',
+              value: 'hi',
+            },
+          ],
+        },
+        {
           source: '/:path*',
           headers: [
             {
               key: 'x-something',
               value: 'applied-everywhere',
+            },
+          ],
+        },
+        {
+          source: '/named-pattern/:path(.*)',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'value=:path',
+            },
+            {
+              key: 'path-:path',
+              value: 'end',
             },
           ],
         },

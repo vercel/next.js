@@ -1,0 +1,19 @@
+{
+  "name": "with-iron-session",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "SECRET_COOKIE_PASSWORD=2gyZ3GDw3LHZQKDhPmPDL3sjREVRXPr8 next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "9.3.0",
+    "next-iron-session": "3.1.0",
+    "node-fetch": "2.6.0",
+    "prop-types": "15.7.2",
+    "react": "16.13.0",
+    "react-dom": "16.13.0",
+    "swr": "0.1.18"
+  }
+}

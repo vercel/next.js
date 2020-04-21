@@ -1,4 +1,4 @@
-import curry from 'lodash.curry'
+import curry from 'next/dist/compiled/lodash.curry'
 import { Configuration } from 'webpack'
 import { ConfigurationContext } from '../utils'
 

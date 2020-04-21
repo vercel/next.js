@@ -1,14 +1,13 @@
-import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
 import crypto from 'crypto'
-import devalue from 'devalue'
-import escapeStringRegexp from 'escape-string-regexp'
-import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
+import chalk from 'next/dist/compiled/chalk'
+import devalue from 'next/dist/compiled/devalue'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import findUp from 'next/dist/compiled/find-up'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
-import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
@@ -23,6 +22,7 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
+import { loadEnvConfig } from '../lib/load-env-config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -48,6 +48,7 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
   eventBuildOptimize,
@@ -62,7 +63,7 @@ import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
   collectPages,
-  getPageSizeInKb,
+  getJsPageSizeInKb,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
@@ -71,7 +72,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import { loadEnvConfig } from '../lib/load-env-config'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -217,6 +217,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
+    /* dev */ false,
     mappedPages,
     target,
     buildId,
@@ -482,7 +483,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await Promise.all(
     pageKeys.map(async page => {
       const actualPage = normalizePagePath(page)
-      const [selfSize, allSize] = await getPageSizeInKb(
+      const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
         buildId,
@@ -525,7 +526,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           console.warn(
             chalk.bold.yellow(`Warning: `) +
               chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
               )
           )
           console.warn(
@@ -545,6 +546,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (result.isAmpOnly) {
+            // ensure all AMP only bundles got removed
+            try {
+              await fsUnlink(
+                path.join(
+                  distDir,
+                  'static',
+                  buildId,
+                  'pages',
+                  actualPage + '.js'
+                )
+              )
+            } catch (err) {
+              if (err.code !== 'ENOENT') {
+                throw err
+              }
+            }
           }
 
           if (result.hasStaticProps) {

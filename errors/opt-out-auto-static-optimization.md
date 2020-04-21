@@ -4,7 +4,7 @@
 
 You are using `getInitialProps` in your [Custom `<App>`](https://nextjs.org/docs#custom-app).
 
-This causes **all pages** to be executed on the server -- disabling [Automatic Static Optimization](https://nextjs.org/docs#automatic-static-optimization).
+This causes **all non-getStaticProps pages** to be executed on the server -- disabling [Automatic Static Optimization](https://nextjs.org/docs#automatic-static-optimization).
 
 #### Possible Ways to Fix It
 

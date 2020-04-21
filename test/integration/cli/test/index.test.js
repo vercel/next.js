@@ -88,6 +88,16 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test("NODE_OPTIONS='--inspect'", async () => {
+      // this test checks that --inspect works by launching a single debugger for the main Next.js process,
+      // not for its subprocesses
+      const port = await findPort()
+      const output = await runNextCommandDev([dir, '--port', port], true, {
+        env: { NODE_OPTIONS: '--inspect' },
+      })
+      expect(output).toMatch(new RegExp(`ready on http://localhost:${port}`))
+    })
+
     test('-p', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '-p', port], true)

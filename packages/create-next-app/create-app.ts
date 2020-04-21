@@ -54,7 +54,7 @@ export async function createApp({
         process.exit(1)
       }
 
-      repoInfo = getRepoInfo(repoUrl, examplePath)
+      repoInfo = await getRepoInfo(repoUrl, examplePath)
 
       if (!repoInfo) {
         console.error(

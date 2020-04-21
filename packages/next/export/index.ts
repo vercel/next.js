@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import findUp from 'find-up'
+import chalk from 'next/dist/compiled/chalk'
+import findUp from 'next/dist/compiled/find-up'
 import {
   copyFile as copyFileOrig,
   existsSync,
@@ -226,17 +226,19 @@ export default async function(
     }
   }
 
+  loadEnvConfig(dir)
+
   // Start the rendering process
   const renderOpts = {
     dir,
     buildId,
     nextExport: true,
-    env: loadEnvConfig(dir),
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
     staticMarkup: false,
     hotReloader: null,
+    basePath: nextConfig.experimental.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,

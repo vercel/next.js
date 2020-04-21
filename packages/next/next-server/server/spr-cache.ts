@@ -1,5 +1,5 @@
 import fs from 'fs'
-import LRUCache from 'lru-cache'
+import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
