@@ -351,18 +351,18 @@ test('propagates a module that stops accepting in next version', async () => {
   // Accept in parent
   await session.write(
     './foo.js',
-    `globalThis.log.push('init FooV1'); import './bar'; export default function Foo() {};`
+    `;(typeof global !== 'undefined' ? global : window).log.push('init FooV1'); import './bar'; export default function Foo() {};`
   )
   // Accept in child
   await session.write(
     './bar.js',
-    `globalThis.log.push('init BarV1'); export default function Bar() {};`
+    `;(typeof global !== 'undefined' ? global : window).log.push('init BarV1'); export default function Bar() {};`
   )
 
   // Bootstrap:
   await session.patch(
     'index.js',
-    `globalThis.log = []; require('./foo'); export default () => null;`
+    `;(typeof global !== 'undefined' ? global : window).log = []; require('./foo'); export default () => null;`
   )
   expect(await session.evaluate(() => window.log)).toEqual([
     'init BarV1',
@@ -447,7 +447,7 @@ test('propagates a module that stops accepting in next version', async () => {
     !(await session.patch(
       './foo.js',
       `
-      if (globalThis.localStorage) {
+      if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem('init', 'init FooV2')
       }
       export function Foo() {};
