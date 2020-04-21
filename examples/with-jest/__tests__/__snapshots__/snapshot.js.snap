@@ -72,18 +72,5 @@ exports[`renders homepage unchanged 1`] = `
       </a>
     </div>
   </main>
-  <footer>
-    <a
-      href="https://vercel.com"
-      rel="noopener noreferrer"
-      target="_blank"
-    >
-      Powered by
-      <img
-        alt="ZEIT Logo"
-        src="/zeit.svg"
-      />
-    </a>
-  </footer>
 </div>
 `;

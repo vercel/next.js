@@ -43,12 +43,6 @@ const Home = () => (
         </a>
       </div>
     </main>
-
-    <footer>
-      <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
-        Powered by <img src="/zeit.svg" alt="ZEIT Logo" />
-      </a>
-    </footer>
   </div>
 )
 
