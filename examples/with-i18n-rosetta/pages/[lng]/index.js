@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import Head from 'next/head'
+import Title from '../../components/title'
 import useI18n from '../../hooks/use-i18n'
 import { languages, contentLanguageMap } from '../../lib/i18n'
 
-const HomePage = ({ lng, lngDict }) => {
-  const i18n = useI18n({ lng, lngDict })
+const HomePage = () => {
+  const i18n = useI18n()
 
   return (
     <div>
@@ -14,8 +15,9 @@ const HomePage = ({ lng, lngDict }) => {
           content={contentLanguageMap[i18n.activeLocale]}
         />
       </Head>
-      <h1>{i18n.t('intro.welcome', { username: 'Peter' })}</h1>
-      <h3>{i18n.t('intro.text')}</h3>
+      <Title username="Peter" />
+      <h2>{i18n.t('intro.text')}</h2>
+      <h3>{i18n.t('intro.description')}</h3>
       <div>Current locale: {i18n.activeLocale}</div>
       <Link href="/de">
         <a>Use client-side routing to change language to 'de'</a>

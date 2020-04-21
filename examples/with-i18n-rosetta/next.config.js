@@ -9,11 +9,6 @@ module.exports = {
           permanent: true,
           destination: '/en',
         },
-        {
-          source: '/contact',
-          destination: '/en/contact',
-          permanent: true,
-        },
       ]
     },
   },
