@@ -10,7 +10,7 @@ The login cookie is httpOnly, meaning it can only be accessed by the API, and it
 
 ## Configure Magic
 
-Login to the [Magic Dashboard](https://dashboard.magic.link/) and add new application to get your keys. Don't forget to put keys in `.env` (look for `.env.template` for example) and upload them as secrets to [ZEIT Now](https://zeit.co/now).
+Login to the [Magic Dashboard](https://dashboard.magic.link/) and add new application to get your keys. Don't forget to put keys in `.env` (look for `.env.template` for example) and upload them as secrets to [Vercel Now](https://vercel.com/docs/now-cli#commands/overview/basic-usage).
 
 ```
 now secrets add @magic-publishable-key pk_test_*********
@@ -24,9 +24,9 @@ now secrets add @magic-secret-key sk_test_*********
 
 ## Deploy your own
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+Deploy the example using [Vercel Now](https://vercel.com/docs/now-cli#commands/overview/basic-usage):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/magic)
+[![Deploy with Vercel Now](https://vercel.com/button)](https://vercel.com/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/magic)
 
 ## How to use
 
@@ -40,4 +40,4 @@ npm init next-app --example magic magic-app
 yarn create next-app --example magic magic-app
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel Now](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
