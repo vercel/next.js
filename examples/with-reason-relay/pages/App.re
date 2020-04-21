@@ -67,15 +67,15 @@ let make = (~viewer: Query_Query_graphql.Types.response_viewer, ~records) => {
 let getInitialProps = _context => {
   let environment = createEnvironment();
   let promise = Query.Viewer.fetchPromised(~environment, ~variables=());
-  let records =
-    environment
-    ->ReasonRelay.Environment.getStore
-    ->ReasonRelay.Store.getSource
-    ->ReasonRelay.RecordSource.toJSON;
 
   Promise.mapOk(
     promise,
     p => {
+      let records =
+        environment
+        ->ReasonRelay.Environment.getStore
+        ->ReasonRelay.Store.getSource
+        ->ReasonRelay.RecordSource.toJSON;
       Js.log2("getInitialProps viewer", p);
       Js.log2("getInitialProps records", records);
       {"viewer": p.viewer, "records": records};
@@ -83,7 +83,6 @@ let getInitialProps = _context => {
   )
   ->Promise.Js.toBsPromise;
 };
-
 
 let default = make;
 
