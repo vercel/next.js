@@ -1,40 +1,17 @@
-import express from 'express'
-import passport from 'passport'
-import { strategy } from '../../lib/magic'
+import { magic } from '../../lib/magic'
 import { encryptSession } from '../../lib/iron'
 import { setTokenCookie } from '../../lib/auth-cookies'
 
-const app = express()
-const authenticate = (method, req, res) =>
-  new Promise((resolve, reject) => {
-    passport.authenticate(method, { session: false }, (error, token) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(token)
-      }
-    })(req, res)
-  })
-
-app.disable('x-powered-by')
-
-app.use(passport.initialize())
-
-passport.use(strategy)
-
-app.post('/api/login', async (req, res) => {
+export default async function login(req, res) {
   try {
-    const user = await authenticate('magic', req, res)
-    // session is the payload to save in the token, it may contain basic info about the user
-    const session = { ...user }
+    const didToken = req.headers.authorization.substr(7)
+    const metadata = await magic.users.getMetadataByToken(didToken)
+    const session = { ...metadata }
     // The token is a string with the encrypted session
     const token = await encryptSession(session)
     setTokenCookie(res, token)
     res.status(200).send({ done: true })
   } catch (error) {
-    console.error(error)
-    res.status(401).send(error.message)
+    res.status(error.status || 500).end(error.message)
   }
-})
-
-export default app
+}

@@ -8,7 +8,7 @@ const Home = () => {
     <Layout>
       <h1>Magic Example</h1>
 
-      <p>Steps to test the example:</p>
+      <p>Steps to test this authentication example:</p>
 
       <ol>
         <li>Click Login and enter an email.</li>
@@ -22,10 +22,23 @@ const Home = () => {
         </li>
       </ol>
 
+      <p>
+        To learn more about Magic, visit their{' '}
+        <a
+          href="https://docs.magic.link/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          documentation
+        </a>
+        .
+      </p>
+
       {user && (
-        <p>
-          Currently logged in as:<pre>{JSON.stringify(user, null, 2)}</pre>
-        </p>
+        <>
+          <p>Currently logged in as:</p>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        </>
       )}
 
       <style jsx>{`

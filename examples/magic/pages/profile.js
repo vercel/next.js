@@ -8,9 +8,10 @@ const Profile = () => {
     <Layout>
       <h1>Profile</h1>
       {user && (
-        <p>
-          Your session:<pre>{JSON.stringify(user, null, 2)}</pre>
-        </p>
+        <>
+          <p>Your session:</p>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        </>
       )}
     </Layout>
   )
