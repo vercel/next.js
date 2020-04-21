@@ -39,4 +39,4 @@ now dev
 
 Deploy it to the cloud with [Verel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-Keep in mind that in order to deploy the app to ZEIT Now the env [secrets](https://vercel.com/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
+Keep in mind that in order to deploy the app to Vercel the env [secrets](https://vercel.com/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
