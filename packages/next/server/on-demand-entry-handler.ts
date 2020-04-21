@@ -6,9 +6,9 @@ import { parse } from 'url'
 import webpack from 'webpack'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
-
 import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
+import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE } from '../lib/constants'
 import {
   IS_BUNDLED_PAGE_REGEX,
@@ -48,6 +48,7 @@ export default function onDemandEntryHandler(
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
+    hotRouterUpdates,
   }: {
     buildId: string
     pagesDir: string
@@ -55,6 +56,7 @@ export default function onDemandEntryHandler(
     pageExtensions: string[]
     maxInactiveAge: number
     pagesBufferLength: number
+    hotRouterUpdates: boolean
   }
 ) {
   const { compilers } = multiCompiler
@@ -85,12 +87,14 @@ export default function onDemandEntryHandler(
           }
 
           entries[page].status = BUILDING
+          const pageLoaderOpts: ClientPagesLoaderOptions = {
+            page,
+            absolutePagePath,
+            hotRouterUpdates,
+          }
           return addEntry(compilation, compiler.context, name, [
             compiler.name === 'client'
-              ? `next-client-pages-loader?${stringify({
-                  page,
-                  absolutePagePath,
-                })}!`
+              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
               : absolutePagePath,
           ])
         })

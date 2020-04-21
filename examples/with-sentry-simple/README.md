@@ -49,15 +49,15 @@ This is a simple example showing how to use [Sentry](https://sentry.io) to catch
 - `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
 - `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
 
-**Note**: Source maps will not be sent to Sentry when running locally (because Sentry cannot access your `localhost`). To accurately test client-side source maps, please deploy to Now.
-
-**Note**: Server-side source maps will not work unless you [manually upload them to Sentry](https://docs.sentry.io/platforms/node/sourcemaps/#making-source-maps-available-to-sentry).
+**Note**: Source maps will not be sent to Sentry when running locally (unless Sentry configuration environment variables are correctly defined during the build step)
 
 **Note**: Error handling [works differently in production](https://nextjs.org/docs#custom-error-handling). Some exceptions will not be sent to Sentry in development mode (i.e. `npm run dev`).
 
 **Note**: The build output will contain warning about unhandled Promise rejections. This caused by the test pages, and is expected.
 
 **Note**: The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
+
+**Note**: Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) is because if used with SSR (ex. heroku), these plugins are used during production for generating the source-maps and sending them to sentry.
 
 ### Configuration
 
@@ -71,6 +71,8 @@ Sentry.init({
 })
 ```
 
+More configurations available for [Sentry webpack plugin](https://github.com/getsentry/sentry-webpack-plugin) and using [Sentry Configuration variables](https://docs.sentry.io/cli/configuration/) for defining the releases/verbosity/etc.
+
 ### Disabling Sentry during development
 
 An easy way to disable Sentry while developing is to set its `enabled` flag based off of the `NODE_ENV` environment variable, which is [properly configured by the `next` subcommands](https://nextjs.org/docs#production-deployment).
@@ -82,18 +84,8 @@ Sentry.init({
 })
 ```
 
-### Hosting source maps vs. uploading them to Sentry
+### Disabling Sentry uploading during local builds
 
-This example shows how to generate your own source maps, which are hosted alongside your JavaScript bundles in production. But that has the potential for inaccurate results in Sentry.
+Unless the `SENTRY_DNS`, `SENTRY_ORG` and `SENTRY_PROJECT` environment variables passed to the build command, Sentry webpack plugin won't be added and the source maps won't be uploaded to sentry.
 
-Sentry will attempt to [fetch the source map](https://docs.sentry.io/platforms/javascript/sourcemaps/#hosting--uploading) when it is processing an exception, as long as the "Enable JavaScript source fetching" setting is turned on for your Sentry project.
-
-However, there are some disadvantages with this approach. Sentry has written a blog post about them here: https://blog.sentry.io/2018/07/17/source-code-fetching
-
-If you decide that uploading source maps to Sentry would be better, one approach is to define a custom `now-build` script in your `package.json`. Zeit Now's `@now/next` builder will [call this script](https://github.com/zeit/now/blob/canary/packages/now-next/src/index.ts#L270) for you. You can define what to do after a build there:
-
-```
-"now-build": "next build && node ./post-build.js"
-```
-
-In `./post-build.js` you can `require('@sentry/cli')` and go through the process of creating a Sentry release and [uploading source maps](https://docs.sentry.io/cli/releases/#sentry-cli-sourcemaps), and optionally deleting the `.js.map` files so they are not made public.
+Check [with-dotenv](https://github.com/zeit/next.js/tree/v9.3.4/examples/with-dotenv) example for integrating `.env` file env variables

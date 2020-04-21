@@ -87,7 +87,7 @@ Router.push(url, as, options)
 - `url` - The URL to navigate to. This is usually the name of a `page`
 - `as` - Optional decorator for the URL that will be shown in the browser. Defaults to `url`
 - `options` - Optional object with the following configuration options:
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning `getServerSideProps` or `getInitialProps`. Defaults to `false`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
 > You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
@@ -177,7 +177,7 @@ Router.beforePopState(({ url, as, options }) => {
 
 `Router.beforePopState(cb: () => boolean)`
 
-- `cb` - The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
+- `cb` - The function to run on incoming `popstate` events. The function receives the state of the event as an object with the following props:
   - `url`: `String` - the route for the new state. This is usually the name of a `page`
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [Router.push](#router.push)

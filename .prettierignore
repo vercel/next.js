@@ -3,3 +3,6 @@ node_modules
 **/_next/**
 **/dist/**
 packages/next/compiled/**
+packages/react-refresh-utils/**/*.js
+packages/react-refresh-utils/**/*.d.ts
+**/__tmp__/**

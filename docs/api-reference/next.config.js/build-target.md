@@ -16,7 +16,7 @@ Your application will be built and deployed as a monolith. This is the default t
 
 ## `serverless` target
 
-> Deployments to [ZEIT Now](https://zeit.co) will automatically enable this target. You do not need to opt-into it yourself, but you can.
+> Deployments to [ZEIT Now](https://zeit.co) will automatically enable this target. You should not opt-into it yourself.
 
 This target will output independent pages that don't require a monolithic server.
 

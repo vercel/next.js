@@ -65,7 +65,7 @@ export default Page
 
 Data returned from `getInitialProps` is serialized when server rendering, similar to what [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) does. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using [`next/router`](/docs/api-reference/next/router.md).
+For the initial page load, `getInitialProps` will run on the server only. `getInitialProps` will then run on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using [`next/router`](/docs/api-reference/next/router.md).
 
 ## Context Object
 
@@ -85,7 +85,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ## TypeScript
 
-If you're using TypeScript, you can use the `NextPage` type for functional components:
+If you're using TypeScript, you can use the `NextPage` type for function components:
 
 ```jsx
 import { NextPage } from 'next'

@@ -82,6 +82,8 @@ export type NEXT_DATA = {
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
+  gip?: boolean
+  appGip?: boolean
 }
 
 /**
@@ -167,6 +169,7 @@ export type DocumentProps = DocumentInitialProps & {
   htmlProps: any
   bodyTags: any[]
   headTags: any[]
+  unstable_runtimeJS?: false
 }
 
 /**
