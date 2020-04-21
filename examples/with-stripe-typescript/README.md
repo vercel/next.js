@@ -35,7 +35,7 @@ Read more about testing on Stripe at https://stripe.com/docs/testing.
 
 - [Global CSS styles](https://nextjs.org/blog/next-9-2#built-in-css-support-for-global-stylesheets)
 - Making `.env` variables available to next: [next.config.js](next.config.js)
-  - **Note**: When deploying with Now you need to [add your secrets](https://zeit.co/docs/v2/serverless-functions/env-and-secrets) and specify a [now.json](/now.json) file.
+  - **Note**: When deploying with Now you need to [add your secrets](https://vercel.com/docs/v2/serverless-functions/env-and-secrets) and specify a [now.json](/now.json) file.
 - Implementation of a Layout component that loads and sets up Stripe.js and Elements for usage with SSR via `loadStripe` helper: [components/Layout.tsx](components/Layout.tsx).
 - Stripe Checkout
   - Custom Amount Donation with redirect to Stripe Checkout:
@@ -115,9 +115,9 @@ The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECR
 
 ### Deploy
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-**Note**: You must add your Stripe secrets using the ZEIT Now CLI ([Download here](https://zeit.co/download)):
+**Note**: You must add your Stripe secrets using the Vercel CLI ([Download here](https://vercel.com/download)):
 
 ```bash
 now secrets add stripe_publishable_key pk_***

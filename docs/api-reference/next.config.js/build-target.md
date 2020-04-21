@@ -16,11 +16,11 @@ Your application will be built and deployed as a monolith. This is the default t
 
 ## `serverless` target
 
-> Deployments to [ZEIT Now](https://zeit.co) will automatically enable this target. You should not opt-into it yourself.
+> Deployments to [Vercel](https://vercel.com) will automatically enable this target. You should not opt-into it yourself.
 
 This target will output independent pages that don't require a monolithic server.
 
-It's only compatible with `next start` or Serverless deployment platforms (like [ZEIT Now](https://zeit.co)) — you cannot use the custom server API.
+It's only compatible with `next start` or Serverless deployment platforms (like [Vercel](https://vercel.com)) — you cannot use the custom server API.
 
 To opt-into this target, set the following configuration in your `next.config.js`:
 

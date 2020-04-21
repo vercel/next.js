@@ -13,7 +13,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Is this production ready?</summary>
-  <p>Next.js has been powering <a href="https://zeit.co">https://zeit.co</a>  since its inception.</p>
+  <p>Next.js has been powering <a href="https://vercel.com">https://vercel.com</a>  since its inception.</p>
 
   <p>We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.</p>
 </details>

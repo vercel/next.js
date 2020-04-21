@@ -34,7 +34,7 @@ export default class Bundle extends React.Component {
 
   getChildContext() {
     return {
-      data: { title: 'ZEIT Rocks' },
+      data: { title: 'Vercel Rocks' },
     }
   }
 

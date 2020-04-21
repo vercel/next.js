@@ -37,12 +37,12 @@ export default function Home() {
           </a>
 
           <a
-            href="https://zeit.co/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
             className="card"
           >
             <h3>Deploy &rarr;</h3>
             <p>
-              Instantly deploy your Next.js site to a public URL with ZEIT Now.
+              Instantly deploy your Next.js site to a public URL with Vercel.
             </p>
           </a>
         </div>
@@ -50,11 +50,12 @@ export default function Home() {
 
       <footer>
         <a
-          href="https://zeit.co?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by <img src="/zeit.svg" alt="ZEIT Logo" />
+          Powered by{' '}
+          <img src="/vercel.svg" alt="Vercel Logo" className="logo" />
         </a>
       </footer>
 
@@ -175,6 +176,10 @@ export default function Home() {
           margin: 0;
           font-size: 1.25rem;
           line-height: 1.5;
+        }
+
+        .logo {
+          height: 1em;
         }
 
         @media (max-width: 600px) {

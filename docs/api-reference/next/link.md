@@ -140,7 +140,7 @@ import Link from 'next/link'
 function Home() {
   return (
     <div>
-      <Link href={{ pathname: '/about', query: { name: 'ZEIT' } }}>
+      <Link href={{ pathname: '/about', query: { name: 'test' } }}>
         <a>About us</a>
       </Link>
     </div>
@@ -150,7 +150,7 @@ function Home() {
 export default Home
 ```
 
-The above example will be a link to `/about?name=ZEIT`. You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
+The above example will be a link to `/about?name=test`. You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
 ## Replace the URL instead of push
 
