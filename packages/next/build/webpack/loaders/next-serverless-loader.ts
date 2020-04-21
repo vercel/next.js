@@ -177,7 +177,7 @@ const nextServerlessLoader: loader.Loader = function() {
           }
 
           const resolver = require('${absolutePagePath}')
-          apiResolver(
+          await apiResolver(
             req,
             res,
             Object.assign({}, parsedUrl.query, params ),
@@ -266,6 +266,7 @@ const nextServerlessLoader: loader.Loader = function() {
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         previewProps: ${encodedPreviewProps},
         env: process.env,
+        basePath: "${basePath}",
         ..._renderOpts
       }
       let _nextData = false

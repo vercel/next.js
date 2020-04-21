@@ -306,6 +306,18 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should apply params for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/my-other-header/first')
+    expect(res.headers.get('x-path')).toBe('first')
+    expect(res.headers.get('somefirst')).toBe('hi')
+  })
+
+  it('should support named pattern for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/named-pattern/hello')
+    expect(res.headers.get('x-something')).toBe('value=hello')
+    expect(res.headers.get('path-hello')).toBe('end')
+  })
+
   it('should support proxying to external resource', async () => {
     const res = await fetchViaHTTP(appPort, '/proxy-me/first?keep=me&and=me')
     expect(res.status).toBe(200)
@@ -604,6 +616,20 @@ const runTests = (isDev = false) => {
           {
             headers: [
               {
+                key: 'x-path',
+                value: ':path',
+              },
+              {
+                key: 'some:path',
+                value: 'hi',
+              },
+            ],
+            regex: normalizeRegEx('^\\/my-other-header(?:\\/([^\\/]+?))$'),
+            source: '/my-other-header/:path',
+          },
+          {
+            headers: [
+              {
                 key: 'x-something',
                 value: 'applied-everywhere',
               },
@@ -612,6 +638,20 @@ const runTests = (isDev = false) => {
               '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/:path*',
+          },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'value=:path',
+              },
+              {
+                key: 'path-:path',
+                value: 'end',
+              },
+            ],
+            regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))$'),
+            source: '/named-pattern/:path(.*)',
           },
         ],
         rewrites: [
