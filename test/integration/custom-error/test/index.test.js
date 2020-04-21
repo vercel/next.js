@@ -13,6 +13,7 @@ import {
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
+const page404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
@@ -40,9 +41,31 @@ describe('Custom _error', () => {
     })
     afterAll(() => killApp())
 
+    it('should not warn with /_error and /404 when rendering error first', async () => {
+      stderr = ''
+      await fs.writeFile(page404, 'export default <h1>')
+      const html = await renderViaHTTP(appPort, '/404')
+      await fs.remove(page404)
+      expect(html).toContain('Module build failed')
+      expect(stderr).not.toMatch(customErrNo404Match)
+    })
+  })
+
+  describe('dev mode', () => {
+    let stderr = ''
+
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+    })
+    afterAll(() => killApp())
+
     it('should not warn with /_error and /404', async () => {
       stderr = ''
-      const page404 = join(appDir, 'pages/404.js')
       await fs.writeFile(page404, `export default () => 'not found...'`)
       const html = await renderViaHTTP(appPort, '/404')
       await fs.remove(page404)

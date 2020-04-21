@@ -1321,7 +1321,8 @@ export default class Server {
     if (
       process.env.NODE_ENV !== 'production' &&
       !using404Page &&
-      (await this.hasPage('/_error'))
+      (await this.hasPage('/_error')) &&
+      !(await this.hasPage('/404'))
     ) {
       this.customErrorNo404Warn()
     }
