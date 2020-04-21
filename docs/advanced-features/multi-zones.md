@@ -27,7 +27,7 @@ There are no special zones related APIs. You only need to do following:
 
 You can merge zones using any HTTP proxy.
 
-For [ZEIT Now](https://zeit.co/now), you can use a single `now.json` to deploy both apps. It allows you to define routing routes for multiple apps like below:
+For [Vercel](https://vercel.com/now), you can use a single `now.json` to deploy both apps. It allows you to define routing routes for multiple apps like below:
 
 ```json
 {

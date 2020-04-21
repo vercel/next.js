@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "9.3.6-canary.3",
+  "version": "9.3.6-canary.7",
   "keywords": [
     "react",
     "next",
@@ -12,7 +12,7 @@
     "url": "https://github.com/zeit/next.js",
     "directory": "packages/create-next-app"
   },
-  "author": "Next.js Team <support@zeit.co>",
+  "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
   "bin": {
     "create-next-app": "./dist/index.js"
