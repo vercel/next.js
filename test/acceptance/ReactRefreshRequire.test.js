@@ -385,20 +385,24 @@ test('propagates a module that stops accepting in next version', async () => {
   await session.evaluate(() => (window.log = []))
   didFullRefresh =
     didFullRefresh ||
-    !(await session.patch('./bar.js', `window.log.push('init BarV2');`))
+    !(await session.patch(
+      './bar.js',
+      // It's important we still export _something_, otherwise webpack will
+      // also emit an extra update to the parent module. This happens because
+      // webpack converts the module from ESM to CJS, which means the parent
+      // module must update how it "imports" the module (drops interop code).
+      // TODO: propose that webpack interrupts the current update phase when
+      // `module.hot.invalidate()` is called.
+      `window.log.push('init BarV2'); export {};`
+    ))
   // We re-run Bar and expect to stop there. However,
   // it didn't export a component, so we go higher.
   // We stop at Foo which currently _does_ export a component.
   expect(await session.evaluate(() => window.log)).toEqual([
-    // FIXME: webpack is running the modules too many times, this should
-    // probably be the following:
-    // [
-    //   'init BarV2',
-    //   'init BarV2',
-    //   'init FooV1',
-    // ]
+    // Bar evaluates twice:
+    // 1. To invalidate itself once it realizes it's no longer acceptable.
+    // 2. As a child of Foo re-evaluating.
     'init BarV2',
-    'init FooV1', // FIXME: 👈 this appears to be extra
     'init BarV2',
     'init FooV1',
   ])
