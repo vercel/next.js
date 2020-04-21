@@ -39,6 +39,7 @@
     "relay-compiler": "9.0.0"
   },
   "resolutions": {
+    "graphql": "15.0.0",
     "react": "0.0.0-experimental-e5d06e34b",
     "react-dom": "0.0.0-experimental-e5d06e34b"
   }
