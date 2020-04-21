@@ -6,7 +6,7 @@
     "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
     "dev": "next",
     "build": "bsb -make-world",
-    "next": "next build",
+    "next": "next",
     "start": "next start",
     "relay": "reason-relay-compiler",
     "schema": "graphql get-schema -e dev"
