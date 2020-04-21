@@ -9,10 +9,8 @@ const appDir = join(__dirname, '../')
 
 describe('TypeScript onlyRemoveTypeImports', () => {
   it('should not elide the UserStatistics import', async () => {
-    const { code, stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-    })
+    const { code } = await nextBuild(appDir)
 
-    expect(code).toContain('getNewsletterRecipients')
+    expect(code).toBe(0)
   })
 })
