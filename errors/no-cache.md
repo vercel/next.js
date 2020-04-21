@@ -15,7 +15,7 @@ Configure Next.js' cache to be persisted across builds. Next.js stores its cache
 
 Storing this folder across builds varies by CI provider. We've provided a list of a few common providers below.
 
-#### ZEIT Now
+#### Vercel
 
 Next.js caching is automatically configured for you. There's no action required on your part.
 
