@@ -33,7 +33,6 @@ class MyApp extends App {
       pageProps = await Component.getInitialProps(ctx)
     }
 
-    console.log("pageProps", pageProps);
     return {
       pageProps,
       path: ctx.asPath,
@@ -43,8 +42,6 @@ class MyApp extends App {
 
   render() {
     const { Component, pageProps, path, route, isOk } = this.props
-    
-    console.log("pageProps render", pageProps[0]);
     return isOk ? (
       <div>
         <Component {...pageProps[0]} />
