@@ -25,7 +25,7 @@ class MyApp extends App {
   }
 
   render() {
-    const { Component, pageProps, path, route, isOk } = this.props
+    const { Component, pageProps, isOk } = this.props
     return isOk ? (
       <div>
         <Component {...pageProps[0]} />
