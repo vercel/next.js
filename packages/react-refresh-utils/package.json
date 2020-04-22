@@ -24,6 +24,6 @@
   },
   "devDependencies": {
     "react-refresh": "0.8.1",
-    "webpack": "4.42.1"
+    "webpack": "^4.42.1"
   }
 }

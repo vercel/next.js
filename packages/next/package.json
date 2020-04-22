@@ -74,7 +74,6 @@
     "@babel/preset-react": "7.7.0",
     "@babel/preset-typescript": "7.7.2",
     "@babel/runtime": "7.7.2",
-    "@babel/types": "7.7.4",
     "@next/react-refresh-utils": "9.3.6-canary.9",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
