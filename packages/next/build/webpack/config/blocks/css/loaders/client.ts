@@ -24,7 +24,8 @@ export function getClientStyleLoader({
               '#__next_css__DO_NOT_USE__'
             )!
 
-            // Append each local script immediately AFTER the placeholder
+            // Append each script element immediately after the placeholder.
+            // This ensures the correct ordering of CSS as to match production.
             anchorElement.insertAdjacentElement('afterend', element)
 
             // Remember: this is development only code.
