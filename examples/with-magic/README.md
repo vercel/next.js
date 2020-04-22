@@ -4,7 +4,7 @@ This example show how to use [Magic](https://magic.link) with Next.js. The examp
 
 The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.now.sh).
 
-A DB is not included. You can use any db you want and add it [here](api/user.js).
+A DB is not included. But you can add any DB you like!.
 
 The login cookie is `httpOnly`, meaning it can only be accessed by the API, and it's encrypted using [@hapi/iron](https://hapi.dev/family/iron) for more security.
 
