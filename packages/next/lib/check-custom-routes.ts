@@ -1,4 +1,5 @@
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+import { parse as parseUrl } from 'url'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
@@ -70,6 +71,50 @@ function checkHeader(route: Header) {
     }
   }
   return invalidParts
+}
+
+type ParseAttemptResult = {
+  error?: boolean
+  tokens?: pathToRegexp.Token[]
+}
+
+function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
+  const result: ParseAttemptResult = {}
+  let routePath = route
+
+  try {
+    if (handleUrl) {
+      const parsedDestination = parseUrl(route, true)
+      routePath = `${parsedDestination.pathname!}${parsedDestination.hash ||
+        ''}`
+    }
+
+    // Make sure we can parse the source properly
+    result.tokens = pathToRegexp.parse(routePath)
+    pathToRegexp.tokensToRegexp(result.tokens)
+  } catch (err) {
+    // If there is an error show our err.sh but still show original error or a formatted one if we can
+    const errMatches = err.message.match(/at (\d{0,})/)
+
+    if (errMatches) {
+      const position = parseInt(errMatches[1], 10)
+      console.error(
+        `\nError parsing \`${route}\` ` +
+          `https://err.sh/zeit/next.js/invalid-route-source\n` +
+          `Reason: ${err.message}\n\n` +
+          `  ${routePath}\n` +
+          `  ${new Array(position).fill(' ').join('')}^\n`
+      )
+    } else {
+      console.error(
+        `\nError parsing ${route} https://err.sh/zeit/next.js/invalid-route-source`,
+        err
+      )
+    }
+    result.error = true
+  }
+
+  return result
 }
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
@@ -155,31 +200,12 @@ export default function checkCustomRoutes(
     if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
-      try {
-        // Make sure we can parse the source properly
-        sourceTokens = pathToRegexp.parse(route.source)
-        pathToRegexp.tokensToRegexp(sourceTokens)
-      } catch (err) {
-        // If there is an error show our err.sh but still show original error or a formatted one if we can
-        const errMatches = err.message.match(/at (\d{0,})/)
+      const { tokens, error } = tryParsePath(route.source)
 
-        if (errMatches) {
-          const position = parseInt(errMatches[1], 10)
-          console.error(
-            `\nError parsing \`${route.source}\` ` +
-              `https://err.sh/zeit/next.js/invalid-route-source\n` +
-              `Reason: ${err.message}\n\n` +
-              `  ${route.source}\n` +
-              `  ${new Array(position).fill(' ').join('')}^\n`
-          )
-        } else {
-          console.error(
-            `\nError parsing ${route.source} https://err.sh/zeit/next.js/invalid-route-source`,
-            err
-          )
-        }
+      if (error) {
         invalidParts.push('`source` parse failed')
       }
+      sourceTokens = tokens
     }
 
     // make sure no unnamed patterns are attempted to be used in the
@@ -193,9 +219,9 @@ export default function checkCustomRoutes(
 
         for (const token of sourceTokens) {
           if (typeof token === 'object' && typeof token.name === 'number') {
-            const unnamedIndex = `:${token.name}`
-            if ((route as Rewrite).destination.includes(unnamedIndex)) {
-              unnamedInDest.add(unnamedIndex)
+            const unnamedIndex = new RegExp(`:${token.name}(?!\\d)`)
+            if ((route as Rewrite).destination.match(unnamedIndex)) {
+              unnamedInDest.add(`:${token.name}`)
             }
           }
         }
@@ -206,6 +232,39 @@ export default function checkCustomRoutes(
               ', '
             )}`
           )
+        } else {
+          const {
+            tokens: destTokens,
+            error: destinationParseFailed,
+          } = tryParsePath((route as Rewrite).destination, true)
+
+          if (destinationParseFailed) {
+            invalidParts.push('`destination` parse failed')
+          } else {
+            const sourceSegments = new Set(
+              sourceTokens
+                .map(item => typeof item === 'object' && item.name)
+                .filter(Boolean)
+            )
+            const invalidDestSegments = new Set()
+
+            for (const token of destTokens!) {
+              if (
+                typeof token === 'object' &&
+                !sourceSegments.has(token.name)
+              ) {
+                invalidDestSegments.add(token.name)
+              }
+            }
+
+            if (invalidDestSegments.size) {
+              invalidParts.push(
+                `\`destination\` has segments not in \`source\` (${[
+                  ...invalidDestSegments,
+                ].join(', ')})`
+              )
+            }
+          }
         }
       }
     }

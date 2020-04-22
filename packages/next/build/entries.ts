@@ -61,6 +61,7 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
+  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
@@ -132,6 +133,12 @@ export function createEntrypoints(
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
+        hotRouterUpdates:
+          // Hot router updates only apply in development mode
+          dev &&
+          // However, React Refresh has its own hot module runtime, so we can't
+          // let them collide.
+          config.experimental.reactRefresh !== true,
       }
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts

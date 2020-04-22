@@ -1,3 +1,4 @@
+import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
@@ -151,6 +152,10 @@ export default async function getBaseWebpackConfig(
       }
     }
   }
+
+  const hasReactRefresh =
+    dev && !isServer && config.experimental.reactRefresh === true
+
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -164,6 +169,7 @@ export default async function getBaseWebpackConfig(
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
+        hasReactRefresh,
       },
     },
     // Backwards compat
@@ -247,17 +253,17 @@ export default async function getBaseWebpackConfig(
     // Disable .mjs for node_modules bundling
     extensions: isServer
       ? [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.js',
           '.mjs',
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.jsx',
           '.json',
           '.wasm',
         ]
       : [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.mjs',
           '.js',
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.jsx',
           '.json',
           '.wasm',
@@ -759,12 +765,21 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 defaultLoaders.babel,
+                hasReactRefresh
+                  ? require.resolve('@next/react-refresh-utils/loader')
+                  : '',
+              ].filter(Boolean)
+            : hasReactRefresh
+            ? [
+                defaultLoaders.babel,
+                require.resolve('@next/react-refresh-utils/loader'),
               ]
             : defaultLoaders.babel,
         },
       ].filter(Boolean),
     },
     plugins: [
+      hasReactRefresh && new ReactRefreshWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
@@ -840,15 +855,10 @@ export default async function getBaseWebpackConfig(
             }
           : undefined),
         // stub process.env with proxy to warn a missing value is
-        // being accessed
-        ...(config.experimental.pageEnv
+        // being accessed in development mode
+        ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
           ? {
-              'process.env':
-                process.env.NODE_ENV === 'production'
-                  ? isServer
-                    ? 'process.env'
-                    : '{}'
-                  : `
+              'process.env': `
             new Proxy(${isServer ? 'process.env' : '{}'}, {
               get(target, prop) {
                 if (typeof target[prop] === 'undefined') {
