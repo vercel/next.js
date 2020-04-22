@@ -1,5 +1,5 @@
 import Avatar from '../components/avatar'
-import Date from '../components/date'
+import DateFormater from '../components/date-formater'
 import CoverImage from '../components/cover-image'
 import PostTitle from '../components/post-title'
 
@@ -18,7 +18,7 @@ export default function PostHeader({ title, coverImage, date, author }) {
           <Avatar name={author.name} picture={author.picture} />
         </div>
         <div className="mb-6 text-lg">
-          <Date dateString={date} />
+          <DateFormater dateString={date} />
         </div>
       </div>
     </>
