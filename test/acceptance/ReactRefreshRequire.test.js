@@ -346,7 +346,123 @@ test('bails out if the update bubbles to the root via one of the paths', async (
 
 // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L2373-L2472
 test('propagates a module that stops accepting in next version', async () => {
+  const [session, cleanup] = await sandbox()
+
+  // Accept in parent
+  await session.write(
+    './foo.js',
+    `;(typeof global !== 'undefined' ? global : window).log.push('init FooV1'); import './bar'; export default function Foo() {};`
+  )
+  // Accept in child
+  await session.write(
+    './bar.js',
+    `;(typeof global !== 'undefined' ? global : window).log.push('init BarV1'); export default function Bar() {};`
+  )
+
+  // Bootstrap:
+  await session.patch(
+    'index.js',
+    `;(typeof global !== 'undefined' ? global : window).log = []; require('./foo'); export default () => null;`
+  )
+  expect(await session.evaluate(() => window.log)).toEqual([
+    'init BarV1',
+    'init FooV1',
+  ])
+
+  let didFullRefresh = false
+  // Verify the child can accept itself:
+  await session.evaluate(() => (window.log = []))
+  didFullRefresh =
+    didFullRefresh ||
+    !(await session.patch(
+      './bar.js',
+      `window.log.push('init BarV1.1'); export default function Bar() {};`
+    ))
+  expect(await session.evaluate(() => window.log)).toEqual(['init BarV1.1'])
+
+  // Now let's change the child to *not* accept itself.
+  // We'll expect that now the parent will handle the evaluation.
+  await session.evaluate(() => (window.log = []))
+  didFullRefresh =
+    didFullRefresh ||
+    !(await session.patch(
+      './bar.js',
+      // It's important we still export _something_, otherwise webpack will
+      // also emit an extra update to the parent module. This happens because
+      // webpack converts the module from ESM to CJS, which means the parent
+      // module must update how it "imports" the module (drops interop code).
+      // TODO: propose that webpack interrupts the current update phase when
+      // `module.hot.invalidate()` is called.
+      `window.log.push('init BarV2'); export {};`
+    ))
+  // We re-run Bar and expect to stop there. However,
+  // it didn't export a component, so we go higher.
+  // We stop at Foo which currently _does_ export a component.
+  expect(await session.evaluate(() => window.log)).toEqual([
+    // Bar evaluates twice:
+    // 1. To invalidate itself once it realizes it's no longer acceptable.
+    // 2. As a child of Foo re-evaluating.
+    'init BarV2',
+    'init BarV2',
+    'init FooV1',
+  ])
+
+  // Change it back so that the child accepts itself.
+  await session.evaluate(() => (window.log = []))
+  didFullRefresh =
+    didFullRefresh ||
+    !(await session.patch(
+      './bar.js',
+      `window.log.push('init BarV2'); export default function Bar() {};`
+    ))
+  // Since the export list changed, we have to re-run both the parent
+  // and the child.
+  expect(await session.evaluate(() => window.log)).toEqual([
+    'init BarV2',
+    'init FooV1',
+  ])
+
   // TODO:
+  // expect(Refresh.performReactRefresh).toHaveBeenCalled();
+
+  // expect(Refresh.performFullRefresh).not.toHaveBeenCalled();
+  expect(didFullRefresh).toBe(false)
+
+  // But editing the child alone now doesn't reevaluate the parent.
+  await session.evaluate(() => (window.log = []))
+  didFullRefresh =
+    didFullRefresh ||
+    !(await session.patch(
+      './bar.js',
+      `window.log.push('init BarV3'); export default function Bar() {};`
+    ))
+  expect(await session.evaluate(() => window.log)).toEqual(['init BarV3'])
+
+  // Finally, edit the parent in a way that changes the export.
+  // It would still be accepted on its own -- but it's incompatible
+  // with the past version which didn't have two exports.
+  await session.evaluate(() => window.localStorage.setItem('init', ''))
+  didFullRefresh =
+    didFullRefresh ||
+    !(await session.patch(
+      './foo.js',
+      `
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('init', 'init FooV2')
+      }
+      export function Foo() {};
+      export function FooFoo() {};`
+    ))
+
+  // Check that we attempted to evaluate, but had to fall back to full refresh.
+  expect(
+    await session.evaluate(() => window.localStorage.getItem('init'))
+  ).toEqual('init FooV2')
+
+  // expect(Refresh.performFullRefresh).toHaveBeenCalled();
+  expect(didFullRefresh).toBe(true)
+
+  await cleanup()
 })
 
 // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L2474-L2521
