@@ -64,6 +64,8 @@ const externals = {
   // dependents: terser-webpack-plugin
   'jest-worker': 'jest-worker',
   cacache: 'cacache',
+
+  cssnano: 'cssnano-simple',
 }
 
 // eslint-disable-next-line camelcase
@@ -76,6 +78,17 @@ export async function ncc_amphtml_validator(task, opts) {
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('compiled/amphtml-validator')
 }
+
+externals['@ampproject/toolbox-optimizer'] = 'next/dist/compiled/@ampproject/toolbox-optimizer'
+export async function ncc_amphtml_optimizer(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
+    )
+    .ncc({ packageName: '@ampproject/toolbox-optimizer', externals })
+    .target('compiled/@ampproject/toolbox-optimizer')
+}
+
 // eslint-disable-next-line camelcase
 externals['arg'] = 'distcompiled/arg'
 export async function ncc_arg(task, opts) {
@@ -178,14 +191,7 @@ export async function ncc_cookie(task, opts) {
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
 }
-// eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('compiled/cssnano-simple')
-}
+
 // eslint-disable-next-line camelcase
 externals['devalue'] = 'next/dist/compiled/devalue'
 export async function ncc_devalue(task, opts) {
@@ -545,6 +551,7 @@ export async function ncc(task) {
     .clear('compiled')
     .parallel([
       'ncc_amphtml_validator',
+      'ncc_amphtml_optimizer',
       'ncc_arg',
       'ncc_async_retry',
       'ncc_async_sema',
@@ -557,7 +564,6 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
-      'ncc_cssnano_simple',
       'ncc_devalue',
       'ncc_dotenv',
       'ncc_dotenv_expand',

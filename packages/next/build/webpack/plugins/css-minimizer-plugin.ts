@@ -1,4 +1,4 @@
-import { process as minify } from 'next/dist/compiled/cssnano-simple'
+import { process as minify } from 'cssnano-simple'
 import webpack from 'webpack'
 import { RawSource, SourceMapSource } from 'webpack-sources'
 
