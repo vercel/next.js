@@ -828,6 +828,35 @@ describe('CSS Support', () => {
       )
       expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
     })
+
+    it('should have the correct color (css ordering) during hot reloads', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#blueText')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        const cssFile = new File(join(appDir, 'pages/index.module.css'))
+        try {
+          cssFile.replace('color: blue;', 'color: blue; ')
+          await waitFor(2000) // wait for HMR
+
+          const refreshedColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('#blueText')).color`
+          )
+          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+        } finally {
+          cssFile.restore()
+        }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
   })
 
   describe('Ordering with Global CSS and Modules (prod)', () => {
