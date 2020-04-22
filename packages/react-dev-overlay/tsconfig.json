@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "target": "es3",
+    "lib": ["dom"],
+    "downlevelIteration": true,
+    "preserveWatchOutput": true,
+    "outDir": "lib"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

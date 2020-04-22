@@ -1,0 +1,23 @@
+{
+  "name": "@next/react-dev-overlay",
+  "version": "9.3.6-canary.9",
+  "description": "A development-only overlay for developing React applications.",
+  "repository": {
+    "url": "zeit/next.js",
+    "directory": "packages/react-dev-overlay"
+  },
+  "files": [
+    "lib/"
+  ],
+  "author": "Joe Haddad <timer@vercel.com>",
+  "license": "MIT",
+  "scripts": {
+    "prepublish": "tsc -d -p tsconfig.json",
+    "build": "tsc -d -w -p tsconfig.json"
+  },
+  "dependencies": {
+    "source-map": "0.7.3"
+  },
+  "peerDependencies": {},
+  "devDependencies": {}
+}

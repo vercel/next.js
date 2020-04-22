@@ -1031,6 +1031,7 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
+    hasReactRefresh,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
