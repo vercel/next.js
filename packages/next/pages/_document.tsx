@@ -492,6 +492,21 @@ export class Head extends Component<
               />
             )}
             {this.getCssLinks()}
+            {!disableRuntimeJS && (
+              <link
+                rel="preload"
+                href={
+                  assetPrefix +
+                  getOptionalModernScriptVariant(
+                    encodeURI(`/_next/static/${buildId}/pages/_app.js`)
+                  ) +
+                  _devOnlyInvalidateCacheQueryString
+                }
+                as="script"
+                nonce={this.props.nonce}
+                crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              />
+            )}
             {!disableRuntimeJS && page !== '/_error' && (
               <link
                 rel="preload"
@@ -501,21 +516,6 @@ export class Head extends Component<
                     encodeURI(
                       `/_next/static/${buildId}/pages${getPageFile(page)}`
                     )
-                  ) +
-                  _devOnlyInvalidateCacheQueryString
-                }
-                as="script"
-                nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || process.crossOrigin}
-              />
-            )}
-            {!disableRuntimeJS && (
-              <link
-                rel="preload"
-                href={
-                  assetPrefix +
-                  getOptionalModernScriptVariant(
-                    encodeURI(`/_next/static/${buildId}/pages/_app.js`)
                   ) +
                   _devOnlyInvalidateCacheQueryString
                 }
@@ -835,8 +835,8 @@ export class NextScript extends Component<OriginProps> {
           />
         ) : null}
         {!disableRuntimeJS && this.getPolyfillScripts()}
-        {!disableRuntimeJS && page !== '/_error' && pageScript}
         {!disableRuntimeJS && appScript}
+        {!disableRuntimeJS && page !== '/_error' && pageScript}
         {disableRuntimeJS || staticMarkup ? null : this.getDynamicChunks()}
         {disableRuntimeJS || staticMarkup ? null : this.getScripts()}
         {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
