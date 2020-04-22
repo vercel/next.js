@@ -10,22 +10,6 @@ const isStatusCodeOk = res => {
 }
 
 class MyApp extends App {
-  constructor(props) {
-    super(props)
-    this.setCmpToken()
-  }
-
-  setCmpToken() {
-    if (process.browser) {
-      const urlParams = new URLSearchParams(window.location.search)
-      const maybeCmpQueryParameter = urlParams.get('cmp')
-
-      if (maybeCmpQueryParameter) {
-        window.localStorage.setItem('cmptoken', maybeCmpQueryParameter)
-      }
-    }
-  }
-
   static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
