@@ -1,4 +1,6 @@
 open Fetch;
+[%raw "require('isomorphic-fetch')"];
+
 module Next = {
   let inject = (_cls: Js.t({..}) => React.element, _fn) => [%bs.raw
     {| _cls.getInitialProps = _fn |}
@@ -55,12 +57,20 @@ let createEnvironment = (~records=?, ()) => {
   ReasonRelay.Environment.make(~network, ~store, ());
 };
 
+module BlogPostsPage = {
+  [@react.component]
+  let make = () => {
+    let viewerData = Query.Viewer.use(~variables=(), ());
+    <BlogPosts viewer={viewerData.viewer.getFragmentRefs()} />;
+  };
+};
+
 [@react.component]
 let make = (~viewer: Query_Query_graphql.Types.response_viewer, ~records) => {
   Js.log2("render viewer", viewer);
   Js.log2("render records", records);
   <ReasonRelay.Context.Provider environment={createEnvironment(~records, ())}>
-    <div> <BlogPosts viewer={viewer.getFragmentRefs()} /> </div>
+    <div> <BlogPostsPage /> </div>
   </ReasonRelay.Context.Provider>;
 };
 
