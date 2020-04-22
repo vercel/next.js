@@ -1,4 +1,4 @@
-# Reason Relay  Example
+# Reason Relay Example
 
 [Reason Relay](https://reason-relay-documentation.zth.now.sh/)
 
@@ -56,6 +56,7 @@ yarn relay
 ```
 
 Build the project
+
 ```bash
 npm run build
 # or
