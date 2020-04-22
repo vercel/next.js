@@ -513,12 +513,10 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ) {
-    if (res.statusCode === 404) {
-      try {
-        await this.hotReloader!.ensurePage('/404')
-      } catch (_) {
-        await this.hotReloader!.ensurePage('/_error')
-      }
+    if (res.statusCode === 404 && (await this.hasPage('/404'))) {
+      await this.hotReloader!.ensurePage('/404')
+    } else {
+      await this.hotReloader!.ensurePage('/_error')
     }
 
     const compilationErr = await this.getCompilationError(pathname)

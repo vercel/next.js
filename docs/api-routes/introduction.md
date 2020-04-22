@@ -18,7 +18,7 @@ API routes provide a straightforward solution to build your **API** with Next.js
 
 Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a `page`.
 
-For example, the following API route `pages/api/user.js` handles a simple `json` response:
+For example, the following API route `pages/api/user.js` handles a `json` response:
 
 ```js
 export default (req, res) => {
