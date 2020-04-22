@@ -17,7 +17,7 @@ module.exports = function(context) {
         context.report({
           node,
           message:
-            "A synchronous script tag in head, can impact your webpage's performance",
+            "A synchronous script tag can impact your webpage's performance",
         })
       }
     },
