@@ -1,5 +1,5 @@
 {
-  "name": "magic-next",
+  "name": "with-magic",
   "scripts": {
     "dev": "next",
     "build": "next build",
