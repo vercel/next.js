@@ -226,13 +226,17 @@ export default class Router implements BaseRouter {
     this.isFallback = isFallback
 
     if (typeof window !== 'undefined') {
-      // in order for `e.state` to work on the `onpopstate` event
-      // we have to register the initial route upon initialization
-      this.changeState(
-        'replaceState',
-        formatWithValidation({ pathname, query }),
-        as
-      )
+      // make sure "as" doesn't start with double slashes or else it can
+      // throw an error as it's considered invalid
+      if (as.substr(0, 2) !== '//') {
+        // in order for `e.state` to work on the `onpopstate` event
+        // we have to register the initial route upon initialization
+        this.changeState(
+          'replaceState',
+          formatWithValidation({ pathname, query }),
+          as
+        )
+      }
 
       window.addEventListener('popstate', this.onPopState)
     }
