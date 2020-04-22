@@ -4,23 +4,9 @@ This example show how to use [Magic](https://magic.link) with Next.js. The examp
 
 The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.now.sh).
 
-A DB is not included. You can use any db you want and add it [here](/api/user.js).
+A DB is not included. You can use any db you want and add it [here](api/user.js).
 
-The login cookie is httpOnly, meaning it can only be accessed by the API, and it's encrypted using [@hapi/iron](https://hapi.dev/family/iron) for more security.
-
-## Configure Magic
-
-Login to the [Magic Dashboard](https://dashboard.magic.link/) and add new application to get your keys. Don't forget to put keys in `.env` (look for `.env.template` for example) and upload them as secrets to [Vercel Now](https://vercel.com/docs/now-cli#commands/overview/basic-usage).
-
-```
-now secrets add @magic-publishable-key pk_test_*********
-```
-
-```
-now secrets add @magic-secret-key sk_test_*********
-```
-
-![Magic Dashboard](https://gblobscdn.gitbook.com/assets%2F-M1XNjqusnKyXZc7t7qQ%2F-M3HsSftOAghkNs-ttU3%2F-M3HsllfdwdDmeFXBK3U%2Fdashboard-pk.png?alt=media&token=4d6e7543-ae20-4355-951c-c6421b8f1b5f)
+The login cookie is `httpOnly`, meaning it can only be accessed by the API, and it's encrypted using [@hapi/iron](https://hapi.dev/family/iron) for more security.
 
 ## Deploy your own
 
@@ -40,4 +26,28 @@ npm init next-app --example magic magic-app
 yarn create next-app --example magic magic-app
 ```
 
-Deploy it to the cloud with [Vercel Now](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+## Configuration
+
+Login to the [Magic Dashboard](https://dashboard.magic.link/) and get the keys of your application
+
+![Magic Dashboard](https://gblobscdn.gitbook.com/assets%2F-M1XNjqusnKyXZc7t7qQ%2F-M3HsSftOAghkNs-ttU3%2F-M3HsllfdwdDmeFXBK3U%2Fdashboard-pk.png?alt=media&token=4d6e7543-ae20-4355-951c-c6421b8f1b5f)
+
+Next, copy the `.env.example` file in this directory to .env (which will be ignored by Git):
+
+```bash
+cp .env.example .env
+```
+
+Then set each variable on `.env`:
+
+- `MAGIC_PUBLISHABLE_KEY` should look like `pk_test_abc` or `pk_live_ABC`
+- `MAGIC_SECRET_KEY` should look like `sk_test_ABC` or `sk_live_ABC`
+
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Now CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+
+Install [Now CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<MAGIC_PUBLISHABLE_KEY>` and `<MAGIC_SECRET_KEY>` with the corresponding strings in `.env`:
+
+```bash
+now secrets add next_example_magic_publishable_key <MAGIC_PUBLISHABLE_KEY>
+now secrets add next_example_magic_secret_key <MAGIC_SECRET_KEY>
+```
