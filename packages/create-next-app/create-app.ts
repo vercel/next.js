@@ -1,5 +1,4 @@
 import chalk from 'chalk'
-import cpy from 'cpy'
 import fs from 'fs'
 import makeDir from 'make-dir'
 import os from 'os'
@@ -126,63 +125,37 @@ export async function createApp({
       console.log()
       await downloadAndExtractExample(root, example)
     }
-
-    // Copy our default `.gitignore` if the application did not provide one
-    const ignorePath = path.join(root, '.gitignore')
-    if (!fs.existsSync(ignorePath)) {
-      fs.copyFileSync(
-        path.join(__dirname, 'templates', 'default', 'gitignore'),
-        ignorePath
-      )
-    }
-
-    console.log('Installing packages. This might take a couple of minutes.')
-    console.log()
-
-    await install(root, null, { useYarn, isOnline })
-    console.log()
   } else {
-    const packageJson = {
-      name: appName,
-      version: '0.1.0',
-      private: true,
-      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
-    }
+    console.log('Downloading default files. This might take a moment.')
+    console.log()
+
+    await downloadAndExtractExample(root, 'default')
+
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(root, 'package.json'), 'utf8')
+    )
+    packageJson.name = appName
+
     fs.writeFileSync(
       path.join(root, 'package.json'),
       JSON.stringify(packageJson, null, 2) + os.EOL
     )
-
-    console.log(
-      `Installing ${chalk.cyan('react')}, ${chalk.cyan(
-        'react-dom'
-      )}, and ${chalk.cyan('next')} using ${displayedCommand}...`
-    )
-    console.log()
-
-    await install(root, ['react', 'react-dom', 'next'], { useYarn, isOnline })
-    console.log()
-
-    await cpy('**', root, {
-      parents: true,
-      cwd: path.join(__dirname, 'templates', 'default'),
-      rename: name => {
-        switch (name) {
-          case 'gitignore': {
-            return '.'.concat(name)
-          }
-          // README.md is ignored by webpack-asset-relocator-loader used by ncc:
-          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
-          case 'README-template.md': {
-            return 'README.md'
-          }
-          default: {
-            return name
-          }
-        }
-      },
-    })
   }
+
+  // Copy our default `.gitignore` if the application did not provide one
+  const ignorePath = path.join(root, '.gitignore')
+  if (!fs.existsSync(ignorePath)) {
+    fs.copyFileSync(
+      path.join(__dirname, 'templates', 'default', 'gitignore'),
+      ignorePath
+    )
+  }
+
+  console.log('Installing packages. This might take a couple of minutes.')
+  console.log()
+
+  await install(root, null, { useYarn, isOnline })
+  console.log()
 
   if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
