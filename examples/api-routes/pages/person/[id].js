@@ -1,7 +1,27 @@
-import fetch from 'node-fetch'
+import { useRouter } from 'next/router'
+import useSWR from 'swr'
 
-const Person = ({ data, status }) =>
-  status === 200 ? (
+const fetcher = async url => {
+  const res = await fetch(url)
+  const data = await res.json()
+
+  if (res.status !== 200) {
+    throw new Error(data.message)
+  }
+  return data
+}
+
+export default function Person() {
+  const { query } = useRouter()
+  const { data, error } = useSWR(
+    () => query.id && `/api/people/${query.id}`,
+    fetcher
+  )
+
+  if (error) return <div>{error.message}</div>
+  if (!data) return <div>Loading...</div>
+
+  return (
     <table>
       <thead>
         <tr>
@@ -26,20 +46,5 @@ const Person = ({ data, status }) =>
         </tr>
       </tbody>
     </table>
-  ) : (
-    <p>{data.message}</p>
   )
-
-export async function getServerSideProps({ params }) {
-  const response = await fetch(`http://localhost:3000/api/people/${params.id}`)
-  const data = await response.json()
-
-  return {
-    props: {
-      data,
-      status: response.status,
-    },
-  }
 }
-
-export default Person

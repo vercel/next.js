@@ -36,7 +36,7 @@ describe('AMP Fragment Styles', () => {
     await validateAMP(html)
     const $ = cheerio.load(html)
     const styles = $('style[amp-custom]').text()
-    expect(styles).toMatch(/background:(.*|)hotpink/)
+    expect(styles).toMatch(/background:(.*|)#ff69b4/)
     expect(styles).toMatch(/font-size:(.*|)16\.4px/)
   })
 })

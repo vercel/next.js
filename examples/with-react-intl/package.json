@@ -15,6 +15,7 @@
     "full-icu": "^1.3.0",
     "glob": "^7.1.4",
     "intl": "^1.2.5",
+    "intl-locales-supported": "1.8.4",
     "next": "latest",
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
