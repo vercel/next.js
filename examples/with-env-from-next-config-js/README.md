@@ -1,7 +1,7 @@
 # With env From next.config.js
 
 This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
-More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.js.config` and then
+More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.config.js` and then
 returned to your react components when the program is built with `next build`.
 
 As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
