@@ -237,7 +237,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void
+) => void | Promise<void>
 
 /**
  * Utils
