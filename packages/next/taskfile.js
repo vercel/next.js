@@ -65,7 +65,7 @@ const externals = {
   'jest-worker': 'jest-worker',
   cacache: 'cacache',
 
-  cssnano: 'cssnano-simple',
+  cssnano: 'next/dist/compiled/cssnano-simple',
 }
 
 // eslint-disable-next-line camelcase
@@ -79,11 +79,13 @@ export async function ncc_amphtml_validator(task, opts) {
     .target('compiled/amphtml-validator')
 }
 
-externals['@ampproject/toolbox-optimizer'] = 'next/dist/compiled/@ampproject/toolbox-optimizer'
+externals['@ampproject/toolbox-optimizer'] =
+  'next/dist/compiled/@ampproject/toolbox-optimizer'
 export async function ncc_amphtml_optimizer(task, opts) {
   await task
     .source(
-      opts.src || relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
+      opts.src ||
+        relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
     )
     .ncc({ packageName: '@ampproject/toolbox-optimizer', externals })
     .target('compiled/@ampproject/toolbox-optimizer')
@@ -190,6 +192,15 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
+}
+
+// eslint-disable-next-line camelcase
+externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+export async function ncc_cssnano_simple(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
+    .ncc({ packageName: 'cssnano-simple', externals })
+    .target('compiled/cssnano-simple')
 }
 
 // eslint-disable-next-line camelcase
@@ -564,6 +575,7 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
+      'ncc_cssnano_simple',
       'ncc_devalue',
       'ncc_dotenv',
       'ncc_dotenv_expand',
