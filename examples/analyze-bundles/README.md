@@ -4,9 +4,9 @@ This example shows how to analyze the output bundles using [@next/bundle-analyze
 
 ## Deploy your own
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/analyze-bundles)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/analyze-bundles)
 
 ## How to use
 

@@ -46,8 +46,23 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/1000000000000/)
     })
 
+    it('should resolve files in correct order', async () => {
+      const $ = await get$('/hello')
+      expect($('#imported-value').text()).toBe('OK')
+    })
+
     it('should report type checking to stdout', async () => {
       expect(output).toContain('waiting for typecheck results...')
+    })
+
+    it('should respond to sync API route correctly', async () => {
+      const data = JSON.parse(await renderViaHTTP(appPort, '/api/sync'))
+      expect(data).toEqual({ code: 'ok' })
+    })
+
+    it('should respond to async API route correctly', async () => {
+      const data = JSON.parse(await renderViaHTTP(appPort, '/api/async'))
+      expect(data).toEqual({ code: 'ok' })
     })
 
     it('should not fail to render when an inactive page has an error', async () => {
@@ -73,7 +88,7 @@ export default function EvilPage(): JSX.Element {
     })
   })
 
-  it('should compile the app', async () => {
+  it('should build the app', async () => {
     const output = await nextBuild(appDir, [], { stdout: true })
     expect(output.stdout).toMatch(/Compiled successfully/)
   })

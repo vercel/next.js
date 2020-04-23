@@ -8,6 +8,7 @@ import tw from 'tailwind.macro'
  */
 const Header = styled.div`
   ${tw`font-mono text-sm text-gray-800 hover:text-red-500`}
+  transition: .150s ease-in-out;
 `
 
 const Button = styled.button`

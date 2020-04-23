@@ -61,29 +61,16 @@ exports[`renders homepage unchanged 1`] = `
       </a>
       <a
         className="card"
-        href="https://zeit.co/import/nextjs"
+        href="https://vercel.com/import/nextjs"
       >
         <h3>
           Deploy →
         </h3>
         <p>
-          Instantly deploy your Next.js site to a public URL with ZEIT Now.
+          Instantly deploy your Next.js site to a public URL with Vercel.
         </p>
       </a>
     </div>
   </main>
-  <footer>
-    <a
-      href="https://zeit.co"
-      rel="noopener noreferrer"
-      target="_blank"
-    >
-      Powered by
-      <img
-        alt="ZEIT Logo"
-        src="/zeit.svg"
-      />
-    </a>
-  </footer>
 </div>
 `;
