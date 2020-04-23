@@ -85,6 +85,57 @@ Reason: Props must be returned as a plain object from test: \`{ props: { ... } }
     ).toBe(true)
   })
 
+  it('allows top-level types with .toJSON returning plain objects', () => {
+    class Post {
+      constructor(title) {
+        this.title = title
+      }
+
+      toJSON() {
+        return { title: this.title }
+      }
+    }
+
+    expect(
+      isSerializableProps('/', 'test', {
+        post: new Post('Post #1'),
+      })
+    ).toBe(true)
+  })
+
+  it('disallows top-level types with .toJSON returning non-objects', () => {
+    class DateModel {
+      time = new Date()
+      toJSON() {
+        return { time: this.time }
+      }
+    }
+
+    expect(() => isSerializableProps('/', 'test', { date: new DateModel() }))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.date.time\` returned from \`test\` in \\"/\\".
+Reason: \`object\` (\\"[object Date]\\") cannot be serialized as JSON. Please only return JSON serializable data types."
+`)
+  })
+
+  it('allows nested types with .toJSON', () => {
+    class Post {
+      constructor(title) {
+        this.title = title
+      }
+
+      toJSON() {
+        return { title: this.title }
+      }
+    }
+
+    expect(
+      isSerializableProps('/', 'test', {
+        posts: [new Post('Post #1'), new Post('Post #2')],
+      })
+    ).toBe(true)
+  })
+
   it('disallows top-level non-serializable types', () => {
     expect(() => isSerializableProps('/', 'test', { toplevel: new Date() }))
       .toThrowErrorMatchingInlineSnapshot(`
