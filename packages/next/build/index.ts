@@ -217,6 +217,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
+    /* dev */ false,
     mappedPages,
     target,
     buildId,
@@ -550,15 +551,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isAmpOnly) {
             // ensure all AMP only bundles got removed
             try {
-              await fsUnlink(
-                path.join(
-                  distDir,
-                  'static',
-                  buildId,
-                  'pages',
-                  actualPage + '.js'
-                )
+              const clientBundle = path.join(
+                distDir,
+                'static',
+                buildId,
+                'pages',
+                actualPage + '.js'
               )
+              await fsUnlink(clientBundle)
+
+              if (config.experimental.modern) {
+                await fsUnlink(clientBundle.replace(/\.js$/, '.module.js'))
+              }
             } catch (err) {
               if (err.code !== 'ENOENT') {
                 throw err
