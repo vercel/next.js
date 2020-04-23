@@ -35,6 +35,7 @@
     "@zeit/ncc": "^0.20.4",
     "chalk": "2.4.2",
     "commander": "2.20.0",
+    "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
     "got": "10.7.0",
     "make-dir": "3.0.0",
