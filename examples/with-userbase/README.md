@@ -6,7 +6,7 @@ This is an example of using [Userbase](https://userbase.com) in a Next.js projec
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/add-userbase-example/examples/with-userbase)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-userbase)
 
 ## How to use
 
