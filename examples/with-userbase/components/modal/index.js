@@ -9,13 +9,6 @@ function LoginModal({ toggle, modalType, setUser }) {
 
   useEffect(() => {
     setError("");
-    if (modalType === "logIn") {
-      setUsername("test");
-      setPassword("test123");
-    } else {
-      if (username) setUsername("");
-      if (password) setPassword("");
-    }
   }, [modalType]);
 
   async function handleSignUp(e) {
