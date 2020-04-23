@@ -123,7 +123,6 @@
     "@types/cross-spawn": "6.0.0",
     "@types/dotenv": "8.2.0",
     "@types/etag": "1.8.0",
-    "@types/find-up": "2.1.1",
     "@types/fresh": "0.5.0",
     "@types/json5": "0.0.30",
     "@types/jsonwebtoken": "8.3.7",
