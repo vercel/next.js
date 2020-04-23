@@ -386,27 +386,30 @@ describe('Production Usage', () => {
     })
   })
 
-  it('should handle non-encoded query value server side with hydration', async () => {
-    const browser = await webdriver(appPort, '/server-query?id=0&value=%')
-    expect(await browser.eval('window.didHydrate')).toBe(true)
+  // The below tests fail on safari from an invalid URL error
+  if (browserName !== 'safari') {
+    it('should handle non-encoded query value server side with hydration', async () => {
+      const browser = await webdriver(appPort, '/server-query?id=0&value=%')
+      expect(await browser.eval('window.didHydrate')).toBe(true)
 
-    const query = await browser.elementByCss('#query').text()
-    expect(JSON.parse(query)).toEqual({
-      id: '0',
-      value: '%',
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({
+        id: '0',
+        value: '%',
+      })
     })
-  })
 
-  it('should handle non-encoded query value client side', async () => {
-    const browser = await webdriver(appPort, '/client-query?id=0&value=%')
-    expect(await browser.eval('window.didHydrate')).toBe(true)
+    it('should handle non-encoded query value client side', async () => {
+      const browser = await webdriver(appPort, '/client-query?id=0&value=%')
+      expect(await browser.eval('window.didHydrate')).toBe(true)
 
-    const query = await browser.elementByCss('#query').text()
-    expect(JSON.parse(query)).toEqual({
-      id: '0',
-      value: '%',
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({
+        id: '0',
+        value: '%',
+      })
     })
-  })
+  }
 
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
