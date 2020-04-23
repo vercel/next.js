@@ -2,14 +2,22 @@
 
 [![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/zeit/next.js/tree/canary/examples/with-aws-amplify-typescript)
 
-## Setup
+This example shows how to build a server rendered web application with NextJS and AWS Amplify. We use AWS Amplify to generate code and to manage and consume the AWS cloud resources needed for our app. The NextJS app has dynamic and static routes to demonstrate how to load data on the server based on the incoming request.
+
+Two routes are implemented :
+
+- `/` : A static route that uses getInitialProps to load data from AppSync and renders it on the server (Code in [pages/index.tsx](/pages/index.tsx))
+
+- `/todo/[id]` : A dynamic route that uses getInitialProps and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].tsx](/pages/todo/[id].tsx))
+
+## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-aws-amplify-typescript nextjs-aws-amplify-typescript-app
+npm init next-app --example with-aws-amplify-typescript nextjs-aws-amplify-typescript-app
 # or
 yarn create next-app --example with-aws-amplify-typescript nextjs-aws-amplify-typescript-app
 ```
@@ -120,17 +128,3 @@ yarn dev
 1. Open [`amplify/backend/api/nextjswithamplifyts/schema.graphql`](amplify/backend/api/nextjswithamplifyts/schema.graphql) and change what you need to.
 2. Run `amplify push`
 3. 👍
-
-## The idea behind the example
-
-This example shows how to build a server rendered web application with NextJS and AWS Amplify.
-
-We use AWS Amplify to generate code and to manage and consume the AWS cloud resources needed for our app.
-
-The NextJS app has dynamic and static routes to demonstrate how to load data on the server based on the incoming request.
-
-Two routes are implemented :
-
-- `/` : A static route that uses getInitialProps to load data from AppSync and renders it on the server (Code in [pages/index.tsx](/pages/index.tsx))
-
-- `/todo/[id]` : A dynamic route that uses getInitialProps and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].tsx](/pages/todo/[id].tsx))

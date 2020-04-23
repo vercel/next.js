@@ -21,7 +21,8 @@ export function initNextServerScript(
   scriptPath,
   successRegexp,
   env,
-  failRegexp
+  failRegexp,
+  opts
 ) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
@@ -32,6 +33,10 @@ export function initNextServerScript(
         resolve(instance)
       }
       process.stdout.write(message)
+
+      if (opts && opts.onStdout) {
+        opts.onStdout(message.toString())
+      }
     }
 
     function handleStderr(data) {
@@ -41,6 +46,10 @@ export function initNextServerScript(
         return reject(new Error('received failRegexp'))
       }
       process.stderr.write(message)
+
+      if (opts && opts.onStderr) {
+        opts.onStderr(message.toString())
+      }
     }
 
     instance.stdout.on('data', handleStdout)
@@ -82,7 +91,12 @@ export function runNextCommand(argv, options = {}) {
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = { ...process.env, ...options.env, NODE_ENV: '' }
+  const env = {
+    ...process.env,
+    ...options.env,
+    NODE_ENV: '',
+    __NEXT_TEST_MODE: 'true',
+  }
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
@@ -111,8 +125,9 @@ export function runNextCommand(argv, options = {}) {
       })
     }
 
-    instance.on('close', () => {
+    instance.on('close', code => {
       resolve({
+        code,
         stdout: stdoutOutput,
         stderr: stderrOutput,
       })
@@ -137,11 +152,15 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
+    let didResolve = false
 
     function handleStdout(data) {
       const message = data.toString()
       if (/ready on/i.test(message)) {
-        resolve(stdOut ? message : instance)
+        if (!didResolve) {
+          didResolve = true
+          resolve(stdOut ? message : instance)
+        }
       }
       if (typeof opts.onStdout === 'function') {
         opts.onStdout(message)
@@ -163,6 +182,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     instance.on('close', () => {
       instance.stdout.removeListener('data', handleStdout)
       instance.stderr.removeListener('data', handleStderr)
+      if (!didResolve) {
+        didResolve = true
+        resolve()
+      }
     })
 
     instance.on('error', err => {
@@ -182,6 +205,10 @@ export function nextBuild(dir, args = [], opts = {}) {
 
 export function nextExport(dir, { outdir }, opts = {}) {
   return runNextCommand(['export', dir, '--outdir', outdir], opts)
+}
+
+export function nextExportDefault(dir, opts = {}) {
+  return runNextCommand(['export', dir], opts)
 }
 
 export function nextStart(dir, port, opts = {}) {
@@ -259,7 +286,7 @@ export async function stopApp(server) {
   await promiseCall(server, 'close')
 }
 
-function promiseCall(obj, method, ...args) {
+export function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
@@ -386,4 +413,8 @@ export async function getReactErrorOverlayContent(browser) {
 
 export function getBrowserBodyText(browser) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
+}
+
+export function normalizeRegEx(src) {
+  return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }

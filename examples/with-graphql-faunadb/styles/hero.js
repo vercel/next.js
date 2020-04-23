@@ -1,5 +1,15 @@
 import css from 'styled-jsx/css'
 
+export const heroContainer = css.resolve`
+  div {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+`
+
 export const hero = css.resolve`
   div {
     width: 70%;

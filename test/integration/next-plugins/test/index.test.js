@@ -8,7 +8,6 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
   nextBuild,
   nextStart,
   renderViaHTTP,
@@ -57,7 +56,6 @@ function runTests() {
 
   it('should call clientInit from plugin correctly', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(250)
     expect(await browser.eval('window.didClientInit')).toBe(true)
   })
 
@@ -125,7 +123,6 @@ describe('Next.js plugins', () => {
 
       it('should expose a plugins config', async () => {
         const browser = await webdriver(appPort, '/')
-        await waitFor(500)
         expect(await browser.eval('window.initClientConfig')).toBe('world')
       })
     })

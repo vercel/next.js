@@ -34,22 +34,20 @@ const unlinkFile = async (p: string, t = 1): Promise<void> => {
 /**
  * Recursively delete directory contents
  * @param  {string} dir Directory to delete the contents of
- * @param  {RegExp} [filter] Filter for the relative file path
- * @param  {boolean} [ensure] Ensures that parameter dir exists, this is not passed recursively
+ * @param  {RegExp} [exclude] Exclude based on relative file path
  * @param  {string} [previousPath] Ensures that parameter dir exists, this is not passed recursively
  * @returns Promise void
  */
 export async function recursiveDelete(
   dir: string,
-  filter?: RegExp,
-  previousPath: string = '',
-  ensure?: boolean
+  exclude?: RegExp,
+  previousPath: string = ''
 ): Promise<void> {
   let result
   try {
     result = await readdir(dir)
   } catch (e) {
-    if (e.code === 'ENOENT' && !ensure) {
+    if (e.code === 'ENOENT') {
       return
     }
     throw e
@@ -65,17 +63,13 @@ export async function recursiveDelete(
         return
       }
 
-      if (pathStat.isDirectory()) {
-        const pp = join(previousPath, part)
-        await recursiveDelete(absolutePath, filter, pp)
-
-        if (!filter || filter.test(pp)) {
-          return rmdir(absolutePath)
-        }
-        return
+      const pp = join(previousPath, part)
+      if (pathStat.isDirectory() && (!exclude || !exclude.test(pp))) {
+        await recursiveDelete(absolutePath, exclude, pp)
+        return rmdir(absolutePath)
       }
 
-      if (!filter || filter.test(join(previousPath, part))) {
+      if (!exclude || !exclude.test(pp)) {
         return unlinkFile(absolutePath)
       }
     })

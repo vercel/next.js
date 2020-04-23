@@ -1,12 +1,12 @@
 const path = require('path')
 const withCSS = require('@zeit/next-css')
-const withTM = require('next-transpile-modules')
+
+const withTM = require('next-transpile-modules')(['@patternfly'])
 
 const BG_IMAGES_DIRNAME = 'bgimages'
 
 module.exports = withCSS(
   withTM({
-    transpileModules: ['@patternfly'],
     // Webpack config from https://github.com/patternfly/patternfly-react-seed/blob/master/webpack.common.js
     webpack(config) {
       config.module.rules.push({

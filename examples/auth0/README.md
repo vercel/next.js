@@ -2,12 +2,14 @@
 
 This example shows how you can use `@auth0/nextjs-auth` to easily add authentication support to your Next.js application.
 
+Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
+
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example auth0 auth0
+npm init next-app --example auth0 auth0
 # or
 yarn create next-app --example auth0 auth0
 ```
@@ -44,9 +46,9 @@ REDIRECT_URI=http://localhost:3000/api/callback
 POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
 ```
 
-### Hosting on ZEIT Now
+### Hosting on Vercel
 
-When deploying this example to ZEIT Now you'll want to update the `now.json` configuration file.
+When deploying this example to Vercel you'll want to update the `now.json` configuration file.
 
 ```json
 {
@@ -72,7 +74,7 @@ When deploying this example to ZEIT Now you'll want to update the `now.json` con
 - `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.now.sh/32) to generate a value.
 - `SESSION_COOKIE_LIFETIME` - How long a session lasts in seconds. The default is 2 hours.
 
-The `@auth0_client_secret` and `@session_cookie_secret` are [ZEIT Now environment secrets](https://zeit.co/docs/v2/environment-variables-and-secrets/)
+The `@auth0_client_secret` and `@session_cookie_secret` are [Vercel environment secrets](https://vercel.com/docs/v2/environment-variables-and-secrets/)
 
 You can create the `@auth0_client_secret` by running:
 

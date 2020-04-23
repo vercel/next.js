@@ -56,6 +56,10 @@ declare module 'webpack' {
   ): webpack.MultiWatching | webpack.MultiCompiler
   function webpack(options: webpack.Configuration[]): webpack.MultiCompiler
 
+  function webpack(
+    options: webpack.Configuration | webpack.Configuration[]
+  ): webpack.Compiler | webpack.MultiCompiler
+
   namespace webpack {
     /** Webpack package version. */
     const version: string | undefined
@@ -1040,6 +1044,7 @@ declare module 'webpack' {
       class MainTemplate extends Tapable {
         hooks: {
           jsonpScript?: SyncWaterfallHook<string, Chunk, string>
+          require: SyncWaterfallHook<string, Chunk, string>
           requireExtensions: SyncWaterfallHook<string, Chunk, string>
         }
         outputOptions: Output

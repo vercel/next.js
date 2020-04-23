@@ -1,7 +1,7 @@
 import { useGraphQL } from 'graphql-react'
 
 export default () => {
-  const { loading, cacheValue = {} } = useGraphQL({
+  const { loading, cacheValue: { data } = {} } = useGraphQL({
     fetchOptionsOverride(options) {
       options.url = 'https://graphql-pokemon.now.sh'
     },
@@ -15,9 +15,11 @@ export default () => {
         }
       `,
     },
+    loadOnMount: true,
+    loadOnReload: true,
+    loadOnReset: true,
   })
 
-  const { data } = cacheValue
   return data ? (
     <img src={data.pokemon.image} alt={data.pokemon.name} />
   ) : loading ? (

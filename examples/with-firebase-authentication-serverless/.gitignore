@@ -1,0 +1,28 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.*local
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local dotenv files. We're following the file structure used in
+# create-react-app and documented in the Ruby dotenv:
+# https://github.com/bkeepers/dotenv#what-other-env-files-can-i-use
+.env.*local

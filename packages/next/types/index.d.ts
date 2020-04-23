@@ -3,12 +3,15 @@
 /// <reference types="react-dom" />
 
 import React from 'react'
+import { ParsedUrlQuery } from 'querystring'
+import { IncomingMessage, ServerResponse } from 'http'
 
 import {
   NextPageContext,
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
+  NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
@@ -37,17 +40,7 @@ declare module 'react' {
 /**
  * `Page` type, use it as a guide to create `pages`.
  */
-export type NextPage<P = {}, IP = P> = {
-  (props: P): JSX.Element | null
-  defaultProps?: Partial<P>
-  displayName?: string
-  /**
-   * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
-   * Make sure to return plain `Object` without using `Date`, `Map`, `Set`.
-   * @param ctx Context of `page`
-   */
-  getInitialProps?(ctx: NextPageContext): Promise<IP>
-}
+export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
 
 /**
  * `Config` type, use it for export const config
@@ -61,8 +54,47 @@ export type PageConfig = {
      */
     bodyParser?: { sizeLimit?: number | string } | false
   }
+  env?: Array<string>
+  unstable_runtimeJS?: false
 }
 
-export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  NextApiHandler,
+}
+
+export type GetStaticProps<
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (ctx: {
+  params?: Q
+  preview?: boolean
+  previewData?: any
+}) => Promise<{
+  props: P
+  unstable_revalidate?: number | boolean
+}>
+
+export type GetStaticPaths<
+  P extends ParsedUrlQuery = ParsedUrlQuery
+> = () => Promise<{
+  paths: Array<string | { params: P }>
+  fallback: boolean
+}>
+
+export type GetServerSideProps<
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (context: {
+  req: IncomingMessage
+  res: ServerResponse
+  params?: Q
+  query: ParsedUrlQuery
+  preview?: boolean
+  previewData?: any
+}) => Promise<{ props: P }>
 
 export default next

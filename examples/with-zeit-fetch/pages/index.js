@@ -2,10 +2,10 @@ import React from 'react'
 import Link from 'next/link'
 import fetch from '../fetch'
 
-function Index(props) {
+export default function Index({ stars }) {
   return (
     <div>
-      <p>Next.js has {props.stars} ⭐️</p>
+      <p>Next.js has {stars} ⭐️</p>
       <Link href="/preact">
         <a>How about preact?</a>
       </Link>
@@ -13,10 +13,10 @@ function Index(props) {
   )
 }
 
-Index.getInitialProps = async () => {
+export async function getStaticProps() {
   const res = await fetch('https://api.github.com/repos/zeit/next.js')
   const json = await res.json() // better use it inside try .. catch
-  return { stars: json.stargazers_count }
+  return {
+    props: { stars: json.stargazers_count },
+  }
 }
-
-export default Index

@@ -58,11 +58,12 @@ export default function(context) {
       expect(html).toMatch(/404.*page.*not.*found/i)
     })
 
-    it('should not render _error on /404/index.html', async () => {
+    // since exportTrailingSlash is enabled we should allow this
+    it('should render _error on /404/index.html', async () => {
       const html = await renderViaHTTP(context.port, '/404/index.html')
       // The default error page from the test server
       // contains "404", so need to be specific here
-      expect(html).not.toMatch(/404.*page.*not.*found/i)
+      expect(html).toMatch(/404.*page.*not.*found/i)
     })
 
     it('Should serve static files', async () => {

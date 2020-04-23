@@ -5,7 +5,7 @@ Use [MDX](https://github.com/mdx-js/mdx) with [Next.js](https://github.com/zeit/
 ## Installation
 
 ```
-npm install --save @next/mdx @mdx-js/loader
+npm install @next/mdx @mdx-js/loader
 ```
 
 or
@@ -24,14 +24,14 @@ const withMDX = require('@next/mdx')()
 module.exports = withMDX()
 ```
 
-Optionally you can provide [MDX options](https://github.com/mdx-js/mdx#options):
+Optionally you can provide [MDX plugins](https://mdxjs.com/advanced/plugins#plugins):
 
 ```js
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
-    mdPlugins: [],
-    hastPlugins: [],
+    remarkPlugins: [],
+    rehypePlugins: [],
   },
 })
 module.exports = withMDX()

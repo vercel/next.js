@@ -17,6 +17,14 @@ export default function(render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    it('should handle undefined prop in head server-side', async () => {
+      const html = await render('/head')
+      const $ = cheerio.load(html)
+      const value = 'content' in $('meta[name="empty-content"]').attr()
+
+      expect(value).toBe(false)
+    })
+
     test('renders with fragment syntax', async () => {
       const html = await render('/fragment-syntax')
       expect(html.includes('My component!')).toBeTruthy()
@@ -44,7 +52,7 @@ export default function(render, fetch) {
     test('header renders default viewport', async () => {
       const html = await render('/default-head')
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>'
+        '<meta name="viewport" content="width=device-width"/>'
       )
     })
 
@@ -80,16 +88,22 @@ export default function(render, fetch) {
       expect(html).not.toContain(
         '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css"/>'
       )
+      expect(html).toContain(
+        '<link rel="alternate" hrefLang="en" href="/last/en"/>'
+      )
+      expect(html).not.toContain(
+        '<link rel="alternate" hrefLang="en" href="/first/en"/>'
+      )
     })
 
     test('header helper dedupes tags with the same key as the default', async () => {
-      const html = await render('/head')
-      expect(html).toContain('<meta charSet="iso-8859-5"/>')
-      expect(html).not.toContain('<meta charSet="utf-8"/>')
-      expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
-      )
-      expect(html).not.toContain('<meta name="width=device-width"/>')
+      const html = await render('/head-duplicate-default-keys')
+      // Expect exactly one `charSet`
+      expect((html.match(/charSet=/g) || []).length).toBe(1)
+      // Expect exactly one `viewport`
+      expect((html.match(/name="viewport"/g) || []).length).toBe(1)
+      expect(html).toContain('<meta charSet="iso-8859-1"/>')
+      expect(html).toContain('<meta name="viewport" content="width=500"/>')
     })
 
     test('header helper avoids dedupe of specific tags', async () => {

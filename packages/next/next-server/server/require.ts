@@ -30,7 +30,6 @@ export function getPagePath(
 
   try {
     page = normalizePagePath(page)
-    page = page === '/' ? '/index' : page
   } catch (err) {
     // tslint:disable-next-line
     console.error(err)
@@ -38,7 +37,7 @@ export function getPagePath(
   }
 
   if (!pagesManifest[page]) {
-    const cleanedPage = page.replace(/\/index$/, '') || '/'
+    const cleanedPage = page.replace(/^\/index$/, '') || '/'
     if (!pagesManifest[cleanedPage]) {
       throw pageNotFoundError(page)
     } else {

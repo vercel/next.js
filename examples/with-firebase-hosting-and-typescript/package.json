@@ -12,7 +12,7 @@
     "deploy": "firebase deploy",
     "clean": "rimraf \"dist/functions\" && rimraf \"dist/public\"",
     "build-app": "next build \"src/app\"",
-    "build-public": "cpx \"src/public/**/*.*\" \"dist/public\" -C",
+    "build-public": "cpx \"src/app/public/**/*.*\" \"dist/public\" -C",
     "build-functions": "tsc --project src/functions",
     "lint-app": "tslint --project src/app",
     "typecheck-app": "tsc --project src/app",
@@ -21,7 +21,7 @@
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "firebase-admin": "^8.0.0",
+    "firebase-admin": "^8.9.0",
     "firebase-functions": "^3.1.0",
     "next": "latest",
     "react": "16.8.6",

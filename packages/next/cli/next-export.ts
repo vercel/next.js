@@ -32,8 +32,8 @@ const nextExport: cliCommand = argv => {
       Usage
         $ next export [options] <dir>
 
-      <dir> represents where the compiled dist folder should go.
-      If no directory is provided, the 'out' folder will be created in the current directory.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         -h - list this help

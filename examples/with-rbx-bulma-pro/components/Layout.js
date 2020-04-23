@@ -9,7 +9,6 @@ import {
   Title,
   Footer,
 } from 'rbx'
-import 'bulma-pro/css/bulma.css'
 
 const Layout = ({ children }) => {
   return (
@@ -49,7 +48,7 @@ const Layout = ({ children }) => {
       </Container>
       <Footer>
         <Content textAlign="centered">
-          <p>&copy; ZEIT, Inc. All rights reserved.</p>
+          <p>&copy; Vercel, Inc. All rights reserved.</p>
         </Content>
       </Footer>
     </Generic>

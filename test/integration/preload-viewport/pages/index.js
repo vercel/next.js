@@ -22,7 +22,7 @@ export default () => {
       />
       <p id="scroll-to-me">Hi 👋</p>
       <Link href="/another">
-        <a>to /another</a>
+        <a id="link-another">to /another</a>
       </Link>
     </div>
   )

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import _ from 'lodash'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 
 const One = dynamic(() => import('../components/one'))
 
@@ -17,7 +16,6 @@ const Page = () => {
       page2
       <p id="padded-str">{str}</p>
       <One />
-      <Link href="/page3">Page3</Link>
     </div>
   )
 }

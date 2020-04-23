@@ -12,7 +12,7 @@ const reducer = (state, action) => {
     case 'INCREASE_BY':
       return state + action.payload
     default:
-      throw new Error(`Unkown action: ${action.type}`)
+      throw new Error(`Unknown action: ${action.type}`)
   }
 }
 

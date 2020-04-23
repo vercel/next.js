@@ -58,9 +58,15 @@ describe('AMP Usage', () => {
       expect($('.abc').length === 1)
     })
 
+    it('should render the page without leaving render target', async () => {
+      const html = await renderViaHTTP(appPort, '/special-chars')
+      await validateAMP(html)
+      expect(html).not.toContain('__NEXT_AMP_RENDER_TARGET__')
+    })
+
     it('should not output client pages for AMP only', async () => {
       const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-      const ampOnly = ['only-amp', 'root-hmr']
+      const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
       for (const pg of ampOnly) {
         expect(() =>
           accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
@@ -106,6 +112,11 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/only-amp')
       await validateAMP(html)
     })
+
+    it('should auto import extensions', async () => {
+      const html = await renderViaHTTP(appPort, '/auto-import')
+      await validateAMP(html)
+    })
   })
 
   describe('With AMP context', () => {
@@ -143,6 +154,11 @@ describe('AMP Usage', () => {
           .first()
           .attr('href')
       ).toBe('http://localhost:1234/use-amp-hook.amp')
+    })
+
+    it('should render amphtml from provided rel link', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook.amp')
+      await validateAMP(html)
     })
 
     it('should render link rel amphtml with existing query', async () => {
@@ -213,7 +229,7 @@ describe('AMP Usage', () => {
           .first()
           .text()
       ).toMatch(
-        /div.jsx-\d+{color:red;}span.jsx-\d+{color:blue;}body{background-color:green;}/
+        /div.jsx-\d+{color:red}span.jsx-\d+{color:#00f}body{background-color:green}/
       )
     })
 
@@ -343,6 +359,23 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
+    })
+
+    it('should detect changes to component and refresh an AMP page', async () => {
+      const browser = await webdriver(dynamicAppPort, '/hmr/comp')
+      const text = await browser.elementByCss('#hello-comp').text()
+      expect(text).toBe('hello')
+
+      const testComp = join(__dirname, '../components/hello.js')
+
+      const origContent = readFileSync(testComp, 'utf8')
+      const newContent = origContent.replace('>hello<', '>hi<')
+
+      writeFileSync(testComp, newContent, 'utf8')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hi/)
+
+      writeFileSync(testComp, origContent, 'utf8')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
     })
 
     it('should not reload unless the page is edited for an AMP page', async () => {

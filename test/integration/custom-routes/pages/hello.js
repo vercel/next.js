@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Page = () => (
   <>
     <h3 id="hello">Hello</h3>
     <Link href="/nav">
@@ -8,3 +8,7 @@ export default () => (
     </Link>
   </>
 )
+
+Page.getInitialProps = () => ({ hello: 'world' })
+
+export default Page

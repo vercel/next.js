@@ -1,5 +1,5 @@
 import React from 'react'
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import * as snippet from '@segment/snippet'
 
 const {
@@ -9,11 +9,6 @@ const {
 } = process.env
 
 export default class extends Document {
-  static getInitialProps({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage()
-    return { html, head, errorHtml, chunks }
-  }
-
   renderSnippet() {
     const opts = {
       apiKey: ANALYTICS_WRITE_KEY,
@@ -31,7 +26,7 @@ export default class extends Document {
 
   render() {
     return (
-      <html>
+      <Html>
         <Head>
           {/* Inject the Segment snippet into the <head> of the document  */}
           <script dangerouslySetInnerHTML={{ __html: this.renderSnippet() }} />
@@ -40,7 +35,7 @@ export default class extends Document {
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }

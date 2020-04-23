@@ -6,6 +6,7 @@ import cheerio from 'cheerio'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import {
   killApp,
+  waitFor,
   findPort,
   nextBuild,
   nextStart,
@@ -20,6 +21,7 @@ const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
 const buildIdFile = join(appDir, '.next/BUILD_ID')
+let stderr = ''
 let appPort
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -28,7 +30,11 @@ describe('Serverless', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, {
+      onStderr: msg => {
+        stderr += msg || ''
+      },
+    })
   })
   afterAll(() => killApp(app))
 
@@ -103,11 +109,16 @@ describe('Serverless', () => {
   it('should have correct amphtml rel link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp')
     expect(html).toMatch(/Hi Im an AMP page/)
-    expect(html).toMatch(/rel="amphtml" href="\/some-amp\?amp=1"/)
+    expect(html).toMatch(/rel="amphtml" href="\/some-amp\.amp"/)
   })
 
   it('should have correct canonical link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
+    expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
+  })
+
+  it('should have correct canonical link (auto-export link)', async () => {
+    const html = await renderViaHTTP(appPort, '/some-amp.amp')
     expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
   })
 
@@ -240,15 +251,41 @@ describe('Serverless', () => {
     expect(data.query).toEqual({ slug: paramRaw })
   })
 
-  it('should have the correct query string for a spr route', async () => {
+  it('should have the correct query string for a now route', async () => {
     const paramRaw = 'test % 123'
     const html = await fetchViaHTTP(appPort, `/dr/[slug]`, '', {
-      headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) },
+      headers: {
+        'x-now-route-matches': qs.stringify({
+          1: encodeURIComponent(paramRaw),
+        }),
+      },
     }).then(res => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())
 
     expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should have the correct query string for a catch all now route', async () => {
+    const paramRaw = ['nested % 1', 'nested/2']
+
+    const html = await fetchViaHTTP(appPort, `/catchall/[...slug]`, '', {
+      headers: {
+        'x-now-route-matches': qs.stringify({
+          1: paramRaw.map(e => encodeURIComponent(e)).join('/'),
+        }),
+      },
+    }).then(res => res.text())
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should log error in API route correctly', async () => {
+    await renderViaHTTP(appPort, '/api/top-level-error')
+    await waitFor(1000)
+    expect(stderr).toContain('top-level-oops')
   })
 
   describe('With basic usage', () => {

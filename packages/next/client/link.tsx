@@ -1,15 +1,15 @@
 declare const __NEXT_DATA__: any
 
-import { resolve, parse, UrlObject } from 'url'
-import React, { Component, Children } from 'react'
-import PropTypes from 'prop-types'
-import Router from './router'
-import { rewriteUrlForNextExport } from '../next-server/lib/router/rewrite-url-for-export'
+import React, { Children, Component } from 'react'
+import { parse, resolve, UrlObject } from 'url'
+import { PrefetchOptions } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
+import Router from './router'
+import { addBasePath } from '../next-server/lib/router/router'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)
@@ -58,6 +58,7 @@ let observer: IntersectionObserver
 const listeners = new Map()
 const IntersectionObserver =
   typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
+const prefetched: { [cacheKey: string]: boolean } = {}
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -108,8 +109,8 @@ const listenToIntersections = (el: any, cb: any) => {
 }
 
 class Link extends Component<LinkProps> {
-  static propTypes?: any
   p: boolean
+
   constructor(props: LinkProps) {
     super(props)
     if (process.env.NODE_ENV !== 'production') {
@@ -128,12 +129,32 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
+  getPaths() {
+    const { pathname } = window.location
+    const { href: parsedHref, as: parsedAs } = this.formatUrls(
+      this.props.href,
+      this.props.as
+    )
+    const resolvedHref = resolve(pathname, parsedHref)
+    return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
+  }
+
   handleRef(ref: Element) {
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
-      this.cleanUpListeners = listenToIntersections(ref, () => {
-        this.prefetch()
-      })
+
+      const isPrefetched =
+        prefetched[
+          this.getPaths().join(
+            // Join on an invalid URI character
+            '%'
+          )
+        ]
+      if (!isPrefetched) {
+        this.cleanUpListeners = listenToIntersections(ref, () => {
+          this.prefetch()
+        })
+      }
     }
   }
 
@@ -141,14 +162,13 @@ class Link extends Component<LinkProps> {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: formatUrl(href),
-      as: asHref ? formatUrl(asHref) : asHref,
+      href: addBasePath(formatUrl(href)),
+      as: asHref ? addBasePath(formatUrl(asHref)) : asHref,
     }
   })
 
   linkClicked = (e: React.MouseEvent) => {
-    // @ts-ignore target exists on currentTarget
-    const { nodeName, target } = e.currentTarget
+    const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
       ((target && target !== '_self') ||
@@ -192,14 +212,27 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch() {
+  prefetch(options?: PrefetchOptions) {
     if (!this.p || typeof window === 'undefined') return
-
     // Prefetch the JSON page if asked (only in the client)
-    const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    const href = resolve(pathname, parsedHref)
-    Router.prefetch(href)
+    const paths = this.getPaths()
+    // We need to handle a prefetch error here since we may be
+    // loading with priority which can reject but we don't
+    // want to force navigation since this is only a prefetch
+    Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
+      err => {
+        if (process.env.NODE_ENV !== 'production') {
+          // rethrow to show invalid URL errors
+          throw err
+        }
+      }
+    )
+    prefetched[
+      paths.join(
+        // Join on an invalid URI character
+        '%'
+      )
+    ] = true
   }
 
   render() {
@@ -232,7 +265,7 @@ class Link extends Component<LinkProps> {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
         }
-        this.prefetch()
+        this.prefetch({ priority: true })
       },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
@@ -256,6 +289,8 @@ class Link extends Component<LinkProps> {
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly.
     if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
+        .rewriteUrlForNextExport
       if (
         props.href &&
         typeof __NEXT_DATA__ !== 'undefined' &&
@@ -273,7 +308,9 @@ if (process.env.NODE_ENV === 'development') {
   const warn = execOnce(console.error)
 
   // This module gets removed by webpack.IgnorePlugin
+  const PropTypes = require('prop-types')
   const exact = require('prop-types-exact')
+  // @ts-ignore the property is supported, when declaring it on the class it outputs an extra bit of code which is not needed.
   Link.propTypes = exact({
     href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
     as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
@@ -284,7 +321,7 @@ if (process.env.NODE_ENV === 'development') {
     scroll: PropTypes.bool,
     children: PropTypes.oneOfType([
       PropTypes.element,
-      (props: any, propName) => {
+      (props: any, propName: string) => {
         const value = props[propName]
 
         if (typeof value === 'string') {

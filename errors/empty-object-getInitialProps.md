@@ -10,4 +10,4 @@ Look for any page's using `getInitialProps` that return an empty object `{}`. Yo
 
 ### Useful Links
 
-- [Automatic Static Optimization Documentation](https://nextjs.org/docs/#automatic-static-optimization)
+- [Automatic Static Optimization Documentation](https://nextjs.org/docs/advanced-features/automatic-static-optimization)

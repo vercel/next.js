@@ -1,7 +1,6 @@
 import React, { Component } from 'react'
 import videojs from 'video.js'
 import 'videojs-youtube'
-import 'video.js/dist/video-js.css'
 
 class Player extends Component {
   componentDidMount() {

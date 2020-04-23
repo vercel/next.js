@@ -8,5 +8,8 @@ export default class MyApp extends App {}
   Method is experimental and will eventually be handled in a Next.js plugin
 */
 export function unstable_onPerformanceData(data) {
-  localStorage.setItem(data.name, data.value || data.startTime)
+  localStorage.setItem(
+    data.name || data.entryType,
+    data.value !== undefined ? data.value : data.startTime
+  )
 }

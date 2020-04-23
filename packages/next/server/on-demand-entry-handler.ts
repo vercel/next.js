@@ -6,9 +6,9 @@ import { parse } from 'url'
 import webpack from 'webpack'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
-
 import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
+import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE } from '../lib/constants'
 import {
   IS_BUNDLED_PAGE_REGEX,
@@ -48,6 +48,7 @@ export default function onDemandEntryHandler(
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
+    hotRouterUpdates,
   }: {
     buildId: string
     pagesDir: string
@@ -55,6 +56,7 @@ export default function onDemandEntryHandler(
     pageExtensions: string[]
     maxInactiveAge: number
     pagesBufferLength: number
+    hotRouterUpdates: boolean
   }
 ) {
   const { compilers } = multiCompiler
@@ -65,7 +67,6 @@ export default function onDemandEntryHandler(
   let reloading = false
   let stopped = false
   let reloadCallbacks: EventEmitter | null = new EventEmitter()
-  let lastEntry: string | null = null
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise(
@@ -80,18 +81,20 @@ export default function onDemandEntryHandler(
           const { name, absolutePagePath } = entries[page]
           const pageExists = await isWriteable(absolutePagePath)
           if (!pageExists) {
-            Log.event('page was removed', page)
+            // page was removed
             delete entries[page]
             return
           }
 
           entries[page].status = BUILDING
+          const pageLoaderOpts: ClientPagesLoaderOptions = {
+            page,
+            absolutePagePath,
+            hotRouterUpdates,
+          }
           return addEntry(compilation, compiler.context, name, [
             compiler.name === 'client'
-              ? `next-client-pages-loader?${stringify({
-                  page,
-                  absolutePagePath,
-                })}!`
+              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
               : absolutePagePath,
           ])
         })
@@ -224,10 +227,7 @@ export default function onDemandEntryHandler(
 
     // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
-      if (page !== lastEntry) {
-        Log.event(`client pings, but there's no entry for page: ${page}`)
-      }
-      lastEntry = page
+      // if (page !== lastEntry) client pings, but there's no entry for page
       return { invalid: true }
     }
 
@@ -289,11 +289,15 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = `/${pagePath
+      let pageUrl = pagePath.replace(/\\/g, '/')
+
+      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
         .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-        .replace(/\\/g, '/')}`.replace(/\/index$/, '')
+        .replace(/\/index$/, '')}`
+
       pageUrl = pageUrl === '' ? '/' : pageUrl
-      const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
+
+      const bundleFile = `${normalizePagePath(pageUrl)}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
@@ -402,7 +406,7 @@ function disposeInactiveEntries(
     disposingPages.forEach((page: any) => {
       delete entries[page]
     })
-    Log.event(`disposing inactive page(s): ${disposingPages.join(', ')}`)
+    // disposing inactive page(s)
     devMiddleware.invalidate()
   }
 }

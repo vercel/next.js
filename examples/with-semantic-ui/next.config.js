@@ -1,10 +1,7 @@
-const withCSS = require('@zeit/next-css')
-
-module.exports = withCSS({
-  target: 'serverless',
+module.exports = {
   webpack(config) {
     config.module.rules.push({
-      test: /\.(png|svg|eot|otf|ttf|woff|woff2)$/,
+      test: /\.(png|svg)$/,
       use: {
         loader: 'url-loader',
         options: {
@@ -17,4 +14,4 @@ module.exports = withCSS({
     })
     return config
   },
-})
+}

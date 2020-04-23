@@ -1,5 +1,5 @@
-import isDockerFunction from 'is-docker'
-import isWslBoolean from 'is-wsl'
+import isDockerFunction from 'next/dist/compiled/is-docker'
+import isWslBoolean from 'next/dist/compiled/is-wsl'
 import os from 'os'
 
 import * as ciEnvironment from './ci-info'
@@ -17,6 +17,7 @@ type AnonymousMeta = {
   isWsl: boolean
   isCI: boolean
   ciName: string | null
+  nextVersion: string
 }
 
 let traits: AnonymousMeta | undefined
@@ -44,6 +45,7 @@ export function getAnonymousMeta(): AnonymousMeta {
     isWsl: isWslBoolean,
     isCI: ciEnvironment.isCI,
     ciName: (ciEnvironment.isCI && ciEnvironment.name) || null,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   return traits

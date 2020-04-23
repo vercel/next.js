@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-expressions */
+/* eslint-disable no-unused-expressions, @typescript-eslint/no-unused-expressions */
 import React from 'react'
 import Router, { withRouter } from 'next/router'
 

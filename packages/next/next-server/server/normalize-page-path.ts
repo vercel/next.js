@@ -11,7 +11,9 @@ export function normalizePagePath(page: string): string {
   // Throw when using ../ etc in the pathname
   const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {
-    throw new Error('Requested and resolved page mismatch')
+    throw new Error(
+      `Requested and resolved page mismatch: ${page} ${resolvedPage}`
+    )
   }
   return page
 }

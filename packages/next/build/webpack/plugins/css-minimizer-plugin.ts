@@ -1,4 +1,4 @@
-import { process as minify } from 'cssnano-simple'
+import { process as minify } from 'next/dist/compiled/cssnano-simple'
 import webpack from 'webpack'
 import { RawSource, SourceMapSource } from 'webpack-sources'
 
@@ -12,6 +12,8 @@ type CssMinimizerPluginOptions = {
 }
 
 export class CssMinimizerPlugin {
+  __next_css_remove = true
+
   private options: CssMinimizerPluginOptions
 
   constructor(options: CssMinimizerPluginOptions) {

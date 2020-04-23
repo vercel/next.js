@@ -28,12 +28,7 @@ const logic = kea({
 })
 
 @logic
-export default class App extends React.Component {
-  static getInitialProps({ store }) {
-    // Start with counter === 10
-    store.dispatch(logic.actions.increment(10))
-  }
-
+class Index extends React.Component {
   render() {
     return (
       <div>
@@ -48,3 +43,5 @@ export default class App extends React.Component {
     )
   }
 }
+
+export default Index

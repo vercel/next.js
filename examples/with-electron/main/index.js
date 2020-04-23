@@ -21,9 +21,9 @@ app.on('ready', async () => {
   })
 
   const url = isDev
-    ? 'http://localhost:8000/start'
+    ? 'http://localhost:8000'
     : format({
-        pathname: join(__dirname, '../renderer/start.html'),
+        pathname: join(__dirname, '../renderer/out/index.html'),
         protocol: 'file:',
         slashes: true,
       })

@@ -1,4 +1,17 @@
-import fetch from '../fetch'
+import useFetch from '../lib/useFetch'
+
+function getData(data) {
+  if (!data || data.errors) return null
+  return data.data
+}
+
+function getErrorMessage(error, data) {
+  if (error) return error.message
+  if (data && data.errors) {
+    return data.errors[0].message
+  }
+  return null
+}
 
 /**
 |--------------------------------------------------
@@ -9,7 +22,7 @@ import fetch from '../fetch'
 | Learn more about GraphQL: https://graphql.org/learn/
 |--------------------------------------------------
 */
-export const getGuestbookEntries = () => {
+export const useGuestbookEntries = () => {
   const query = `query Entries($size: Int) {
     entries(_size: $size) {
       data {
@@ -22,29 +35,24 @@ export const getGuestbookEntries = () => {
     }
   }`
   const size = 100
-  return new Promise((resolve, reject) => {
-    fetch(process.env.faunaDbGraphQlEndpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.faunaDbSecret}`,
-        'Content-type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: { size },
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        console.log(data)
-        resolve(data)
-      })
-      .catch(error => {
-        console.log(error)
-        reject(error)
-      })
+  const { data, error } = useFetch(process.env.faunaDbGraphQlEndpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.faunaDbSecret}`,
+      'Content-type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      variables: { size },
+    }),
   })
+
+  return {
+    data: getData(data),
+    errorMessage: getErrorMessage(error, data),
+    error,
+  }
 }
 
 /**
@@ -74,27 +82,20 @@ export const createGuestbookEntry = async (twitterHandle, story) => {
       story
     }
   }`
-  return new Promise((resolve, reject) => {
-    fetch(process.env.faunaDbGraphQlEndpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.faunaDbSecret}`,
-        'Content-type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: { twitterHandle, story },
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        console.log(data)
-        resolve(data)
-      })
-      .catch(error => {
-        console.log(error)
-        reject(error)
-      })
+
+  const res = await fetch(process.env.faunaDbGraphQlEndpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.faunaDbSecret}`,
+      'Content-type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      variables: { twitterHandle, story },
+    }),
   })
+  const data = await res.json()
+
+  return data
 }

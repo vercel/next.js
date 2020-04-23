@@ -1,4 +1,3 @@
-import React from 'react'
 import { ArticleJsonLd } from 'next-seo'
 
 // See all available JSON-LD here:

@@ -1,2 +1,1 @@
-import '__next_polyfill__fetch'
-Object.assign = require('__next_polyfill__object_assign')
+import 'next/dist/build/polyfills/polyfill-nomodule'

@@ -4,36 +4,36 @@
   "version": "1.0.0",
   "main": "main/index.js",
   "scripts": {
+    "clean": "rimraf dist main renderer/out renderer/.next",
     "start": "electron .",
     "build-renderer": "next build renderer && next export renderer",
     "build-electron": "tsc -p electron-src",
     "build": "yarn build-renderer && yarn build-electron",
-    "dist": "npm run build && electron-builder --dir",
+    "pack-app": "yarn build && electron-builder --dir",
+    "dist": "yarn build && electron-builder",
     "type-check": "tsc"
   },
   "build": {
-    "asar": false,
-    "extraResources": [
-      {
-        "from": "renderer/out",
-        "to": "app/renderer"
-      }
+    "asar": true,
+    "files": [
+      "main",
+      "renderer/out"
     ]
   },
   "devDependencies": {
-    "@types/next": "8.0.6",
-    "@types/node": "^11.13.9",
-    "@types/react": "^16.8.15",
-    "@types/react-dom": "^16.0.11",
-    "electron": "^6.0.2",
+    "@types/node": "^12.12.21",
+    "@types/react": "^16.9.17",
+    "@types/react-dom": "^16.9.4",
+    "electron": "^7.1.7",
     "electron-builder": "^21.2.0",
     "next": "latest",
-    "typescript": "^3.5.3"
+    "rimraf": "^3.0.0",
+    "typescript": "^3.7.4"
   },
   "dependencies": {
-    "electron-is-dev": "^1.0.1",
+    "electron-is-dev": "^1.1.0",
     "electron-next": "^3.1.5",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0"
   }
 }

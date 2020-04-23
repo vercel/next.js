@@ -1,26 +1,14 @@
-import React, { Component } from 'react'
-import { graphql } from 'react-relay'
+import React from 'react'
 import withData from '../lib/withData'
 import BlogPosts from '../components/BlogPosts'
+import indexPageQuery from '../queries/indexPage'
 
-class Index extends Component {
-  static displayName = `Index`
-
-  render(props) {
-    return (
-      <div>
-        <BlogPosts viewer={this.props.viewer} />
-      </div>
-    )
-  }
-}
+const Index = ({ viewer }) => (
+  <div>
+    <BlogPosts viewer={viewer} />
+  </div>
+)
 
 export default withData(Index, {
-  query: graphql`
-    query pages_indexQuery {
-      viewer {
-        ...BlogPosts_viewer
-      }
-    }
-  `,
+  query: indexPageQuery,
 })

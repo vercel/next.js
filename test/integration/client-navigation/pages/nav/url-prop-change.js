@@ -10,7 +10,6 @@ export default class UrlPropChange extends React.Component {
     }
   }
 
-  // eslint-disable-next-line camelcase
   componentDidUpdate(prevProps) {
     if (prevProps.url !== this.props.url) {
       this.setState(() => {

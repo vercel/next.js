@@ -8,11 +8,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@auth0/nextjs-auth0": "0.4.0",
-    "dotenv": "^8.1.0",
+    "@auth0/nextjs-auth0": "^0.6.0",
+    "dotenv": "^8.2.0",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0"
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0"
   }
 }

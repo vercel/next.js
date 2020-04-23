@@ -27,7 +27,7 @@ const Layout = props => (
     <AmpIncludeAmpInstallServiceworker />
     <amp-install-serviceworker
       src="/serviceworker.js"
-      data-iframe-src="/install-sw.html"
+      data-iframe-src="/install-serviceworker.html"
       layout="nodisplay"
     />
 

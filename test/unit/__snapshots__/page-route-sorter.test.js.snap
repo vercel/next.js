@@ -10,8 +10,13 @@ Array [
   "/blog/[id]",
   "/blog/[id]/comments/[cid]",
   "/foo/[d]/bar/baz/[f]",
+  "/p/[...rest]",
+  "/p2/[id]",
+  "/p2/[id]/abc",
+  "/p2/[...rest]",
   "/posts",
   "/posts/[id]",
   "/[root-slug]",
+  "/[...rest]",
 ]
 `;

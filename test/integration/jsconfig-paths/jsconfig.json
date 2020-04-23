@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@c/*": ["components/*"],
+      "@lib/*": ["lib/a/*", "lib/b/*"],
+      "@mycomponent": ["components/hello.js"]
+    }
+  }
+}
