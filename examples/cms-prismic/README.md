@@ -99,6 +99,8 @@ Next, select **Post** and create a new document.
 
 Follow the instructions in [this post](https://intercom.help/prismicio/en/articles/1036153-generating-an-access-token) to generate a new access token.
 
+If you just created prismic account, just put 'en-us' as default locale. You can change default locale in your dashboard settings. Just find "Transitions & locales" in Configuration section.
+
 Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
 
 ```bash
@@ -109,12 +111,14 @@ Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
 - `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
+- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository (the one in the URL)
 
 Your `.env` file should look like this:
 
 ```bash
 NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
+NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
 
 ### Step 6. Run Next.js in development mode

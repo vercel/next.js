@@ -11,6 +11,7 @@ import Layout from '../../components/layout'
 import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import { CMS_NAME } from '../../lib/constants'
+export const REPOSITORY_LOCALE = process.env.NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
@@ -53,7 +54,7 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview, previewData }) {
-  const data = await getPostAndMorePosts(params.slug, previewData)
+  const data = await getPostAndMorePosts(params.slug, REPOSITORY_LOCALE, previewData)
 
   return {
     props: {

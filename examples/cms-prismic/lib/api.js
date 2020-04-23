@@ -19,6 +19,7 @@ async function fetchAPI(query, { previewData, variables } = {}) {
       headers: {
         'Prismic-Ref': previewData?.ref || prismicAPI.masterRef.ref,
         'Content-Type': 'application/json',
+        'Accept-Language': prismicAPI.languages.map((lang ) => {lang.name}),
         Authorization: `Token ${API_TOKEN}`,
       },
     }
@@ -37,11 +38,11 @@ async function fetchAPI(query, { previewData, variables } = {}) {
   return json.data
 }
 
-export async function getPreviewPostBySlug(slug) {
+export async function getPreviewPostBySlug(slug, lang) {
   const data = await fetchAPI(
     `
-    query PostBySlug($slug: String!) {
-      post(uid: $slug, lang: "en-us") {
+    query PostBySlug($slug: String! $lang: String!) {
+      post(uid: $slug, lang: $lang) {
         _meta {
           uid
         }
@@ -51,6 +52,7 @@ export async function getPreviewPostBySlug(slug) {
       preview: true,
       variables: {
         slug,
+        lang,
       },
     }
   )
@@ -106,11 +108,11 @@ export async function getAllPostsForHome(previewData) {
   return data.allPosts.edges
 }
 
-export async function getPostAndMorePosts(slug, previewData) {
+export async function getPostAndMorePosts(slug, lang, previewData) {
   const data = await fetchAPI(
     `
-  query PostBySlug($slug: String!) {
-    post(uid: $slug, lang: "en-us") {
+  query PostBySlug($slug: String!, $lang: String!) {
+    post(uid: $slug, lang: $lang) {
       title
       content
       date
@@ -152,6 +154,7 @@ export async function getPostAndMorePosts(slug, previewData) {
       previewData,
       variables: {
         slug,
+        lang,
       },
     }
   )
