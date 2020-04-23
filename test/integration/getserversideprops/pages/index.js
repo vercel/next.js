@@ -17,6 +17,9 @@ const Page = ({ world, time }) => {
       <Link href="/non-json">
         <a id="non-json">to non-json</a>
       </Link>
+      <Link href="/to-json">
+        <a id="to-json">to json</a>
+      </Link>
       <br />
       <Link href="/another">
         <a id="another">to another</a>
