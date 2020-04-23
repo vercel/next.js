@@ -1,5 +1,5 @@
 import * as Bus from './internal/bus'
-import { parseStack } from './internal/overlay/stackFrameParser'
+import { parseStack } from './internal/stackFrameParser'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as Bus from '../bus'
-import { StackFrame } from './StackFrame'
+import { StackFrame } from '../StackFrame'
 
 type BusState = {
   runtimeErrors: { error: Error; frames: StackFrame[] }[]

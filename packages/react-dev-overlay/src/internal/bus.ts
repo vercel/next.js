@@ -1,4 +1,4 @@
-import { StackFrame } from './overlay/StackFrame'
+import { StackFrame } from './StackFrame'
 
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'
