@@ -156,18 +156,6 @@ export default async function getBaseWebpackConfig(
   const hasReactRefresh =
     dev && !isServer && config.experimental.reactRefresh === true
 
-  // Inject additional features into webpack HMR runtime
-  if (hasReactRefresh) {
-    const injectPath = require.resolve(
-      'webpack/lib/HotModuleReplacement.runtime'
-    )
-    const overridePath = require.resolve(
-      './webpack/lib/HotModuleReplacement.runtime'
-    )
-    require(overridePath)
-    require.cache[injectPath] = require.cache[overridePath]
-  }
-
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
