@@ -2,7 +2,7 @@
 
 This example uses [rosetta](https://github.com/lukeed/rosetta), react hooks and context to provide a SSR, SSG, CSR compatible i18n solution.
 
-In `next.config.js` you can configure the fallback language.
+In `next.config.js` you can configure the fallback language. [[Live demo](https://with-i18n-rosetta.now.sh/)].
 
 ## Deploy your own
 
