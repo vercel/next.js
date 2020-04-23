@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import chalk from 'next/dist/compiled/chalk'
+import * as log from '../build/output/log'
 import findUp from 'next/dist/compiled/find-up'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
@@ -88,16 +88,13 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       result = dotenvExpand(result)
 
       if (result.parsed) {
-        console.log(`> ${chalk.cyan.bold('Info:')} Loaded env from ${envFile}`)
+        log.info(`Loaded env from ${envFile}`)
       }
 
       Object.assign(combinedEnv, result.parsed)
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        console.error(
-          `> ${chalk.cyan.bold('Error: ')} Failed to load env from ${envFile}`,
-          err
-        )
+        log.error(`Failed to load env from ${envFile}`, err)
       }
     }
   }
