@@ -41,5 +41,5 @@ yarn dev
 
 ## Notes
 
-This setup is a basic starting point for using [Userbase](https://tailwindcss.com) with Next.js. This example also includes styling via [Tailwind](https://tailwindcss.com/)
+This setup is a basic starting point for using [Userbase](https://tailwindcss.com) with Next.js. This example also includes styling via [Tailwind](https://tailwindcss.com/).
 
