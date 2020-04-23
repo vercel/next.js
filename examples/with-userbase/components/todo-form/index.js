@@ -9,7 +9,7 @@ function Todo({ name, done, toggleComplete, deleteTodo }) {
         <button
           type="button"
           className="mx-4 p-1 rounded bg-purple-400 text-white font-bold"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault()
             toggleComplete()
           }}
@@ -18,7 +18,7 @@ function Todo({ name, done, toggleComplete, deleteTodo }) {
         </button>
         <button
           type="button"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault()
             deleteTodo()
           }}
@@ -32,7 +32,7 @@ function Todo({ name, done, toggleComplete, deleteTodo }) {
 }
 
 function TodoForm() {
-  const [newTodo, setNewTodo] = useState()
+  const [newTodo, setNewTodo] = useState('')
   const [todos, setTodos] = useState([])
   const [disabled, setDisabled] = useState()
 
@@ -42,7 +42,7 @@ function TodoForm() {
         console.log('opening db...')
         await userbase.openDatabase({
           databaseName: 'next-userbase-todos',
-          changeHandler: function(items) {
+          changeHandler: function (items) {
             setTodos(items)
           },
         })
@@ -104,7 +104,7 @@ function TodoForm() {
   return (
     <form className="bg-white shadow-md rounded p-8" onSubmit={addTodo}>
       <ul>
-        {todos.map(todo => (
+        {todos.map((todo) => (
           <Todo
             key={todo.itemId}
             name={todo.item.name}
@@ -120,7 +120,6 @@ function TodoForm() {
           onChange={handleNewTodo}
           value={newTodo}
           className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          autofocus
         />
         <button disabled={disabled} className="btn-yellow mx-4" type="submit">
           add

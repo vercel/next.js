@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import userbase from 'userbase-js'
 
 function LoginModal({ toggle, modalType, setUser }) {
-  const [username, setUsername] = useState()
-  const [password, setPassword] = useState()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState()
   const [error, setError] = useState()
 
