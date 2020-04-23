@@ -465,6 +465,11 @@ const runTests = (dev = false) => {
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })
+
+    it('should SSR .toJSON correctly', async () => {
+      const html = await renderViaHTTP(appPort, '/to-json')
+      expect(html).toContain('Post #1')
+    })
   } else {
     it('should not fetch data on mount', async () => {
       const browser = await webdriver(appPort, '/blog/post-100')
