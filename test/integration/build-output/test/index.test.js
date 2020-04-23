@@ -103,7 +103,7 @@ describe('Build Output', () => {
       })
 
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
-      expect(stdout).toMatch(/λ \/_error [ ]* \d{1,} B/)
+      expect(stdout).toMatch(/λ \/404 [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
       expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
@@ -112,7 +112,7 @@ describe('Build Output', () => {
       expect(stdout).not.toContain(' /_app')
       expect(stdout).not.toContain('<buildId>')
 
-      expect(stdout).toContain(' /_error')
+      expect(stdout).not.toContain(' /_error')
       expect(stdout).toContain('○ /')
     })
   })
@@ -124,22 +124,12 @@ describe('Build Output', () => {
       await remove(join(appDir, '.next'))
     })
 
-    // FIXME: this should be static
-    xit('should specify /_error as static', async () => {
+    it('should not specify /404 as lambda when static', async () => {
       const { stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
-      expect(stdout).toContain('○ /_error')
-      expect(stdout).not.toContain('<buildId>')
-    })
-
-    // This test is not really correct.
-    // Remove this when fixed and enable the above one.
-    it('should specify /_error as lambda even when static', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(stdout).toContain('λ /_error')
+      expect(stdout).toContain('○ /404')
+      expect(stdout).not.toContain('λ /_error')
       expect(stdout).not.toContain('<buildId>')
     })
   })

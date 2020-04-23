@@ -43,7 +43,7 @@ function runTests() {
 
   it('should render styles during SSR (AMP)', async () => {
     const html = await renderViaHTTP(appPort, '/amp')
-    expect(html).toMatch(/color:.*?cyan/)
+    expect(html).toMatch(/color:.*?#0ff/)
   })
 }
 
