@@ -375,6 +375,39 @@ describe('Production Usage', () => {
     expect(id).toBe('2')
   })
 
+  it('should handle non-encoded query value server side', async () => {
+    const html = await renderViaHTTP(appPort, '/server-query?id=0&value=%')
+    const query = cheerio
+      .load(html)('#query')
+      .text()
+    expect(JSON.parse(query)).toEqual({
+      id: '0',
+      value: '%',
+    })
+  })
+
+  it('should handle non-encoded query value server side with hydration', async () => {
+    const browser = await webdriver(appPort, '/server-query?id=0&value=%')
+    expect(await browser.eval('window.didHydrate')).toBe(true)
+
+    const query = await browser.elementByCss('#query').text()
+    expect(JSON.parse(query)).toEqual({
+      id: '0',
+      value: '%',
+    })
+  })
+
+  it('should handle non-encoded query value client side', async () => {
+    const browser = await webdriver(appPort, '/client-query?id=0&value=%')
+    expect(await browser.eval('window.didHydrate')).toBe(true)
+
+    const query = await browser.elementByCss('#query').text()
+    expect(JSON.parse(query)).toEqual({
+      id: '0',
+      value: '%',
+    })
+  })
+
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
       const browser = await webdriver(appPort, '/error-in-ssr-render')

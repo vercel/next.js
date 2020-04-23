@@ -104,6 +104,10 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 
       // Replace: full URL polyfill with platform-based polyfill
       url: require.resolve('native-url'),
+
+      // use a patched version of querystring that allows using
+      // custom decodeURIComponent logic for handling invalid values
+      querystring: require.resolve('../client/querystring'),
     }
   )
 }
