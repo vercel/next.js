@@ -1,9 +1,11 @@
 import * as React from 'react'
 import * as Bus from '../bus'
-import { StackFrame } from '../StackFrame'
+import { RuntimeErrorObject, RuntimeErrors } from './RuntimeErrors'
+import { ShadowPortal } from './ShadowPortal'
+import { Theme } from './Theme'
 
 type BusState = {
-  runtimeErrors: { error: Error; frames: StackFrame[] }[]
+  runtimeErrors: RuntimeErrorObject[]
 }
 function reducer(state: BusState, ev: Bus.BusEvent): BusState {
   switch (ev.type) {
@@ -13,7 +15,7 @@ function reducer(state: BusState, ev: Bus.BusEvent): BusState {
         ...state,
         runtimeErrors: [
           ...state.runtimeErrors,
-          { error: ev.reason, frames: ev.frames },
+          { eventId: ev.eventId, error: ev.reason, frames: ev.frames },
         ],
       }
     }
@@ -34,7 +36,18 @@ function ReactDevOverlay({ children }) {
     }
   }, [dispatch])
 
-  console.log(state)
+  if (state.runtimeErrors.length) {
+    return (
+      <React.Fragment>
+        {children}
+
+        <ShadowPortal>
+          <Theme />
+          <RuntimeErrors errors={state.runtimeErrors} />
+        </ShadowPortal>
+      </React.Fragment>
+    )
+  }
   return children
 }
 

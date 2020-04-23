@@ -2,6 +2,7 @@ import { StackFrame } from './StackFrame'
 
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'
+
 export type UnhandledError = {
   type: typeof TYPE_UNHANDLED_ERROR
   reason: Error
@@ -12,7 +13,10 @@ export type UnhandledRejection = {
   reason: Error
   frames: StackFrame[]
 }
-export type BusEvent = UnhandledError | UnhandledRejection
+export type BusEvent = { eventId: string } & (
+  | UnhandledError
+  | UnhandledRejection
+)
 export type BusEventHandler = (ev: BusEvent) => void
 
 let handlers: Set<BusEventHandler> = new Set()
@@ -35,8 +39,11 @@ function drain() {
   }, 1)
 }
 
-export function emit(ev: BusEvent): void {
-  queue.push(ev)
+export function emit(ev: Omit<BusEvent, 'eventId'>): void {
+  queue.push({
+    ...ev,
+    eventId: self.crypto.getRandomValues(new Uint32Array(1))[0].toString(16),
+  } as BusEvent)
   drain()
 }
 

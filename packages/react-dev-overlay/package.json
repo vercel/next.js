@@ -16,6 +16,7 @@
     "build": "tsc -d -w -p tsconfig.json"
   },
   "dependencies": {
+    "classnames": "2.2.6",
     "source-map": "0.7.3"
   },
   "peerDependencies": {
