@@ -52,6 +52,9 @@ const runTests = (mode = 'dev') => {
     expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
       isDev ? undefined : 'localproduction'
     )
+    expect(data.ENV_FILE_EXPANDED).toBe('env')
+    expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
+    expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
   }
 
   it('should have process environment override .env', async () => {
