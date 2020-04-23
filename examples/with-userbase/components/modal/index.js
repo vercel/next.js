@@ -8,20 +8,8 @@ function LoginModal({ toggle, modalType, setUser }) {
   const [error, setError] = useState()
 
   useEffect(() => {
-<<<<<<< HEAD
-    setError("");
-  }, [modalType]);
-=======
     setError('')
-    if (modalType === 'logIn') {
-      setUsername('test')
-      setPassword('test123')
-    } else {
-      if (username) setUsername('')
-      if (password) setPassword('')
-    }
-  }, [modalType, password, username])
->>>>>>> 20a8665d46ac68d0783a5d609849aee6b6d3ab94
+  }, [modalType])
 
   async function handleSignUp(e) {
     e.preventDefault()
@@ -74,7 +62,7 @@ function LoginModal({ toggle, modalType, setUser }) {
           type="text"
           placeholder="Username"
           value={username}
-          onChange={e => setUsername(e.target.value)}
+          onChange={(e) => setUsername(e.target.value)}
         />
       </div>
       <div className="mb-4">
@@ -90,7 +78,7 @@ function LoginModal({ toggle, modalType, setUser }) {
           type="password"
           placeholder="*******"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
         />
       </div>
       <div className="flex items-center justify-between">
