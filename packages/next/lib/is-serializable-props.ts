@@ -115,6 +115,17 @@ export function isSerializableProps(
       )
     }
 
+    // Classes with `.toJSON` are cast and re-validated
+    if (type === 'object' && typeof value.toJSON === 'function') {
+      const newRefs = new Map(refs)
+      const json = value.toJSON()
+
+      // Date.prototype.toJSON() returns a "string"
+      if (isPlainObject(json)) {
+        return isSerializable(newRefs, json, path)
+      }
+    }
+
     // None of these can be expressed as JSON:
     // const type: "bigint" | "symbol" | "object" | "function"
     throw new SerializableError(
