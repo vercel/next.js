@@ -16,6 +16,7 @@ import {
   observeLargestContentfulPaint,
   observePaint,
 } from './performance-relayer'
+import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 
 /// <reference types="react-dom/experimental" />
 
@@ -152,7 +153,7 @@ class Container extends React.Component {
   }
 
   render() {
-    return this.props.children
+    return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
   }
 }
 

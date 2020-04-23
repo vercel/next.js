@@ -28,6 +28,7 @@
 
 import fetch from 'next/dist/build/polyfills/unfetch'
 import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
+import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
@@ -72,6 +73,8 @@ export default function connect(options) {
       hadRuntimeError = true
     },
   })
+
+  DevOverlay.register()
 
   if (module.hot && typeof module.hot.dispose === 'function') {
     module.hot.dispose(function() {

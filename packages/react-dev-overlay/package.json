@@ -18,6 +18,9 @@
   "dependencies": {
     "source-map": "0.7.3"
   },
-  "peerDependencies": {},
+  "peerDependencies": {
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0"
+  },
   "devDependencies": {}
 }

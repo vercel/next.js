@@ -5,8 +5,11 @@
     "lib": ["dom"],
     "downlevelIteration": true,
     "preserveWatchOutput": true,
-    "outDir": "lib"
+    "outDir": "lib",
+    "jsx": "react",
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules"]
 }
