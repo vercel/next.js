@@ -17,7 +17,11 @@ const packageJsonHasDep = (packageJsonPath: string, dep: string): boolean => {
   return allPackages.some(pkg => pkg === dep)
 }
 
+let combinedEnv: Env | undefined = undefined
+
 export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
+  if (combinedEnv) return combinedEnv
+
   const packageJson = findUp.sync('package.json', { cwd: dir })
 
   // only do new env loading if dotenv isn't installed since we
@@ -61,9 +65,9 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
     '.env',
   ].filter(Boolean) as string[]
 
-  const combinedEnv: Env = {
+  combinedEnv = {
     ...(process.env as any),
-  }
+  } as Env
 
   for (const envFile of dotenvFiles) {
     // only load .env if the user provided has an env config file
