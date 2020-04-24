@@ -10,6 +10,8 @@ As the build process (`next build`) is proceeding, `next.config.js` is processed
 in your react app, whatever is returned by `next.config.js` as the variable `env`, (or `env.RESTURL_SPEAKERS`) will be accessible in your
 app as `process.env.RESTURL_SPEAKERS`.
 
+View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction) for more information.
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
