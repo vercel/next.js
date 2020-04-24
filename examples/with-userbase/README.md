@@ -41,6 +41,56 @@ yarn
 yarn dev
 ```
 
-## Notes
+## Configuration
 
-This setup is a basic starting point for using [Userbase](https://tailwindcss.com) with Next.js. This example also includes styling via [Tailwind](https://tailwindcss.com/).
+### Step 1. Create an account on Userbase
+
+First, [create an account on Userbase](https://userbase.com).
+
+After creating an account, make note of your _App ID_ which you'll be needing later.
+
+### Step 2. Setting up environment variables
+
+Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+
+```bash
+cp .env.example .env
+```
+
+Then set the variable on `.env`:
+
+- `USERBASE_APP_ID` should be the _App ID_ from when you created your Userbase account.
+
+Your `.env` file should look like this:
+
+```bash
+USERBASE_APP_ID=...
+```
+
+### Step 3. Run Next.js in development mode
+
+```bash
+npm install
+npm run dev
+
+# or
+
+yarn install
+yarn dev
+```
+
+Your todo app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+
+### Step 4. Deploy on Vercel
+
+You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Now CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+
+Install [Now CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+
+```
+now secrets add userbase-app-id <USERBASE_APP_ID>
+```
+
+Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
