@@ -468,7 +468,7 @@ const runTests = (dev = false) => {
 
     it('should SSR .toJSON correctly', async () => {
       const html = await renderViaHTTP(appPort, '/to-json')
-      expect(html).toContain('Post #1')
+      expect(html).toContain('.toJSON() was called')
     })
   } else {
     it('should not fetch data on mount', async () => {

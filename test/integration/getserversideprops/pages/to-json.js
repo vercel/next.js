@@ -4,7 +4,7 @@ class Post {
   }
 
   toJSON() {
-    return { title: this.title }
+    return { title: '.toJSON() was called' }
   }
 }
 
