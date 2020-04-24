@@ -97,3 +97,10 @@ For more information on what to do next, we recommend the following sections:
     <small>Use the built-in CSS support to add custom styles to your app.</small>
   </a>
 </div>
+
+<div class="card">
+  <a href="/docs/api-reference/cli.md">
+    <b>CLI:</b>
+    <small>Learn more about the Next.js CLI.</small>
+  </a>
+</div>
