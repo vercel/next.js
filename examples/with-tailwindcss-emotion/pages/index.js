@@ -1,38 +1,15 @@
-import React from 'react'
-import { css } from '@emotion/core'
-import styled from '@emotion/styled'
-import tw from 'tailwind.macro'
+import { css } from '@emotion/css'
+import tw from '@tailwindcssinjs/macro'
+import ButtonCss from '../components/ButtonCss'
+import ButtonReact from '../components/ButtonReact'
+import ButtonStyled from '../components/ButtonStyled'
 
-/**
- * We can use macros in `styled`.
- */
-const Header = styled.div`
-  ${tw`font-mono text-sm text-gray-800 hover:text-red-500`}
-  transition: .150s ease-in-out;
-`
-
-const Button = styled.button`
-  ${tw`bg-blue-500 text-white font-mono px-4 py-2 rounded`} :hover {
-    ${tw`bg-blue-700`}
-  }
-`
-
-/**
- * Also, we can use `css`.
- */
-const CardStyle = css`
-  ${tw`p-4 border-solid border border-gray-300  rounded p-4 shadow-xl`}
-`
-
-const Card = styled.div`
-  ${CardStyle}
-`
-
-const Example = () => (
-  <Card>
-    <Header>Hello</Header>
-    <Button>Emotion.js</Button>
-  </Card>
+const Index = () => (
+  <div className={css(tw`grid justify-center items-center h-screen`)}>
+    <ButtonCss>@emotion/css</ButtonCss>
+    <ButtonReact>@emotion/react</ButtonReact>
+    <ButtonStyled>@emotion/styled</ButtonStyled>
+  </div>
 )
 
-export default Example
+export default Index
