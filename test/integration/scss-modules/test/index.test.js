@@ -188,7 +188,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
 })
 
-xdescribe('Can hot reload CSS Module without losing state', () => {
+describe('Can hot reload CSS Module without losing state', () => {
   const appDir = join(fixturesDir, 'hmr-module')
 
   let appPort
@@ -202,7 +202,6 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
     await killApp(app)
   })
 
-  // FIXME: this is broken
   it('should update CSS color without remounting <input>', async () => {
     const browser = await webdriver(appPort, '/')
 
