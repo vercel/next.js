@@ -38,7 +38,7 @@ class Store {
   }
 }
 
-export function initializeStore(initialData = null) {
+function initializeStore(initialData = null) {
   const _store = store ?? new Store()
 
   // If your page has Next.js data fetching methods that use a Mobx store, it will

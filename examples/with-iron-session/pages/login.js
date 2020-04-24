@@ -12,7 +12,7 @@ const Login = () => {
   const [errorMsg, setErrorMsg] = useState('')
 
   async function handleSubmit(e) {
-    event.preventDefault()
+    e.preventDefault()
 
     const body = {
       username: e.currentTarget.username.value,
