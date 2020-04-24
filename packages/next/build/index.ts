@@ -560,7 +560,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
               await promises.unlink(clientBundle)
 
               if (config.experimental.modern) {
-                await promises.unlink(clientBundle.replace(/\.js$/, '.module.js'))
+                await promises.unlink(
+                  clientBundle.replace(/\.js$/, '.module.js')
+                )
               }
             } catch (err) {
               if (err.code !== 'ENOENT') {
