@@ -1,18 +1,19 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import { remove, readFile, readdir } from 'fs-extra'
+import cheerio from 'cheerio'
+import { readdir, readFile, remove } from 'fs-extra'
 import {
-  nextBuild,
-  nextStart,
+  File,
   findPort,
   killApp,
   launchApp,
-  waitFor,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
