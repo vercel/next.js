@@ -1,4 +1,3 @@
-import React from 'react'
 import { css } from '@emotion/css'
 import tw from '@tailwindcssinjs/macro'
 import ButtonCss from '../components/ButtonCss'
