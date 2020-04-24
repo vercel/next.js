@@ -1014,7 +1014,7 @@ export default async function getBaseWebpackConfig(
   }
 
   if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-    webpackConfig.resolve?.plugins?.push(
+    webpackConfig.resolve?.plugins?.unshift(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )
   }
