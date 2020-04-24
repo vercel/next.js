@@ -1,0 +1,7 @@
+.btn-yellow {
+  @apply bg-yellow-400 text-black font-bold py-2 px-4 rounded;
+}
+
+.btn-yellow:hover {
+  @apply bg-yellow-500;
+}
