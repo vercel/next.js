@@ -100,7 +100,7 @@ For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/cli.md">
-    <b>Pages:</b>
+    <b>CLI:</b>
     <small>Learn more about the Next.js CLI.</small>
   </a>
 </div>
