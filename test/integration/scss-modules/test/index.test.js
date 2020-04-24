@@ -217,7 +217,7 @@ describe('Can hot reload CSS Module without losing state', () => {
 
     const cssFile = new File(join(appDir, 'pages/index.module.scss'))
     try {
-      cssFile.replace('color: red', 'color: purple')
+      cssFile.replace('$var: red', '$var: purple')
       await waitFor(2000) // wait for HMR
 
       const refreshedColor = await browser.eval(
