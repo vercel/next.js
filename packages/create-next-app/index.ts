@@ -43,6 +43,48 @@ const program = new Commander.Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
+async function tryCreateApp({
+  appPath,
+  useNpm,
+  example,
+  examplePath,
+}: {
+  appPath: string
+  useNpm: boolean
+  example?: string
+  examplePath?: string
+}) {
+  try {
+    await createApp({
+      appPath: appPath,
+      useNpm: useNpm,
+      example: example,
+      examplePath: examplePath,
+    })
+  } catch (reason) {
+    if (reason.command) {
+      throw reason
+    } else {
+      const res = await prompts({
+        type: 'confirm',
+        name: 'retry',
+        message: 'An error occured. Do you want to retry?',
+        initial: false,
+      })
+      if (res.retry) {
+        await tryCreateApp({
+          appPath,
+          useNpm,
+          example,
+          examplePath,
+        })
+      } else {
+        throw reason
+      }
+    }
+  }
+}
+
 async function run() {
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
@@ -165,7 +207,7 @@ async function run() {
     }
   }
 
-  await createApp({
+  await tryCreateApp({
     appPath: resolvedProjectPath,
     useNpm: !!program.useNpm,
     example:

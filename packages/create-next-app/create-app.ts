@@ -109,24 +109,27 @@ export async function createApp({
   process.chdir(root)
 
   if (example) {
-    if (repoInfo) {
-      console.log(
-        `Downloading files from repo ${chalk.cyan(
-          example
-        )}. This might take a moment.`
-      )
-      console.log()
-      await downloadAndExtractRepo(root, repoInfo)
-    } else {
-      console.log(
-        `Downloading files for example ${chalk.cyan(
-          example
-        )}. This might take a moment.`
-      )
-      console.log()
-      await downloadAndExtractExample(root, example)
+    try {
+      if (repoInfo) {
+        console.log(
+          `Downloading files from repo ${chalk.cyan(
+            example
+          )}. This might take a moment.`
+        )
+        console.log()
+        await downloadAndExtractRepo(root, repoInfo)
+      } else {
+        console.log(
+          `Downloading files for example ${chalk.cyan(
+            example
+          )}. This might take a moment.`
+        )
+        console.log()
+        await downloadAndExtractExample(root, example)
+      }
+    } catch (reason) {
+      throw new Error(`Cannot download files for ${example}`)
     }
-
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
     if (!fs.existsSync(ignorePath)) {
