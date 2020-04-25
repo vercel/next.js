@@ -92,7 +92,9 @@ function fetchNextData(
     return fetch(
       formatWithValidation({
         // @ts-ignore __NEXT_DATA__
-        pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+        pathname: addBasePath(
+          `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
+        ),
         query,
       }),
       {
@@ -756,7 +758,7 @@ export default class Router implements BaseRouter {
       }
       const route = delBasePath(toRoute(pathname))
       Promise.all([
-        this.pageLoader.prefetchData(url, delBasePath(asPath)),
+        this.pageLoader.prefetchData(route, delBasePath(asPath)),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
