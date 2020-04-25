@@ -87,6 +87,10 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
     setIdx(v => Math.min(v + 1, errors.length - 1))
   }, [setIdx, errors.length])
 
+  // TODO: keyboard accessibility:
+  // - arrow key navigation
+  // - escape to minimize
+  // - proper a11y for elements
   return (
     <div data-nextjs-dialog-overlay>
       <div data-nextjs-dialog-backdrop />
