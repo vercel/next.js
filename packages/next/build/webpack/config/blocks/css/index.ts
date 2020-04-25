@@ -232,10 +232,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [
-            regexCssGlobal,
-            (scssEnabled && regexSassGlobal) as RegExp,
-          ].filter(Boolean),
+          test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
           use: {
             loader: 'error-loader',
             options: {
