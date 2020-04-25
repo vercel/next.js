@@ -13,7 +13,12 @@ export type ResolvedRuntimeError = {
 export type ResolvedStackFrame =
   | { error: true; frame: StackFrame }
   | { external: true; frame: StackFrame }
-  | { external: false; original: StackFrame; resolved: StackFrame }
+  | {
+      external: false
+      collapsed: boolean
+      original: StackFrame
+      resolved: StackFrame
+    }
 
 async function getResolvedFrame(
   frame: StackFrame
@@ -46,6 +51,8 @@ async function getResolvedFrame(
       const f: ResolvedStackFrame = {
         external: false,
         original: frame,
+        collapsed:
+          typeof b.fileName !== 'string' || b.fileName.includes('node_modules'),
         resolved: new StackFrame(
           frame.functionName,
           String(b.fileName),
