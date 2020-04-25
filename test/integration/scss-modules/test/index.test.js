@@ -1,18 +1,19 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import { remove, readFile, readdir } from 'fs-extra'
+import cheerio from 'cheerio'
+import { readdir, readFile, remove } from 'fs-extra'
 import {
-  nextBuild,
-  nextStart,
+  File,
   findPort,
   killApp,
   launchApp,
-  waitFor,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -188,7 +189,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
 })
 
-xdescribe('Can hot reload CSS Module without losing state', () => {
+describe('Can hot reload CSS Module without losing state', () => {
   const appDir = join(fixturesDir, 'hmr-module')
 
   let appPort
@@ -202,7 +203,6 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
     await killApp(app)
   })
 
-  // FIXME: this is broken
   it('should update CSS color without remounting <input>', async () => {
     const browser = await webdriver(appPort, '/')
 
@@ -217,7 +217,7 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
 
     const cssFile = new File(join(appDir, 'pages/index.module.scss'))
     try {
-      cssFile.replace('color: red', 'color: purple')
+      cssFile.replace('$var: red', '$var: purple')
       await waitFor(2000) // wait for HMR
 
       const refreshedColor = await browser.eval(
