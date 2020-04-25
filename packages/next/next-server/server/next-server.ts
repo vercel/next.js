@@ -119,7 +119,6 @@ export default class Server {
     assetPrefix?: string
     canonicalBase: string
     documentMiddlewareEnabled: boolean
-    hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
@@ -174,7 +173,6 @@ export default class Server {
       canonicalBase: this.nextConfig.amp.canonicalBase,
       documentMiddlewareEnabled: this.nextConfig.experimental
         .documentMiddleware,
-      hasCssMode: this.nextConfig.experimental.css,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,

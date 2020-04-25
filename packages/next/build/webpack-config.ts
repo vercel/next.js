@@ -448,9 +448,11 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
-  let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
-    : null
+  let customAppFile: string | null = await findPageFile(
+    pagesDir,
+    '/_app',
+    config.pageExtensions
+  )
   if (customAppFile) {
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
@@ -644,20 +646,19 @@ export default async function getBaseWebpackConfig(
           terserOptions,
         }),
         // Minify CSS
-        config.experimental.css &&
-          new CssMinimizerPlugin({
-            postcssOptions: {
-              map: {
-                // `inline: false` generates the source map in a separate file.
-                // Otherwise, the CSS file is needlessly large.
-                inline: false,
-                // `annotation: false` skips appending the `sourceMappingURL`
-                // to the end of the CSS file. Webpack already handles this.
-                annotation: false,
-              },
+        new CssMinimizerPlugin({
+          postcssOptions: {
+            map: {
+              // `inline: false` generates the source map in a separate file.
+              // Otherwise, the CSS file is needlessly large.
+              inline: false,
+              // `annotation: false` skips appending the `sourceMappingURL`
+              // to the end of the CSS file. Webpack already handles this.
+              annotation: false,
             },
-          }),
-      ].filter(Boolean),
+          },
+        }),
+      ],
     },
     context: dir,
     node: {
@@ -1031,8 +1032,6 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    hasSupportCss: !!config.experimental.css,
-    hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
@@ -1095,49 +1094,47 @@ export default async function getBaseWebpackConfig(
     return false
   }
 
-  if (config.experimental.css) {
-    const hasUserCssConfig =
-      webpackConfig.module?.rules.some(
-        rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      ) ?? false
+  const hasUserCssConfig =
+    webpackConfig.module?.rules.some(
+      rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+    ) ?? false
 
-    if (hasUserCssConfig) {
-      // only show warning for one build
-      if (isServer) {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            chalk.bold(
-              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
-            ) +
-            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
-        )
-      }
-
-      if (webpackConfig.module?.rules.length) {
-        // Remove default CSS Loader
-        webpackConfig.module.rules = webpackConfig.module.rules.filter(
-          r =>
-            !(
-              typeof r.oneOf?.[0]?.options === 'object' &&
-              r.oneOf[0].options.__next_css_remove === true
-            )
-        )
-      }
-      if (webpackConfig.plugins?.length) {
-        // Disable CSS Extraction Plugin
-        webpackConfig.plugins = webpackConfig.plugins.filter(
-          p => (p as any).__next_css_remove !== true
-        )
-      }
-      if (webpackConfig.optimization?.minimizer?.length) {
-        // Disable CSS Minifier
-        webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
-          e => (e as any).__next_css_remove !== true
-        )
-      }
-    } else {
-      await __overrideCssConfiguration(dir, !dev, webpackConfig)
+  if (hasUserCssConfig) {
+    // only show warning for one build
+    if (isServer) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          chalk.bold(
+            'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+          ) +
+          'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+      )
     }
+
+    if (webpackConfig.module?.rules.length) {
+      // Remove default CSS Loader
+      webpackConfig.module.rules = webpackConfig.module.rules.filter(
+        r =>
+          !(
+            typeof r.oneOf?.[0]?.options === 'object' &&
+            r.oneOf[0].options.__next_css_remove === true
+          )
+      )
+    }
+    if (webpackConfig.plugins?.length) {
+      // Disable CSS Extraction Plugin
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        p => (p as any).__next_css_remove !== true
+      )
+    }
+    if (webpackConfig.optimization?.minimizer?.length) {
+      // Disable CSS Minifier
+      webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
+        e => (e as any).__next_css_remove !== true
+      )
+    }
+  } else {
+    await __overrideCssConfiguration(dir, !dev, webpackConfig)
   }
 
   // check if using @zeit/next-typescript and show warning
