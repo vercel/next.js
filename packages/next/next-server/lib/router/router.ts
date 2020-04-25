@@ -22,7 +22,7 @@ export function addBasePath(path: string): string {
   return path.indexOf(basePath) !== 0 ? basePath + path : path
 }
 
-function delBasePath(path: string): string {
+export function delBasePath(path: string): string {
   return path.indexOf(basePath) === 0
     ? path.substr(basePath.length) || '/'
     : path
@@ -758,7 +758,7 @@ export default class Router implements BaseRouter {
       }
       const route = delBasePath(toRoute(pathname))
       Promise.all([
-        this.pageLoader.prefetchData(route, delBasePath(asPath)),
+        this.pageLoader.prefetchData(url, delBasePath(asPath)),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
