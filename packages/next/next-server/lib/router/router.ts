@@ -91,8 +91,8 @@ function fetchNextData(
   function getResponse(): Promise<any> {
     return fetch(
       formatWithValidation({
-        // @ts-ignore __NEXT_DATA__
         pathname: addBasePath(
+          // @ts-ignore __NEXT_DATA__
           `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
         ),
         query,
