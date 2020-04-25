@@ -24,6 +24,7 @@ function getLocation(
 const regexValidFrame_Chrome = /^\s*(at|in)\s.+(:\d+)/
 const regexValidFrame_FireFox = /(^|@)\S+:\d+|.+line\s+\d+\s+>\s+(eval|Function).+/
 
+// TODO: more robust parser for correctness
 export function parseStack(error: Error): StackFrame[] {
   const stack = error.stack.split('\n')
   const frames = stack

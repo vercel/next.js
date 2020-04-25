@@ -1,5 +1,10 @@
 import * as React from 'react'
 import { StackFrame } from '../../StackFrame'
+import {
+  getResolvedRuntimeError,
+  ResolvedRuntimeError,
+  ResolvedRuntimeErrors,
+} from './ResolvedRuntimeErrors'
 
 export type RuntimeErrorObject = {
   eventId: string
@@ -11,55 +16,69 @@ export type RuntimeErrorsProps = { errors: RuntimeErrorObject[] }
 export const RuntimeErrors: React.FC<RuntimeErrorsProps> = function RuntimeErrors({
   errors,
 }) {
-  const [idx, setIdx] = React.useState(0)
-
-  const previous = React.useCallback(() => {
-    setIdx(v => Math.max(0, v - 1))
-  }, [setIdx])
-  const next = React.useCallback(() => {
-    setIdx(v => Math.min(v + 1, errors.length - 1))
-  }, [setIdx, errors.length])
-
-  return (
-    <div data-nextjs-dialog-overlay>
-      <div data-nextjs-dialog-backdrop />
-      <div
-        data-nextjs-dialog-content
-        tabIndex={-1}
-        role="dialog"
-        aria-labelledby="nextjs__runtime_errors"
-        aria-modal="true"
-      >
-        <div data-nextjs-dialog-header className="error">
-          <div>
-            <nav>
-              <button type="button" disabled={idx === 0} onClick={previous}>
-                &larr;
-              </button>
-              <button
-                type="button"
-                disabled={idx === errors.length - 1}
-                onClick={next}
-              >
-                &rarr;
-              </button>
-              &nbsp;
-              <span>
-                {idx + 1} of {errors.length} error{errors.length < 2 ? '' : 's'}{' '}
-                on this page
-              </span>
-            </nav>
-            <h4 id="nextjs__runtime_errors">{errors[idx].error.name}</h4>
-            <p>{errors[idx].error.message}</p>
-          </div>
-          <button className="close" type="button" aria-label="Close">
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        <div data-nextjs-dialog-body>
-          <p>...</p>
-        </div>
-      </div>
-    </div>
+  const [resolved, setResolved] = React.useState(
+    {} as { [eventId: string]: ResolvedRuntimeError }
   )
+
+  const [readyErrors, nextError] = React.useMemo<
+    [ResolvedRuntimeError[], RuntimeErrorObject | null]
+  >(() => {
+    let ready: ResolvedRuntimeError[] = []
+    let next: RuntimeErrorObject | null = null
+
+    // Ensure errors are displayed in the order they occurred in:
+    for (let idx = 0; idx < errors.length; ++idx) {
+      const { eventId } = (next = errors[idx])
+      if (eventId in resolved) {
+        next = null
+        ready.push(resolved[eventId])
+        continue
+      }
+      break
+    }
+
+    return [ready, next]
+  }, [errors, resolved])
+
+  const isLoading = React.useMemo<boolean>(() => {
+    return readyErrors.length < 1 && Boolean(errors.length)
+  }, [errors.length, readyErrors.length])
+
+  React.useEffect(() => {
+    if (nextError == null) {
+      return
+    }
+    getResolvedRuntimeError(nextError).then(
+      resolved => {
+        // We don't care if the desired error changed while we were resolving,
+        // thus we're not tracking it using a ref. Once the work has been done,
+        // we'll store it.
+        setResolved(m => ({ ...m, [resolved.eventId]: resolved }))
+      },
+      () => {
+        // TODO: handle
+      }
+    )
+  }, [nextError])
+
+  // Reset component state when there are no errors to be displayed.
+  // This should never happen, but lets handle it.
+  React.useEffect(() => {
+    if (errors.length < 1) {
+      setResolved({})
+    }
+  }, [errors.length])
+
+  // This component shouldn't be rendered with no errors, but if it is, let's
+  // handle it gracefully by rendering nothing.
+  if (errors.length < 1) {
+    return null
+  }
+
+  if (isLoading) {
+    // TODO: render loading state in bottom left
+    return null
+  }
+
+  return <ResolvedRuntimeErrors errors={readyErrors} />
 }
