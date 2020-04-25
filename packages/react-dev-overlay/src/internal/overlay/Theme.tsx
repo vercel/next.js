@@ -119,6 +119,38 @@ export function Theme() {
             border-top-left-radius: 0.375rem;
             border-top-right-radius: 0.375rem;
           }
+          [data-nextjs-dialog-header] nav {
+            display: flex;
+            align-items: center;
+          }
+          [data-nextjs-dialog-header] nav > button {
+            border: none;
+            border-radius: 4px;
+            background-color: rgba(230, 0, 0, 0.1);
+            color: rgba(230, 0, 0, 1);
+            padding: 3px 9px;
+            cursor: pointer;
+            font-weight: 500;
+          }
+          [data-nextjs-dialog-header] nav > button[disabled] {
+            background-color: unset;
+            background-color: rgba(230, 0, 0, 0.1);
+            color: rgba(230, 0, 0, 0.2);
+            cursor: not-allowed;
+          }
+          [data-nextjs-dialog-header] nav > button:first-of-type {
+            border-top-right-radius: 0px;
+            border-bottom-right-radius: 0px;
+            margin-right: 1px;
+          }
+          [data-nextjs-dialog-header] nav > button:last-of-type {
+            border-top-left-radius: 0px;
+            border-bottom-left-radius: 0px;
+          }
+          [data-nextjs-dialog-header] nav > span {
+            font-size: 0.875rem;
+          }
+
           [data-nextjs-dialog-header] h4 {
             margin-bottom: 0;
             line-height: 1.5;
@@ -126,7 +158,7 @@ export function Theme() {
           [data-nextjs-dialog-header] p {
             margin-bottom: 0;
           }
-          [data-nextjs-dialog-header] button {
+          [data-nextjs-dialog-header] button.close {
             font-size: 1.5rem;
             font-weight: 700;
             line-height: 1;
