@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { StackFrame } from '../../StackFrame'
 import { RuntimeErrorObject } from './index'
+import { CodeFrame } from './CodeFrame'
 
 export type ResolvedRuntimeErrorsProps = {
   errors: ResolvedRuntimeError[]
@@ -16,8 +17,9 @@ export type ResolvedStackFrame =
   | {
       external: false
       collapsed: boolean
-      original: StackFrame
-      resolved: StackFrame
+      sourceStackFrame: StackFrame
+      originalStackFrame: StackFrame
+      originalCodeFrame: string | null
     }
 
 async function getResolvedFrame(
@@ -38,7 +40,7 @@ async function getResolvedFrame(
     .then(body => {
       if (
         typeof body !== 'object' ||
-        !('fileName' in body && 'lineNumber' in body && 'columnNumber' in body)
+        !('fileName' in body && 'lineNumber' in body)
       ) {
         const f: ResolvedStackFrame = { external: true, frame }
         return f
@@ -47,18 +49,21 @@ async function getResolvedFrame(
         fileName: unknown
         lineNumber: unknown
         columnNumber: unknown
+        originalCodeFrame: unknown
       } = body
       const f: ResolvedStackFrame = {
         external: false,
-        original: frame,
+        sourceStackFrame: frame,
         collapsed:
           typeof b.fileName !== 'string' || b.fileName.includes('node_modules'),
-        resolved: new StackFrame(
+        originalStackFrame: new StackFrame(
           frame.functionName,
           String(b.fileName),
           Number(b.lineNumber),
           Number(b.columnNumber)
         ),
+        originalCodeFrame:
+          typeof b.originalCodeFrame === 'string' ? b.originalCodeFrame : null,
       }
       return f
     })
@@ -135,7 +140,17 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
           </button>
         </div>
         <div data-nextjs-dialog-body>
-          <p>...</p>
+          {errors[0].frames.map(f => {
+            if (!('external' in f && f.external === false)) {
+              return null
+            }
+
+            return (
+              <div>
+                <CodeFrame codeFrame={f.originalCodeFrame} />
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

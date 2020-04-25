@@ -1,3 +1,5 @@
+import { codeFrameColumns } from '@babel/code-frame'
+import { promises as fs } from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 import { SourceMapConsumer } from 'source-map'
@@ -41,17 +43,31 @@ export default function getOverlayMiddleware(
         })
         consumer.destroy()
 
+        const filePath = path.resolve(options.rootDirectory, pos.source)
+        const fileLine = pos.line,
+          fileColumn = pos.column
+
+        const fileContent: string | null = await fs
+          .readFile(filePath, 'utf-8')
+          .catch(() => null)
+
+        const originalCodeFrame = fileContent
+          ? (codeFrameColumns(
+              fileContent,
+              { start: { line: fileLine, column: fileColumn } },
+              { forceColor: true }
+            ) as string)
+          : null
+
         res.statusCode = 200
         res.setHeader('Content-Type', 'application.json')
         res.write(
           Buffer.from(
             JSON.stringify({
-              fileName: path.relative(
-                options.rootDirectory,
-                path.resolve(options.rootDirectory, pos.source)
-              ),
-              lineNumber: pos.line,
-              columnNumber: pos.column,
+              fileName: path.relative(options.rootDirectory, filePath),
+              lineNumber: fileLine,
+              columnNumber: fileColumn,
+              originalCodeFrame,
             })
           )
         )
