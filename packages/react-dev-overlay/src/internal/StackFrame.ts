@@ -30,7 +30,24 @@ class StackFrame {
   getSource(): string {
     let str = ''
     if (this.fileName != null) {
-      str += this.fileName + ' '
+      try {
+        const u = new URL(this.fileName)
+
+        // Strip the origin for same-origin scripts.
+        if (
+          typeof globalThis !== 'undefined' &&
+          globalThis.location?.origin !== u.origin
+        ) {
+          str += u.origin
+        }
+
+        // Strip query string information as it's typically too verbose to be
+        // meaningful.
+        str += u.pathname
+        str += ' '
+      } catch {
+        str += this.fileName + ' '
+      }
     }
 
     if (this.lineNumber != null) {
