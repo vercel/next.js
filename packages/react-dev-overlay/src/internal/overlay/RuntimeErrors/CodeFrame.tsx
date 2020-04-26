@@ -1,16 +1,32 @@
-import * as React from 'react'
-import cn from 'classnames'
 import Anser from 'anser'
+import cn from 'classnames'
+import * as React from 'react'
 import { noop as css } from '../../noop-template'
+import { StackFrame } from '../../StackFrame'
 
-type CodeFrameProps = { codeFrame: string }
+type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
 const ansiColors = css`
-  pre.ansi {
+  [data-nextjs-codeframe] {
     border-radius: 0.3rem;
-    padding: 0.5rem;
     background-color: #f6f6f6;
     color: #403f53;
+  }
+  [data-nextjs-codeframe] > hr {
+    border: none;
+    border-style: solid;
+    border-width: 0;
+    border-bottom-width: 1px;
+    border-color: #403f53;
+    margin: 0 0.3rem;
+  }
+  pre.ansi,
+  [data-nextjs-codeframe] > p {
+    margin: 0;
+    padding: 0.5rem;
+  }
+  [data-nextjs-codeframe] > p {
+    text-align: center;
   }
   pre.ansi::selection {
     background-color: #e0e0e0;
@@ -71,9 +87,12 @@ const ansiColors = css`
   }
 
   @media (prefers-color-scheme: dark) {
-    pre.ansi {
+    [data-nextjs-codeframe] {
       background-color: #011627;
       color: #d6deeb;
+    }
+    [data-nextjs-codeframe] > hr {
+      border-color: #d6deeb;
     }
     pre.ansi::selection {
       background-color: #1d3b53;
@@ -136,6 +155,7 @@ const ansiColors = css`
 `
 
 export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
+  stackFrame,
   codeFrame,
 }) {
   const decoded = React.useMemo(() => {
@@ -145,13 +165,14 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       remove_empty: true,
     })
   }, [codeFrame])
-  console.log(decoded.filter(f => f.decoration))
+
   return (
-    <>
+    <div data-nextjs-codeframe>
       <style dangerouslySetInnerHTML={{ __html: ansiColors }} />
       <pre className="ansi">
-        {decoded.map(entry => (
+        {decoded.map((entry, index) => (
           <span
+            key={`frame-${index}`}
             className={cn(
               entry.fg,
               entry.decoration ? `ansi-decoration-${entry.decoration}` : null
@@ -161,6 +182,8 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
           </span>
         ))}
       </pre>
-    </>
+      <hr />
+      <p>{stackFrame.toString()}</p>
+    </div>
   )
 }

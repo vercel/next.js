@@ -30,13 +30,15 @@ class StackFrame {
   getSource(): string {
     let str = ''
     if (this.fileName != null) {
-      str += this.fileName + ':'
+      str += this.fileName + ' '
     }
+
     if (this.lineNumber != null) {
-      str += this.lineNumber + ':'
-    }
-    if (this.columnNumber != null) {
-      str += this.columnNumber + ':'
+      if (this.columnNumber != null) {
+        str += `(${this.lineNumber}:${this.columnNumber}) `
+      } else {
+        str += `(${this.lineNumber}) `
+      }
     }
     return str.slice(0, -1)
   }
@@ -49,7 +51,7 @@ class StackFrame {
     if (f == null) {
       return this.getSource()
     }
-    return `${f} (${this.getSource()})`
+    return `${f} @ ${this.getSource()}`
   }
 }
 

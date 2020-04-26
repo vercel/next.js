@@ -149,7 +149,10 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
 
             return (
               <div>
-                <CodeFrame codeFrame={f.originalCodeFrame} />
+                <CodeFrame
+                  stackFrame={f.originalStackFrame}
+                  codeFrame={f.originalCodeFrame}
+                />
               </div>
             )
           })}
