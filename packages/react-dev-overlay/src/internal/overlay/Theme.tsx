@@ -65,6 +65,8 @@ export function Theme() {
           }
 
           [data-nextjs-dialog-content] {
+            display: flex;
+            flex-direction: column;
             width: 100%;
             margin-right: auto;
             margin-left: auto;
@@ -72,6 +74,8 @@ export function Theme() {
             background: white;
             border-radius: 0.5rem;
             box-shadow: 0 0.25rem 0.5rem rgba(22, 28, 45, 0.5);
+            max-height: calc(100% - 3.5rem);
+            overflow-y: hidden;
           }
           @media (min-width: 576px) {
             [data-nextjs-dialog-content] {
@@ -96,6 +100,7 @@ export function Theme() {
           }
 
           [data-nextjs-dialog-header] {
+            flex-shrink: 0;
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -175,6 +180,7 @@ export function Theme() {
             position: relative;
             flex: 1 1 auto;
             padding: 1rem;
+            overflow-y: auto;
           }
         `,
       }}
