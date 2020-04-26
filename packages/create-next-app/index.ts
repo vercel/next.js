@@ -5,7 +5,7 @@ import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
 
-import { createApp } from './create-app'
+import { createApp, DownloadError } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { shouldUseYarn } from './helpers/should-use-yarn'
@@ -48,12 +48,16 @@ async function tryCreateApp({
   useNpm,
   example,
   examplePath,
+  attempt = 1,
 }: {
   appPath: string
   useNpm: boolean
   example?: string
   examplePath?: string
+  attempt?: number
 }) {
+  console.log()
+  console.log(`Trying to create project (${attempt} attempt)........`)
   try {
     await createApp({
       appPath: appPath,
@@ -65,18 +69,28 @@ async function tryCreateApp({
     if (reason.command) {
       throw reason
     } else {
-      const res = await prompts({
-        type: 'confirm',
-        name: 'retry',
-        message: 'An error occured. Do you want to retry?',
-        initial: false,
-      })
-      if (res.retry) {
+      if (attempt === 3 && reason instanceof DownloadError) {
+        const res = await prompts({
+          type: 'confirm',
+          name: 'tryDefault',
+          message: `Could not download example ${reason.example} because of a network error, do you want to use the default template instead?`,
+          initial: false,
+        })
+        if (res.tryDefault) {
+          await tryCreateApp({
+            appPath,
+            useNpm,
+          })
+        } else {
+          throw reason
+        }
+      } else if (reason instanceof DownloadError) {
         await tryCreateApp({
           appPath,
           useNpm,
           example,
           examplePath,
+          attempt: ++attempt,
         })
       } else {
         throw reason
@@ -206,7 +220,6 @@ async function run() {
       }
     }
   }
-
   await tryCreateApp({
     appPath: resolvedProjectPath,
     useNpm: !!program.useNpm,

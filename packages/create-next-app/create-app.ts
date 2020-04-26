@@ -19,6 +19,14 @@ import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 
+export class DownloadError extends Error {
+  example: string
+  constructor(message: string, example: string) {
+    super(message)
+    this.example = example
+  }
+}
+
 export async function createApp({
   appPath,
   useNpm,
@@ -128,7 +136,7 @@ export async function createApp({
         await downloadAndExtractExample(root, example)
       }
     } catch (reason) {
-      throw new Error(`Cannot download files for ${example}`)
+      throw new DownloadError(`Cannot download files for ${example}`, example)
     }
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
