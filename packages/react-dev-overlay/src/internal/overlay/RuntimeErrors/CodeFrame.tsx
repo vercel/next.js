@@ -1,6 +1,7 @@
 import Anser from 'anser'
 import cn from 'classnames'
 import * as React from 'react'
+import stripAnsi from 'strip-ansi'
 import { noop as css } from '../../noop-template'
 import { StackFrame } from '../../StackFrame'
 
@@ -159,16 +160,37 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   stackFrame,
   codeFrame,
 }) {
-  // TODO: strip leading spaces from codeFrame
-  // TODO: make the caret absolute
+  // Strip leading spaces out of the code frame:
+  const formattedFrame = React.useMemo<string>(() => {
+    const lines = codeFrame.split(/\r?\n/g)
+    const prefixLength = lines
+      .map(line => /^>? +\d+ +\| ( +)/.exec(stripAnsi(line)))
+      .filter(Boolean)
+      .map(v => v.pop())
+      .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
+
+    if (prefixLength > 1) {
+      const p = ' '.repeat(prefixLength)
+      return lines
+        .map((line, a) =>
+          ~(a = line.indexOf('|'))
+            ? line.substring(0, a) + line.substring(a).replace(p, '')
+            : line
+        )
+        .join('\n')
+    }
+    return lines.join('\n')
+  }, [codeFrame])
+
   const decoded = React.useMemo(() => {
-    return Anser.ansiToJson(codeFrame, {
+    return Anser.ansiToJson(formattedFrame, {
       json: true,
       use_classes: true,
       remove_empty: true,
     })
-  }, [codeFrame])
+  }, [formattedFrame])
 
+  // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
       <style dangerouslySetInnerHTML={{ __html: ansiColors }} />
