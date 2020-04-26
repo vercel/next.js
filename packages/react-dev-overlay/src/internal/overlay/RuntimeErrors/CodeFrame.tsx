@@ -11,6 +11,7 @@ const ansiColors = css`
     border-radius: 0.3rem;
     background-color: #f6f6f6;
     color: #403f53;
+    margin-bottom: 1rem;
   }
   [data-nextjs-codeframe] > hr {
     border: none;

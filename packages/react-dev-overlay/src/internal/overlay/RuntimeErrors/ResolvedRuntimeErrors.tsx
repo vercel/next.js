@@ -195,15 +195,21 @@ const Frames: React.FC<{ frames: ResolvedStackFrame[] }> = function Frames({
   }, [frames, firstFirstPartyFrameIndex])
   return (
     <React.Fragment>
+      {frames[firstFirstPartyFrameIndex] && <h5>Source</h5>}
       {...leadingFrames.map((frame, index) => (
         <BasicFrame key={`leading-frame-${index}`} frame={frame} />
       ))}
       {frames[firstFirstPartyFrameIndex] && (
         <RichFrame frame={frames[firstFirstPartyFrameIndex]} />
       )}
-      {frameGroups.map((group, index) => (
-        <FrameGroup key={`frame-group-${index}`} group={group} />
-      ))}
+      {frameGroups.length && (
+        <React.Fragment>
+          <h5>Call Stack</h5>
+          {frameGroups.map((group, index) => (
+            <FrameGroup key={`frame-group-${index}`} group={group} />
+          ))}
+        </React.Fragment>
+      )}
     </React.Fragment>
   )
 }
