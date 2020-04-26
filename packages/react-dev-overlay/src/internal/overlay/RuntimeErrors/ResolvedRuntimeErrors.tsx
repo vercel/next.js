@@ -128,8 +128,8 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
               </button>
               &nbsp;
               <span>
-                {idx + 1} of {errors.length} error{errors.length < 2 ? '' : 's'}{' '}
-                on this page
+                {idx + 1} of {errors.length} unhandled error
+                {errors.length < 2 ? '' : 's'}
               </span>
             </nav>
             <h4 id="nextjs__runtime_errors">{errors[idx].error.name}</h4>
