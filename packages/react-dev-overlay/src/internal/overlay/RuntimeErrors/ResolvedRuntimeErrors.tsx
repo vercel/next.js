@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { StackFrame } from '../../StackFrame'
-import { RuntimeErrorObject } from './index'
 import { CodeFrame } from './CodeFrame'
+import { RuntimeErrorObject } from './index'
 
 export type ResolvedRuntimeErrorsProps = {
   errors: ResolvedRuntimeError[]
@@ -21,6 +21,11 @@ export type ResolvedStackFrame =
       originalStackFrame: StackFrame
       originalCodeFrame: string | null
     }
+
+export type ResolvedStackFrameGroup = {
+  collapsed: boolean
+  frames: ResolvedStackFrame[]
+}
 
 async function getResolvedFrame(
   frame: StackFrame
@@ -87,6 +92,122 @@ export async function getResolvedRuntimeError(
   return { eventId: error.eventId, error: error.error, frames: resolvedFrames }
 }
 
+const BasicFrame: React.FC<{
+  frame: ResolvedStackFrame
+}> = function BasicFrame({ frame }) {
+  if ('frame' in frame) {
+    const f = frame.frame
+    return (
+      <div>
+        <h6>{f.getFunctionName()}</h6>
+        <p>{f.getSource()}</p>
+      </div>
+    )
+  }
+  // TODO: collapsed rich frame (?)
+  return null
+}
+
+const RichFrame: React.FC<{
+  frame: ResolvedStackFrame
+}> = function RichFrame({ frame }) {
+  if ('external' in frame && frame.external === false) {
+    const f = frame
+    return (
+      <CodeFrame
+        stackFrame={f.originalStackFrame}
+        codeFrame={f.originalCodeFrame}
+      />
+    )
+  }
+  return <BasicFrame frame={frame} />
+}
+
+const FrameGroup: React.FC<{
+  group: ResolvedStackFrameGroup
+}> = function FrameGroup({ group }) {
+  if (group.collapsed) {
+    // TODO: show these collapsed by default
+    return (
+      <React.Fragment>
+        {group.frames.map((frame, index) => (
+          <RichFrame
+            key={`collapsed-frame-group-frame-${index}`}
+            frame={frame}
+          />
+        ))}
+      </React.Fragment>
+    )
+  }
+  return (
+    <React.Fragment>
+      {group.frames.map((frame, index) => (
+        <RichFrame key={`frame-group-rich-frame-${index}`} frame={frame} />
+      ))}
+    </React.Fragment>
+  )
+}
+
+const Frames: React.FC<{ frames: ResolvedStackFrame[] }> = function Frames({
+  frames,
+}) {
+  const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
+    const idx = frames.findIndex(
+      entry => 'external' in entry && entry.external === false
+    )
+    if (idx === -1) {
+      return frames.length
+    }
+    return idx
+  }, [frames])
+  const leadingFrames = React.useMemo<ResolvedStackFrame[]>(
+    () => frames.slice(0, firstFirstPartyFrameIndex),
+    [frames, firstFirstPartyFrameIndex]
+  )
+  const frameGroups = React.useMemo<ResolvedStackFrameGroup[]>(() => {
+    const remaining = frames.slice(firstFirstPartyFrameIndex + 1)
+    if (remaining.length < 1) {
+      return []
+    }
+
+    let groups: ResolvedStackFrameGroup[] = []
+    for (
+      let idx = 0, collapsedFrames: ResolvedStackFrame[] = [];
+      idx < remaining.length;
+      ++idx
+    ) {
+      const r = remaining[idx]
+      if (!('collapsed' in r) || r.collapsed) {
+        collapsedFrames.push(r)
+      } else {
+        if (collapsedFrames.length) {
+          groups.push({ collapsed: true, frames: [...collapsedFrames] })
+          collapsedFrames = []
+        }
+        groups.push({ collapsed: false, frames: [r] })
+      }
+
+      if (idx === remaining.length - 1 && collapsedFrames.length) {
+        groups.push({ collapsed: true, frames: [...collapsedFrames] })
+      }
+    }
+    return groups
+  }, [frames, firstFirstPartyFrameIndex])
+  return (
+    <React.Fragment>
+      {...leadingFrames.map((frame, index) => (
+        <BasicFrame key={`leading-frame-${index}`} frame={frame} />
+      ))}
+      {frames[firstFirstPartyFrameIndex] && (
+        <RichFrame frame={frames[firstFirstPartyFrameIndex]} />
+      )}
+      {frameGroups.map((group, index) => (
+        <FrameGroup key={`frame-group-${index}`} group={group} />
+      ))}
+    </React.Fragment>
+  )
+}
+
 export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = function ResolvedRuntimeErrors({
   errors,
 }) {
@@ -142,20 +263,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
           </button>
         </div>
         <div data-nextjs-dialog-body>
-          {errors[idx].frames.map(f => {
-            if (!('external' in f && f.external === false)) {
-              return null
-            }
-
-            return (
-              <div>
-                <CodeFrame
-                  stackFrame={f.originalStackFrame}
-                  codeFrame={f.originalCodeFrame}
-                />
-              </div>
-            )
-          })}
+          <Frames frames={errors[idx].frames} />
         </div>
       </div>
     </div>

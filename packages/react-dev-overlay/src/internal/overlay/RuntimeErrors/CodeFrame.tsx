@@ -158,6 +158,8 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   stackFrame,
   codeFrame,
 }) {
+  // TODO: strip leading spaces from codeFrame
+  // TODO: make the caret absolute
   const decoded = React.useMemo(() => {
     return Anser.ansiToJson(codeFrame, {
       json: true,
