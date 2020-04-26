@@ -142,7 +142,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
           </button>
         </div>
         <div data-nextjs-dialog-body>
-          {errors[0].frames.map(f => {
+          {errors[idx].frames.map(f => {
             if (!('external' in f && f.external === false)) {
               return null
             }
