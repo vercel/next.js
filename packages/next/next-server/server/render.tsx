@@ -141,7 +141,6 @@ export type RenderOptsPartial = {
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
-  hasCssMode: boolean
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
@@ -159,6 +158,7 @@ export type RenderOptsPartial = {
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
   basePath: string
+  unstable_runtimeJS?: false
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -179,7 +179,6 @@ function renderDocument(
     isFallback,
     dynamicImportsIds,
     dangerousAsPath,
-    hasCssMode,
     err,
     dev,
     ampPath,
@@ -200,6 +199,7 @@ function renderDocument(
     customServer,
     gip,
     appGip,
+    unstable_runtimeJS,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -256,7 +256,6 @@ function renderDocument(
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
-          hasCssMode,
           hybridAmp,
           staticMarkup,
           devFiles,
@@ -268,6 +267,7 @@ function renderDocument(
           htmlProps,
           bodyTags,
           headTags,
+          unstable_runtimeJS,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -772,6 +772,11 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    // Only enabled in production as development mode has features relying on HMR (style injection for example)
+    unstable_runtimeJS:
+      process.env.NODE_ENV === 'production'
+        ? pageConfig.unstable_runtimeJS
+        : undefined,
     dangerousAsPath: router.asPath,
     ampState,
     props,

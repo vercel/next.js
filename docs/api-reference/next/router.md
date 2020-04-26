@@ -177,7 +177,7 @@ Router.beforePopState(({ url, as, options }) => {
 
 `Router.beforePopState(cb: () => boolean)`
 
-- `cb` - The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
+- `cb` - The function to run on incoming `popstate` events. The function receives the state of the event as an object with the following props:
   - `url`: `String` - the route for the new state. This is usually the name of a `page`
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [Router.push](#router.push)

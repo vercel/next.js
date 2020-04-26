@@ -1,7 +1,7 @@
 # With env From next.config.js
 
 This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
-More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.js.config` and then
+More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.config.js` and then
 returned to your react components when the program is built with `next build`.
 
 As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
@@ -10,11 +10,13 @@ As the build process (`next build`) is proceeding, `next.config.js` is processed
 in your react app, whatever is returned by `next.config.js` as the variable `env`, (or `env.RESTURL_SPEAKERS`) will be accessible in your
 app as `process.env.RESTURL_SPEAKERS`.
 
+View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction) for more information.
+
 ## Deploy your own
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-env-from-next-config-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-env-from-next-config-js)
 
 ## How to use
 
@@ -47,7 +49,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 > ## Special note
 >
@@ -65,4 +67,4 @@ following behavior while you are doing development.
 - When you run `next build` then `next start`, assuming you set externally the environmental variable STAGING to anything but 1, you will get the results assuming `isProd` is true.
 - When your run `next build` or `npm run build` in production, if the environmental variable `STAGING` is set to `1`, `isStaging` will be set and you will get those values returned.
 
-You can read more about this feature in thie blog post <a href="https://zeit.co/blog/next5-1" target="_blank">Next.js 5.1: Faster Page Resolution, Environment Config and More</a> (under Environment Config).
+You can read more about this feature in thie blog post <a href="https://vercel.com/blog/next5-1" target="_blank">Next.js 5.1: Faster Page Resolution, Environment Config and More</a> (under Environment Config).

@@ -41,9 +41,6 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    jsconfigPaths: false,
-    css: true,
-    scss: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -56,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     sassOptions: {},
     pageEnv: false,
     measureFid: false,
+    reactRefresh: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -155,15 +153,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
   if (result.experimental) {
-    if (result.experimental.css) {
-      // The new CSS support requires granular chunks be enabled.
-      if (result.experimental.granularChunks !== true) {
-        throw new Error(
-          `The new CSS support requires granular chunks be enabled.`
-        )
-      }
-    }
-
     if (typeof result.experimental.basePath !== 'string') {
       throw new Error(
         `Specified basePath is not a string, found type "${typeof result
