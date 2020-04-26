@@ -10,8 +10,6 @@ export async function build(
     customAppFile,
     isDevelopment,
     isServer,
-    hasSupportCss,
-    hasSupportScss,
     assetPrefix,
     sassOptions,
   }: {
@@ -19,8 +17,6 @@ export async function build(
     customAppFile: string | null
     isDevelopment: boolean
     isServer: boolean
-    hasSupportCss: boolean
-    hasSupportScss: boolean
     assetPrefix: string
     sassOptions: any
   }
@@ -40,6 +36,6 @@ export async function build(
     sassOptions,
   }
 
-  const fn = pipe(base(ctx), css(hasSupportCss, hasSupportScss, ctx))
+  const fn = pipe(base(ctx), css(ctx))
   return fn(config)
 }
