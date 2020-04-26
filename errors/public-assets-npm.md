@@ -54,6 +54,8 @@ or
 ```sh
 public/
   styles.css
+pages/
+  _app.js
 ```
 
 ```js
