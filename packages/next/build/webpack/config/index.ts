@@ -1,5 +1,6 @@
 import webpack from 'webpack'
 import { base } from './blocks/base'
+import { assets } from './blocks/assets'
 import { css } from './blocks/css'
 import { ConfigurationContext, pipe } from './utils'
 
@@ -36,6 +37,6 @@ export async function build(
     sassOptions,
   }
 
-  const fn = pipe(base(ctx), css(ctx))
+  const fn = pipe(base(ctx), assets(ctx), css(ctx))
   return fn(config)
 }
