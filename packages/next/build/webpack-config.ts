@@ -6,7 +6,6 @@ import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
-import { MinifyOptions } from 'terser'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -293,7 +292,7 @@ export default async function getBaseWebpackConfig(
 
   const webpackMode = dev ? 'development' : 'production'
 
-  const terserOptions: MinifyOptions = {
+  const terserOptions: any = {
     parse: {
       ecma: 8,
     },
