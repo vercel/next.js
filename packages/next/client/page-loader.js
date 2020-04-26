@@ -3,6 +3,7 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
+import { delBasePath } from './../next-server/lib/router/router'
 
 function hasRel(rel, link) {
   try {
@@ -96,10 +97,12 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   getDataHref(href, asPath) {
-    const getHrefForSlug = (/** @type string */ path) =>
-      `${this.assetPrefix}/_next/data/${this.buildId}${
+    const getHrefForSlug = (/** @type string */ path) => {
+      path = delBasePath(path)
+      return `${this.assetPrefix}/_next/data/${this.buildId}${
         path === '/' ? '/index' : path
       }.json`
+    }
 
     const { pathname: hrefPathname, query } = parse(href, true)
     const { pathname: asPathname } = parse(asPath)
