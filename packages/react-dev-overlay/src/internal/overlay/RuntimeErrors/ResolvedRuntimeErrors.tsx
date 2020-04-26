@@ -132,8 +132,10 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
                 {errors.length < 2 ? '' : 's'}
               </span>
             </nav>
-            <h4 id="nextjs__runtime_errors">{errors[idx].error.name}</h4>
-            <p>{errors[idx].error.message}</p>
+            <h4 id="nextjs__runtime_errors">Unhandled Runtime Error</h4>
+            <p>
+              {errors[idx].error.name}: {errors[idx].error.message}
+            </p>
           </div>
           <button className="close" type="button" aria-label="Close">
             <span aria-hidden="true">×</span>
