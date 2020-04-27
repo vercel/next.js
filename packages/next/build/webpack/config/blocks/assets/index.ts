@@ -15,7 +15,7 @@ export const assets = curry(async function assets(
     loader({
       oneOf: [
         {
-          test: /public/,
+          test: /.\/public/,
           issuer: {
             include: [ctx.rootDirectory],
           },
