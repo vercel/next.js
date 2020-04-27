@@ -68,7 +68,7 @@ class StackFrame {
     if (f == null) {
       return this.getSource()
     }
-    return `${f} @ ${this.getSource()}`
+    return `${this.getSource()} @ ${f}`
   }
 }
 
