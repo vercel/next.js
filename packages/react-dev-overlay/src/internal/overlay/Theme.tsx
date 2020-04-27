@@ -93,11 +93,6 @@ export function Theme() {
               max-width: 960px;
             }
           }
-          @media (min-width: 1200px) {
-            [data-nextjs-dialog-content] {
-              max-width: 1140px;
-            }
-          }
 
           [data-nextjs-dialog-header] {
             flex-shrink: 0;
