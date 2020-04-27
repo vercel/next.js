@@ -51,19 +51,21 @@ Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm
 
 ### Notes
 
+#### NodeJS Version
+
+This package has an .nvmrc version pinning NodeJS to 12.14.1. Feel free to remove or change it.
+
 #### Setup
 
-After bootstrapping your next.js app, there are several steps to enable Husky (for pre-commit and push linting) and Eslint's Prettier config which cause conflicts with the next.js monorepo.
+After bootstrapping your next.js app, there are several steps to enable Husky (for pre-commit and push linting) and Eslint's Prettier config. These steps must be performed manually due to conflicts with the linting and CI configuration of the next.js monorepo.
 
-Eslint + Prettier:
+**Eslint + Prettier**
 
 1. Install `eslint-config-prettier`: `yarn add -D eslint-config-prettier`
 2. Uncomment the `"prettier"` value from the `extends` key in `.eslintrc.json`
 
-Husky:
-
-1. Install `husky` and `lint-staged`: `yarn add -D husky lint-staged`
-2. Add the following values to your `package.json` (or tweak your own):
+**Husky**
+Opt into husky commit hooks by adding the following values to your `package.json` (or tweak your own, or remove `husky` and `lint-staged` from your project `devDependencies`):
 
 ```json
   "husky": {
@@ -79,10 +81,6 @@ Husky:
     ]
   }
 ```
-
-#### NodeJS Version
-
-This package has an .nvmrc version pinning NodeJS to 12.14.1. Feel free to remove or change it.
 
 #### Bypassing git hooks
 
