@@ -37,6 +37,6 @@ export async function build(
     sassOptions,
   }
 
-  const fn = pipe(base(ctx), assets(ctx), css(ctx))
+  const fn = pipe(base(ctx), css(ctx), assets(ctx))
   return fn(config)
 }
