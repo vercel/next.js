@@ -6,6 +6,15 @@ export function Theme() {
     <style
       dangerouslySetInnerHTML={{
         __html: css`
+          :host {
+            --font-stack-monospace: 'SFMono-Regular', Consolas,
+              'Liberation Mono', Menlo, Courier, monospace;
+          }
+
+          .mono {
+            font-family: var(--font-stack-monospace);
+          }
+
           h1,
           h2,
           h3,
@@ -176,6 +185,16 @@ export function Theme() {
             flex: 1 1 auto;
             padding: 1rem;
             overflow-y: auto;
+          }
+
+          [data-nextjs-call-stack-frame] > h6 {
+            font-family: var(--font-stack-monospace);
+            color: rgba(25, 25, 25, 1);
+          }
+          [data-nextjs-call-stack-frame] > p {
+            padding-left: 1rem;
+            font-size: 0.875rem;
+            color: rgba(25, 25, 25, 0.8);
           }
         `,
       }}

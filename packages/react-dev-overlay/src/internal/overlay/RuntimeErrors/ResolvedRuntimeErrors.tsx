@@ -98,13 +98,24 @@ const BasicFrame: React.FC<{
   if ('frame' in frame) {
     const f = frame.frame
     return (
-      <div>
+      <div data-nextjs-call-stack-frame>
         <h6>{f.getFunctionName()}</h6>
         <p>{f.getSource()}</p>
       </div>
     )
   }
-  // TODO: collapsed rich frame (?)
+  if ('originalStackFrame' in frame) {
+    // TODO: collapsed rich frame should offer to expand
+    const f = frame.originalStackFrame
+    return (
+      <div data-nextjs-call-stack-frame>
+        <h6>{f.getFunctionName()}</h6>
+        <p>{f.getSource()}</p>
+      </div>
+    )
+  }
+
+  // TODO: refactor so this can't happen
   return null
 }
 
@@ -153,7 +164,11 @@ const Frames: React.FC<{ frames: ResolvedStackFrame[] }> = function Frames({
 }) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
     const idx = frames.findIndex(
-      entry => 'external' in entry && entry.external === false
+      entry =>
+        'external' in entry &&
+        entry.external === false &&
+        'collapsed' in entry &&
+        entry.collapsed === false
     )
     if (idx === -1) {
       return frames.length
@@ -260,7 +275,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
               </span>
             </nav>
             <h4 id="nextjs__runtime_errors">Unhandled Runtime Error</h4>
-            <p>
+            <p className="mono">
               {errors[idx].error.name}: {errors[idx].error.message}
             </p>
           </div>

@@ -24,11 +24,9 @@ const ansiColors = css`
   }
   pre.ansi,
   [data-nextjs-codeframe] > p {
+    font-family: var(--font-stack-monospace);
     margin: 0;
     padding: 0.5rem;
-  }
-  [data-nextjs-codeframe] > p {
-    text-align: center;
   }
   pre.ansi::selection {
     background-color: #e0e0e0;
@@ -194,6 +192,8 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   return (
     <div data-nextjs-codeframe>
       <style dangerouslySetInnerHTML={{ __html: ansiColors }} />
+      <p>{stackFrame.toString()}</p>
+      <hr />
       <pre className="ansi">
         {decoded.map((entry, index) => (
           <span
@@ -207,8 +207,6 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
           </span>
         ))}
       </pre>
-      <hr />
-      <p>{stackFrame.toString()}</p>
     </div>
   )
 }
