@@ -8,6 +8,7 @@ Bootstrap a developer-friendly NextJS app configured with:
 - Linting, typechecking and formatting on by default using [`husky`](https://github.com/typicode/husky) for commit hooks
 - Testing with jest and [`react-testing-library`](https://testing-library.com/docs/react-testing-library/intro)
 - Debug task (`yarn dev:debug`) with node auto-attachment
+  _See [setup](#setup) for detailed eslint, prettier + husky configuration_
 
 ## Deploy your own
 
@@ -49,6 +50,35 @@ yarn dev
 Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ### Notes
+
+#### Setup
+
+After bootstrapping your next.js app, there are several steps to enable Husky (for pre-commit and push linting) and Eslint's Prettier config which cause conflicts with the next.js monorepo.
+
+Eslint + Prettier:
+
+1. Install `eslint-config-prettier`: `yarn add -D eslint-config-prettier`
+2. Uncomment the `"prettier"` value from the `extends` key in `.eslintrc.json`
+
+Husky:
+
+1. Install `husky` and `lint-staged`: `yarn add -D husky lint-staged`
+2. Add the following values to your `package.json` (or tweak your own):
+
+```json
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "yarn run type-check"
+    }
+  },
+  "lint-staged": {
+    "*.@(ts|tsx)": [
+      "yarn lint",
+      "yarn format"
+    ]
+  }
+```
 
 #### NodeJS Version
 
