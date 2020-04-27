@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { StackFrame } from '../../StackFrame'
+import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from './CodeFrame'
 import { RuntimeErrorObject } from './index'
+import { createOriginalStackFrame, getFrameSource } from './utils'
 
 export type ResolvedRuntimeErrorsProps = {
   errors: ResolvedRuntimeError[]
@@ -30,15 +31,15 @@ export type ResolvedStackFrameGroup = {
 async function getResolvedFrame(
   frame: StackFrame
 ): Promise<ResolvedStackFrame> {
-  if (!frame.fileName?.startsWith('webpack-internal:///')) {
+  if (!frame.file?.startsWith('webpack-internal:///')) {
     const f: ResolvedStackFrame = { external: true, frame }
     return f
   }
 
   const params = new URLSearchParams()
-  params.append('fileName', frame.fileName)
+  params.append('fileName', frame.file)
   params.append('lineNumber', String(frame.lineNumber))
-  params.append('columnNumber', String(frame.columnNumber))
+  params.append('columnNumber', String(frame.column))
   return self
     .fetch(`/__nextjs_resolve-stack-frame?${params.toString()}`)
     .then(res => res.json())
@@ -61,11 +62,13 @@ async function getResolvedFrame(
         sourceStackFrame: frame,
         collapsed:
           typeof b.fileName !== 'string' || b.fileName.includes('node_modules'),
-        originalStackFrame: new StackFrame(
-          frame.functionName,
-          String(b.fileName),
-          Number(b.lineNumber),
-          Number(b.columnNumber)
+
+        // TODO: remedy:
+        originalStackFrame: createOriginalStackFrame(
+          frame,
+          b.fileName as any,
+          b.lineNumber as any,
+          b.columnNumber as any
         ),
         originalCodeFrame:
           typeof b.originalCodeFrame === 'string' ? b.originalCodeFrame : null,
@@ -99,18 +102,19 @@ const BasicFrame: React.FC<{
     const f = frame.frame
     return (
       <div data-nextjs-call-stack-frame>
-        <h6>{f.getFunctionName()}</h6>
-        <p>{f.getSource()}</p>
+        <h6>{f.methodName}</h6>
+        <p>{getFrameSource(f)}</p>
       </div>
     )
   }
   if ('originalStackFrame' in frame) {
     // TODO: collapsed rich frame should offer to expand
     const f = frame.originalStackFrame
+    const s = frame.sourceStackFrame
     return (
       <div data-nextjs-call-stack-frame>
-        <h6>{f.getFunctionName()}</h6>
-        <p>{f.getSource()}</p>
+        <h6>{s.methodName}</h6>
+        <p>{getFrameSource(f)}</p>
       </div>
     )
   }

@@ -1,12 +1,12 @@
+import { parse as parseStack } from 'stacktrace-parser'
 import * as Bus from './internal/bus'
-import { parseStack } from './internal/stackFrameParser'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
 
 function onUnhandledError(ev: ErrorEvent) {
   const error = ev?.error
-  if (!error || !(error instanceof Error) || !error.stack) {
+  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
     // A non-error was thrown, we don't have anything to show. :-(
     return
   }
@@ -15,13 +15,17 @@ function onUnhandledError(ev: ErrorEvent) {
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
-    frames: parseStack(e),
+    frames: parseStack(e.stack),
   })
 }
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
   const reason = ev?.reason
-  if (!reason || !(reason instanceof Error) || !reason.stack) {
+  if (
+    !reason ||
+    !(reason instanceof Error) ||
+    typeof reason.stack !== 'string'
+  ) {
     // A non-error was thrown, we don't have anything to show. :-(
     return
   }
@@ -30,7 +34,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_REJECTION,
     reason: reason,
-    frames: parseStack(e),
+    frames: parseStack(e.stack),
   })
 }
 

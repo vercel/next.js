@@ -1,4 +1,4 @@
-import { StackFrame } from './StackFrame'
+import { StackFrame } from 'stacktrace-parser'
 
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { StackFrame } from '../../StackFrame'
+import { StackFrame } from 'stacktrace-parser'
 import {
   getResolvedRuntimeError,
   ResolvedRuntimeError,

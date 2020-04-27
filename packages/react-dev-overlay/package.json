@@ -20,6 +20,7 @@
     "anser": "1.4.9",
     "classnames": "2.2.6",
     "source-map": "0.7.3",
+    "stacktrace-parser": "0.1.9",
     "strip-ansi": "6.0.0"
   },
   "peerDependencies": {

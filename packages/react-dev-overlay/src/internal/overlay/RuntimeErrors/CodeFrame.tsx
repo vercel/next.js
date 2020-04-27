@@ -1,9 +1,10 @@
 import Anser from 'anser'
 import cn from 'classnames'
 import * as React from 'react'
+import { StackFrame } from 'stacktrace-parser'
 import stripAnsi from 'strip-ansi'
 import { noop as css } from '../../noop-template'
-import { StackFrame } from '../../StackFrame'
+import { getFrameSource } from './utils'
 
 type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
@@ -192,7 +193,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   return (
     <div data-nextjs-codeframe>
       <style dangerouslySetInnerHTML={{ __html: ansiColors }} />
-      <p>{stackFrame.toString()}</p>
+      <p>
+        {getFrameSource(stackFrame)} @ {stackFrame.methodName}
+      </p>
       <hr />
       <pre className="ansi">
         {decoded.map((entry, index) => (
