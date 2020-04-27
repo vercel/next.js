@@ -17,7 +17,10 @@ export default class MyDocument extends Document {
     const styles = renderToNodeList(renderer)
     return {
       ...initialProps,
-      styles,
+      styles: [
+        ...initialProps.styles,
+        styles
+      ]
     }
   }
 
