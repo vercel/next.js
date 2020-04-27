@@ -29,7 +29,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
   // since we want to load the env before loading next.config.js
   if (packageJson) {
     // check main `package.json` first
-    if (packageJsonHasDep(packageJson, 'dotenv')) {
+    if (packageJsonHasDep(packageJson, 'dotenv') && !process.env.NEXT_DOTENV_BYPASS) {
       return false
     }
     // check for a yarn.lock or lerna.json file in case it's a monorepo
