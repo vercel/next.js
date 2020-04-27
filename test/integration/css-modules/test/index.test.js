@@ -524,11 +524,13 @@ describe('Catch-all Route CSS Module Usage', () => {
   it('should apply styles correctly', async () => {
     const browser = await webdriver(appPort, '/post-1')
 
-    const background = await browser
+    const bg = await browser
       .elementByCss('#my-div')
       .getComputedCss('background-color')
+    expect(bg).toMatch(/rgb(a|)\(255, 0, 0/)
 
-    expect(background).toMatch(/rgb(a|)\(255, 0, 0/)
+    const fg = await browser.elementByCss('#my-div').getComputedCss('color')
+    expect(fg).toMatch(/rgb(a|)\(0, 128, 0/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -541,7 +543,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__38gR-{background:red}"`
+      `".___post__home__38gR-{background:red}.__55css_home__qxXcH{color:green}"`
     )
   })
 })

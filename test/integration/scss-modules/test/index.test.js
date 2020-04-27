@@ -540,7 +540,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__psZf9{background:red}"`
+      `".___post__home__psZf9{background:red}"`
     )
   })
 })

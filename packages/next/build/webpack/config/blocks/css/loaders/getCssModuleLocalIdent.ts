@@ -43,11 +43,11 @@ export function getCssModuleLocalIdent(
         /\.module_/,
         '_'
       )
-      // Replace any characters not in the below set to prevent invalid
-      // CSS characters
+      // Replace invalid symbols with underscores instead of escaping
+      // https://mathiasbynens.be/notes/css-escapes#identifiers-strings
       .replace(/[^a-zA-Z0-9-_]/g, '_')
-      // CSS classes can also not start with a digit or a hyphen and then a
-      //digit https://www.w3.org/TR/CSS21/syndata.html#characters
-      .replace(/^(\d|_\d|__)/, '')
+      // "they cannot start with a digit, two hyphens, or a hyphen followed by a digit [sic]"
+      // https://www.w3.org/TR/CSS21/syndata.html#characters
+      .replace(/^(\d|--|-\d)/, '__$1')
   )
 }
