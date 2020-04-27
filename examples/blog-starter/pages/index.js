@@ -18,7 +18,7 @@ export default function Index({ allPosts }) {
         </Head>
         <Container>
           <Intro />
-          {heroPost && (
+          {heroPost.published && (
             <HeroPost
               title={heroPost.title}
               coverImage={heroPost.coverImage}
@@ -39,6 +39,7 @@ export async function getStaticProps() {
   const allPosts = getAllPosts([
     'title',
     'date',
+    'published',
     'slug',
     'author',
     'coverImage',
