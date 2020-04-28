@@ -141,6 +141,21 @@ export function runNextCommand(argv, options = {}) {
   })
 }
 
+export async function launchAndWaitForCompile(appDir, appPort, opts = {}) {
+  return await new Promise(async (resolve, reject) => {
+    const myApp = await launchApp(appDir, appPort, {
+      ...opts,
+      onStdout: message => {
+        opts.onStdout(message)
+
+        if (message.match(/compiled successfully/)) {
+          resolve(myApp)
+        }
+      },
+    })
+  })
+}
+
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
   const env = {

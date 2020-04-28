@@ -10,22 +10,14 @@ import {
   createFile,
 } from 'fs-extra'
 
-import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
+import {
+  launchAndWaitForCompile,
+  findPort,
+  killApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-// We wait for compiled successfully in this case since we want the TypeScript integration to kick in
-async function launchAndWaitForCompile(appDir, appPort) {
-  return await new Promise(async (resolve, reject) => {
-    const myApp = await launchApp(appDir, appPort, {
-      onStdout: message => {
-        if (message.match(/compiled successfully/)) {
-          resolve(myApp)
-        }
-      },
-    })
-  })
-}
 
 describe('Fork ts checker plugin', () => {
   const appDir = path.join(__dirname, '../')
