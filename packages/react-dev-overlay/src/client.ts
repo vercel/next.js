@@ -71,5 +71,5 @@ function unregister() {
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
 }
 
-export { default as ReactDevOverlay } from './internal/overlay/ReactDevOverlay'
+export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
 export { register, unregister }

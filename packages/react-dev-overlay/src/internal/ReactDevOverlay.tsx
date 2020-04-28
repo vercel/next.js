@@ -1,11 +1,11 @@
 import * as React from 'react'
-import * as Bus from '../bus'
-import { ShadowPortal } from '../components/ShadowPortal'
-import { Base } from '../styles/Base'
-import { ComponentStyles } from '../styles/ComponentStyles'
-import { CssReset } from '../styles/CssReset'
-import { RuntimeErrorObject, RuntimeErrors } from './RuntimeErrors'
-import { Theme } from './Theme'
+import * as Bus from './bus'
+import { ShadowPortal } from './components/ShadowPortal'
+import { RuntimeErrorObject, RuntimeErrors } from './overlay/RuntimeErrors'
+import { Theme } from './overlay/Theme'
+import { Base } from './styles/Base'
+import { ComponentStyles } from './styles/ComponentStyles'
+import { CssReset } from './styles/CssReset'
 
 type BusState = {
   runtimeErrors: RuntimeErrorObject[]
