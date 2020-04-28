@@ -3,15 +3,15 @@ import Link from 'next/link'
 const Page = () => (
   <div>
     <h3>My blog</h3>
-    <Link href="/[post]" as="/post-1">
+    <Link href="/[name]" as="/post-1">
       <a id="view-post-1">View post 1</a>
     </Link>
     <br />
-    <Link href="/[post]/comments" as="/post-1/comments">
+    <Link href="/[name]/comments" as="/post-1/comments">
       <a id="view-post-1-comments">View post 1 comments</a>
     </Link>
     <br />
-    <Link href="/[post]/[comment]" as="/post-1/comment-1">
+    <Link href="/[name]/[comment]" as="/post-1/comment-1">
       <a id="view-post-1-comment-1">View comment 1 on post 1</a>
     </Link>
     <br />
@@ -19,7 +19,7 @@ const Page = () => (
       <a id="view-nested-dynamic-cmnt">View comment 123 on blog post 321</a>
     </Link>
     <br />
-    <Link href="/[post]?fromHome=true" as="/post-1?fromHome=true">
+    <Link href="/[name]?fromHome=true" as="/post-1?fromHome=true">
       <a id="view-post-1-with-query">View post 1 with query</a>
     </Link>
     <br />
