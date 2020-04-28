@@ -6,22 +6,23 @@ export default function VideoPlayer({ src }) {
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video) return;
+    if (!video) return
 
-    video.controls = true;
+    video.controls = true
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // This will run in safari, where HLS is supported natively
-      video.src = src;
+      video.src = src
     } else if (Hls.isSupported()) {
       // This will run in all other modern browsers
-      const hls = new Hls();
-      hls.loadSource(src);
-      hls.attachMedia(video);
+      const hls = new Hls()
+      hls.loadSource(src)
+      hls.attachMedia(video)
     } else {
-      console.error('This is an old browser that does not support MSE https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API');
+      console.error(
+        'This is an old browser that does not support MSE https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API'
+      )
     }
-
-  }, [videoRef]);
+  }, [src, videoRef])
 
   return (
     <div className="flex items-center">

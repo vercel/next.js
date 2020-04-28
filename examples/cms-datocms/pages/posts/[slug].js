@@ -41,7 +41,9 @@ export default function Post({ post, morePosts, preview }) {
                 date={post.date}
                 author={post.author}
               />
-              {post.videoUpload && post.videoUpload.video && <PostVideo video={post.videoUpload.video} />}
+              {post.videoUpload && post.videoUpload.video && (
+                <PostVideo video={post.videoUpload.video} />
+              )}
               <PostBody content={post.content} />
             </article>
             <SectionSeparator />
