@@ -269,7 +269,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
         aria-labelledby="nextjs__runtime_errors"
         aria-describedby="nextjs__runtime_error_reason"
       >
-        <div data-nextjs-dialog-header className="error">
+        <div data-nextjs-dialog-header>
           <div>
             <nav>
               <button type="button" disabled={idx === 0} onClick={previous}>
