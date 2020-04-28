@@ -156,7 +156,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
     function handleStdout(data) {
       const message = data.toString()
-      if (/started server on/i.test(message)) {
+      if (/ready on/i.test(message)) {
         if (!didResolve) {
           didResolve = true
           resolve(stdOut ? message : instance)
