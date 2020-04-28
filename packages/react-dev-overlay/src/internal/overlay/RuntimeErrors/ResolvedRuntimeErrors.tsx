@@ -40,8 +40,13 @@ async function getResolvedFrame(
   params.append('fileName', frame.file)
   params.append('lineNumber', String(frame.lineNumber))
   params.append('columnNumber', String(frame.column))
+
+  const controller = new AbortController()
+  const tm = setTimeout(() => controller.abort(), 3000)
   return self
-    .fetch(`/__nextjs_resolve-stack-frame?${params.toString()}`)
+    .fetch(`/__nextjs_resolve-stack-frame?${params.toString()}`, {
+      signal: controller.signal,
+    })
     .then(res => res.json())
     .then(body => {
       if (
@@ -74,6 +79,9 @@ async function getResolvedFrame(
           typeof b.originalCodeFrame === 'string' ? b.originalCodeFrame : null,
       }
       return f
+    })
+    .finally(() => {
+      clearTimeout(tm)
     })
 }
 
