@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { styles as codeFrame } from '../components/CodeFrame/styles'
+import { styles as overlay } from '../components/Overlay/styles'
 import { noop as css } from '../noop-template'
 
 export function ComponentStyles() {
@@ -8,6 +9,7 @@ export function ComponentStyles() {
       dangerouslySetInnerHTML={{
         __html: css`
           ${codeFrame}
+          ${overlay}
         `,
       }}
     />
