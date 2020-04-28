@@ -28,12 +28,25 @@ export const RuntimeErrors: React.FC<RuntimeErrorsProps> = function RuntimeError
 
     // Ensure errors are displayed in the order they occurred in:
     for (let idx = 0; idx < errors.length; ++idx) {
-      const { eventId } = (next = errors[idx])
+      const e = errors[idx]
+      const { eventId } = e
       if (eventId in resolved) {
-        next = null
         ready.push(resolved[eventId])
         continue
       }
+
+      // Check for duplicate errors
+      if (idx > 0) {
+        const prev = errors[idx - 1]
+        if (
+          e.error.name === prev.error.name &&
+          e.error.message === prev.error.message
+        ) {
+          continue
+        }
+      }
+
+      next = e
       break
     }
 
