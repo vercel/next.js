@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 export type DialogProps = {
-  type: 'error'
+  type: 'error' | 'warning'
   'aria-labelledby': string
   'aria-describedby': string
 }
