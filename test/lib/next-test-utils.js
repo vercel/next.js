@@ -142,37 +142,13 @@ export function runNextCommand(argv, options = {}) {
 }
 
 export async function launchAndWaitForCompile(appDir, appPort, opts = {}) {
-  return await new Promise(async resolve => {
+  return await new Promise(async (resolve, reject) => {
     const myApp = await launchApp(appDir, appPort, {
       ...opts,
       onStdout: message => {
-        if (opts.onStdout) {
-          opts.onStdout(message)
-        }
+        opts.onStdout(message)
 
-        if (
-          opts.waitForStdOutMessage &&
-          message.match(opts.waitForStdOutMessage)
-        ) {
-          return resolve(myApp)
-        }
-
-        if (
-          !opts.waitForStdOutMessage &&
-          !opts.waitForStdErrMessage &&
-          message.match(/Compiled successfully/)
-        ) {
-        }
-      },
-      onStderr: message => {
-        if (opts.onStderr) {
-          opts.onStderr(message)
-        }
-
-        if (
-          opts.waitForStdErrMessage &&
-          message.match(opts.waitForStdErrMessage)
-        ) {
+        if (message.match(/compiled successfully/)) {
           resolve(myApp)
         }
       },

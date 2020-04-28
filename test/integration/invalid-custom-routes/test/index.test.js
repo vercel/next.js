@@ -2,7 +2,7 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import { launchAndWaitForCompile, findPort, nextBuild } from 'next-test-utils'
+import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -398,8 +398,7 @@ describe('Errors on invalid custom routes', () => {
     beforeAll(() => {
       getStderr = async () => {
         let stderr = ''
-        await launchAndWaitForCompile(appDir, await findPort(), {
-          waitForStdErrMessage: /(Invalid|See here for)/,
+        await launchApp(appDir, await findPort(), {
           onStderr: msg => {
             stderr += msg
           },
