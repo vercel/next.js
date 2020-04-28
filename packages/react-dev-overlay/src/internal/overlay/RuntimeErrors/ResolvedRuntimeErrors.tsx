@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from '../../components/CodeFrame'
+import { Dialog } from '../../components/Dialog'
 import { Overlay } from '../../components/Overlay'
 import {
   createOriginalStackFrame,
@@ -263,12 +264,9 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
   // - proper a11y for elements
   return (
     <Overlay>
-      <div
-        data-nextjs-dialog-content
-        tabIndex={-1}
-        role="dialog"
+      <Dialog
         aria-labelledby="nextjs__runtime_errors"
-        aria-modal="true"
+        aria-describedby="nextjs__runtime_error_reason"
       >
         <div data-nextjs-dialog-header className="error">
           <div>
@@ -290,7 +288,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
               </span>
             </nav>
             <h4 id="nextjs__runtime_errors">Unhandled Runtime Error</h4>
-            <p className="mono">
+            <p id="nextjs__runtime_error_reason" className="mono">
               {errors[idx].error.name}: {errors[idx].error.message}
             </p>
           </div>
@@ -301,7 +299,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
         <div data-nextjs-dialog-body>
           <Frames frames={errors[idx].frames} />
         </div>
-      </div>
+      </Dialog>
     </Overlay>
   )
 }
