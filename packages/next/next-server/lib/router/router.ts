@@ -22,7 +22,7 @@ export function addBasePath(path: string): string {
   return path.indexOf(basePath) !== 0 ? basePath + path : path
 }
 
-function delBasePath(path: string): string {
+export function delBasePath(path: string): string {
   return path.indexOf(basePath) === 0
     ? path.substr(basePath.length) || '/'
     : path
@@ -91,8 +91,10 @@ function fetchNextData(
   function getResponse(): Promise<any> {
     return fetch(
       formatWithValidation({
-        // @ts-ignore __NEXT_DATA__
-        pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+        pathname: addBasePath(
+          // @ts-ignore __NEXT_DATA__
+          `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
+        ),
         query,
       }),
       {

@@ -407,28 +407,27 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {this.context._documentProps.isDevelopment &&
-          this.context._documentProps.hasCssMode && (
-            <>
+        {this.context._documentProps.isDevelopment && (
+          <>
+            <style
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              dangerouslySetInnerHTML={{
+                __html: `body{display:none}`,
+              }}
+            />
+            <noscript
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+            >
               <style
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
                 dangerouslySetInnerHTML={{
-                  __html: `body{display:none}`,
+                  __html: `body{display:block}`,
                 }}
               />
-              <noscript
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
-              >
-                <style
-                  dangerouslySetInnerHTML={{
-                    __html: `body{display:block}`,
-                  }}
-                />
-              </noscript>
-            </>
-          )}
+            </noscript>
+          </>
+        )}
         {children}
         {head}
         <meta
@@ -526,13 +525,12 @@ export class Head extends Component<
             )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
-            {this.context._documentProps.isDevelopment &&
-              this.context._documentProps.hasCssMode && (
-                // this element is used to mount development styles so the
-                // ordering matches production
-                // (by default, style-loader injects at the bottom of <head />)
-                <noscript id="__next_css__DO_NOT_USE__" />
-              )}
+            {this.context._documentProps.isDevelopment && (
+              // this element is used to mount development styles so the
+              // ordering matches production
+              // (by default, style-loader injects at the bottom of <head />)
+              <noscript id="__next_css__DO_NOT_USE__" />
+            )}
             {styles || null}
           </>
         )}
