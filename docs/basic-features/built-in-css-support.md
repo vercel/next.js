@@ -178,6 +178,12 @@ To support importing `.less` or `.styl` files you can use the following plugins:
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
 
+If using the less plugin, don't forget to add a dependency on less as well, otherwise you'll see an error like:
+
+```bash
+Error: Cannot find module 'less'
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
