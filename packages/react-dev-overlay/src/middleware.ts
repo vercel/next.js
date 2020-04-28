@@ -12,9 +12,7 @@ type OverlayMiddlewareOptions = {
   stats(): webpack.Stats
 }
 
-export default function getOverlayMiddleware(
-  options: OverlayMiddlewareOptions
-) {
+function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
   function getSourceById(id: string): OriginalSource | null {
     const compilation = options.stats()?.compilation
     const m = compilation?.modules?.find(m => m.id === id)
@@ -81,3 +79,5 @@ export default function getOverlayMiddleware(
     return next()
   }
 }
+
+export default getOverlayMiddleware

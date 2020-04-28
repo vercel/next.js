@@ -38,7 +38,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   })
 }
 
-export function register() {
+function register() {
   if (isRegistered) {
     return
   }
@@ -54,7 +54,7 @@ export function register() {
   window.addEventListener('unhandledrejection', onUnhandledRejection)
 }
 
-export function unregister() {
+function unregister() {
   if (!isRegistered) {
     return
   }
@@ -72,3 +72,4 @@ export function unregister() {
 }
 
 export { default as ReactDevOverlay } from './internal/overlay/ReactDevOverlay'
+export { register, unregister }
