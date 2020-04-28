@@ -85,6 +85,7 @@ Next, select **Post** and create a new record.
 - Use dummy data for the text.
 - You can write markdown for the **Content** field.
 - For the images, you can download ones from [Unsplash](https://unsplash.com/).
+- For sample videos, you can download ones from [Pexels](https://www.pexels.com/) or download [this sample from Mux](https://storage.googleapis.com/muxdemofiles/mux-video-intro.mp4).
 - Pick the **Author** you created earlier.
 
 **Important:** For each post record, you need to click **Publish** after saving. If not, the post will be in the draft state.
