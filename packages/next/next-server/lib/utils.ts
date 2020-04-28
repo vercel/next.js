@@ -158,7 +158,6 @@ export type DocumentProps = DocumentInitialProps & {
   hybridAmp: boolean
   staticMarkup: boolean
   isDevelopment: boolean
-  hasCssMode: boolean
   devFiles: string[]
   files: string[]
   lowPriorityFiles: string[]
