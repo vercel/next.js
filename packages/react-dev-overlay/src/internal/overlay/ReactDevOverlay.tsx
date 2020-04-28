@@ -1,6 +1,7 @@
 import * as React from 'react'
 import * as Bus from '../bus'
-import { CssReset } from './CssReset'
+import { Base } from '../styles/Base'
+import { CssReset } from '../styles/CssReset'
 import { RuntimeErrorObject, RuntimeErrors } from './RuntimeErrors'
 import { ShadowPortal } from './ShadowPortal'
 import { Theme } from './Theme'
@@ -44,6 +45,7 @@ function ReactDevOverlay({ children }) {
 
         <ShadowPortal>
           <CssReset />
+          <Base />
           <Theme />
           <RuntimeErrors errors={state.runtimeErrors} />
         </ShadowPortal>

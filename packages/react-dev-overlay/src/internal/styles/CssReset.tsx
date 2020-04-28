@@ -6,6 +6,10 @@ export function CssReset() {
     <style
       dangerouslySetInnerHTML={{
         __html: css`
+          :host {
+            all: initial;
+          }
+
           /*!
            * Bootstrap Reboot v4.4.1 (https://getbootstrap.com/)
            * Copyright 2011-2019 The Bootstrap Authors
@@ -13,10 +17,6 @@ export function CssReset() {
            * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
            * Forked from Normalize.css, licensed MIT (https://github.com/necolas/normalize.css/blob/master/LICENSE.md)
            */
-          :host {
-            all: initial;
-          }
-
           *,
           *::before,
           *::after {
