@@ -771,36 +771,52 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/blog',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blog/(?<post>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
+          routeKeys: ['post'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
+          routeKeys: ['post', 'comment'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall/(?<slug>.+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
+          routeKeys: ['slug'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall\\-explicit/(?<slug>.+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
+          routeKeys: ['slug'],
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -811,12 +827,16 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/default-revalidate',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/non\\-json/(?<p>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
+          routeKeys: ['p'],
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -825,12 +845,16 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/something',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/user/(?<user>[^/]+?)/profile\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
+          routeKeys: ['user'],
         },
       ])
     })
