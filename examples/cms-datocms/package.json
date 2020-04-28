@@ -9,6 +9,7 @@
   "dependencies": {
     "classnames": "2.2.6",
     "date-fns": "2.10.0",
+    "hls.js": "0.13.2",
     "isomorphic-unfetch": "3.0.0",
     "next": "latest",
     "react": "^16.13.0",

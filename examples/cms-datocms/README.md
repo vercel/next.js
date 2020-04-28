@@ -65,7 +65,8 @@ Next, add these fields (you don't have to modify the settings unless specified):
 - `Title` - **Text** field (**Single-line String**)
 - `Content` - **Text** field (**Multiple-paragraph Text**)
 - `Excerpt` - **Text** field (**Single-line String**)
-- `Cover Image` - **Media** field (**Single asset**)
+- `Cover Image` - **Media** field (**Single asset**) , and from the "Validations" tab select "Accept only specified extensions" > **Image**.
+- `Video Upload` - **Media** field (**Single asset**) , and from the "Validations" tab select "Accept only specified extensions" > **Video**.
 - `Date` - **Date and time** field (**Date**)
 - `Author` - **Links** field (**Single link**) , and from the "Validations" tab under "Accept only specified model", select **Author**.
 - `Slug` - **SEO** field (**Slug**), and from the "Validations" tab under "Reference field" select **Title**.

@@ -117,6 +117,11 @@ export async function getPostAndMorePosts(slug, preview) {
           ...responsiveImageFragment
         }
       }
+      videoUpload {
+        video {
+          streamingUrl
+        }
+      }
       author {
         name
         picture {
