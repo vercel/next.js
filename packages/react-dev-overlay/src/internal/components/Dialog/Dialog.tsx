@@ -1,11 +1,16 @@
 import * as React from 'react'
 
 export type DialogProps = {
+  type: 'error'
   'aria-labelledby': string
   'aria-describedby': string
 }
 
-const Dialog: React.FC<DialogProps> = function Dialog({ children, ...props }) {
+const Dialog: React.FC<DialogProps> = function Dialog({
+  children,
+  type,
+  ...props
+}) {
   return (
     <div
       data-nextjs-dialog
@@ -15,6 +20,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({ children, ...props }) {
       aria-describedby={props['aria-describedby']}
       aria-modal="true"
     >
+      <div data-nextjs-dialog-banner className={`banner-${type}`} />
       {children}
     </div>
   )

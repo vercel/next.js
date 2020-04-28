@@ -12,24 +12,6 @@ export function Theme() {
             align-items: flex-start;
             justify-content: space-between;
             padding: 1rem 1rem;
-            /* border: */
-            position: relative;
-            border-color: #ff3333;
-          }
-          [data-nextjs-dialog-header]::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100%;
-            border-top-width: 5px;
-            border-bottom-width: calc(0.375rem - 5px);
-            border-top-style: solid;
-            border-bottom-style: solid;
-            border-top-color: inherit;
-            border-bottom-color: transparent;
-            border-top-left-radius: 0.375rem;
-            border-top-right-radius: 0.375rem;
           }
           [data-nextjs-dialog-header] nav {
             display: flex;

@@ -265,6 +265,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
   return (
     <Overlay>
       <Dialog
+        type="error"
         aria-labelledby="nextjs__runtime_errors"
         aria-describedby="nextjs__runtime_error_reason"
       >

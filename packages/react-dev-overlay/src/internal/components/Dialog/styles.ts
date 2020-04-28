@@ -33,6 +33,29 @@ const styles = css`
       max-width: 960px;
     }
   }
+
+  [data-nextjs-dialog-banner] {
+    position: relative;
+  }
+  [data-nextjs-dialog-banner].banner-error {
+    border-color: #ff3333;
+  }
+
+  [data-nextjs-dialog-banner]::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    border-top-width: 5px;
+    border-bottom-width: calc(0.375rem - 5px);
+    border-top-style: solid;
+    border-bottom-style: solid;
+    border-top-color: inherit;
+    border-bottom-color: transparent;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+  }
 `
 
 export { styles }
