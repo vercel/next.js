@@ -14,6 +14,19 @@ import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
+// We wait for compiled successfully in this case since we want the TypeScript integration to kick in
+async function launchAndWaitForCompile(appDir, appPort) {
+  return await new Promise(async (resolve, reject) => {
+    const myApp = await launchApp(appDir, appPort, {
+      onStdout: message => {
+        if (message.match(/compiled successfully/)) {
+          resolve(myApp)
+        }
+      },
+    })
+  })
+}
+
 describe('Fork ts checker plugin', () => {
   const appDir = path.join(__dirname, '../')
   const tsConfig = path.join(appDir, 'tsconfig.json')
@@ -22,7 +35,7 @@ describe('Fork ts checker plugin', () => {
 
   beforeAll(async () => {
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchAndWaitForCompile(appDir, appPort)
   })
 
   afterAll(async () => {
@@ -59,7 +72,7 @@ describe('Fork ts checker plugin', () => {
     await new Promise(resolve => setTimeout(resolve, 500))
 
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchAndWaitForCompile(appDir, appPort)
 
     const tsConfigContent = await readFile(tsConfig)
     let parsedTsConfig
@@ -78,7 +91,7 @@ describe('Fork ts checker plugin', () => {
 
     await writeJSON(tsConfig, parsedTsConfig)
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchAndWaitForCompile(appDir, appPort)
 
     parsedTsConfig = await readJSON(tsConfig)
     expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(true)
