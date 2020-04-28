@@ -50,6 +50,28 @@ const runTests = (context, dev = false) => {
     }
   })
 
+  it('should fetch data for getStaticProps without reloading', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = true')
+    await browser.elementByCss('#gsp-link').click()
+    await browser.waitForElementByCss('#gsp')
+    expect(await browser.eval('window.beforeNavigate')).toBe(true)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.hello).toBe('world')
+  })
+
+  it('should fetch data for getServerSideProps without reloading', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = true')
+    await browser.elementByCss('#gsp-link').click()
+    await browser.waitForElementByCss('#gsp')
+    expect(await browser.eval('window.beforeNavigate')).toBe(true)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.hello).toBe('world')
+  })
+
   it('should have correct href for a link', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     const href = await browser.elementByCss('a').getAttribute('href')
