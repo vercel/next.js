@@ -141,7 +141,6 @@ export type RenderOptsPartial = {
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
-  hasCssMode: boolean
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
@@ -154,7 +153,6 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
@@ -180,7 +178,6 @@ function renderDocument(
     isFallback,
     dynamicImportsIds,
     dangerousAsPath,
-    hasCssMode,
     err,
     dev,
     ampPath,
@@ -258,7 +255,6 @@ function renderDocument(
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
-          hasCssMode,
           hybridAmp,
           staticMarkup,
           devFiles,
@@ -298,13 +294,11 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    documentMiddlewareEnabled = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
     pageConfig = {},
-    DocumentMiddleware,
     Component,
     buildManifest,
     reactLoadableManifest,
@@ -485,10 +479,6 @@ export async function renderToHTML(
     },
   }
   let props: any
-
-  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
-    await DocumentMiddleware(ctx)
-  }
 
   const ampState = {
     ampFirst: pageConfig.amp === true,

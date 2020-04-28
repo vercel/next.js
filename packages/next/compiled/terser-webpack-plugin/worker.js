@@ -2,7 +2,7 @@
 
 const {
   minify: terserMinify
-} = require('terser');
+} = require("next/dist/compiled/terser");
 
 const buildTerserOptions = ({
   ecma,
