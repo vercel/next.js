@@ -157,7 +157,7 @@ export function Theme() {
           [data-nextjs-dialog-header] nav > span {
             font-size: 0.875rem;
             color: #757575;
-            font-family: monospace;
+            font-family: var(--font-stack-monospace);
             margin-left: 9px;
           }
 
