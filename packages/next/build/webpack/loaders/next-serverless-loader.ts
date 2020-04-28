@@ -97,66 +97,19 @@ const nextServerlessLoader: loader.Loader = function() {
 
   if (page.match(API_ROUTE)) {
     return `
-      import initServer from 'next-plugin-loader?middleware=on-init-server!'
-      import onError from 'next-plugin-loader?middleware=on-error-server!'
-      ${runtimeConfigImports}
-      ${
-        /*
-          this needs to be called first so its available for any other imports
-        */
-        runtimeConfigSetter
-      }
-      ${dynamicRouteImports}
-      const { parse } = require('url')
-      const { apiResolver } = require('next/dist/next-server/server/api-utils')
-
-      ${dynamicRouteMatcher}
-
-      ${handleRewrites}
-
-      export default async (req, res) => {
-        try {
-          await initServer()
-
-          ${
-            basePath
-              ? `
-          if(req.url.startsWith('${basePath}')) {
-            req.url = req.url.replace('${basePath}', '')
-          }
-          `
-              : ''
-          }
-          const parsedUrl = handleRewrites(parse(req.url, true))
-
-          const params = ${
-            pageIsDynamicRoute
-              ? `dynamicRouteMatcher(parsedUrl.pathname)`
-              : `{}`
-          }
-
-          const resolver = require('${absolutePagePath}')
-          await apiResolver(
-            req,
-            res,
-            Object.assign({}, parsedUrl.query, params ),
-            resolver,
-            ${encodedPreviewProps},
-            onError
-          )
-        } catch (err) {
-          console.error(err)
-          await onError(err)
-
-          if (err.code === 'DECODE_FAILED') {
-            res.statusCode = 400
-            res.end('Bad Request')
-          } else {
-            res.statusCode = 500
-            res.end('Internal Server Error')
-          }
-        }
-      }
+      const createServerlessHandler = require('next/dist/next-server/server/lib/serverless-handler').default
+      
+      module.exports = createServerlessHandler({
+        basePath: '${basePath}',
+        initServer: require('next-plugin-loader?middleware=on-init-server!'),
+        onError: require('next-plugin-loader?middleware=on-error-server!'),
+        page: '${page}',
+        pageIsDynamicRoute: ${isDynamicRoute(page) ? 'true' : 'false'},
+        previewProps: ${encodedPreviewProps},
+        resolver: require('${absolutePagePath}'),
+        rewrites: require('${routesManifest}').rewrites,
+        runtimeConfig: ${runtimeConfig}
+      })
     `
   } else {
     return `
