@@ -43,8 +43,8 @@ describe('Promise in next config', () => {
         }
       }
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
-    expect(stdout).toMatch(/experimental feature/)
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    expect(stderr).toMatch(/experimental feature/)
   })
 
   it('should show warning with config from function with experimental', async () => {
@@ -56,7 +56,7 @@ describe('Promise in next config', () => {
         }
       })
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
-    expect(stdout).toMatch(/experimental feature/)
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    expect(stderr).toMatch(/experimental feature/)
   })
 })
