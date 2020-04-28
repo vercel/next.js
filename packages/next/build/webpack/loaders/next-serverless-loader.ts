@@ -84,55 +84,14 @@ const nextServerlessLoader: loader.Loader = function() {
     ? `
     const dynamicRouteMatcher = getRouteMatcher(getRouteRegex("${page}"))
   `
-    : ''
-
-  const rewriteImports = `
-    const { rewrites } = require('${routesManifest}')
-    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/server/lib/path-match')
-  `
+    : 'const dynamicRouteMatcher = null'
 
   const handleRewrites = `
-    const getCustomRouteMatcher = pathMatch(true)
-    const {prepareDestination} = require('next/dist/next-server/server/router')
-
-    function handleRewrites(parsedUrl) {
-      for (const rewrite of rewrites) {
-        const matcher = getCustomRouteMatcher(rewrite.source)
-        const params = matcher(parsedUrl.pathname)
-
-        if (params) {
-          const { parsedDestination } = prepareDestination(
-            rewrite.destination,
-            params,
-            parsedUrl.query
-          )
-          Object.assign(parsedUrl.query, parsedDestination.query, params)
-          delete parsedDestination.query
-
-          Object.assign(parsedUrl, parsedDestination)
-
-          if (parsedUrl.pathname === '${page}'){
-            break
-          }
-          ${
-            pageIsDynamicRoute
-              ? `
-            const dynamicParams = dynamicRouteMatcher(parsedUrl.pathname);\
-            if (dynamicParams) {
-              parsedUrl.query = {
-                ...parsedUrl.query,
-                ...dynamicParams
-              }
-              break
-            }
-          `
-              : ''
-          }
-        }
-      }
-
-      return parsedUrl
-    }
+    const handleRewrites = require('next/dist/next-server/server/lib/handle-rewrites').bind(
+      null,
+      require('${routesManifest}').rewrites,
+      dynamicRouteMatcher,
+    )
   `
 
   if (page.match(API_ROUTE)) {
@@ -149,7 +108,6 @@ const nextServerlessLoader: loader.Loader = function() {
       ${dynamicRouteImports}
       const { parse } = require('url')
       const { apiResolver } = require('next/dist/next-server/server/api-utils')
-      ${rewriteImports}
 
       ${dynamicRouteMatcher}
 
@@ -220,7 +178,6 @@ const nextServerlessLoader: loader.Loader = function() {
     const Error = require('${absoluteErrorPath}').default;
     const App = require('${absoluteAppPath}').default;
     ${dynamicRouteImports}
-    ${rewriteImports}
 
     const ComponentInfo = require('${absolutePagePath}')
 
