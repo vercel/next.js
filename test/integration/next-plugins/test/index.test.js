@@ -6,11 +6,11 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   findPort,
+  launchApp,
   killApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
-  launchAndWaitForCompile,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -74,7 +74,7 @@ describe('Next.js plugins', () => {
         `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
       appPort = await findPort()
-      app = await launchAndWaitForCompile(appDir, appPort, {
+      app = await launchApp(appDir, appPort, {
         onStdout(msg) {
           stdout += msg
         },
@@ -107,7 +107,7 @@ describe('Next.js plugins', () => {
         )
         appPort = await findPort()
         stdout = ''
-        app = await launchAndWaitForCompile(appDir, appPort, {
+        app = await launchApp(appDir, appPort, {
           onStdout(msg) {
             stdout += msg
           },
