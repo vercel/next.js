@@ -91,6 +91,7 @@ const nextServerlessLoader: loader.Loader = function() {
       null,
       require('${routesManifest}').rewrites,
       dynamicRouteMatcher,
+      '${page}'
     )
   `
 
