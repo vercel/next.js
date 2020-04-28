@@ -2,8 +2,11 @@ import * as React from 'react'
 import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from '../../components/CodeFrame'
 import { Overlay } from '../../components/Overlay'
+import {
+  createOriginalStackFrame,
+  getFrameSource,
+} from '../../helpers/stack-frame'
 import { RuntimeErrorObject } from './index'
-import { createOriginalStackFrame, getFrameSource } from './utils'
 
 export type ResolvedRuntimeErrorsProps = {
   errors: ResolvedRuntimeError[]
