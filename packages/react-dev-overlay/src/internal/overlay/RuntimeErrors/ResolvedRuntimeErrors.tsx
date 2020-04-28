@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from '../../components/CodeFrame'
+import { Overlay } from '../../components/Overlay'
 import { RuntimeErrorObject } from './index'
 import { createOriginalStackFrame, getFrameSource } from './utils'
 
@@ -258,8 +259,7 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
   // - escape to minimize
   // - proper a11y for elements
   return (
-    <div data-nextjs-dialog-overlay>
-      <div data-nextjs-dialog-backdrop />
+    <Overlay>
       <div
         data-nextjs-dialog-content
         tabIndex={-1}
@@ -299,6 +299,6 @@ export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = funct
           <Frames frames={errors[idx].frames} />
         </div>
       </div>
-    </div>
+    </Overlay>
   )
 }
