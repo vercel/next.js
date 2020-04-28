@@ -38,7 +38,7 @@ const styles = css`
     position: relative;
   }
   [data-nextjs-dialog-banner].banner-error {
-    border-color: #ff3333;
+    border-color: var(--color-ansi-bright-red);
   }
 
   [data-nextjs-dialog-banner]::after {
