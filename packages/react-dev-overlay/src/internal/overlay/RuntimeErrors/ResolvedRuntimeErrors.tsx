@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { StackFrame } from 'stacktrace-parser'
-import { CodeFrame } from './CodeFrame'
+import { CodeFrame } from '../../components/CodeFrame'
 import { RuntimeErrorObject } from './index'
 import { createOriginalStackFrame, getFrameSource } from './utils'
 

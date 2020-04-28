@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as Bus from '../bus'
 import { ShadowPortal } from '../components/ShadowPortal'
 import { Base } from '../styles/Base'
+import { ComponentStyles } from '../styles/ComponentStyles'
 import { CssReset } from '../styles/CssReset'
 import { RuntimeErrorObject, RuntimeErrors } from './RuntimeErrors'
 import { Theme } from './Theme'
@@ -47,6 +48,8 @@ function ReactDevOverlay({ children }) {
           <CssReset />
           <Base />
           <Theme />
+          <ComponentStyles />
+
           <RuntimeErrors errors={state.runtimeErrors} />
         </ShadowPortal>
       </React.Fragment>

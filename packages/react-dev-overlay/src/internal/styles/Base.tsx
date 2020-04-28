@@ -10,8 +10,8 @@ export function Base() {
             --font-stack-monospace: 'SFMono-Regular', Consolas,
               'Liberation Mono', Menlo, Courier, monospace;
 
-            --color-ansi-selection: #1d3b53;
-            --color-ansi-bg: #0b253a;
+            --color-ansi-selection: rgba(95, 126, 151, 0.48);
+            --color-ansi-bg: #011627;
             --color-ansi-fg: #d6deeb;
 
             --color-ansi-white: #ffffff;
