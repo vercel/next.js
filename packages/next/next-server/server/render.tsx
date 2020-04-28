@@ -153,7 +153,6 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
@@ -295,13 +294,11 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    documentMiddlewareEnabled = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
     pageConfig = {},
-    DocumentMiddleware,
     Component,
     buildManifest,
     reactLoadableManifest,
@@ -482,10 +479,6 @@ export async function renderToHTML(
     },
   }
   let props: any
-
-  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
-    await DocumentMiddleware(ctx)
-  }
 
   const ampState = {
     ampFirst: pageConfig.amp === true,

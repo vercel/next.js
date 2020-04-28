@@ -10,7 +10,6 @@ import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
 import {
   PageConfig,
-  NextPageContext,
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
@@ -35,7 +34,6 @@ export type LoadComponentsReturnType = {
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Document: DocumentType
-  DocumentMiddleware?: (ctx: NextPageContext) => void
   App: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
@@ -78,7 +76,6 @@ export async function loadComponents(
   )
 
   const DocumentMod = require(documentPath)
-  const { middleware: DocumentMiddleware } = DocumentMod
 
   const AppMod = require(appPath)
 
@@ -105,7 +102,6 @@ export async function loadComponents(
     Document,
     Component,
     buildManifest,
-    DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     getServerSideProps,
