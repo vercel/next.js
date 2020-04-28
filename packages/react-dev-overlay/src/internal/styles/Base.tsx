@@ -9,6 +9,27 @@ export function Base() {
           :host {
             --font-stack-monospace: 'SFMono-Regular', Consolas,
               'Liberation Mono', Menlo, Courier, monospace;
+
+            --color-ansi-selection: #1d3b53;
+            --color-ansi-bg: #0b253a;
+            --color-ansi-fg: #d6deeb;
+
+            --color-ansi-white: #ffffff;
+            --color-ansi-black: #011627;
+            --color-ansi-blue: #82aaff;
+            --color-ansi-cyan: #21c7a8;
+            --color-ansi-green: #22da6e;
+            --color-ansi-magenta: #c792ea;
+            --color-ansi-red: #ef5350;
+            --color-ansi-yellow: #addb67;
+            --color-ansi-bright-white: #ffffff;
+            --color-ansi-bright-black: #575656;
+            --color-ansi-bright-blue: #82aaff;
+            --color-ansi-bright-cyan: #7fdbca;
+            --color-ansi-bright-green: #22da6e;
+            --color-ansi-bright-magenta: #c792ea;
+            --color-ansi-bright-red: #ef5350;
+            --color-ansi-bright-yellow: #ffeb95;
           }
 
           .mono {
