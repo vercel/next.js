@@ -3,7 +3,6 @@
 import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
-import * as Log from '../build/output/log'
 import { cliCommand } from '../bin/next'
 
 const nextStart: cliCommand = argv => {
@@ -48,8 +47,8 @@ const nextStart: cliCommand = argv => {
   startServer({ dir }, port, args['--hostname'])
     .then(async app => {
       // tslint:disable-next-line
-      Log.ready(
-        `started server on http://${args['--hostname'] || 'localhost'}:${port}`
+      console.log(
+        `> Ready on http://${args['--hostname'] || 'localhost'}:${port}`
       )
       await app.prepare()
     })
