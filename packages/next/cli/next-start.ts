@@ -49,7 +49,7 @@ const nextStart: cliCommand = argv => {
     .then(async app => {
       // tslint:disable-next-line
       Log.ready(
-        `> Ready on http://${args['--hostname'] || 'localhost'}:${port}`
+        `started server on http://${args['--hostname'] || 'localhost'}:${port}`
       )
       await app.prepare()
     })
