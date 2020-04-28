@@ -87,7 +87,7 @@ const nextServerlessLoader: loader.Loader = function() {
     : 'const dynamicRouteMatcher = null'
 
   const handleRewrites = `
-    const handleRewrites = require('next/dist/next-server/server/lib/handle-rewrites').bind(
+    const handleRewrites = require('next/dist/next-server/server/lib/handle-rewrites').default.bind(
       null,
       require('${routesManifest}').rewrites,
       dynamicRouteMatcher,
