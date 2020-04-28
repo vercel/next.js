@@ -1,26 +1,20 @@
 import * as React from 'react'
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
-import { RuntimeErrorObject, RuntimeErrors } from './overlay/RuntimeErrors'
-import { Theme } from './overlay/Theme'
+import { Errors, SupportedErrorEvents } from './container/Errors'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
 
 type BusState = {
-  runtimeErrors: RuntimeErrorObject[]
+  errors: SupportedErrorEvents[]
 }
+
 function reducer(state: BusState, ev: Bus.BusEvent): BusState {
   switch (ev.type) {
     case Bus.TYPE_UNHANDLED_ERROR:
     case Bus.TYPE_UNHANDLED_REJECTION: {
-      return {
-        ...state,
-        runtimeErrors: [
-          ...state.runtimeErrors,
-          { eventId: ev.eventId, error: ev.reason, frames: ev.frames },
-        ],
-      }
+      return { ...state, errors: [...state.errors, ev] }
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -31,7 +25,7 @@ function reducer(state: BusState, ev: Bus.BusEvent): BusState {
 }
 
 function ReactDevOverlay({ children }) {
-  const [state, dispatch] = React.useReducer(reducer, { runtimeErrors: [] })
+  const [state, dispatch] = React.useReducer(reducer, { errors: [] })
   React.useEffect(() => {
     Bus.on(dispatch)
     return function() {
@@ -39,7 +33,7 @@ function ReactDevOverlay({ children }) {
     }
   }, [dispatch])
 
-  if (state.runtimeErrors.length) {
+  if (state.errors.length) {
     return (
       <React.Fragment>
         {children}
@@ -47,10 +41,9 @@ function ReactDevOverlay({ children }) {
         <ShadowPortal>
           <CssReset />
           <Base />
-          <Theme />
           <ComponentStyles />
 
-          <RuntimeErrors errors={state.runtimeErrors} />
+          <Errors errors={state.errors} />
         </ShadowPortal>
       </React.Fragment>
     )
