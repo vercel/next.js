@@ -1,20 +1,25 @@
 import * as React from 'react'
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
-import { Errors, SupportedErrorEvents } from './container/Errors'
+import { Errors, SupportedErrorEvent } from './container/Errors'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
 
-type BusState = {
-  errors: SupportedErrorEvents[]
+type OverlayState = {
+  nextId: number
+  errors: SupportedErrorEvent[]
 }
 
-function reducer(state: BusState, ev: Bus.BusEvent): BusState {
+function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_UNHANDLED_ERROR:
     case Bus.TYPE_UNHANDLED_REJECTION: {
-      return { ...state, errors: [...state.errors, ev] }
+      return {
+        ...state,
+        nextId: state.nextId + 1,
+        errors: [...state.errors, { id: state.nextId, event: ev }],
+      }
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -25,7 +30,10 @@ function reducer(state: BusState, ev: Bus.BusEvent): BusState {
 }
 
 function ReactDevOverlay({ children }) {
-  const [state, dispatch] = React.useReducer(reducer, { errors: [] })
+  const [state, dispatch] = React.useReducer<
+    React.Reducer<OverlayState, Bus.BusEvent>
+  >(reducer, { nextId: 1, errors: [] })
+
   React.useEffect(() => {
     Bus.on(dispatch)
     return function() {

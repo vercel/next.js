@@ -5,6 +5,7 @@ export type OriginalStackFrame =
   | {
       error: true
       reason: string
+      external: false
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
@@ -12,10 +13,23 @@ export type OriginalStackFrame =
   | {
       error: false
       reason: null
+      external: false
       sourceStackFrame: StackFrame
       originalStackFrame: StackFrame
       originalCodeFrame: string | null
     }
+  | {
+      error: false
+      reason: null
+      external: true
+      sourceStackFrame: StackFrame
+      originalStackFrame: null
+      originalCodeFrame: null
+    }
+
+export function getOriginalStackFrames(frames: StackFrame[]) {
+  return Promise.all(frames.map(frame => getOriginalStackFrame(frame)))
+}
 
 export function getOriginalStackFrame(
   source: StackFrame
@@ -43,34 +57,32 @@ export function getOriginalStackFrame(
     return {
       error: false,
       reason: null,
+      external: false,
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
     }
   }
 
+  if (!source.file?.startsWith('webpack-internal:')) {
+    return Promise.resolve({
+      error: false,
+      reason: null,
+      external: true,
+      sourceStackFrame: source,
+      originalStackFrame: null,
+      originalCodeFrame: null,
+    })
+  }
+
   return _getOriginalStackFrame().catch((err: Error) => ({
     error: true,
     reason: err?.message ?? err?.toString() ?? 'Unknown Error',
+    external: false,
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
   }))
-}
-
-export function createOriginalStackFrame(
-  source: StackFrame,
-  file: string | null,
-  lineNumber: number | null,
-  column: number | null
-): StackFrame {
-  const o = { ...source }
-  if (file) {
-    o.file = file
-    o.lineNumber = lineNumber
-    o.column = column
-  }
-  return o
 }
 
 export function getFrameSource(frame: StackFrame): string {

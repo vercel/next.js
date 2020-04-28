@@ -3,11 +3,7 @@ import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from '../../components/CodeFrame'
 import { Dialog } from '../../components/Dialog'
 import { Overlay } from '../../components/Overlay'
-import {
-  createOriginalStackFrame,
-  getFrameSource,
-} from '../../helpers/stack-frame'
-import { RuntimeErrorObject } from './index'
+import { getFrameSource } from '../../helpers/stack-frame'
 
 export type ResolvedRuntimeErrorsProps = {
   errors: ResolvedRuntimeError[]
@@ -31,81 +27,6 @@ export type ResolvedStackFrame =
 export type ResolvedStackFrameGroup = {
   collapsed: boolean
   frames: ResolvedStackFrame[]
-}
-
-async function getResolvedFrame(
-  frame: StackFrame
-): Promise<ResolvedStackFrame> {
-  if (!frame.file?.startsWith('webpack-internal:///')) {
-    const f: ResolvedStackFrame = { external: true, frame }
-    return f
-  }
-
-  const params = new URLSearchParams()
-  params.append('fileName', frame.file)
-  params.append('lineNumber', String(frame.lineNumber))
-  params.append('columnNumber', String(frame.column))
-
-  const controller = new AbortController()
-  const tm = setTimeout(() => controller.abort(), 3000)
-  return self
-    .fetch(`/__nextjs_resolve-stack-frame?${params.toString()}`, {
-      signal: controller.signal,
-    })
-    .then(res => res.json())
-    .then(body => {
-      if (
-        typeof body !== 'object' ||
-        !('fileName' in body && 'lineNumber' in body)
-      ) {
-        const f: ResolvedStackFrame = { external: true, frame }
-        return f
-      }
-      const b: {
-        fileName: unknown
-        lineNumber: unknown
-        columnNumber: unknown
-        originalCodeFrame: unknown
-      } = body
-      const f: ResolvedStackFrame = {
-        external: false,
-        sourceStackFrame: frame,
-        collapsed:
-          typeof b.fileName !== 'string' || b.fileName.includes('node_modules'),
-
-        // TODO: remedy:
-        originalStackFrame: createOriginalStackFrame(
-          frame,
-          b.fileName as any,
-          b.lineNumber as any,
-          b.columnNumber as any
-        ),
-        originalCodeFrame:
-          typeof b.originalCodeFrame === 'string' ? b.originalCodeFrame : null,
-      }
-      return f
-    })
-    .finally(() => {
-      clearTimeout(tm)
-    })
-}
-
-export async function getResolvedRuntimeError(
-  error: RuntimeErrorObject
-): Promise<ResolvedRuntimeError> {
-  const resolvedFrames: ResolvedStackFrame[] = await Promise.all(
-    error.frames.map(frame =>
-      getResolvedFrame(frame).then(
-        frame => frame,
-        () => {
-          // This isn't shorthanded for TypeScript compatibility reasons:
-          const f: ResolvedStackFrame = { error: true, frame }
-          return f
-        }
-      )
-    )
-  )
-  return { eventId: error.eventId, error: error.error, frames: resolvedFrames }
 }
 
 const BasicFrame: React.FC<{
