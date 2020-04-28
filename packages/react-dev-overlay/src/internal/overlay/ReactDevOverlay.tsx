@@ -1,9 +1,9 @@
 import * as React from 'react'
 import * as Bus from '../bus'
+import { ShadowPortal } from '../components/ShadowPortal'
 import { Base } from '../styles/Base'
 import { CssReset } from '../styles/CssReset'
 import { RuntimeErrorObject, RuntimeErrors } from './RuntimeErrors'
-import { ShadowPortal } from './ShadowPortal'
 import { Theme } from './Theme'
 
 type BusState = {
