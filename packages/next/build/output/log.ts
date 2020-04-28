@@ -1,5 +1,4 @@
 import chalk from 'next/dist/compiled/chalk'
-// ['wait', 'error', 'warn', 'ready', 'info', 'event']
 
 const prefixes = {
   wait: chalk.cyan('wait') + '  -',
