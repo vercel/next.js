@@ -135,7 +135,7 @@ Replace `<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>` with its respective value
 Once saved, go to one of the posts you've created and:
 
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
-- The state of the post will switch to **CHANGED**, **do not** publish it. By doing this, the post will be in draft state.
+- The state of the post will switch to **CHANGED** automatically. **Do not** publish it. By doing this, the post will be in draft state.
 - In the sidebar, you should see the **Open preview** button. Click on it!
 
 You should now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
