@@ -59,6 +59,32 @@ const styles = css`
     border-top-left-radius: 0.375rem;
     border-top-right-radius: 0.375rem;
   }
+
+  [data-nextjs-dialog-content] {
+    border: none;
+    margin: 0;
+    padding: 1rem;
+
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
+    border: none;
+    margin: 0;
+    padding: 0;
+
+    flex-shrink: 0;
+  }
+  [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
+    border: none;
+    margin: 0;
+    padding: 0;
+
+    position: relative;
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
 `
 
 export { styles }

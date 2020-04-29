@@ -72,13 +72,6 @@ export function Theme() {
           [data-nextjs-dialog-header] button.close:hover {
             opacity: 0.7;
           }
-          [data-nextjs-dialog-body] {
-            position: relative;
-            flex: 1 1 auto;
-            padding: 1rem;
-            overflow-y: auto;
-          }
-
           [data-nextjs-call-stack-frame] > h6 {
             font-family: var(--font-stack-monospace);
             color: rgba(25, 25, 25, 1);
