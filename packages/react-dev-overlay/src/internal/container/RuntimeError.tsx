@@ -11,22 +11,21 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   error,
 }) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
-    const idx = error.frames.findIndex(
+    return error.frames.findIndex(
       entry =>
         entry.expanded &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
     )
-    if (idx === -1) {
-      return error.frames.length
-    }
-    return idx
   }, [error.frames])
   const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
     return error.frames[firstFirstPartyFrameIndex] ?? null
   }, [error.frames, firstFirstPartyFrameIndex])
   // const leadingFrames = React.useMemo<OriginalStackFrame[]>(
-  //   () => error.frames.slice(0, firstFirstPartyFrameIndex),
+  //   () =>
+  //     firstFirstPartyFrameIndex < 0
+  //       ? []
+  //       : error.frames.slice(0, firstFirstPartyFrameIndex),
   //   [error.frames, firstFirstPartyFrameIndex]
   // )
 
