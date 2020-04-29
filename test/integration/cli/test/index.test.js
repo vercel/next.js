@@ -79,7 +79,7 @@ describe('CLI Usage', () => {
     test('custom directory', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '--port', port], true)
-      expect(output).toMatch(/ready on/i)
+      expect(output).toMatch(/started server/i)
     })
 
     test('--port', async () => {
@@ -95,7 +95,7 @@ describe('CLI Usage', () => {
       const output = await runNextCommandDev([dir, '--port', port], true, {
         env: { NODE_OPTIONS: '--inspect' },
       })
-      expect(output).toMatch(new RegExp(`ready on http://localhost:${port}`))
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('-p', async () => {

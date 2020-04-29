@@ -5,6 +5,7 @@ import { basename, extname } from 'path'
 
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
+import * as Log from '../../build/output/log'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -63,11 +64,8 @@ const defaultConfig: { [key: string]: any } = {
 }
 
 const experimentalWarning = execOnce(() => {
-  console.warn(
-    chalk.yellow.bold('Warning: ') +
-      chalk.bold('You have enabled experimental feature(s).')
-  )
-  console.warn(
+  Log.warn(chalk.bold('You have enabled experimental feature(s).'))
+  Log.warn(
     `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
       `Use them at your own risk.`
   )
