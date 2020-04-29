@@ -31,6 +31,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
     const root = nav.getRootNode()
     const d = self.document
 
+    // FIXME: Firefox events are broken
     function handler(e: KeyboardEvent) {
       if (e.key === 'ArrowLeft') {
         e.stopPropagation()
