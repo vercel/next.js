@@ -5,7 +5,7 @@
  */
 import { ResolvePlugin } from 'webpack'
 import { join } from 'path'
-import { debug } from 'debug'
+import { debug } from 'next/dist/compiled/debug'
 
 const log = debug('next:jsconfig-paths-plugin')
 
