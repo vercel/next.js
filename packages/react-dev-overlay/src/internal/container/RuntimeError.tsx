@@ -46,6 +46,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [error.frames, firstFirstPartyFrameIndex]
   )
 
+  // FIXME: allow collapsed frames to be toggled
   const [all] = React.useState(false)
   const leadingFrames = React.useMemo(
     () => allLeadingFrames.filter(f => f.expanded || all),
