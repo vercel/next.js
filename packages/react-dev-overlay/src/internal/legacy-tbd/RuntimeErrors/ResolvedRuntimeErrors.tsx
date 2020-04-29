@@ -98,23 +98,7 @@ const FrameGroup: React.FC<{
 const Frames: React.FC<{ frames: ResolvedStackFrame[] }> = function Frames({
   frames,
 }) {
-  const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
-    const idx = frames.findIndex(
-      entry =>
-        'external' in entry &&
-        entry.external === false &&
-        'collapsed' in entry &&
-        entry.collapsed === false
-    )
-    if (idx === -1) {
-      return frames.length
-    }
-    return idx
-  }, [frames])
-  const leadingFrames = React.useMemo<ResolvedStackFrame[]>(
-    () => frames.slice(0, firstFirstPartyFrameIndex),
-    [frames, firstFirstPartyFrameIndex]
-  )
+  let firstFirstPartyFrameIndex = -1
   const frameGroups = React.useMemo<ResolvedStackFrameGroup[]>(() => {
     const remaining = frames.slice(firstFirstPartyFrameIndex + 1)
     if (remaining.length < 1) {
@@ -146,13 +130,6 @@ const Frames: React.FC<{ frames: ResolvedStackFrame[] }> = function Frames({
   }, [frames, firstFirstPartyFrameIndex])
   return (
     <React.Fragment>
-      {frames[firstFirstPartyFrameIndex] && <h5>Source</h5>}
-      {...leadingFrames.map((frame, index) => (
-        <BasicFrame key={`leading-frame-${index}`} frame={frame} />
-      ))}
-      {frames[firstFirstPartyFrameIndex] && (
-        <RichFrame frame={frames[firstFirstPartyFrameIndex]} />
-      )}
       {frameGroups.length && (
         <React.Fragment>
           <h5>Call Stack</h5>
@@ -168,9 +145,5 @@ const Frames: React.FC<{ frames: ResolvedStackFrame[] }> = function Frames({
 export const ResolvedRuntimeErrors: React.FC<ResolvedRuntimeErrorsProps> = function ResolvedRuntimeErrors({
   errors,
 }) {
-  return (
-    <div data-nextjs-dialog-body>
-      <Frames frames={errors[0].frames} />
-    </div>
-  )
+  return <Frames frames={errors[0].frames} />
 }
