@@ -71,5 +71,9 @@ function unregister() {
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
 }
 
+function onRefresh() {
+  Bus.emit({ type: Bus.TYPE_REFFRESH })
+}
+
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export { register, unregister }
+export { register, unregister, onRefresh }

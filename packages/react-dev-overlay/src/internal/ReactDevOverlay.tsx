@@ -21,6 +21,9 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
         errors: [...state.errors, { id: state.nextId, event: ev }],
       }
     }
+    case Bus.TYPE_REFFRESH: {
+      return { ...state, errors: [] }
+    }
     default: {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = ev

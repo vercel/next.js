@@ -26,9 +26,9 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
+import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import fetch from 'next/dist/build/polyfills/unfetch'
 import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
-import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
@@ -159,7 +159,7 @@ function handleSuccess() {
     tryApplyUpdates(function onHotUpdateSuccess() {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      tryDismissErrorOverlay()
+      onFastRefresh()
     })
   }
 }
@@ -200,7 +200,7 @@ function handleWarnings(warnings) {
     tryApplyUpdates(function onSuccessfulHotUpdate() {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      tryDismissErrorOverlay()
+      onFastRefresh()
     })
   }
 }
@@ -242,6 +242,11 @@ function tryDismissErrorOverlay() {
   if (!hasCompileErrors) {
     ErrorOverlay.dismissBuildError()
   }
+}
+
+function onFastRefresh() {
+  tryDismissErrorOverlay()
+  DevOverlay.onRefresh()
 }
 
 // There is a newer version of the code available.
