@@ -156,10 +156,10 @@ function handleSuccess() {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onHotUpdateSuccess() {
+    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      onFastRefresh()
+      onFastRefresh(hasUpdates)
     })
   }
 }
@@ -197,10 +197,10 @@ function handleWarnings(warnings) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate() {
+    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      onFastRefresh()
+      onFastRefresh(hasUpdates)
     })
   }
 }
@@ -244,9 +244,11 @@ function tryDismissErrorOverlay() {
   }
 }
 
-function onFastRefresh() {
+function onFastRefresh(hasUpdates) {
   tryDismissErrorOverlay()
-  DevOverlay.onRefresh()
+  if (hasUpdates) {
+    DevOverlay.onRefresh()
+  }
 }
 
 // There is a newer version of the code available.
@@ -385,14 +387,15 @@ function tryApplyUpdates(onHotUpdateSuccess) {
       return
     }
 
+    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess()
+      onHotUpdateSuccess(hasUpdates)
     }
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates()
+      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
     } else {
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {
