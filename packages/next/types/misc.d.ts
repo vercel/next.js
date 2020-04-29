@@ -75,6 +75,10 @@ declare module 'next/dist/compiled/cssnano-simple' {
   import m from 'cssnano-simple'
   export = m
 }
+declare module 'next/dist/compiled/debug' {
+  import m from 'debug'
+  export = m
+}
 declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
