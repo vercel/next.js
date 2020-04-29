@@ -252,7 +252,7 @@ export const styles = css`
   .nextjs-container-errors-header > h4 {
     line-height: 1.5;
     margin: 0;
-    margin-top: 0.125rem;
+    margin-top: 1rem;
   }
   .nextjs-container-errors-header > p {
     font-family: var(--font-stack-monospace);
@@ -277,6 +277,6 @@ export const styles = css`
     justify-content: flex-start;
   }
   .nextjs-toast-errors > svg {
-    margin-right: 0.875rem;
+    margin-right: 0.5rem;
   }
 `

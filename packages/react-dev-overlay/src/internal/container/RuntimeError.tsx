@@ -1,15 +1,25 @@
 import * as React from 'react'
+import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from '../components/CodeFrame'
 import { noop as css } from '../helpers/noop-template'
-import { OriginalStackFrame } from '../helpers/stack-frame'
+import { getFrameSource, OriginalStackFrame } from '../helpers/stack-frame'
 import { ReadyRuntimeError } from './Errors'
 
 export type RuntimeErrorProps = { className?: string; error: ReadyRuntimeError }
 
-const StackFrame: React.FC<{
+const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
-}> = function StackFrame({ frame }) {
-  return <div />
+}> = function CallStackFrame({ frame }) {
+  // TODO: ability to expand resolved frames
+  // TODO: render error or external indicator
+
+  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
+  return (
+    <div data-nextjs-call-stack-frame>
+      <h6>{f.methodName}</h6>
+      <p>{getFrameSource(f)}</p>
+    </div>
+  )
 }
 
 const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
@@ -41,6 +51,13 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     () => allLeadingFrames.filter(f => f.expanded || all),
     [all, allLeadingFrames]
   )
+  const callStackFrames = React.useMemo(
+    () =>
+      error.frames
+        .slice(firstFirstPartyFrameIndex + 1)
+        .filter(f => f.expanded || all),
+    [all, error.frames, firstFirstPartyFrameIndex]
+  )
 
   return (
     <div className={className}>
@@ -48,7 +65,10 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
         <React.Fragment>
           <h5>Source</h5>
           {leadingFrames.map((frame, index) => (
-            <StackFrame key={`leading-frame-${index}-${all}`} frame={frame} />
+            <CallStackFrame
+              key={`leading-frame-${index}-${all}`}
+              frame={frame}
+            />
           ))}
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame}
@@ -58,10 +78,30 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
       ) : (
         undefined
       )}
+      {callStackFrames.length ? (
+        <React.Fragment>
+          <h5>Call Stack</h5>
+          {callStackFrames.map((frame, index) => (
+            <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
+          ))}
+        </React.Fragment>
+      ) : (
+        undefined
+      )}
     </div>
   )
 }
 
-export const styles = css``
+export const styles = css`
+  [data-nextjs-call-stack-frame] > h6 {
+    font-family: var(--font-stack-monospace);
+    color: rgba(25, 25, 25, 1);
+  }
+  [data-nextjs-call-stack-frame] > p {
+    padding-left: 0.75rem;
+    font-size: 0.875rem;
+    color: rgba(25, 25, 25, 0.5);
+  }
+`
 
 export { RuntimeError }

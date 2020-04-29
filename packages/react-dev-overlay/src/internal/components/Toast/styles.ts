@@ -21,8 +21,8 @@ const styles = css`
     border-radius: 5px;
     font-weight: 600;
     color: var(--color-ansi-white);
-    background-color: var(--color-ansi-bright-red);
-    box-shadow: 0 5px 10px var(--color-ansi-bright-red);
+    background-color: var(--color-ansi-red);
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.12);
   }
 `
 
