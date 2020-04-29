@@ -122,9 +122,9 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 7. Try preview mode
 
-On your contentful space, go to **Settings > Content preview**, then add a new content preview for development, fill the form like so:
+On your contentful space, go to **Settings > Content preview**, then add a new content preview for development.
 
-Now, let's add a new content preview for development, the **Name** field may be anything, like `Development`, then under **Content preview URLs**, check **post** and set its input to:
+The **Name** field may be anything, like `Development`. Then, under **Content preview URLs**, check **post** and set its value to:
 
 ```
 http://localhost:3000/api/preview?secret=<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>&slug={entry.fields.slug}
