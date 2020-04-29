@@ -15,8 +15,6 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -25,18 +23,9 @@ npm init next-app --example cms-contentful cms-contentful-app
 yarn create next-app --example cms-contentful cms-contentful-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-contentful
-cd cms-contentful
-```
-
 ## Configuration
 
-### Step 1. Create an account and a repository on Contentful
+### Step 1. Create an account and a space on Contentful
 
 First, [create an account on Contentful](https://www.contentful.com/sign-up/).
 
@@ -46,7 +35,7 @@ After creating an account, create a new **space** from the [dashboard](https://a
 
 From your contentful space, go to **Content model** and add a new content type:
 
-- The **Name** and **Api Identifier** should be `author`
+- **Api Identifier** should be `author`
 
 Once the content model is saved, let's add these fields (you don't have to modify the settings unless specified):
 
@@ -59,7 +48,7 @@ Save the content type and continue.
 
 From your contentful space, go to **Content model** and add a new content type:
 
-- The **Name** and **Api Identifier** should be `post`
+- **Api Identifier** should be `post`
 
 Next, add these fields (you don't have to modify the settings unless specified):
 
@@ -77,19 +66,19 @@ Save the content type and continue.
 
 Go to the **Content** page in your space, then click on **Add entry** and select the **author** content type:
 
-- You just need **1 author document**.
+- You just need **1 author entry**.
 - Use dummy data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, add a new entry to **post**:
 
-- We recommend creating at least **2 Post documents**.
+- We recommend creating at least **2 post entries**.
 - Use dummy data for the text.
 - You can write markdown for the **content** field.
 - For images, you can download them from [Unsplash](https://unsplash.com/).
 - Pick the **author** you created earlier.
 
-**Important:** For each document, you need to click on **Publish**. If not, the document will be in draft state.
+**Important:** For each entry, you need to click on **Publish**. If not, the entry will be in draft state.
 
 ### Step 5. Set up environment variables
 
