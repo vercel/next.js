@@ -6,6 +6,12 @@ import { ReadyRuntimeError } from './Errors'
 
 export type RuntimeErrorProps = { className?: string; error: ReadyRuntimeError }
 
+const StackFrame: React.FC<{
+  frame: OriginalStackFrame
+}> = function StackFrame({ frame }) {
+  return <div />
+}
+
 const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   className,
   error,
@@ -21,19 +27,29 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
     return error.frames[firstFirstPartyFrameIndex] ?? null
   }, [error.frames, firstFirstPartyFrameIndex])
-  // const leadingFrames = React.useMemo<OriginalStackFrame[]>(
-  //   () =>
-  //     firstFirstPartyFrameIndex < 0
-  //       ? []
-  //       : error.frames.slice(0, firstFirstPartyFrameIndex),
-  //   [error.frames, firstFirstPartyFrameIndex]
-  // )
+
+  const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
+    () =>
+      firstFirstPartyFrameIndex < 0
+        ? []
+        : error.frames.slice(0, firstFirstPartyFrameIndex),
+    [error.frames, firstFirstPartyFrameIndex]
+  )
+
+  const [all] = React.useState(false)
+  const leadingFrames = React.useMemo(
+    () => allLeadingFrames.filter(f => f.expanded || all),
+    [all, allLeadingFrames]
+  )
 
   return (
     <div className={className}>
       {firstFrame ? (
         <React.Fragment>
           <h5>Source</h5>
+          {leadingFrames.map((frame, index) => (
+            <StackFrame key={`leading-frame-${index}-${all}`} frame={frame} />
+          ))}
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame}
             codeFrame={firstFrame.originalCodeFrame}
