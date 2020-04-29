@@ -13,6 +13,9 @@ const {
 } = process.env
 
 module.exports = withSourceMaps({
+  env: {
+    SENTRY_DSN: process.env.SENTRY_DSN,
+  },
   webpack: (config, options) => {
     // In `pages/_app.js`, Sentry is imported from @sentry/node. While
     // @sentry/browser will run in a Node.js environment, @sentry/node will use
