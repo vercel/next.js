@@ -6,6 +6,7 @@ export type OriginalStackFrame =
       error: true
       reason: string
       external: false
+      expanded: false
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
@@ -14,6 +15,7 @@ export type OriginalStackFrame =
       error: false
       reason: null
       external: false
+      expanded: boolean
       sourceStackFrame: StackFrame
       originalStackFrame: StackFrame
       originalCodeFrame: string | null
@@ -22,6 +24,7 @@ export type OriginalStackFrame =
       error: false
       reason: null
       external: true
+      expanded: false
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
@@ -58,6 +61,9 @@ export function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
+      expanded:
+        body.originalStackFrame?.file &&
+        !body.originalStackFrame.file.includes('node_modules'),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
@@ -69,6 +75,7 @@ export function getOriginalStackFrame(
       error: false,
       reason: null,
       external: true,
+      expanded: false,
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
@@ -79,6 +86,7 @@ export function getOriginalStackFrame(
     error: true,
     reason: err?.message ?? err?.toString() ?? 'Unknown Error',
     external: false,
+    expanded: false,
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
