@@ -4,6 +4,7 @@ import { asyncForEach } from './utils'
 export { validatePreview } from './preview'
 import { normalizePosts } from './normalize'
 import { requireComponentDependancyByName } from './dependancies'
+import { isLastDayOfMonth } from 'date-fns'
 
 
 //Our LIVE API client
@@ -95,10 +96,13 @@ export async function getAgilityPaths() {
       languageCode: CMS_LANG
   })
 
-  return Object.keys(sitemapFlat).map(s => {
-      //returns an array of paths as a string (i.e.  ['/home', '/posts']
+  //returns an array of paths as a string (i.e.  ['/home', '/posts']
+  //skips folders...
+  const paths = Object.keys(sitemapFlat).filter(s => sitemapFlat[s].isFolder != true).map(s => {
       return s; 
   })
+  
+  return paths;
 }
 
 export async function getAgilityPageProps({ params, preview }) {
