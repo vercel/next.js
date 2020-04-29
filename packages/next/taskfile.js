@@ -524,6 +524,13 @@ export async function react_error_overlay(task, opts) {
     .target('dist/compiled/react-error-overlay')
 }
 
+externals['debug'] = 'next/dist/compiled/debug'
+export async function ncc_debug(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('debug')))
+    .target('dist/compiled/debug')
+}
+
 export async function precompile(task) {
   await task.parallel([
     'browser_polyfills',
@@ -596,6 +603,7 @@ export async function ncc(task) {
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
+      'ncc_debug',
     ])
 }
 
