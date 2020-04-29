@@ -18,6 +18,7 @@ import {
   getOriginalStackFrames,
   OriginalStackFrame,
 } from '../helpers/stack-frame'
+import { RuntimeError } from './RuntimeError'
 
 export type SupportedErrorEvent = {
   id: number
@@ -25,7 +26,7 @@ export type SupportedErrorEvent = {
 }
 export type ErrorsProps = { errors: SupportedErrorEvent[] }
 
-type ReadyRuntimeError = {
+export type ReadyRuntimeError = {
   id: number
 
   runtime: true
@@ -143,7 +144,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     [readyErrors.length]
   )
 
-  const activeError = React.useMemo<ReadyRuntimeError | null>(
+  const activeError = React.useMemo<ReadyErrorEvent | null>(
     () => readyErrors[activeIdx] ?? null,
     [activeIdx, readyErrors]
   )
@@ -205,7 +206,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               {activeError.error.name}: {activeError.error.message}
             </p>
           </DialogHeader>
-          <DialogBody></DialogBody>
+          <DialogBody>
+            <RuntimeError error={activeError} />
+          </DialogBody>
         </DialogContent>
       </Dialog>
     </Overlay>
