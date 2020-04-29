@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
 import { Errors, SupportedErrorEvent } from './container/Errors'
+import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
@@ -44,11 +45,17 @@ function ReactDevOverlay({ children }) {
     }
   }, [dispatch])
 
-  if (state.errors.length) {
-    return (
-      <React.Fragment>
-        {children}
+  const onComponentError = React.useCallback(
+    (error: Error, componentStack: string | null) => {
+      // TODO: special handling
+    },
+    []
+  )
 
+  return (
+    <React.Fragment>
+      <ErrorBoundary onError={onComponentError}>{children}</ErrorBoundary>
+      {state.errors.length ? (
         <ShadowPortal>
           <CssReset />
           <Base />
@@ -56,10 +63,11 @@ function ReactDevOverlay({ children }) {
 
           <Errors errors={state.errors} />
         </ShadowPortal>
-      </React.Fragment>
-    )
-  }
-  return children
+      ) : (
+        undefined
+      )}
+    </React.Fragment>
+  )
 }
 
 export default ReactDevOverlay
