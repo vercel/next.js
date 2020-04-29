@@ -3,10 +3,11 @@ import { noop as css } from '../../helpers/noop-template'
 const styles = css`
   [data-nextjs-codeframe] {
     border-radius: 0.3rem;
-    margin-bottom: 1rem;
-
     background-color: var(--color-ansi-bg);
     color: var(--color-ansi-fg);
+  }
+  [data-nextjs-codeframe]:not(:last-child) {
+    margin-bottom: 1rem;
   }
   [data-nextjs-codeframe]::selection,
   [data-nextjs-codeframe] *::selection {
