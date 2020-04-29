@@ -16,6 +16,7 @@ export default function PostHeader({ title, coverImage, date, author }) {
           responsiveImage={coverImage.responsiveImage}
         />
       </div>
+      {author &&
       <div className="max-w-2xl mx-auto">
         <div className="block md:hidden mb-6">
           <Avatar name={author.name} picture={author.picture} />
@@ -24,6 +25,7 @@ export default function PostHeader({ title, coverImage, date, author }) {
           <Date dateString={date} />
         </div>
       </div>
+      }
     </>
   )
 }
