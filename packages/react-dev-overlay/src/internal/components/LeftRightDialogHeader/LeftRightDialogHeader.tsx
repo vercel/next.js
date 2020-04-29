@@ -18,59 +18,61 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
   const buttonRight = React.useRef<HTMLButtonElement>()
   const buttonClose = React.useRef<HTMLButtonElement>()
 
-  const onNav = React.useCallback(
-    (el: HTMLElement) => {
-      if (el == null) {
-        return
-      }
+  const [nav, setNav] = React.useState<HTMLElement | null>(null)
+  const onNav = React.useCallback((el: HTMLElement) => {
+    setNav(el)
+  }, [])
 
-      const root = el.getRootNode()
-      const d = self.document
+  React.useEffect(() => {
+    if (nav == null) {
+      return
+    }
 
-      function handler(e: KeyboardEvent) {
-        if (e.key === 'ArrowLeft') {
-          e.stopPropagation()
-          if (buttonLeft.current) {
-            buttonLeft.current.focus()
-          }
-          previous && previous()
-        } else if (e.key === 'ArrowRight') {
-          e.stopPropagation()
-          if (buttonRight.current) {
-            buttonRight.current.focus()
-          }
-          next && next()
-        } else if (e.key === 'Escape') {
-          e.stopPropagation()
-          if (root instanceof ShadowRoot) {
-            const a = root.activeElement
-            if (a !== buttonClose.current && a instanceof HTMLElement) {
-              if (buttonClose.current) {
-                buttonClose.current.focus()
-              } else {
-                a.blur()
-              }
-              return
+    const root = nav.getRootNode()
+    const d = self.document
+
+    function handler(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft') {
+        e.stopPropagation()
+        if (buttonLeft.current) {
+          buttonLeft.current.focus()
+        }
+        previous && previous()
+      } else if (e.key === 'ArrowRight') {
+        e.stopPropagation()
+        if (buttonRight.current) {
+          buttonRight.current.focus()
+        }
+        next && next()
+      } else if (e.key === 'Escape') {
+        e.stopPropagation()
+        if (root instanceof ShadowRoot) {
+          const a = root.activeElement
+          if (a !== buttonClose.current && a instanceof HTMLElement) {
+            if (buttonClose.current) {
+              buttonClose.current.focus()
+            } else {
+              a.blur()
             }
+            return
           }
-
-          close()
         }
-      }
 
-      root.addEventListener('keydown', handler)
+        close()
+      }
+    }
+
+    root.addEventListener('keydown', handler)
+    if (root !== d) {
+      d.addEventListener('keydown', handler)
+    }
+    return function() {
+      root.removeEventListener('keydown', handler)
       if (root !== d) {
-        d.addEventListener('keydown', handler)
+        d.removeEventListener('keydown', handler)
       }
-      return function() {
-        root.removeEventListener('keydown', handler)
-        if (root !== d) {
-          d.removeEventListener('keydown', handler)
-        }
-      }
-    },
-    [close, next, previous]
-  )
+    }
+  }, [close, nav, next, previous])
 
   return (
     <div data-nextjs-dialog-left-right className={className}>
