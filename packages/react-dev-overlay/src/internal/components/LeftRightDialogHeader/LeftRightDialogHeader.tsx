@@ -2,8 +2,8 @@ import * as React from 'react'
 
 export type LeftRightDialogHeaderProps = {
   className?: string
-  previous: () => void | null
-  next: () => void | null
+  previous: (() => void) | null
+  next: (() => void) | null
   close: () => void
 }
 
@@ -33,13 +33,13 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
           if (buttonLeft.current) {
             buttonLeft.current.focus()
           }
-          previous()
+          previous && previous()
         } else if (e.key === 'ArrowRight') {
           e.stopPropagation()
           if (buttonRight.current) {
             buttonRight.current.focus()
           }
-          next()
+          next && next()
         } else if (e.key === 'Escape') {
           e.stopPropagation()
           if (root instanceof ShadowRoot) {
