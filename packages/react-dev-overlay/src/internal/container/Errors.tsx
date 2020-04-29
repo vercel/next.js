@@ -194,7 +194,12 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
               close={minimize}
-            />
+            >
+              <small>
+                {activeIdx + 1} of {readyErrors.length} unhandled error
+                {readyErrors.length < 2 ? '' : 's'}
+              </small>
+            </LeftRightDialogHeader>
             <h4 id="nextjs__container_errors_label">Unhandled Runtime Error</h4>
             <p id="nextjs__container_errors_desc">
               {activeError.error.name}: {activeError.error.message}
