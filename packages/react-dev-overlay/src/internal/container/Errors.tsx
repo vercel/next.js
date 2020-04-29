@@ -206,7 +206,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               {activeError.error.name}: {activeError.error.message}
             </p>
           </DialogHeader>
-          <DialogBody>
+          <DialogBody className="nextjs-container-errors-body">
             <RuntimeError error={activeError} />
           </DialogBody>
         </DialogContent>
@@ -225,5 +225,9 @@ export const styles = css`
     font-family: var(--font-stack-monospace);
     margin: 0;
     color: #6a6a6a;
+  }
+
+  .nextjs-container-errors-body {
+    margin-top: 1.5rem;
   }
 `

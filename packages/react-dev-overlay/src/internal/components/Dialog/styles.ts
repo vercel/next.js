@@ -70,17 +70,9 @@ const styles = css`
     flex-direction: column;
   }
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
-    border: none;
-    margin: 0;
-    padding: 0;
-
     flex-shrink: 0;
   }
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
-    border: none;
-    margin: 0;
-    padding: 0;
-
     position: relative;
     flex: 1 1 auto;
     overflow-y: auto;
