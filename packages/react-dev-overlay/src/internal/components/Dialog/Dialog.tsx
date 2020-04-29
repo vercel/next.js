@@ -14,12 +14,15 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   onClose,
   ...props
 }) {
-  const dialog = React.useRef<HTMLDivElement>()
+  const [dialog, setDialog] = React.useState<HTMLDivElement>(null)
+  const onDialog = React.useCallback(node => {
+    setDialog(node)
+  }, [])
   useOnClickOutside(dialog, onClose)
 
   return (
     <div
-      ref={dialog}
+      ref={onDialog}
       data-nextjs-dialog
       tabIndex={-1}
       role="dialog"
