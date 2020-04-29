@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    pageEnv: true,
-  },
-}
+module.exports = {}
