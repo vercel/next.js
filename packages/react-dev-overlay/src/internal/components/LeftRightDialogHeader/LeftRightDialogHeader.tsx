@@ -14,10 +14,53 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
   next,
   close,
 }) {
+  const buttonLeft = React.useRef<HTMLButtonElement>()
+  const buttonRight = React.useRef<HTMLButtonElement>()
+
+  const onNav = React.useCallback(
+    (el: HTMLElement) => {
+      if (el == null) {
+        return
+      }
+
+      const root = el.getRootNode()
+      const d = self.document
+
+      function handler(e: KeyboardEvent) {
+        e.stopPropagation()
+
+        if (e.key === 'ArrowLeft') {
+          if (buttonLeft.current) {
+            buttonLeft.current.focus()
+          }
+          previous()
+        } else if (e.key === 'ArrowRight') {
+          if (buttonRight.current) {
+            buttonRight.current.focus()
+          }
+          next()
+        }
+      }
+
+      root.addEventListener('keydown', handler)
+      if (root !== d) {
+        d.addEventListener('keydown', handler)
+      }
+      return function() {
+        root.removeEventListener('keydown', handler)
+        if (root !== d) {
+          d.removeEventListener('keydown', handler)
+        }
+      }
+    },
+    [next, previous]
+  )
+
   return (
     <div data-nextjs-dialog-left-right className={className}>
-      <nav>
+      <nav ref={onNav}>
         <button
+          ref={buttonLeft}
           type="button"
           disabled={previous == null}
           onClick={previous ?? undefined}
@@ -25,6 +68,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
           &larr;
         </button>
         <button
+          ref={buttonRight}
           type="button"
           disabled={next == null}
           onClick={next ?? undefined}
