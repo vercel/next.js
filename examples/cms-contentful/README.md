@@ -130,7 +130,7 @@ Now, let's add a new content preview for development, the **Name** field may be 
 http://localhost:3000/api/preview?secret=<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>&slug={entry.fields.slug}
 ```
 
-Replace `<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env`
+Replace `<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env`.
 
 Once saved, go to one of the posts you've created and:
 
