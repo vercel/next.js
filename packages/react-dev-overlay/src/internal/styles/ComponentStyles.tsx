@@ -3,6 +3,7 @@ import { styles as codeFrame } from '../components/CodeFrame/styles'
 import { styles as dialog } from '../components/Dialog'
 import { styles as leftRightDialogHeader } from '../components/LeftRightDialogHeader/styles'
 import { styles as overlay } from '../components/Overlay/styles'
+import { styles as containerErrorStyles } from '../container/Errors'
 import { noop as css } from '../helpers/noop-template'
 
 export function ComponentStyles() {
@@ -14,6 +15,8 @@ export function ComponentStyles() {
           ${dialog}
           ${leftRightDialogHeader}
           ${codeFrame}
+
+          ${containerErrorStyles}
         `,
       }}
     />

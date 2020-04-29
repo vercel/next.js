@@ -6,6 +6,15 @@ import {
   UnhandledRejection,
 } from '../bus'
 import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+} from '../components/Dialog'
+import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
+import { Overlay } from '../components/Overlay'
+import { noop as css } from '../helpers/noop-template'
+import {
   getOriginalStackFrames,
   OriginalStackFrame,
 } from '../helpers/stack-frame'
@@ -121,6 +130,23 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   }, [nextError])
 
   const [isMinimized, setMinimized] = React.useState<boolean>(false)
+  const [activeIdx, setActiveIndex] = React.useState<number>(0)
+  const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
+    e?.preventDefault()
+    setActiveIndex(v => Math.max(0, v - 1))
+  }, [])
+  const next = React.useCallback(
+    (e?: MouseEvent | TouchEvent) => {
+      e?.preventDefault()
+      setActiveIndex(v => Math.max(0, Math.min(readyErrors.length - 1, v + 1)))
+    },
+    [readyErrors.length]
+  )
+
+  const activeError = React.useMemo<ReadyRuntimeError | null>(
+    () => readyErrors[activeIdx] ?? null,
+    [activeIdx, readyErrors]
+  )
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but lets handle it.
@@ -128,8 +154,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     if (errors.length < 1) {
       setLookups({})
       setMinimized(false)
+      setActiveIndex(0)
     }
   }, [errors.length])
+
+  const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
+    e?.preventDefault()
+    setMinimized(true)
+  }, [])
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
@@ -138,8 +170,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   }
 
   if (isLoading) {
-    // TODO: render loading state
-    return null
+    // TODO: better loading state
+    return <Overlay />
   }
 
   if (isMinimized) {
@@ -148,5 +180,42 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   }
 
   // TODO: render overlay
-  return null
+  return (
+    <Overlay>
+      <Dialog
+        type="error"
+        aria-labelledby="nextjs__container_errors_label"
+        aria-describedby="nextjs__container_errors_desc"
+        onClose={minimize}
+      >
+        <DialogContent>
+          <DialogHeader className="nextjs-container-errors-header">
+            <LeftRightDialogHeader
+              previous={activeIdx > 0 ? previous : null}
+              next={activeIdx < readyErrors.length - 1 ? next : null}
+              close={minimize}
+            />
+            <h4 id="nextjs__container_errors_label">Unhandled Runtime Error</h4>
+            <p id="nextjs__container_errors_desc">
+              {activeError.error.name}: {activeError.error.message}
+            </p>
+          </DialogHeader>
+          <DialogBody></DialogBody>
+        </DialogContent>
+      </Dialog>
+    </Overlay>
+  )
 }
+
+export const styles = css`
+  .nextjs-container-errors-header > h4 {
+    line-height: 1.5;
+    margin: 0;
+    margin-top: 0.125rem;
+  }
+  .nextjs-container-errors-header > p {
+    font-family: var(--font-stack-monospace);
+    margin: 0;
+    color: #6a6a6a;
+  }
+`
