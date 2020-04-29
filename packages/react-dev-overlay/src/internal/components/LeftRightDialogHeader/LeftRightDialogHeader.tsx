@@ -16,6 +16,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
 }) {
   const buttonLeft = React.useRef<HTMLButtonElement>()
   const buttonRight = React.useRef<HTMLButtonElement>()
+  const buttonClose = React.useRef<HTMLButtonElement>()
 
   const onNav = React.useCallback(
     (el: HTMLElement) => {
@@ -27,18 +28,33 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
       const d = self.document
 
       function handler(e: KeyboardEvent) {
-        e.stopPropagation()
-
         if (e.key === 'ArrowLeft') {
+          e.stopPropagation()
           if (buttonLeft.current) {
             buttonLeft.current.focus()
           }
           previous()
         } else if (e.key === 'ArrowRight') {
+          e.stopPropagation()
           if (buttonRight.current) {
             buttonRight.current.focus()
           }
           next()
+        } else if (e.key === 'Escape') {
+          e.stopPropagation()
+          if (root instanceof ShadowRoot) {
+            const a = root.activeElement
+            if (a !== buttonClose.current && a instanceof HTMLElement) {
+              if (buttonClose.current) {
+                buttonClose.current.focus()
+              } else {
+                a.blur()
+              }
+              return
+            }
+          }
+
+          close()
         }
       }
 
@@ -53,7 +69,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         }
       }
     },
-    [next, previous]
+    [close, next, previous]
   )
 
   return (
@@ -78,7 +94,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         &nbsp;
         {children}
       </nav>
-      <button type="button" onClick={close}>
+      <button ref={buttonClose} type="button" onClick={close}>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
