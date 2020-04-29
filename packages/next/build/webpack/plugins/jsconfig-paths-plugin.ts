@@ -5,6 +5,9 @@
  */
 import { ResolvePlugin } from 'webpack'
 import { join } from 'path'
+import { debug } from 'next/dist/compiled/debug'
+
+const log = debug('next:jsconfig-paths-plugin')
 
 export interface Pattern {
   prefix: string
@@ -26,6 +29,13 @@ export function hasZeroOrOneAsteriskCharacter(str: string): boolean {
     }
   }
   return true
+}
+
+/**
+ * Determines whether a path starts with a relative path component (i.e. `.` or `..`).
+ */
+export function pathIsRelative(path: string): boolean {
+  return /^\.\.?($|[\\/])/.test(path)
 }
 
 export function tryParsePattern(pattern: string): Pattern | undefined {
@@ -131,8 +141,9 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
   resolvedBaseUrl: string
   constructor(paths: Paths, resolvedBaseUrl: string) {
     this.paths = paths
-
     this.resolvedBaseUrl = resolvedBaseUrl
+    log('tsconfig.json or jsconfig.json paths: %O', paths)
+    log('resolved baseUrl: %s', resolvedBaseUrl)
   }
   apply(resolver: any) {
     const paths = this.paths
@@ -140,6 +151,7 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
 
     // If no aliases are added bail out
     if (pathsKeys.length === 0) {
+      log('paths are empty, bailing out')
       return
     }
 
@@ -150,16 +162,30 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
       .tapPromise(
         'JsConfigPathsPlugin',
         async (request: any, resolveContext: any) => {
+          const moduleName = request.request
+
           // Exclude node_modules from paths support (speeds up resolving)
           if (request.path.match(NODE_MODULES_REGEX)) {
+            log('skipping request as it is inside node_modules %s', moduleName)
             return
           }
 
-          const moduleName = request.request
+          if (moduleName.startsWith('/')) {
+            log('skipping request as it is an absolute path %s', moduleName)
+            return
+          }
+
+          if (pathIsRelative(moduleName)) {
+            log('skipping request as it is a relative path %s', moduleName)
+            return
+          }
+
+          // log('starting to resolve request %s', moduleName)
 
           // If the module name does not match any of the patterns in `paths` we hand off resolving to webpack
           const matchedPattern = matchPatternOrExact(pathsKeys, moduleName)
           if (!matchedPattern) {
+            log('moduleName did not match any paths pattern %s', moduleName)
             return
           }
 
@@ -181,7 +207,7 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
             }
 
             const candidate = join(baseDirectory, path)
-            const [err, result] = await new Promise((resolve, reject) => {
+            const [err, result] = await new Promise(resolve => {
               const obj = Object.assign({}, request, {
                 request: candidate,
               })

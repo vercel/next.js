@@ -59,6 +59,11 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello/)
     })
 
+    it('should resolve a single matching alias', async () => {
+      const $ = await get$('/wildcard-alias')
+      expect($('body').text()).toMatch(/world/)
+    })
+
     it('should have correct module not found error', async () => {
       const basicPage = join(appDir, 'pages/basic-alias.js')
       const contents = await fs.readFile(basicPage, 'utf8')
