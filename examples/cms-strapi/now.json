@@ -1,0 +1,17 @@
+{
+  "builds": [{ "src": "package.json", "use": "@now/next" }],
+  "build": {
+    "env": {
+      "API_URL": "@api-url"
+    }
+  },
+  "env": {
+    "API_URL": "@api-url"
+  },
+  "routes": [
+    {
+      "src": "(.*)",
+      "dest": "."
+    }
+  ]
+}
