@@ -13,6 +13,7 @@ import {
 } from '../components/Dialog'
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
+import { Toast } from '../components/Toast'
 import { noop as css } from '../helpers/noop-template'
 import {
   getOriginalStackFrames,
@@ -163,6 +164,13 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     e?.preventDefault()
     setMinimized(true)
   }, [])
+  const reopen = React.useCallback(
+    (e?: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+      e?.preventDefault()
+      setMinimized(false)
+    },
+    []
+  )
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
@@ -176,11 +184,30 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   }
 
   if (isMinimized) {
-    // TODO: render minimized state in bottom left
-    return null
+    return (
+      <Toast className="nextjs-toast-errors-parent" onClick={reopen}>
+        <div className="nextjs-toast-errors">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>{readyErrors.length} errors</span>
+        </div>
+      </Toast>
+    )
   }
 
-  // TODO: render overlay
   return (
     <Overlay>
       <Dialog
@@ -235,5 +262,21 @@ export const styles = css`
 
   .nextjs-container-errors-body {
     margin-top: 1.5rem;
+  }
+
+  .nextjs-toast-errors-parent {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  .nextjs-toast-errors-parent:hover {
+    transform: scale(1.1);
+  }
+  .nextjs-toast-errors {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .nextjs-toast-errors > svg {
+    margin-right: 0.875rem;
   }
 `
