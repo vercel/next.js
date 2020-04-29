@@ -120,11 +120,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     )
   }, [nextError])
 
+  const [isMinimized, setMinimized] = React.useState<boolean>(false)
+
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but lets handle it.
   React.useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
+      setMinimized(false)
     }
   }, [errors.length])
 
@@ -135,10 +138,15 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   }
 
   if (isLoading) {
-    // TODO: render loading state in bottom left
+    // TODO: render loading state
     return null
   }
 
-  // TODO: implement UI
+  if (isMinimized) {
+    // TODO: render minimized state in bottom left
+    return null
+  }
+
+  // TODO: render overlay
   return null
 }
