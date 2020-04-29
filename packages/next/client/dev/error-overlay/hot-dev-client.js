@@ -247,7 +247,9 @@ function tryDismissErrorOverlay() {
 function onFastRefresh(hasUpdates) {
   tryDismissErrorOverlay()
   if (hasUpdates) {
-    DevOverlay.onRefresh()
+    if (process.env.__NEXT_FAST_REFRESH) {
+      DevOverlay.onRefresh()
+    }
   }
 }
 
