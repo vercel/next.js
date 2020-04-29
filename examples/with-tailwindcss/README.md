@@ -47,4 +47,4 @@ This example is a basic starting point for using [Tailwind CSS](https://tailwind
 
 - [postcss-preset-env](https://preset-env.cssdb.org/) - Adds stage 2+ features and autoprefixes
 
-To control the generated stylesheet's filesize, this example uses Tailwind CSS' [`purge` option](https://tailwindcss.com/docs/controlling-file-size/#removing-unused-css) to removed unused CSS.
+To control the generated stylesheet's filesize, this example uses Tailwind CSS' [`purge` option](https://tailwindcss.com/docs/controlling-file-size/#removing-unused-css) to remove unused CSS.
