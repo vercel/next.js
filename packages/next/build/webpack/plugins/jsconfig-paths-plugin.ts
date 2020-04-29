@@ -3,8 +3,8 @@
  * The TypeScript license can be found here:
  * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
  */
+import path from 'path'
 import { ResolvePlugin } from 'webpack'
-import { join } from 'path'
 import { debug } from 'next/dist/compiled/debug'
 
 const log = debug('next:jsconfig-paths-plugin')
@@ -170,7 +170,10 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
             return
           }
 
-          if (moduleName.startsWith('/')) {
+          if (
+            path.posix.isAbsolute(moduleName) ||
+            (process.platform === 'win32' && path.win32.isAbsolute(moduleName))
+          ) {
             log('skipping request as it is an absolute path %s', moduleName)
             return
           }
@@ -199,14 +202,16 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
           let triedPaths = []
 
           for (const subst of paths[matchedPatternText]) {
-            const path = matchedStar ? subst.replace('*', matchedStar) : subst
+            const curPath = matchedStar
+              ? subst.replace('*', matchedStar)
+              : subst
 
             // Ensure .d.ts is not matched
-            if (path.endsWith('.d.ts')) {
+            if (curPath.endsWith('.d.ts')) {
               continue
             }
 
-            const candidate = join(baseDirectory, path)
+            const candidate = path.join(baseDirectory, curPath)
             const [err, result] = await new Promise(resolve => {
               const obj = Object.assign({}, request, {
                 request: candidate,
