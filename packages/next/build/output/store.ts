@@ -39,15 +39,14 @@ store.subscribe(state => {
   }
 
   if (state.bootstrap) {
-    Log.wait('starting the development server ...')
     if (state.appUrl) {
-      Log.info(`waiting on ${state.appUrl} ...`)
+      Log.ready(`started server on ${state.appUrl}`)
     }
     return
   }
 
   if (state.loading) {
-    Log.wait('compiling ...')
+    Log.wait('compiling...')
     return
   }
 
@@ -84,8 +83,5 @@ store.subscribe(state => {
     return
   }
 
-  Log.ready(
-    'compiled successfully' +
-      (state.appUrl ? ` - ready on ${state.appUrl}` : '')
-  )
+  Log.event('compiled successfully')
 })
