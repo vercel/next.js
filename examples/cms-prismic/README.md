@@ -145,7 +145,7 @@ Once saved, go to one of the posts you've created and:
 - Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in draft state.
 - Right next to the **Publish** button you should see the **Preview** button, displayed with an eye icon. Click on it!
 
-You should now be able to see the updated title. To exit the preview mode, you can click on **Click here to exit preview mode** at the top of the page.
+You should now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
 ### Step 8. Deploy on Vercel
 
