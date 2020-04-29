@@ -6,12 +6,6 @@ export function Theme() {
     <style
       dangerouslySetInnerHTML={{
         __html: css`
-          [data-nextjs-dialog-header] nav > span {
-            font-size: 0.875rem;
-            color: #757575;
-            font-family: var(--font-stack-monospace);
-            margin-left: 9px;
-          }
           [data-nextjs-call-stack-frame] > h6 {
             font-family: var(--font-stack-monospace);
             color: rgba(25, 25, 25, 1);

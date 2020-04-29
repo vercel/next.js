@@ -195,7 +195,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               next={activeIdx < readyErrors.length - 1 ? next : null}
               close={minimize}
             >
-              <small>
+              <small style={{ color: '#757575', marginLeft: 9 }}>
                 {activeIdx + 1} of {readyErrors.length} unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
