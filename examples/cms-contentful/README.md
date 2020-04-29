@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 
 ## Demo
 
-### TODO
+### [https://next-blog-contentful.now.sh/](https://next-blog-contentful.now.sh/)
 
 ### Related examples
 
