@@ -32,7 +32,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
   return (
     <div className={className}>
-      {firstFrame && (
+      {firstFrame ? (
         <React.Fragment>
           <h5>Source</h5>
           <CodeFrame
@@ -40,6 +40,8 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             codeFrame={firstFrame.originalCodeFrame}
           />
         </React.Fragment>
+      ) : (
+        undefined
       )}
     </div>
   )
