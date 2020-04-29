@@ -31,7 +31,6 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
     const root = nav.getRootNode()
     const d = self.document
 
-    // FIXME: Firefox events are broken
     function handler(e: KeyboardEvent) {
       if (e.key === 'ArrowLeft') {
         e.stopPropagation()
@@ -81,7 +80,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         <button
           ref={buttonLeft}
           type="button"
-          disabled={previous == null}
+          aria-disabled={previous == null ? true : undefined}
           onClick={previous ?? undefined}
         >
           &larr;
@@ -89,7 +88,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         <button
           ref={buttonRight}
           type="button"
-          disabled={next == null}
+          aria-disabled={next == null ? true : undefined}
           onClick={next ?? undefined}
         >
           &rarr;
