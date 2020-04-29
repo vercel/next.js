@@ -62,25 +62,27 @@ export default function connect(options) {
     )
   })
 
-  // We need to keep track of if there has been a runtime error.
-  // Essentially, we cannot guarantee application state was not corrupted by the
-  // runtime error. To prevent confusing behavior, we forcibly reload the entire
-  // application. This is handled below when we are notified of a compile (code
-  // change).
-  // See https://github.com/facebook/create-react-app/issues/3096
-  ErrorOverlay.startReportingRuntimeErrors({
-    onError: function() {
-      hadRuntimeError = true
-    },
-  })
-
-  DevOverlay.register()
-
-  if (module.hot && typeof module.hot.dispose === 'function') {
-    module.hot.dispose(function() {
-      // TODO: why do we need this?
-      ErrorOverlay.stopReportingRuntimeErrors()
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.register()
+  } else {
+    // We need to keep track of if there has been a runtime error.
+    // Essentially, we cannot guarantee application state was not corrupted by the
+    // runtime error. To prevent confusing behavior, we forcibly reload the entire
+    // application. This is handled below when we are notified of a compile (code
+    // change).
+    // See https://github.com/facebook/create-react-app/issues/3096
+    ErrorOverlay.startReportingRuntimeErrors({
+      onError: function() {
+        hadRuntimeError = true
+      },
     })
+
+    if (module.hot && typeof module.hot.dispose === 'function') {
+      module.hot.dispose(function() {
+        // TODO: why do we need this?
+        ErrorOverlay.stopReportingRuntimeErrors()
+      })
+    }
   }
 
   getEventSourceWrapper(options).addMessageListener(event => {
@@ -100,7 +102,15 @@ export default function connect(options) {
       customHmrEventHandler = handler
     },
     reportRuntimeError(err) {
-      ErrorOverlay.reportRuntimeError(err)
+      if (process.env.__NEXT_FAST_REFRESH) {
+        // FIXME: this code branch should be eliminated
+        setTimeout(() => {
+          // An unhandled rendering error occurred
+          throw err
+        })
+      } else {
+        ErrorOverlay.reportRuntimeError(err)
+      }
     },
     prepareError(err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
