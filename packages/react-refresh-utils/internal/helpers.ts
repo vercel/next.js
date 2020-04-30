@@ -135,7 +135,15 @@ function scheduleUpdate() {
 
     // Only trigger refresh if the webpack HMR state is idle
     if (canApplyUpdate()) {
-      return RefreshRuntime.performReactRefresh()
+      try {
+        RefreshRuntime.performReactRefresh()
+      } catch (err) {
+        console.warn(
+          'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
+            err
+        )
+      }
+      return
     }
 
     return scheduleUpdate()
