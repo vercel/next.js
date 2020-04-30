@@ -6,6 +6,7 @@ export type ConfigurationContext = {
 
   isDevelopment: boolean
   isProduction: boolean
+  hasReactRefresh: boolean
 
   isServer: boolean
   isClient: boolean
