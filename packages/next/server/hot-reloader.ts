@@ -23,6 +23,7 @@ import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
+import reactDevOverlayMiddleware from '@next/react-dev-overlay/lib/middleware'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -353,6 +354,10 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackHotMiddleware,
       errorOverlayMiddleware({ dir: this.dir }),
+      reactDevOverlayMiddleware({
+        rootDirectory: this.dir,
+        stats: () => this.stats,
+      }),
     ]
   }
 

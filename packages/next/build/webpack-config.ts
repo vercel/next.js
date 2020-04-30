@@ -846,6 +846,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
           config.experimental.measureFid
         ),
+        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1031,6 +1032,7 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
+    hasReactRefresh,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
