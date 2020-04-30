@@ -116,6 +116,28 @@ export async function sandbox(id = nanoid()) {
           `document.querySelector('iframe').contentWindow.document.body.innerHTML`
         )
       },
+      async hasRedbox() {
+        return this.evaluate(() => {
+          return Boolean(
+            [].slice
+              .call(document.querySelectorAll('nextjs-portal'))
+              .find(p =>
+                p.shadowRoot.querySelector('#nextjs__container_errors_label')
+              )
+          )
+        })
+      },
+      async getRedboxSource() {
+        return this.evaluate(() => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find(p =>
+              p.shadowRoot.querySelector('#nextjs__container_errors_label')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-codeframe]').innerText
+        })
+      },
     },
     function cleanup() {
       async function _cleanup() {
