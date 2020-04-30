@@ -184,6 +184,55 @@ Router.beforePopState(({ url, as, options }) => {
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 
+### Router.prefetch
+
+Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as the later takes care of prefetching pages for you.
+
+> this is a production only feature, Next.js doesn't prefetch pages on development.
+
+```jsx
+import Router from 'next/router'
+
+Router.prefetch(url, as)
+```
+
+- `url` - The path to a `page`. that is, the name of a page inside the `pages` directory
+- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](https://nextjs.org/docs/routing/dynamic-routes). Defaults to `url`
+
+#### Usage
+
+Let's say you have a login page, and after a login you redirect the user to the dashboard, for that case, we can prefetch the dashboard to make a faster transition, like in the following example:
+
+```jsx
+import Router from 'next/router'
+
+export default function Login() {
+  const handleSubmit = e => {
+    e.preventDefault()
+
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        /* Form data */
+      }),
+    }).then(res => {
+      // Do a fast client-side transition to the already prefetched dashbaord page
+      if (res.ok) Router.push('/dashboard')
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+      <button type="submit">Login</button>
+      {// Prefetch the dashboard page as the user will go there after the login
+      Router.prefetch('/dashboard')}
+    </form>
+  )
+}
+```
+
 ### Router.events
 
 <details>
