@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "9.3.7-canary.1",
+  "version": "9.3.7-canary.2",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "zeit/next.js",
@@ -26,6 +26,5 @@
   "peerDependencies": {
     "react": "^16.9.0",
     "react-dom": "^16.9.0"
-  },
-  "devDependencies": {}
+  }
 }
