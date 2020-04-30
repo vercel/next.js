@@ -8,8 +8,6 @@ import {
 } from '../next-server/lib/utils'
 import { Router } from '../client/router'
 
-type ParitalRouter = Pick<Router, 'pathname' | 'asPath' | 'query'>
-
 export { AppInitialProps }
 
 export type AppContext = AppContextType<Router>
@@ -83,52 +81,46 @@ export function Container(p: any) {
 }
 
 export function createUrl(router: Router) {
-  const warnWhenNotProduction = () => {
-    if (process.env.NODE_ENV !== 'production') warnUrl()
-  }
-  const url = {
+  // This is to make sure we don't references the router object at call time
+  const { pathname, asPath, query } = router
+  return {
+    get query() {
+      if (process.env.NODE_ENV !== 'production') warnUrl()
+      return query
+    },
+    get pathname() {
+      if (process.env.NODE_ENV !== 'production') warnUrl()
+      return pathname
+    },
+    get asPath() {
+      if (process.env.NODE_ENV !== 'production') warnUrl()
+      return asPath
+    },
     back: () => {
-      warnWhenNotProduction()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       router.back()
     },
     push: (url: string, as?: string) => {
-      warnWhenNotProduction()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return router.push(url, as)
     },
     pushTo: (href: string, as?: string) => {
-      warnWhenNotProduction()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       const pushRoute = as ? href : ''
       const pushUrl = as || href
 
       return router.push(pushRoute, pushUrl)
     },
     replace: (url: string, as?: string) => {
-      warnWhenNotProduction()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return router.replace(url, as)
     },
     replaceTo: (href: string, as?: string) => {
-      warnWhenNotProduction()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       const replaceRoute = as ? href : ''
       const replaceUrl = as || href
 
       return router.replace(replaceRoute, replaceUrl)
     },
   }
-
-  // This is to make sure we don't references the router object at call time
-  const routerData: ParitalRouter = {
-    pathname: router.pathname,
-    asPath: router.asPath,
-    query: router.query,
-  }
-
-  Object.keys(routerData).forEach(key => {
-    Object.defineProperty(url, key, {
-      get: () => {
-        warnWhenNotProduction()
-        return routerData[key as keyof ParitalRouter]
-      },
-    })
-  })
-  return url
 }
