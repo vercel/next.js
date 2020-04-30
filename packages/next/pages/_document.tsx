@@ -263,20 +263,18 @@ export class Head extends Component<
 
     return !preloadFiles.length
       ? null
-      : preloadFiles.map((file: string) => {
-          return (
-            <link
-              key={file}
-              nonce={this.props.nonce}
-              rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(
-                file
-              )}${_devOnlyInvalidateCacheQueryString}`}
-              as="script"
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
+      : preloadFiles.map((file: string) => (
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        ))
   }
 
   getFidPolyfill(): JSX.Element | null {
