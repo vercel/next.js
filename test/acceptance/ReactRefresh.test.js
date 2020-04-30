@@ -272,7 +272,7 @@ test('cyclic dependencies', async () => {
   await cleanup()
 })
 
-test('logbox: can recover from a event handler error', async () => {
+test.skip('logbox: can recover from a event handler error', async () => {
   const [session, cleanup] = await sandbox()
 
   await session.patch(
@@ -350,7 +350,7 @@ test('logbox: can recover from a event handler error', async () => {
   await cleanup()
 })
 
-test('logbox: can recover from a component error', async () => {
+test.skip('logbox: can recover from a component error', async () => {
   const [session, cleanup] = await sandbox()
 
   await session.write(
