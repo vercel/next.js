@@ -44,7 +44,10 @@ export function getOriginalStackFrame(
     }
 
     const controller = new AbortController()
-    const tm = setTimeout(() => controller.abort(), 3000)
+    const tm = setTimeout(
+      () => controller.abort(),
+      process.env.__NEXT_TEST_MODE ? 10000 : 3000
+    )
     const res = await self
       .fetch(`/__nextjs_original-stack-frame?${params.toString()}`, {
         signal: controller.signal,
