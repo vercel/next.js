@@ -36,7 +36,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 The Next.js router allows you to do client-side route transitions between pages, similarly to a single-page application.
 
-A special React component called `Link` is provided to do this client-side route transition.
+A React component called `Link` is provided to do this client-side route transition.
 
 ```jsx
 import Link from 'next/link'

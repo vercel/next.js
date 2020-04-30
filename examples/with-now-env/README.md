@@ -1,6 +1,6 @@
 # Now-env example
 
-This example shows the usage of [Now Secrets](https://zeit.co/docs/v2/deployments/environment-variables-and-secrets/?query=secret#securing-environment-variables-using-secrets) and [now dev](https://zeit.co/docs/v2/development/basics), it shows how to add environment variables in development that can be replaced in production by the secrets defined with [Now](https://zeit.co/now).
+This example shows the usage of [Now Secrets](https://vercel.com/docs/v2/deployments/environment-variables-and-secrets/?query=secret#securing-environment-variables-using-secrets) and [now dev](https://vercel.com/docs/v2/development/basics), it shows how to add environment variables in development that can be replaced in production by the secrets defined with [Now](https://vercel.com/now).
 
 ## How to use
 
@@ -31,12 +31,12 @@ npm install
 yarn
 ```
 
-Start the development server with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+Start the development server with [now](https://vercel.com/now) ([download](https://vercel.com/download)):
 
 ```bash
 now dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-Keep in mind that in order to deploy the app to ZEIT Now the env [secrets](https://zeit.co/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
+Keep in mind that in order to deploy the app to Vercel the env [secrets](https://vercel.com/docs/getting-started/secrets) defined in `now.json` should be listed in your account.

@@ -14,13 +14,26 @@ module.exports = function(task) {
       minify: true,
       ...options,
     }).then(({ code, assets }) => {
-      Object.keys(assets).forEach(key =>
+      Object.keys(assets).forEach(key => {
+        let data = assets[key].source
+
+        if (join(file.dir, key).endsWith('terser-webpack-plugin/worker.js')) {
+          data = Buffer.from(
+            data
+              .toString()
+              .replace(
+                `require('terser')`,
+                `require("${options.externals['terser']}")`
+              )
+          )
+        }
+
         this._.files.push({
-          dir: join(file.dir, dirname(key)),
+          data,
           base: basename(key),
-          data: assets[key].source,
+          dir: join(file.dir, dirname(key)),
         })
-      )
+      })
 
       if (options && options.packageName) {
         writePackageManifest.call(this, options.packageName, file.base)

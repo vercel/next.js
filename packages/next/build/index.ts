@@ -217,6 +217,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
+    /* dev */ false,
     mappedPages,
     target,
     buildId,
@@ -298,10 +299,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
     headers: headers.map(r => buildCustomRoute(r, 'header')),
-    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-      page,
-      regex: getRouteRegex(page).re.source,
-    })),
+    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => {
+      const routeRegex = getRouteRegex(page)
+      return {
+        page,
+        regex: routeRegex.re.source,
+        namedRegex: routeRegex.namedRegex,
+        routeKeys: Object.keys(routeRegex.groups),
+      }
+    }),
   }
 
   await mkdir(distDir, { recursive: true })
@@ -550,15 +556,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.isAmpOnly) {
             // ensure all AMP only bundles got removed
             try {
-              await fsUnlink(
-                path.join(
-                  distDir,
-                  'static',
-                  buildId,
-                  'pages',
-                  actualPage + '.js'
-                )
+              const clientBundle = path.join(
+                distDir,
+                'static',
+                buildId,
+                'pages',
+                actualPage + '.js'
               )
+              await fsUnlink(clientBundle)
+
+              if (config.experimental.modern) {
+                await fsUnlink(clientBundle.replace(/\.js$/, '.module.js'))
+              }
             } catch (err) {
               if (err.code !== 'ENOENT') {
                 throw err
@@ -629,20 +638,37 @@ export default async function build(dir: string, conf = null): Promise<void> {
         `${pagePath}.json`
       )
 
+      let dataRouteRegex: string
+      let routeKeys: string[] | undefined
+      let namedDataRouteRegex: string | undefined
+
+      if (isDynamicRoute(page)) {
+        const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
+
+        dataRouteRegex = routeRegex.re.source.replace(
+          /\(\?:\\\/\)\?\$$/,
+          '\\.json$'
+        )
+        namedDataRouteRegex = routeRegex.namedRegex!.replace(
+          /\(\?:\/\)\?\$$/,
+          '\\.json$'
+        )
+        routeKeys = Object.keys(routeRegex.groups)
+      } else {
+        dataRouteRegex = new RegExp(
+          `^${path.posix.join(
+            '/_next/data',
+            escapeStringRegexp(buildId),
+            `${pagePath}.json`
+          )}$`
+        ).source
+      }
+
       return {
         page,
-        dataRouteRegex: isDynamicRoute(page)
-          ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
-              /\(\?:\\\/\)\?\$$/,
-              '\\.json$'
-            )
-          : new RegExp(
-              `^${path.posix.join(
-                '/_next/data',
-                escapeStringRegexp(buildId),
-                `${pagePath}.json`
-              )}$`
-            ).source,
+        routeKeys,
+        dataRouteRegex,
+        namedDataRouteRegex,
       }
     })
 

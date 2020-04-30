@@ -65,6 +65,14 @@ import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
+import fetch from 'next/dist/compiled/node-fetch'
+
+// @ts-ignore fetch exists globally
+if (!global.fetch) {
+  // Polyfill fetch() in the Node.js environment
+  // @ts-ignore fetch exists globally
+  global.fetch = fetch
+}
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -118,8 +126,6 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    documentMiddlewareEnabled: boolean
-    hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
@@ -172,9 +178,6 @@ export default class Server {
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      documentMiddlewareEnabled: this.nextConfig.experimental
-        .documentMiddleware,
-      hasCssMode: this.nextConfig.experimental.css,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -477,6 +480,21 @@ export default class Server {
           fn: async (req, res, params, parsedUrl) => ({ finished: false }),
         } as Route & Rewrite & Header)
 
+      const updateHeaderValue = (value: string, params: Params): string => {
+        if (!value.includes(':')) {
+          return value
+        }
+        const { parsedDestination } = prepareDestination(value, params, {})
+
+        if (
+          !parsedDestination.pathname ||
+          !parsedDestination.pathname.startsWith('/')
+        ) {
+          return compilePathToRegex(value, { validate: false })(params)
+        }
+        return formatUrl(parsedDestination)
+      }
+
       // Headers come very first
       headers = this.customRoutes.headers.map(r => {
         const route = getCustomRoute(r, 'header')
@@ -485,15 +503,13 @@ export default class Server {
           type: route.type,
           name: `${route.type} ${route.source} header route`,
           fn: async (_req, res, params, _parsedUrl) => {
+            const hasParams = Object.keys(params).length > 0
+
             for (const header of (route as Header).headers) {
               let { key, value } = header
-              if (key.includes(':')) {
-                // see `prepareDestination` util for explanation for
-                // `validate: false` being used
-                key = compilePathToRegex(key, { validate: false })(params)
-              }
-              if (value.includes(':')) {
-                value = compilePathToRegex(value, { validate: false })(params)
+              if (hasParams) {
+                key = updateHeaderValue(key, params)
+                value = updateHeaderValue(value, params)
               }
               res.setHeader(key, value)
             }
@@ -513,8 +529,7 @@ export default class Server {
             const { parsedDestination } = prepareDestination(
               route.destination,
               params,
-              parsedUrl.query,
-              true
+              parsedUrl.query
             )
             const updatedDestination = formatUrl(parsedDestination)
 
@@ -546,7 +561,8 @@ export default class Server {
             const { newUrl, parsedDestination } = prepareDestination(
               route.destination,
               params,
-              parsedUrl.query
+              parsedUrl.query,
+              true
             )
 
             // external rewrite, proxy it
@@ -1321,7 +1337,8 @@ export default class Server {
     if (
       process.env.NODE_ENV !== 'production' &&
       !using404Page &&
-      (await this.hasPage('/_error'))
+      (await this.hasPage('/_error')) &&
+      !(await this.hasPage('/404'))
     ) {
       this.customErrorNo404Warn()
     }

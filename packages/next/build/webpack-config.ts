@@ -1,3 +1,4 @@
+import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
@@ -5,7 +6,6 @@ import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
-import { MinifyOptions } from 'terser'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -151,6 +151,10 @@ export default async function getBaseWebpackConfig(
       }
     }
   }
+
+  const hasReactRefresh =
+    dev && !isServer && config.experimental.reactRefresh === true
+
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -164,6 +168,7 @@ export default async function getBaseWebpackConfig(
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
+        hasReactRefresh,
       },
     },
     // Backwards compat
@@ -247,17 +252,17 @@ export default async function getBaseWebpackConfig(
     // Disable .mjs for node_modules bundling
     extensions: isServer
       ? [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.js',
           '.mjs',
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.jsx',
           '.json',
           '.wasm',
         ]
       : [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.mjs',
           '.js',
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
           '.jsx',
           '.json',
           '.wasm',
@@ -287,7 +292,7 @@ export default async function getBaseWebpackConfig(
 
   const webpackMode = dev ? 'development' : 'production'
 
-  const terserOptions: MinifyOptions = {
+  const terserOptions: any = {
     parse: {
       ecma: 8,
     },
@@ -442,9 +447,11 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
-  let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
-    : null
+  let customAppFile: string | null = await findPageFile(
+    pagesDir,
+    '/_app',
+    config.pageExtensions
+  )
   if (customAppFile) {
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
@@ -638,20 +645,19 @@ export default async function getBaseWebpackConfig(
           terserOptions,
         }),
         // Minify CSS
-        config.experimental.css &&
-          new CssMinimizerPlugin({
-            postcssOptions: {
-              map: {
-                // `inline: false` generates the source map in a separate file.
-                // Otherwise, the CSS file is needlessly large.
-                inline: false,
-                // `annotation: false` skips appending the `sourceMappingURL`
-                // to the end of the CSS file. Webpack already handles this.
-                annotation: false,
-              },
+        new CssMinimizerPlugin({
+          postcssOptions: {
+            map: {
+              // `inline: false` generates the source map in a separate file.
+              // Otherwise, the CSS file is needlessly large.
+              inline: false,
+              // `annotation: false` skips appending the `sourceMappingURL`
+              // to the end of the CSS file. Webpack already handles this.
+              annotation: false,
             },
-          }),
-      ].filter(Boolean),
+          },
+        }),
+      ],
     },
     context: dir,
     node: {
@@ -759,26 +765,33 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 defaultLoaders.babel,
+                hasReactRefresh
+                  ? require.resolve('@next/react-refresh-utils/loader')
+                  : '',
+              ].filter(Boolean)
+            : hasReactRefresh
+            ? [
+                defaultLoaders.babel,
+                require.resolve('@next/react-refresh-utils/loader'),
               ]
             : defaultLoaders.babel,
         },
       ].filter(Boolean),
     },
     plugins: [
+      hasReactRefresh && new ReactRefreshWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
-        ...(config.experimental.pageEnv
-          ? Object.keys(process.env).reduce(
-              (prev: { [key: string]: string }, key: string) => {
-                if (key.startsWith('NEXT_PUBLIC_')) {
-                  prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
-                }
-                return prev
-              },
-              {}
-            )
-          : {}),
+        ...Object.keys(process.env).reduce(
+          (prev: { [key: string]: string }, key: string) => {
+            if (key.startsWith('NEXT_PUBLIC_')) {
+              prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
+            }
+            return prev
+          },
+          {}
+        ),
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
@@ -833,6 +846,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
           config.experimental.measureFid
         ),
+        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -842,15 +856,10 @@ export default async function getBaseWebpackConfig(
             }
           : undefined),
         // stub process.env with proxy to warn a missing value is
-        // being accessed
-        ...(config.experimental.pageEnv
+        // being accessed in development mode
+        ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
           ? {
-              'process.env':
-                process.env.NODE_ENV === 'production'
-                  ? isServer
-                    ? 'process.env'
-                    : '{}'
-                  : `
+              'process.env': `
             new Proxy(${isServer ? 'process.env' : '{}'}, {
               get(target, prop) {
                 if (typeof target[prop] === 'undefined') {
@@ -1005,12 +1014,8 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (
-    config.experimental.jsconfigPaths &&
-    jsConfig?.compilerOptions?.paths &&
-    resolvedBaseUrl
-  ) {
-    webpackConfig.resolve?.plugins?.push(
+  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
+    webpackConfig.resolve?.plugins?.unshift(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )
   }
@@ -1027,8 +1032,7 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    hasSupportCss: !!config.experimental.css,
-    hasSupportScss: !!config.experimental.scss,
+    hasReactRefresh,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
@@ -1091,49 +1095,47 @@ export default async function getBaseWebpackConfig(
     return false
   }
 
-  if (config.experimental.css) {
-    const hasUserCssConfig =
-      webpackConfig.module?.rules.some(
-        rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      ) ?? false
+  const hasUserCssConfig =
+    webpackConfig.module?.rules.some(
+      rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+    ) ?? false
 
-    if (hasUserCssConfig) {
-      // only show warning for one build
-      if (isServer) {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            chalk.bold(
-              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
-            ) +
-            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
-        )
-      }
-
-      if (webpackConfig.module?.rules.length) {
-        // Remove default CSS Loader
-        webpackConfig.module.rules = webpackConfig.module.rules.filter(
-          r =>
-            !(
-              typeof r.oneOf?.[0]?.options === 'object' &&
-              r.oneOf[0].options.__next_css_remove === true
-            )
-        )
-      }
-      if (webpackConfig.plugins?.length) {
-        // Disable CSS Extraction Plugin
-        webpackConfig.plugins = webpackConfig.plugins.filter(
-          p => (p as any).__next_css_remove !== true
-        )
-      }
-      if (webpackConfig.optimization?.minimizer?.length) {
-        // Disable CSS Minifier
-        webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
-          e => (e as any).__next_css_remove !== true
-        )
-      }
-    } else {
-      await __overrideCssConfiguration(dir, !dev, webpackConfig)
+  if (hasUserCssConfig) {
+    // only show warning for one build
+    if (isServer) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          chalk.bold(
+            'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+          ) +
+          'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+      )
     }
+
+    if (webpackConfig.module?.rules.length) {
+      // Remove default CSS Loader
+      webpackConfig.module.rules = webpackConfig.module.rules.filter(
+        r =>
+          !(
+            typeof r.oneOf?.[0]?.options === 'object' &&
+            r.oneOf[0].options.__next_css_remove === true
+          )
+      )
+    }
+    if (webpackConfig.plugins?.length) {
+      // Disable CSS Extraction Plugin
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        p => (p as any).__next_css_remove !== true
+      )
+    }
+    if (webpackConfig.optimization?.minimizer?.length) {
+      // Disable CSS Minifier
+      webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
+        e => (e as any).__next_css_remove !== true
+      )
+    }
+  } else {
+    await __overrideCssConfiguration(dir, !dev, webpackConfig)
   }
 
   // check if using @zeit/next-typescript and show warning
