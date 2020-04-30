@@ -244,7 +244,16 @@ module.exports = {
           headers: [
             {
               key: 'x-url',
-              value: 'https://example.com/:path',
+              value: 'https://example.com/:path*',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url2/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com:8080?hello=:path*',
             },
           ],
         },
