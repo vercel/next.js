@@ -141,7 +141,7 @@ module.exports = babelLoader.custom(babel => {
 
       if (hasReactRefresh) {
         const reactRefreshPlugin = babel.createConfigItem(
-          [require('react-refresh/babel')],
+          [require('react-refresh/babel'), { skipEnvCheck: true }],
           { type: 'plugin' }
         )
         options.plugins.unshift(reactRefreshPlugin)
