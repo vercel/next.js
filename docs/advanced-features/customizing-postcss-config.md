@@ -31,7 +31,7 @@ By default, [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS
 CSS variables are not compiled because it is [not possible to safely do so](https://github.com/MadLittleMods/postcss-css-variables#caveats).
 If you must use variables, consider using something like [Sass variables](https://sass-lang.com/documentation/variables) which are compiled away by [Sass](https://sass-lang.com/).
 
-> **Note**: To support [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid), you need to enable `grid: "autoplace"` for Autoprefixer. See "Customizing Plugins" below.
+> **Note**: To support [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid), you need to enable `grid: "autoplace"` for Autoprefixer. See ["Customizing Plugins"](#customizing-plugins) below.
 
 ## Customizing Target Browsers
 
