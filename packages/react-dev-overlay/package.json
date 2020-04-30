@@ -19,7 +19,7 @@
     "@babel/code-frame": "7.8.3",
     "anser": "1.4.9",
     "classnames": "2.2.6",
-    "source-map": "0.7.3",
+    "source-map": "0.8.0-beta.0",
     "stacktrace-parser": "0.1.9",
     "strip-ansi": "6.0.0"
   },
