@@ -304,7 +304,7 @@ test('logbox: can recover from a event handler error', async () => {
     await session.evaluate(() => document.querySelector('p').textContent)
   ).toBe('1')
 
-  expect(await session.hasRedbox()).toBe(true)
+  expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "index.js (8:16) @ eval
 
@@ -391,7 +391,7 @@ test('logbox: can recover from a component error', async () => {
     `
   )
 
-  expect(await session.hasRedbox()).toBe(true)
+  expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "child.js (4:14) @ Child
 
