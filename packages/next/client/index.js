@@ -152,7 +152,18 @@ class Container extends React.Component {
   }
 
   render() {
-    return this.props.children
+    if (process.env.NODE_ENV === 'production') {
+      return this.props.children
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        const {
+          ReactDevOverlay,
+        } = require('@next/react-dev-overlay/lib/client')
+        return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      }
+      return this.props.children
+    }
   }
 }
 
