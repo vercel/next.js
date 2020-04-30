@@ -1,5 +1,13 @@
 import { buildStaticPaths } from '../build/utils'
 import { loadComponents } from '../next-server/server/load-components'
+import fetch from 'next/dist/compiled/node-fetch'
+
+// @ts-ignore fetch exists globally
+if (!global.fetch) {
+  // Polyfill fetch() in the Node.js environment
+  // @ts-ignore fetch exists globally
+  global.fetch = fetch
+}
 
 let workerWasUsed = false
 
