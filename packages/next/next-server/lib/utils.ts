@@ -82,6 +82,8 @@ export type NEXT_DATA = {
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
+  gip?: boolean
+  appGip?: boolean
 }
 
 /**
@@ -156,7 +158,6 @@ export type DocumentProps = DocumentInitialProps & {
   hybridAmp: boolean
   staticMarkup: boolean
   isDevelopment: boolean
-  hasCssMode: boolean
   devFiles: string[]
   files: string[]
   lowPriorityFiles: string[]
@@ -167,6 +168,7 @@ export type DocumentProps = DocumentInitialProps & {
   htmlProps: any
   bodyTags: any[]
   headTags: any[]
+  unstable_runtimeJS?: false
 }
 
 /**
@@ -234,22 +236,24 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void
+) => void | Promise<void>
 
 /**
  * Utils
  */
-export function execOnce(this: any, fn: (...args: any) => any) {
+export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
+  fn: T
+): T {
   let used = false
-  let result: any = null
+  let result: ReturnType<T>
 
-  return (...args: any) => {
+  return ((...args: any[]) => {
     if (!used) {
       used = true
-      result = fn.apply(this, args)
+      result = fn(...args)
     }
     return result
-  }
+  }) as T
 }
 
 export function getLocationOrigin() {
@@ -263,7 +267,7 @@ export function getURL() {
   return href.substring(origin.length)
 }
 
-export function getDisplayName(Component: ComponentType<any>) {
+export function getDisplayName<P>(Component: ComponentType<P>) {
   return typeof Component === 'string'
     ? Component
     : Component.displayName || Component.name || 'Unknown'
@@ -296,7 +300,7 @@ export async function loadGetInitialProps<
         pageProps: await loadGetInitialProps(ctx.Component, ctx.ctx),
       }
     }
-    return {} as any
+    return {} as IP
   }
 
   const props = await App.getInitialProps(ctx)
@@ -356,7 +360,7 @@ export function formatWithValidation(
     }
   }
 
-  return format(url as any, options)
+  return format(url as URL, options)
 }
 
 export const SP = typeof performance !== 'undefined'

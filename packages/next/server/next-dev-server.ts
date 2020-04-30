@@ -1,6 +1,6 @@
-import AmpHtmlValidator from 'amphtml-validator'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import crypto from 'crypto'
-import findUp from 'find-up'
+import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Worker from 'jest-worker'
@@ -31,6 +31,7 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
+import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -87,6 +88,16 @@ export default class DevServer extends Server {
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
+        forkOptions: {
+          env: {
+            ...process.env,
+            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+            // is the main Next.js one
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          },
+        },
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -226,9 +237,9 @@ export default class DevServer extends Server {
     await this.loadCustomRoutes()
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
-      if (redirects.length || rewrites.length) {
+      if (redirects.length || rewrites.length || headers.length) {
         this.router = new Router(this.generateRoutes())
       }
     }
@@ -514,7 +525,11 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ) {
-    await this.hotReloader!.ensurePage('/_error')
+    if (res.statusCode === 404 && (await this.hasPage('/404'))) {
+      await this.hotReloader!.ensurePage('/404')
+    } else {
+      await this.hotReloader!.ensurePage('/_error')
+    }
 
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {

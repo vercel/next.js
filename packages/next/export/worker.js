@@ -3,13 +3,21 @@ import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../next-server/server/render'
 import { access, mkdir as mkdirOrig, writeFile } from 'fs'
-import AmpHtmlValidator from 'amphtml-validator'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../next-server/server/load-components'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
+import fetch from 'next/dist/compiled/node-fetch'
+
+// @ts-ignore fetch exists globally
+if (!global.fetch) {
+  // Polyfill fetch() in the Node.js environment
+  // @ts-ignore fetch exists globally
+  global.fetch = fetch
+}
 
 const envConfig = require('../next-server/lib/runtime-config')
 const writeFileP = promisify(writeFile)

@@ -1,6 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { compile as compilePathToRegex } from 'path-to-regexp'
+import { ParsedUrlQuery } from 'querystring'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
@@ -36,6 +37,7 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 export const prepareDestination = (
   destination: string,
   params: Params,
+  query: ParsedUrlQuery,
   isRedirect?: boolean
 ) => {
   const parsedDestination = parseUrl(destination, true)
@@ -62,22 +64,13 @@ export const prepareDestination = (
     destQuery[key] = value
   }
 
-  // add params to query
-  for (const [name, value] of Object.entries(params)) {
-    if (
-      isRedirect &&
-      new RegExp(`:${name}(?!\\w)`).test(
-        parsedDestination.pathname + (parsedDestination.hash || '')
-      )
-    ) {
-      // Don't add segment to query if used in destination
-      // and it's a redirect so that we don't pollute the query
-      // with unwanted values
-      continue
-    }
-
-    if (!(name in destQuery)) {
-      destQuery[name] = Array.isArray(value) ? value.join('/') : value
+  // add path params to query if it's not a redirect and not
+  // already defined in destination query
+  if (!isRedirect) {
+    for (const [name, value] of Object.entries(params)) {
+      if (!(name in destQuery)) {
+        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+      }
     }
   }
 
@@ -97,6 +90,16 @@ export const prepareDestination = (
     }
     throw err
   }
+
+  // Query merge order lowest priority to highest
+  // 1. initial URL query values
+  // 2. path segment values
+  // 3. destination specified query values
+  parsedDestination.query = {
+    ...query,
+    ...parsedDestination.query,
+  }
+
   return {
     newUrl,
     parsedDestination,
@@ -213,11 +216,6 @@ export default class Router {
 
       // Check if the match function matched
       if (newParams) {
-        // Combine parameters and querystring
-        if (route.type === 'rewrite' || route.type === 'redirect') {
-          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
-        }
-
         const result = await route.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled

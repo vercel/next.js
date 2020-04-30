@@ -1,6 +1,6 @@
 /* global location */
 
-import fetch from 'unfetch'
+import fetch from 'next/dist/build/polyfills/unfetch'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 
 let evtSource

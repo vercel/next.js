@@ -1,7 +1,8 @@
-import compression from 'compression'
+import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
+import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
-import Proxy from 'http-proxy'
+import Proxy from 'next/dist/compiled/http-proxy'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
@@ -60,8 +61,18 @@ import {
   initializeSprCache,
   setSprCache,
 } from './spr-cache'
+import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
-import { loadEnvConfig, Env } from '../../lib/load-env-config'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
+import { loadEnvConfig } from '../../lib/load-env-config'
+import fetch from 'next/dist/compiled/node-fetch'
+
+// @ts-ignore fetch exists globally
+if (!global.fetch) {
+  // Polyfill fetch() in the Node.js environment
+  // @ts-ignore fetch exists globally
+  global.fetch = fetch
+}
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -115,13 +126,11 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    documentMiddlewareEnabled: boolean
-    hasCssMode: boolean
     dev?: boolean
-    env: Env | false
     previewProps: __ApiPreviewProps
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
+    basePath: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -147,7 +156,7 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    const env = loadEnvConfig(this.dir, dev)
+    loadEnvConfig(this.dir, dev)
 
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
@@ -169,16 +178,13 @@ export default class Server {
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      documentMiddlewareEnabled: this.nextConfig.experimental
-        .documentMiddleware,
-      hasCssMode: this.nextConfig.experimental.css,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      env: this.nextConfig.experimental.pageEnv && env,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
+      basePath: this.nextConfig.experimental.basePath,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -265,14 +271,15 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    if (parsedUrl.pathname!.startsWith(this.nextConfig.experimental.basePath)) {
+    const { basePath } = this.nextConfig.experimental
+
+    // if basePath is set require it be present
+    if (basePath && !req.url!.startsWith(basePath)) {
+      return this.render404(req, res, parsedUrl)
+    } else {
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname =
-        parsedUrl.pathname!.replace(
-          this.nextConfig.experimental.basePath,
-          ''
-        ) || '/'
-      req.url = req.url!.replace(this.nextConfig.experimental.basePath, '')
+      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
+      req.url = req.url!.replace(basePath, '')
     }
 
     res.statusCode = 200
@@ -431,7 +438,6 @@ export default class Server {
             .replace(/\.json$/, '')
             .replace(/\/index$/, '/')
 
-          req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
           await this.render(
             req,
@@ -481,9 +487,18 @@ export default class Server {
           match: route.match,
           type: route.type,
           name: `${route.type} ${route.source} header route`,
-          fn: async (_req, res, _params, _parsedUrl) => {
+          fn: async (_req, res, params, _parsedUrl) => {
             for (const header of (route as Header).headers) {
-              res.setHeader(header.key, header.value)
+              let { key, value } = header
+              if (key.includes(':')) {
+                // see `prepareDestination` util for explanation for
+                // `validate: false` being used
+                key = compilePathToRegex(key, { validate: false })(params)
+              }
+              if (value.includes(':')) {
+                value = compilePathToRegex(value, { validate: false })(params)
+              }
+              res.setHeader(key, value)
             }
             return { finished: false }
           },
@@ -497,10 +512,11 @@ export default class Server {
           match: route.match,
           statusCode: route.statusCode,
           name: `Redirect route`,
-          fn: async (_req, res, params, _parsedUrl) => {
+          fn: async (_req, res, params, parsedUrl) => {
             const { parsedDestination } = prepareDestination(
               route.destination,
               params,
+              parsedUrl.query,
               true
             )
             const updatedDestination = formatUrl(parsedDestination)
@@ -529,10 +545,11 @@ export default class Server {
           type: route.type,
           name: `Rewrite route`,
           match: route.match,
-          fn: async (req, res, params, _parsedUrl) => {
+          fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination(
               route.destination,
-              params
+              params,
+              parsedUrl.query
             )
 
             // external rewrite, proxy it
@@ -693,7 +710,6 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      this.renderOpts.env,
       this.onErrorMiddleware
     )
     return true
@@ -787,11 +803,22 @@ export default class Server {
     query: ParsedUrlQuery = {},
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    if (!pathname.startsWith('/')) {
+      console.warn(
+        `Cannot render page with path "${pathname}", did you mean "/${pathname}"?. See more info here: https://err.sh/next.js/render-no-starting-slash`
+      )
+    }
+
     const url: any = req.url
 
+    // we allow custom servers to call render for all URLs
+    // so check if we need to serve a static _next file or not.
+    // we don't modify the URL for _next/data request but still
+    // call render so we special case this to prevent an infinite loop
     if (
-      url.match(/^\/_next\//) ||
-      (this.hasStaticDir && url.match(/^\/static\//))
+      !query._nextDataReq &&
+      (url.match(/^\/_next\//) ||
+        (this.hasStaticDir && url.match(/^\/static\//)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
     }
@@ -921,17 +948,6 @@ export default class Server {
     const isDataReq = !!query._nextDataReq
     delete query._nextDataReq
 
-    // Serverless requests need its URL transformed back into the original
-    // request path (to emulate lambda behavior in production)
-    if (isLikeServerless && isDataReq) {
-      let { pathname } = parseUrl(req.url || '', true)
-      pathname = !pathname || pathname === '/' ? '/index' : pathname
-      req.url = formatUrl({
-        pathname: `/_next/data/${this.buildId}${pathname}.json`,
-        query,
-      })
-    }
-
     let previewData: string | false | object | undefined
     let isPreviewMode = false
 
@@ -1004,10 +1020,19 @@ export default class Server {
       return html
     }
 
-    // Compute the SPR cache key
-    const urlPathname = `${parseUrl(req.url || '').pathname!}${
+    // Compute the iSSG cache key
+    let urlPathname = `${parseUrl(req.url || '').pathname!}${
       query.amp ? '.amp' : ''
     }`
+
+    // remove /_next/data prefix from urlPathname so it matches
+    // for direct page visit and /_next/data visit
+    if (isDataReq && urlPathname.includes(this.buildId)) {
+      urlPathname = (urlPathname.split(this.buildId).pop() || '/')
+        .replace(/\.json$/, '')
+        .replace(/\/index$/, '/')
+    }
+
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
       : urlPathname
@@ -1265,6 +1290,15 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
+  private customErrorNo404Warn = execOnce(() => {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.yellow(
+          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://err.sh/next.js/custom-error-no-custom-404`
+        )
+    )
+  })
+
   public async renderErrorToHTML(
     err: Error | null,
     req: IncomingMessage,
@@ -1285,6 +1319,15 @@ export default class Server {
 
     if (!result) {
       result = await this.findPageComponents('/_error', query)
+    }
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      !using404Page &&
+      (await this.hasPage('/_error')) &&
+      !(await this.hasPage('/404'))
+    ) {
+      this.customErrorNo404Warn()
     }
 
     let html: string | null

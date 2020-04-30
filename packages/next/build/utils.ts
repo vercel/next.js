@@ -1,9 +1,9 @@
-import chalk from 'chalk'
-import gzipSize from 'gzip-size'
+import chalk from 'next/dist/compiled/chalk'
+import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -88,7 +88,7 @@ export async function printTreeView(
       .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
+    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
       string,
       string,
       string
@@ -96,13 +96,13 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
 
-  if (useStatic404) {
-    pageInfos.set('/404', {
-      ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-      static: true,
-    } as any)
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+    static: useStatic404,
+  } as any)
+
+  if (!list.includes('/404')) {
     list = [...list, '/404']
   }
 
@@ -120,8 +120,8 @@ export async function printTreeView(
       e =>
         !(
           e === '/_document' ||
-          (!hasCustomApp && e === '/_app') ||
-          (!hasCustomError && e === '/_error')
+          e === '/_error' ||
+          (!hasCustomApp && e === '/_app')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -203,7 +203,11 @@ export async function printTreeView(
   const sharedFilesSize = sizeData.sizeCommonFiles
   const sharedFiles = sizeData.sizeCommonFile
 
-  messages.push(['+ shared by all', getPrettySize(sharedFilesSize), ''])
+  messages.push([
+    '+ First Load JS shared by all',
+    getPrettySize(sharedFilesSize),
+    '',
+  ])
   const sharedFileKeys = Object.keys(sharedFiles)
   const sharedCssFiles: string[] = []
   ;[
@@ -463,7 +467,10 @@ async function computeFromManifest(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
+    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
+      if (f.endsWith('.css')) return size
+      return size + stat
+    }, 0),
   }
 
   cachedBuildManifest = manifest
@@ -488,7 +495,7 @@ function sum(a: number[]): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-export async function getPageSizeInKb(
+export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
@@ -503,8 +510,7 @@ export async function getPageSizeInKb(
   )
 
   const fnFilterModern = (entry: string) =>
-    (entry.endsWith('.js') && entry.endsWith('.module.js') === isModern) ||
-    entry.endsWith('.css')
+    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
 
   const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
   const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
@@ -665,6 +671,7 @@ export async function isPageStatic(
   runtimeEnvConfig: any
 ): Promise<{
   isStatic?: boolean
+  isAmpOnly?: boolean
   isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
@@ -756,6 +763,7 @@ export async function isPageStatic(
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
+      isAmpOnly: config.amp === true,
       prerenderRoutes,
       prerenderFallback,
       hasStaticProps,

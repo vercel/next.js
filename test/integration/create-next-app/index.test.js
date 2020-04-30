@@ -13,40 +13,56 @@ const cwd = path.join(
 )
 
 const run = (...args) => execa('node', [cli, ...args], { cwd })
+const runStarter = (...args) => {
+  const res = run(...args)
+
+  res.stdout.on('data', data => {
+    const stdout = data.toString()
+
+    if (/Pick a template/.test(stdout)) {
+      res.stdin.write('\n')
+    }
+  })
+
+  return res
+}
 
 describe('create next app', () => {
   beforeAll(async () => {
-    jest.setTimeout(1000 * 60)
+    jest.setTimeout(1000 * 60 * 2)
     await fs.mkdirp(cwd)
   })
 
   it('non-empty directory', async () => {
     const projectName = 'non-empty-directory'
-
     await fs.mkdirp(path.join(cwd, projectName))
     const pkg = path.join(cwd, projectName, 'package.json')
     fs.writeFileSync(pkg, '{ "foo": "bar" }')
 
     expect.assertions(1)
     try {
-      await run(projectName)
+      await runStarter(projectName)
     } catch (e) {
       expect(e.stdout).toMatch(/contains files that could conflict/)
     }
   })
 
-  it('empty directory', async () => {
-    const projectName = 'empty-directory'
-    const res = await run(projectName)
+  // TODO: investigate why this test stalls on yarn install when
+  // stdin is piped instead of inherited on windows
+  if (process.platform !== 'win32') {
+    it('empty directory', async () => {
+      const projectName = 'empty-directory'
+      const res = await runStarter(projectName)
 
-    expect(res.exitCode).toBe(0)
-    expect(
-      fs.existsSync(path.join(cwd, projectName, 'package.json'))
-    ).toBeTruthy()
-    expect(
-      fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-    ).toBeTruthy()
-  })
+      expect(res.exitCode).toBe(0)
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+      ).toBeTruthy()
+    })
+  }
 
   it('invalid example name', async () => {
     const projectName = 'invalid-example-name'
@@ -150,4 +166,46 @@ describe('create next app', () => {
       fs.existsSync(path.join(cwd, projectName, '.gitignore'))
     ).toBeTruthy()
   })
+
+  // TODO: investigate why this test stalls on yarn install when
+  // stdin is piped instead of inherited on windows
+  if (process.platform !== 'win32') {
+    it('should allow to manually select an example', async () => {
+      const runExample = (...args) => {
+        const res = run(...args)
+
+        function pickExample(data) {
+          if (/hello-world/.test(data.toString())) {
+            res.stdout.removeListener('data', pickExample)
+            res.stdin.write('\n')
+          }
+        }
+
+        function searchExample(data) {
+          if (/Pick an example/.test(data.toString())) {
+            res.stdout.removeListener('data', searchExample)
+            res.stdin.write('hello-world')
+            res.stdout.on('data', pickExample)
+          }
+        }
+
+        function selectExample(data) {
+          if (/Pick a template/.test(data.toString())) {
+            res.stdout.removeListener('data', selectExample)
+            res.stdin.write('\u001b[B\n') // Down key and enter
+            res.stdout.on('data', searchExample)
+          }
+        }
+
+        res.stdout.on('data', selectExample)
+
+        return res
+      }
+
+      const res = await runExample('no-example')
+
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).toMatch(/Downloading files for example hello-world/)
+    })
+  }
 })

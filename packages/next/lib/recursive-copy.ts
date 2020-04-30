@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { promisify } from 'util'
-import { Sema } from 'async-sema'
+import { Sema } from 'next/dist/compiled/async-sema'
 
 const mkdir = promisify(fs.mkdir)
 const stat = promisify(fs.stat)
