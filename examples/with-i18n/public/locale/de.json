@@ -1,0 +1,11 @@
+{
+  "intro": {
+    "welcome": "Willkommen",
+    "text": "Ich hoffe, du findest das nützlich.",
+    "description": "Dies ist eine Indexseite."
+  },
+  "dashboard": {
+    "welcome": "Willkommen",
+    "description": "Dies ist eine Dashboard-Seite."
+  }
+}
