@@ -33,6 +33,21 @@ const styles = css`
     border-bottom-width: 1px;
     border-color: var(--color-ansi-fg);
   }
+
+  [data-nextjs-codeframe] > p {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  [data-nextjs-codeframe] > p:hover {
+    text-decoration: underline dotted;
+  }
+  [data-nextjs-codeframe] > p > svg {
+    width: auto;
+    height: 1em;
+    margin-left: 0.5rem;
+  }
 `
 
 export { styles }
