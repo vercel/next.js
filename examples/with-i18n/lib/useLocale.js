@@ -1,5 +1,4 @@
 import React, {useState} from 'react';
-import {useRouter} from "next/router";
 
 const LocaleContext = React.createContext(null);
 const localeKey = "locale";
