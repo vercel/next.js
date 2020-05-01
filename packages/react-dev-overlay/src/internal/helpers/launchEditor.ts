@@ -44,7 +44,7 @@ function isTerminalEditor(editor) {
 // Map from full process name to binary that starts the process
 // We can't just re-use full process name, because it will spawn a new instance
 // of the app every time
-const COMMON_EDITORS_OSX = {
+const COMMON_EDITORS_MACOS = {
   '/Applications/Atom.app/Contents/MacOS/Atom': 'atom',
   '/Applications/Atom Beta.app/Contents/MacOS/Atom Beta':
     '/Applications/Atom Beta.app/Contents/MacOS/Atom Beta',
@@ -55,10 +55,12 @@ const COMMON_EDITORS_OSX = {
     '/Applications/Sublime Text Dev.app/Contents/SharedSupport/bin/subl',
   '/Applications/Sublime Text 2.app/Contents/MacOS/Sublime Text 2':
     '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl',
-  '/Applications/Visual Studio Code.app/Contents/MacOS/Electron': 'code',
+  '/Applications/Visual Studio Code.app/Contents/MacOS/Electron':
+    '/Applications/Visual Studio Code.app/Contents/MacOS/Electron',
   '/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Electron':
-    'code-insiders',
-  '/Applications/VSCodium.app/Contents/MacOS/Electron': 'vscodium',
+    '/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Electron',
+  '/Applications/VSCodium.app/Contents/MacOS/Electron':
+    '/Applications/VSCodium.app/Contents/MacOS/Electron',
   '/Applications/AppCode.app/Contents/MacOS/appcode':
     '/Applications/AppCode.app/Contents/MacOS/appcode',
   '/Applications/CLion.app/Contents/MacOS/clion':
@@ -232,11 +234,11 @@ function guessEditor() {
   try {
     if (process.platform === 'darwin') {
       const output = child_process.execSync('ps x').toString()
-      const processNames = Object.keys(COMMON_EDITORS_OSX)
+      const processNames = Object.keys(COMMON_EDITORS_MACOS)
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
         if (output.indexOf(processName) !== -1) {
-          return [COMMON_EDITORS_OSX[processName]]
+          return [COMMON_EDITORS_MACOS[processName]]
         }
       }
     } else if (process.platform === 'win32') {
