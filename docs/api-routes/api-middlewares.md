@@ -4,6 +4,14 @@ description: API Routes provide built-in middlewares that parse the incoming r
 
 # API Middlewares
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
+  </ul>
+</details>
+
 API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
 
 - `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
