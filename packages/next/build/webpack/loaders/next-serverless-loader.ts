@@ -9,7 +9,10 @@ import {
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
-import { isDynamicRoute } from '../../../next-server/lib/router/utils'
+import {
+  isDynamicRoute,
+  getRouteRegex,
+} from '../../../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
 
 export type ServerlessLoaderQuery = {
@@ -27,6 +30,8 @@ export type ServerlessLoaderQuery = {
   runtimeConfig: string
   previewProps: string
 }
+
+const vercelHeader = 'x-vercel-id'
 
 const nextServerlessLoader: loader.Loader = function() {
   const {
@@ -59,6 +64,18 @@ const nextServerlessLoader: loader.Loader = function() {
   const encodedPreviewProps = devalue(
     JSON.parse(previewProps) as __ApiPreviewProps
   )
+
+  const collectDynamicRouteParams = pageIsDynamicRoute
+    ? `
+      function collectDynamicRouteParams(query) {
+        return ${JSON.stringify(Object.keys(getRouteRegex(page).groups))}
+          .reduce((prev, key) => {
+            prev[key] = query[key]
+            return prev
+          }, {})
+      }
+    `
+    : ''
 
   const runtimeConfigImports = runtimeConfig
     ? `
@@ -95,7 +112,11 @@ const nextServerlessLoader: loader.Loader = function() {
     const getCustomRouteMatcher = pathMatch(true)
     const {prepareDestination} = require('next/dist/next-server/server/router')
 
-    function handleRewrites(parsedUrl) {
+    function handleRewrites(parsedUrl, isVercel) {
+      if (isVercel) {
+        return parsedUrl
+      }
+
       for (const rewrite of rewrites) {
         const matcher = getCustomRouteMatcher(rewrite.source)
         const params = matcher(parsedUrl.pathname)
@@ -106,6 +127,7 @@ const nextServerlessLoader: loader.Loader = function() {
             params,
             parsedUrl.query
           )
+
           Object.assign(parsedUrl.query, parsedDestination.query, params)
           delete parsedDestination.query
 
@@ -140,7 +162,7 @@ const nextServerlessLoader: loader.Loader = function() {
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
       import fetch from 'next/dist/compiled/node-fetch'
-    
+
       if(!global.fetch) {
         global.fetch = fetch
       }
@@ -157,6 +179,7 @@ const nextServerlessLoader: loader.Loader = function() {
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
+      ${collectDynamicRouteParams}
 
       ${handleRewrites}
 
@@ -173,11 +196,20 @@ const nextServerlessLoader: loader.Loader = function() {
           `
               : ''
           }
-          const parsedUrl = handleRewrites(parse(req.url, true))
+          // We don't need to loop over rewrites to collect the query values
+          // on Vercel because the query values are already present
+          const isVercel = req.headers['${vercelHeader}']
+          const parsedUrl = handleRewrites(parse(req.url, true), isVercel)
 
+          // The dynamic route params are already provided in the query
+          // on Vercel
           const params = ${
             pageIsDynamicRoute
-              ? `dynamicRouteMatcher(parsedUrl.pathname)`
+              ? `
+              isVercel
+                ? collectDynamicRouteParams(parsedUrl.query)
+                : dynamicRouteMatcher(parsedUrl.pathname)
+              `
               : `{}`
           }
 
@@ -209,7 +241,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
     import fetch from 'next/dist/compiled/node-fetch'
-    
+
     if(!global.fetch) {
       global.fetch = fetch
     }
@@ -247,6 +279,7 @@ const nextServerlessLoader: loader.Loader = function() {
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
+    ${collectDynamicRouteParams}
     ${handleRewrites}
 
     export const config = ComponentInfo['confi' + 'g'] || {}
@@ -283,7 +316,10 @@ const nextServerlessLoader: loader.Loader = function() {
       let parsedUrl
 
       try {
-        parsedUrl = handleRewrites(parse(req.url, true))
+        // We don't need to loop over rewrites to collect the query values
+        // on Vercel because the query values are already present
+        const isVercel = req.headers['${vercelHeader}']
+        const parsedUrl = handleRewrites(parse(req.url, true), isVercel)
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           _nextData = true
@@ -313,41 +349,19 @@ const nextServerlessLoader: loader.Loader = function() {
 
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `
+            // The dynamic route params are already provided in the query
+            // on Vercel
+            const params = (
+              fromExport &&
+              !getStaticProps &&
+              !getServerSideProps
+            ) ? {}
+              : isVercel
+                ? collectDynamicRouteParams(parsedUrl.query)
+                : dynamicRouteMatcher(parsedUrl.pathname) || {};
+            `
             : `const params = {};`
-        }
-        ${
-          // Temporary work around: `x-now-route-matches` is a platform header
-          // _only_ set for `Prerender` requests. We should move this logic
-          // into our builder to ensure we're decoupled. However, this entails
-          // removing reliance on `req.url` and using `req.query` instead
-          // (which is needed for "custom routes" anyway).
-          pageIsDynamicRoute
-            ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
-              ? getRouteMatcher(
-                  (function() {
-                    const { re, groups } = getRouteRegex("${page}");
-                    return {
-                      re: {
-                        // Simulate a RegExp match from the \`req.url\` input
-                        exec: str => {
-                          const obj = parseQs(str);
-                          return Object.keys(obj).reduce(
-                            (prev, key) =>
-                              Object.assign(prev, {
-                                [key]: obj[key]
-                              }),
-                            {}
-                          );
-                        }
-                      },
-                      groups
-                    };
-                  })()
-                )(req.headers["x-now-route-matches"])
-              : null;
-          `
-            : `const nowParams = null;`
         }
         // make sure to set renderOpts to the correct params e.g. _params
         // if provided from worker or params if we're parsing them here
@@ -358,7 +372,7 @@ const nextServerlessLoader: loader.Loader = function() {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query,  params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
