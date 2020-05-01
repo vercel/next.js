@@ -74,6 +74,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           })
           consumer.destroy()
         } catch (err) {
+          console.log('Failed to parse source map:', err)
           res.statusCode = 500
           res.write('Internal Server Error')
           return res.end()

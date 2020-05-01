@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "9.3.7-canary.1",
+  "version": "9.3.7-canary.4",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "zeit/next.js",
@@ -19,13 +19,12 @@
     "@babel/code-frame": "7.8.3",
     "anser": "1.4.9",
     "classnames": "2.2.6",
-    "source-map": "0.7.3",
+    "source-map": "0.8.0-beta.0",
     "stacktrace-parser": "0.1.9",
     "strip-ansi": "6.0.0"
   },
   "peerDependencies": {
     "react": "^16.9.0",
     "react-dom": "^16.9.0"
-  },
-  "devDependencies": {}
+  }
 }
