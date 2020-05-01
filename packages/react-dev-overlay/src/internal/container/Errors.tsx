@@ -223,14 +223,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               next={activeIdx < readyErrors.length - 1 ? next : null}
               close={minimize}
             >
-              <small
-                style={{
-                  fontFamily: 'var(--font-stack-monospace)',
-                  color: '#757575',
-                  marginLeft: 9,
-                }}
-              >
-                {activeIdx + 1} of {readyErrors.length} unhandled error
+              <small>
+                <span>{activeIdx + 1}</span> of{' '}
+                <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
             </LeftRightDialogHeader>
@@ -253,6 +248,13 @@ export const styles = css`
     line-height: 1.5;
     margin: 0;
     margin-top: 1rem;
+  }
+  .nextjs-container-errors-header small {
+    color: #757575;
+    margin-left: 9px;
+  }
+  .nextjs-container-errors-header small > span {
+    font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header > p {
     font-family: var(--font-stack-monospace);
