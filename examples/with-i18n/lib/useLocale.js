@@ -15,7 +15,6 @@ export function useLocale() {
 }
 
 export default function LocaleProvider({children, langDict}) {
-    const router = useRouter();
     const [dictionary, setDictionary] = useState({});
 
     React.useEffect(() => {
@@ -23,7 +22,7 @@ export default function LocaleProvider({children, langDict}) {
             localStorage.setItem(localeKey, defaultLocale)
         }
         setDictionary(langDict[localStorage.getItem(localeKey)])
-    }, [router])
+    }, [langDict])
 
     const changeLocale = (lang) => {
         localStorage.setItem(localeKey, lang);
