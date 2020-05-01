@@ -96,3 +96,5 @@ async function handler(req, res) {
 
 export default handler
 ```
+
+> Go to the [API Routes with CORS](https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors) example to see the finished app
