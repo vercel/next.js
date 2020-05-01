@@ -21,7 +21,8 @@ export function initNextServerScript(
   scriptPath,
   successRegexp,
   env,
-  failRegexp
+  failRegexp,
+  opts
 ) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
@@ -32,6 +33,10 @@ export function initNextServerScript(
         resolve(instance)
       }
       process.stdout.write(message)
+
+      if (opts && opts.onStdout) {
+        opts.onStdout(message.toString())
+      }
     }
 
     function handleStderr(data) {
@@ -41,6 +46,10 @@ export function initNextServerScript(
         return reject(new Error('received failRegexp'))
       }
       process.stderr.write(message)
+
+      if (opts && opts.onStderr) {
+        opts.onStderr(message.toString())
+      }
     }
 
     instance.stdout.on('data', handleStdout)
@@ -147,12 +156,19 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
     function handleStdout(data) {
       const message = data.toString()
-      if (/ready on/i.test(message)) {
+      const bootupMarkers = {
+        dev: /compiled successfully/i,
+        start: /started server/i,
+      }
+      if (
+        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+      ) {
         if (!didResolve) {
           didResolve = true
           resolve(stdOut ? message : instance)
         }
       }
+
       if (typeof opts.onStdout === 'function') {
         opts.onStdout(message)
       }
@@ -203,7 +219,10 @@ export function nextExportDefault(dir, opts = {}) {
 }
 
 export function nextStart(dir, port, opts = {}) {
-  return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
+  return runNextCommandDev(['start', '-p', port, dir], undefined, {
+    ...opts,
+    nextStart: true,
+  })
 }
 
 export function buildTS(args = [], cwd, env = {}) {

@@ -237,9 +237,9 @@ export default class DevServer extends Server {
     await this.loadCustomRoutes()
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
-      if (redirects.length || rewrites.length) {
+      if (redirects.length || rewrites.length || headers.length) {
         this.router = new Router(this.generateRoutes())
       }
     }
@@ -513,7 +513,11 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ) {
-    await this.hotReloader!.ensurePage('/_error')
+    if (res.statusCode === 404 && (await this.hasPage('/404'))) {
+      await this.hotReloader!.ensurePage('/404')
+    } else {
+      await this.hotReloader!.ensurePage('/_error')
+    }
 
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {

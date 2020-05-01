@@ -152,7 +152,18 @@ class Container extends React.Component {
   }
 
   render() {
-    return this.props.children
+    if (process.env.NODE_ENV === 'production') {
+      return this.props.children
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        const {
+          ReactDevOverlay,
+        } = require('@next/react-dev-overlay/lib/client')
+        return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      }
+      return this.props.children
+    }
   }
 }
 
@@ -345,7 +356,18 @@ function markHydrateComplete() {
     'beforeRender'
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
   if (onPerfEntry) {
+    if (process.env.__NEXT_FID_POLYFILL) {
+      import('../next-server/lib/fid-measure')
+        .then(mod => {
+          mod.default(onPerfEntry)
+        })
+        .catch(err => {
+          console.error('Error measuring First Input Delay', err)
+        })
+    }
+
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
     performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
   }
@@ -375,6 +397,9 @@ function markRenderComplete() {
       .forEach(onPerfEntry)
   }
   clearMarks()
+  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach(measure =>
+    performance.clearMeasures(measure)
+  )
 }
 
 function clearMarks() {
@@ -384,12 +409,6 @@ function clearMarks() {
     'afterRender',
     'routeChange',
   ].forEach(mark => performance.clearMarks(mark))
-  ;[
-    'Next.js-before-hydration',
-    'Next.js-hydration',
-    'Next.js-route-change-to-render',
-    'Next.js-render',
-  ].forEach(measure => performance.clearMeasures(measure))
 }
 
 function AppContainer({ children }) {

@@ -10,11 +10,10 @@
   "dependencies": {
     "@sentry/browser": "^5.1.0",
     "@sentry/node": "^5.6.2",
+    "@sentry/webpack-plugin": "^1.10.0",
+    "@zeit/next-source-maps": "0.0.4-canary.1",
     "next": "latest",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
-  },
-  "devDependencies": {
-    "@zeit/next-source-maps": "0.0.4-canary.1"
   }
 }

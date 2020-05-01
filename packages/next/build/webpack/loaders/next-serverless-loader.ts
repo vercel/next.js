@@ -103,7 +103,8 @@ const nextServerlessLoader: loader.Loader = function() {
         if (params) {
           const { parsedDestination } = prepareDestination(
             rewrite.destination,
-            params
+            params,
+            parsedUrl.query
           )
           Object.assign(parsedUrl.query, parsedDestination.query, params)
           delete parsedDestination.query
@@ -138,6 +139,11 @@ const nextServerlessLoader: loader.Loader = function() {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
+      import fetch from 'next/dist/compiled/node-fetch'
+    
+      if(!global.fetch) {
+        global.fetch = fetch
+      }
       ${runtimeConfigImports}
       ${
         /*
@@ -176,7 +182,7 @@ const nextServerlessLoader: loader.Loader = function() {
           }
 
           const resolver = require('${absolutePagePath}')
-          apiResolver(
+          await apiResolver(
             req,
             res,
             Object.assign({}, parsedUrl.query, params ),
@@ -202,6 +208,11 @@ const nextServerlessLoader: loader.Loader = function() {
     return `
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
+    import fetch from 'next/dist/compiled/node-fetch'
+    
+    if(!global.fetch) {
+      global.fetch = fetch
+    }
     ${runtimeConfigImports}
     ${
       // this needs to be called first so its available for any other imports
@@ -265,6 +276,7 @@ const nextServerlessLoader: loader.Loader = function() {
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         previewProps: ${encodedPreviewProps},
         env: process.env,
+        basePath: "${basePath}",
         ..._renderOpts
       }
       let _nextData = false

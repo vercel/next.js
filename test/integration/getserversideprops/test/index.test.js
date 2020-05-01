@@ -47,24 +47,36 @@ const expectedManifestRoutes = () => [
     page: '/blog',
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/blog/(?<post>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]',
+    routeKeys: ['post'],
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
       )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]/[comment]',
+    routeKeys: ['post', 'comment'],
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/catchall/(?<path>.+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
     ),
     page: '/catchall/[...path]',
+    routeKeys: ['path'],
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -103,12 +115,16 @@ const expectedManifestRoutes = () => [
     page: '/something',
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/user/(?<user>[^/]+?)/profile\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
       )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
     ),
     page: '/user/[user]/profile',
+    routeKeys: ['user'],
   },
 ]
 
@@ -258,6 +274,46 @@ const runTests = (dev = false) => {
     )
 
     expect(data.pageProps.params).toEqual({ path: ['first'] })
+  })
+
+  it('should have original req.url for /_next/data request dynamic page', async () => {
+    const curUrl = `/_next/data/${buildId}/blog/post-1.json`
+    const data = await renderViaHTTP(appPort, curUrl)
+    const { appProps } = JSON.parse(data)
+
+    expect(appProps).toEqual({
+      url: curUrl,
+      query: { post: 'post-1' },
+      asPath: curUrl,
+      pathname: '/blog/[post]',
+    })
+  })
+
+  it('should have original req.url for /_next/data request', async () => {
+    const curUrl = `/_next/data/${buildId}/something.json`
+    const data = await renderViaHTTP(appPort, curUrl)
+    const { appProps } = JSON.parse(data)
+
+    expect(appProps).toEqual({
+      url: curUrl,
+      query: {},
+      asPath: curUrl,
+      pathname: '/something',
+    })
+  })
+
+  it('should have correct req.url and query for direct visit dynamic page', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1')
+    const $ = cheerio.load(html)
+    expect($('#app-url').text()).toContain('/blog/post-1')
+    expect(JSON.parse($('#app-query').text())).toEqual({ post: 'post-1' })
+  })
+
+  it('should have correct req.url and query for direct visit', async () => {
+    const html = await renderViaHTTP(appPort, '/something')
+    const $ = cheerio.load(html)
+    expect($('#app-url').text()).toContain('/something')
+    expect(JSON.parse($('#app-query').text())).toEqual({})
   })
 
   it('should return data correctly', async () => {

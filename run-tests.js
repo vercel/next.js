@@ -22,6 +22,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
 
   const outputTimings = process.argv.indexOf('--timings') !== -1
+  const isAzure = process.argv.indexOf('--azure') !== -1
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
@@ -38,7 +39,9 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     if (outputTimings && groupArg) {
       console.log('Fetching previous timings data')
       try {
-        const timingsRes = await fetch(TIMINGS_API)
+        const timingsRes = await fetch(
+          `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
+        )
 
         if (!timingsRes.ok) {
           throw new Error(`request status: ${timingsRes.status}`)
@@ -237,7 +240,10 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
           headers: {
             'content-type': 'application/json',
           },
-          body: JSON.stringify({ timings: curTimings }),
+          body: JSON.stringify({
+            timings: curTimings,
+            which: isAzure ? 'azure' : 'actions',
+          }),
         })
 
         if (!timingsRes.ok) {

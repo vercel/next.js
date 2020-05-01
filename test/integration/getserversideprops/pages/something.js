@@ -14,7 +14,7 @@ export async function getServerSideProps({ params, query }) {
   }
 }
 
-export default ({ world, time, params, random, query }) => {
+export default ({ world, time, params, random, query, appProps }) => {
   return (
     <>
       <p>hello: {world}</p>
@@ -23,6 +23,8 @@ export default ({ world, time, params, random, query }) => {
       <div id="params">{JSON.stringify(params)}</div>
       <div id="initial-query">{JSON.stringify(query)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
+      <div id="app-query">{JSON.stringify(appProps.query)}</div>
+      <div id="app-url">{appProps.url}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>
