@@ -156,7 +156,7 @@ The API for `Router.replace` is exactly the same as that used for [`Router.push`
 
 ### Router.prefetch
 
-Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as the later takes care of prefetching pages for you.
+Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
 
 > this is a production only feature, Next.js doesn't prefetch pages on development.
 
