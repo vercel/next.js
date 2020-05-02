@@ -93,6 +93,26 @@ function runTests(startServer = nextStart) {
       cookie.serialize('__next_preview_data', cookies[1].__next_preview_data)
   })
 
+  it('should expire cookies with a maxAge', async () => {
+    const expiry = '60'
+    const res = await fetchViaHTTP(appPort, '/api/preview', {
+      cookieMaxAge: expiry,
+    })
+    expect(res.status).toBe(200)
+
+    const originalCookies = res.headers.get('set-cookie').split(',')
+    const cookies = originalCookies.map(cookie.parse)
+
+    expect(originalCookies.every(c => c.includes('; Secure;')))
+
+    expect(cookies.length).toBe(2)
+    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]['Max-Age']).toBe(expiry)
+    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]['Max-Age']).toBe(expiry)
+  })
   it('should not return fallback page on preview request', async () => {
     const res = await fetchViaHTTP(
       appPort,

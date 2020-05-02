@@ -298,12 +298,14 @@ export function tryGetPreviewData(
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
   const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
-  let encryptedPreviewData: string
+  let encryptedPreviewData: {
+    data: string
+  }
   try {
     encryptedPreviewData = jsonwebtoken.verify(
       tokenPreviewData,
       options.previewModeSigningKey
-    ) as string
+    ) as typeof encryptedPreviewData
   } catch {
     // TODO: warn
     clearPreviewData(res as NextApiResponse)
@@ -312,7 +314,7 @@ export function tryGetPreviewData(
 
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
-    encryptedPreviewData
+    encryptedPreviewData.data
   )
 
   try {
@@ -358,10 +360,12 @@ function setPreviewData<T>(
   const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
-    encryptWithSecret(
-      Buffer.from(options.previewModeEncryptionKey),
-      JSON.stringify(data)
-    ),
+    {
+      data: encryptWithSecret(
+        Buffer.from(options.previewModeEncryptionKey),
+        JSON.stringify(data)
+      ),
+    },
     options.previewModeSigningKey,
     {
       algorithm: 'HS256',
