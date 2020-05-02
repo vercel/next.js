@@ -71,3 +71,7 @@ global.DOMParser = DOMParser
 ```
 
 [react intl]: https://github.com/yahoo/react-intl
+
+### Transpile react-intl
+
+According to [react-intl docs](https://github.com/formatjs/react-intl/blob/53f2c826c7b1e50ad37215ce46b5e1c6f5d142cc/docs/Getting-Started.md#esm-build), react-intl and its underlying libraries must be transpiled to support older browsers (eg IE11). This is done by [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules) in next.config.js.
