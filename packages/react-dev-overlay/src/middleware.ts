@@ -1,5 +1,5 @@
 import { codeFrameColumns } from '@babel/code-frame'
-import { promises as fs } from 'fs'
+import { constants as FS, promises as fs } from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 import { NullableMappedPosition, SourceMapConsumer } from 'source-map'
@@ -7,8 +7,9 @@ import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 import webpack from 'webpack'
 import { OriginalSource } from 'webpack-sources'
+import { launchEditor } from './internal/helpers/launchEditor'
 
-type OverlayMiddlewareOptions = {
+export type OverlayMiddlewareOptions = {
   rootDirectory: string
   stats(): webpack.Stats
 }
@@ -121,6 +122,41 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
       res.statusCode = 400
       res.write('Bad Request')
+      return res.end()
+    } else if (pathname === '/__nextjs_launch-editor') {
+      const frame = (query as unknown) as StackFrame
+
+      const frameFile = frame.file?.toString() || null
+      if (frameFile == null) {
+        res.statusCode = 400
+        res.write('Bad Request')
+        return res.end()
+      }
+
+      const filePath = path.resolve(options.rootDirectory, frameFile)
+      const fileExists = await fs.access(filePath, FS.F_OK).then(
+        () => true,
+        () => false
+      )
+      if (!fileExists) {
+        res.statusCode = 404
+        res.write('Not Found')
+        return res.end()
+      }
+
+      const frameLine = parseInt(frame.lineNumber?.toString() ?? '', 10) || 1
+      const frameColumn = parseInt(frame.column?.toString() ?? '', 10) || 1
+
+      try {
+        await launchEditor(filePath, frameLine, frameColumn)
+      } catch (err) {
+        console.log('Failed to launch editor:', err)
+        res.statusCode = 500
+        res.write('Internal Server Error')
+        return res.end()
+      }
+
+      res.statusCode = 204
       return res.end()
     }
     return next()
