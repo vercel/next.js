@@ -17,6 +17,6 @@ module.exports = {
     const escapedFileNames = filenames
       .map(filename => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')
-    return `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`
+    return [`prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`]
   },
 }
