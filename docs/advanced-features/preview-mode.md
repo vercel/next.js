@@ -6,6 +6,17 @@ description: Next.js has the preview mode for statically generated pages. You ca
 
 > This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/pages).
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
+  </ul>
+</details>
+
 In the [Pages documentation](/docs/basic-features/pages.md) and the [Data Fetching documentation](/docs/basic-features/data-fetching.md), we talked about how to pre-render a page at build time (**Static Generation**) using `getStaticProps` and `getStaticPaths`.
 
 Static Generation is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to **preview** the draft immediately on your page. You’d want Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to bypass Static Generation only for this specific case.
@@ -148,15 +159,6 @@ That’s it! If you access the preview API route (with `secret` and `slug`) from
 # and you should be able to see the preview.
 https://<your-site>/api/preview?secret=<token>&slug=<path>
 ```
-
-## More Examples
-
-Take a look at the following examples to learn more:
-
-- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
-- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
-- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
-- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## More Details
 
