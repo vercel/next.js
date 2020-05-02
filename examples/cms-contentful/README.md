@@ -48,7 +48,7 @@ Next, go to **Settings > API > Content management tokens** and create a new toke
 With the space ID and management access token at hand run the following command:
 
 ```
-CONTENTFUL_SPACE_ID=YOUR_SPACE_ID CONTENTFUL_MANAGEMENT_TOKEN=XXX npm run setup
+npx cross-env CONTENTFUL_SPACE_ID=YOUR_SPACE_ID CONTENTFUL_MANAGEMENT_TOKEN=XXX npm run setup
 ```
 
 This command will create the needed content structures and set up your Contentful space ready to use. The output should look as follows:
