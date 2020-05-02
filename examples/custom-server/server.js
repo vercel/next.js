@@ -8,7 +8,7 @@ const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const parsedUrl = new URL(req.url, `http://${req.headers.host}`)
+    const parsedUrl = new URL(req.url, 'http://w.w')
     const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
