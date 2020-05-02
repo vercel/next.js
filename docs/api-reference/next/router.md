@@ -171,7 +171,7 @@ Router.prefetch(url, as)
 
 #### Usage
 
-Let's say you have a login page, and after a login you redirect the user to the dashboard, for that case, we can prefetch the dashboard to make a faster transition, like in the following example:
+Let's say you have a login page, and after a login, you redirect the user to the dashboard. For that case, we can prefetch the dashboard to make a faster transition, like in the following example:
 
 ```jsx
 import Router from 'next/router'
