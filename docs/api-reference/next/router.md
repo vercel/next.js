@@ -174,10 +174,11 @@ Router.prefetch(url, as)
 Let's say you have a login page, and after a login, you redirect the user to the dashboard. For that case, we can prefetch the dashboard to make a faster transition, like in the following example:
 
 ```jsx
+import { useCallback, useEffect } from 'react'
 import Router from 'next/router'
 
 export default function Login() {
-  const handleSubmit = e => {
+  const handleSubmit = useCallback(e => {
     e.preventDefault()
 
     fetch('/api/login', {
@@ -190,14 +191,17 @@ export default function Login() {
       // Do a fast client-side transition to the already prefetched dashbaord page
       if (res.ok) Router.push('/dashboard')
     })
-  }
+  }, [])
+
+  useEffect(() => {
+    // Prefetch the dashboard page as the user will go there after the login
+    Router.prefetch('/dashboard')
+  }, [])
 
   return (
     <form onSubmit={handleSubmit}>
       {/* Form fields */}
       <button type="submit">Login</button>
-      {// Prefetch the dashboard page as the user will go there after the login
-      Router.prefetch('/dashboard')}
     </form>
   )
 }
