@@ -6,7 +6,7 @@ export const config = {
   amp: 'hybrid',
 }
 
-export default () => {
+export default function DogPage() {
   const isAmp = useAmp()
 
   return (
