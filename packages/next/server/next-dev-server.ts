@@ -7,7 +7,6 @@ import Worker from 'jest-worker'
 import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
-import { promisify } from 'util'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
@@ -38,8 +37,6 @@ if (typeof React.Suspense === 'undefined') {
     `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
   )
 }
-
-const fsStat = promisify(fs.stat)
 
 export default class DevServer extends Server {
   private devReady: Promise<void>
@@ -320,7 +317,7 @@ export default class DevServer extends Server {
 
     if (pathname!.startsWith('/_next')) {
       try {
-        await fsStat(join(this.publicDir, '_next'))
+        await fs.promises.stat(join(this.publicDir, '_next'))
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
       } catch (err) {}
     }
@@ -563,7 +560,7 @@ export default class DevServer extends Server {
 
   async hasPublicFile(path: string) {
     try {
-      const info = await fsStat(join(this.publicDir, path))
+      const info = await fs.promises.stat(join(this.publicDir, path))
       return info.isFile()
     } catch (_) {
       return false
