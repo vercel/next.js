@@ -10,6 +10,7 @@ export async function build(
     customAppFile,
     isDevelopment,
     isServer,
+    hasReactRefresh,
     assetPrefix,
     sassOptions,
   }: {
@@ -17,6 +18,7 @@ export async function build(
     customAppFile: string | null
     isDevelopment: boolean
     isServer: boolean
+    hasReactRefresh: boolean
     assetPrefix: string
     sassOptions: any
   }
@@ -26,6 +28,7 @@ export async function build(
     customAppFile,
     isDevelopment,
     isProduction: !isDevelopment,
+    hasReactRefresh,
     isServer,
     isClient: !isServer,
     assetPrefix: assetPrefix

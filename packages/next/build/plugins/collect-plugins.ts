@@ -1,11 +1,8 @@
 import findUp from 'next/dist/compiled/find-up'
-import fs from 'fs'
+import { promises } from 'fs'
 import path from 'path'
-import { promisify } from 'util'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import { execOnce } from '../../next-server/lib/utils'
-
-const readdir = promisify(fs.readdir)
 
 export type PluginMetaData = {
   requiredEnv: string[]
@@ -65,7 +62,7 @@ async function collectPluginMeta(
   // TODO: add err.sh explaining requirements
   let middleware: string[] = []
   try {
-    middleware = await readdir(path.join(pkgDir, 'src'))
+    middleware = await promises.readdir(path.join(pkgDir, 'src'))
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.error(err)
