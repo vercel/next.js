@@ -40,9 +40,14 @@ const Blog = ({ postsList }) => (
   </Layout>
 )
 
-Blog.getInitialProps = async () => {
+export async function getStaticProps() {
   const postsList = await importBlogPosts()
-  return { postsList }
+
+  return {
+    props: {
+      postsList,
+    }, // will be passed to the page component as props
+  }
 }
 
 export default Blog
