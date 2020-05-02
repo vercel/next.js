@@ -35,11 +35,11 @@ After creating an account, create a new empty **space** from the [dashboard](htt
 
 The [content model](https://www.contentful.com/developers/docs/concepts/data-model/) defines the data structures of your application/websites. The structures are flexible and you can tailor them to your needs.
 
-For this example you need to create a content model that defines an author and a post content type. **You can continue creating these two by running a script or doing it manually** to familiarize yourself with the Contentful user interface.
+For this example you need to create a content model that defines an author and a post content type. **You can create these two by running a script or by doing it manually** to familiarize yourself with the Contentful user interface.
 
-#### Run a script to creat the content model
+#### Run a script to create the content model
 
-This project includes a setup script which you can use set up the content model that are expected by the source code.
+This project includes a setup script which you can use to set up the content model expected by the source code.
 
 In your Contentful dashboard go to **Settings > General Settings** and copy the **Space ID**.
 
@@ -118,7 +118,7 @@ Save the content type and continue.
 
 ### Step 3. Validate your content model
 
-After setting up the content model (either manually or by running `npm run setup`), it should look as follows.
+After setting up the content model (either manually or by running `npm run setup` or `yarn setup`), it should look as follows.
 
 **Content model overview**
 
