@@ -45,7 +45,7 @@ Finally, you can always use **Client-side Rendering** along with Static Generati
 
 ## Static Generation (Recommended)
 
-<details>
+<details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
