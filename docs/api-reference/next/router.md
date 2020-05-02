@@ -186,7 +186,7 @@ If the function you pass into `beforePopState` returns `false`, `Router` will no
 
 ### Router.back
 
-Navigate back in history, equivalent to clicking the back button. It executes `window.history.back()`.
+Navigate back in history. Equivalent to clicking the browser’s back button. It executes `window.history.back()`.
 
 ```jsx
 import Router from 'next/router'
@@ -196,7 +196,7 @@ Router.back()
 
 ### Router.reload
 
-Reload the current URL, equivalent to clicking the refresh button. It executes `window.location.reload()`.
+Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.
 
 ```jsx
 import Router from 'next/router'
