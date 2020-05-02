@@ -7,57 +7,87 @@
  */
 
 import Head from 'next/head'
-import { Container, Row } from 'react-bootstrap'
-import Footer from '../components/footer'
-import Card from '../components/card'
+import { Container, Row, Card, Button } from 'react-bootstrap'
 
 export default function Home() {
   return (
-    <Container>
+    <Container className="md-container">
       <Head>
-        <title>MT-SPA</title>
+        <title>ReactJS with react-bootstrap</title>
         <link rel="icon" href="/favicon-32x32.png" />
       </Head>
-
-      <main>
-        <h1 className="title">
+      <Container>
+        <h1>
           Welcome to <a href="https://nextjs.org">Next.js!</a>
         </h1>
-
-        <p className="description">
+        <p>
           Get started by editing <code>pages/index.js</code>
         </p>
-
         <Container>
-          <Row>
-            <Card
-              href="https://nextjs.org/docs"
-              title="Documentation"
-              text="Find in-depth information about Next.js features and API."
-            />
-            <Card
-              href="https://nextjs.org/learn"
-              title="Learn"
-              text="Learn about Next.js in an interactive course with quizzes!"
-            />
+          <Row className="justify-content-md-between">
+            <Card className="sml-card">
+              <Card.Body>
+                <Card.Title>Documentation</Card.Title>
+                <Card.Text>
+                  Find in-depth information about Next.js features and API.
+                </Card.Text>
+                <Button variant="primary" href="https://nextjs.org/docs">
+                  More... &rarr;
+                </Button>
+              </Card.Body>
+            </Card>
+            <Card className="sml-card">
+              <Card.Body>
+                <Card.Title>Learn</Card.Title>
+                <Card.Text>
+                  Learn about Next.js in an interactive course with quizzes!
+                </Card.Text>
+                <Button variant="primary" href="https://nextjs.org/learn">
+                  More... &rarr;
+                </Button>
+              </Card.Body>
+            </Card>
           </Row>
-
-          <Row>
-            <Card
-              href="https://github.com/zeit/next.js/tree/master/examples"
-              title="Examples"
-              text="Discover and deploy boilerplate example Next.js projects."
-            />
-            <Card
-              href="https://www.marinethinking.ca/"
-              title="Developer of this starter"
-              text="Discover more from here."
-            />
+          <Row className="justify-content-md-between">
+            <Card className="sml-card">
+              <Card.Body>
+                <Card.Title>Examples</Card.Title>
+                <Card.Text>
+                  Discover and deploy boilerplate example Next.js projects.
+                </Card.Text>
+                <Button
+                  variant="primary"
+                  href="https://github.com/zeit/next.js/tree/master/examples"
+                >
+                  More... &rarr;
+                </Button>
+              </Card.Body>
+            </Card>
+            <Card className="sml-card">
+              <Card.Body>
+                <Card.Title>About</Card.Title>
+                <Card.Text>
+                  From here to learn more about the developer of this starter
+                </Card.Text>
+                <Button variant="primary" href="https://www.marinethinking.ca/">
+                  More... &rarr;
+                </Button>
+              </Card.Body>
+            </Card>
           </Row>
         </Container>
-      </main>
+      </Container>
 
-      <Footer />
+      <footer className="cntr-footer">
+        <a
+          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Powered by{' '}
+          <img src="/vercel.svg" alt="Vercel Logo" className="sml-logo" />
+        </a>
+      </footer>
     </Container>
   )
 }
