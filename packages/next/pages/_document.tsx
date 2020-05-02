@@ -681,9 +681,10 @@ export class NextScript extends Component<OriginProps> {
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
       ]
 
+      console.log('disabled:', disableRuntimeJS)
       return (
         <>
-          {staticMarkup ? null : (
+          {staticMarkup || disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
@@ -803,7 +804,7 @@ export class NextScript extends Component<OriginProps> {
                 )
             )
           : null}
-        {staticMarkup ? null : (
+        {staticMarkup || disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
