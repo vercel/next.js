@@ -299,7 +299,7 @@ export function tryGetPreviewData(
 
   const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
   let encryptedPreviewData: {
-    token: string
+    data: string
   }
   try {
     encryptedPreviewData = jsonwebtoken.verify(
@@ -314,7 +314,7 @@ export function tryGetPreviewData(
 
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
-    encryptedPreviewData.token
+    encryptedPreviewData.data
   )
 
   try {
@@ -361,7 +361,7 @@ function setPreviewData<T>(
 
   const payload = jsonwebtoken.sign(
     {
-      token: encryptWithSecret(
+      data: encryptWithSecret(
         Buffer.from(options.previewModeEncryptionKey),
         JSON.stringify(data)
       ),
