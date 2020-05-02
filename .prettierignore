@@ -5,4 +5,5 @@ node_modules
 packages/next/compiled/**
 packages/react-refresh-utils/**/*.js
 packages/react-refresh-utils/**/*.d.ts
+packages/react-dev-overlay/lib/**
 **/__tmp__/**
