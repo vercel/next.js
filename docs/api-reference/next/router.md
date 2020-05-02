@@ -184,6 +184,26 @@ Router.beforePopState(({ url, as, options }) => {
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 
+### Router.back
+
+Navigate back in history, equivalent to clicking the back button. It executes `window.history.back()`.
+
+```jsx
+import Router from 'next/router'
+
+Router.back()
+```
+
+### Router.reload
+
+Reload the current URL, equivalent to clicking the refresh button. It executes `window.location.reload()`.
+
+```jsx
+import Router from 'next/router'
+
+Router.reload()
+```
+
 ### Router.events
 
 <details>
