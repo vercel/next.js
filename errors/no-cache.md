@@ -60,9 +60,7 @@ cache:
 
 #### Netlify CI
 
-It is **not possible** to cache custom build files on Netlify. Please contact their support and request they support this behavior.
-
-You can investigate using a 3rd party solution (e.g. [`cache-me-outside`](https://github.com/DavidWells/cache-me-outside)) to manually cache the Next.js output.
+Use [Netlify Plugins (beta)](https://www.netlify.com/build/plugins-beta/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
 
 #### AWS CodeBuild
 
