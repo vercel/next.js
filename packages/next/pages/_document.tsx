@@ -392,9 +392,7 @@ export class Head extends Component<
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props.children.forEach((child: React.ReactElement) => {
         if (Array.isArray(child)) {
-          child.filter(hasStyles).forEach(el => {
-            curStyles.push(el)
-          })
+          child.forEach(el => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
           curStyles.push(child)
         }
