@@ -312,6 +312,23 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('somefirst')).toBe('hi')
   })
 
+  it('should support URL for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/without-params/url')
+    expect(res.headers.get('x-origin')).toBe('https://example.com')
+  })
+
+  it('should apply params header key/values with URL', async () => {
+    const res = await fetchViaHTTP(appPort, '/with-params/url/first')
+    expect(res.headers.get('x-url')).toBe('https://example.com/first')
+  })
+
+  it('should apply params header key/values with URL that has port', async () => {
+    const res = await fetchViaHTTP(appPort, '/with-params/url2/first')
+    expect(res.headers.get('x-url')).toBe(
+      'https://example.com:8080/?hello=first'
+    )
+  })
+
   it('should support named pattern for header key/values', async () => {
     const res = await fetchViaHTTP(appPort, '/named-pattern/hello')
     expect(res.headers.get('x-something')).toBe('value=hello')
@@ -630,6 +647,40 @@ const runTests = (isDev = false) => {
           {
             headers: [
               {
+                key: 'x-origin',
+                value: 'https://example.com',
+              },
+            ],
+            regex: normalizeRegEx('^\\/without-params\\/url$'),
+            source: '/without-params/url',
+          },
+          {
+            headers: [
+              {
+                key: 'x-url',
+                value: 'https://example.com/:path*',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^\\/with-params\\/url(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/with-params/url/:path*',
+          },
+          {
+            headers: [
+              {
+                key: 'x-url',
+                value: 'https://example.com:8080?hello=:path*',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^\\/with-params\\/url2(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/with-params/url2/:path*',
+          },
+          {
+            headers: [
+              {
                 key: 'x-something',
                 value: 'applied-everywhere',
               },
@@ -773,16 +824,22 @@ const runTests = (isDev = false) => {
         ],
         dynamicRoutes: [
           {
+            namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['id'],
           },
           {
+            namedRegex: '^/api/dynamic/(?<slug>[^/]+?)(?:/)?$',
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['slug'],
           },
           {
+            namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['post'],
           },
         ],
       })

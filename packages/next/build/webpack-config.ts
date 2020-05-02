@@ -6,7 +6,6 @@ import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
-import { MinifyOptions } from 'terser'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -293,7 +292,7 @@ export default async function getBaseWebpackConfig(
 
   const webpackMode = dev ? 'development' : 'production'
 
-  const terserOptions: MinifyOptions = {
+  const terserOptions: any = {
     parse: {
       ecma: 8,
     },
@@ -847,6 +846,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
           config.experimental.measureFid
         ),
+        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1032,6 +1032,7 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
+    hasReactRefresh,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
