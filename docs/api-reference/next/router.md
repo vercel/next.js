@@ -166,7 +166,7 @@ import Router from 'next/router'
 Router.prefetch(url, as)
 ```
 
-- `url` - The path to a `page`. that is, the name of a page inside the `pages` directory
+- `url` - The path to a `page` inside the `pages` directory
 - `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes). Defaults to `url`
 
 #### Usage
