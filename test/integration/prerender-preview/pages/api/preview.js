@@ -8,9 +8,11 @@ export default (req, res) => {
   } else {
     res.setPreviewData(
       req.query,
-      req.query.cookieMaxAge ? {
-        maxAge: req.query.cookieMaxAge,
-      } : undefined
+      req.query.cookieMaxAge
+        ? {
+            maxAge: req.query.cookieMaxAge,
+          }
+        : undefined
     )
   }
 
