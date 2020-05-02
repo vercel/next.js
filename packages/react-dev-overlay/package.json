@@ -18,7 +18,9 @@
   "dependencies": {
     "@babel/code-frame": "7.8.3",
     "anser": "1.4.9",
+    "chalk": "4.0.0",
     "classnames": "2.2.6",
+    "shell-quote": "1.7.2",
     "source-map": "0.8.0-beta.0",
     "stacktrace-parser": "0.1.9",
     "strip-ansi": "6.0.0"
