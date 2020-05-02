@@ -12,6 +12,11 @@ It uses current best practices for authentication in the Next.js ecosystem.
 - Layout based on the user's logged-in/out status
 - Session data is signed and encrypted in a cookie
 
+[`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
+
+- Express / Connect middlewares
+- Multiple encryption keys (password) to allow for seamless updates or just password rotation
+
 ---
 
 <p align="center"><b>Online demo at <a href="https://next-iron-session.now.sh/">https://next-iron-session.now.sh/</a> 👀</b></p>
