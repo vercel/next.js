@@ -36,3 +36,25 @@ npm run dev
 yarn
 yarn dev
 ```
+
+### Populate body property
+
+Without the use of the body-parser package `req.body` will return undefined. To get express to populate `req.body` you need to install the body parser package and call the package within server.js.
+
+Install the package:
+
+```bash
+npm install body-parser
+```
+
+Use the package within server.js:
+
+```bash
+const bodyParser = require('body-parser');
+
+app.prepare().then(() => {
+  const server = express();
+  server.use(bodyParser.urlencoded({ extended: true }))
+  server.use(bodyParser.json())
+})
+```

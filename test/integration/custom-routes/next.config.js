@@ -231,6 +231,33 @@ module.exports = {
           ],
         },
         {
+          source: '/without-params/url',
+          headers: [
+            {
+              key: 'x-origin',
+              value: 'https://example.com',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com/:path*',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url2/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com:8080?hello=:path*',
+            },
+          ],
+        },
+        {
           source: '/:path*',
           headers: [
             {

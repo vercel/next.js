@@ -5,6 +5,7 @@ import { basename, extname } from 'path'
 
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
+import * as Log from '../../build/output/log'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -41,7 +42,6 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    documentMiddleware: false,
     granularChunks: true,
     modern: false,
     plugins: false,
@@ -51,7 +51,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     sassOptions: {},
-    pageEnv: false,
+    pageEnv: true,
     measureFid: false,
     reactRefresh: false,
   },
@@ -64,11 +64,8 @@ const defaultConfig: { [key: string]: any } = {
 }
 
 const experimentalWarning = execOnce(() => {
-  console.warn(
-    chalk.yellow.bold('Warning: ') +
-      chalk.bold('You have enabled experimental feature(s).')
-  )
-  console.warn(
+  Log.warn(chalk.bold('You have enabled experimental feature(s).'))
+  Log.warn(
     `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
       `Use them at your own risk.`
   )
