@@ -683,7 +683,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <>
-          {staticMarkup ? null : (
+          {staticMarkup || disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
@@ -803,7 +803,7 @@ export class NextScript extends Component<OriginProps> {
                 )
             )
           : null}
-        {staticMarkup ? null : (
+        {staticMarkup || disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
