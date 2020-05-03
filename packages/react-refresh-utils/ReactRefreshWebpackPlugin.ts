@@ -27,10 +27,13 @@ function webpack4(compiler: Compiler) {
         return source
       }
 
+      // Legacy CSS implementations will `eval` browser code in a Node.js
+      // context to extract CSS. For backwards compatibility, we need to check
+      // we're in a browser context before continuing.
       return Template.asString([
         ...lines.slice(0, evalIndex),
         `
-        var hasRefresh = !!self.$RefreshInterceptModuleExecution$;
+        var hasRefresh = typeof self !== "undefined" && !!self.$RefreshInterceptModuleExecution$;
         var cleanup = hasRefresh
           ? self.$RefreshInterceptModuleExecution$(moduleId)
           : function() {};
