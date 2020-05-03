@@ -16,16 +16,12 @@ import {
 import ssr from './ssr'
 import browser from './browser'
 import dev from './dev'
-import { promisify } from 'util'
-import fs from 'fs'
+import { promises } from 'fs'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-const writeFile = promisify(fs.writeFile)
-const mkdir = promisify(fs.mkdir)
-const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
@@ -38,16 +34,16 @@ describe('Static Export', () => {
   it('should delete existing exported files', async () => {
     const tempfile = join(outdir, 'temp.txt')
 
-    await mkdir(outdir).catch(e => {
+    await promises.mkdir(outdir).catch(e => {
       if (e.code !== 'EEXIST') throw e
     })
-    await writeFile(tempfile, 'Hello there')
+    await promises.writeFile(tempfile, 'Hello there')
 
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
     let doesNotExist = false
-    await access(tempfile).catch(e => {
+    await promises.access(tempfile).catch(e => {
       if (e.code === 'ENOENT') doesNotExist = true
     })
     expect(doesNotExist).toBe(true)
@@ -93,14 +89,16 @@ describe('Static Export', () => {
 
   it('should honor exportTrailingSlash for 404 page', async () => {
     expect(
-      await access(join(outdir, '404/index.html'))
+      await promises
+        .access(join(outdir, '404/index.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(true)
 
     // we still output 404.html for backwards compat
     expect(
-      await access(join(outdir, '404.html'))
+      await promises
+        .access(join(outdir, '404.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(true)
@@ -108,13 +106,15 @@ describe('Static Export', () => {
 
   it('should only output 404.html without exportTrailingSlash', async () => {
     expect(
-      await access(join(outNoTrailSlash, '404/index.html'))
+      await promises
+        .access(join(outNoTrailSlash, '404/index.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(false)
 
     expect(
-      await access(join(outNoTrailSlash, '404.html'))
+      await promises
+        .access(join(outNoTrailSlash, '404.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(true)
