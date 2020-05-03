@@ -3,6 +3,15 @@
   "version": "9.3.7-canary.6",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
+  "exports": {
+    ".": "./dist/server/next.js",
+    "./app": "./app.js",
+    "./document": "./document.js",
+    "./dynamic": "./dynamic.js",
+    "./head": "./head.js",
+    "./link": "./link.js",
+    "./router": "./router.js"
+  },
   "license": "MIT",
   "repository": "zeit/next.js",
   "bugs": "https://github.com/zeit/next.js/issues",
