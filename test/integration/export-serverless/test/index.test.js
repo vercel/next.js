@@ -22,6 +22,7 @@ import apiRoutes from './api-routes'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
+const { access, mkdir, writeFile } = promises
 const appDir = join(__dirname, '../')
 const context = {}
 context.appDir = appDir
@@ -33,16 +34,16 @@ describe('Static Export', () => {
     const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
 
-    await promises.mkdir(outdir).catch(e => {
+    await mkdir(outdir).catch(e => {
       if (e.code !== 'EEXIST') throw e
     })
-    await promises.writeFile(tempfile, 'Hello there')
+    await writeFile(tempfile, 'Hello there')
 
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
     let doesNotExist = false
-    await promises.access(tempfile).catch(e => {
+    await access(tempfile).catch(e => {
       if (e.code === 'ENOENT') doesNotExist = true
     })
     expect(doesNotExist).toBe(true)
