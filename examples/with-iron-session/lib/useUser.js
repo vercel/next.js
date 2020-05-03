@@ -1,13 +1,12 @@
 import { useEffect } from 'react'
 import Router from 'next/router'
 import useSWR from 'swr'
-import fetch from '../fetch'
 
 export default function useUser({
   redirectTo = false,
   redirectIfFound = false,
 } = {}) {
-  const { data: user } = useSWR('/api/user', fetch)
+  const { data: user, mutate: mutateUser } = useSWR('/api/user')
 
   useEffect(() => {
     // if no redirect needed, just return (example: already on /dashboard)
@@ -24,5 +23,5 @@ export default function useUser({
     }
   }, [user, redirectIfFound, redirectTo])
 
-  return user
+  return { user, mutateUser }
 }

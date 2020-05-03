@@ -1,11 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
-import useUser from '../lib/hooks/useUser'
+import useUser from '../lib/useUser'
 import { useRouter } from 'next/router'
-import { mutate } from 'swr'
+import fetchJson from '../lib/fetchJson'
 
 const Header = () => {
-  const user = useUser()
+  const { user, mutateUser } = useUser()
   const router = useRouter()
   return (
     <header>
@@ -43,9 +43,7 @@ const Header = () => {
                   href="/api/logout"
                   onClick={async e => {
                     e.preventDefault()
-                    await fetch('/api/logout')
-                    // tell all SWRs with this key to revalidate
-                    mutate('/api/user', { isLoggedIn: false })
+                    await mutateUser(fetchJson('/api/logout'))
                     router.push('/login')
                   }}
                 >
