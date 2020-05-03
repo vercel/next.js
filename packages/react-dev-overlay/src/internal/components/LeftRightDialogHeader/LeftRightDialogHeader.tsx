@@ -74,12 +74,37 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
     }
   }, [close, nav, next, previous])
 
+  // Unlock focus for browsers like Firefox, that break all user focus if the
+  // currently focused item becomes disabled.
+  React.useEffect(() => {
+    if (nav == null) {
+      return
+    }
+
+    const root = nav.getRootNode()
+    // Always true, but we do this for TypeScript:
+    if (root instanceof ShadowRoot) {
+      const a = root.activeElement
+
+      if (previous == null) {
+        if (a === buttonLeft.current) {
+          buttonLeft.current.blur()
+        }
+      } else if (next == null) {
+        if (a === buttonRight.current) {
+          buttonRight.current.blur()
+        }
+      }
+    }
+  }, [nav, next, previous])
+
   return (
     <div data-nextjs-dialog-left-right className={className}>
       <nav ref={onNav}>
         <button
           ref={buttonLeft}
           type="button"
+          disabled={previous == null ? true : undefined}
           aria-disabled={previous == null ? true : undefined}
           onClick={previous ?? undefined}
         >
@@ -88,6 +113,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         <button
           ref={buttonRight}
           type="button"
+          disabled={next == null ? true : undefined}
           aria-disabled={next == null ? true : undefined}
           onClick={next ?? undefined}
         >
