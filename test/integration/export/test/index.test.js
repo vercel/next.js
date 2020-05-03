@@ -90,16 +90,14 @@ describe('Static Export', () => {
 
   it('should honor exportTrailingSlash for 404 page', async () => {
     expect(
-      await promises
-        .access(join(outdir, '404/index.html'))
+      await access(join(outdir, '404/index.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(true)
 
     // we still output 404.html for backwards compat
     expect(
-      await promises
-        .access(join(outdir, '404.html'))
+      await access(join(outdir, '404.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(true)
@@ -107,15 +105,13 @@ describe('Static Export', () => {
 
   it('should only output 404.html without exportTrailingSlash', async () => {
     expect(
-      await promises
-        .access(join(outNoTrailSlash, '404/index.html'))
+      await access(join(outNoTrailSlash, '404/index.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(false)
 
     expect(
-      await promises
-        .access(join(outNoTrailSlash, '404.html'))
+      await access(join(outNoTrailSlash, '404.html'))
         .then(() => true)
         .catch(() => false)
     ).toBe(true)
