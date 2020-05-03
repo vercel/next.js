@@ -31,8 +31,8 @@ export default function() {
       module.id
     )
 
-    // A module can be accepted automatically based on its exports, e.g. when it
-    // is a Refresh Boundary.
+    // A module can be accepted automatically based on its exports, e.g. when
+    // it is a Refresh Boundary.
     if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {
       // Save the previous exports on update so we can compare the boundary
       // signatures.
@@ -43,17 +43,17 @@ export default function() {
       // still a Refresh Boundary later.
       module.hot.accept()
 
-      // This field is set when the previous version of this module was a Refresh
-      // Boundary, letting us know we need to check for invalidation or enqueue
-      // an update.
+      // This field is set when the previous version of this module was a
+      // Refresh Boundary, letting us know we need to check for invalidation or
+      // enqueue an update.
       if (prevExports !== null) {
-        // A boundary can become ineligible if its exports are incompatible with
-        // the previous exports.
+        // A boundary can become ineligible if its exports are incompatible
+        // with the previous exports.
         //
         // For example, if you add/remove/change exports, we'll want to
         // re-execute the importing modules, and force those components to
-        // re-render. Similarly, if you convert a class component to a function,
-        // we want to invalidate the boundary.
+        // re-render. Similarly, if you convert a class component to a
+        // function, we want to invalidate the boundary.
         if (
           self.$RefreshHelpers$.shouldInvalidateReactRefreshBoundary(
             prevExports,
