@@ -57,7 +57,12 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
-      <p role="link" onClick={open} tabIndex={0}>
+      <p
+        role="link"
+        onClick={open}
+        tabIndex={0}
+        title="Click to open in your editor"
+      >
         <span>
           {getFrameSource(stackFrame)} @ {stackFrame.methodName}
         </span>

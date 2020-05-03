@@ -40,6 +40,7 @@ const CallStackFrame: React.FC<{
         tabIndex={hasSource ? 0 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}
+        title={hasSource ? 'Click to open in your editor' : undefined}
       >
         <span>{getFrameSource(f)}</span>
         <svg
