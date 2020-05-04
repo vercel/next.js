@@ -75,5 +75,6 @@ function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFFRESH })
 }
 
+export { getNodeError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
 export { register, unregister, onRefresh }

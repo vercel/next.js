@@ -107,14 +107,10 @@ export default function connect(options) {
     },
     reportRuntimeError(err) {
       if (process.env.__NEXT_FAST_REFRESH) {
-        // FIXME: this code branch should be eliminated
-        setTimeout(() => {
-          // An unhandled rendering error occurred
-          throw err
-        })
-      } else {
-        ErrorOverlay.reportRuntimeError(err)
+        return
       }
+
+      ErrorOverlay.reportRuntimeError(err)
     },
     prepareError(err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760

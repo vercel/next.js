@@ -14,7 +14,7 @@ const CallStackFrame: React.FC<{
   // TODO: render error or external indicator
 
   const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
-  const hasSource = Boolean(frame.originalStackFrame?.file)
+  const hasSource = Boolean(frame.originalCodeFrame)
 
   const open = React.useCallback(() => {
     if (!hasSource) return

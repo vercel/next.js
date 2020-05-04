@@ -1,9 +1,10 @@
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
-import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Worker from 'jest-worker'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import findUp from 'next/dist/compiled/find-up'
 import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
@@ -48,7 +49,10 @@ export default class DevServer extends Server {
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    ;(this.renderOpts as any).ErrorDebug = ErrorDebug
+    ;(this.renderOpts as any).ErrorDebug =
+      this.nextConfig.experimental?.reactRefresh === true
+        ? ReactDevOverlay
+        : ErrorDebug
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })

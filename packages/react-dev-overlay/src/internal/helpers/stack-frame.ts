@@ -70,7 +70,12 @@ export function getOriginalStackFrame(
     }
   }
 
-  if (!source.file?.startsWith('webpack-internal:')) {
+  if (
+    !(
+      source.file?.startsWith('webpack-internal:') ||
+      source.file?.startsWith('file:')
+    )
+  ) {
     return Promise.resolve({
       error: false,
       reason: null,
@@ -103,7 +108,13 @@ export function getFrameSource(frame: StackFrame): string {
       typeof globalThis !== 'undefined' &&
       globalThis.location?.origin !== u.origin
     ) {
-      str += u.origin
+      // URLs can be valid without an `origin`, so long as they have a
+      // `protocol`. However, `origin` is preferred.
+      if (u.origin === 'null') {
+        str += u.protocol
+      } else {
+        str += u.origin
+      }
     }
 
     // Strip query string information as it's typically too verbose to be

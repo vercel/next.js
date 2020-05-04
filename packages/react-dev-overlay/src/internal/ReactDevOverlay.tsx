@@ -54,7 +54,9 @@ function ReactDevOverlay({ children }) {
 
   return (
     <React.Fragment>
-      <ErrorBoundary onError={onComponentError}>{children}</ErrorBoundary>
+      <ErrorBoundary onError={onComponentError}>
+        {children ?? null}
+      </ErrorBoundary>
       {state.errors.length ? (
         <ShadowPortal>
           <CssReset />
