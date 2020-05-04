@@ -57,7 +57,7 @@ export type LinkProps = {
 let observer: IntersectionObserver
 const listeners = new Map<Element, () => void>()
 const IntersectionObserver =
-  typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
+  typeof window !== 'undefined' ? window.IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
 
 function getObserver() {
@@ -72,7 +72,7 @@ function getObserver() {
   }
 
   return (observer = new IntersectionObserver(
-    (entries: IntersectionObserverEntry[]) => {
+    entries => {
       entries.forEach(entry => {
         if (!listeners.has(entry.target)) {
           return
