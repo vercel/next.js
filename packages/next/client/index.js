@@ -269,6 +269,42 @@ export async function renderError(props) {
   // In development runtime errors are caught by react-error-overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
+    if (process.env.__NEXT_FAST_REFRESH) {
+      const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+      // Server-side runtime errors need to be re-thrown on the client-side so
+      // that the overlay is rendered.
+      if (isInitialRender) {
+        setTimeout(() => {
+          let error
+          try {
+            // Generate a new error object. We `throw` it because some browsers
+            // will set the `stack` when thrown, and we want to ensure ours is
+            // not overridden when we re-throw it below.
+            throw new Error(err.message)
+          } catch (e) {
+            error = e
+          }
+
+          error.name = err.name
+          error.stack = err.stack
+
+          const node = getNodeError(error)
+          throw node
+        })
+      }
+
+      // We need to render an empty <App> so that the `<ReactDevOverlay>` can
+      // render itself.
+      await doRender({
+        App: () => null,
+        props: {},
+        Component: () => null,
+        err: null,
+      })
+      return
+    }
+
+    // Legacy behavior:
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
   }
   if (process.env.__NEXT_PLUGINS) {
