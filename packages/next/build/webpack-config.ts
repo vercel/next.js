@@ -152,8 +152,8 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasReactRefresh =
-    dev && !isServer && config.experimental.reactRefresh === true
+  const isReactRefreshEnabled = config.experimental.reactRefresh === true
+  const hasReactRefresh = dev && !isServer && isReactRefreshEnabled
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -1032,7 +1032,7 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    hasReactRefresh,
+    isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
