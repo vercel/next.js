@@ -1,5 +1,5 @@
 {
-  "name": "@kpdecker/next",
+  "name": "@healthline/next",
   "version": "24.6.0",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./node/server/next.js",
