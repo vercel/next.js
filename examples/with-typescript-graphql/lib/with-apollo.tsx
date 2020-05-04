@@ -79,10 +79,9 @@ export default function withApollo(
       // Keep the "isServer" check inline, so webpack removes the block
       // for client-side bundle.
       if (typeof window === 'undefined') {
-        if (!ctx.req || !ctx.res) throw new Error('never')
         resolverContext = await createResolverContext({
-          req: ctx.req,
-          res: ctx.res,
+          req: ctx.req!,
+          res: ctx.res!,
         })
       }
 
