@@ -862,9 +862,7 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
           ),
           page: '/lang/[lang]/about',
-          routeKeys: [
-            "lang"
-          ]
+          routeKeys: ['lang'],
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(

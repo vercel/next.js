@@ -1039,9 +1039,7 @@ export default class Server {
     // and we need to look up the path by the rewritten path
     let urlPathname = (req as any)._nextRewroteUrl
       ? (req as any)._nextRewroteUrl
-      : `${parseUrl(req.url || '').pathname!}${
-          query.amp ? '.amp' : ''
-        }`
+      : `${parseUrl(req.url || '').pathname!}${query.amp ? '.amp' : ''}`
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
