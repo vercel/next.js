@@ -187,7 +187,7 @@
     "node-fetch": "2.6.0",
     "ora": "4.0.4",
     "path-to-regexp": "6.1.0",
-    "postcss-flexbugs-fixes": "4.2.0",
+    "postcss-flexbugs-fixes": "4.2.1",
     "postcss-loader": "3.0.0",
     "postcss-preset-env": "6.7.0",
     "raw-body": "2.4.0",
