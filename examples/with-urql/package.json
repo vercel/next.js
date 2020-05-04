@@ -1,0 +1,16 @@
+{
+  "name": "with-urql",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "graphql": "^15.0.0",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "urql": "^1.9.7"
+  },
+  "license": "MIT"
+}
