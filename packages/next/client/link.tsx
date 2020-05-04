@@ -55,7 +55,7 @@ export type LinkProps = {
 }
 
 let observer: IntersectionObserver
-const listeners = new Map()
+const listeners = new Map<Element, () => void>()
 const IntersectionObserver =
   typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
@@ -72,13 +72,13 @@ function getObserver() {
   }
 
   return (observer = new IntersectionObserver(
-    (entries: any) => {
-      entries.forEach((entry: any) => {
+    (entries: IntersectionObserverEntry[]) => {
+      entries.forEach(entry => {
         if (!listeners.has(entry.target)) {
           return
         }
 
-        const cb = listeners.get(entry.target)
+        const cb = listeners.get(entry.target)!
         if (entry.isIntersecting || entry.intersectionRatio > 0) {
           observer.unobserve(entry.target)
           listeners.delete(entry.target)
@@ -90,7 +90,7 @@ function getObserver() {
   ))
 }
 
-const listenToIntersections = (el: any, cb: any) => {
+const listenToIntersections = (el: Element, cb: () => void) => {
   const observer = getObserver()
   if (!observer) {
     return () => {}
