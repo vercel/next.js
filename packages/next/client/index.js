@@ -1,19 +1,19 @@
 /* global location */
+import { createRouter, makePublicRouterInstance } from 'next/router'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import initHeadManager from './head-manager'
-import { createRouter, makePublicRouterInstance } from 'next/router'
-import mitt from '../next-server/lib/mitt'
-import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
-import PageLoader from './page-loader'
-import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import * as envConfig from '../next-server/lib/runtime-config'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import initHeadManager from './head-manager'
+import PageLoader from './page-loader'
 import {
-  observeLayoutShift,
   observeLargestContentfulPaint,
+  observeLayoutShift,
   observePaint,
 } from './performance-relayer'
 
@@ -263,7 +263,7 @@ export async function render(props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError(props) {
+export function renderError(props) {
   const { App, err } = props
 
   // In development runtime errors are caught by react-error-overlay
@@ -295,17 +295,18 @@ export async function renderError(props) {
 
       // We need to render an empty <App> so that the `<ReactDevOverlay>` can
       // render itself.
-      await doRender({
+      return doRender({
         App: () => null,
         props: {},
         Component: () => null,
         err: null,
       })
-      return
     }
 
     // Legacy behavior:
-    return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+    return Promise.resolve(
+      webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+    )
   }
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
@@ -320,24 +321,28 @@ export async function renderError(props) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-  ;({ page: ErrorComponent } = await pageLoader.loadPage('/_error'))
-
-  // In production we do a normal render with the `ErrorComponent` as component.
-  // If we've gotten here upon initial render, we can use the props from the server.
-  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-  const AppTree = wrapApp(App)
-  const appCtx = {
-    Component: ErrorComponent,
-    AppTree,
-    router,
-    ctx: { err, pathname: page, query, asPath, AppTree },
-  }
-
-  const initProps = props.props
-    ? props.props
-    : await loadGetInitialProps(App, appCtx)
-
-  await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
+  return pageLoader.loadPage('/_error').then(({ page: ErrorComponent }) => {
+    // In production we do a normal render with the `ErrorComponent` as component.
+    // If we've gotten here upon initial render, we can use the props from the server.
+    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+    const AppTree = wrapApp(App)
+    const appCtx = {
+      Component: ErrorComponent,
+      AppTree,
+      router,
+      ctx: { err, pathname: page, query, asPath, AppTree },
+    }
+    return Promise.resolve(
+      props.props ? props.props : loadGetInitialProps(App, appCtx)
+    ).then(initProps =>
+      doRender({
+        ...props,
+        err,
+        Component: ErrorComponent,
+        props: initProps,
+      })
+    )
+  })
 }
 
 // If hydrate does not exist, eg in preact.
