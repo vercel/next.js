@@ -1,10 +1,17 @@
 # A statically generated blog example using Next.js and DatoCMS
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [DatoCMS](https://www.datocms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [DatoCMS](https://www.datocms.com/) as the data source.
 
 ## Demo
 
-### [https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+[https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+
+### Related examples
+
+- [Blog Starter](/examples/blog-starter)
+- [Sanity](/examples/cms-sanity)
+- [TakeShape](/examples/cms-takeshape)
+- [Prismic](/examples/cms-prismic)
 
 ## How to use
 
@@ -96,7 +103,7 @@ cp .env.example .env
 Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN` should be the API token you just copied.
-- `NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
+- `NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Your `.env` file should look like this:
 
@@ -128,7 +135,7 @@ On DatoCMS, go to one of the posts you've created and:
 
 (If it doesn't become draft, you need to go to the model settings for `Post`, go to **Additional Settings**, and turn on **Enable draft/published system**.)
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 
@@ -141,17 +148,17 @@ http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
 
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-### Step 8. Deploy on ZEIT Now
+### Step 8. Deploy on Vercel
 
-You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>` with the corresponding strings in `.env`.
 
 ```
 now secrets add next_example_cms_datocms_api_token <NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN>
 now secrets add next_example_cms_datocms_preview_secret <NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET>
 ```
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

@@ -1,11 +1,8 @@
-import findUp from 'find-up'
-import fs from 'fs'
+import findUp from 'next/dist/compiled/find-up'
+import { promises } from 'fs'
 import path from 'path'
-import { promisify } from 'util'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import { execOnce } from '../../next-server/lib/utils'
-
-const readdir = promisify(fs.readdir)
 
 export type PluginMetaData = {
   requiredEnv: string[]
@@ -65,7 +62,7 @@ async function collectPluginMeta(
   // TODO: add err.sh explaining requirements
   let middleware: string[] = []
   try {
-    middleware = await readdir(path.join(pkgDir, 'src'))
+    middleware = await promises.readdir(path.join(pkgDir, 'src'))
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.error(err)
@@ -132,11 +129,6 @@ async function collectPluginMeta(
     pluginName: pluginMetaData.name,
     pkgName: pluginPackageJson.name,
   }
-}
-
-type SeparatedPlugins = {
-  appMiddlewarePlugins: PluginMetaData[]
-  documentMiddlewarePlugins: PluginMetaData[]
 }
 
 // clean package name so it can be used as variable
@@ -254,6 +246,4 @@ async function _collectPlugins(
 
 // only execute it once between server/client configs
 // since the plugins need to match
-export const collectPlugins = execOnce(
-  _collectPlugins
-) as typeof _collectPlugins
+export const collectPlugins = execOnce(_collectPlugins)

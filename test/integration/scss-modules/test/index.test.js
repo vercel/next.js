@@ -1,18 +1,19 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import { remove, readFile, readdir } from 'fs-extra'
+import cheerio from 'cheerio'
+import { readdir, readFile, remove } from 'fs-extra'
 import {
-  nextBuild,
-  nextStart,
+  File,
   findPort,
   killApp,
   launchApp,
-  waitFor,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -188,7 +189,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
 })
 
-xdescribe('Can hot reload CSS Module without losing state', () => {
+describe('Can hot reload CSS Module without losing state', () => {
   const appDir = join(fixturesDir, 'hmr-module')
 
   let appPort
@@ -202,7 +203,6 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
     await killApp(app)
   })
 
-  // FIXME: this is broken
   it('should update CSS color without remounting <input>', async () => {
     const browser = await webdriver(appPort, '/')
 
@@ -217,7 +217,7 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
 
     const cssFile = new File(join(appDir, 'pages/index.module.scss'))
     try {
-      cssFile.replace('color: red', 'color: purple')
+      cssFile.replace('$var: red', '$var: purple')
       await waitFor(2000) // wait for HMR
 
       const refreshedColor = await browser.eval(
@@ -445,6 +445,102 @@ describe('CSS Module Composes Usage (External)', () => {
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
       `".other_className__2VTl4{background:red;color:#ff0}.index_subClass__3e6Re{background:#00f}"`
+    )
+  })
+})
+
+describe('Dynamic Route CSS Module Usage', () => {
+  const appDir = join(fixturesDir, 'dynamic-route-module')
+
+  let stdout
+  let code
+  let app
+  let appPort
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(() => killApp(app))
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `"._post__home__3F5yW{background:red}"`
+    )
+  })
+
+  it('should apply styles correctly', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+
+    const background = await browser
+      .elementByCss('#my-div')
+      .getComputedCss('background-color')
+
+    expect(background).toMatch(/rgb(a|)\(255, 0, 0/)
+  })
+})
+
+describe('Catch-all Route CSS Module Usage', () => {
+  const appDir = join(fixturesDir, 'catch-all-module')
+
+  let stdout
+  let code
+  let app
+  let appPort
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(() => killApp(app))
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it('should apply styles correctly', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+
+    const background = await browser
+      .elementByCss('#my-div')
+      .getComputedCss('background-color')
+
+    expect(background).toMatch(/rgb(a|)\(255, 0, 0/)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".___post__home__psZf9{background:red}"`
     )
   })
 })

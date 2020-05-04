@@ -6,11 +6,14 @@ export type ConfigurationContext = {
 
   isDevelopment: boolean
   isProduction: boolean
+  hasReactRefresh: boolean
 
   isServer: boolean
   isClient: boolean
 
   assetPrefix: string
+
+  sassOptions: any
 }
 
 export type ConfigurationFn = (

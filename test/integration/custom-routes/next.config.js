@@ -218,11 +218,64 @@ module.exports = {
           ],
         },
         {
+          source: '/my-other-header/:path',
+          headers: [
+            {
+              key: 'x-path',
+              value: ':path',
+            },
+            {
+              key: 'some:path',
+              value: 'hi',
+            },
+          ],
+        },
+        {
+          source: '/without-params/url',
+          headers: [
+            {
+              key: 'x-origin',
+              value: 'https://example.com',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com/:path*',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url2/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com:8080?hello=:path*',
+            },
+          ],
+        },
+        {
           source: '/:path*',
           headers: [
             {
               key: 'x-something',
               value: 'applied-everywhere',
+            },
+          ],
+        },
+        {
+          source: '/named-pattern/:path(.*)',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'value=:path',
+            },
+            {
+              key: 'path-:path',
+              value: 'end',
             },
           ],
         },

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-const existsSync = (f: string): boolean => {
+export const existsSync = (f: string): boolean => {
   try {
     fs.accessSync(f, fs.constants.F_OK)
     return true

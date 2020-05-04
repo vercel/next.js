@@ -4,8 +4,9 @@
   "dependencies": {
     "express": "^4.15.3",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "swr": "0.2.0"
   },
   "devDependencies": {
     "cross-env": "^5.0.1",

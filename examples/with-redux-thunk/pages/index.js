@@ -1,19 +1,18 @@
-import React from 'react'
+import React, { PureComponent } from 'react'
 import { connect } from 'react-redux'
-import { startClock, serverRenderClock } from '../store'
+import Link from 'next/link'
+import { startClock, serverRenderClock } from '../actions'
 import Examples from '../components/examples'
 
-class Index extends React.Component {
-  static getInitialProps({ reduxStore, req }) {
-    const isServer = !!req
-    reduxStore.dispatch(serverRenderClock(isServer))
+class Index extends PureComponent {
+  static getInitialProps({ store, req }) {
+    store.dispatch(serverRenderClock(!!req))
 
     return {}
   }
 
   componentDidMount() {
-    const { dispatch } = this.props
-    this.timer = startClock(dispatch)
+    this.timer = this.props.startClock()
   }
 
   componentWillUnmount() {
@@ -21,8 +20,19 @@ class Index extends React.Component {
   }
 
   render() {
-    return <Examples />
+    return (
+      <>
+        <Examples />
+        <Link href="/show-redux-state">
+          <a>Click to see current Redux State</a>
+        </Link>
+      </>
+    )
   }
 }
 
-export default connect()(Index)
+const mapDispatchToProps = {
+  startClock,
+}
+
+export default connect(null, mapDispatchToProps)(Index)
