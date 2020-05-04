@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "9.3.7-canary.7",
+  "version": "9.3.7-canary.8",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "zeit/next.js",
