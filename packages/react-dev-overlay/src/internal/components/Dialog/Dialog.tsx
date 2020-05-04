@@ -40,6 +40,9 @@ const Dialog: React.FC<DialogProps> = function Dialog({
         el instanceof HTMLElement &&
         el.getAttribute('role') === 'link'
       ) {
+        e.preventDefault()
+        e.stopPropagation()
+
         el.click()
       }
     }
