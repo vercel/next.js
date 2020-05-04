@@ -1,3 +1,5 @@
 .next
 node_modules
 __generated__
+*.graphql.d.ts
+*.graphqls.d.ts
