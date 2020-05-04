@@ -261,22 +261,20 @@ export class Head extends Component<
           })
         : []
 
-    return preloadFiles.length === 0
+    return !preloadFiles.length
       ? null
-      : preloadFiles.map((file: string) => {
-          return (
-            <link
-              key={file}
-              nonce={this.props.nonce}
-              rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(
-                file
-              )}${_devOnlyInvalidateCacheQueryString}`}
-              as="script"
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
+      : preloadFiles.map((file: string) => (
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        ))
   }
 
   getFidPolyfill(): JSX.Element | null {
@@ -315,9 +313,8 @@ export class Head extends Component<
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        const isReactHelmet =
-          child && child.props && child.props['data-react-helmet']
-        if (child && child.type === 'title' && !isReactHelmet) {
+        const isReactHelmet = child?.props?.['data-react-helmet']
+        if (child?.type === 'title' && !isReactHelmet) {
           console.warn(
             "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
           )
@@ -391,14 +388,11 @@ export class Head extends Component<
       Array.isArray(styles.props.children)
     ) {
       const hasStyles = (el: React.ReactElement) =>
-        el &&
-        el.props &&
-        el.props.dangerouslySetInnerHTML &&
-        el.props.dangerouslySetInnerHTML.__html
+        el?.props?.dangerouslySetInnerHTML?.__html
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props.children.forEach((child: React.ReactElement) => {
         if (Array.isArray(child)) {
-          child.map(el => hasStyles(el) && curStyles.push(el))
+          child.forEach(el => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
           curStyles.push(child)
         }
@@ -407,28 +401,27 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {this.context._documentProps.isDevelopment &&
-          this.context._documentProps.hasCssMode && (
-            <>
+        {this.context._documentProps.isDevelopment && (
+          <>
+            <style
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              dangerouslySetInnerHTML={{
+                __html: `body{display:none}`,
+              }}
+            />
+            <noscript
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+            >
               <style
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
                 dangerouslySetInnerHTML={{
-                  __html: `body{display:none}`,
+                  __html: `body{display:block}`,
                 }}
               />
-              <noscript
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
-              >
-                <style
-                  dangerouslySetInnerHTML={{
-                    __html: `body{display:block}`,
-                  }}
-                />
-              </noscript>
-            </>
-          )}
+            </noscript>
+          </>
+        )}
         {children}
         {head}
         <meta
@@ -526,13 +519,12 @@ export class Head extends Component<
             )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
-            {this.context._documentProps.isDevelopment &&
-              this.context._documentProps.hasCssMode && (
-                // this element is used to mount development styles so the
-                // ordering matches production
-                // (by default, style-loader injects at the bottom of <head />)
-                <noscript id="__next_css__DO_NOT_USE__" />
-              )}
+            {this.context._documentProps.isDevelopment && (
+              // this element is used to mount development styles so the
+              // ordering matches production
+              // (by default, style-loader injects at the bottom of <head />)
+              <noscript id="__next_css__DO_NOT_USE__" />
+            )}
             {styles || null}
           </>
         )}
@@ -691,7 +683,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <>
-          {staticMarkup ? null : (
+          {staticMarkup || disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
@@ -811,7 +803,7 @@ export class NextScript extends Component<OriginProps> {
                 )
             )
           : null}
-        {staticMarkup ? null : (
+        {staticMarkup || disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
@@ -846,13 +838,10 @@ export class NextScript extends Component<OriginProps> {
 }
 
 function getAmpPath(ampPath: string, asPath: string) {
-  return ampPath ? ampPath : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
 function getPageFile(page: string, buildId?: string) {
-  if (page === '/') {
-    return buildId ? `/index.${buildId}.js` : '/index.js'
-  }
-
-  return buildId ? `${page}.${buildId}.js` : `${page}.js`
+  const startingUrl = page === '/' ? '/index' : page
+  return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }

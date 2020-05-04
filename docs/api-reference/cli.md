@@ -47,3 +47,30 @@ NODE_OPTIONS='--inspect' next
 - **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
 
 The first load is colored green, yellow, or red. Aim for green for performant applications.
+
+## Development
+
+`next dev` starts the application in development mode with hot-code reloading, error reporting, and more:
+
+The application will start at `http://localhost:3000` by default. The default port can be changed with `-p`, like so:
+
+```bash
+npx next dev -p 4000
+```
+
+## Production
+
+`next start` starts the application in production mode. The application should be compiled with [`next build`](#build) first.
+
+The application will start at `http://localhost:3000` by default. The default port can be changed with `-p`, like so:
+
+```bash
+npx next start -p 4000
+```
+
+## Telemetry
+
+Next.js collects **completely anonymous** telemetry data about general usage.
+Participation in this anonymous program is optional, and you may opt-out if you'd not like to share any information.
+
+To learn more about Telemetry, [please read this document](https://nextjs.org/telemetry/).
