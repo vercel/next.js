@@ -172,7 +172,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       if (typeof opts.onStdout === 'function') {
         opts.onStdout(message)
       }
-      process.stdout.write(message)
+
+      if (opts.stdout !== false) {
+        process.stdout.write(message)
+      }
     }
 
     function handleStderr(data) {
@@ -180,7 +183,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
-      process.stderr.write(message)
+
+      if (opts.stderr !== false) {
+        process.stderr.write(message)
+      }
     }
 
     instance.stdout.on('data', handleStdout)
