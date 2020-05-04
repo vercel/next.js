@@ -2,3 +2,4 @@
 **/_next/**
 **/dist/**
 packages/next/compiled/**/*
+lerna.json
