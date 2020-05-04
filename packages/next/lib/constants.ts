@@ -41,3 +41,5 @@ export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'https://nextjs.link/issg'
 
 export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's component and must be exported from the page. See more info here: https://err.sh/next.js/gssp-component-member`
+
+export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. https://err.sh/next.js/non-standard-node-env`
