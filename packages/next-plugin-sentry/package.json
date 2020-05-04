@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-sentry",
-  "version": "9.3.7-canary.8",
+  "version": "9.3.7-canary.9",
   "repository": {
     "url": "zeit/next.js",
     "directory": "packages/next-plugin-sentry"
