@@ -1,0 +1,21 @@
+{
+  "name": "stitches",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@stitches/css": "1.6.1",
+    "@stitches/styled": "1.6.1",
+    "next": "9.3.5",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  },
+  "devDependencies": {
+    "@types/react": "^16.9.34",
+    "typescript": "^3.8.3"
+  }
+}
