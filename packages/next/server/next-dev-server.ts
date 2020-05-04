@@ -272,9 +272,21 @@ export default class DevServer extends Server {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
+    let normalizedPath: string
+
+    try {
+      normalizedPath = normalizePagePath(pathname)
+    } catch (err) {
+      console.error(err)
+      // if normalizing the page fails it means it isn't valid
+      // so it doesn't exist so don't throw and return false
+      // to ensure we return 404 instead of 500
+      return false
+    }
+
     const pageFile = await findPageFile(
       this.pagesDir!,
-      normalizePagePath(pathname),
+      normalizedPath,
       this.nextConfig.pageExtensions
     )
     return !!pageFile
