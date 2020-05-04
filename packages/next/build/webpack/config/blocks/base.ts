@@ -12,11 +12,17 @@ export const base = curry(function base(
 
   // https://webpack.js.org/configuration/devtool/#development
   config.devtool = ctx.isDevelopment
-    ? ctx.hasReactRefresh
-      ? // `eval-source-map` results in the fastest rebuilds during dev. The
-        // only drawback is cold boot time, but this is mitigated by the fact
-        // that we load entries on-demand.
-        'eval-source-map'
+    ? ctx.isReactRefreshEnabled
+      ? ctx.isServer
+        ? // Non-eval based source maps are very slow to rebuild, so we only
+          // enable them for the server. Unfortunately, eval source maps are
+          // not supported by Node.js.
+          'inline-source-map'
+        : // `eval-source-map` provides full-fidelity source maps for the
+          // original source, including columns and original variable names.
+          // This is desirable so the in-browser debugger can correctly pause
+          // and show scoped variables with their original names.
+          'eval-source-map'
       : // `cheap-module-source-map` is the old preferred format that was
         // required for `react-error-overlay`.
         'cheap-module-source-map'
