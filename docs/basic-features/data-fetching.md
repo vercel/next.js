@@ -6,9 +6,22 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
 
 > This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
+    <li><a href="https://static-tweet.now.sh/">Static Tweet Demo</a></li>
+  </ul>
+</details>
+
 In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we’ll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven’t done so.
 
-We’ll talk about the three special Next.js functions you can use to fetch data for pre-rendering:
+We’ll talk about the three unique Next.js functions you can use to fetch data for pre-rendering:
 
 - [`getStaticProps`](#getstaticprops-static-generation) (Static Generation): Fetch data at **build time**.
 - [`getStaticPaths`](#getstaticpaths-static-generation) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
@@ -313,7 +326,7 @@ function Post({ post }) {
 export async function getStaticPaths() {
   return {
     // Only `/posts/1` and `/posts/2` are generated at build time
-    paths: [{ params: { id: 1 } }, { params: { id: 2 } }],
+    paths: [{ params: { id: '1' } }, { params: { id: '2' } }],
     // Enable statically generating additional pages
     // For example: `/posts/3`
     fallback: true,
@@ -467,7 +480,7 @@ This approach works well for user dashboard pages, for example. Because a dashbo
 
 ### SWR
 
-The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
+The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it if you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And you can use it like so:
 
 ```jsx
 import useSWR from 'swr'
@@ -482,16 +495,6 @@ function Profile() {
 ```
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
-
-## More Examples
-
-Take a look at the following examples to learn more:
-
-- [Blog Starter using markdown files](https://github.com/zeit/next.js/tree/canary/examples/blog-starter) ([Demo](https://next-blog-starter.now.sh/))
-- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
-- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
-- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
-- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## Learn more
 

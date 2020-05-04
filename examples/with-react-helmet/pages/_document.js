@@ -1,5 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import Helmet from 'react-helmet'
+import { Helmet } from 'react-helmet'
 
 export default class extends Document {
   static async getInitialProps(...args) {
