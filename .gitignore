@@ -18,3 +18,4 @@ coverage
 test/**/out
 .DS_Store
 .vscode/settings.json
+.yarn/cache
