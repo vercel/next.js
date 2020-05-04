@@ -1,4 +1,6 @@
+import { IncomingMessage, ServerResponse } from 'http'
 import { NextPage, NextPageContext } from 'next'
+import { ContextFunction } from 'apollo-server-core'
 import React from 'react'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
@@ -16,12 +18,29 @@ type WithApolloPageContext = {
   apolloClient: TApolloClient
 } & NextPageContext
 
+export type ResolverContext = { req: IncomingMessage; res: ServerResponse }
+
 let globalApolloClient: TApolloClient
+
+export const createResolverContext: ContextFunction<
+  { req: IncomingMessage; res: ServerResponse },
+  ResolverContext
+> = async ({ req, res }) => {
+  // If you want to pass additional data to resolvers as context
+  // such as session data, you can do it here. For example:
+  //
+  //    const user = await resolveUser(req.header.cookie)
+  //    return { req, res, user }
+  //
+  return { req, res }
+}
 
 /**
  * Creates and provides the apolloContext
  * to a next.js PageTree. Use it by wrapping
  * your PageComponent via HOC pattern.
+ * By passing `{ssr: false}`, it could be statically optimized
+ * instead of being exported as a serverless function.
  */
 export default function withApollo(
   PageComponent: NextPage,
@@ -54,11 +73,24 @@ export default function withApollo(
 
   if (ssr || PageComponent.getInitialProps) {
     WithApollo.getInitialProps = async (ctx: WithApolloPageContext) => {
-      const { AppTree } = ctx
+      // Resolver context here is only set on server. For client-side,
+      // "/api/graphql" route creates and pass it to resolver functions.
+      let resolverContext: ResolverContext | undefined
+      // Keep the "isServer" check inline, so webpack removes the block
+      // for client-side bundle.
+      if (typeof window === 'undefined') {
+        resolverContext = await createResolverContext({
+          req: ctx.req!,
+          res: ctx.res!,
+        })
+      }
 
       // Initialize ApolloClient, add it to the ctx object so
       // we can use it in `PageComponent.getInitialProp`.
-      const apolloClient = (ctx.apolloClient = initApolloClient())
+      const apolloClient = (ctx.apolloClient = initApolloClient(
+        undefined,
+        resolverContext
+      ))
 
       // Run wrapped getInitialProps methods
       let pageProps = {}
@@ -77,6 +109,7 @@ export default function withApollo(
         // Only if ssr is enabled
         if (ssr) {
           try {
+            const { AppTree } = ctx
             // Run all GraphQL queries
             const { getDataFromTree } = await import('@apollo/react-ssr')
             await getDataFromTree(
@@ -116,13 +149,15 @@ export default function withApollo(
 /**
  * Always creates a new apollo client on the server
  * Creates or reuses apollo client in the browser.
- * @param  {Object} initialState
  */
-function initApolloClient(initialState?: any) {
+function initApolloClient(
+  initialState?: any,
+  resolverContext?: ResolverContext
+) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (typeof window === 'undefined') {
-    return createApolloClient(initialState)
+    return createApolloClient(initialState, resolverContext)
   }
 
   // Reuse client on the client-side
@@ -135,25 +170,29 @@ function initApolloClient(initialState?: any) {
 
 /**
  * Creates and configures the ApolloClient
- * @param  {Object} [initialState={}]
  */
-function createApolloClient(initialState = {}) {
+function createApolloClient(
+  initialState = {},
+  resolverContext?: ResolverContext
+) {
   const ssrMode = typeof window === 'undefined'
   const cache = new InMemoryCache().restore(initialState)
 
   // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
   return new ApolloClient({
     ssrMode,
-    link: createIsomorphLink(),
+    link: createIsomorphLink(resolverContext),
     cache,
   })
 }
 
-function createIsomorphLink() {
+function createIsomorphLink(resolverContext?: ResolverContext) {
   if (typeof window === 'undefined') {
     const { SchemaLink } = require('apollo-link-schema')
     const schema = require('./schema').default
-    return new SchemaLink({ schema })
+
+    // "resolverContext" is passed only before calling "getDataFromTree".
+    return new SchemaLink({ schema, context: resolverContext })
   } else {
     const { HttpLink } = require('apollo-link-http')
     return new HttpLink({
