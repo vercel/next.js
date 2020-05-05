@@ -3,7 +3,6 @@ import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
@@ -1047,14 +1046,11 @@ export default class Server {
     }
 
     const ssgCacheKey = isPreviewMode
-      ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
+      ? undefined // Preview mode bypasses the cache
       : urlPathname
 
     // Complete the response with cached data if its present
-    const cachedData = isPreviewMode
-      ? // Preview data bypasses the cache
-        undefined
-      : await getSprCache(ssgCacheKey)
+    const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
@@ -1083,8 +1079,14 @@ export default class Server {
     }
 
     // If we're here, that means data is missing or it's stale.
+    const maybeCoalesceInvoke = ssgCacheKey
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      : (fn: any) => async () => {
+          const value = await fn()
+          return { isOrigin: true, value }
+        }
 
-    const doRender = withCoalescedInvoke(async function(): Promise<{
+    const doRender = maybeCoalesceInvoke(async function(): Promise<{
       html: string | null
       pageData: any
       sprRevalidate: number | false
@@ -1195,7 +1197,7 @@ export default class Server {
     const {
       isOrigin,
       value: { html, pageData, sprRevalidate },
-    } = await doRender(ssgCacheKey, [])
+    } = await doRender()
     if (!isResSent(res)) {
       sendPayload(
         res,
@@ -1211,12 +1213,9 @@ export default class Server {
       )
     }
 
-    // Update the SPR cache if the head request
-    if (isOrigin) {
-      // Preview mode should not be stored in cache
-      if (!isPreviewMode) {
-        await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
-      }
+    // Update the SPR cache if the head request and cacheable
+    if (isOrigin && ssgCacheKey) {
+      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
     }
 
     return null
