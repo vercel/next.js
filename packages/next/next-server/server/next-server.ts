@@ -948,10 +948,6 @@ export default class Server {
     const isServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
 
-    if (isSSG && query.amp) {
-      pathname += `.amp`
-    }
-
     if (!query.amp) {
       delete query.amp
     }
