@@ -48,12 +48,8 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         e.stopPropagation()
         if (root instanceof ShadowRoot) {
           const a = root.activeElement
-          if (a !== buttonClose.current && a instanceof HTMLElement) {
-            if (buttonClose.current) {
-              buttonClose.current.focus()
-            } else {
-              a.blur()
-            }
+          if (a && a !== buttonClose.current && a instanceof HTMLElement) {
+            a.blur()
             return
           }
         }
