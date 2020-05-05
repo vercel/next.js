@@ -26,6 +26,7 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
+import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import fetch from 'next/dist/build/polyfills/unfetch'
 import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -61,6 +62,10 @@ export default function connect(options) {
     )
   })
 
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.register()
+  }
+
   // We need to keep track of if there has been a runtime error.
   // Essentially, we cannot guarantee application state was not corrupted by the
   // runtime error. To prevent confusing behavior, we forcibly reload the entire
@@ -69,6 +74,10 @@ export default function connect(options) {
   // See https://github.com/facebook/create-react-app/issues/3096
   ErrorOverlay.startReportingRuntimeErrors({
     onError: function() {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        return
+      }
+
       hadRuntimeError = true
     },
   })
@@ -97,6 +106,10 @@ export default function connect(options) {
       customHmrEventHandler = handler
     },
     reportRuntimeError(err) {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        return
+      }
+
       ErrorOverlay.reportRuntimeError(err)
     },
     prepareError(err) {
@@ -139,10 +152,10 @@ function handleSuccess() {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onHotUpdateSuccess() {
+    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      tryDismissErrorOverlay()
+      onFastRefresh(hasUpdates)
     })
   }
 }
@@ -180,10 +193,10 @@ function handleWarnings(warnings) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate() {
+    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      tryDismissErrorOverlay()
+      onFastRefresh(hasUpdates)
     })
   }
 }
@@ -224,6 +237,15 @@ function handleErrors(errors) {
 function tryDismissErrorOverlay() {
   if (!hasCompileErrors) {
     ErrorOverlay.dismissBuildError()
+  }
+}
+
+function onFastRefresh(hasUpdates) {
+  tryDismissErrorOverlay()
+  if (hasUpdates) {
+    if (process.env.__NEXT_FAST_REFRESH) {
+      DevOverlay.onRefresh()
+    }
   }
 }
 
@@ -363,14 +385,15 @@ function tryApplyUpdates(onHotUpdateSuccess) {
       return
     }
 
+    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess()
+      onHotUpdateSuccess(hasUpdates)
     }
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates()
+      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
     } else {
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {

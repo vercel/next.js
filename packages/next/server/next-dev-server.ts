@@ -1,13 +1,13 @@
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
-import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Worker from 'jest-worker'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import findUp from 'next/dist/compiled/find-up'
 import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
-import { promisify } from 'util'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
@@ -39,8 +39,6 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
-const fsStat = promisify(fs.stat)
-
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
@@ -51,7 +49,10 @@ export default class DevServer extends Server {
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    ;(this.renderOpts as any).ErrorDebug = ErrorDebug
+    ;(this.renderOpts as any).ErrorDebug =
+      this.nextConfig.experimental?.reactRefresh === true
+        ? ReactDevOverlay
+        : ErrorDebug
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
@@ -275,9 +276,21 @@ export default class DevServer extends Server {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
+    let normalizedPath: string
+
+    try {
+      normalizedPath = normalizePagePath(pathname)
+    } catch (err) {
+      console.error(err)
+      // if normalizing the page fails it means it isn't valid
+      // so it doesn't exist so don't throw and return false
+      // to ensure we return 404 instead of 500
+      return false
+    }
+
     const pageFile = await findPageFile(
       this.pagesDir!,
-      normalizePagePath(pathname),
+      normalizedPath,
       this.nextConfig.pageExtensions
     )
     return !!pageFile
@@ -320,7 +333,7 @@ export default class DevServer extends Server {
 
     if (pathname!.startsWith('/_next')) {
       try {
-        await fsStat(join(this.publicDir, '_next'))
+        await fs.promises.stat(join(this.publicDir, '_next'))
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
       } catch (err) {}
     }
@@ -563,7 +576,7 @@ export default class DevServer extends Server {
 
   async hasPublicFile(path: string) {
     try {
-      const info = await fsStat(join(this.publicDir, path))
+      const info = await fs.promises.stat(join(this.publicDir, path))
       return info.isFile()
     } catch (_) {
       return false
