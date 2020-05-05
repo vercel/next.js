@@ -68,7 +68,7 @@ function LoginModal({ toggle, modalType, setUser }) {
       <div className="mb-4">
         <label
           className="block text-purple-700 text-sm font-bold mb-2"
-          htmlFor="username"
+          htmlFor="password"
         >
           Password
         </label>
