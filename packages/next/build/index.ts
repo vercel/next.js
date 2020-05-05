@@ -128,7 +128,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     headers.push(..._headers)
   }
 
-  if (ciEnvironment.isCI) {
+  if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
     const cacheDir = path.join(distDir, 'cache')
     const hasCache = await promises
       .access(cacheDir)
