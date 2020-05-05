@@ -9,9 +9,6 @@
     "directory": "packages/next-plugin-eslint"
   },
   "scripts": {
-    "test": "mocha tests --recursive"
-  },
-  "devDependencies": {
-    "mocha": "^3.1.2"
+    "test": "jest"
   }
 }
