@@ -60,7 +60,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       <p
         role="link"
         onClick={open}
-        tabIndex={0}
+        tabIndex={1}
         title="Click to open in your editor"
       >
         <span>

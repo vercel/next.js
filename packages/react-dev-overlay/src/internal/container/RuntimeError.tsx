@@ -37,7 +37,7 @@ const CallStackFrame: React.FC<{
       <h6>{f.methodName}</h6>
       <div
         data-has-source={hasSource ? 'true' : undefined}
-        tabIndex={hasSource ? 0 : undefined}
+        tabIndex={hasSource ? 10 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}
         title={hasSource ? 'Click to open in your editor' : undefined}
