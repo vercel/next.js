@@ -11,6 +11,8 @@ This causes **all non-getStaticProps pages** to be executed on the server -- dis
 Be sure you meant to use `getInitialProps` in `pages/_app`!
 There are some valid use cases for this, but it is often better to handle `getInitialProps` on a _per-page_ basis.
 
+Check for any [higher-order components](https://reactjs.org/docs/higher-order-components.html) that may have added `getInitialProps` to your [Custom `<App>`](https://nextjs.org/docs#custom-app).
+
 If you previously copied the [Custom `<App>`](https://nextjs.org/docs#custom-app) example, you may be able to remove your `getInitialProps`.
 
 The following `getInitialProps` does nothing and may be removed:
