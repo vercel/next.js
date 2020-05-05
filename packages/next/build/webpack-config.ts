@@ -640,6 +640,7 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
+          extractComments: false,
           cache: path.join(distDir, 'cache', 'next-minifier'),
           parallel: config.experimental.cpus || true,
           terserOptions,
