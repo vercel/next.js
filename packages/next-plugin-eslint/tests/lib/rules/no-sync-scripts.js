@@ -1,4 +1,4 @@
-const rule = require('../../../lib/rules/sync-scripts')
+const rule = require('../../../lib/rules/no-sync-scripts')
 const RuleTester = require('eslint').RuleTester
 
 RuleTester.setDefaultConfig({
@@ -47,7 +47,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            "A synchronous script tag in head, can impact your webpage's performance",
+            "A synchronous script tag can impact your webpage's performance",
           type: 'JSXOpeningElement',
         },
       ],
