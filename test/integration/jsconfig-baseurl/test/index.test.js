@@ -8,7 +8,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
+  check,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -54,11 +54,13 @@ describe('TypeScript Features', () => {
       )
       await renderViaHTTP(appPort, '/hello')
 
-      await waitFor(2 * 1000)
-      await fs.writeFile(basicPage, contents)
-      expect(output).toContain(
-        `Module not found: Can't resolve 'components/worldd' in`
+      const found = await check(
+        () => output,
+        /Module not found: Can't resolve 'components\/worldd' in/,
+        false
       )
+      await fs.writeFile(basicPage, contents)
+      expect(found).toBe(true)
     })
   })
 })

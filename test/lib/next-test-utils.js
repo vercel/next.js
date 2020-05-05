@@ -338,32 +338,35 @@ export async function startCleanStaticServer(dir) {
   return server
 }
 
-export async function check(contentFn, regex) {
-  let found = false
-  const timeout = setTimeout(async () => {
-    if (found) {
-      return
-    }
-    let content
+// check for content in 1 second intervals timing out after
+// 30 seconds
+export async function check(contentFn, regex, hardError = true) {
+  let content
+
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-    } catch (err) {
-      console.error('Error while getting content', { regex })
-    }
-    console.error('TIMED OUT CHECK: ', { regex, content })
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      const newContent = await contentFn()
-      if (regex.test(newContent)) {
-        found = true
-        clearTimeout(timeout)
-        break
+      if (regex.test(content)) {
+        // found the content
+        return true
       }
       await waitFor(1000)
-    } catch (ex) {}
+    } catch (err) {
+      if (tries === 30) {
+        console.error('Error while getting content', { regex }, err)
+      }
+    }
   }
+  console.error('TIMED OUT CHECK: ', { regex, content })
+
+  if (hardError) {
+    // maintain previous behavior where the error is thrown in a timeout
+    // and isn't caught when wrapped in a try/catch
+    setTimeout(() => {
+      throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    }, 1)
+  }
+  return false
 }
 
 export class File {
