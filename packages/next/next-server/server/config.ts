@@ -133,6 +133,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       })
     }
 
+    if (key === 'env' && !userConfig[key]) {
+      throw new Error(
+        `> Specified env is not an object, found "${userConfig[key]}". Please update this config or remove it.`
+      )
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
