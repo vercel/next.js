@@ -73,10 +73,6 @@ export default function connect(options) {
     // See https://github.com/facebook/create-react-app/issues/3096
     ErrorOverlay.startReportingRuntimeErrors({
       onError: function() {
-        if (process.env.__NEXT_FAST_REFRESH) {
-          return
-        }
-
         hadRuntimeError = true
       },
     })
