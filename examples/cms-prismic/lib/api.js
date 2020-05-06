@@ -6,6 +6,7 @@ const REF_API_URL = `https://${REPOSITORY}.prismic.io/api/v2`
 const GRAPHQL_API_URL = `https://${REPOSITORY}.prismic.io/graphql`
 // export const API_URL = 'https://your-repo-name.cdn.prismic.io/api/v2'
 export const API_TOKEN = process.env.NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN
+export const API_LOCALE = process.env.NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE
 
 export const PrismicClient = Prismic.client(REF_API_URL, {
   accessToken: API_TOKEN,
@@ -19,6 +20,7 @@ async function fetchAPI(query, { previewData, variables } = {}) {
       headers: {
         'Prismic-Ref': previewData?.ref || prismicAPI.masterRef.ref,
         'Content-Type': 'application/json',
+        'Accept-Language': API_LOCALE,
         Authorization: `Token ${API_TOKEN}`,
       },
     }
@@ -35,26 +37,6 @@ async function fetchAPI(query, { previewData, variables } = {}) {
     throw new Error('Failed to fetch API')
   }
   return json.data
-}
-
-export async function getPreviewPostBySlug(slug) {
-  const data = await fetchAPI(
-    `
-    query PostBySlug($slug: String!) {
-      post(uid: $slug, lang: "en-us") {
-        _meta {
-          uid
-        }
-      }
-    }`,
-    {
-      preview: true,
-      variables: {
-        slug,
-      },
-    }
-  )
-  return data?.post
 }
 
 export async function getAllPostsWithSlug() {
@@ -109,8 +91,8 @@ export async function getAllPostsForHome(previewData) {
 export async function getPostAndMorePosts(slug, previewData) {
   const data = await fetchAPI(
     `
-  query PostBySlug($slug: String!) {
-    post(uid: $slug, lang: "en-us") {
+  query PostBySlug($slug: String!, $lang: String!) {
+    post(uid: $slug, lang: $lang) {
       title
       content
       date
@@ -152,6 +134,7 @@ export async function getPostAndMorePosts(slug, previewData) {
       previewData,
       variables: {
         slug,
+        lang: API_LOCALE,
       },
     }
   )
