@@ -137,6 +137,11 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
           stdio: 'inherit',
           env: {
             ...process.env,
+            ...(isAzure
+              ? {
+                  HEADLESS: 'true',
+                }
+              : {}),
             ...(usePolling
               ? {
                   // Events can be finicky in CI. This switches to a more
