@@ -106,16 +106,6 @@ export async function sandbox(id = nanoid()) {
           )
         }
       },
-      async getOverlayContent() {
-        await browser.waitForElementByCss('iframe', 10000)
-        const hasIframe = await browser.hasElementByCssSelector('iframe')
-        if (!hasIframe) {
-          throw new Error('Unable to find overlay')
-        }
-        return browser.eval(
-          `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-        )
-      },
       async hasRedbox(expected = false) {
         let attempts = 3
         do {
@@ -124,7 +114,9 @@ export async function sandbox(id = nanoid()) {
               [].slice
                 .call(document.querySelectorAll('nextjs-portal'))
                 .find(p =>
-                  p.shadowRoot.querySelector('#nextjs__container_errors_label')
+                  p.shadowRoot.querySelector(
+                    '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+                  )
                 )
             )
           })
@@ -144,10 +136,14 @@ export async function sandbox(id = nanoid()) {
           const portal = [].slice
             .call(document.querySelectorAll('nextjs-portal'))
             .find(p =>
-              p.shadowRoot.querySelector('#nextjs__container_errors_label')
+              p.shadowRoot.querySelector(
+                '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              )
             )
           const root = portal.shadowRoot
-          return root.querySelector('[data-nextjs-codeframe]').innerText
+          return root.querySelector(
+            '[data-nextjs-codeframe], [data-nextjs-terminal]'
+          ).innerText
         })
       },
     },
