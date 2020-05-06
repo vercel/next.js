@@ -109,12 +109,14 @@ Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
 - `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
+- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 
 Your `.env` file should look like this:
 
 ```bash
 NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
+NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
 
 ### Step 6. Run Next.js in development mode
