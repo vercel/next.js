@@ -30,6 +30,7 @@ import shellQuote from 'shell-quote'
 
 function isTerminalEditor(editor) {
   switch (editor) {
+    case 'vi':
     case 'vim':
     case 'emacs':
     case 'nano': {
@@ -311,7 +312,6 @@ function printInstructions(fileName, errorMessage) {
   console.log()
 }
 
-let _childProcess = null
 function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
   if (!fs.existsSync(fileName)) {
     return
@@ -393,35 +393,43 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
     args.push(fileName)
   }
 
-  if (_childProcess && isTerminalEditor(editor)) {
-    // There's an existing editor process already and it's attached
-    // to the terminal, so go kill it. Otherwise two separate editor
-    // instances attach to the stdin/stdout which gets confusing.
-    _childProcess.kill('SIGKILL')
-  }
-
+  let p: child_process.ChildProcess
   if (process.platform === 'win32') {
     // On Windows, launch the editor in a shell because spawn can only
     // launch .exe files.
-    _childProcess = child_process.spawn(
-      'cmd.exe',
-      ['/C', editor].concat(args),
-      { stdio: 'inherit' }
-    )
-  } else {
-    _childProcess = child_process.spawn(editor, args, { stdio: 'inherit' })
-  }
-  _childProcess.on('exit', function(errorCode) {
-    _childProcess = null
-
-    if (errorCode) {
-      printInstructions(fileName, '(code ' + errorCode + ')')
+    p = child_process.spawn('cmd.exe', ['/C', editor].concat(args), {
+      stdio: 'inherit',
+    })
+  } else if (isTerminalEditor(editor)) {
+    if (process.platform === 'darwin') {
+      p = child_process.spawn(
+        'osascript',
+        [
+          '-e',
+          `tell application "Terminal" to do script "${shellQuote.quote([
+            editor,
+            ...args,
+          ])}"`,
+        ],
+        { stdio: 'ignore' }
+      )
+    } else {
+      printInstructions(fileName, 'Terminal editors can only be used on macOS.')
     }
-  })
+  } else {
+    p = child_process.spawn(editor, args, { stdio: 'inherit' })
+  }
 
-  _childProcess.on('error', function(error) {
-    printInstructions(fileName, error.message)
-  })
+  if (p) {
+    p.on('exit', function(errorCode) {
+      if (errorCode) {
+        printInstructions(fileName, '(code ' + errorCode + ')')
+      }
+    })
+    p.on('error', function(error) {
+      printInstructions(fileName, error.message)
+    })
+  }
 }
 
 export { launchEditor }
