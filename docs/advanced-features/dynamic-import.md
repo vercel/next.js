@@ -98,7 +98,7 @@ export default Home
 
 ## With no SSR
 
-You may not always want to include a module on server-side, For example, when the module includes a library that only works in the browser.
+You may not always want to include a module on server-side. For example, when the module includes a library that only works in the browser.
 
 Take a look at the following example:
 

@@ -27,6 +27,12 @@ const styles = css`
     pointer-events: all;
     z-index: -1;
   }
+
+  [data-nextjs-dialog-backdrop-fixed] {
+    cursor: not-allowed;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
 `
 
 export { styles }
