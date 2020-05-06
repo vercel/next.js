@@ -86,7 +86,9 @@ test('can recover from a syntax error without losing state', async () => {
   ).toBe('1')
 
   await session.patch('index.js', `export default () => <div/`)
-  expect(await session.getOverlayContent()).toMatch('Failed to compile')
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatch('SyntaxError')
 
   await session.patch(
     'index.js',
