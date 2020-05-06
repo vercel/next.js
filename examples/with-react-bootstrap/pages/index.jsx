@@ -1,11 +1,3 @@
-/**
- * Next.js with react-bootstrap support
- *
- * @from  : https://www.marinethinking.ca/
- * @author: lwz7512@gmail.com
- * @date  : 2020/05/01
- */
-
 import Head from 'next/head'
 import { Container, Row, Card, Button } from 'react-bootstrap'
 

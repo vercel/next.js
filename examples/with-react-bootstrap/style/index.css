@@ -1,11 +1,5 @@
-/* 
- * @2020/05/01
- */
-
 /* ensure all pages have Bootstrap CSS */
 @import '~bootstrap/dist/css/bootstrap.min.css';
-
-@import 'starter.css';
 
 .md-container {
   max-width: 800px;
