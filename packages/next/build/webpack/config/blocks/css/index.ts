@@ -29,9 +29,6 @@ export const css = curry(async function css(
   config: Configuration
 ) {
   const sassOptions = ctx.sassOptions
-  const sassPrependData = sassOptions.prependData
-
-  delete sassOptions.prependData
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
@@ -43,7 +40,7 @@ export const css = curry(async function css(
         // files original to their source directory.
         sourceMap: true,
         sassOptions,
-        prependData: sassPrependData,
+        prependData: sassOptions.prependData,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead
