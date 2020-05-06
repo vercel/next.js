@@ -39,27 +39,6 @@ async function fetchAPI(query, { previewData, variables } = {}) {
   return json.data
 }
 
-export async function getPreviewPostBySlug(slug, lang) {
-  const data = await fetchAPI(
-    `
-    query PostBySlug($slug: String! $lang: String!) {
-      post(uid: $slug, lang: $lang) {
-        _meta {
-          uid
-        }
-      }
-    }`,
-    {
-      preview: true,
-      variables: {
-        slug,
-        lang,
-      },
-    }
-  )
-  return data?.post
-}
-
 export async function getAllPostsWithSlug() {
   const data = await fetchAPI(`
     {
@@ -109,7 +88,7 @@ export async function getAllPostsForHome(previewData) {
   return data.allPosts.edges
 }
 
-export async function getPostAndMorePosts(slug, lang, previewData) {
+export async function getPostAndMorePosts(slug, previewData) {
   const data = await fetchAPI(
     `
   query PostBySlug($slug: String!, $lang: String!) {
@@ -155,7 +134,7 @@ export async function getPostAndMorePosts(slug, lang, previewData) {
       previewData,
       variables: {
         slug,
-        lang,
+        lang: API_LOCALE,
       },
     }
   )
