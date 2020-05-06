@@ -301,7 +301,7 @@ test('render error not shown right after syntax error', async () => {
 })
 
 // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137807
-test.only('module init error not shown', async () => {
+test('module init error not shown', async () => {
   // Start here:
   const [session, cleanup] = await sandbox()
 
