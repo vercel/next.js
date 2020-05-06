@@ -235,7 +235,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
             </p>
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError error={activeError} />
+            <RuntimeError key={activeError.id.toString()} error={activeError} />
           </DialogBody>
         </DialogContent>
       </Dialog>
