@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
 import { Errors, SupportedErrorEvent } from './container/Errors'
+import { BuildError } from './container/BuildError'
 import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
@@ -9,11 +10,21 @@ import { CssReset } from './styles/CssReset'
 
 type OverlayState = {
   nextId: number
+  buildError: string | null
   errors: SupportedErrorEvent[]
 }
 
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
+    case Bus.TYPE_BUILD_OK: {
+      return { ...state, buildError: null }
+    }
+    case Bus.TYPE_BUILD_ERROR: {
+      return { ...state, buildError: ev.message }
+    }
+    case Bus.TYPE_REFFRESH: {
+      return { ...state, buildError: null, errors: [] }
+    }
     case Bus.TYPE_UNHANDLED_ERROR:
     case Bus.TYPE_UNHANDLED_REJECTION: {
       return {
@@ -21,9 +32,6 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
         nextId: state.nextId + 1,
         errors: [...state.errors, { id: state.nextId, event: ev }],
       }
-    }
-    case Bus.TYPE_REFFRESH: {
-      return { ...state, errors: [] }
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -36,7 +44,7 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
 function ReactDevOverlay({ children }) {
   const [state, dispatch] = React.useReducer<
     React.Reducer<OverlayState, Bus.BusEvent>
-  >(reducer, { nextId: 1, errors: [] })
+  >(reducer, { nextId: 1, buildError: null, errors: [] })
 
   React.useEffect(() => {
     Bus.on(dispatch)
@@ -52,18 +60,28 @@ function ReactDevOverlay({ children }) {
     []
   )
 
+  const hasBuildError = state.buildError != null
+  const hasRuntimeErrors = Boolean(state.errors.length)
+
+  const isMounted = hasBuildError || hasRuntimeErrors
   return (
     <React.Fragment>
       <ErrorBoundary onError={onComponentError}>
         {children ?? null}
       </ErrorBoundary>
-      {state.errors.length ? (
+      {isMounted ? (
         <ShadowPortal>
           <CssReset />
           <Base />
           <ComponentStyles />
 
-          <Errors errors={state.errors} />
+          {hasBuildError ? (
+            <BuildError message={state.buildError} />
+          ) : hasRuntimeErrors ? (
+            <Errors errors={state.errors} />
+          ) : (
+            undefined
+          )}
         </ShadowPortal>
       ) : (
         undefined

@@ -1,9 +1,16 @@
 import { StackFrame } from 'stacktrace-parser'
 
+export const TYPE_BUILD_OK = 'build-ok'
+export const TYPE_BUILD_ERROR = 'build-error'
 export const TYPE_REFFRESH = 'fast-refresh'
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'
 
+export type BuildOk = { type: typeof TYPE_BUILD_OK }
+export type BuildError = {
+  type: typeof TYPE_BUILD_ERROR
+  message: string
+}
 export type FastRefresh = { type: typeof TYPE_REFFRESH }
 export type UnhandledError = {
   type: typeof TYPE_UNHANDLED_ERROR
@@ -15,7 +22,13 @@ export type UnhandledRejection = {
   reason: Error
   frames: StackFrame[]
 }
-export type BusEvent = UnhandledError | UnhandledRejection | FastRefresh
+export type BusEvent =
+  | BuildOk
+  | BuildError
+  | FastRefresh
+  | UnhandledError
+  | UnhandledRejection
+
 export type BusEventHandler = (ev: BusEvent) => void
 
 let handlers: Set<BusEventHandler> = new Set()

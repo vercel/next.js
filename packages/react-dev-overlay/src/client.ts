@@ -71,10 +71,18 @@ function unregister() {
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
 }
 
+function onBuildOk() {
+  Bus.emit({ type: Bus.TYPE_BUILD_OK })
+}
+
+function onBuildError(message: string) {
+  Bus.emit({ type: Bus.TYPE_BUILD_ERROR, message })
+}
+
 function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFFRESH })
 }
 
 export { getNodeError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export { register, unregister, onRefresh }
+export { onBuildOk, onBuildError, register, unregister, onRefresh }

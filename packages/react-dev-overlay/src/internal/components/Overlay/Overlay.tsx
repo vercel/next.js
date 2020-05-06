@@ -3,11 +3,12 @@ import allyTrap from 'ally.js/maintain/tab-focus'
 import * as React from 'react'
 import { lock, unlock } from './body-locker'
 
-export type OverlayProps = { className?: string }
+export type OverlayProps = { className?: string; fixed?: boolean }
 
 const Overlay: React.FC<OverlayProps> = function Overlay({
   className,
   children,
+  fixed,
 }) {
   React.useEffect(() => {
     lock()
@@ -36,7 +37,10 @@ const Overlay: React.FC<OverlayProps> = function Overlay({
 
   return (
     <div data-nextjs-dialog-overlay className={className} ref={onOverlay}>
-      <div data-nextjs-dialog-backdrop />
+      <div
+        data-nextjs-dialog-backdrop
+        data-nextjs-dialog-backdrop-fixed={fixed ? true : undefined}
+      />
       {children}
     </div>
   )

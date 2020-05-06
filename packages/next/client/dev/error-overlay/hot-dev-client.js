@@ -64,28 +64,17 @@ export default function connect(options) {
 
   if (process.env.__NEXT_FAST_REFRESH) {
     DevOverlay.register()
-  }
-
-  // We need to keep track of if there has been a runtime error.
-  // Essentially, we cannot guarantee application state was not corrupted by the
-  // runtime error. To prevent confusing behavior, we forcibly reload the entire
-  // application. This is handled below when we are notified of a compile (code
-  // change).
-  // See https://github.com/facebook/create-react-app/issues/3096
-  ErrorOverlay.startReportingRuntimeErrors({
-    onError: function() {
-      if (process.env.__NEXT_FAST_REFRESH) {
-        return
-      }
-
-      hadRuntimeError = true
-    },
-  })
-
-  if (module.hot && typeof module.hot.dispose === 'function') {
-    module.hot.dispose(function() {
-      // TODO: why do we need this?
-      ErrorOverlay.stopReportingRuntimeErrors()
+  } else {
+    // We need to keep track of if there has been a runtime error.
+    // Essentially, we cannot guarantee application state was not corrupted by the
+    // runtime error. To prevent confusing behavior, we forcibly reload the entire
+    // application. This is handled below when we are notified of a compile (code
+    // change).
+    // See https://github.com/facebook/create-react-app/issues/3096
+    ErrorOverlay.startReportingRuntimeErrors({
+      onError: function() {
+        hadRuntimeError = true
+      },
     })
   }
 
@@ -215,7 +204,11 @@ function handleErrors(errors) {
   })
 
   // Only show the first error.
-  ErrorOverlay.reportBuildError(formatted.errors[0])
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.onBuildError(formatted.errors[0])
+  } else {
+    ErrorOverlay.reportBuildError(formatted.errors[0])
+  }
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -235,15 +228,18 @@ function handleErrors(errors) {
 }
 
 function tryDismissErrorOverlay() {
-  if (!hasCompileErrors) {
-    ErrorOverlay.dismissBuildError()
+  if (!process.env.__NEXT_FAST_REFRESH) {
+    if (!hasCompileErrors) {
+      ErrorOverlay.dismissBuildError()
+    }
   }
 }
 
 function onFastRefresh(hasUpdates) {
   tryDismissErrorOverlay()
-  if (hasUpdates) {
-    if (process.env.__NEXT_FAST_REFRESH) {
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.onBuildOk()
+    if (hasUpdates) {
       DevOverlay.onRefresh()
     }
   }
@@ -287,6 +283,10 @@ function processMessage(e) {
       return handleSuccess()
     }
     case 'typeChecked': {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        break
+      }
+
       const eventId = ++hmrEventCount
 
       const [{ errors }] = obj.data
