@@ -21,7 +21,7 @@ const styles = css`
   [data-nextjs-dialog-left-right] > nav > button:hover {
     background-color: rgba(230, 0, 0, 0.2);
   }
-  [data-nextjs-dialog-left-right] > nav > button[aria-disabled] {
+  [data-nextjs-dialog-left-right] > nav > button:disabled {
     background-color: rgba(230, 0, 0, 0.1);
     color: rgba(230, 0, 0, 0.2);
     cursor: not-allowed;

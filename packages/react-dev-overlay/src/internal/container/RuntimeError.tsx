@@ -14,10 +14,67 @@ const CallStackFrame: React.FC<{
   // TODO: render error or external indicator
 
   const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
+  const hasSource = Boolean(frame.originalCodeFrame)
+
+  const open = React.useCallback(() => {
+    if (!hasSource) return
+
+    const params = new URLSearchParams()
+    for (const key in f) {
+      params.append(key, (f[key] ?? '').toString())
+    }
+
+    self.fetch(`/__nextjs_launch-editor?${params.toString()}`).then(
+      () => {},
+      () => {
+        // TODO: report error
+      }
+    )
+  }, [hasSource, f])
+
   return (
     <div data-nextjs-call-stack-frame>
-      <h6>{f.methodName}</h6>
-      <p>{getFrameSource(f)}</p>
+      <h6>
+        {frame.expanded ? (
+          undefined
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          </svg>
+        )}
+        {f.methodName}
+      </h6>
+      <div
+        data-has-source={hasSource ? 'true' : undefined}
+        tabIndex={hasSource ? 10 : undefined}
+        role={hasSource ? 'link' : undefined}
+        onClick={open}
+        title={hasSource ? 'Click to open in your editor' : undefined}
+      >
+        <span>{getFrameSource(f)}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </div>
     </div>
   )
 }
@@ -46,19 +103,35 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [error.frames, firstFirstPartyFrameIndex]
   )
 
-  // FIXME: allow collapsed frames to be toggled
-  const [all] = React.useState(false)
+  const [all, setAll] = React.useState(firstFrame == null)
+  const toggleAll = React.useCallback(() => {
+    setAll(v => !v)
+  }, [])
+
   const leadingFrames = React.useMemo(
     () => allLeadingFrames.filter(f => f.expanded || all),
     [all, allLeadingFrames]
   )
-  const callStackFrames = React.useMemo(
-    () =>
-      error.frames
-        .slice(firstFirstPartyFrameIndex + 1)
-        .filter(f => f.expanded || all),
-    [all, error.frames, firstFirstPartyFrameIndex]
+  const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
+    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
+    [error.frames, firstFirstPartyFrameIndex]
   )
+  const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
+    () => allCallStackFrames.filter(f => f.expanded || all),
+    [all, allCallStackFrames]
+  )
+
+  const canShowMore = React.useMemo<boolean>(() => {
+    return (
+      allCallStackFrames.length !== visibleCallStackFrames.length ||
+      (all && firstFrame != null)
+    )
+  }, [
+    all,
+    allCallStackFrames.length,
+    firstFrame,
+    visibleCallStackFrames.length,
+  ])
 
   return (
     <div className={className}>
@@ -79,12 +152,26 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
       ) : (
         undefined
       )}
-      {callStackFrames.length ? (
+      {visibleCallStackFrames.length ? (
         <React.Fragment>
           <h5>Call Stack</h5>
-          {callStackFrames.map((frame, index) => (
+          {visibleCallStackFrames.map((frame, index) => (
             <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
           ))}
+        </React.Fragment>
+      ) : (
+        undefined
+      )}
+      {canShowMore ? (
+        <React.Fragment>
+          <button
+            tabIndex={10}
+            data-nextjs-data-runtime-error-collapsed-action
+            type="button"
+            onClick={toggleAll}
+          >
+            {all ? 'Hide' : 'Show'} collapsed frames
+          </button>
         </React.Fragment>
       ) : (
         undefined
@@ -94,14 +181,46 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 }
 
 export const styles = css`
+  button[data-nextjs-data-runtime-error-collapsed-action] {
+    background: none;
+    border: none;
+    padding: 0;
+    color: rgba(25, 25, 25, 0.6);
+  }
+
   [data-nextjs-call-stack-frame] > h6 {
     font-family: var(--font-stack-monospace);
     color: rgba(25, 25, 25, 1);
   }
-  [data-nextjs-call-stack-frame] > p {
+  [data-nextjs-call-stack-frame] > h6 > svg {
+    width: auto;
+    height: 0.875rem;
+    margin-right: 0.5rem;
+  }
+  [data-nextjs-call-stack-frame] > div {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
     padding-left: 0.75rem;
     font-size: 0.875rem;
     color: rgba(25, 25, 25, 0.5);
+  }
+  [data-nextjs-call-stack-frame] > div > svg {
+    width: auto;
+    height: 0.875rem;
+    margin-left: 0.5rem;
+
+    display: none;
+  }
+
+  [data-nextjs-call-stack-frame] > div[data-has-source] {
+    cursor: pointer;
+  }
+  [data-nextjs-call-stack-frame] > div[data-has-source]:hover {
+    text-decoration: underline dotted;
+  }
+  [data-nextjs-call-stack-frame] > div[data-has-source] > svg {
+    display: unset;
   }
 `
 
