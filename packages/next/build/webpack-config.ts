@@ -229,8 +229,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript?.ignoreDevErrors
-    : config.typescript?.ignoreBuildErrors
+    ? Boolean(isReactRefreshEnabled || config.typescript?.ignoreDevErrors)
+    : Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
