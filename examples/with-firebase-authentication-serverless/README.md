@@ -45,7 +45,3 @@ After deploying, copy the deployment URL and navigate to your Firebase project's
 ## The idea behind the example
 
 This example includes Firebase authentication and serverless [API routes](https://nextjs.org/docs/api-routes/introduction). On login, the app calls `/api/login`, which stores the user's info (their decoded Firebase token) in a cookie so that it's available server-side in `getInitialProps`. On logout, the app calls `/api/logout` to destroy the cookie.
-
-## Notes
-
-- **(Optional)** if you use windows os, install `npm install -g win-node-env` to avoid having future problems with `NODE_ENV = development` in `package.json`.
