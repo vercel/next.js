@@ -174,7 +174,7 @@ export type DocumentProps = DocumentInitialProps & {
 /**
  * Next `API` route request
  */
-export type NextApiRequest = IncomingMessage & {
+export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
