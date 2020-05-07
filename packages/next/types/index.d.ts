@@ -76,12 +76,14 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
   previewData?: any
-};
+}
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
   Q extends ParsedUrlQuery = ParsedUrlQuery
-> = (ctx: GetStaticPropsContext<Q>) => Promise<{
+> = (
+  ctx: GetStaticPropsContext<Q>
+) => Promise<{
   props: P
   unstable_revalidate?: number | boolean
 }>
@@ -93,14 +95,16 @@ export type GetStaticPaths<
   fallback: boolean
 }>
 
-export type GetServerSidePropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
+export type GetServerSidePropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = {
   req: IncomingMessage
   res: ServerResponse
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
-};
+}
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
