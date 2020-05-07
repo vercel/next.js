@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "url": "zeit/next.js",
-    "directory": "packages/next-plugin-eslint"
+    "directory": "packages/eslint-plugin-next"
   },
   "scripts": {
     "test": "jest"
