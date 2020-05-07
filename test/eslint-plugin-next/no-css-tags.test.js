@@ -1,4 +1,4 @@
-const rule = require('../../../lib/rules/no-css-tags')
+const rule = require('@next/eslint-plugin-next/lib/rules/no-css-tags')
 const RuleTester = require('eslint').RuleTester
 
 RuleTester.setDefaultConfig({

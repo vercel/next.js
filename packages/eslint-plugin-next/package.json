@@ -7,8 +7,5 @@
   "repository": {
     "url": "zeit/next.js",
     "directory": "packages/eslint-plugin-next"
-  },
-  "scripts": {
-    "test": "jest"
   }
 }
