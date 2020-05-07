@@ -6,7 +6,7 @@ This example features how you use [antd-mobile](https://github.com/ant-design/an
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-antd-mobile)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-ant-design-mobile)
 
 ## How to use
 
@@ -15,9 +15,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-antd-mobile with-antd-mobile-app
+npm init next-app --example with-ant-design-mobile with-ant-design-mobile-app
 # or
-yarn create next-app --example with-antd-mobile with-antd-mobile-app
+yarn create next-app --example with-ant-design-mobile with-ant-design-mobile-app
 ```
 
 ### Download manually
@@ -25,8 +25,8 @@ yarn create next-app --example with-antd-mobile with-antd-mobile-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-antd-mobile
-cd with-antd-mobile
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-ant-design-mobile
+cd with-ant-design-mobile
 ```
 
 Install it and run:
