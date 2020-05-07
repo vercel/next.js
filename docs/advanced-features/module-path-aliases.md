@@ -58,7 +58,7 @@ An example of this configuration:
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@components/*": ["components/*"]
+      "_components/*": ["components/*"]
     }
   }
 }
@@ -73,7 +73,7 @@ export default function Button() {
 
 ```jsx
 // pages/index.js
-import Button from '@components/button'
+import Button from '_components/button'
 
 export default function HomePage() {
   return (
