@@ -24,7 +24,7 @@
     "data-uri-to-buffer": "3.0.0",
     "shell-quote": "1.7.2",
     "source-map": "0.8.0-beta.0",
-    "stacktrace-parser": "0.1.9",
+    "stacktrace-parser": "0.1.10",
     "strip-ansi": "6.0.0"
   },
   "peerDependencies": {
