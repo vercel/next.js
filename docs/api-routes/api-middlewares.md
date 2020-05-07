@@ -56,7 +56,7 @@ export const config = {
 }
 ```
 
-`externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_ and it shouldn't make misleading warnings.
+`externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
 
 ```js
 export const config = {
