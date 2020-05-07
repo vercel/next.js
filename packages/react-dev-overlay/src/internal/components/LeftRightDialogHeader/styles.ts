@@ -23,7 +23,7 @@ const styles = css`
   }
   [data-nextjs-dialog-left-right] > nav > button:disabled {
     background-color: rgba(230, 0, 0, 0.1);
-    color: rgba(230, 0, 0, 0.2);
+    color: rgba(230, 0, 0, 0.3);
     cursor: not-allowed;
   }
 

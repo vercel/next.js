@@ -2,7 +2,7 @@ import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   [data-nextjs-codeframe] {
-    border-radius: 0.3rem;
+    border-radius: 4px;
     background-color: var(--color-ansi-bg);
     color: var(--color-ansi-fg);
   }
@@ -21,17 +21,17 @@ const styles = css`
 
   [data-nextjs-codeframe] > * {
     margin: 0;
-    padding: 0.5rem;
+    padding: 0.5rem 1rem;
   }
   [data-nextjs-codeframe] > hr {
-    margin: 0 0.3rem;
+    margin: 0;
     padding: 0;
 
     border: none;
     border-style: solid;
     border-width: 0;
     border-bottom-width: 1px;
-    border-color: var(--color-ansi-fg);
+    border-color: var(--color-ansi-bright-black);
   }
 
   [data-nextjs-codeframe] > p {

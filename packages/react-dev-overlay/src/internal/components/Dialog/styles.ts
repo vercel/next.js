@@ -9,8 +9,8 @@ const styles = css`
     margin-left: auto;
     outline: none;
     background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.25rem 0.5rem rgba(22, 28, 45, 0.5);
+    border-radius: 8px;
+    box-shadow: 0 0.25rem 1rem rgba(22, 28, 45, 0.5);
     max-height: calc(100% - 3.5rem);
     overflow-y: hidden;
   }
@@ -18,7 +18,7 @@ const styles = css`
   @media (min-width: 576px) {
     [data-nextjs-dialog] {
       max-width: 540px;
-      box-shadow: 0 0.5rem 1rem rgba(22, 28, 45, 0.5);
+      box-shadow: 0 0.5rem 2rem rgba(22, 28, 45, 0.5);
     }
   }
 
@@ -50,8 +50,8 @@ const styles = css`
     top: 0;
     right: 0;
     width: 100%;
-    border-top-width: 5px;
-    border-bottom-width: calc(0.375rem - 5px);
+    border-top-width: 4px;
+    border-bottom-width: 0;
     border-top-style: solid;
     border-bottom-style: solid;
     border-top-color: inherit;
@@ -63,7 +63,7 @@ const styles = css`
   [data-nextjs-dialog-content] {
     border: none;
     margin: 0;
-    padding: 1rem;
+    padding: calc(1rem + 4px) 1rem;
 
     height: 100%;
     display: flex;
