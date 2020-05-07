@@ -24,7 +24,7 @@ export default function Home() {
                   Find in-depth information about Next.js features and API.
                 </Card.Text>
                 <Button variant="primary" href="https://nextjs.org/docs">
-                  More... &rarr;
+                  More &rarr;
                 </Button>
               </Card.Body>
             </Card>
@@ -35,7 +35,7 @@ export default function Home() {
                   Learn about Next.js in an interactive course with quizzes!
                 </Card.Text>
                 <Button variant="primary" href="https://nextjs.org/learn">
-                  More... &rarr;
+                  More &rarr;
                 </Button>
               </Card.Body>
             </Card>
@@ -51,18 +51,22 @@ export default function Home() {
                   variant="primary"
                   href="https://github.com/zeit/next.js/tree/master/examples"
                 >
-                  More... &rarr;
+                  More &rarr;
                 </Button>
               </Card.Body>
             </Card>
             <Card className="sml-card">
               <Card.Body>
-                <Card.Title>About</Card.Title>
+                <Card.Title>Deploy</Card.Title>
                 <Card.Text>
-                  From here to learn more about the developer of this starter
+                  Instantly deploy your Next.js site to a public URL with
+                  Vercel.
                 </Card.Text>
-                <Button variant="primary" href="https://www.marinethinking.ca/">
-                  More... &rarr;
+                <Button
+                  variant="primary"
+                  href="https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=example&utm_campaign=next-example"
+                >
+                  More &rarr;
                 </Button>
               </Card.Body>
             </Card>
@@ -72,7 +76,7 @@ export default function Home() {
 
       <footer className="cntr-footer">
         <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://vercel.com?filter=next.js&utm_source=github&utm_medium=example&utm_campaign=next-example"
           target="_blank"
           rel="noopener noreferrer"
         >
