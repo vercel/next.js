@@ -377,6 +377,25 @@ function runTests(dev = false) {
         `API resolved without sending a response for /api/test-res-pipe`
       )
     })
+
+    it('should show false positive warning if not using externalResolver flag', async () => {
+      const apiURL = '/api/external-resolver-false-positive'
+      const req = await fetchViaHTTP(appPort, apiURL)
+      expect(stderr).toContain(
+        `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
+      )
+      expect(await req.text()).toBe('hello world')
+    })
+
+    it('should not show warning if using externalResolver flag', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      const apiURL = '/api/external-resolver'
+      const req = await fetchViaHTTP(appPort, apiURL)
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for ${apiURL}`
+      )
+      expect(await req.text()).toBe('hello world')
+    })
   } else {
     it('should show warning with next export', async () => {
       const { stdout } = await nextExport(
