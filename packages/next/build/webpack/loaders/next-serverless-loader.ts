@@ -112,8 +112,8 @@ const nextServerlessLoader: loader.Loader = function() {
     const getCustomRouteMatcher = pathMatch(true)
     const {prepareDestination} = require('next/dist/next-server/server/router')
 
-    function handleRewrites(parsedUrl, isVercel) {
-      if (isVercel) {
+    function handleRewrites(parsedUrl, trustQuery) {
+      if (trustQuery) {
         return parsedUrl
       }
 
@@ -198,15 +198,15 @@ const nextServerlessLoader: loader.Loader = function() {
           }
           // We don't need to loop over rewrites to collect the query values
           // on Vercel because the query values are already present
-          const isVercel = req.headers['${vercelHeader}']
-          const parsedUrl = handleRewrites(parse(req.url, true), isVercel)
+          const trustQuery = req.headers['${vercelHeader}']
+          const parsedUrl = handleRewrites(parse(req.url, true), trustQuery)
 
           // The dynamic route params are already provided in the query
           // on Vercel
           const params = ${
             pageIsDynamicRoute
               ? `
-              isVercel
+              trustQuery
                 ? collectDynamicRouteParams(parsedUrl.query)
                 : dynamicRouteMatcher(parsedUrl.pathname)
               `
@@ -317,9 +317,10 @@ const nextServerlessLoader: loader.Loader = function() {
 
       try {
         // We don't need to loop over rewrites to collect the query values
-        // on Vercel because the query values are already present
-        const isVercel = req.headers['${vercelHeader}']
-        const parsedUrl = handleRewrites(parse(req.url, true), isVercel)
+        // on Vercel because the query values are already present except for
+        // iSSG currently
+        const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
+        const parsedUrl = handleRewrites(parse(req.url, true), trustQuery)
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           _nextData = true
@@ -350,18 +351,49 @@ const nextServerlessLoader: loader.Loader = function() {
         ${
           pageIsDynamicRoute
             ? `
-            // The dynamic route params are already provided in the query
-            // on Vercel
             const params = (
               fromExport &&
               !getStaticProps &&
               !getServerSideProps
             ) ? {}
-              : isVercel
+              : trustQuery
                 ? collectDynamicRouteParams(parsedUrl.query)
                 : dynamicRouteMatcher(parsedUrl.pathname) || {};
             `
             : `const params = {};`
+        }
+        ${
+          // Temporary work around: `x-now-route-matches` is a platform header
+          // _only_ set for `Prerender` requests. We should move this logic
+          // into our builder to ensure we're decoupled. However, this entails
+          // removing reliance on `req.url` and using `req.query` instead
+          // (which is needed for "custom routes" anyway).
+          pageIsDynamicRoute
+            ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
+              ? getRouteMatcher(
+                  (function() {
+                    const { re, groups } = getRouteRegex("${page}");
+                    return {
+                      re: {
+                        // Simulate a RegExp match from the \`req.url\` input
+                        exec: str => {
+                          const obj = parseQs(str);
+                          return Object.keys(obj).reduce(
+                            (prev, key) =>
+                              Object.assign(prev, {
+                                [key]: obj[key]
+                              }),
+                            {}
+                          );
+                        }
+                      },
+                      groups
+                    };
+                  })()
+                )(req.headers["x-now-route-matches"])
+              : null;
+          `
+            : `const nowParams = null;`
         }
         // make sure to set renderOpts to the correct params e.g. _params
         // if provided from worker or params if we're parsing them here
@@ -372,7 +404,7 @@ const nextServerlessLoader: loader.Loader = function() {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query,  params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
