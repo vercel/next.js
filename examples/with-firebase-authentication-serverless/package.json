@@ -2,9 +2,9 @@
   "name": "with-firebase-auth-serverless",
   "version": "1.0.0",
   "scripts": {
-    "dev": "NODE_ENV=development next dev",
-    "build": "NODE_ENV=production next build",
-    "start": "NODE_ENV=production next start"
+    "dev": "cross-env NODE_ENV=development next dev",
+    "build": "cross-env NODE_ENV=production next build",
+    "start": "cross-env NODE_ENV=production next start"
   },
   "dependencies": {
     "cookie-session": "1.4.0",
@@ -19,5 +19,7 @@
     "react-dom": "^16.12.0",
     "react-firebaseui": "4.0.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "cross-env": "^7.0.2"
+  }
 }
