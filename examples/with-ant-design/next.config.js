@@ -33,15 +33,8 @@ const compose = plugins => ({
 })
 
 const withBundleAnalyzer = require('@next/bundle-analyzer')
-const AntdDayjsWebpackPlugin = require('antd-dayjs-webpack-plugin')
 
 module.exports = compose([
-  {
-    webpack(config, { buildId, dev, isServer, defaultLoaders, webpack }) {
-      config.plugins.push(new AntdDayjsWebpackPlugin())
-      return config
-    },
-  },
   [
     withBundleAnalyzer,
     {

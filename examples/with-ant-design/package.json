@@ -11,7 +11,6 @@
     "@ant-design/icons": "^4.0.6",
     "@next/bundle-analyzer": "^9.1.4",
     "antd": "4.1.2",
-    "antd-dayjs-webpack-plugin": "1.0.0",
     "babel-plugin-import": "1.13.0",
     "cross-env": "^7.0.2",
     "dayjs": "1.8.24",
