@@ -1,13 +1,8 @@
 import React from 'react'
-import {
-  Form,
-  Select,
-  InputNumber,
-  DatePicker,
-  Switch,
-  Slider,
-  Button,
-} from 'antd'
+import { Form, Select, InputNumber, Switch, Slider, Button } from 'antd'
+
+// Custom DatePicker that uses Day.js instead of Moment.js
+import DatePicker from '../components/DatePicker'
 
 import { SmileFilled } from '@ant-design/icons'
 
