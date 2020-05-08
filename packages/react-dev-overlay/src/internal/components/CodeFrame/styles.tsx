@@ -2,12 +2,9 @@ import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   [data-nextjs-codeframe] {
-    border-radius: 4px;
+    border-radius: var(--size-gap-half);
     background-color: var(--color-ansi-bg);
     color: var(--color-ansi-fg);
-  }
-  [data-nextjs-codeframe]:not(:last-child) {
-    margin-bottom: 1rem;
   }
   [data-nextjs-codeframe]::selection,
   [data-nextjs-codeframe] *::selection {
@@ -21,7 +18,8 @@ const styles = css`
 
   [data-nextjs-codeframe] > * {
     margin: 0;
-    padding: 0.5rem 1rem;
+    padding: calc(var(--size-gap) + var(--size-gap-half))
+      calc(var(--size-gap-double) + var(--size-gap-half));
   }
   [data-nextjs-codeframe] > hr {
     margin: 0;
