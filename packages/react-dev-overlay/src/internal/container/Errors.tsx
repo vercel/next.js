@@ -41,7 +41,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}`
+      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
     default: {
     }
