@@ -6,7 +6,7 @@ import path from 'path'
 
 const rootSandboxDirectory = path.join(__dirname, '__tmp__')
 
-export async function sandbox(id = nanoid()) {
+export async function sandbox(id = nanoid(), initialFiles = new Map()) {
   const sandboxDirectory = path.join(rootSandboxDirectory, id)
 
   const pagesDirectory = path.join(sandboxDirectory, 'pages')
@@ -21,6 +21,9 @@ export async function sandbox(id = nanoid()) {
     path.join(sandboxDirectory, 'index.js'),
     `export default () => 'new sandbox';`
   )
+  for (const [k, v] of initialFiles.entries()) {
+    await fs.writeFile(path.join(sandboxDirectory, k), v)
+  }
 
   const appPort = await findPort()
   const app = await launchApp(sandboxDirectory, appPort)
