@@ -231,7 +231,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
             </LeftRightDialogHeader>
-            <h4 id="nextjs__container_errors_label">Unhandled Runtime Error</h4>
+            <h1 id="nextjs__container_errors_label">Unhandled Runtime Error</h1>
             <p id="nextjs__container_errors_desc">
               {activeError.error.name}: {activeError.error.message}
             </p>
@@ -246,26 +246,35 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 }
 
 export const styles = css`
-  .nextjs-container-errors-header > h4 {
-    line-height: 1.5;
+  .nextjs-container-errors-header > h1 {
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
     margin: 0;
-    margin-top: 1rem;
+    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
   }
   .nextjs-container-errors-header small {
-    color: #757575;
-    margin-left: 9px;
+    font-size: var(--size-font-small);
+    color: var(--color-accents-1);
+    margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header > p {
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font-small);
+    line-height: var(--size-font-big);
+    font-weight: bold;
     margin: 0;
-    color: #6a6a6a;
+    color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body {
-    margin-top: 1.5rem;
+  .nextjs-container-errors-body > h5:not(:first-child) {
+    margin-top: calc(var(--size-gap-double) + var(--size-gap));
+  }
+  .nextjs-container-errors-body > h5 {
+    margin-bottom: var(--size-gap);
   }
 
   .nextjs-toast-errors-parent {
@@ -281,6 +290,6 @@ export const styles = css`
     justify-content: flex-start;
   }
   .nextjs-toast-errors > svg {
-    margin-right: 0.5rem;
+    margin-right: var(--size-gap);
   }
 `

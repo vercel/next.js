@@ -7,29 +7,43 @@ export function Base() {
       dangerouslySetInnerHTML={{
         __html: css`
           :host {
+            --size-gap-half: 0.25rem; /* 4px */
+            --size-gap: 0.5rem; /* 8px */
+            --size-gap-double: 1rem; /* 16px */
+            --size-gap-quad: 2rem; /* 32px */
+
+            --size-font-small: 0.875rem; /* 14px */
+            --size-font: 1rem; /* 16px */
+            --size-font-big: 1.25rem; /* 20px */
+            --size-font-bigger: 1.5rem; /* 24px */
+
+            --color-accents-1: #808080;
+            --color-accents-2: #222222;
+            --color-accents-3: #404040;
+
             --font-stack-monospace: 'SFMono-Regular', Consolas,
               'Liberation Mono', Menlo, Courier, monospace;
 
             --color-ansi-selection: rgba(95, 126, 151, 0.48);
-            --color-ansi-bg: #011627;
-            --color-ansi-fg: #d6deeb;
+            --color-ansi-bg: #111111;
+            --color-ansi-fg: #cccccc;
 
-            --color-ansi-white: #ffffff;
-            --color-ansi-black: #011627;
-            --color-ansi-blue: #82aaff;
-            --color-ansi-cyan: #21c7a8;
-            --color-ansi-green: #22da6e;
-            --color-ansi-magenta: #c792ea;
-            --color-ansi-red: #ef5350;
-            --color-ansi-yellow: #addb67;
+            --color-ansi-white: #777777;
+            --color-ansi-black: #141414;
+            --color-ansi-blue: #00aaff;
+            --color-ansi-cyan: #88ddff;
+            --color-ansi-green: #98ec65;
+            --color-ansi-magenta: #aa88ff;
+            --color-ansi-red: #ff5555;
+            --color-ansi-yellow: #ffcc33;
             --color-ansi-bright-white: #ffffff;
-            --color-ansi-bright-black: #575656;
-            --color-ansi-bright-blue: #82aaff;
-            --color-ansi-bright-cyan: #7fdbca;
-            --color-ansi-bright-green: #22da6e;
-            --color-ansi-bright-magenta: #c792ea;
-            --color-ansi-bright-red: #ef5350;
-            --color-ansi-bright-yellow: #ffeb95;
+            --color-ansi-bright-black: #777777;
+            --color-ansi-bright-blue: #33bbff;
+            --color-ansi-bright-cyan: #bbecff;
+            --color-ansi-bright-green: #b6f292;
+            --color-ansi-bright-magenta: #cebbff;
+            --color-ansi-bright-red: #ff8888;
+            --color-ansi-bright-yellow: #ffd966;
           }
 
           .mono {
@@ -42,9 +56,9 @@ export function Base() {
           h4,
           h5,
           h6 {
-            margin-bottom: 0.5rem;
+            margin-bottom: var(--size-gap);
             font-weight: 500;
-            line-height: 1.2;
+            line-height: 1.5;
           }
 
           h1 {

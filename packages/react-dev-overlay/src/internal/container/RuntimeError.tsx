@@ -5,7 +5,7 @@ import { noop as css } from '../helpers/noop-template'
 import { getFrameSource, OriginalStackFrame } from '../helpers/stack-frame'
 import { ReadyRuntimeError } from './Errors'
 
-export type RuntimeErrorProps = { className?: string; error: ReadyRuntimeError }
+export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
@@ -80,7 +80,6 @@ const CallStackFrame: React.FC<{
 }
 
 const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  className,
   error,
 }) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
@@ -134,7 +133,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   ])
 
   return (
-    <div className={className}>
+    <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
           <h5>Source</h5>
@@ -176,7 +175,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
       ) : (
         undefined
       )}
-    </div>
+    </React.Fragment>
   )
 }
 
@@ -185,30 +184,37 @@ export const styles = css`
     background: none;
     border: none;
     padding: 0;
-    color: rgba(25, 25, 25, 0.6);
+    font-size: var(--size-font-small);
+    line-height: var(--size-font-bigger);
+    color: var(--color-accents-3);
+  }
+
+  [data-nextjs-call-stack-frame]:not(:last-child) {
+    margin-bottom: var(--size-gap-double);
   }
 
   [data-nextjs-call-stack-frame] > h6 {
+    margin-top: 0;
+    margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     color: rgba(25, 25, 25, 1);
   }
   [data-nextjs-call-stack-frame] > h6 > svg {
     width: auto;
-    height: 0.875rem;
-    margin-right: 0.5rem;
+    height: var(--size-font-small);
+    margin-right: var(--size-gap);
   }
   [data-nextjs-call-stack-frame] > div {
     display: flex;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-left: 0.75rem;
-    font-size: 0.875rem;
+    padding-left: calc(var(--size-gap) + var(--size-gap-half));
+    font-size: var(--size-font-small);
     color: rgba(25, 25, 25, 0.5);
   }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;
-    height: 0.875rem;
-    margin-left: 0.5rem;
+    height: var(--size-font-small);
+    margin-left: var(--size-gap);
 
     display: none;
   }

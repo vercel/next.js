@@ -3,8 +3,8 @@ import { noop as css } from '../../helpers/noop-template'
 const styles = css`
   [data-nextjs-toast] {
     position: fixed;
-    bottom: 1rem;
-    left: 1rem;
+    bottom: var(--size-gap-double);
+    left: var(--size-gap-double);
     max-width: 420px;
     z-index: 9000;
   }
@@ -18,11 +18,12 @@ const styles = css`
 
   [data-nextjs-toast-wrapper] {
     padding: 1rem;
-    border-radius: 5px;
-    font-weight: 600;
-    color: var(--color-ansi-white);
+    border-radius: var(--size-gap-half);
+    font-weight: 500;
+    color: var(--color-ansi-bright-white);
     background-color: var(--color-ansi-red);
-    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.12);
+    box-shadow: 0px var(--size-gap-double) var(--size-gap-quad)
+      rgba(0, 0, 0, 0.25);
   }
 `
 
