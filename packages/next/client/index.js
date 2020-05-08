@@ -180,20 +180,27 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       startTime,
       value,
       duration,
-      label,
       entryType,
+      entries,
     }) => {
       // Combines timestamp with random number for unique ID
       const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) +
         1e12}`
+      let perfStartEntry
+
+      if (entries && entries.length) {
+        perfStartEntry = entries[0].startTime
+      }
 
       mod.relayWebVitals({
         id: id || uniqueID,
         name,
-        startTime,
-        value: value || duration,
+        startTime: startTime || perfStartEntry,
+        value: value == null ? duration : value,
         label:
-          entryType === 'mark' || entryType === 'measure' ? 'custom' : label,
+          entryType === 'mark' || entryType === 'measure'
+            ? 'custom'
+            : 'web-vital',
       })
     }
   }
