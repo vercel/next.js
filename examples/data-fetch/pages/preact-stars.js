@@ -1,8 +1,7 @@
-import React from 'react'
 import Link from 'next/link'
 import fetch from 'node-fetch'
 
-function Preact({ stars }) {
+function PreactStars({ stars }) {
   return (
     <div>
       <p>Preact has {stars} ⭐</p>
@@ -15,7 +14,8 @@ function Preact({ stars }) {
 
 export async function getStaticProps() {
   const res = await fetch('https://api.github.com/repos/developit/preact')
-  const json = await res.json() // better use it inside try .. catch
+  const json = await res.json()
+
   return {
     props: {
       stars: json.stargazers_count,
@@ -23,4 +23,4 @@ export async function getStaticProps() {
   }
 }
 
-export default Preact
+export default PreactStars
