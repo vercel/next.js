@@ -41,17 +41,17 @@ There are two types of metrics that are tracked:
 [Web Vitals](https://web.dev/vitals/) are a set of useful metrics that aim to capture the user
 experience of a web page. The following web vitals are all included:
 
-- [Time to First Byte](https://developer.mozilla.org/en-US/docs/Glossary/Time_to_first_byte)
-- [First Contentful Paint](https://developer.mozilla.org/en-US/docs/Glossary/First_contentful_paint)
-- [Largest Contentful Paint](https://web.dev/lcp/)
-- [First Input Delay](https://web.dev/fid/)
-- [Cumulative Layout Shift](https://web.dev/cls/)
+- [Time to First Byte](https://developer.mozilla.org/en-US/docs/Glossary/Time_to_first_byte) (TTFB)
+- [First Contentful Paint](https://developer.mozilla.org/en-US/docs/Glossary/First_contentful_paint) (FCP)
+- [Largest Contentful Paint](https://web.dev/lcp/) (LCP)
+- [First Input Delay](https://web.dev/fid/) (FID)
+- [Cumulative Layout Shift](https://web.dev/cls/) (CLS)
 
 You can handle all the results of these metrics using the `web-vital` label:
 
 ```js
 export function relayWebVitals(metric) {
-  if (label === 'web-vital') {
+  if (metric.label === 'web-vital') {
     console.log(metric) // The metric object ({ id, name, startTime, value, label }) is logged to the console
   }
 }
@@ -61,20 +61,20 @@ There's also the option of handling each of the metrics separately:
 
 ```js
 export function relayWebVitals(metric) {
-  switch (name) {
-    case 'first-contentful-paint':
+  switch (metric.name) {
+    case 'FCP':
       // handle FCP results
       break
-    case 'largest-contentful-paint':
+    case 'LCP':
       // handle LCP results
       break
-    case 'cumulative-layout-shift':
+    case 'CLS':
       // handle CLS results
       break
-    case 'first-input-delay':
+    case 'FID':
       // handle FID results
       break
-    case 'time-to-first-byte':
+    case 'TTFB':
       // handle TTFB results
       break
     default:
@@ -102,7 +102,7 @@ You can handle all the results of these metrics using the `custom` label:
 
 ```js
 export function relayWebVitals(metric) {
-  if (label === 'custom') {
+  if (metric.label === 'custom') {
     console.log(metric) // The metric object ({ id, name, startTime, value, label }) is logged to the console
   }
 }
@@ -112,7 +112,7 @@ There's also the option of handling each of the metrics separately:
 
 ```js
 export function relayWebVitals(metric) {
-  switch (name) {
+  switch (metric.name) {
     case 'Next.js-hydration':
       // handle hydration results
       break
@@ -155,7 +155,7 @@ export function relayWebVitals(metric) {
 >  ga('send', 'event', {
 >    eventCategory: `Next.js ${ label } metric`,
 >    eventAction: name,
->    eventValue: Math.round(value), // values must be integers
+>    eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
 >    eventLabel: id, // id unique to current page load
 >    nonInteraction: true, // avoids affecting bounce rate.
 >    },
