@@ -9,32 +9,37 @@ const styles = css`
     justify-content: space-between;
   }
   [data-nextjs-dialog-left-right] > nav > button {
+    display: inline-flex;
+    align-items: center;
+
+    width: var(--size-gap-quad);
+    height: var(--size-gap-quad);
+    font-size: 0;
     border: none;
-    border-radius: 4px;
-    background-color: rgba(230, 0, 0, 0.1);
-    color: rgba(230, 0, 0, 1);
-    padding: 3px 9px;
+    background-color: rgba(255, 85, 85, 0.1);
+    color: var(--color-ansi-red);
     cursor: pointer;
-    font-weight: 500;
     transition: background-color 0.25s ease;
   }
+  [data-nextjs-dialog-left-right] > nav > button > svg {
+    width: auto;
+    height: var(--size-font-small);
+  }
   [data-nextjs-dialog-left-right] > nav > button:hover {
-    background-color: rgba(230, 0, 0, 0.2);
+    background-color: rgba(255, 85, 85, 0.2);
   }
   [data-nextjs-dialog-left-right] > nav > button:disabled {
-    background-color: rgba(230, 0, 0, 0.1);
-    color: rgba(230, 0, 0, 0.2);
+    background-color: rgba(255, 85, 85, 0.1);
+    color: rgba(255, 85, 85, 0.4);
     cursor: not-allowed;
   }
 
   [data-nextjs-dialog-left-right] > nav > button:first-of-type {
-    border-top-right-radius: 0px;
-    border-bottom-right-radius: 0px;
+    border-radius: var(--size-gap-half) 0 0 var(--size-gap-half);
     margin-right: 1px;
   }
   [data-nextjs-dialog-left-right] > nav > button:last-of-type {
-    border-top-left-radius: 0px;
-    border-bottom-left-radius: 0px;
+    border-radius: 0 var(--size-gap-half) var(--size-gap-half) 0;
   }
 
   [data-nextjs-dialog-left-right] > button:last-of-type {
