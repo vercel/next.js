@@ -28,7 +28,7 @@ module.exports = phase => {
         },
         '/dynamic/two': {
           page: '/dynamic',
-          query: { text: 'zeit is awesome' },
+          query: { text: 'Vercel is awesome' },
         },
         '/file-name.md': {
           page: '/dynamic',
