@@ -11,11 +11,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
-import {
-  observeLargestContentfulPaint,
-  observeLayoutShift,
-  observePaint,
-} from './performance-relayer'
+import measureWebVitals from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
@@ -176,14 +172,28 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
-  if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
-      mod.unstable_onPerformanceData({
+
+  if (mod && mod.relayWebVitals) {
+    onPerfEntry = ({
+      id,
+      name,
+      startTime,
+      value,
+      duration,
+      label,
+      entryType,
+    }) => {
+      // Combines timestamp with random number for unique ID
+      const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) +
+        1e12}`
+
+      mod.relayWebVitals({
+        id: id || uniqueID,
         name,
         startTime,
-        value,
-        duration,
-        entryType,
+        value: value || duration,
+        label:
+          entryType === 'mark' || entryType === 'measure' ? 'custom' : label,
       })
     }
   }
@@ -368,20 +378,12 @@ function renderReactElement(reactEl, domEl) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
+
+      if (onPerfEntry && ST) {
+        measureWebVitals(onPerfEntry)
+      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
-    }
-  }
-
-  if (onPerfEntry && ST) {
-    try {
-      observeLayoutShift(onPerfEntry)
-      observeLargestContentfulPaint(onPerfEntry)
-      observePaint(onPerfEntry)
-    } catch (e) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
     }
   }
 }
@@ -399,18 +401,7 @@ function markHydrateComplete() {
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
   if (onPerfEntry) {
-    if (process.env.__NEXT_FID_POLYFILL) {
-      import('../next-server/lib/fid-measure')
-        .then(mod => {
-          mod.default(onPerfEntry)
-        })
-        .catch(err => {
-          console.error('Error measuring First Input Delay', err)
-        })
-    }
-
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
-    performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
   }
   clearMarks()
 }

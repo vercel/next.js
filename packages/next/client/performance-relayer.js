@@ -1,78 +1,54 @@
-function isTypeSupported(type) {
-  if (self.PerformanceObserver && PerformanceObserver.supportedEntryTypes) {
-    return PerformanceObserver.supportedEntryTypes.includes(type)
-  }
-  return false
-}
+import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals'
 
-export function observeLayoutShift(onPerfEntry) {
-  if (isTypeSupported('layout-shift')) {
-    let cumulativeScore = 0
-    const observer = new PerformanceObserver(list => {
-      for (const entry of list.getEntries()) {
-        // Only count layout shifts without recent user input.
-        if (!entry.hadRecentInput) {
-          cumulativeScore += entry.value
-        }
-      }
+export default onPerfEntry => {
+  // Measure Cumulative Layout Shift
+  getCLS(({ id, value }) =>
+    onPerfEntry({
+      name: 'cumulative-layout-shift',
+      value: value * 1000,
+      label: 'web-vital',
+      id,
     })
-    observer.observe({ type: 'layout-shift', buffered: true })
+  )
 
-    document.addEventListener(
-      'visibilitychange',
-      function clsObserver() {
-        if (document.visibilityState === 'hidden') {
-          // Force any pending records to be dispatched.
-          observer.takeRecords()
-          observer.disconnect()
-          document.removeEventListener('visibilitychange', clsObserver, true)
-          onPerfEntry({
-            name: 'cumulative-layout-shift',
-            value: cumulativeScore,
-          })
-        }
-      },
-      true
-    )
-  }
-}
-
-export function observeLargestContentfulPaint(onPerfEntry) {
-  if (isTypeSupported('largest-contentful-paint')) {
-    // Create a variable to hold the latest LCP value (since it can change).
-    let lcp
-
-    // Create the PerformanceObserver instance.
-    const observer = new PerformanceObserver(entryList => {
-      const entries = entryList.getEntries()
-      const lastEntry = entries[entries.length - 1]
-      lcp = lastEntry.renderTime || lastEntry.loadTime
+  // Measure First Input Delay
+  getFID(({ id, value, entries }) =>
+    onPerfEntry({
+      name: 'first-input-delay',
+      startTime: entries[0].startTime,
+      value,
+      label: 'web-vital',
+      id,
     })
+  )
 
-    observer.observe({ type: 'largest-contentful-paint', buffered: true })
+  // Measure Largest Contentful Paint
+  getLCP(({ id, value }) =>
+    onPerfEntry({
+      name: 'largest-contentful-paint',
+      value,
+      label: 'web-vital',
+      id,
+    })
+  )
 
-    document.addEventListener(
-      'visibilitychange',
-      function lcpObserver() {
-        if (lcp && document.visibilityState === 'hidden') {
-          document.removeEventListener('visibilitychange', lcpObserver, true)
-          onPerfEntry({
-            name: 'largest-contentful-paint',
-            value: lcp,
-          })
-        }
-      },
-      true
-    )
-  }
-}
+  // Measure First Contentful Paint
+  getFCP(({ id, value }) =>
+    onPerfEntry({
+      name: 'first-contentful-paint',
+      value,
+      label: 'web-vital',
+      id,
+    })
+  )
 
-export function observePaint(onPerfEntry) {
-  const observer = new PerformanceObserver(list => {
-    list.getEntries().forEach(onPerfEntry)
-  })
-  observer.observe({
-    type: 'paint',
-    buffered: true,
-  })
+  // Measure Time To First Byte
+  getTTFB(({ id, value }) =>
+    onPerfEntry({
+      name: 'time-to-first-byte',
+      value,
+      label: 'web-vital',
+      id,
+    })
+  )
 }
