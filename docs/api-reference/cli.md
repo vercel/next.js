@@ -45,6 +45,7 @@ NODE_OPTIONS='--inspect' next
 
 - **Size** – The number of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
 - **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
+- **Download Time** – The time it’ll take to download your page on a 3G connection.
 
 The first load is colored green, yellow, or red. Aim for green for performant applications.
 

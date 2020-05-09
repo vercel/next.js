@@ -78,6 +78,41 @@ export async function printTreeView(
     return chalk.red.bold(size)
   }
 
+  // Data from http://www.webpagetest.org/
+  const DownloadSpeed = {
+    TWO_G: 30,
+    THREE_G: 50,
+  }
+
+  const getTimeFromSize = (sizeInBytes: number) => {
+    return {
+      twoG: sizeInBytes / 1024 / DownloadSpeed.TWO_G,
+      threeG: sizeInBytes / 1024 / DownloadSpeed.THREE_G,
+    }
+  }
+
+  const formatTime = (time: number) => {
+    let unit, size
+
+    if (time < 0.5) {
+      unit = 'ms'
+      size = Math.round(time * 1000)
+    } else {
+      unit = 's'
+      size = time
+    }
+
+    return { unit, size }
+  }
+
+  const getPrettyTime = (size: number) => {
+    const time = getTimeFromSize(size).threeG
+
+    const roundedValue = parseFloat(formatTime(time).size.toFixed(2))
+
+    return `${roundedValue} ${formatTime(size).unit}`
+  }
+
   const getCleanName = (fileName: string) =>
     fileName
       // Trim off `static/`
@@ -87,12 +122,10 @@ export async function printTreeView(
       // Remove file hash
       .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
-  const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
-      string,
-      string,
-      string
-    ],
+  const messages: [string, string, string, string][] = [
+    ['Page', 'Size', 'First Load JS', 'Download Time (3G)'].map(entry =>
+      chalk.underline(entry)
+    ) as [string, string, string, string],
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
@@ -162,6 +195,13 @@ export async function printTreeView(
           ? getPrettySize(pageInfo.totalSize)
           : ''
         : '',
+      pageInfo
+        ? pageInfo.isAmp
+          ? chalk.cyan('AMP')
+          : pageInfo.size >= 0
+          ? String(getPrettyTime(pageInfo.totalSize))
+          : ''
+        : '',
     ])
 
     const uniqueCssFiles =
@@ -177,6 +217,7 @@ export async function printTreeView(
         messages.push([
           `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
           prettyBytes(sizeData.sizeUniqueFiles[file]),
+          '',
           '',
         ])
       })
@@ -195,7 +236,7 @@ export async function printTreeView(
 
       routes.forEach((slug, index, { length }) => {
         const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', ''])
+        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', '', ''])
       })
     }
   })
@@ -206,6 +247,7 @@ export async function printTreeView(
   messages.push([
     '+ First Load JS shared by all',
     getPrettySize(sharedFilesSize),
+    '',
     '',
   ])
   const sharedFileKeys = Object.keys(sharedFiles)
@@ -231,6 +273,7 @@ export async function printTreeView(
     messages.push([
       `  ${innerSymbol} ${cleanName}`,
       prettyBytes(sharedFiles[originalName]),
+      '',
       '',
     ])
   })
