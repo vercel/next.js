@@ -52,7 +52,6 @@ const defaultConfig: { [key: string]: any } = {
     basePath: '',
     sassOptions: {},
     pageEnv: false,
-    measureFid: false,
     reactRefresh: false,
   },
   future: {
