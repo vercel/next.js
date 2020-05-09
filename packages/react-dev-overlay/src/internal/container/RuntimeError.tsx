@@ -34,23 +34,7 @@ const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h6>
-        {frame.expanded ? (
-          undefined
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-          </svg>
-        )}
+      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
         {f.methodName}
       </h6>
       <div
@@ -197,19 +181,17 @@ export const styles = css`
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
-    color: rgba(25, 25, 25, 1);
+    color: #222;
   }
-  [data-nextjs-call-stack-frame] > h6 > svg {
-    width: auto;
-    height: var(--size-font-small);
-    margin-right: var(--size-gap);
+  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > div {
     display: flex;
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
-    color: rgba(25, 25, 25, 0.5);
+    color: #999;
   }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;
