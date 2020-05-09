@@ -134,8 +134,20 @@ export async function sandbox(id = nanoid(), initialFiles = new Map()) {
         } while (expected)
         return false
       },
-      async getRedboxSource() {
-        return this.evaluate(() => {
+      async getRedboxSource(includeHeader = false) {
+        const header = includeHeader
+          ? await this.evaluate(() => {
+              const portal = [].slice
+                .call(document.querySelectorAll('nextjs-portal'))
+                .find(p =>
+                  p.shadowRoot.querySelector('[data-nextjs-dialog-header')
+                )
+              const root = portal.shadowRoot
+              return root.querySelector('[data-nextjs-dialog-header]').innerText
+            })
+          : ''
+
+        const source = await this.evaluate(() => {
           const portal = [].slice
             .call(document.querySelectorAll('nextjs-portal'))
             .find(p =>
@@ -148,6 +160,11 @@ export async function sandbox(id = nanoid(), initialFiles = new Map()) {
             '[data-nextjs-codeframe], [data-nextjs-terminal]'
           ).innerText
         })
+
+        if (includeHeader) {
+          return `${header}\n\n${source}`
+        }
+        return source
       },
     },
     function cleanup() {
