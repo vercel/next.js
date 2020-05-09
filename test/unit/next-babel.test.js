@@ -13,9 +13,9 @@ process.env.NODE_ENV = 'production'
 const preset = require('next/dist/build/babel/preset')
 process.env.NODE_ENV = NODE_ENV
 
-const babel = (code, esm = false, presetOptions = {}) =>
+const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
   transform(code, {
-    filename: 'noop.js',
+    filename,
     presets: [[preset, presetOptions]],
     babelrc: false,
     configFile: false,
@@ -133,6 +133,44 @@ describe('next/babel', () => {
       expect(output).toMatchInlineSnapshot(
         `"import{useState}from'react';var _useState=useState(0),setCount=_useState[1];"`
       )
+    })
+  })
+
+  describe('@babel/preset-typescript', () => {
+    describe('should allow passing options', () => {
+      const code = trim`
+        import { Tesla } from "./tesla";
+        import { Car } from "./car";
+
+        const benediktsDreamCar: Car = new Tesla();
+      `
+
+      function compileMyCar(options) {
+        return babel(
+          code,
+          false,
+          {
+            'preset-typescript': options,
+          },
+          'my-car.ts'
+        )
+      }
+
+      describe('when setting { onlyRemoveTypeImports: true }', () => {
+        it('should not elide import', () => {
+          const output = compileMyCar({ onlyRemoveTypeImports: true })
+
+          expect(output).toContain('require("./car")')
+        })
+      })
+
+      describe('when setting { onlyRemoveTypeImports: false }', () => {
+        it('should elide import', () => {
+          const output = compileMyCar({ onlyRemoveTypeImports: false })
+
+          expect(output).not.toContain('require("./car")')
+        })
+      })
     })
   })
 

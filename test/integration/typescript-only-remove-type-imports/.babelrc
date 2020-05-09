@@ -1,0 +1,12 @@
+{
+  "presets": [
+    [
+      "next/babel",
+      {
+        "preset-typescript": {
+          "onlyRemoveTypeImports": false
+        }
+      }
+    ]
+  ]
+}

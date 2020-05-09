@@ -2,4 +2,7 @@
 **/_next/**
 **/dist/**
 packages/next/compiled/**/*
+# prettier can't handle the `import type {} from ''` syntax yet
+test/integration/typescript-only-remove-type-imports/**/*.ts
+test/integration/typescript-only-remove-type-imports/**/*.tsx
 lerna.json

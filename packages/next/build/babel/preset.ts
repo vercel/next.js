@@ -43,6 +43,7 @@ type NextBabelPresetOptions = {
   'transform-runtime'?: any
   'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
+  'preset-typescript'?: any
 }
 
 type BabelPreset = {
@@ -116,7 +117,10 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      [require('@babel/preset-typescript'), { allowNamespaces: true }],
+      [
+        require('@babel/preset-typescript'),
+        { allowNamespaces: true, ...options['preset-typescript'] },
+      ],
     ],
     plugins: [
       [
