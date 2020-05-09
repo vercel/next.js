@@ -765,15 +765,15 @@ export default async function getBaseWebpackConfig(
                     workerParallelJobs: Infinity,
                   },
                 },
-                defaultLoaders.babel,
                 hasReactRefresh
                   ? require.resolve('@next/react-refresh-utils/loader')
                   : '',
+                defaultLoaders.babel,
               ].filter(Boolean)
             : hasReactRefresh
             ? [
-                defaultLoaders.babel,
                 require.resolve('@next/react-refresh-utils/loader'),
+                defaultLoaders.babel,
               ]
             : defaultLoaders.babel,
         },
