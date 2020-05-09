@@ -158,7 +158,7 @@ export default function(context) {
           .elementByCss('#dynamic-page p')
           .text()
 
-        expect(text).toBe('zeit is awesome')
+        expect(text).toBe('Vercel is awesome')
 
         await check(() => browser.elementByCss('#hash').text(), /cool/)
       } finally {
