@@ -1,9 +1,13 @@
 import React from 'react'
-import useUser from '../lib/hooks/useUser'
-import Layout from '../components/layout'
+import useUser from '../lib/useUser'
+import Layout from '../components/Layout'
 
 const SgProfile = () => {
-  const user = useUser({ redirectTo: '/login' })
+  const { user } = useUser({ redirectTo: '/login' })
+
+  if (!user || user.isLoggedIn === false) {
+    return <Layout>loading...</Layout>
+  }
 
   return (
     <Layout>
@@ -17,16 +21,12 @@ const SgProfile = () => {
         <a href="https://github.com/zeit/swr">zeit/SWR</a>)
       </h2>
 
-      {user?.isLoggedIn && (
-        <>
-          <p style={{ fontStyle: 'italic' }}>
-            Public data, from{' '}
-            <a href={githubUrl(user.login)}>{githubUrl(user.login)}</a>, reduced
-            to `login` and `avatar_url`.
-          </p>
-          <pre>{JSON.stringify(user, undefined, 2)}</pre>
-        </>
-      )}
+      <p style={{ fontStyle: 'italic' }}>
+        Public data, from{' '}
+        <a href={githubUrl(user.login)}>{githubUrl(user.login)}</a>, reduced to
+        `login` and `avatar_url`.
+      </p>
+      <pre>{JSON.stringify(user, undefined, 2)}</pre>
     </Layout>
   )
 }

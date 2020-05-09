@@ -3,7 +3,6 @@ import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
@@ -65,6 +64,14 @@ import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
+import fetch from 'next/dist/compiled/node-fetch'
+
+// @ts-ignore fetch exists globally
+if (!global.fetch) {
+  // Polyfill fetch() in the Node.js environment
+  // @ts-ignore fetch exists globally
+  global.fetch = fetch
+}
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -118,8 +125,6 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    documentMiddlewareEnabled: boolean
-    hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
@@ -172,9 +177,6 @@ export default class Server {
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      documentMiddlewareEnabled: this.nextConfig.experimental
-        .documentMiddleware,
-      hasCssMode: this.nextConfig.experimental.css,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -477,6 +479,21 @@ export default class Server {
           fn: async (req, res, params, parsedUrl) => ({ finished: false }),
         } as Route & Rewrite & Header)
 
+      const updateHeaderValue = (value: string, params: Params): string => {
+        if (!value.includes(':')) {
+          return value
+        }
+        const { parsedDestination } = prepareDestination(value, params, {})
+
+        if (
+          !parsedDestination.pathname ||
+          !parsedDestination.pathname.startsWith('/')
+        ) {
+          return compilePathToRegex(value, { validate: false })(params)
+        }
+        return formatUrl(parsedDestination)
+      }
+
       // Headers come very first
       headers = this.customRoutes.headers.map(r => {
         const route = getCustomRoute(r, 'header')
@@ -485,15 +502,13 @@ export default class Server {
           type: route.type,
           name: `${route.type} ${route.source} header route`,
           fn: async (_req, res, params, _parsedUrl) => {
+            const hasParams = Object.keys(params).length > 0
+
             for (const header of (route as Header).headers) {
               let { key, value } = header
-              if (key.includes(':')) {
-                // see `prepareDestination` util for explanation for
-                // `validate: false` being used
-                key = compilePathToRegex(key, { validate: false })(params)
-              }
-              if (value.includes(':')) {
-                value = compilePathToRegex(value, { validate: false })(params)
+              if (hasParams) {
+                key = updateHeaderValue(key, params)
+                value = updateHeaderValue(value, params)
               }
               res.setHeader(key, value)
             }
@@ -513,8 +528,7 @@ export default class Server {
             const { parsedDestination } = prepareDestination(
               route.destination,
               params,
-              parsedUrl.query,
-              true
+              parsedUrl.query
             )
             const updatedDestination = formatUrl(parsedDestination)
 
@@ -546,7 +560,8 @@ export default class Server {
             const { newUrl, parsedDestination } = prepareDestination(
               route.destination,
               params,
-              parsedUrl.query
+              parsedUrl.query,
+              true
             )
 
             // external rewrite, proxy it
@@ -933,10 +948,6 @@ export default class Server {
     const isServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
 
-    if (isSSG && query.amp) {
-      pathname += `.amp`
-    }
-
     if (!query.amp) {
       delete query.amp
     }
@@ -1031,14 +1042,11 @@ export default class Server {
     }
 
     const ssgCacheKey = isPreviewMode
-      ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
+      ? undefined // Preview mode bypasses the cache
       : urlPathname
 
     // Complete the response with cached data if its present
-    const cachedData = isPreviewMode
-      ? // Preview data bypasses the cache
-        undefined
-      : await getSprCache(ssgCacheKey)
+    const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
@@ -1067,8 +1075,14 @@ export default class Server {
     }
 
     // If we're here, that means data is missing or it's stale.
+    const maybeCoalesceInvoke = ssgCacheKey
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      : (fn: any) => async () => {
+          const value = await fn()
+          return { isOrigin: true, value }
+        }
 
-    const doRender = withCoalescedInvoke(async function(): Promise<{
+    const doRender = maybeCoalesceInvoke(async function(): Promise<{
       html: string | null
       pageData: any
       sprRevalidate: number | false
@@ -1179,7 +1193,7 @@ export default class Server {
     const {
       isOrigin,
       value: { html, pageData, sprRevalidate },
-    } = await doRender(ssgCacheKey, [])
+    } = await doRender()
     if (!isResSent(res)) {
       sendPayload(
         res,
@@ -1195,12 +1209,9 @@ export default class Server {
       )
     }
 
-    // Update the SPR cache if the head request
-    if (isOrigin) {
-      // Preview mode should not be stored in cache
-      if (!isPreviewMode) {
-        await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
-      }
+    // Update the SPR cache if the head request and cacheable
+    if (isOrigin && ssgCacheKey) {
+      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
     }
 
     return null

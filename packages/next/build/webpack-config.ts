@@ -6,7 +6,6 @@ import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
-import { MinifyOptions } from 'terser'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -153,20 +152,8 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasReactRefresh =
-    dev && !isServer && config.experimental.reactRefresh === true
-
-  // Inject additional features into webpack HMR runtime
-  if (hasReactRefresh) {
-    const injectPath = require.resolve(
-      'webpack/lib/HotModuleReplacement.runtime'
-    )
-    const overridePath = require.resolve(
-      './webpack/lib/HotModuleReplacement.runtime'
-    )
-    require(overridePath)
-    require.cache[injectPath] = require.cache[overridePath]
-  }
+  const isReactRefreshEnabled = config.experimental.reactRefresh === true
+  const hasReactRefresh = dev && !isServer && isReactRefreshEnabled
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -242,8 +229,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript?.ignoreDevErrors
-    : config.typescript?.ignoreBuildErrors
+    ? Boolean(isReactRefreshEnabled || config.typescript?.ignoreDevErrors)
+    : Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -305,7 +292,7 @@ export default async function getBaseWebpackConfig(
 
   const webpackMode = dev ? 'development' : 'production'
 
-  const terserOptions: MinifyOptions = {
+  const terserOptions: any = {
     parse: {
       ecma: 8,
     },
@@ -460,9 +447,11 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
-  let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
-    : null
+  let customAppFile: string | null = await findPageFile(
+    pagesDir,
+    '/_app',
+    config.pageExtensions
+  )
   if (customAppFile) {
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
@@ -651,25 +640,25 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
+          extractComments: false,
           cache: path.join(distDir, 'cache', 'next-minifier'),
           parallel: config.experimental.cpus || true,
           terserOptions,
         }),
         // Minify CSS
-        config.experimental.css &&
-          new CssMinimizerPlugin({
-            postcssOptions: {
-              map: {
-                // `inline: false` generates the source map in a separate file.
-                // Otherwise, the CSS file is needlessly large.
-                inline: false,
-                // `annotation: false` skips appending the `sourceMappingURL`
-                // to the end of the CSS file. Webpack already handles this.
-                annotation: false,
-              },
+        new CssMinimizerPlugin({
+          postcssOptions: {
+            map: {
+              // `inline: false` generates the source map in a separate file.
+              // Otherwise, the CSS file is needlessly large.
+              inline: false,
+              // `annotation: false` skips appending the `sourceMappingURL`
+              // to the end of the CSS file. Webpack already handles this.
+              annotation: false,
             },
-          }),
-      ].filter(Boolean),
+          },
+        }),
+      ],
     },
     context: dir,
     node: {
@@ -858,6 +847,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
           config.experimental.measureFid
         ),
+        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1026,7 +1016,7 @@ export default async function getBaseWebpackConfig(
   }
 
   if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-    webpackConfig.resolve?.plugins?.push(
+    webpackConfig.resolve?.plugins?.unshift(
       new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
     )
   }
@@ -1043,8 +1033,7 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    hasSupportCss: !!config.experimental.css,
-    hasSupportScss: !!config.experimental.scss,
+    isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.experimental.sassOptions,
   })
@@ -1107,49 +1096,47 @@ export default async function getBaseWebpackConfig(
     return false
   }
 
-  if (config.experimental.css) {
-    const hasUserCssConfig =
-      webpackConfig.module?.rules.some(
-        rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      ) ?? false
+  const hasUserCssConfig =
+    webpackConfig.module?.rules.some(
+      rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+    ) ?? false
 
-    if (hasUserCssConfig) {
-      // only show warning for one build
-      if (isServer) {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            chalk.bold(
-              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
-            ) +
-            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
-        )
-      }
-
-      if (webpackConfig.module?.rules.length) {
-        // Remove default CSS Loader
-        webpackConfig.module.rules = webpackConfig.module.rules.filter(
-          r =>
-            !(
-              typeof r.oneOf?.[0]?.options === 'object' &&
-              r.oneOf[0].options.__next_css_remove === true
-            )
-        )
-      }
-      if (webpackConfig.plugins?.length) {
-        // Disable CSS Extraction Plugin
-        webpackConfig.plugins = webpackConfig.plugins.filter(
-          p => (p as any).__next_css_remove !== true
-        )
-      }
-      if (webpackConfig.optimization?.minimizer?.length) {
-        // Disable CSS Minifier
-        webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
-          e => (e as any).__next_css_remove !== true
-        )
-      }
-    } else {
-      await __overrideCssConfiguration(dir, !dev, webpackConfig)
+  if (hasUserCssConfig) {
+    // only show warning for one build
+    if (isServer) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          chalk.bold(
+            'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+          ) +
+          'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+      )
     }
+
+    if (webpackConfig.module?.rules.length) {
+      // Remove default CSS Loader
+      webpackConfig.module.rules = webpackConfig.module.rules.filter(
+        r =>
+          !(
+            typeof r.oneOf?.[0]?.options === 'object' &&
+            r.oneOf[0].options.__next_css_remove === true
+          )
+      )
+    }
+    if (webpackConfig.plugins?.length) {
+      // Disable CSS Extraction Plugin
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        p => (p as any).__next_css_remove !== true
+      )
+    }
+    if (webpackConfig.optimization?.minimizer?.length) {
+      // Disable CSS Minifier
+      webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
+        e => (e as any).__next_css_remove !== true
+      )
+    }
+  } else {
+    await __overrideCssConfiguration(dir, !dev, webpackConfig)
   }
 
   // check if using @zeit/next-typescript and show warning

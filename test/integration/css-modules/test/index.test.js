@@ -1,18 +1,19 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import { remove, readFile, readdir } from 'fs-extra'
+import cheerio from 'cheerio'
+import { readdir, readFile, remove } from 'fs-extra'
 import {
-  nextBuild,
-  nextStart,
+  File,
   findPort,
   killApp,
   launchApp,
-  waitFor,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -189,7 +190,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
 })
 
-xdescribe('Can hot reload CSS Module without losing state', () => {
+describe('Can hot reload CSS Module without losing state', () => {
   const appDir = join(fixturesDir, 'hmr-module')
 
   let appPort
@@ -203,7 +204,6 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
     await killApp(app)
   })
 
-  // FIXME: this is broken
   it('should update CSS color without remounting <input>', async () => {
     const browser = await webdriver(appPort, '/')
 
@@ -524,11 +524,13 @@ describe('Catch-all Route CSS Module Usage', () => {
   it('should apply styles correctly', async () => {
     const browser = await webdriver(appPort, '/post-1')
 
-    const background = await browser
+    const bg = await browser
       .elementByCss('#my-div')
       .getComputedCss('background-color')
+    expect(bg).toMatch(/rgb(a|)\(255, 0, 0/)
 
-    expect(background).toMatch(/rgb(a|)\(255, 0, 0/)
+    const fg = await browser.elementByCss('#my-div').getComputedCss('color')
+    expect(fg).toMatch(/rgb(a|)\(0, 128, 0/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -541,7 +543,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__38gR-{background:red}"`
+      `".___post__home__38gR-{background:red}.__55css_home__qxXcH{color:green}"`
     )
   })
 })

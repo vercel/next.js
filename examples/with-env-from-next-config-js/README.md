@@ -1,7 +1,7 @@
 # With env From next.config.js
 
 This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
-More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.js.config` and then
+More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.config.js` and then
 returned to your react components when the program is built with `next build`.
 
 As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
@@ -9,6 +9,8 @@ As the build process (`next build`) is proceeding, `next.config.js` is processed
 `phase`, different environmental variables can be set for use in your react app. That is, if you reference `process.env.RESTURL_SPEAKERS`
 in your react app, whatever is returned by `next.config.js` as the variable `env`, (or `env.RESTURL_SPEAKERS`) will be accessible in your
 app as `process.env.RESTURL_SPEAKERS`.
+
+View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction) for more information.
 
 ## Deploy your own
 

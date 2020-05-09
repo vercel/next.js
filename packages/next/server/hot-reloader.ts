@@ -1,3 +1,4 @@
+import reactDevOverlayMiddleware from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
@@ -353,14 +354,20 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackHotMiddleware,
       errorOverlayMiddleware({ dir: this.dir }),
+      reactDevOverlayMiddleware({
+        rootDirectory: this.dir,
+        stats: () => this.stats,
+      }),
     ]
   }
 
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     const tsConfigPath = join(this.dir, 'tsconfig.json')
     const useTypeScript = await fileExists(tsConfigPath)
-    const ignoreTypeScriptErrors =
-      this.config.typescript && this.config.typescript.ignoreDevErrors
+    const ignoreTypeScriptErrors = Boolean(
+      this.config.experimental.reactRefresh === true ||
+        this.config.typescript?.ignoreDevErrors
+    )
 
     watchCompilers(
       multiCompiler.compilers[0],

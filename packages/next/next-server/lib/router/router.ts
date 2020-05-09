@@ -22,7 +22,7 @@ export function addBasePath(path: string): string {
   return path.indexOf(basePath) !== 0 ? basePath + path : path
 }
 
-function delBasePath(path: string): string {
+export function delBasePath(path: string): string {
   return path.indexOf(basePath) === 0
     ? path.substr(basePath.length) || '/'
     : path
@@ -91,8 +91,10 @@ function fetchNextData(
   function getResponse(): Promise<any> {
     return fetch(
       formatWithValidation({
-        // @ts-ignore __NEXT_DATA__
-        pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+        pathname: addBasePath(
+          // @ts-ignore __NEXT_DATA__
+          `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
+        ),
         query,
       }),
       {
@@ -226,13 +228,17 @@ export default class Router implements BaseRouter {
     this.isFallback = isFallback
 
     if (typeof window !== 'undefined') {
-      // in order for `e.state` to work on the `onpopstate` event
-      // we have to register the initial route upon initialization
-      this.changeState(
-        'replaceState',
-        formatWithValidation({ pathname, query }),
-        as
-      )
+      // make sure "as" doesn't start with double slashes or else it can
+      // throw an error as it's considered invalid
+      if (as.substr(0, 2) !== '//') {
+        // in order for `e.state` to work on the `onpopstate` event
+        // we have to register the initial route upon initialization
+        this.changeState(
+          'replaceState',
+          formatWithValidation({ pathname, query }),
+          as
+        )
+      }
 
       window.addEventListener('popstate', this.onPopState)
     }

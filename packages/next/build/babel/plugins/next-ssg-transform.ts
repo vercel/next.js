@@ -288,7 +288,9 @@ export default function nextTransformSsg({
           return
         }
 
-        const decl = path.get('declaration')
+        const decl = path.get('declaration') as NodePath<
+          BabelTypes.FunctionDeclaration | BabelTypes.VariableDeclaration
+        >
         if (decl == null || decl.node == null) {
           return
         }

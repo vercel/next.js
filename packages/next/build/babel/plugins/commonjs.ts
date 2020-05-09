@@ -1,4 +1,4 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import { NodePath, PluginObj, types } from '@babel/core'
 import commonjsPlugin from '@babel/plugin-transform-modules-commonjs'
 
 // Rewrite imports using next/<something> to next-server/<something>
@@ -7,7 +7,7 @@ export default function NextToNextServer(...args: any): PluginObj {
   return {
     visitor: {
       Program: {
-        exit(path: NodePath<BabelTypes.Program>, state) {
+        exit(path: NodePath<types.Program>, state) {
           let foundModuleExports = false
           path.traverse({
             MemberExpression(path: any) {

@@ -26,6 +26,7 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
+import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import fetch from 'next/dist/build/polyfills/unfetch'
 import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -61,22 +62,19 @@ export default function connect(options) {
     )
   })
 
-  // We need to keep track of if there has been a runtime error.
-  // Essentially, we cannot guarantee application state was not corrupted by the
-  // runtime error. To prevent confusing behavior, we forcibly reload the entire
-  // application. This is handled below when we are notified of a compile (code
-  // change).
-  // See https://github.com/facebook/create-react-app/issues/3096
-  ErrorOverlay.startReportingRuntimeErrors({
-    onError: function() {
-      hadRuntimeError = true
-    },
-  })
-
-  if (module.hot && typeof module.hot.dispose === 'function') {
-    module.hot.dispose(function() {
-      // TODO: why do we need this?
-      ErrorOverlay.stopReportingRuntimeErrors()
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.register()
+  } else {
+    // We need to keep track of if there has been a runtime error.
+    // Essentially, we cannot guarantee application state was not corrupted by the
+    // runtime error. To prevent confusing behavior, we forcibly reload the entire
+    // application. This is handled below when we are notified of a compile (code
+    // change).
+    // See https://github.com/facebook/create-react-app/issues/3096
+    ErrorOverlay.startReportingRuntimeErrors({
+      onError: function() {
+        hadRuntimeError = true
+      },
     })
   }
 
@@ -97,6 +95,10 @@ export default function connect(options) {
       customHmrEventHandler = handler
     },
     reportRuntimeError(err) {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        return
+      }
+
       ErrorOverlay.reportRuntimeError(err)
     },
     prepareError(err) {
@@ -139,10 +141,10 @@ function handleSuccess() {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onHotUpdateSuccess() {
+    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      tryDismissErrorOverlay()
+      onFastRefresh(hasUpdates)
     })
   }
 }
@@ -180,10 +182,10 @@ function handleWarnings(warnings) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate() {
+    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
       // Only dismiss it when we're sure it's a hot update.
       // Otherwise it would flicker right before the reload.
-      tryDismissErrorOverlay()
+      onFastRefresh(hasUpdates)
     })
   }
 }
@@ -202,7 +204,11 @@ function handleErrors(errors) {
   })
 
   // Only show the first error.
-  ErrorOverlay.reportBuildError(formatted.errors[0])
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.onBuildError(formatted.errors[0])
+  } else {
+    ErrorOverlay.reportBuildError(formatted.errors[0])
+  }
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -222,8 +228,20 @@ function handleErrors(errors) {
 }
 
 function tryDismissErrorOverlay() {
-  if (!hasCompileErrors) {
-    ErrorOverlay.dismissBuildError()
+  if (!process.env.__NEXT_FAST_REFRESH) {
+    if (!hasCompileErrors) {
+      ErrorOverlay.dismissBuildError()
+    }
+  }
+}
+
+function onFastRefresh(hasUpdates) {
+  tryDismissErrorOverlay()
+  if (process.env.__NEXT_FAST_REFRESH) {
+    DevOverlay.onBuildOk()
+    if (hasUpdates) {
+      DevOverlay.onRefresh()
+    }
   }
 }
 
@@ -265,6 +283,10 @@ function processMessage(e) {
       return handleSuccess()
     }
     case 'typeChecked': {
+      if (process.env.__NEXT_FAST_REFRESH) {
+        break
+      }
+
       const eventId = ++hmrEventCount
 
       const [{ errors }] = obj.data
@@ -363,14 +385,15 @@ function tryApplyUpdates(onHotUpdateSuccess) {
       return
     }
 
+    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess()
+      onHotUpdateSuccess(hasUpdates)
     }
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates()
+      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
     } else {
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {
