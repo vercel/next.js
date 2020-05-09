@@ -14,20 +14,23 @@ export type ErrorProps = {
   title?: string
 }
 
+function _getInitialProps({
+  res,
+  err,
+}: NextPageContext): Promise<ErrorProps> | ErrorProps {
+  const statusCode =
+    res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
+  return { statusCode }
+}
+
 /**
  * `Error` component used for handling errors.
  */
 export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static displayName = 'ErrorPage'
 
-  static getInitialProps({
-    res,
-    err,
-  }: NextPageContext): Promise<ErrorProps> | ErrorProps {
-    const statusCode =
-      res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
-    return { statusCode }
-  }
+  static getInitialProps = _getInitialProps
+  static origGetInitialProps = _getInitialProps
 
   render() {
     const { statusCode } = this.props

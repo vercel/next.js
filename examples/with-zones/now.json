@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "build": {
+    "env": {
+      "BUILDING_FOR_NOW": "true"
+    }
+  },
+  "builds": [
+    { "src": "blog/package.json", "use": "@now/next" },
+    { "src": "home/package.json", "use": "@now/next" }
+  ],
+  "routes": [
+    { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
+    { "src": "/blog(.*)", "dest": "blog/blog$1" },
+    { "src": "(.*)", "dest": "home$1" }
+  ]
+}

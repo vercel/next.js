@@ -1,28 +1,85 @@
 /* eslint-env jest */
 /* global jasmine */
+import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
+  File,
   findPort,
+  killApp,
+  launchApp,
   nextBuild,
   nextStart,
-  launchApp,
-  killApp,
-  File,
-  waitFor,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
+import { join } from 'path'
+import { quote as shellQuote } from 'shell-quote'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
 describe('SCSS Support', () => {
+  describe('Friendly Webpack Error', () => {
+    const appDir = join(fixturesDir, 'webpack-error')
+
+    const mockFile = join(appDir, 'mock.js')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should be a friendly error successfully', async () => {
+      const { code, stderr } = await nextBuild(appDir, [], {
+        env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
+        stderr: true,
+      })
+      expect(code).toBe(1)
+      expect(stderr).toContain('Failed to compile.')
+      expect(stderr).toContain(
+        "To use Next.js' built-in Sass support, you first need to install `sass`."
+      )
+      expect(stderr).toContain(
+        'Run `npm i sass` or `yarn add sass` inside your workspace.'
+      )
+      expect(stderr).toContain(
+        'Learn more: https://err.sh/next.js/install-sass'
+      )
+    })
+  })
+
   describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
+  })
+
+  describe('Basic Module Include Paths Support', () => {
+    const appDir = join(fixturesDir, 'basic-module-include-paths')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))

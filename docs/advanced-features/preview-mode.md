@@ -6,9 +6,20 @@ description: Next.js has the preview mode for statically generated pages. You ca
 
 > This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/pages).
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
+  </ul>
+</details>
+
 In the [Pages documentation](/docs/basic-features/pages.md) and the [Data Fetching documentation](/docs/basic-features/data-fetching.md), we talked about how to pre-render a page at build time (**Static Generation**) using `getStaticProps` and `getStaticPaths`.
 
-Static Generation is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to **preview** the draft immediately on your page. You’d want to Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to bypass Static Generation only for this specific case.
+Static Generation is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to **preview** the draft immediately on your page. You’d want Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to bypass Static Generation only for this specific case.
 
 Next.js has the feature called **Preview Mode** which solves this problem. Here’s an instruction on how to use it.
 
@@ -18,7 +29,7 @@ Next.js has the feature called **Preview Mode** which solves this problem. Here�
 
 First, create a **preview API route**. It can have any name - e.g. `pages/api/preview.js` (or `.ts` if using TypeScript).
 
-In this API route, you need to call `setPreviewData` on the response object. The argument for `setPreviewData` should be an object, and this can be used by `getStaticProps` (more on this later). For now, we’ll just use `{}`.
+In this API route, you need to call `setPreviewData` on the response object. The argument for `setPreviewData` should be an object, and this can be used by `getStaticProps` (more on this later). For now, we’ll use `{}`.
 
 ```js
 export default (req, res) => {
@@ -74,7 +85,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 ```js
 export default async (req, res) => {
   // Check the secret and next parameters
-  // This secret should only be know to this API route and the CMS
+  // This secret should only be known to this API route and the CMS
   if (req.query.secret !== 'MY_SECRET_TOKEN' || !req.query.slug) {
     return res.status(401).json({ message: 'Invalid token' })
   }
@@ -148,12 +159,6 @@ That’s it! If you access the preview API route (with `secret` and `slug`) from
 # and you should be able to see the preview.
 https://<your-site>/api/preview?secret=<token>&slug=<path>
 ```
-
-## More Examples
-
-Take a look at the following examples to learn more:
-
-- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
 
 ## More Details
 

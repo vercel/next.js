@@ -21,7 +21,8 @@ export function initNextServerScript(
   scriptPath,
   successRegexp,
   env,
-  failRegexp
+  failRegexp,
+  opts
 ) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
@@ -32,6 +33,10 @@ export function initNextServerScript(
         resolve(instance)
       }
       process.stdout.write(message)
+
+      if (opts && opts.onStdout) {
+        opts.onStdout(message.toString())
+      }
     }
 
     function handleStderr(data) {
@@ -41,6 +46,10 @@ export function initNextServerScript(
         return reject(new Error('received failRegexp'))
       }
       process.stderr.write(message)
+
+      if (opts && opts.onStderr) {
+        opts.onStderr(message.toString())
+      }
     }
 
     instance.stdout.on('data', handleStdout)
@@ -147,16 +156,26 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
     function handleStdout(data) {
       const message = data.toString()
-      if (/ready on/i.test(message)) {
+      const bootupMarkers = {
+        dev: /compiled successfully/i,
+        start: /started server/i,
+      }
+      if (
+        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+      ) {
         if (!didResolve) {
           didResolve = true
           resolve(stdOut ? message : instance)
         }
       }
+
       if (typeof opts.onStdout === 'function') {
         opts.onStdout(message)
       }
-      process.stdout.write(message)
+
+      if (opts.stdout !== false) {
+        process.stdout.write(message)
+      }
     }
 
     function handleStderr(data) {
@@ -164,7 +183,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
-      process.stderr.write(message)
+
+      if (opts.stderr !== false) {
+        process.stderr.write(message)
+      }
     }
 
     instance.stdout.on('data', handleStdout)
@@ -203,7 +225,10 @@ export function nextExportDefault(dir, opts = {}) {
 }
 
 export function nextStart(dir, port, opts = {}) {
-  return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
+  return runNextCommandDev(['start', '-p', port, dir], undefined, {
+    ...opts,
+    nextStart: true,
+  })
 }
 
 export function buildTS(args = [], cwd, env = {}) {
@@ -313,32 +338,35 @@ export async function startCleanStaticServer(dir) {
   return server
 }
 
-export async function check(contentFn, regex) {
-  let found = false
-  const timeout = setTimeout(async () => {
-    if (found) {
-      return
-    }
-    let content
+// check for content in 1 second intervals timing out after
+// 30 seconds
+export async function check(contentFn, regex, hardError = true) {
+  let content
+
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-    } catch (err) {
-      console.error('Error while getting content', { regex })
-    }
-    console.error('TIMED OUT CHECK: ', { regex, content })
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      const newContent = await contentFn()
-      if (regex.test(newContent)) {
-        found = true
-        clearTimeout(timeout)
-        break
+      if (regex.test(content)) {
+        // found the content
+        return true
       }
       await waitFor(1000)
-    } catch (ex) {}
+    } catch (err) {
+      if (tries === 30) {
+        console.error('Error while getting content', { regex }, err)
+      }
+    }
   }
+  console.error('TIMED OUT CHECK: ', { regex, content })
+
+  if (hardError) {
+    // maintain previous behavior where the error is thrown in a timeout
+    // and isn't caught when wrapped in a try/catch
+    setTimeout(() => {
+      throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    }, 1)
+  }
+  return false
 }
 
 export class File {

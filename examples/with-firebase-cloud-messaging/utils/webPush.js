@@ -9,7 +9,10 @@ const firebaseCloudMessaging = {
 
   init: async function() {
     firebase.initializeApp({
-      messagingSenderId: 'your sender id',
+      apiKey: 'YOUR-API-KEY',
+      projectId: 'YOUR-PROJECT-ID',
+      messagingSenderId: 'YOUR-SENDER-ID',
+      appId: 'YOUR-APP-ID',
     })
 
     try {

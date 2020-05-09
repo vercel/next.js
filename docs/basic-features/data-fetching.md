@@ -6,13 +6,26 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
 
 > This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
+    <li><a href="https://static-tweet.now.sh/">Static Tweet Demo</a></li>
+  </ul>
+</details>
+
 In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we’ll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven’t done so.
 
-We’ll talk about the three special Next.js functions you can use to fetch data for pre-rendering:
+We’ll talk about the three unique Next.js functions you can use to fetch data for pre-rendering:
 
-- `getStaticProps` (Static Generation): Fetch data at **build time**.
-- `getStaticPaths` (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
-- `getServerSideProps` (Server-side Rendering): Fetch data on **each request**.
+- [`getStaticProps`](#getstaticprops-static-generation) (Static Generation): Fetch data at **build time**.
+- [`getStaticPaths`](#getstaticpaths-static-generation) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
+- [`getServerSideProps`](#getserversideprops-server-side-rendering) (Server-side Rendering): Fetch data on **each request**.
 
 In addition, we’ll talk briefly about how to do fetch data on the client side.
 
@@ -94,6 +107,65 @@ export const getStaticProps: GetStaticProps = async context => {
 }
 ```
 
+### Reading files: Use `process.cwd()`
+
+Files can be read directly from the filesystem in `getStaticProps`.
+
+In order to do so you have to get the full path to a file.
+
+Since Next.js compiles your code into a separate directory you can't use `__dirname` as the path it will return will be different from the pages directory.
+
+Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
+
+```jsx
+import fs from 'fs'
+import path from 'path'
+
+// posts will be populated at build time by getStaticProps()
+function Blog({ posts }) {
+  return (
+    <ul>
+      {posts.map(post => (
+        <li>
+          <h3>{post.filename}</h3>
+          <p>{post.content}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// This function gets called at build time on server-side.
+// It won't be called on client-side, so you can even do
+// direct database queries. See the "Technical details" section.
+export async function getStaticProps() {
+  const postsDirectory = path.join(process.cwd(), 'posts')
+  const filenames = fs.readdirSync(postsDirectory)
+
+  const posts = filenames.map(filename => {
+    const filePath = path.join(postsDirectory, filename)
+    const fileContents = fs.readFileSync(filePath, 'utf8')
+
+    // Generally you would parse/transform the contents
+    // For example you can transform markdown to HTML here
+
+    return {
+      filename,
+      content: fileContents,
+    }
+  })
+  // By returning { props: posts }, the Blog component
+  // will receive `posts` as a prop at build time
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+export default Blog
+```
+
 ### Technical details
 
 #### Only runs at build time
@@ -152,8 +224,8 @@ The `paths` key determines which paths will be pre-rendered. For example, suppos
 ```js
 return {
   paths: [
-    { params: { id: 1 } },
-    { params: { id: 2 } }
+    { params: { id: '1' } },
+    { params: { id: '2' } }
   ],
   fallback: ...
 }
@@ -229,7 +301,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 In the “fallback” version of a page:
 
 - The page’s props will be empty.
-- Using the [router](/docs/api-reference/next/router.md)), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
+- Using the [router](/docs/api-reference/next/router.md), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
 
 Here’s an example that uses `isFallback`:
 
@@ -254,7 +326,7 @@ function Post({ post }) {
 export async function getStaticPaths() {
   return {
     // Only `/posts/1` and `/posts/2` are generated at build time
-    paths: [{ params: { id: 1 } }, { params: { id: 2 } }],
+    paths: [{ params: { id: '1' } }, { params: { id: '2' } }],
     // Enable statically generating additional pages
     // For example: `/posts/3`
     fallback: true,
@@ -336,7 +408,7 @@ export async function getServerSideProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
-- `req`: [The HTTP request object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
+- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: The query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
@@ -366,7 +438,7 @@ export default Page
 
 ### When should I use `getServerSideProps`?
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra .
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra configuration.
 
 If you don’t need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
 
@@ -389,7 +461,7 @@ export const getServerSideProps: GetServerSideProps = async context => {
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps` , then:
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
-- When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)), Next.js sends an API request to server, which runs `getServerSideProps`. It’ll return a JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
+- When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
 #### Only allowed in a page
 
@@ -408,7 +480,7 @@ This approach works well for user dashboard pages, for example. Because a dashbo
 
 ### SWR
 
-The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
+The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it if you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And you can use it like so:
 
 ```jsx
 import useSWR from 'swr'
@@ -423,12 +495,6 @@ function Profile() {
 ```
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
-
-## More Examples
-
-Take a look at the following examples to learn more:
-
-- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
 
 ## Learn more
 

@@ -771,36 +771,52 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/blog',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blog/(?<post>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
+          routeKeys: ['post'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
+          routeKeys: ['post', 'comment'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall/(?<slug>.+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
+          routeKeys: ['slug'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall\\-explicit/(?<slug>.+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
+          routeKeys: ['slug'],
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -811,12 +827,16 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/default-revalidate',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/non\\-json/(?<p>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
+          routeKeys: ['p'],
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -825,12 +845,16 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/something',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/user/(?<user>[^/]+?)/profile\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
+          routeKeys: ['user'],
         },
       ])
     })
@@ -1065,6 +1089,16 @@ describe('SSG Prerender', () => {
       await killApp(app)
     })
 
+    it('should work with firebase import and getStaticPaths', async () => {
+      const html = await renderViaHTTP(appPort, '/blog/post-1')
+      expect(html).toContain('post-1')
+      expect(html).not.toContain('Error: Failed to load')
+
+      const html2 = await renderViaHTTP(appPort, '/blog/post-1')
+      expect(html2).toContain('post-1')
+      expect(html2).not.toContain('Error: Failed to load')
+    })
+
     it('should not cache getStaticPaths errors', async () => {
       const errMsg = /The `fallback` key must be returned from getStaticPaths/
       await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
@@ -1088,7 +1122,21 @@ describe('SSG Prerender', () => {
   })
 
   describe('serverless mode', () => {
+    const blogPagePath = join(appDir, 'pages/blog/[post]/index.js')
+    let origBlogPageContent
+
     beforeAll(async () => {
+      // remove firebase import since it breaks in legacy serverless mode
+      origBlogPageContent = await fs.readFile(blogPagePath, 'utf8')
+
+      await fs.writeFile(
+        blogPagePath,
+        origBlogPageContent.replace(
+          `import 'firebase/firestore'`,
+          `// import 'firebase/firestore'`
+        )
+      )
+
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'serverless' }`,
@@ -1106,7 +1154,10 @@ describe('SSG Prerender', () => {
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(blogPagePath, origBlogPageContent)
+      await killApp(app)
+    })
 
     it('renders data correctly', async () => {
       const port = await findPort()
