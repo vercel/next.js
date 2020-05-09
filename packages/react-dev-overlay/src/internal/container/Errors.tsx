@@ -267,7 +267,9 @@ export const styles = css`
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
+    margin-top: var(--size-gap-half);
     color: var(--color-ansi-red);
+    white-space: pre-wrap;
   }
 
   .nextjs-container-errors-body > h5:not(:first-child) {
