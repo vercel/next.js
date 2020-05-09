@@ -173,7 +173,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
 
-  if (mod && mod.relayWebVitals) {
+  if (mod && mod.reportWebVitals) {
     onPerfEntry = ({
       id,
       name,
@@ -192,7 +192,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
         perfStartEntry = entries[0].startTime
       }
 
-      mod.relayWebVitals({
+      mod.reportWebVitals({
         id: id || uniqueID,
         name,
         startTime: startTime || perfStartEntry,

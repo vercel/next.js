@@ -8,14 +8,14 @@ Next.js has a built-in relayer that allows you to analyze and measure the perfor
 pages using different metrics.
 
 To measure any of the supported metrics, you will need to create a [custom
-App](/docs/advanced-features/custom-app.md) component and define a `relayWebVitals` function:
+App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
 
 ```js
 import App from 'next/app'
 
 export default MyApp
 
-export function relayWebVitals(metric) {
+export function reportWebVitals(metric) {
   console.log(metric)
 }
 ```
@@ -50,7 +50,7 @@ experience of a web page. The following web vitals are all included:
 You can handle all the results of these metrics using the `web-vital` label:
 
 ```js
-export function relayWebVitals(metric) {
+export function reportWebVitals(metric) {
   if (metric.label === 'web-vital') {
     console.log(metric) // The metric object ({ id, name, startTime, value, label }) is logged to the console
   }
@@ -60,7 +60,7 @@ export function relayWebVitals(metric) {
 There's also the option of handling each of the metrics separately:
 
 ```js
-export function relayWebVitals(metric) {
+export function reportWebVitals(metric) {
   switch (metric.name) {
     case 'FCP':
       // handle FCP results
@@ -101,7 +101,7 @@ measure the time it takes for the page to hydrate and render:
 You can handle all the results of these metrics using the `custom` label:
 
 ```js
-export function relayWebVitals(metric) {
+export function reportWebVitals(metric) {
   if (metric.label === 'custom') {
     console.log(metric) // The metric object ({ id, name, startTime, value, label }) is logged to the console
   }
@@ -111,7 +111,7 @@ export function relayWebVitals(metric) {
 There's also the option of handling each of the metrics separately:
 
 ```js
-export function relayWebVitals(metric) {
+export function reportWebVitals(metric) {
   switch (metric.name) {
     case 'Next.js-hydration':
       // handle hydration results
@@ -136,7 +136,7 @@ With the relay function, you can send any of results to an analytics endpoint to
 real user performance on your site. For example:
 
 ```js
-export function relayWebVitals(metric) {
+export function reportWebVitals(metric) {
   const body = JSON.stringify(metric)
   const url = 'https://example.com/analytics'
 
@@ -151,7 +151,7 @@ export function relayWebVitals(metric) {
 > etc...).
 >
 > ```js
-> export function relayWebVitals({ id, name, label, value }) {
+> export function reportWebVitals({ id, name, label, value }) {
 >  ga('send', 'event', {
 >    eventCategory: `Next.js ${ label } metric`,
 >    eventAction: name,
