@@ -127,7 +127,7 @@ import Router from 'next/router'
 const handler = () => {
   Router.push({
     pathname: '/about',
-    query: { name: 'Zeit' },
+    query: { name: 'Vercel' },
   })
 }
 
