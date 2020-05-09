@@ -371,8 +371,8 @@ function renderReactElement(reactEl, domEl) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? ReactDOM.createRoot(domEl, opts)
-          : ReactDOM.createBlockingRoot(domEl, opts)
+          ? ReactDOM.unstable_createRoot(domEl, opts)
+          : ReactDOM.unstable_createBlockingRoot(domEl, opts)
     }
     reactRoot.render(reactEl)
   } else {
