@@ -565,3 +565,43 @@ test('boundaries', async () => {
 
   await cleanup()
 })
+
+test('unterminated JSX', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      export default () => {
+        return (
+          <div>
+            <p>lol</p>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      export default () => {
+        return (
+          <div>
+            <p>lol</p>
+          div
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const source = await session.getRedboxSource()
+  expect(source).not.toMatch('Unexpected token')
+  expect(source).toMatch('Unterminated JSX contents')
+
+  await cleanup()
+})
