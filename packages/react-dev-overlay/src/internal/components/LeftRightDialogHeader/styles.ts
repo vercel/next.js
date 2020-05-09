@@ -11,9 +11,10 @@ const styles = css`
   [data-nextjs-dialog-left-right] > nav > button {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
 
-    width: var(--size-gap-quad);
-    height: var(--size-gap-quad);
+    width: calc(var(--size-gap-double) + var(--size-gap));
+    height: calc(var(--size-gap-double) + var(--size-gap));
     font-size: 0;
     border: none;
     background-color: rgba(255, 85, 85, 0.1);
@@ -23,7 +24,7 @@ const styles = css`
   }
   [data-nextjs-dialog-left-right] > nav > button > svg {
     width: auto;
-    height: var(--size-font-small);
+    height: calc(var(--size-gap) + var(--size-gap-half));
   }
   [data-nextjs-dialog-left-right] > nav > button:hover {
     background-color: rgba(255, 85, 85, 0.2);
