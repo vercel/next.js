@@ -1,0 +1,17 @@
+{
+  "name": "with-mdx-enhanced",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "babel-plugin-import-glob-array": "^0.2.0",
+    "next": "9.3.6",
+    "next-mdx-enhanced": "^2.5.0",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  },
+  "license": "MIT"
+}
