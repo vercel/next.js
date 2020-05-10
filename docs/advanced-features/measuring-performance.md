@@ -11,13 +11,15 @@ To measure any of the supported metrics, you will need to create a [custom
 App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
 
 ```js
-import App from 'next/app'
-
-export default MyApp
-
 export function reportWebVitals(metric) {
   console.log(metric)
 }
+
+function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+
+export default MyApp
 ```
 
 This function is fired when the final values for any of the metrics have finished calculating on
