@@ -13,7 +13,7 @@
     "build": "microbundle watch src/index.js -f iife --no-sourcemap --external none"
   },
   "devDependencies": {
-    "core-js": "3.6.4",
+    "core-js": "3.6.5",
     "microbundle": "0.11.0",
     "object-assign": "4.1.1",
     "url-polyfill": "1.1.8",
