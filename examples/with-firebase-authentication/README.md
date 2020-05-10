@@ -9,9 +9,9 @@ This example includes Firebase authentication and serverless [API routes](https:
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-firebase-authentication-serverless with-firebase-authentication-serverless-app
+npx create-next-app --example with-firebase-authentication with-firebase-authentication-app
 # or
-yarn create next-app --example with-firebase-authentication-serverless with-firebase-authentication-serverless-app
+yarn create next-app --example with-firebase-authentication with-firebase-authentication-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example with-firebase-authentication-serverless with-fire
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication-serverless
-cd with-firebase-authentication-serverless
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication
+cd with-firebase-authentication
 ```
 
 Set up Firebase:
