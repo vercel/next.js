@@ -11,7 +11,7 @@ import {
 import Router from './router'
 import { addBasePath } from '../next-server/lib/router/router'
 
-function isLocal(href: string) {
+function isLocal(href: string): boolean {
   const url = parse(href, false, true)
   const origin = parse(getLocationOrigin(), false, true)
 
@@ -40,7 +40,7 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
-function formatUrl(url: Url) {
+function formatUrl(url: Url): string {
   return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
 
@@ -60,7 +60,7 @@ const IntersectionObserver =
   typeof window !== 'undefined' ? window.IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
 
-function getObserver() {
+function getObserver(): IntersectionObserver | undefined {
   // Return shared instance of IntersectionObserver if already created
   if (observer) {
     return observer
@@ -125,11 +125,11 @@ class Link extends Component<LinkProps> {
 
   cleanUpListeners = () => {}
 
-  componentWillUnmount() {
+  componentWillUnmount(): void {
     this.cleanUpListeners()
   }
 
-  getPaths() {
+  getPaths(): string[] {
     const { pathname } = window.location
     const { href: parsedHref, as: parsedAs } = this.formatUrls(
       this.props.href,
@@ -139,7 +139,7 @@ class Link extends Component<LinkProps> {
     return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
 
-  handleRef(ref: Element) {
+  handleRef(ref: Element): void {
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
@@ -167,7 +167,7 @@ class Link extends Component<LinkProps> {
     }
   })
 
-  linkClicked = (e: React.MouseEvent) => {
+  linkClicked = (e: React.MouseEvent): void => {
     const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
@@ -212,7 +212,7 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch(options?: PrefetchOptions) {
+  prefetch(options?: PrefetchOptions): void {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const paths = this.getPaths()
