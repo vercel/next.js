@@ -90,7 +90,7 @@
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
     "pre-commit": "1.2.2",
-    "prettier": "1.19.1",
+    "prettier": "2.0.5",
     "react": "16.12.0",
     "react-dom": "16.12.0",
     "react-ssr-prepass": "1.0.8",
