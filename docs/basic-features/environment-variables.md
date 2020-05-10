@@ -4,7 +4,7 @@ description: Learn to add and access environment variables in your Next.js appli
 
 # Environment Variables
 
-> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables).
+> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
 
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
