@@ -394,36 +394,65 @@ export class File {
   }
 }
 
-// react-error-overlay uses an iframe so we have to read the contents from the frame
-export async function getReactErrorOverlayContent(browser) {
-  let found = false
-  setTimeout(() => {
-    if (found) {
-      return
-    }
-    console.error('TIMED OUT CHECK FOR IFRAME')
-    throw new Error('TIMED OUT CHECK FOR IFRAME')
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      await browser.waitForElementByCss('iframe', 10000)
-
-      const hasIframe = await browser.hasElementByCssSelector('iframe')
-      if (!hasIframe) {
-        throw new Error('Waiting for iframe')
-      }
-
-      found = true
-      return browser.eval(
-        `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-      )
-    } catch (ex) {
-      await waitFor(1000)
-    }
+export async function evaluate(browser, input) {
+  if (typeof input === 'function') {
+    const result = await browser.executeScript(input)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    return result
+  } else {
+    throw new Error(`You must pass a function to be evaluated in the browser.`)
   }
-  return browser.eval(
-    `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-  )
+}
+
+export async function hasRedbox(browser, expected = true) {
+  let attempts = 30
+  do {
+    const has = await evaluate(browser, () => {
+      return Boolean(
+        [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find(p =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+            )
+          )
+      )
+    })
+    if (has) {
+      return true
+    }
+    if (--attempts < 0) {
+      break
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  } while (expected)
+  return false
+}
+
+export async function getRedboxHeader(browser) {
+  return evaluate(browser, () => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find(p => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+    const root = portal.shadowRoot
+    return root.querySelector('[data-nextjs-dialog-header]').innerText
+  })
+}
+
+export async function getRedboxSource(browser) {
+  return evaluate(browser, () => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find(p =>
+        p.shadowRoot.querySelector(
+          '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+        )
+      )
+    const root = portal.shadowRoot
+    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+      .innerText
+  })
 }
 
 export function getBrowserBodyText(browser) {
