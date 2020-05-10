@@ -342,6 +342,7 @@ export async function startCleanStaticServer(dir) {
 // 30 seconds
 export async function check(contentFn, regex, hardError = true) {
   let content
+  let lastErr
 
   for (let tries = 0; tries < 30; tries++) {
     try {
@@ -352,19 +353,14 @@ export async function check(contentFn, regex, hardError = true) {
       }
       await waitFor(1000)
     } catch (err) {
-      if (tries === 30) {
-        console.error('Error while getting content', { regex }, err)
-      }
+      await waitFor(1000)
+      lastErr = err
     }
   }
-  console.error('TIMED OUT CHECK: ', { regex, content })
+  console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    // maintain previous behavior where the error is thrown in a timeout
-    // and isn't caught when wrapped in a try/catch
-    setTimeout(() => {
-      throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
-    }, 1)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }
   return false
 }
