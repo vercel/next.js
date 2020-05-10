@@ -765,15 +765,15 @@ export default async function getBaseWebpackConfig(
                     workerParallelJobs: Infinity,
                   },
                 },
-                defaultLoaders.babel,
                 hasReactRefresh
                   ? require.resolve('@next/react-refresh-utils/loader')
                   : '',
+                defaultLoaders.babel,
               ].filter(Boolean)
             : hasReactRefresh
             ? [
-                defaultLoaders.babel,
                 require.resolve('@next/react-refresh-utils/loader'),
+                defaultLoaders.babel,
               ]
             : defaultLoaders.babel,
         },
@@ -843,9 +843,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
-        ),
-        'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
-          config.experimental.measureFid
         ),
         'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer

@@ -129,7 +129,7 @@ export async function ncc_cache_loader(task, opts) {
     .target('compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
@@ -410,7 +410,7 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['resolve'] = 'next/dist/compiled/resolve'
 export async function ncc_resolve(task, opts) {
@@ -428,7 +428,7 @@ export async function ncc_send(task, opts) {
     .target('compiled/send')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map'] = 'next/dist/compiled/source-map'
 export async function ncc_source_map(task, opts) {

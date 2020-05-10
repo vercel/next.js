@@ -51,8 +51,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     sassOptions: {},
-    pageEnv: true,
-    measureFid: false,
+    pageEnv: false,
     reactRefresh: false,
   },
   future: {

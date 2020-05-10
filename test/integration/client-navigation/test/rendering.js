@@ -277,7 +277,7 @@ export default function(render, fetch) {
 
     test('allows to import .json files', async () => {
       const html = await render('/json')
-      expect(html.includes('Zeit')).toBeTruthy()
+      expect(html.includes('Vercel')).toBeTruthy()
     })
 
     test('default export is not a React Component', async () => {
