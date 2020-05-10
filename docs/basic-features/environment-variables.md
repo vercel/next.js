@@ -105,4 +105,4 @@ CLIENT_KEY='default-client-key'
 NEXT_PUBLIC_APP_LOCALE='en-us'
 ```
 
-Both `API_KEY` and `NEXT_PUBLIC_APP_LOCALE` will be ignored as `.env.local` has a higher priority, but `CLIENT_KEY` will remain available.
+Both `API_KEY` and `NEXT_PUBLIC_APP_LOCALE` will be ignored as `.env.local` has a higher priority, but `CLIENT_KEY` will become available.
