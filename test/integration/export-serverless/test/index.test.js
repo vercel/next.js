@@ -34,7 +34,7 @@ describe('Static Export', () => {
     const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
 
-    await mkdir(outdir).catch(e => {
+    await mkdir(outdir).catch((e) => {
       if (e.code !== 'EEXIST') throw e
     })
     await writeFile(tempfile, 'Hello there')
@@ -43,7 +43,7 @@ describe('Static Export', () => {
     await nextExport(appDir, { outdir })
 
     let doesNotExist = false
-    await access(tempfile).catch(e => {
+    await access(tempfile).catch((e) => {
       if (e.code === 'ENOENT') doesNotExist = true
     })
     expect(doesNotExist).toBe(true)

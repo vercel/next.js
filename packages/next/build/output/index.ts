@@ -131,7 +131,7 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 
 const buildStore = createStore<BuildStatusStore>()
 
-buildStore.subscribe(state => {
+buildStore.subscribe((state) => {
   const { amp, client, server } = state
 
   const [{ status }] = [
@@ -200,7 +200,7 @@ export function ampValidation(
   if (!(errors.length || warnings.length)) {
     buildStore.setState({
       amp: Object.keys(amp)
-        .filter(k => k !== page)
+        .filter((k) => k !== page)
         .sort()
         // eslint-disable-next-line no-sequences
         .reduce((a, c) => ((a[c] = amp[c]), a), {} as AmpPageStatus),
@@ -250,8 +250,8 @@ export function watchCompilers(
       const typescriptFormatter = createCodeframeFormatter({})
 
       compiler.hooks.beforeCompile.tap(`NextJs-${key}-StartTypeCheck`, () => {
-        tsMessagesPromise = new Promise(resolve => {
-          tsMessagesResolver = msgs => resolve(msgs)
+        tsMessagesPromise = new Promise((resolve) => {
+          tsMessagesResolver = (msgs) => resolve(msgs)
         })
       })
 
@@ -265,14 +265,14 @@ export function watchCompilers(
               typescriptFormatter(message, true)
 
             const errors = allMsgs
-              .filter(msg => msg.severity === 'error')
-              .map(d => ({
+              .filter((msg) => msg.severity === 'error')
+              .map((d) => ({
                 file: (d.file || '').replace(/\\/g, '/'),
                 message: format(d),
               }))
             const warnings = allMsgs
-              .filter(msg => msg.severity === 'warning')
-              .map(d => ({
+              .filter((msg) => msg.severity === 'warning')
+              .map((d) => ({
                 file: (d.file || '').replace(/\\/g, '/'),
                 message: format(d),
               }))
@@ -307,14 +307,14 @@ export function watchCompilers(
         const typePromise = tsMessagesPromise
 
         if (!hasErrors && typePromise) {
-          typePromise.then(typeMessages => {
+          typePromise.then((typeMessages) => {
             if (typePromise !== tsMessagesPromise) {
               // a new compilation started so we don't care about this
               return
             }
 
             const reportFiles = stats.compilation.modules
-              .map(m => (m.resource || '').replace(/\\/g, '/'))
+              .map((m) => (m.resource || '').replace(/\\/g, '/'))
               .filter(Boolean)
 
             let filteredErrors = typeMessages.errors
@@ -361,10 +361,10 @@ export function watchCompilers(
     )
   }
 
-  tapCompiler('client', client, enableTypeCheckingOnClient, status =>
+  tapCompiler('client', client, enableTypeCheckingOnClient, (status) =>
     buildStore.setState({ client: status })
   )
-  tapCompiler('server', server, false, status =>
+  tapCompiler('server', server, false, (status) =>
     buildStore.setState({ server: status })
   )
 

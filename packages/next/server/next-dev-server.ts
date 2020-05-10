@@ -53,7 +53,7 @@ export default class DevServer extends Server {
       this.nextConfig.experimental?.reactRefresh === true
         ? ReactDevOverlay
         : ErrorDebug
-    this.devReady = new Promise(resolve => {
+    this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
     })
     ;(this.renderOpts as any).ampSkipValidation =
@@ -66,14 +66,14 @@ export default class DevServer extends Server {
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
-      return AmpHtmlValidator.getInstance(validatorPath).then(validator => {
+      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(
           pathname,
           result.errors
-            .filter(e => e.severity === 'ERROR')
-            .filter(e => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter(e => e.severity !== 'ERROR')
+            .filter((e) => e.severity === 'ERROR')
+            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+          result.errors.filter((e) => e.severity !== 'ERROR')
         )
       })
     }
@@ -143,8 +143,8 @@ export default class DevServer extends Server {
             const { query: urlQuery } = parsedUrl
 
             Object.keys(urlQuery)
-              .filter(key => query[key] === undefined)
-              .forEach(key =>
+              .filter((key) => query[key] === undefined)
+              .forEach((key) =>
                 console.warn(
                   `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
@@ -172,7 +172,7 @@ export default class DevServer extends Server {
     )
 
     let resolved = false
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
@@ -210,10 +210,12 @@ export default class DevServer extends Server {
           dynamicRoutedPages.push(pageName)
         }
 
-        this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }))
+        this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(
+          (page) => ({
+            page,
+            match: getRouteMatcher(getRouteRegex(page)),
+          })
+        )
         this.router.setDynamicRoutes(this.dynamicRoutes)
 
         if (!resolved) {

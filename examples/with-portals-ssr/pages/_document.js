@@ -8,7 +8,8 @@ export default class extends Document {
 
     ctx.renderPage = () =>
       originalRenderPage({
-        enhanceApp: App => props => portals.collectPortals(<App {...props} />),
+        enhanceApp: (App) => (props) =>
+          portals.collectPortals(<App {...props} />),
       })
 
     const { html, ...props } = await Document.getInitialProps(ctx)

@@ -28,7 +28,7 @@ export type ServerlessLoaderQuery = {
   previewProps: string
 }
 
-const nextServerlessLoader: loader.Loader = function() {
+const nextServerlessLoader: loader.Loader = function () {
   const {
     distDir,
     absolutePagePath,

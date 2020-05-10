@@ -3,10 +3,10 @@
 
 import fetch from 'isomorphic-unfetch'
 
-export const setSession = user => {
+export const setSession = (user) => {
   // Log in.
   if (user) {
-    return user.getIdToken().then(token => {
+    return user.getIdToken().then((token) => {
       return fetch('/api/login', {
         method: 'POST',
         // eslint-disable-next-line no-undef

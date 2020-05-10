@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 
-export default function(render, fetch) {
+export default function (render, fetch) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -205,33 +205,21 @@ export default function(render, fetch) {
       const $ = await get$('/circular-json-error')
       const expectedErrorMessage =
         'Circular structure in "getInitialProps" result of page "/circular-json-error".'
-      expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
-      ).toBeTruthy()
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage =
         '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
-      expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
-      ).toBeTruthy()
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
     test('getInitialProps resolves to null', async () => {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage =
         '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-      expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
-      ).toBeTruthy()
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
     test('default Content-Type', async () => {
@@ -330,10 +318,10 @@ export default function(render, fetch) {
       }
 
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        resources.map((resource) => fetch(resource))
       )
 
-      responses.forEach(res => {
+      responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'no-store, must-revalidate'

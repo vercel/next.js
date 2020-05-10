@@ -7,7 +7,7 @@ export type ClientPagesLoaderOptions = {
   hotRouterUpdates: boolean
 }
 
-const nextClientPagesLoader: loader.Loader = function() {
+const nextClientPagesLoader: loader.Loader = function () {
   const { absolutePagePath, page, hotRouterUpdates } = loaderUtils.getOptions(
     this
   ) as ClientPagesLoaderOptions

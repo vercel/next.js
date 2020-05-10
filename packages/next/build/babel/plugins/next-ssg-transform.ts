@@ -276,7 +276,7 @@ export default function nextTransformSsg({
       ExportNamedDeclaration(path, state) {
         const specifiers = path.get('specifiers')
         if (specifiers.length) {
-          specifiers.forEach(s => {
+          specifiers.forEach((s) => {
             if (isDataIdentifier(s.node.exported.name, state)) {
               s.remove()
             }
@@ -307,7 +307,7 @@ export default function nextTransformSsg({
             const inner = decl.get('declarations') as NodePath<
               BabelTypes.VariableDeclarator
             >[]
-            inner.forEach(d => {
+            inner.forEach((d) => {
               if (d.node.id.type !== 'Identifier') {
                 return
               }

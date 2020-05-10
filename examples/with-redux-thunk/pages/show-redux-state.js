@@ -10,7 +10,7 @@ const codeStyle = {
   marginBottom: 10,
 }
 
-const ShowReduxState = state => (
+const ShowReduxState = (state) => (
   <>
     <pre style={codeStyle}>
       <code>{JSON.stringify(state, null, 4)}</code>
@@ -21,6 +21,6 @@ const ShowReduxState = state => (
   </>
 )
 
-const mapDispatchToProps = state => state
+const mapDispatchToProps = (state) => state
 
 export default connect(mapDispatchToProps)(ShowReduxState)

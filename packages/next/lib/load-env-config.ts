@@ -14,7 +14,7 @@ const packageJsonHasDep = (packageJsonPath: string, dep: string): boolean => {
     ...devDependencies,
   })
 
-  return allPackages.some(pkg => pkg === dep)
+  return allPackages.some((pkg) => pkg === dep)
 }
 
 let combinedEnv: Env | undefined = undefined

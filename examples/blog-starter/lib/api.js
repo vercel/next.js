@@ -17,7 +17,7 @@ export function getPostBySlug(slug, fields = []) {
   const items = {}
 
   // Ensure only the minimal needed data is exposed
-  fields.forEach(field => {
+  fields.forEach((field) => {
     if (field === 'slug') {
       items[field] = realSlug
     }
@@ -35,5 +35,5 @@ export function getPostBySlug(slug, fields = []) {
 
 export function getAllPosts(fields = []) {
   const slugs = getPostSlugs()
-  return slugs.map(slug => getPostBySlug(slug, fields))
+  return slugs.map((slug) => getPostBySlug(slug, fields))
 }

@@ -399,7 +399,7 @@ describe('Errors on invalid custom routes', () => {
       getStderr = async () => {
         let stderr = ''
         await launchApp(appDir, await findPort(), {
-          onStderr: msg => {
+          onStderr: (msg) => {
             stderr += msg
           },
         })

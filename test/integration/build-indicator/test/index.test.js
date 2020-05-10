@@ -11,7 +11,7 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
-const installCheckVisible = browser => {
+const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
     window.checkInterval = setInterval(function() {
       let watcherDiv = document.querySelector('#__next-build-watcher')

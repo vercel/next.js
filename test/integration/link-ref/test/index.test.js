@@ -16,7 +16,7 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 
-const noError = async pathname => {
+const noError = async (pathname) => {
   const browser = await webdriver(appPort, '/')
   await browser.eval(`(function() {
     window.caughtErrors = []
@@ -33,7 +33,7 @@ const noError = async pathname => {
   await browser.close()
 }
 
-const didPrefetch = async pathname => {
+const didPrefetch = async (pathname) => {
   const browser = await webdriver(appPort, pathname)
   const links = await browser.elementsByCss('link[rel=prefetch]')
   let found = false

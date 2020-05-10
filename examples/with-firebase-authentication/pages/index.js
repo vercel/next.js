@@ -43,12 +43,12 @@ export default class Index extends Component {
 
     if (this.state.user) this.addDbListener()
 
-    firebase.auth().onAuthStateChanged(user => {
+    firebase.auth().onAuthStateChanged((user) => {
       if (user) {
         this.setState({ user: user })
         return user
           .getIdToken()
-          .then(token => {
+          .then((token) => {
             // eslint-disable-next-line no-undef
             return fetch('/api/login', {
               method: 'POST',
@@ -58,7 +58,7 @@ export default class Index extends Component {
               body: JSON.stringify({ token }),
             })
           })
-          .then(res => this.addDbListener())
+          .then((res) => this.addDbListener())
       } else {
         this.setState({ user: null })
         // eslint-disable-next-line no-undef
@@ -73,14 +73,14 @@ export default class Index extends Component {
   addDbListener() {
     var db = firebase.firestore()
     let unsubscribe = db.collection('messages').onSnapshot(
-      querySnapshot => {
+      (querySnapshot) => {
         var messages = {}
-        querySnapshot.forEach(function(doc) {
+        querySnapshot.forEach(function (doc) {
           messages[doc.id] = doc.data()
         })
         if (messages) this.setState({ messages })
       },
-      error => {
+      (error) => {
         console.error(error)
       }
     )
@@ -102,12 +102,10 @@ export default class Index extends Component {
     event.preventDefault()
     var db = firebase.firestore()
     const date = new Date().getTime()
-    db.collection('messages')
-      .doc(`${date}`)
-      .set({
-        id: date,
-        text: this.state.value,
-      })
+    db.collection('messages').doc(`${date}`).set({
+      id: date,
+      text: this.state.value,
+    })
     this.setState({ value: '' })
   }
 
@@ -141,7 +139,7 @@ export default class Index extends Component {
             </form>
             <ul>
               {messages &&
-                Object.keys(messages).map(key => (
+                Object.keys(messages).map((key) => (
                   <li key={key}>{messages[key].text}</li>
                 ))}
             </ul>

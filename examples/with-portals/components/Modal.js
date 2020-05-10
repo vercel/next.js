@@ -6,7 +6,7 @@ export default function Modal() {
 
   return (
     <React.Fragment>
-      <button type="button" onClick={event => setOpen(true)}>
+      <button type="button" onClick={(event) => setOpen(true)}>
         Open Modal
       </button>
       {open && (
@@ -24,7 +24,7 @@ export default function Modal() {
                 </a>
                 .
               </p>
-              <button type="button" onClick={event => setOpen(false)}>
+              <button type="button" onClick={(event) => setOpen(false)}>
                 Close Modal
               </button>
             </div>

@@ -170,7 +170,7 @@ const navigateTest = (dev = false) => {
 
     await waitFor(2500)
 
-    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+    await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -405,11 +405,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -460,11 +456,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -474,11 +466,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
@@ -865,7 +853,7 @@ const runTests = (dev = false, looseMode = false) => {
       )
       const escapedBuildId = escapeRegex(buildId)
 
-      Object.keys(manifest.dynamicRoutes).forEach(key => {
+      Object.keys(manifest.dynamicRoutes).forEach((key) => {
         const item = manifest.dynamicRoutes[key]
 
         if (item.dataRouteRegex) {
@@ -1060,7 +1048,7 @@ describe('SSG Prerender', () => {
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1147,7 +1135,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1260,7 +1248,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

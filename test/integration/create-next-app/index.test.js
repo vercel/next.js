@@ -5,18 +5,13 @@ import execa from 'execa'
 import os from 'os'
 
 const cli = require.resolve('create-next-app/dist/index.js')
-const cwd = path.join(
-  os.tmpdir(),
-  Math.random()
-    .toString(36)
-    .substring(2)
-)
+const cwd = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
 
 const run = (...args) => execa('node', [cli, ...args], { cwd })
 const runStarter = (...args) => {
   const res = run(...args)
 
-  res.stdout.on('data', data => {
+  res.stdout.on('data', (data) => {
     const stdout = data.toString()
 
     if (/Pick a template/.test(stdout)) {

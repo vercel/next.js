@@ -9,7 +9,7 @@ export default class JssDocument extends Document {
     const originalRenderPage = ctx.renderPage
     ctx.renderPage = () =>
       originalRenderPage({
-        enhanceApp: App => props => (
+        enhanceApp: (App) => (props) => (
           <JssProvider registry={registry} generateId={generateId}>
             <App {...props} />
           </JssProvider>

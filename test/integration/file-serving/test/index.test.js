@@ -17,7 +17,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-const expectStatus = async path => {
+const expectStatus = async (path) => {
   const containRegex = /(This page could not be found|Bad Request)/
   // test base mount point `public/`
   const res = await fetchViaHTTP(appPort, path)

@@ -55,7 +55,7 @@ To dynamically import the `Hello` component, you can return it from the [Promise
 import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() =>
-  import('../components/hello').then(mod => mod.Hello)
+  import('../components/hello').then((mod) => mod.Hello)
 )
 
 function Home() {

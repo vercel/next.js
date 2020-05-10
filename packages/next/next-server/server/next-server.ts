@@ -495,7 +495,7 @@ export default class Server {
       }
 
       // Headers come very first
-      headers = this.customRoutes.headers.map(r => {
+      headers = this.customRoutes.headers.map((r) => {
         const route = getCustomRoute(r, 'header')
         return {
           match: route.match,
@@ -517,7 +517,7 @@ export default class Server {
         } as Route
       })
 
-      redirects = this.customRoutes.redirects.map(redirect => {
+      redirects = this.customRoutes.redirects.map((redirect) => {
         const route = getCustomRoute(redirect, 'redirect')
         return {
           type: route.type,
@@ -549,7 +549,7 @@ export default class Server {
         } as Route
       })
 
-      rewrites = this.customRoutes.rewrites.map(rewrite => {
+      rewrites = this.customRoutes.rewrites.map((rewrite) => {
         const route = getCustomRoute(rewrite, 'rewrite')
         return {
           check: true,
@@ -729,7 +729,7 @@ export default class Server {
 
   protected generatePublicRoutes(): Route[] {
     const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map(p => p.replace(/\\/g, '/'))
+      recursiveReadDirSync(this.publicDir).map((p) => p.replace(/\\/g, '/'))
     )
 
     return [
@@ -764,7 +764,7 @@ export default class Server {
     const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
       isDynamicRoute
     )
-    return getSortedRoutes(dynamicRoutedPages).map(page => ({
+    return getSortedRoutes(dynamicRoutedPages).map((page) => ({
       page,
       match: getRouteMatcher(getRouteRegex(page)),
     }))
@@ -1082,7 +1082,7 @@ export default class Server {
           return { isOrigin: true, value }
         }
 
-    const doRender = maybeCoalesceInvoke(async function(): Promise<{
+    const doRender = maybeCoalesceInvoke(async function (): Promise<{
       html: string | null
       pageData: any
       sprRevalidate: number | false
@@ -1415,14 +1415,14 @@ export default class Server {
     const pathUserFilesStatic = join(this.dir, 'static')
     let userFilesStatic: string[] = []
     if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
-      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map(f =>
+      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map((f) =>
         join('.', 'static', f)
       )
     }
 
     let userFilesPublic: string[] = []
     if (this.publicDir && fs.existsSync(this.publicDir)) {
-      userFilesPublic = recursiveReadDirSync(this.publicDir).map(f =>
+      userFilesPublic = recursiveReadDirSync(this.publicDir).map((f) =>
         join('.', 'public', f)
       )
     }
@@ -1430,7 +1430,7 @@ export default class Server {
     let nextFilesStatic: string[] = []
     nextFilesStatic = recursiveReadDirSync(
       join(this.distDir, 'static')
-    ).map(f => join('.', relative(this.dir, this.distDir), 'static', f))
+    ).map((f) => join('.', relative(this.dir, this.distDir), 'static', f))
 
     return (this._validFilesystemPathSet = new Set<string>([
       ...nextFilesStatic,

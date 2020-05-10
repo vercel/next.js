@@ -9,7 +9,7 @@ export async function getStaticPaths() {
   )
   const postList = await response.json()
   return {
-    paths: postList.map(post => {
+    paths: postList.map((post) => {
       return {
         params: {
           id: `${post.id}`,

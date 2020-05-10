@@ -458,7 +458,7 @@ test('syntax > runtime error', async () => {
     `
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "index.js (6:14) @ eval
@@ -486,12 +486,12 @@ test('syntax > runtime error', async () => {
     `
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatch('SyntaxError')
 
   // Test that runtime error does not take over:
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatch('SyntaxError')
 

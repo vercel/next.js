@@ -22,7 +22,7 @@ class UrlNode {
     }
 
     const routes = childrenPaths
-      .map(c => this.children.get(c)!._smoosh(`${prefix}${c}/`))
+      .map((c) => this.children.get(c)!._smoosh(`${prefix}${c}/`))
       .reduce((prev, curr) => [...prev, ...curr], [])
 
     if (this.slugName !== null) {
@@ -143,7 +143,7 @@ export function getSortedRoutes(normalizedPages: string[]): string[] {
   const root = new UrlNode()
 
   // Here the `root` gets injected multiple paths, and insert will break them up into sublevels
-  normalizedPages.forEach(pagePath => root.insert(pagePath))
+  normalizedPages.forEach((pagePath) => root.insert(pagePath))
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
   return root.smoosh()
 }

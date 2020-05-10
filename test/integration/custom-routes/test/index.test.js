@@ -203,11 +203,7 @@ const runTests = (isDev = false) => {
       '/query-rewrite/first/second?section=overridden&name=overridden&first=overridden&second=overridden&keep=me'
     )
 
-    const data = JSON.parse(
-      cheerio
-        .load(html)('p')
-        .text()
-    )
+    const data = JSON.parse(cheerio.load(html)('p').text())
     expect(data).toEqual({
       first: 'first',
       second: 'second',
@@ -339,7 +335,7 @@ const runTests = (isDev = false) => {
     const res = await fetchViaHTTP(appPort, '/proxy-me/first?keep=me&and=me')
     expect(res.status).toBe(200)
     expect(
-      [...externalServerHits].map(u => {
+      [...externalServerHits].map((u) => {
         const { pathname, query } = url.parse(u, true)
         return {
           pathname,
@@ -434,11 +430,7 @@ const runTests = (isDev = false) => {
       appPort,
       '/unnamed-params/nested/first/second/hello/world'
     )
-    const params = JSON.parse(
-      cheerio
-        .load(html)('p')
-        .text()
-    )
+    const params = JSON.parse(cheerio.load(html)('p').text())
     expect(params).toEqual({ test: 'hello' })
   })
 
@@ -891,7 +883,7 @@ describe('Custom routes', () => {
       res.end('hi from external')
     })
     await new Promise((resolve, reject) => {
-      externalServer.listen(externalServerPort, error => {
+      externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
         resolve()
       })
@@ -945,7 +937,7 @@ describe('Custom routes', () => {
       stdout = buildStdout
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStdout: msg => {
+        onStdout: (msg) => {
           stdout += msg
         },
       })
@@ -982,11 +974,7 @@ describe('Custom routes', () => {
 
     it('should apply rewrites in lambda correctly for page route', async () => {
       const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
-      const data = JSON.parse(
-        cheerio
-          .load(html)('p')
-          .text()
-      )
+      const data = JSON.parse(cheerio.load(html)('p').text())
       expect(data).toEqual({
         first: 'first',
         second: 'second',
@@ -1027,7 +1015,7 @@ describe('Custom routes', () => {
   })
 
   describe('should load custom routes when only one type is used', () => {
-    const runSoloTests = isDev => {
+    const runSoloTests = (isDev) => {
       const buildAndStart = async () => {
         if (isDev) {
           appPort = await findPort()

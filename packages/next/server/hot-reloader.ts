@@ -250,7 +250,7 @@ export default class HotReloader {
     ])
 
     const pages = createPagesMapping(
-      pagePaths.filter(i => i !== null) as string[],
+      pagePaths.filter((i) => i !== null) as string[],
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
@@ -379,7 +379,7 @@ export default class HotReloader {
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
-      stats => {
+      (stats) => {
         if (!this.initialized) {
           return
         }
@@ -389,7 +389,8 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          c => c.name === normalize(`static/${this.buildId}/pages/_document.js`)
+          (c) =>
+            c.name === normalize(`static/${this.buildId}/pages/_document.js`)
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
@@ -416,12 +417,12 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
-      stats => {
+      (stats) => {
         const { compilation } = stats
         const chunkNames = new Set(
           compilation.chunks
-            .map(c => c.name)
-            .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
+            .map((c) => c.name)
+            .filter((name) => IS_BUNDLED_PAGE_REGEX.test(name))
         )
 
         if (this.initialized) {
@@ -520,7 +521,7 @@ export default class HotReloader {
     webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
   ) {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       middleware!.waitUntilValid(resolve)
     })
   }
@@ -567,5 +568,5 @@ export default class HotReloader {
 }
 
 function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter(v => !b.has(v)))
+  return new Set([...a].filter((v) => !b.has(v)))
 }
