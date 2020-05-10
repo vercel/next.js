@@ -106,8 +106,6 @@ export default Blog
 To fetch this data on pre-render, Next.js allows you to `export` an `async` function called `getStaticProps` from the same file. This function gets called at build time and lets you pass fetched data to the page's `props` on pre-render.
 
 ```jsx
-// You can use any data fetching library
-
 function Blog({ posts }) {
   // Render posts...
 }
