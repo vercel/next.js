@@ -1,21 +1,17 @@
 /* global location */
+import { createRouter, makePublicRouterInstance } from 'next/router'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import initHeadManager from './head-manager'
-import { createRouter, makePublicRouterInstance } from 'next/router'
-import mitt from '../next-server/lib/mitt'
-import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
-import PageLoader from './page-loader'
-import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import {
-  observeLayoutShift,
-  observeLargestContentfulPaint,
-  observePaint,
-} from './performance-relayer'
+import * as envConfig from '../next-server/lib/runtime-config'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import initHeadManager from './head-manager'
+import PageLoader from './page-loader'
+import measureWebVitals from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
@@ -176,14 +172,35 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
-  if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
-      mod.unstable_onPerformanceData({
+
+  if (mod && mod.reportWebVitals) {
+    onPerfEntry = ({
+      id,
+      name,
+      startTime,
+      value,
+      duration,
+      entryType,
+      entries,
+    }) => {
+      // Combines timestamp with random number for unique ID
+      const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) +
+        1e12}`
+      let perfStartEntry
+
+      if (entries && entries.length) {
+        perfStartEntry = entries[0].startTime
+      }
+
+      mod.reportWebVitals({
+        id: id || uniqueID,
         name,
-        startTime,
-        value,
-        duration,
-        entryType,
+        startTime: startTime || perfStartEntry,
+        value: value == null ? duration : value,
+        label:
+          entryType === 'mark' || entryType === 'measure'
+            ? 'custom'
+            : 'web-vital',
       })
     }
   }
@@ -263,13 +280,50 @@ export async function render(props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError(props) {
+export function renderError(props) {
   const { App, err } = props
 
   // In development runtime errors are caught by react-error-overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
-    return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+    if (process.env.__NEXT_FAST_REFRESH) {
+      const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+      // Server-side runtime errors need to be re-thrown on the client-side so
+      // that the overlay is rendered.
+      if (isInitialRender) {
+        setTimeout(() => {
+          let error
+          try {
+            // Generate a new error object. We `throw` it because some browsers
+            // will set the `stack` when thrown, and we want to ensure ours is
+            // not overridden when we re-throw it below.
+            throw new Error(err.message)
+          } catch (e) {
+            error = e
+          }
+
+          error.name = err.name
+          error.stack = err.stack
+
+          const node = getNodeError(error)
+          throw node
+        })
+      }
+
+      // We need to render an empty <App> so that the `<ReactDevOverlay>` can
+      // render itself.
+      return doRender({
+        App: () => null,
+        props: {},
+        Component: () => null,
+        err: null,
+      })
+    }
+
+    // Legacy behavior:
+    return Promise.resolve(
+      webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+    )
   }
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
@@ -284,24 +338,28 @@ export async function renderError(props) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-  ;({ page: ErrorComponent } = await pageLoader.loadPage('/_error'))
-
-  // In production we do a normal render with the `ErrorComponent` as component.
-  // If we've gotten here upon initial render, we can use the props from the server.
-  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-  const AppTree = wrapApp(App)
-  const appCtx = {
-    Component: ErrorComponent,
-    AppTree,
-    router,
-    ctx: { err, pathname: page, query, asPath, AppTree },
-  }
-
-  const initProps = props.props
-    ? props.props
-    : await loadGetInitialProps(App, appCtx)
-
-  await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
+  return pageLoader.loadPage('/_error').then(({ page: ErrorComponent }) => {
+    // In production we do a normal render with the `ErrorComponent` as component.
+    // If we've gotten here upon initial render, we can use the props from the server.
+    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+    const AppTree = wrapApp(App)
+    const appCtx = {
+      Component: ErrorComponent,
+      AppTree,
+      router,
+      ctx: { err, pathname: page, query, asPath, AppTree },
+    }
+    return Promise.resolve(
+      props.props ? props.props : loadGetInitialProps(App, appCtx)
+    ).then(initProps =>
+      doRender({
+        ...props,
+        err,
+        Component: ErrorComponent,
+        props: initProps,
+      })
+    )
+  })
 }
 
 // If hydrate does not exist, eg in preact.
@@ -327,20 +385,12 @@ function renderReactElement(reactEl, domEl) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
+
+      if (onPerfEntry && ST) {
+        measureWebVitals(onPerfEntry)
+      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
-    }
-  }
-
-  if (onPerfEntry && ST) {
-    try {
-      observeLayoutShift(onPerfEntry)
-      observeLargestContentfulPaint(onPerfEntry)
-      observePaint(onPerfEntry)
-    } catch (e) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
     }
   }
 }
@@ -358,18 +408,7 @@ function markHydrateComplete() {
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
   if (onPerfEntry) {
-    if (process.env.__NEXT_FID_POLYFILL) {
-      import('../next-server/lib/fid-measure')
-        .then(mod => {
-          mod.default(onPerfEntry)
-        })
-        .catch(err => {
-          console.error('Error measuring First Input Delay', err)
-        })
-    }
-
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
-    performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
   }
   clearMarks()
 }

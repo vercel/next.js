@@ -97,6 +97,10 @@
               "path": "/docs/advanced-features/static-html-export.md"
             },
             {
+              "title": "Absolute Imports and Module Path Aliases",
+              "path": "/docs/advanced-features/module-path-aliases.md"
+            },
+            {
               "title": "AMP Support",
               "routes": [
                 {
@@ -152,6 +156,10 @@
             {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
+            },
+            {
+              "title": "Measuring performance",
+              "path": "/docs/advanced-features/measuring-performance.md"
             }
           ]
         },

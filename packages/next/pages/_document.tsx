@@ -13,7 +13,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
 } from '../next-server/lib/utils'
-import fidPolyfill from '../next-server/lib/fid'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 
@@ -261,36 +260,20 @@ export class Head extends Component<
           })
         : []
 
-    return preloadFiles.length === 0
+    return !preloadFiles.length
       ? null
-      : preloadFiles.map((file: string) => {
-          return (
-            <link
-              key={file}
-              nonce={this.props.nonce}
-              rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(
-                file
-              )}${_devOnlyInvalidateCacheQueryString}`}
-              as="script"
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
-  }
-
-  getFidPolyfill(): JSX.Element | null {
-    if (!process.env.__NEXT_FID_POLYFILL) {
-      return null
-    }
-
-    return (
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
-        }}
-      />
-    )
+      : preloadFiles.map((file: string) => (
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        ))
   }
 
   render() {
@@ -315,9 +298,8 @@ export class Head extends Component<
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        const isReactHelmet =
-          child && child.props && child.props['data-react-helmet']
-        if (child && child.type === 'title' && !isReactHelmet) {
+        const isReactHelmet = child?.props?.['data-react-helmet']
+        if (child?.type === 'title' && !isReactHelmet) {
           console.warn(
             "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
           )
@@ -391,14 +373,11 @@ export class Head extends Component<
       Array.isArray(styles.props.children)
     ) {
       const hasStyles = (el: React.ReactElement) =>
-        el &&
-        el.props &&
-        el.props.dangerouslySetInnerHTML &&
-        el.props.dangerouslySetInnerHTML.__html
+        el?.props?.dangerouslySetInnerHTML?.__html
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props.children.forEach((child: React.ReactElement) => {
         if (Array.isArray(child)) {
-          child.map(el => hasStyles(el) && curStyles.push(el))
+          child.forEach(el => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
           curStyles.push(child)
         }
@@ -534,7 +513,6 @@ export class Head extends Component<
             {styles || null}
           </>
         )}
-        {!disableRuntimeJS && this.getFidPolyfill()}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )
@@ -689,7 +667,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <>
-          {staticMarkup ? null : (
+          {staticMarkup || disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
@@ -809,7 +787,7 @@ export class NextScript extends Component<OriginProps> {
                 )
             )
           : null}
-        {staticMarkup ? null : (
+        {staticMarkup || disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
@@ -844,13 +822,10 @@ export class NextScript extends Component<OriginProps> {
 }
 
 function getAmpPath(ampPath: string, asPath: string) {
-  return ampPath ? ampPath : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
 function getPageFile(page: string, buildId?: string) {
-  if (page === '/') {
-    return buildId ? `/index.${buildId}.js` : '/index.js'
-  }
-
-  return buildId ? `${page}.${buildId}.js` : `${page}.js`
+  const startingUrl = page === '/' ? '/index' : page
+  return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }
