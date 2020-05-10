@@ -11,6 +11,7 @@ To measure any of the supported metrics, you will need to create a [custom
 App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
 
 ```js
+// pages/_app.js
 export function reportWebVitals(metric) {
   console.log(metric)
 }
