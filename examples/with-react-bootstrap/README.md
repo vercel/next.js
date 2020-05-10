@@ -1,12 +1,12 @@
-# Ant Design Mobile example
+# Next.js with react-bootstrap example
 
-This example features how you use [antd-mobile](https://github.com/ant-design/ant-design-mobile) (Ant Design Mobile FrontEnd Framwork) with Next.js.
+This example shows how to use Next.js along with [react-bootstrap](https://react-bootstrap.github.io/).
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-antd-mobile)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-react-bootstrap)
 
 ## How to use
 
@@ -15,9 +15,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-antd-mobile with-antd-mobile-app
+npm init next-app --example with-react-bootstrap with-react-bootstrap-app
 # or
-yarn create next-app --example with-antd-mobile with-antd-mobile-app
+yarn create next-app --example with-react-bootstrap with-react-bootstrap-app
 ```
 
 ### Download manually
@@ -25,8 +25,8 @@ yarn create next-app --example with-antd-mobile with-antd-mobile-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-antd-mobile
-cd with-antd-mobile
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-bootstrap
+cd with-react-bootstrap
 ```
 
 Install it and run:

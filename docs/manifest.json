@@ -156,6 +156,10 @@
             {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
+            },
+            {
+              "title": "Measuring performance",
+              "path": "/docs/advanced-features/measuring-performance.md"
             }
           ]
         },
