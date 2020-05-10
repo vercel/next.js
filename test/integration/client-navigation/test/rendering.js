@@ -204,7 +204,7 @@ export default function(render, fetch) {
     test('getInitialProps circular structure', async () => {
       const $ = await get$('/circular-json-error')
       const expectedErrorMessage =
-        'Circular structure in "getInitialProps" result of page "/circular-json-error".'
+        'Circular structure in \\"getInitialProps\\" result of page \\"/circular-json-error\\".'
       expect(
         $('#__NEXT_DATA__')
           .text()
@@ -215,7 +215,7 @@ export default function(render, fetch) {
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage =
-        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
       expect(
         $('#__NEXT_DATA__')
           .text()
@@ -226,7 +226,7 @@ export default function(render, fetch) {
     test('getInitialProps resolves to null', async () => {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage =
-        '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
+        '\\"EmptyInitialPropsPage.getInitialProps()\\" should resolve to an object. But found \\"null\\" instead.'
       expect(
         $('#__NEXT_DATA__')
           .text()
