@@ -47,7 +47,6 @@ npx cross-env NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
 
 - Trying to destructure `process.env` variables won't work due to the nature of webpack [DefinePlugin](https://webpack.js.org/plugins/define-plugin/).
 - When dealing with secrets, it's better to [expose the variables using `.env`](#exposing-environment-variables), to avoid exposing secrets in your build output
-- Environment variables in `next.config.js` won't be replaced
 
 ## Exposing Environment Variables
 
