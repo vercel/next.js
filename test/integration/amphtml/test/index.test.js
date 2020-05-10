@@ -392,7 +392,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
       const $ = cheerio.load(html)
       expect($('html').attr('data-ampdevmode')).toBe('')
-      expect($('script[data-ampdevmode]').length).toBe(3)
+      expect($('script[data-ampdevmode]').length).toBe(4)
     })
 
     it('should detect the changes and display it', async () => {

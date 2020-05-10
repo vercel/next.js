@@ -43,6 +43,10 @@ declare const module: {
   }
 }
 
+function isSafeExport(key: string): boolean {
+  return key === '__esModule' || key === '__N_SSG' || key === '__N_SSP'
+}
+
 function registerExportsForReactRefresh(
   moduleExports: unknown,
   moduleID: string
@@ -54,6 +58,9 @@ function registerExportsForReactRefresh(
     return
   }
   for (const key in moduleExports) {
+    if (isSafeExport(key)) {
+      continue
+    }
     const exportValue = moduleExports[key]
     const typeID = moduleID + ' %exports% ' + key
     RefreshRuntime.register(exportValue, typeID)
@@ -72,7 +79,7 @@ function isReactRefreshBoundary(moduleExports: unknown): boolean {
   let areAllExportsComponents = true
   for (const key in moduleExports) {
     hasExports = true
-    if (key === '__esModule') {
+    if (isSafeExport(key)) {
       continue
     }
     const exportValue = moduleExports[key]
@@ -109,7 +116,7 @@ function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
     return signature
   }
   for (const key in moduleExports) {
-    if (key === '__esModule') {
+    if (isSafeExport(key)) {
       continue
     }
     const exportValue = moduleExports[key]

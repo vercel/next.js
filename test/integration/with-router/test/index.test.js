@@ -1,17 +1,18 @@
 /* eslint-env jest */
 /* global jasmine */
-import webdriver from 'next-webdriver'
-import { join } from 'path'
 import {
-  getReactErrorOverlayContent,
-  nextServer,
-  launchApp,
   findPort,
+  getRedboxHeader,
+  hasRedbox,
   killApp,
+  launchApp,
   nextBuild,
+  nextServer,
   startApp,
   stopApp,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -104,7 +105,8 @@ describe('withRouter SSR', () => {
 
   it('should show an error when trying to use router methods during SSR', async () => {
     const browser = await webdriver(port, '/router-method-ssr')
-    expect(await getReactErrorOverlayContent(browser)).toMatch(
+    expect(await hasRedbox(browser)).toBe(true)
+    expect(await getRedboxHeader(browser)).toMatch(
       `No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`
     )
     await browser.close()

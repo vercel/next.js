@@ -1,16 +1,17 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import webdriver from 'next-webdriver'
 import {
   findPort,
-  launchApp,
+  getRedboxHeader,
+  hasRedbox,
   killApp,
-  nextStart,
+  launchApp,
   nextBuild,
-  getReactErrorOverlayContent,
+  nextStart,
   waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 let app
@@ -53,7 +54,8 @@ const showsError = async (
     console.log(warnLogs)
     expect(warnLogs.some(log => log.match(regex))).toBe(true)
   } else {
-    const errorContent = await getReactErrorOverlayContent(browser)
+    expect(await hasRedbox(browser)).toBe(true)
+    const errorContent = await getRedboxHeader(browser)
     expect(errorContent).toMatch(regex)
   }
 

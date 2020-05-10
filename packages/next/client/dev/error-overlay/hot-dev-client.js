@@ -94,6 +94,9 @@ export default function connect(options) {
     subscribeToHmrEvent(handler) {
       customHmrEventHandler = handler
     },
+    onUnrecoverableError() {
+      hadRuntimeError = true
+    },
     reportRuntimeError(err) {
       if (process.env.__NEXT_FAST_REFRESH) {
         return

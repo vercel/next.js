@@ -9,7 +9,8 @@ import {
   File,
   findPort,
   getBrowserBodyText,
-  getReactErrorOverlayContent,
+  getRedboxHeader,
+  hasRedbox,
   initNextServerScript,
   killApp,
   launchApp,
@@ -569,7 +570,8 @@ const runTests = (dev = false, looseMode = false) => {
       // we need to reload the page to trigger getStaticProps
       await browser.refresh()
 
-      const errOverlayContent = await getReactErrorOverlayContent(browser)
+      expect(await hasRedbox(browser)).toBe(true)
+      const errOverlayContent = await getRedboxHeader(browser)
 
       await fs.writeFile(indexPage, origContent)
       const errorMsg = /oops from getStaticProps/
@@ -694,12 +696,13 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/non-json/direct')
 
       // FIXME: enable this
-      // expect(await getReactErrorOverlayContent(browser)).toMatch(
+      // expect(await getRedboxHeader(browser)).toMatch(
       //   /Error serializing `.time` returned from `getStaticProps`/
       // )
 
       // FIXME: disable this
-      expect(await getReactErrorOverlayContent(browser)).toMatch(
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
         /Failed to load static props/
       )
     })
@@ -709,12 +712,13 @@ const runTests = (dev = false, looseMode = false) => {
       await browser.elementByCss('#non-json').click()
 
       // FIXME: enable this
-      // expect(await getReactErrorOverlayContent(browser)).toMatch(
+      // expect(await getRedboxHeader(browser)).toMatch(
       //   /Error serializing `.time` returned from `getStaticProps`/
       // )
 
       // FIXME: disable this
-      expect(await getReactErrorOverlayContent(browser)).toMatch(
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
         /Failed to load static props/
       )
     })
