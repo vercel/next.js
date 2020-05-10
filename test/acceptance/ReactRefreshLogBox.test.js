@@ -605,3 +605,80 @@ test('unterminated JSX', async () => {
 
   await cleanup()
 })
+
+test.only('conversion to class component (1)', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.write(
+    'Child.js',
+    `
+      export default function ClickCount() {
+        return <p>hello</p>
+      }
+    `
+  )
+
+  await session.patch(
+    'index.js',
+    `
+      import Child from './Child';
+
+      export default function Home() {
+        return (
+          <div>
+            <Child />
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  expect(
+    await session.evaluate(() => document.querySelector('p').textContent)
+  ).toBe('hello')
+
+  await session.patch(
+    'Child.js',
+    `
+      import { Component } from 'react';
+      export default class ClickCount extends Component {
+        render() {
+          throw new Error()
+        }
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "Child.js (5:16) @ ClickCount.render
+
+      3 |   export default class ClickCount extends Component {
+      4 |     render() {
+    > 5 |       throw new Error()
+        |            ^
+      6 |     }
+      7 |   }
+      8 | "
+  `)
+
+  await session.patch(
+    'Child.js',
+    `
+    import { Component } from 'react';
+      export default class ClickCount extends Component {
+        render() {
+          return <p>hello new</p>
+        }
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  expect(
+    await session.evaluate(() => document.querySelector('p').textContent)
+  ).toBe('hello new')
+
+  await cleanup()
+})
