@@ -54,8 +54,8 @@ Next.js allows you to expose variables using an environment variables file (`.en
 
 - `.env` - Contains environment variables for all environments
 - `.env.local` - Local variable overrides for all environments
-- `.env.[environment]` - Environment variables for one environment, for example: `.env.development`
-- `.env.[environment].local` - Local variable overrides for one environment, for example: `.env.development.local`
+- `.env.[environment]` - Environment variables for one environment. For example: `.env.development`
+- `.env.[environment].local` - Local variable overrides for one environment. For example: `.env.development.local`
 
 > **Note**: `.env` files **should be** included in your repository, but **`.env*.local` files should be ignored**. Consider `.local` files as a good place for secrets, and non-local files as a good place for defaults.
 
@@ -67,7 +67,7 @@ The supported environments are `development`, `production` and `test`. The envir
 
 If the same environment variable is defined multiple times, the priority of which variable to use is decided in the following order:
 
-- Already defined environment variables have the higher priority. for example: `MY_KEY=value next dev`
+- Already defined environment variables have the higher priority. For example: `MY_KEY=value next dev`
 - `.env.[environment].local`
 - `.env.[environment]`
 - `.env.local`
