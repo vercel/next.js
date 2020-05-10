@@ -287,11 +287,14 @@ export function renderError(props) {
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
     if (process.env.__NEXT_FAST_REFRESH) {
+      // A Next.js rendering runtime error is always unrecoverable
+      // FIXME: let's make this recoverable (error in GIP client-transition)
+      webpackHMR.onUnrecoverableError()
+
       const { getNodeError } = require('@next/react-dev-overlay/lib/client')
       // Server-side runtime errors need to be re-thrown on the client-side so
       // that the overlay is rendered.
       if (isInitialRender) {
-        webpackHMR.onUnrecoverableError()
         setTimeout(() => {
           let error
           try {
