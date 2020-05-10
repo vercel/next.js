@@ -96,7 +96,7 @@ class Container extends React.Component {
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) || location.search)) ||
-        (props.__N_SSG && location.search))
+        (props && props.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
