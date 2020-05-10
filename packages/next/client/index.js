@@ -291,6 +291,7 @@ export function renderError(props) {
       // Server-side runtime errors need to be re-thrown on the client-side so
       // that the overlay is rendered.
       if (isInitialRender) {
+        webpackHMR.onUnrecoverableError()
         setTimeout(() => {
           let error
           try {
