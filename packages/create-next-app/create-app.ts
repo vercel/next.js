@@ -29,7 +29,7 @@ export async function createApp({
   useNpm: boolean
   example?: string
   examplePath?: string
-}) {
+}): Promise<void> {
   let repoInfo: RepoInfo | undefined
 
   if (example) {
