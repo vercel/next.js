@@ -956,7 +956,7 @@ describe('Client Navigation', () => {
         expect(await hasRedbox(browser)).toBe(true)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/pages\/error-inside-browser-page\.js \(5:12\)/)
+        expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:12\)/)
       } finally {
         if (browser) {
           await browser.close()
