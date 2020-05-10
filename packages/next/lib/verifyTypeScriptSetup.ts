@@ -2,17 +2,13 @@ import chalk from 'next/dist/compiled/chalk'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { promisify } from 'util'
 
 import { fileExists } from './file-exists'
 import { recursiveReadDir } from './recursive-readdir'
 import { resolveRequest } from './resolve-request'
 
-const writeFile = promisify(fs.writeFile)
-const readFile = promisify(fs.readFile)
-
 function writeJson(fileName: string, object: object): Promise<void> {
-  return writeFile(
+  return fs.promises.writeFile(
     fileName,
     JSON.stringify(object, null, 2).replace(/\n/g, os.EOL) + os.EOL
   )
@@ -109,9 +105,9 @@ export async function verifyTypeScriptSetup(
 
   let firstTimeSetup = false
   if (hasTsConfig) {
-    const tsConfig = await readFile(tsConfigPath, 'utf8').then(val =>
-      val.trim()
-    )
+    const tsConfig = await fs.promises
+      .readFile(tsConfigPath, 'utf8')
+      .then(val => val.trim())
     firstTimeSetup = tsConfig === '' || tsConfig === '{}'
   } else {
     const hasTypeScriptFiles = await hasTypeScript(pagesDir)

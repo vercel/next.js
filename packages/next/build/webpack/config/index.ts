@@ -10,8 +10,7 @@ export async function build(
     customAppFile,
     isDevelopment,
     isServer,
-    hasSupportCss,
-    hasSupportScss,
+    hasReactRefresh,
     assetPrefix,
     sassOptions,
   }: {
@@ -19,8 +18,7 @@ export async function build(
     customAppFile: string | null
     isDevelopment: boolean
     isServer: boolean
-    hasSupportCss: boolean
-    hasSupportScss: boolean
+    hasReactRefresh: boolean
     assetPrefix: string
     sassOptions: any
   }
@@ -30,6 +28,7 @@ export async function build(
     customAppFile,
     isDevelopment,
     isProduction: !isDevelopment,
+    hasReactRefresh,
     isServer,
     isClient: !isServer,
     assetPrefix: assetPrefix
@@ -40,6 +39,6 @@ export async function build(
     sassOptions,
   }
 
-  const fn = pipe(base(ctx), css(hasSupportCss, hasSupportScss, ctx))
+  const fn = pipe(base(ctx), css(ctx))
   return fn(config)
 }
