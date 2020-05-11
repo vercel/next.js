@@ -108,11 +108,11 @@ export default class DevServer extends Server {
     this.staticPathsWorker.getStderr().pipe(process.stderr)
   }
 
-  protected currentPhase() {
+  protected currentPhase(): string {
     return PHASE_DEVELOPMENT_SERVER
   }
 
-  protected readBuildId() {
+  protected readBuildId(): string {
     return 'development'
   }
 
@@ -162,7 +162,7 @@ export default class DevServer extends Server {
     }
   }
 
-  async startWatcher() {
+  async startWatcher(): Promise<void> {
     if (this.webpackWatcher) {
       return
     }
@@ -224,7 +224,7 @@ export default class DevServer extends Server {
     })
   }
 
-  async stopWatcher() {
+  stopWatcher() {
     if (!this.webpackWatcher) {
       return
     }
@@ -233,7 +233,7 @@ export default class DevServer extends Server {
     this.webpackWatcher = null
   }
 
-  async prepare() {
+  async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
     await this.loadCustomRoutes()
 
@@ -268,7 +268,7 @@ export default class DevServer extends Server {
     )
   }
 
-  protected async close() {
+  protected async close(): Promise<void> {
     await this.stopWatcher()
     if (this.hotReloader) {
       await this.hotReloader.stop()
@@ -301,7 +301,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     params: Params,
     parsedUrl: UrlWithParsedQuery
-  ) {
+  ): Promise<boolean> {
     const { pathname } = parsedUrl
     const pathParts = params.path || []
     const path = `/${pathParts.join('/')}`
@@ -327,7 +327,7 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
-  ) {
+  ): Promise<void> {
     await this.devReady
     const { pathname } = parsedUrl
 
@@ -365,7 +365,7 @@ export default class DevServer extends Server {
     })
   }
 
-  private async loadCustomRoutes() {
+  private async loadCustomRoutes(): Promise<void> {
     const result = {
       redirects: [],
       rewrites: [],
@@ -434,19 +434,19 @@ export default class DevServer extends Server {
   }
 
   // In development public files are not added to the router but handled as a fallback instead
-  protected generatePublicRoutes() {
+  protected generatePublicRoutes(): never[] {
     return []
   }
 
   // In development dynamic routes cannot be known ahead of time
-  protected getDynamicRoutes() {
+  protected getDynamicRoutes(): never[] {
     return []
   }
 
   _filterAmpDevelopmentScript(
     html: string,
     event: { line: number; col: number; code: string }
-  ) {
+  ): boolean {
     if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
       return true
     }
@@ -476,7 +476,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathname: string,
     query: { [key: string]: string }
-  ) {
+  ): Promise<string | null> {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -525,7 +525,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathname: string,
     query: { [key: string]: string }
-  ) {
+  ): Promise<string | null> {
     if (res.statusCode === 404 && (await this.hasPage('/404'))) {
       await this.hotReloader!.ensurePage('/404')
     } else {
@@ -555,13 +555,17 @@ export default class DevServer extends Server {
     }
   }
 
-  sendHTML(req: IncomingMessage, res: ServerResponse, html: string) {
+  sendHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    html: string
+  ): Promise<void> {
     // In dev, we should not cache pages for any reason.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
     return super.sendHTML(req, res, html)
   }
 
-  protected setImmutableAssetCacheControl(res: ServerResponse) {
+  protected setImmutableAssetCacheControl(res: ServerResponse): void {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
@@ -569,12 +573,12 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathParts: string[]
-  ) {
+  ): Promise<void> {
     const p = join(this.publicDir, ...pathParts.map(encodeURIComponent))
     return this.serveStatic(req, res, p)
   }
 
-  async hasPublicFile(path: string) {
+  async hasPublicFile(path: string): Promise<boolean> {
     try {
       const info = await fs.promises.stat(join(this.publicDir, path))
       return info.isFile()
@@ -583,7 +587,7 @@ export default class DevServer extends Server {
     }
   }
 
-  async getCompilationError(page: string) {
+  async getCompilationError(page: string): Promise<any> {
     const errors = await this.hotReloader!.getCompilationErrors(page)
     if (errors.length === 0) return
 
