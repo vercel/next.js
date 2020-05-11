@@ -96,7 +96,7 @@ class Container extends React.Component {
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) || location.search)) ||
-        (props.__N_SSG && location.search))
+        (props && props.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -287,6 +287,10 @@ export function renderError(props) {
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
     if (process.env.__NEXT_FAST_REFRESH) {
+      // A Next.js rendering runtime error is always unrecoverable
+      // FIXME: let's make this recoverable (error in GIP client-transition)
+      webpackHMR.onUnrecoverableError()
+
       const { getNodeError } = require('@next/react-dev-overlay/lib/client')
       // Server-side runtime errors need to be re-thrown on the client-side so
       // that the overlay is rendered.
@@ -371,8 +375,8 @@ function renderReactElement(reactEl, domEl) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? ReactDOM.createRoot(domEl, opts)
-          : ReactDOM.createBlockingRoot(domEl, opts)
+          ? ReactDOM.unstable_createRoot(domEl, opts)
+          : ReactDOM.unstable_createBlockingRoot(domEl, opts)
     }
     reactRoot.render(reactEl)
   } else {
