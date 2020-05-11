@@ -50,7 +50,7 @@ npx cross-env NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
 
 ## Exposing Environment Variables
 
-Next.js allows you to expose variables using an environment variables file (`.env`), with included support for multiple environments, it works like this:
+Next.js allows you to expose variables using an environment variables file (`.env`), with included support for multiple environments. It works like this:
 
 - `.env` - Contains environment variables for all environments
 - `.env.local` - Local variable overrides for all environments
