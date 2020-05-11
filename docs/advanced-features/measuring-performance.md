@@ -156,7 +156,7 @@ export function reportWebVitals(metric) {
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
 >  ga('send', 'event', {
->    eventCategory: `Next.js ${ label } metric`,
+>    eventCategory: label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
 >    eventAction: name,
 >    eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
 >    eventLabel: id, // id unique to current page load
