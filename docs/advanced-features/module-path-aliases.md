@@ -58,7 +58,7 @@ An example of this configuration:
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "_components/*": ["components/*"]
+      "@/components/*": ["components/*"]
     }
   }
 }
