@@ -73,7 +73,7 @@ export default function Button() {
 
 ```jsx
 // pages/index.js
-import Button from '_components/button'
+import Button from '@/components/button'
 
 export default function HomePage() {
   return (
