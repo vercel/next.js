@@ -20,7 +20,11 @@ export default function() {
   // Legacy CSS implementations will `eval` browser code in a Node.js context
   // to extract CSS. For backwards compatibility, we need to check we're in a
   // browser context before continuing.
-  if (typeof self !== 'undefined') {
+  if (
+    typeof self !== 'undefined' &&
+    // AMP / No-JS mode does not inject these helpers:
+    '$RefreshHelpers$' in self
+  ) {
     const currentExports = module.__proto__.exports
     const prevExports = module.hot.data?.prevExports ?? null
 

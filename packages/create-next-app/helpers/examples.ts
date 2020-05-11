@@ -47,7 +47,12 @@ export async function getRepoInfo(
   }
 }
 
-export function hasRepo({ username, name, branch, filePath }: RepoInfo) {
+export function hasRepo({
+  username,
+  name,
+  branch,
+  filePath,
+}: RepoInfo): Promise<boolean> {
   const contentsUrl = `https://api.github.com/repos/${username}/${name}/contents`
   const packagePath = `${filePath ? `/${filePath}` : ''}/package.json`
 
