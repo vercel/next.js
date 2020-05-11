@@ -17,6 +17,6 @@ describe('TypeScript Exclusivity of Numeric Separator', () => {
 
     expect(stderr).toContain('Failed to compile.')
     expect(stderr).toContain('SyntaxError:')
-    expect(stderr).toContain('Identifier directly after number')
+    expect(stderr).toContain('config to enable transformation')
   })
 })
