@@ -34,7 +34,7 @@ Next.js replaced `process.env.NEXT_PUBLIC_EXAMPLE_KEY` with its value, that in t
 You can use the shell or any other tool that runs before the [Next.js CLI](/api-reference/cli) to add environment variables. For example, using the bash:
 
 ```bash
-npx NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
+NEXT_PUBLIC_EXAMPLE_KEY=my-value npx next dev
 ```
 
 And using [cross-env](https://github.com/kentcdodds/cross-env):
@@ -93,7 +93,7 @@ export async function getStaticProps() {
 }
 ```
 
-`process.env.NEXT_PUBLIC_APP_LOCALE` will be replaced with `'en-us'` in the build output. Because variables that start with `NEXT_PUBLIC_` will be [inlined at build time](#inlined-environment-variables).
+`process.env.NEXT_PUBLIC_APP_LOCALE` will be replaced with `'en-us'` in the build output. This is because variables that start with `NEXT_PUBLIC_` will be [inlined at build time](#inlined-environment-variables).
 
 `process.env.API_KEY` will be a variable with `'my-secret-api-key'` at build time and runtime, but the build output will not contain this key. This is because `process.env.API_KEY` is only used by [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) which [runs only on the server](/docs/basic-features/data-fetching.md#write-server-side-code-directly) — and only the props returned by `getStaticProps` are included in the client build. Same goes for our other [data fetching methods](/docs/basic-features/data-fetching.md).
 
