@@ -1032,7 +1032,7 @@ export default async function getBaseWebpackConfig(
     isServer,
     isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
-    sassOptions: config.experimental.sassOptions,
+    sassOptions: config.sassOptions,
   })
 
   if (typeof config.webpack === 'function') {
