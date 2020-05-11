@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import * as log from '../build/output/log'
 import findUp from 'next/dist/compiled/find-up'
+import { execOnce } from '../next-server/lib/utils'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
 
@@ -19,6 +20,15 @@ const packageJsonHasDep = (packageJsonPath: string, dep: string): boolean => {
 
 let combinedEnv: Env | undefined = undefined
 
+const envLoadingDisabledWarning = execOnce((packageFile?: string) => {
+  log.warn(
+    (packageFile
+      ? `dotenv loading was disabled due to the \`dotenv\` package being installed in: ${packageFile}`
+      : `dotenv loading was disabled due to no package.json file able to be found`) +
+      `\nSee more info here: https://err.sh/next.js/env-loading-disabled`
+  )
+})
+
 export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
   if (combinedEnv) return combinedEnv
 
@@ -30,6 +40,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
   if (packageJson) {
     // check main `package.json` first
     if (packageJsonHasDep(packageJson, 'dotenv')) {
+      envLoadingDisabledWarning(path.relative(dir, packageJson))
       return false
     }
     // check for a yarn.lock or lerna.json file in case it's a monorepo
@@ -44,12 +55,14 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
 
       try {
         if (packageJsonHasDep(monorepoPackageJson, 'dotenv')) {
+          envLoadingDisabledWarning(path.relative(dir, monorepoPackageJson))
           return false
         }
       } catch (_) {}
     }
   } else {
     // we should always have a package.json but disable in case we don't
+    envLoadingDisabledWarning()
     return false
   }
 
