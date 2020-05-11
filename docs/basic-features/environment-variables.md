@@ -13,7 +13,7 @@ Next.js comes with built-in support for environment variables, which allows you 
 
 ## Inlined Environment Variables
 
-Next.js will inline any environment variable that starts with `NEXT_PUBLIC_` using Webpack [DefinePlugin](https://webpack.js.org/plugins/define-plugin/). Inlining means replacing the variable with the value. For example, the following page:
+Next.js will inline any environment variable that starts with `NEXT_PUBLIC_` in your application. Inlining means replacing the variable with the value. For example, the following page:
 
 ```jsx
 export default function Page() {
@@ -31,13 +31,13 @@ export default function Page() {
 
 Next.js replaced `process.env.NEXT_PUBLIC_EXAMPLE_KEY` with its value, that in this case is `'my-value'`.
 
-You can use the shell or any other tool that runs before the [Next.js CLI](/api-reference/cli) to add environment variables. For example, using the bash:
+You can use the shell or any other tool that runs before the [Next.js CLI](/api-reference/cli) to add environment variables. For example, using bash:
 
 ```bash
 NEXT_PUBLIC_EXAMPLE_KEY=my-value npx next dev
 ```
 
-And using [cross-env](https://github.com/kentcdodds/cross-env):
+Or using [cross-env](https://github.com/kentcdodds/cross-env) for Windows and Unix support:
 
 ```bash
 npx cross-env NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
@@ -45,8 +45,8 @@ npx cross-env NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
 
 ### Caveats
 
-- Trying to destructure `process.env` variables won't work due to the nature of webpack [DefinePlugin](https://webpack.js.org/plugins/define-plugin/).
-- When dealing with secrets, it's better to [expose the variables using `.env`](#exposing-environment-variables), to avoid exposing secrets in your build output
+- Trying to destructure `process.env` variables won't work due to the limitations of webpack's [DefinePlugin](https://webpack.js.org/plugins/define-plugin/).
+- To avoid exposing secrets, do not use the `NEXT_PUBLIC_` prefix for them. Instead, [expose the variables using `.env`](#exposing-environment-variables).
 
 ## Exposing Environment Variables
 
@@ -63,7 +63,6 @@ The supported environments are `development`, `production` and `test`. The envir
 
 - [`next dev`](/docs/api-reference/cli#development) uses `development`
 - [`next build`](/docs/api-reference/cli#build) and [`next-start`](/docs/api-reference/cli#production) use `production`
-- `NODE_ENV=test next dev` will use `test` instead of the default.
 
 If the same environment variable is defined multiple times, the priority of which variable to use is decided in the following order:
 
