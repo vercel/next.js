@@ -52,7 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     basePath: '',
     sassOptions: {},
     pageEnv: false,
-    reactRefresh: false,
+    reactRefresh: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
