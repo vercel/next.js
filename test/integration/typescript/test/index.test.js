@@ -51,7 +51,8 @@ describe('TypeScript Features', () => {
       expect($('#imported-value').text()).toBe('OK')
     })
 
-    it('should report type checking to stdout', async () => {
+    // old behavior:
+    it.skip('should report type checking to stdout', async () => {
       expect(output).toContain('waiting for typecheck results...')
     })
 
