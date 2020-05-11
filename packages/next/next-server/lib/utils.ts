@@ -158,7 +158,6 @@ export type DocumentProps = DocumentInitialProps & {
   hybridAmp: boolean
   staticMarkup: boolean
   isDevelopment: boolean
-  hasCssMode: boolean
   devFiles: string[]
   files: string[]
   lowPriorityFiles: string[]
@@ -169,12 +168,13 @@ export type DocumentProps = DocumentInitialProps & {
   htmlProps: any
   bodyTags: any[]
   headTags: any[]
+  unstable_runtimeJS?: false
 }
 
 /**
  * Next `API` route request
  */
-export type NextApiRequest = IncomingMessage & {
+export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
@@ -236,7 +236,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void
+) => void | Promise<void>
 
 /**
  * Utils

@@ -1,10 +1,11 @@
+import reactDevOverlayMiddleware from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
+import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
+import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import { join, normalize, relative as relativePath, sep } from 'path'
 import { UrlObject } from 'url'
 import webpack from 'webpack'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
-import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
@@ -14,6 +15,7 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
@@ -252,6 +254,7 @@ export default class HotReloader {
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
+      /* dev */ true,
       pages,
       'server',
       this.buildId,
@@ -266,6 +269,10 @@ export default class HotReloader {
         this.dir,
         join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
       )
+
+    additionalClientEntrypoints[
+      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+    ] = require.resolve(`@next/react-refresh-utils/runtime`)
 
     return Promise.all([
       getBaseWebpackConfig(this.dir, {
@@ -347,14 +354,20 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackHotMiddleware,
       errorOverlayMiddleware({ dir: this.dir }),
+      reactDevOverlayMiddleware({
+        rootDirectory: this.dir,
+        stats: () => this.stats,
+      }),
     ]
   }
 
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     const tsConfigPath = join(this.dir, 'tsconfig.json')
     const useTypeScript = await fileExists(tsConfigPath)
-    const ignoreTypeScriptErrors =
-      this.config.typescript && this.config.typescript.ignoreDevErrors
+    const ignoreTypeScriptErrors = Boolean(
+      this.config.experimental.reactRefresh === true ||
+        this.config.typescript?.ignoreDevErrors
+    )
 
     watchCompilers(
       multiCompiler.compilers[0],
@@ -484,15 +497,15 @@ export default class HotReloader {
       webpackDevMiddleware,
       multiCompiler,
       {
-        dir: this.dir,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
-        distDir: this.config.distDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
-        publicRuntimeConfig: this.config.publicRuntimeConfig,
-        serverRuntimeConfig: this.config.serverRuntimeConfig,
-        ...this.config.onDemandEntries,
+        hotRouterUpdates: this.config.experimental.reactRefresh !== true,
+        ...(this.config.onDemandEntries as {
+          maxInactiveAge: number
+          pagesBufferLength: number
+        }),
       }
     )
 

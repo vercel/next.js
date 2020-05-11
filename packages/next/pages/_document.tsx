@@ -1,11 +1,11 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import flush from 'styled-jsx/server'
-
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   AMP_RENDER_TARGET,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
@@ -13,7 +13,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
 } from '../next-server/lib/utils'
-import fidPolyfill from '../next-server/lib/fid'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 
@@ -38,7 +37,7 @@ function dedupe(bundles: any[]): any[] {
   return kept
 }
 
-function getOptionalModernScriptVariant(path: string) {
+function getOptionalModernScriptVariant(path: string): string {
   if (process.env.__NEXT_MODERN_BUILD) {
     return path.replace(/\.js$/, '.module.js')
   }
@@ -261,36 +260,20 @@ export class Head extends Component<
           })
         : []
 
-    return preloadFiles.length === 0
+    return !preloadFiles.length
       ? null
-      : preloadFiles.map((file: string) => {
-          return (
-            <link
-              key={file}
-              nonce={this.props.nonce}
-              rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(
-                file
-              )}${_devOnlyInvalidateCacheQueryString}`}
-              as="script"
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
-  }
-
-  getFidPolyfill(): JSX.Element | null {
-    if (!process.env.__NEXT_FID_POLYFILL) {
-      return null
-    }
-
-    return (
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
-        }}
-      />
-    )
+      : preloadFiles.map((file: string) => (
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        ))
   }
 
   render() {
@@ -304,7 +287,9 @@ export class Head extends Component<
       __NEXT_DATA__,
       dangerousAsPath,
       headTags,
+      unstable_runtimeJS,
     } = this.context._documentProps
+    const disableRuntimeJS = unstable_runtimeJS === false
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
 
@@ -313,9 +298,8 @@ export class Head extends Component<
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        const isReactHelmet =
-          child && child.props && child.props['data-react-helmet']
-        if (child && child.type === 'title' && !isReactHelmet) {
+        const isReactHelmet = child?.props?.['data-react-helmet']
+        if (child?.type === 'title' && !isReactHelmet) {
           console.warn(
             "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
           )
@@ -389,14 +373,11 @@ export class Head extends Component<
       Array.isArray(styles.props.children)
     ) {
       const hasStyles = (el: React.ReactElement) =>
-        el &&
-        el.props &&
-        el.props.dangerouslySetInnerHTML &&
-        el.props.dangerouslySetInnerHTML.__html
+        el?.props?.dangerouslySetInnerHTML?.__html
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props.children.forEach((child: React.ReactElement) => {
         if (Array.isArray(child)) {
-          child.map(el => hasStyles(el) && curStyles.push(el))
+          child.forEach(el => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
           curStyles.push(child)
         }
@@ -405,28 +386,27 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {this.context._documentProps.isDevelopment &&
-          this.context._documentProps.hasCssMode && (
-            <>
+        {this.context._documentProps.isDevelopment && (
+          <>
+            <style
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              dangerouslySetInnerHTML={{
+                __html: `body{display:none}`,
+              }}
+            />
+            <noscript
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+            >
               <style
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
                 dangerouslySetInnerHTML={{
-                  __html: `body{display:none}`,
+                  __html: `body{display:block}`,
                 }}
               />
-              <noscript
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
-              >
-                <style
-                  dangerouslySetInnerHTML={{
-                    __html: `body{display:block}`,
-                  }}
-                />
-              </noscript>
-            </>
-          )}
+            </noscript>
+          </>
+        )}
         {children}
         {head}
         <meta
@@ -490,7 +470,22 @@ export class Head extends Component<
               />
             )}
             {this.getCssLinks()}
-            {page !== '/_error' && (
+            {!disableRuntimeJS && (
+              <link
+                rel="preload"
+                href={
+                  assetPrefix +
+                  getOptionalModernScriptVariant(
+                    encodeURI(`/_next/static/${buildId}/pages/_app.js`)
+                  ) +
+                  _devOnlyInvalidateCacheQueryString
+                }
+                as="script"
+                nonce={this.props.nonce}
+                crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              />
+            )}
+            {!disableRuntimeJS && page !== '/_error' && (
               <link
                 rel="preload"
                 href={
@@ -507,32 +502,17 @@ export class Head extends Component<
                 crossOrigin={this.props.crossOrigin || process.crossOrigin}
               />
             )}
-            <link
-              rel="preload"
-              href={
-                assetPrefix +
-                getOptionalModernScriptVariant(
-                  encodeURI(`/_next/static/${buildId}/pages/_app.js`)
-                ) +
-                _devOnlyInvalidateCacheQueryString
-              }
-              as="script"
-              nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-            {this.getPreloadDynamicChunks()}
-            {this.getPreloadMainLinks()}
-            {this.context._documentProps.isDevelopment &&
-              this.context._documentProps.hasCssMode && (
-                // this element is used to mount development styles so the
-                // ordering matches production
-                // (by default, style-loader injects at the bottom of <head />)
-                <noscript id="__next_css__DO_NOT_USE__" />
-              )}
+            {!disableRuntimeJS && this.getPreloadDynamicChunks()}
+            {!disableRuntimeJS && this.getPreloadMainLinks()}
+            {this.context._documentProps.isDevelopment && (
+              // this element is used to mount development styles so the
+              // ordering matches production
+              // (by default, style-loader injects at the bottom of <head />)
+              <noscript id="__next_css__DO_NOT_USE__" />
+            )}
             {styles || null}
           </>
         )}
-        {this.getFidPolyfill()}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )
@@ -646,7 +626,7 @@ export class NextScript extends Component<OriginProps> {
       ))
   }
 
-  static getInlineScriptSource(documentProps: DocumentProps) {
+  static getInlineScriptSource(documentProps: DocumentProps): string {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
@@ -669,7 +649,9 @@ export class NextScript extends Component<OriginProps> {
       devFiles,
       __NEXT_DATA__,
       bodyTags,
+      unstable_runtimeJS,
     } = this.context._documentProps
+    const disableRuntimeJS = unstable_runtimeJS === false
 
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
@@ -679,13 +661,14 @@ export class NextScript extends Component<OriginProps> {
       }
 
       const devFiles = [
+        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
       ]
 
       return (
         <>
-          {staticMarkup ? null : (
+          {staticMarkup || disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
@@ -790,7 +773,7 @@ export class NextScript extends Component<OriginProps> {
 
     return (
       <>
-        {devFiles
+        {!disableRuntimeJS && devFiles
           ? devFiles.map(
               (file: string) =>
                 !file.match(/\.js\.map/) && (
@@ -805,7 +788,7 @@ export class NextScript extends Component<OriginProps> {
                 )
             )
           : null}
-        {staticMarkup ? null : (
+        {staticMarkup || disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
@@ -818,7 +801,7 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {process.env.__NEXT_MODERN_BUILD ? (
+        {process.env.__NEXT_MODERN_BUILD && !disableRuntimeJS ? (
           <script
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -828,25 +811,22 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         ) : null}
-        {this.getPolyfillScripts()}
-        {page !== '/_error' && pageScript}
-        {appScript}
-        {staticMarkup ? null : this.getDynamicChunks()}
-        {staticMarkup ? null : this.getScripts()}
+        {!disableRuntimeJS && this.getPolyfillScripts()}
+        {!disableRuntimeJS && appScript}
+        {!disableRuntimeJS && page !== '/_error' && pageScript}
+        {disableRuntimeJS || staticMarkup ? null : this.getDynamicChunks()}
+        {disableRuntimeJS || staticMarkup ? null : this.getScripts()}
         {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
       </>
     )
   }
 }
 
-function getAmpPath(ampPath: string, asPath: string) {
-  return ampPath ? ampPath : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+function getAmpPath(ampPath: string, asPath: string): string {
+  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-function getPageFile(page: string, buildId?: string) {
-  if (page === '/') {
-    return buildId ? `/index.${buildId}.js` : '/index.js'
-  }
-
-  return buildId ? `${page}.${buildId}.js` : `${page}.js`
+function getPageFile(page: string, buildId?: string): string {
+  const startingUrl = page === '/' ? '/index' : page
+  return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }
