@@ -14,6 +14,13 @@ const server = http.createServer((req, res) => {
     )
   }
 
+  if (req.url === '/api/api-route') {
+    return require('./.next/serverless/pages/api/api-route.js').default(
+      req,
+      res
+    )
+  }
+
   if (req.url === '/static') {
     return send(
       req,

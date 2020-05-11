@@ -7,6 +7,7 @@ import {
   findPort,
   launchApp,
   initNextServerScript,
+  fetchViaHTTP,
   renderViaHTTP,
   nextBuild,
   nextStart,
@@ -72,9 +73,16 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/getinitialprops')
     expect(html).toMatch(/bar/)
   })
+
+  it('includes polyfilled fetch when using API routes', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/api-route')
+    const json = await res.json()
+
+    expect(json.foo).toBe('bar')
+  })
 }
 
-describe('API routes', () => {
+describe('Fetch polyfill', () => {
   describe('dev support', () => {
     beforeAll(async () => {
       appPort = await findPort()
