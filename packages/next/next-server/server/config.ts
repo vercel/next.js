@@ -36,6 +36,7 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   exportTrailingSlash: false,
+  sassOptions: {},
   experimental: {
     cpus: Math.max(
       1,
@@ -50,7 +51,6 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    sassOptions: {},
     pageEnv: false,
     reactRefresh: true,
   },
