@@ -524,6 +524,9 @@ export async function renderToHTML(
     if (isSSG && !isFallback) {
       let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
+      // Set environment variable flag for whether or not preview mode is active
+      process.env.__NEXT_PREVIEW_MODE = (!!previewData).toString()
+
       try {
         data = await getStaticProps!({
           ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
