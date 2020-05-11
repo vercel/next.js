@@ -34,7 +34,7 @@ Next.js replaced `process.env.NEXT_PUBLIC_EXAMPLE_KEY` with its value, that in t
 You can use the shell or any other tool that runs before the [Next.js CLI](/api-reference/cli) to add environment variables. For example, using the bash:
 
 ```bash
-NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
+npx NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
 ```
 
 And using [cross-env](https://github.com/kentcdodds/cross-env):
@@ -57,7 +57,7 @@ Next.js allows you to expose variables using an environment variables file (`.en
 - `.env.[environment]` - Environment variables for one environment. For example: `.env.development`
 - `.env.[environment].local` - Local variable overrides for one environment. For example: `.env.development.local`
 
-> **Note**: `.env` files **should be** included in your repository, but **`.env*.local` files should be ignored**. Consider `.local` files as a good place for secrets, and non-local files as a good place for defaults.
+> **Note**: `.env` files **should be** included in your repository, and **`.env*.local` should be in `.gitignore`**, as those files are intended to be ignored. Consider `.local` files as a good place for secrets, and non-local files as a good place for defaults.
 
 The supported environments are `development`, `production` and `test`. The environment is selected in the following way:
 
@@ -95,7 +95,7 @@ export async function getStaticProps() {
 
 `process.env.NEXT_PUBLIC_APP_LOCALE` will be replaced with `'en-us'` in the build output. Because variables that start with `NEXT_PUBLIC_` will be [inlined at build time](#inlined-environment-variables).
 
-`process.env.API_KEY` will be a variable with `'my-secret-api-key'` at build time and runtime, but the build output will not have access to the key.
+`process.env.API_KEY` will be a variable with `'my-secret-api-key'` at build time and runtime, but the build output will not contain this key. This is because `process.env.API_KEY` is only used by [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) which [runs only on the server](/docs/basic-features/data-fetching.md#write-server-side-code-directly) — and only the props returned by `getStaticProps` are included in the client build. Same goes for our other [data fetching methods](/docs/basic-features/data-fetching.md).
 
 Now, if you add a `.env` file like this one:
 
