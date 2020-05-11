@@ -246,6 +246,8 @@ function onFastRefresh(hasUpdates) {
       DevOverlay.onRefresh()
     }
   }
+
+  console.log('[Fast Refresh] done')
 }
 
 // There is a newer version of the code available.
@@ -260,9 +262,7 @@ function processMessage(e) {
   switch (obj.action) {
     case 'building': {
       ++hmrEventCount
-      console.log(
-        '[HMR] bundle ' + (obj.name ? "'" + obj.name + "' " : '') + 'rebuilding'
-      )
+      console.log('[Fast Refresh] rebuilding')
       break
     }
     case 'built':
@@ -379,10 +379,18 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
-        console.warn('Error while applying updates, reloading page', err)
-      }
-      if (hadRuntimeError) {
-        console.warn('Had runtime error previously, reloading page')
+        console.warn(
+          '[Fast Refresh] performing full reload\n\n' +
+            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React tree.\n" +
+            'You might have a file which renders a React component but also exports a value that is imported by a non-React component.\n' +
+            'Consider migrating the non-React component export to a separate file and importing it into both files.\n\n' +
+            'It is also possible you are using class components at the top-level of your application, which disables Fast Refresh.\n' +
+            'Fast Refresh requires at least one function component in your React tree.'
+        )
+      } else if (hadRuntimeError) {
+        console.warn(
+          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
+        )
       }
       window.location.reload()
       return
