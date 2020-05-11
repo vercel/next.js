@@ -5,7 +5,7 @@ import { noop as css } from '../helpers/noop-template'
 import { getFrameSource, OriginalStackFrame } from '../helpers/stack-frame'
 import { ReadyRuntimeError } from './Errors'
 
-export type RuntimeErrorProps = { className?: string; error: ReadyRuntimeError }
+export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
@@ -14,7 +14,7 @@ const CallStackFrame: React.FC<{
   // TODO: render error or external indicator
 
   const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
-  const hasSource = Boolean(frame.originalStackFrame?.file)
+  const hasSource = Boolean(frame.originalCodeFrame)
 
   const open = React.useCallback(() => {
     if (!hasSource) return
@@ -34,12 +34,15 @@ const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h6>{f.methodName}</h6>
+      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
+        {f.methodName}
+      </h6>
       <div
         data-has-source={hasSource ? 'true' : undefined}
-        tabIndex={hasSource ? 0 : undefined}
+        tabIndex={hasSource ? 10 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}
+        title={hasSource ? 'Click to open in your editor' : undefined}
       >
         <span>{getFrameSource(f)}</span>
         <svg
@@ -61,7 +64,6 @@ const CallStackFrame: React.FC<{
 }
 
 const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  className,
   error,
 }) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
@@ -84,22 +86,38 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [error.frames, firstFirstPartyFrameIndex]
   )
 
-  // FIXME: allow collapsed frames to be toggled
-  const [all] = React.useState(false)
+  const [all, setAll] = React.useState(firstFrame == null)
+  const toggleAll = React.useCallback(() => {
+    setAll(v => !v)
+  }, [])
+
   const leadingFrames = React.useMemo(
     () => allLeadingFrames.filter(f => f.expanded || all),
     [all, allLeadingFrames]
   )
-  const callStackFrames = React.useMemo(
-    () =>
-      error.frames
-        .slice(firstFirstPartyFrameIndex + 1)
-        .filter(f => f.expanded || all),
-    [all, error.frames, firstFirstPartyFrameIndex]
+  const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
+    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
+    [error.frames, firstFirstPartyFrameIndex]
+  )
+  const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
+    () => allCallStackFrames.filter(f => f.expanded || all),
+    [all, allCallStackFrames]
   )
 
+  const canShowMore = React.useMemo<boolean>(() => {
+    return (
+      allCallStackFrames.length !== visibleCallStackFrames.length ||
+      (all && firstFrame != null)
+    )
+  }, [
+    all,
+    allCallStackFrames.length,
+    firstFrame,
+    visibleCallStackFrames.length,
+  ])
+
   return (
-    <div className={className}>
+    <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
           <h5>Source</h5>
@@ -117,37 +135,68 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
       ) : (
         undefined
       )}
-      {callStackFrames.length ? (
+      {visibleCallStackFrames.length ? (
         <React.Fragment>
           <h5>Call Stack</h5>
-          {callStackFrames.map((frame, index) => (
+          {visibleCallStackFrames.map((frame, index) => (
             <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
           ))}
         </React.Fragment>
       ) : (
         undefined
       )}
-    </div>
+      {canShowMore ? (
+        <React.Fragment>
+          <button
+            tabIndex={10}
+            data-nextjs-data-runtime-error-collapsed-action
+            type="button"
+            onClick={toggleAll}
+          >
+            {all ? 'Hide' : 'Show'} collapsed frames
+          </button>
+        </React.Fragment>
+      ) : (
+        undefined
+      )}
+    </React.Fragment>
   )
 }
 
 export const styles = css`
+  button[data-nextjs-data-runtime-error-collapsed-action] {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: var(--size-font-small);
+    line-height: var(--size-font-bigger);
+    color: var(--color-accents-3);
+  }
+
+  [data-nextjs-call-stack-frame]:not(:last-child) {
+    margin-bottom: var(--size-gap-double);
+  }
+
   [data-nextjs-call-stack-frame] > h6 {
+    margin-top: 0;
+    margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
-    color: rgba(25, 25, 25, 1);
+    color: #222;
+  }
+  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > div {
     display: flex;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-left: 0.75rem;
-    font-size: 0.875rem;
-    color: rgba(25, 25, 25, 0.5);
+    padding-left: calc(var(--size-gap) + var(--size-gap-half));
+    font-size: var(--size-font-small);
+    color: #999;
   }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;
-    height: 0.875rem;
-    margin-left: 0.5rem;
+    height: var(--size-font-small);
+    margin-left: var(--size-gap);
 
     display: none;
   }

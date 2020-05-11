@@ -108,3 +108,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 
 export default MyApp
 ```
+
+## Path aliases and baseUrl
+
+Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
+
+You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).

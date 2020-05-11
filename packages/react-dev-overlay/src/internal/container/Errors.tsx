@@ -41,7 +41,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}`
+      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
     default: {
     }
@@ -202,7 +202,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <span>{readyErrors.length} errors</span>
+          <span>
+            {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
+          </span>
         </div>
       </Toast>
     )
@@ -229,13 +231,13 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
             </LeftRightDialogHeader>
-            <h4 id="nextjs__container_errors_label">Unhandled Runtime Error</h4>
+            <h1 id="nextjs__container_errors_label">Unhandled Runtime Error</h1>
             <p id="nextjs__container_errors_desc">
               {activeError.error.name}: {activeError.error.message}
             </p>
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError error={activeError} />
+            <RuntimeError key={activeError.id.toString()} error={activeError} />
           </DialogBody>
         </DialogContent>
       </Dialog>
@@ -244,26 +246,37 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 }
 
 export const styles = css`
-  .nextjs-container-errors-header > h4 {
-    line-height: 1.5;
+  .nextjs-container-errors-header > h1 {
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
     margin: 0;
-    margin-top: 1rem;
+    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
   }
   .nextjs-container-errors-header small {
-    color: #757575;
-    margin-left: 9px;
+    font-size: var(--size-font-small);
+    color: var(--color-accents-1);
+    margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header > p {
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font-small);
+    line-height: var(--size-font-big);
+    font-weight: bold;
     margin: 0;
-    color: #6a6a6a;
+    margin-top: var(--size-gap-half);
+    color: var(--color-ansi-red);
+    white-space: pre-wrap;
   }
 
-  .nextjs-container-errors-body {
-    margin-top: 1.5rem;
+  .nextjs-container-errors-body > h5:not(:first-child) {
+    margin-top: calc(var(--size-gap-double) + var(--size-gap));
+  }
+  .nextjs-container-errors-body > h5 {
+    margin-bottom: var(--size-gap);
   }
 
   .nextjs-toast-errors-parent {
@@ -279,6 +292,6 @@ export const styles = css`
     justify-content: flex-start;
   }
   .nextjs-toast-errors > svg {
-    margin-right: 0.5rem;
+    margin-right: var(--size-gap);
   }
 `

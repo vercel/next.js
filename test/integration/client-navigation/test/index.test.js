@@ -1,17 +1,19 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import webdriver from 'next-webdriver'
-import renderingSuite from './rendering'
 import {
-  waitFor,
-  findPort,
-  killApp,
-  launchApp,
   fetchViaHTTP,
+  findPort,
+  getRedboxSource,
+  hasRedbox,
+  killApp,
+  getRedboxHeader,
+  launchApp,
   renderViaHTTP,
-  getReactErrorOverlayContent,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
+import renderingSuite from './rendering'
 
 const context = {}
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -209,10 +211,8 @@ describe('Client Navigation', () => {
       try {
         browser = await webdriver(context.appPort, '/nav')
         await browser.elementByCss('#empty-props').click()
-
-        await waitFor(3000)
-
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatch(
           /should resolve to an object\. But found "null" instead\./
         )
       } finally {
@@ -953,10 +953,10 @@ describe('Client Navigation', () => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/error-inside-browser-page')
-        await waitFor(3000)
-        const text = await getReactErrorOverlayContent(browser)
+        expect(await hasRedbox(browser)).toBe(true)
+        const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
+        expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:12\)/)
       } finally {
         if (browser) {
           await browser.close()
@@ -971,10 +971,10 @@ describe('Client Navigation', () => {
           context.appPort,
           '/error-in-the-browser-global-scope'
         )
-        await waitFor(3000)
-        const text = await getReactErrorOverlayContent(browser)
+        expect(await hasRedbox(browser)).toBe(true)
+        const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
+        expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
       } finally {
         if (browser) {
           await browser.close()
