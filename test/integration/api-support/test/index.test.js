@@ -159,6 +159,19 @@ function runTests(dev = false) {
     expect(data.status).toEqual(200)
   })
 
+  it('should support etag spec', async () => {
+    const response = await fetchViaHTTP(appPort, '/api/blog')
+    const etag = response.headers.get('etag')
+
+    expect(etag).toMatch(/^W\/.*$/)
+
+    const unmodifiedResponse = await fetchViaHTTP(appPort, '/api/blog', null, {
+      headers: { 'If-None-Match': etag },
+    })
+
+    expect(unmodifiedResponse.status).toBe(304)
+  })
+
   it('should parse urlencoded body', async () => {
     const body = {
       title: 'Nextjs',
