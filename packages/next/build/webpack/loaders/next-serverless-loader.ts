@@ -139,11 +139,8 @@ const nextServerlessLoader: loader.Loader = function() {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
-      import fetch from 'next/dist/compiled/node-fetch'
-    
-      if(!global.fetch) {
-        global.fetch = fetch
-      }
+      import 'next/dist/next-server/server/node-polyfill-fetch'
+
       ${runtimeConfigImports}
       ${
         /*
@@ -208,11 +205,8 @@ const nextServerlessLoader: loader.Loader = function() {
     return `
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
-    import fetch from 'next/dist/compiled/node-fetch'
-    
-    if(!global.fetch) {
-      global.fetch = fetch
-    }
+    import 'next/dist/next-server/server/node-polyfill-fetch'
+
     ${runtimeConfigImports}
     ${
       // this needs to be called first so its available for any other imports
