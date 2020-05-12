@@ -9,6 +9,7 @@ export function getRouteRegex(
 ): {
   re: RegExp
   namedRegex?: string
+  routeKeys?: { [named: string]: string }
   groups: { [groupName: string]: { pos: number; repeat: boolean } }
 } {
   // Escape all characters that could be considered RegEx
@@ -33,6 +34,7 @@ export function getRouteRegex(
   )
 
   let namedParameterizedRoute: string | undefined
+  const routeKeys: { [named: string]: string } = {}
 
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
@@ -46,9 +48,15 @@ export function getRouteRegex(
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
           .replace(/^\.{3}/, '')
 
+        // replace any non-word characters since they can break
+        // the named regex
+        const cleanedKey = key.replace(/\W/g, '')
+
+        routeKeys[cleanedKey] = key
+
         return isCatchAll
-          ? `/(?<${escapeRegex(key)}>.+?)`
-          : `/(?<${escapeRegex(key)}>[^/]+?)`
+          ? `/(?<${cleanedKey}>.+?)`
+          : `/(?<${cleanedKey}>[^/]+?)`
       }
     )
   }
@@ -58,6 +66,7 @@ export function getRouteRegex(
     groups,
     ...(namedParameterizedRoute
       ? {
+          routeKeys,
           namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
         }
       : {}),

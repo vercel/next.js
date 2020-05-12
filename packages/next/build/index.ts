@@ -295,8 +295,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       return {
         page,
         regex: routeRegex.re.source,
+        routeKeys: routeRegex.routeKeys,
         namedRegex: routeRegex.namedRegex,
-        routeKeys: Object.keys(routeRegex.groups),
       }
     }),
   }
@@ -640,8 +640,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       let dataRouteRegex: string
-      let routeKeys: string[] | undefined
       let namedDataRouteRegex: string | undefined
+      let routeKeys: { [named: string]: string } | undefined
 
       if (isDynamicRoute(page)) {
         const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
@@ -654,7 +654,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           /\(\?:\/\)\?\$$/,
           '\\.json$'
         )
-        routeKeys = Object.keys(routeRegex.groups)
+        routeKeys = routeRegex.routeKeys
       } else {
         dataRouteRegex = new RegExp(
           `^${path.posix.join(

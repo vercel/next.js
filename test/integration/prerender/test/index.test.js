@@ -784,7 +784,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
-          routeKeys: ['post'],
+          routeKeys: {
+            post: 'post',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -796,7 +798,10 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
-          routeKeys: ['post', 'comment'],
+          routeKeys: {
+            post: 'post',
+            comment: 'comment',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -808,7 +813,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -820,7 +827,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -840,7 +849,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
-          routeKeys: ['p'],
+          routeKeys: {
+            p: 'p',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -858,7 +869,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
-          routeKeys: ['user'],
+          routeKeys: {
+            user: 'user',
+          },
         },
       ])
     })

@@ -55,7 +55,9 @@ const expectedManifestRoutes = () => [
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]',
-    routeKeys: ['post'],
+    routeKeys: {
+      post: 'post',
+    },
   },
   {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -67,7 +69,10 @@ const expectedManifestRoutes = () => [
       )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]/[comment]',
-    routeKeys: ['post', 'comment'],
+    routeKeys: {
+      post: 'post',
+      comment: 'comment',
+    },
   },
   {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -77,7 +82,9 @@ const expectedManifestRoutes = () => [
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
     ),
     page: '/catchall/[...path]',
-    routeKeys: ['path'],
+    routeKeys: {
+      path: 'path',
+    },
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -125,7 +132,9 @@ const expectedManifestRoutes = () => [
       )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
     ),
     page: '/user/[user]/profile',
-    routeKeys: ['user'],
+    routeKeys: {
+      user: 'user',
+    },
   },
 ]
 

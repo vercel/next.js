@@ -86,4 +86,13 @@ describe('getSortedRoutes', () => {
       /erroneous period/
     )
   })
+
+  it('catches param names differing only by non-word characters', () => {
+    expect(() =>
+      getSortedRoutes([
+        '/blog/[helloworld]',
+        '/blog/[helloworld]/[hello-world]',
+      ])
+    ).toThrowError(/differ only by non-word/)
+  })
 })
