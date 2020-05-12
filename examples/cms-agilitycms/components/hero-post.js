@@ -2,6 +2,7 @@ import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from '../components/cover-image'
 import Link from 'next/link'
+import { getLatestPost } from '../lib/api'
 
 export default function HeroPost({
   title,
@@ -31,11 +32,20 @@ export default function HeroPost({
             <Date dateString={date} />
           </div>
         </div>
+        {author && 
         <div>
           <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
           <Avatar name={author.name} picture={author.picture} />
         </div>
+        }
       </div>
     </section>
   )
 }
+
+//What is returned here, will be past as `props` to the component
+HeroPost.getCustomInitialProps = async function({ preview }) { 
+  const post = await getLatestPost({ preview })
+  return post;
+}
+
