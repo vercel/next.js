@@ -219,8 +219,8 @@ export default function loadConfig(
     )
 
     if (
-      Object.keys(userConfig).length === 0 &&
-      typeof userConfig !== 'function'
+      typeof userConfig !== 'function' &&
+      Object.keys(userConfig).length === 0
     ) {
       console.warn(
         chalk.yellow.bold('Warning: ') +
