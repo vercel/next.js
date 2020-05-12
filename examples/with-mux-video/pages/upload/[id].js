@@ -58,7 +58,14 @@ export default function Upload() {
   const onUploadSuccess = () => setShouldPoll(true)
 
   return (
-    <Layout title="Upload a video" description={`status: ${upload.status}`}>
+    <Layout
+      title={
+        asset && asset.status === 'ready'
+          ? 'Watch your video'
+          : 'Upload a video'
+      }
+      description={`status: ${asset ? asset.status : upload.status}`}
+    >
       {upload.status === 'timed_out' && (
         <div>
           This upload timed out.. <Link href="/">Go back</Link>
