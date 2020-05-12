@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -9,7 +10,9 @@ const UploadForm = dynamic(() => import('../../components/upload-form'), {
   loading: () => <p>Loading...</p>,
 })
 
-const fetcher = url => fetch(url).then(res => res.json())
+const fetcher = url => {
+  return fetch(url).then(res => res.json())
+}
 
 const Asset = ({ id, status, playbackId }) => {
   if (status === 'preparing') return <div>Preparing asset...</div>
@@ -17,12 +20,26 @@ const Asset = ({ id, status, playbackId }) => {
 }
 
 export default function Upload() {
+  const [shouldPoll, setShouldPoll] = useState(false)
   const router = useRouter()
   const { data, error } = useSwr(
     () => (router.query.id ? `/api/upload/${router.query.id}` : null),
     fetcher,
-    { refreshInterval: 5000 }
+    { refreshInterval: shouldPoll ? 5000 : 0 }
   )
+
+  const upload = data && data.upload
+  const asset = data && data.asset
+
+  useEffect(() => {
+    const uploadIsWaiting = upload && upload.status === 'waiting'
+    const assetIsPreparing = asset && asset.status === 'preparing'
+    if (uploadIsWaiting || assetIsPreparing) {
+      setShouldPoll(true)
+    } else {
+      setShouldPoll(false)
+    }
+  }, [upload, asset])
 
   if (error)
     return (
@@ -37,9 +54,8 @@ export default function Upload() {
       </Layout>
     )
 
-  const { upload, asset } = data
-
-  const onUploadSuccess = () => console.log('debug upload success')
+  const onUploadStart = () => setShouldPoll(false)
+  const onUploadSuccess = () => setShouldPoll(true)
 
   return (
     <Layout title="Upload a video" description={`status: ${upload.status}`}>
@@ -49,7 +65,11 @@ export default function Upload() {
         </div>
       )}
       {upload.status === 'waiting' && (
-        <UploadForm uploadUrl={upload.url} onSuccess={onUploadSuccess} />
+        <UploadForm
+          uploadUrl={upload.url}
+          onStart={onUploadStart}
+          onSuccess={onUploadSuccess}
+        />
       )}
       {upload.status === 'asset_created' && (
         <Asset

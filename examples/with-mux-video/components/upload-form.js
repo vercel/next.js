@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react'
 import * as UpChunk from '@mux/upchunk'
-import Button from './Button'
+import Button from './button'
 
-const UploadForm = ({ uploadUrl, onSuccess }) => {
+const UploadForm = ({ uploadUrl, onStart, onSuccess }) => {
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
   const inputRef = useRef(null)
 
   const startUpload = () => {
+    onStart()
     setIsUploading(true)
     const upload = UpChunk.createUpload({
       endpoint: uploadUrl,
