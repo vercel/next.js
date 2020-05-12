@@ -1,54 +1,43 @@
 import { useState } from 'react'
-import Router from 'next/router'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 
-export default function Home() {
+export default function Upload() {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  const createUpload = async evt => {
+  const router = useRouter()
+  console.log('debug router', router.query.id)
+
+  /*
+  const createUpload = async (evt) => {
     try {
       evt.preventDefault()
-      await setIsLoading(true)
-      const { uploadId } = await fetch('/api/upload', {
-        method: 'POST',
-      }).then(res => res.json())
-      Router.push(`/upload/${uploadId}`)
+      await setIsLoading(true);
+      const { uploadId } = await fetch('/api/uploads', {method: 'POST'}).then(res => res.json())
+      Router.push(`/uploads/${uploadId}`);
     } catch (e) {
-      console.error('Error in createUpload', e)
+      console.error('Error in createUpload', e);
       setErrorMessage('Error creating upload')
     }
   }
-
-  console.log('debug isLoading', isLoading)
+  */
 
   return (
     <div className="container">
       <Head>
-        <title>Mux Video + Next.js</title>
+        <title>Mux Upload</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main>
-        <h1 className="title">
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className="description">
-          Get started by editing <code>pages/index.js</code>
-        </p>
+        <h1 className="title">Upload a video</h1>
 
         <div className="grid">
           {errorMessage ? (
             <div>Error: {errorMessage}</div>
           ) : (
-            <form onSubmit={createUpload}>
-              {isLoading ? (
-                <div>Loading...</div>
-              ) : (
-                <button type="submit">Upload a video</button>
-              )}
-            </form>
+            <input type="file" />
           )}
         </div>
       </main>

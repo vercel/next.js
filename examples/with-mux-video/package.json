@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@mux/mux-node": "2.8.0",
     "next": "9.4.0",
     "react": "16.13.1",
     "react-dom": "16.13.1"
