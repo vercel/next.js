@@ -8,6 +8,7 @@ import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
+import etag from 'etag'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -54,7 +55,7 @@ export async function apiResolver(
     }
 
     apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
-    apiRes.send = data => sendData(apiRes, data)
+    apiRes.send = data => sendData(apiReq, apiRes, data)
     apiRes.json = data => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
@@ -198,13 +199,53 @@ export function sendStatusCode(res: NextApiResponse, statusCode: number) {
 }
 
 /**
- * Send `any` body to response
+ * Try to match ETag according to RFC7232
+ * @implements https://tools.ietf.org/html/rfc7232#section-3.2
+ * @param req request object
  * @param res response object
  * @param body of response
  */
-export function sendData(res: NextApiResponse, body: any) {
+function matchETag(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  body: any
+): 'matched' | 'not_matched' {
+  if (body instanceof Stream) {
+    return 'not_matched'
+  }
+
+  const oldEtag = req.headers['if-none-match']
+  const stringifiedBody = ['object', 'number', 'boolean'].includes(typeof body)
+    ? JSON.stringify(body)
+    : body
+  const bodyEtag = etag(stringifiedBody, { weak: true })
+
+  res.setHeader('ETag', bodyEtag)
+
+  const etagMatches = oldEtag === bodyEtag
+  if (etagMatches) {
+    res.statusCode = 304
+    res.end()
+    return 'matched'
+  } else {
+    return 'not_matched'
+  }
+}
+
+/**
+ * Send `any` body to response
+ * @param req request object
+ * @param res response object
+ * @param body of response
+ */
+export function sendData(req: NextApiRequest, res: NextApiResponse, body: any) {
   if (body === null) {
     res.end()
+    return
+  }
+
+  const didMatch = matchETag(req, res, body)
+  if (didMatch === 'matched') {
     return
   }
 
