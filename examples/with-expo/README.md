@@ -52,7 +52,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 ## Troubleshooting
 
-You may find that certain packages like `@ui-kitten/components` do not work in the browser. This is because they need to be transpiled by Next.js, you can do fix this by doing the following:
+You may find that certain packages like `@ui-kitten/components` do not work in the browser. This is because they need to be transpiled by Next.js, you can fix this by doing the following:
 
 - Install the following:
 
