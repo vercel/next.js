@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "hls.js": "^0.13.2",
-    "next": "9.3.6",
+    "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1"
   }
