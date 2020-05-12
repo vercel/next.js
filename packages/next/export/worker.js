@@ -276,7 +276,7 @@ export default async function({
     return results
   } catch (error) {
     console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error:\n` +
+      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
         error
     )
     return { ...results, error: true }
