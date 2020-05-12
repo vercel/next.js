@@ -8,7 +8,7 @@ import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
-import etag from 'etag'
+import computeEtag from 'etag'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -208,22 +208,11 @@ export function sendStatusCode(res: NextApiResponse, statusCode: number) {
 function matchETag(
   req: NextApiRequest,
   res: NextApiResponse,
-  body: any
+  body: string | Buffer
 ): 'matched' | 'not_matched' {
-  if (body instanceof Stream) {
-    return 'not_matched'
-  }
+  const etag = computeEtag(body, { weak: true })
 
-  const oldEtag = req.headers['if-none-match']
-  const stringifiedBody = ['object', 'number', 'boolean'].includes(typeof body)
-    ? JSON.stringify(body)
-    : body
-  const bodyEtag = etag(stringifiedBody, { weak: true })
-
-  res.setHeader('ETag', bodyEtag)
-
-  const etagMatches = oldEtag === bodyEtag
-  if (etagMatches) {
+  if (etag === req.headers['if-none-match']) {
     res.statusCode = 304
     res.end()
     return 'matched'
@@ -244,12 +233,23 @@ export function sendData(req: NextApiRequest, res: NextApiResponse, body: any) {
     return
   }
 
-  const didMatch = matchETag(req, res, body)
-  if (didMatch === 'matched') {
+  const contentType = res.getHeader('Content-Type')
+
+  if (body instanceof Stream) {
+    if (!contentType) {
+      res.setHeader('Content-Type', 'application/octet-stream')
+    }
+    body.pipe(res)
     return
   }
 
-  const contentType = res.getHeader('Content-Type')
+  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
+  const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
+
+  const didMatch = matchETag(req, res, stringifiedBody)
+  if (didMatch === 'matched') {
+    return
+  }
 
   if (Buffer.isBuffer(body)) {
     if (!contentType) {
@@ -260,28 +260,12 @@ export function sendData(req: NextApiRequest, res: NextApiResponse, body: any) {
     return
   }
 
-  if (body instanceof Stream) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    body.pipe(res)
-    return
-  }
-
-  let str = body
-
-  // Stringify JSON body
-  if (
-    typeof body === 'object' ||
-    typeof body === 'number' ||
-    typeof body === 'boolean'
-  ) {
-    str = JSON.stringify(body)
+  if (isJSONLike) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
 
-  res.setHeader('Content-Length', Buffer.byteLength(str))
-  res.end(str)
+  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
+  res.end(stringifiedBody)
 }
 
 /**
