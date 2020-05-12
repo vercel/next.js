@@ -9,8 +9,11 @@
   },
   "dependencies": {
     "@mux/mux-node": "2.8.0",
+    "@mux/upchunk": "1.0.6",
+    "hls.js": "0.13.2",
     "next": "9.4.0",
     "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "react-dom": "16.13.1",
+    "swr": "0.2.0"
   }
 }

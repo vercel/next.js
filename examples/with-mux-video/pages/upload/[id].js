@@ -1,13 +1,34 @@
-import { useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
+import dynamic from 'next/dynamic'
+import useSwr from 'swr'
+import VideoPlayer from '../../components/video-player'
+const UploadForm = dynamic(() => import('../../components/upload-form'), {
+  ssr: false,
+  loading: () => <p>Loading...</p>,
+})
+
+const fetcher = url => fetch(url).then(res => res.json())
+
+const Asset = ({ id, status, playbackId }) => {
+  if (status === 'preparing') return <div>Preparing asset...</div>
+  return <VideoPlayer src={`https://stream.mux.com/${playbackId}.m3u8`} />
+}
 
 export default function Upload() {
+  /*
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-
+  */
   const router = useRouter()
-  console.log('debug router', router.query.id)
+  const { data, error } = useSwr(
+    () => (router.query.id ? `/api/upload/${router.query.id}` : null),
+    fetcher
+  )
+
+  if (error) return <div>Failed to load</div>
+  if (!data) return <div>Loading</div>
 
   /*
   const createUpload = async (evt) => {
@@ -23,6 +44,10 @@ export default function Upload() {
   }
   */
 
+  const { upload, asset } = data
+
+  const onUploadSuccess = () => console.log('debug upload success')
+
   return (
     <div className="container">
       <Head>
@@ -32,12 +57,22 @@ export default function Upload() {
 
       <main>
         <h1 className="title">Upload a video</h1>
-
+        <p className="description">status: {upload.status}</p>
         <div className="grid">
-          {errorMessage ? (
-            <div>Error: {errorMessage}</div>
-          ) : (
-            <input type="file" />
+          {upload.status === 'timed_out' && (
+            <div>
+              This upload timed out.. <Link href="/">Go back</Link>
+            </div>
+          )}
+          {upload.status === 'waiting' && (
+            <UploadForm uploadUrl={upload.url} onSuccess={onUploadSuccess} />
+          )}
+          {upload.status === 'asset_created' && (
+            <Asset
+              status={asset.status}
+              id={asset.id}
+              playbackId={asset.playback_id}
+            />
           )}
         </div>
       </main>

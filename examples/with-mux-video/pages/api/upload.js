@@ -7,6 +7,7 @@ export default async (req, res) => {
     try {
       const upload = await Video.Uploads.create({
         new_asset_settings: { playback_policy: 'public' },
+        cors_origin: '*',
       })
       res.json({
         uploadId: upload.id,
