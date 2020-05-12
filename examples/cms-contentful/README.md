@@ -10,6 +10,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 
 - [Blog Starter](/examples/blog-starter)
 - [DatoCMS](/examples/cms-datocms)
+- [Prismic](/examples/cms-prismic)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
 
