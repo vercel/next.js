@@ -2,10 +2,6 @@ const http = require('http')
 const port = process.env.PORT || 3000
 
 const server = new http.Server(async (req, res) => {
-  if (req.url === '/ky-universal') {
-    return res.end(JSON.stringify({ ky: 'yeah' }))
-  }
-
   res.end(JSON.stringify({ foo: 'bar' }))
 })
 
