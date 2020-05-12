@@ -188,7 +188,7 @@ export default function Login() {
         /* Form data */
       }),
     }).then(res => {
-      // Do a fast client-side transition to the already prefetched dashbaord page
+      // Do a fast client-side transition to the already prefetched dashboard page
       if (res.ok) Router.push('/dashboard')
     })
   }, [])
