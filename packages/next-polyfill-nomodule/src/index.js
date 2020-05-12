@@ -44,9 +44,9 @@ import 'core-js/features/weak-set'
 import 'core-js/features/promise'
 import 'core-js/features/promise/all-settled'
 import 'core-js/features/promise/finally'
+import 'core-js/features/url'
 
 // Specialized Packages:
 import 'whatwg-fetch'
-import 'url-polyfill'
 import assign from 'object-assign'
 Object.assign = assign
