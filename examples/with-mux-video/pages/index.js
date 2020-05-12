@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Router from 'next/router'
 import Layout from '../components/layout'
+import Button from '../components/button'
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
@@ -20,8 +21,6 @@ export default function Home() {
     }
   }
 
-  console.log('debug isLoading', isLoading)
-
   return (
     <Layout
       title="Welcome to Mux + Next.js"
@@ -34,7 +33,7 @@ export default function Home() {
           {isLoading ? (
             <div>Loading...</div>
           ) : (
-            <button type="submit">Upload a video</button>
+            <Button type="submit">Upload a video</Button>
           )}
         </form>
       )}

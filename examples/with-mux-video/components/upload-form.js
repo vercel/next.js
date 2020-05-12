@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import * as UpChunk from '@mux/upchunk'
+import Button from './Button'
 
 const UploadForm = ({ uploadUrl, onSuccess }) => {
   const [isUploading, setIsUploading] = useState(false)
@@ -35,7 +36,19 @@ const UploadForm = ({ uploadUrl, onSuccess }) => {
       {isUploading ? (
         <div>Uploading...{progress ? `${progress}%` : ''}</div>
       ) : (
-        <input type="file" onChange={startUpload} ref={inputRef} />
+        <>
+          <label>
+            <Button type="button" onClick={() => inputRef.current.click()}>
+              Select a video file
+            </Button>
+            <input type="file" onChange={startUpload} ref={inputRef} />
+          </label>
+          <style jsx>{`
+            input {
+              display: none;
+            }
+          `}</style>
+        </>
       )}
     </div>
   )
