@@ -144,8 +144,11 @@ export function reportWebVitals(metric) {
   const url = 'https://example.com/analytics'
 
   // Use `navigator.sendBeacon()` if available, falling back to `fetch()`.
-  ;(navigator.sendBeacon && navigator.sendBeacon(url, body)) ||
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(url, body)
+  } else {
     fetch(url, { body, method: 'POST', keepalive: true })
+  }
 }
 ```
 
