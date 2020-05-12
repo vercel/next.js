@@ -218,7 +218,10 @@ export default function loadConfig(
       userConfigModule.default || userConfigModule
     )
 
-    if (Object.keys(userConfig).length === 0 || typeof userConfig !== 'function') {
+    if (
+      Object.keys(userConfig).length === 0 &&
+      typeof userConfig !== 'function'
+    ) {
       console.warn(
         chalk.yellow.bold('Warning: ') +
           'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
