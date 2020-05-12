@@ -12,6 +12,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
+- [Contentful](/examples/cms-contentful)
 
 ## How to use
 
