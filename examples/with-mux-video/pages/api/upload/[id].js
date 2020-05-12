@@ -11,7 +11,7 @@ export default async (req, res) => {
         asset = await Video.Assets.get(upload.asset_id)
       }
       res.json({
-        upload: { status: upload.status },
+        upload: { status: upload.status, url: upload.url },
         asset: asset
           ? {
               id: asset.id,

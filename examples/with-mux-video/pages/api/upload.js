@@ -10,7 +10,7 @@ export default async (req, res) => {
         cors_origin: '*',
       })
       res.json({
-        uploadId: upload.id,
+        upload_id: upload.id,
       })
     } catch (e) {
       res.statusCode = 500
