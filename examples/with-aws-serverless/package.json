@@ -1,0 +1,34 @@
+{
+  "name": "nextjs-with-aws-serverless",
+  "version": "1.0.0",
+  "description": "next.js with aws serverless deployment.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [
+    "next.js",
+    "react.js",
+    "react",
+    "serverless",
+    "aws"
+  ],
+  "author": "kimcoder",
+  "license": "ISC",
+  "dependencies": {
+    "next": "9.4.0",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "typescript": "3.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "13.13.5",
+    "@types/react": "16.9.35",
+    "@types/react-dom": "16.9.8",
+    "tslint": "6.1.2",
+    "tslint-config-standard": "9.0.0",
+    "tslint-react": "5.0.0"
+  }
+}
