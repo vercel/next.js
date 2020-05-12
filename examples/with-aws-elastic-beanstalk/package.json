@@ -1,0 +1,30 @@
+{
+  "name": "with-aws-elastic-beanstalk",
+  "version": "1.0.0",
+  "description": "Example to deploy Next.js app to AWS Elastic Beanstalk via Travis",
+  "main": "index.js",
+  "scripts": {
+    "dev": "NODE_ENV=development node ./server.js",
+    "build": "next build",
+    "start": "next start",
+    "deploy-staging": "NODE_ENV=staging next build && NODE_ENV=staging node ./server.js",
+    "deploy-production": "NODE_ENV=production next build && NODE_ENV=production node ./server.js"
+  },
+  "author": "chandu",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "next": "^9.0.5",
+    "react": "16.9.0",
+    "react-dom": "16.9.0"
+  },
+  "keywords": [
+    "next.js",
+    "nextjs",
+    "aws",
+    "elastic beanstalk",
+    "travis",
+    "express",
+    "deploy"
+  ]
+}
