@@ -92,6 +92,7 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
+    reactMode: config.experimental.reactMode,
   }
 
   Object.keys(pages).forEach(page => {

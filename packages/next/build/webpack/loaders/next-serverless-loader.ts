@@ -26,6 +26,7 @@ export type ServerlessLoaderQuery = {
   basePath: string
   runtimeConfig: string
   previewProps: string
+  reactMode: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -43,6 +44,7 @@ const nextServerlessLoader: loader.Loader = function() {
     basePath,
     runtimeConfig,
     previewProps,
+    reactMode,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -271,6 +273,7 @@ const nextServerlessLoader: loader.Loader = function() {
         previewProps: ${encodedPreviewProps},
         env: process.env,
         basePath: "${basePath}",
+        reactMode: "${reactMode}",
         ..._renderOpts
       }
       let _nextData = false

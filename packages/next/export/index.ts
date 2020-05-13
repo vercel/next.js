@@ -241,6 +241,7 @@ export default async function(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    reactMode: nextConfig.experimental.reactMode,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
