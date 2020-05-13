@@ -46,7 +46,7 @@ describe('Custom _error', () => {
       await fs.writeFile(page404, 'export default <h1>')
       const html = await renderViaHTTP(appPort, '/404')
       await fs.remove(page404)
-      expect(html).toContain('Module build failed')
+      expect(html).toContain('Syntax error')
       expect(stderr).not.toMatch(customErrNo404Match)
     })
   })
