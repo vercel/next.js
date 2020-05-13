@@ -205,7 +205,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     }
   }
 
-  let initialErr = err ? new ServerSideError(err) : null
+  let initialErr = err
 
   try {
     ;({ page: Component } = await pageLoader.loadPage(page))
@@ -291,10 +291,13 @@ export function renderError(props) {
       // FIXME: let's make this recoverable (error in GIP client-transition)
       webpackHMR.onUnrecoverableError()
 
-      const { getNodeError } = require('@next/react-dev-overlay/lib/client')
-      // Server-side runtime errors need to be re-thrown on the client-side so
-      // that the overlay is rendered.
-      if (err instanceof ServerSideError) {
+      const {
+        didHandleError,
+        getNodeError,
+      } = require('@next/react-dev-overlay/lib/client')
+      // All errors (even those from the server-side) should be handled by the
+      // overlay, so we rethrow errors that didn't pass through it already.
+      if (!didHandleError(err)) {
         setTimeout(() => {
           let error
           try {
@@ -531,12 +534,4 @@ async function doRender({ App, Component, props, err }) {
   )
 
   emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
-}
-
-class ServerSideError /* implements Error */ {
-  constructor(error) {
-    this.name = error.name
-    this.message = error.message
-    this.stack = error.stack
-  }
 }
