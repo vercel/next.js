@@ -3,13 +3,15 @@ import { getModuleBuildError } from './webpackModuleError'
 
 export class WellKnownErrorsPlugin {
   apply(compiler: Compiler) {
-    compiler.hooks.done.tapPromise('WellKnownErrorsPlugin', async stats => {
-      if (stats.hasErrors()) {
-        stats.compilation.errors = stats.compilation.errors.map(err => {
-          const moduleError = getModuleBuildError(stats.compilation, err)
-          return moduleError === false ? err : moduleError
-        })
-      }
+    compiler.hooks.compilation.tap('WellKnownErrorsPlugin', compilation => {
+      compilation.hooks.seal.tap('WellKnownErrorsPlugin', () => {
+        if (compilation.errors?.length) {
+          compilation.errors = compilation.errors.map(err => {
+            const moduleError = getModuleBuildError(compilation, err)
+            return moduleError === false ? err : moduleError
+          })
+        }
+      })
     })
   }
 }
