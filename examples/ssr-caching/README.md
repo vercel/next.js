@@ -5,8 +5,6 @@ That's what this example demonstrate.
 
 This app uses Next's [custom server and routing](https://github.com/zeit/next.js#custom-server-and-routing) mode. It also uses [express](https://expressjs.com/) to handle routing and page serving.
 
-Alternatively, see [the example using React ESI](../with-react-esi/).
-
 ## How to use
 
 ### Using `create-next-app`
