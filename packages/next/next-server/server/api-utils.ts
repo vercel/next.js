@@ -217,6 +217,7 @@ function matchETag(
     res.end()
     return 'matched'
   } else {
+    res.setHeader('ETag', etag)
     return 'not_matched'
   }
 }
