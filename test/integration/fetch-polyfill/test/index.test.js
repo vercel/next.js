@@ -85,11 +85,11 @@ function runTests() {
   it('includes polyfilled fetch when using getStaticPaths', async () => {
     const htmlA = await renderViaHTTP(appPort, '/user/a')
     const $a = cheerio.load(htmlA)
-    expect($a('#username')).toBe('a')
+    expect($a('#username').text()).toBe('a')
 
     const htmlB = await renderViaHTTP(appPort, '/user/b')
     const $b = cheerio.load(htmlB)
-    expect($b('#username')).toBe('b')
+    expect($b('#username').text()).toBe('b')
   })
 }
 

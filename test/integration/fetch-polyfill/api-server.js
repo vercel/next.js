@@ -18,7 +18,7 @@ const server = new http.Server(async (req, res) => {
     )
   }
 
-  if (req.url === '/usernames/a') {
+  if (req.url === '/usernames/b') {
     return res.end(
       JSON.stringify({
         from: 'b',
