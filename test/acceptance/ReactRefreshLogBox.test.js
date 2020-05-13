@@ -33,7 +33,13 @@ test('logbox: can recover from a syntax error without losing state', async () =>
   await session.patch('index.js', `export default () => <div/`)
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatch('SyntaxError')
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "./index.js:1:26
+    Syntax error: Unexpected token, expected \\"jsxTagEnd\\"
+
+    > 1 | export default () => <div/
+        |                           ^"
+  `)
 
   await session.patch(
     'index.js',
@@ -482,18 +488,33 @@ test('syntax > runtime error', async () => {
         i++
         throw Error('no ' + i)
       }, 1000)
-      export default function FunctionNamed() {
-    `
+      export default function FunctionNamed() {`
   )
 
   await new Promise(resolve => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatch('SyntaxError')
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "./index.js:8:47
+    Syntax error: Unexpected token
+
+      6 |         throw Error('no ' + i)
+      7 |       }, 1000)
+    > 8 |       export default function FunctionNamed() {
+        |                                                ^"
+  `)
 
   // Test that runtime error does not take over:
   await new Promise(resolve => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatch('SyntaxError')
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "./index.js:8:47
+    Syntax error: Unexpected token
+
+      6 |         throw Error('no ' + i)
+      7 |       }, 1000)
+    > 8 |       export default function FunctionNamed() {
+        |                                                ^"
+  `)
 
   await cleanup()
 })
@@ -600,8 +621,18 @@ test('unterminated JSX', async () => {
   expect(await session.hasRedbox(true)).toBe(true)
 
   const source = await session.getRedboxSource()
-  expect(source).not.toMatch('Unexpected token')
-  expect(source).toMatch('Unterminated JSX contents')
+  expect(source).toMatchInlineSnapshot(`
+    "./index.js:5:22
+    Syntax error: Unterminated JSX contents
+
+      3 |         return (
+      4 |           <div>
+    > 5 |             <p>lol</p>
+        |                       ^
+      6 |           div
+      7 |         )
+      8 |       }"
+  `)
 
   await cleanup()
 })
