@@ -105,8 +105,8 @@ describe('Chunking', () => {
 
   it('should not include more than one instance of react-dom', async () => {
     const misplacedReactDom = stats.chunks.some(chunk => {
-      if (chunk.names.includes('framework')) {
-        // disregard react-dom in framework--it's supposed to be there
+      if (chunk.names.includes('bootstrap')) {
+        // disregard react-dom in bootstrap--it's supposed to be there
         return false
       }
       return chunk.modules.some(module => {

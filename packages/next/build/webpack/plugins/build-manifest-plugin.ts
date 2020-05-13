@@ -136,6 +136,7 @@ export default class BuildManifestPlugin {
           assetMap.pages[`/${pagePath.replace(/\\/g, '/')}`] = [
             ...filesForEntry,
             ...mainJsFiles,
+            ...bootstrapFiles,
           ]
         }
 
@@ -143,9 +144,8 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
-        // Create separate entries for polyfills and bootstrap
+        // Create a separate entry for polyfills
         assetMap.pages['/_polyfills'] = polyfillFiles
-        assetMap.pages['/_bootstrap'] = bootstrapFiles
 
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
