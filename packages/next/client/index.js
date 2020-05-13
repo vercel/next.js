@@ -388,7 +388,9 @@ function renderReactElement(reactEl) {
       if (ST) {
         performance.mark('beforeRender')
       }
-      const innerCallback = isInitialRender ? markHydrateComplete : markRenderComplete
+      const innerCallback = isInitialRender
+        ? markHydrateComplete
+        : markRenderComplete
       callback = () => {
         if (isInitialRender && onPerfEntry && ST) {
           measureWebVitals(onPerfEntry)
