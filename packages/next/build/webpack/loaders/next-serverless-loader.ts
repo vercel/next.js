@@ -199,12 +199,12 @@ const nextServerlessLoader: loader.Loader = function () {
           console.error(err)
           await onError(err)
 
+          // TODO: better error for DECODE_FAILED?
           if (err.code === 'DECODE_FAILED') {
             res.statusCode = 400
             res.end('Bad Request')
           } else {
-            res.statusCode = 500
-            res.end('Internal Server Error')
+            throw err
           }
         }
       }
@@ -390,10 +390,11 @@ const nextServerlessLoader: loader.Loader = function () {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
         } else if (err.code === 'DECODE_FAILED') {
+          // TODO: better error?
           res.statusCode = 400
         } else {
           console.error(err)
-          res.statusCode = 500
+          throw err
         }
 
         const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
@@ -414,10 +415,9 @@ const nextServerlessLoader: loader.Loader = function () {
           sendHTML(req, res, html, {generateEtags: ${generateEtags}})
         }
       } catch(err) {
-        await onError(err)
         console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
+        await onError(err)
+        throw err
       }
     }
   `
