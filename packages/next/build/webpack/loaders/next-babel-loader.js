@@ -2,9 +2,9 @@ import babelLoader from 'next/dist/compiled/babel-loader'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
 
-// increment 'k' to invalidate cache
+// increment 'l' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'k' + '-'
+const cacheKey = 'babel-cache-' + 'l' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
