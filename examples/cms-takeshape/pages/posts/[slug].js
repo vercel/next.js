@@ -59,7 +59,7 @@ export default function Post({ post, morePosts, preview }) {
   )
 }
 
-export async function getStaticProps({ params, preview = null }) {
+export async function getStaticProps({ params, preview = false }) {
   const data = await getPostAndMorePosts(params.slug, preview)
   const content = await markdownToHtml(
     (data?.post?.items || [])[0]?.content || ''
@@ -72,7 +72,7 @@ export async function getStaticProps({ params, preview = null }) {
         ...(data?.post?.items || [])[0],
         content,
       },
-      morePosts: data?.morePosts.items,
+      morePosts: data?.morePosts.items ?? [],
     },
   }
 }
