@@ -488,33 +488,32 @@ test('syntax > runtime error', async () => {
         i++
         throw Error('no ' + i)
       }, 1000)
-      export default function FunctionNamed() {
-    `
+      export default function FunctionNamed() {`
   )
 
   await new Promise(resolve => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "./index.js:9:4
+    "./index.js:8:47
     Syntax error: Unexpected token
 
+      6 |         throw Error('no ' + i)
       7 |       }, 1000)
-      8 |       export default function FunctionNamed() {
-    > 9 |
-        |     ^"
+    > 8 |       export default function FunctionNamed() {
+        |                                                ^"
   `)
 
   // Test that runtime error does not take over:
   await new Promise(resolve => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "./index.js:9:4
+    "./index.js:8:47
     Syntax error: Unexpected token
 
+      6 |         throw Error('no ' + i)
       7 |       }, 1000)
-      8 |       export default function FunctionNamed() {
-    > 9 |
-        |     ^"
+    > 8 |       export default function FunctionNamed() {
+        |                                                ^"
   `)
 
   await cleanup()
