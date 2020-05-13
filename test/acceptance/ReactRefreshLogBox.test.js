@@ -713,3 +713,50 @@ test('conversion to class component (1)', async () => {
 
   await cleanup()
 })
+
+test('css syntax errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.write('index.module.css', `.button {}`)
+  await session.patch(
+    'index.js',
+    `
+      import './index.module.css';
+      export default () => {
+        return (
+          <div>
+            <p>lol</p>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+
+  // Syntax error
+  await session.patch('index.module.css', `.button {`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.module.css:1:1
+    Syntax error: Unclosed block
+
+    > 1 | .button {
+        | ^"
+  `)
+
+  // Not local error
+  await session.patch('index.module.css', `button {}`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source2 = await session.getRedboxSource()
+  expect(source2).toMatchInlineSnapshot(`
+    "./index.module.css:1:1
+    Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+
+    > 1 | button {}
+        | ^"
+  `)
+
+  await cleanup()
+})

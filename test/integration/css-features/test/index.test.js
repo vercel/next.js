@@ -150,7 +150,7 @@ describe('Custom Properties: Fail for :root {} in CSS Modules', () => {
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
-    expect(stderr).toContain('CssSyntax error: Selector ":root" is not pure')
+    expect(stderr).toContain('Selector ":root" is not pure')
   })
 })
 
@@ -168,7 +168,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
-    expect(stderr).toContain('CssSyntax error: Selector "h1" is not pure')
+    expect(stderr).toContain('Selector "h1" is not pure')
   })
 })
 
@@ -218,6 +218,6 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
-    expect(stderr).toContain('CssSyntax error: Selector "a" is not pure')
+    expect(stderr).toContain('Selector "a" is not pure')
   })
 })
