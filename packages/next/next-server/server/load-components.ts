@@ -24,6 +24,7 @@ export type ManifestItem = {
   name: string
   file: string
   publicPath: string
+  css: string[]
 }
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
