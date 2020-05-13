@@ -392,10 +392,10 @@ function renderReactElement(reactEl) {
         ? markHydrateComplete
         : markRenderComplete
       callback = () => {
+        innerCallback()
         if (isInitialRender && onPerfEntry && ST) {
           measureWebVitals(onPerfEntry)
         }
-        innerCallback()
       }
     }
     return {
