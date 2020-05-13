@@ -205,7 +205,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     }
   }
 
-  let initialErr = err ? new ServerSideError(err) : null
+  let initialErr = err
 
   try {
     ;({ page: Component } = await pageLoader.loadPage(page))
@@ -548,12 +548,4 @@ async function doRender({ App, Component, props, err }) {
   )
 
   emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
-}
-
-class ServerSideError /* implements Error */ {
-  constructor(error) {
-    this.name = error.name
-    this.message = error.message
-    this.stack = error.stack
-  }
 }

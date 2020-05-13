@@ -3,6 +3,7 @@ import * as Bus from './internal/bus'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
+let handledErrors = new WeakSet()
 
 function onUnhandledError(ev: ErrorEvent) {
   const error = ev?.error
@@ -12,6 +13,7 @@ function onUnhandledError(ev: ErrorEvent) {
   }
 
   const e = error
+  handledErrors.add(e)
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
@@ -31,6 +33,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   }
 
   const e = reason
+  handledErrors.add(e)
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_REJECTION,
     reason: reason,
@@ -83,6 +86,17 @@ function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFFRESH })
 }
 
+function didHandleError(e: any) {
+  return handledErrors.has(e)
+}
+
 export { getNodeError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export { onBuildOk, onBuildError, register, unregister, onRefresh }
+export {
+  onBuildOk,
+  onBuildError,
+  register,
+  unregister,
+  onRefresh,
+  didHandleError,
+}
