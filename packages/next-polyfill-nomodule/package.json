@@ -16,7 +16,7 @@
     "core-js": "3.6.5",
     "microbundle": "0.11.0",
     "object-assign": "4.1.1",
-    "url-polyfill": "1.1.8",
+    "url-polyfill": "1.1.9",
     "whatwg-fetch": "3.0.0"
   }
 }
