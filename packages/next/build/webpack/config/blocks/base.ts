@@ -14,10 +14,11 @@ export const base = curry(function base(
   config.devtool = ctx.isDevelopment
     ? ctx.isReactRefreshEnabled
       ? ctx.isServer
-        ? // Non-eval based source maps are very slow to rebuild, so we only
-          // enable them for the server. Unfortunately, eval source maps are
-          // not supported by Node.js.
-          'inline-source-map'
+        ? // // Non-eval based source maps are very slow to rebuild, so we only
+          // // enable them for the server. Unfortunately, eval source maps are
+          // // not supported by Node.js.
+          // 'inline-source-map'
+          false // temporarily disabled because they're not used
         : // `eval-source-map` provides full-fidelity source maps for the
           // original source, including columns and original variable names.
           // This is desirable so the in-browser debugger can correctly pause
