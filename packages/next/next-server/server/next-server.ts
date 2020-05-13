@@ -64,14 +64,7 @@ import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
-import fetch from 'next/dist/compiled/node-fetch'
-
-// @ts-ignore fetch exists globally
-if (!global.fetch) {
-  // Polyfill fetch() in the Node.js environment
-  // @ts-ignore fetch exists globally
-  global.fetch = fetch
-}
+import './node-polyfill-fetch'
 
 const getCustomRouteMatcher = pathMatch(true)
 
