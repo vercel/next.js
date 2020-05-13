@@ -24,6 +24,20 @@ const server = http.createServer((req, res) => {
     )
   }
 
+  if (req.url === '/user/a') {
+    return send(
+      req,
+      path.join(__dirname, '.next/serverless/pages/user/a.html')
+    ).pipe(res)
+  }
+
+  if (req.url === '/user/b') {
+    return send(
+      req,
+      path.join(__dirname, '.next/serverless/pages/user/b.html')
+    ).pipe(res)
+  }
+
   if (req.url === '/static') {
     return send(
       req,

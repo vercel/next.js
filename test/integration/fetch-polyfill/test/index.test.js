@@ -13,6 +13,7 @@ import {
   nextStart,
 } from 'next-test-utils'
 import clone from 'clone'
+import cheerio from 'cheerio'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '../')
@@ -79,6 +80,16 @@ function runTests() {
     const json = await res.json()
 
     expect(json.foo).toBe('bar')
+  })
+
+  it('includes polyfilled fetch when using getStaticPaths', async () => {
+    const htmlA = await renderViaHTTP(appPort, '/user/a')
+    const $a = cheerio.load(htmlA)
+    expect($a('#username').text()).toBe('a')
+
+    const htmlB = await renderViaHTTP(appPort, '/user/b')
+    const $b = cheerio.load(htmlB)
+    expect($b('#username').text()).toBe('b')
   })
 }
 
