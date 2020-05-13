@@ -606,7 +606,7 @@ test('unterminated JSX', async () => {
   await cleanup()
 })
 
-test.only('conversion to class component (1)', async () => {
+test('conversion to class component (1)', async () => {
   const [session, cleanup] = await sandbox()
 
   await session.write(
