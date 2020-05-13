@@ -294,7 +294,7 @@ export function renderError(props) {
       const { getNodeError } = require('@next/react-dev-overlay/lib/client')
       // Server-side runtime errors need to be re-thrown on the client-side so
       // that the overlay is rendered.
-      if (!(err instanceof ServerSideError)) {
+      if (err instanceof ServerSideError) {
         setTimeout(() => {
           let error
           try {
