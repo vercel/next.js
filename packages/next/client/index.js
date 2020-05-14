@@ -307,6 +307,12 @@ export async function render(props) {
   try {
     await doRender(props)
   } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      // Ensure this error is displayed in the overlay in development
+      setTimeout(() => {
+        throw err
+      })
+    }
     await renderError({ ...props, err })
   }
 }
