@@ -28,7 +28,9 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
         params[slugName] = ~m.indexOf('/')
           ? m.split('/').map(entry => decode(entry))
           : g.repeat
-          ? [decode(m)]
+          ? m
+            ? [decode(m)]
+            : []
           : decode(m)
       }
     })

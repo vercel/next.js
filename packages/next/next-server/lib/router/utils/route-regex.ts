@@ -20,6 +20,10 @@ export function getRouteRegex(
   const parameterizedRoute = escapedRoute.replace(
     /\/\\\[([^/]+?)\\\](?=\/|$)/g,
     (_, $1) => {
+      const isOptional = /^\\\[.*\\\]$/.test($1)
+      if (isOptional) {
+        $1 = $1.slice(2, -2)
+      }
       const isCatchAll = /^(\\\.){3}/.test($1)
       groups[
         $1
@@ -28,7 +32,7 @@ export function getRouteRegex(
           .replace(/^\.{3}/, '')
         // eslint-disable-next-line no-sequences
       ] = { pos: groupIndex++, repeat: isCatchAll }
-      return isCatchAll ? '/(.+?)' : '/([^/]+?)'
+      return isOptional ? '/(.*?)' : isCatchAll ? '/(.+?)' : '/([^/]+?)'
     }
   )
 
