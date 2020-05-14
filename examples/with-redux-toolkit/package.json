@@ -7,13 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "@reduxjs/toolkit": "^1.2.5",
+    "@reduxjs/toolkit": "^1.3.6",
     "next": "latest",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0",
-    "react-redux": "^7.1.0",
-    "redux": "^3.6.0",
-    "redux-devtools-extension": "^2.13.2"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-redux": "^7.2.0",
+    "redux": "^4.0.5"
   },
   "license": "ISC"
 }
