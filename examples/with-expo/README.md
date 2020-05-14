@@ -10,14 +10,13 @@ This is a starter project for creating universal React apps with Next.js and Exp
 
 ![iOS, Android, and web running with Expo and Next.js](./public/demo.png)
 
-You can run the native app using the [Expo client app](https://expo.io/tools), or by running `yarn eject` and building the project manually (this requires a macbook for iOS).
-
 - Next.js cannot be used for SSR in your native app.
 - The native bundle is built using the [Metro bundler](https://facebook.github.io/metro/) and may not have the same level of optimization as the web bundle which is compiled using the Next.js Webpack configuration.
 - Expo transpiles `react-native-web` packages by default to enable the use of `react-native` in a browser or Node.js environment.
 - All [Expo packages](https://docs.expo.io/versions/latest/) work in the browser. If you experience issues using them in a Node environment, please report them here: [Expo issues](https://github.com/expo/expo/issues).
 - Most community `react-native-*` packages do not support web, please refer to [reactnative.directory](https://reactnative.directory/?web=true) for a list of web compatible packages.
-- Eject the `pages/_document` component by running `yarn next-expo customize`
+- Eject the `pages/_document` component by running `yarn next-expo customize`.
+- To use fonts and images, see [the Expo docs](https://docs.expo.io/guides/using-nextjs/#image-support).
 
 ## Deploy your own
 
@@ -28,6 +27,18 @@ Deploy the example using [Vercel](https://vercel.com) (web only):
 Deploy the native app to the App store and Play store using [Expo deployment](https://docs.expo.io/distribution/app-stores/).
 
 ## How to use
+
+**Web**
+
+- Start the Next.js project with `yarn dev` (`yarn next dev`).
+
+> Using default Expo web with Next.js is not supported. 
+
+**Native**
+
+- Install the Expo CLI `npm i -g expo-cli`.
+- Start the Metro bundler with `yarn ios` or `yarn android` -- This runs `expo start` with the Expo CLI. 
+- You can run the mobile app using the [Expo client app](https://expo.io/tools), or by running `yarn eject` and building the project manually (this requires a macbook for iOS).
 
 ### Using `create-next-app`
 
