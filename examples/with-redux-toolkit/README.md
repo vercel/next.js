@@ -1,8 +1,8 @@
 # Redux Toolkit example
 
-This example shows how to integrate Redux with Toolkit in Next.js.
+This example shows how to integrate Next.js with [Redux Toolkit](https://redux-toolkit.js.org).
 
-Redux toolkit makes it easier to configure a redux store, create reducers or dispatch actions, along with some default middlewares. This example demonstrates each of these tasks with Next.js
+The **Redux Toolkit** is intended to be the standard way to write Redux logic (create actions and reducers, setup the store with some default middlewares like redux devtools extension). This example demonstrates each of these features with Next.js
 
 ## Deploy your own
 
@@ -17,9 +17,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-redux-toolkit with-redux-toolkit-app
+npx create-next-app --example with-redux-toolkit with-redux-toolkit
 # or
-yarn create next-app --example with-redux-toolkit with-redux-toolkit-app
+yarn create next-app --example with-redux-toolkit with-redux-toolkit
 ```
 
 ### Download manually
