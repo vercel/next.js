@@ -1,5 +1,3 @@
-import styles from /* webpackChunkName: 'with-css' */ './with-css.module.css'
+import styles from './with-css.module.css'
 
-export default () => (
-  <p className={styles.content}>Rendered SSR with CSS bundle in static</p>
-)
+export default () => <p className={styles.content}>With CSS</p>

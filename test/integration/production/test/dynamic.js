@@ -12,13 +12,18 @@ export default (context, render) => {
   describe('Dynamic import', () => {
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
-        const $ = await get$('/dynamic/with-css')
-        console.log($('body').html())
-      })
-
-      it('should render dynamic import components and insert their css files', async () => {
         const $ = await get$('/dynamic/ssr')
         expect($('body').text()).toMatch(/Hello World 1/)
+      })
+
+      it('should render dynamic import components and load their css files', async () => {
+        const $ = await get$('/dynamic/with-css')
+        expect($.html()).toMatch(/rel="stylesheet"/)
+      })
+
+      it('should render dynamic import components without any css files', async () => {
+        const $ = await get$('/dynamic/without-css')
+        expect($.html()).not.toMatch(/rel="stylesheet"/)
       })
 
       it('should render even there are no physical chunk exists', async () => {
