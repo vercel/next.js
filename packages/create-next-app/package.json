@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "9.3.5-canary.6",
+  "version": "9.4.1-canary.4",
   "keywords": [
     "react",
     "next",
@@ -12,7 +12,7 @@
     "url": "https://github.com/zeit/next.js",
     "directory": "packages/create-next-app"
   },
-  "author": "Next.js Team <support@zeit.co>",
+  "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
   "bin": {
     "create-next-app": "./dist/index.js"
@@ -29,7 +29,9 @@
   "devDependencies": {
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
+    "@types/rimraf": "3.0.0",
     "@types/tar": "4.0.3",
+    "@types/validate-npm-package-name": "3.0.0",
     "@zeit/ncc": "^0.20.4",
     "chalk": "2.4.2",
     "commander": "2.20.0",
@@ -40,8 +42,8 @@
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
     "tar": "4.4.10",
-    "typescript": "3.7.3",
-    "update-check": "1.5.3",
+    "typescript": "3.8.3",
+    "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   }
 }

@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   findPort,
   getBrowserBodyText,
+  getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
@@ -47,24 +48,36 @@ const expectedManifestRoutes = () => [
     page: '/blog',
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/blog/(?<post>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]',
+    routeKeys: ['post'],
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
       )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]/[comment]',
+    routeKeys: ['post', 'comment'],
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/catchall/(?<path>.+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
     ),
     page: '/catchall/[...path]',
+    routeKeys: ['path'],
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -103,12 +116,16 @@ const expectedManifestRoutes = () => [
     page: '/something',
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/user/(?<user>[^/]+?)/profile\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
       )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
     ),
     page: '/user/[user]/profile',
+    routeKeys: ['user'],
   },
 ]
 
@@ -455,7 +472,7 @@ const runTests = (dev = false) => {
       await browser.elementByCss('#non-json').click()
 
       await check(
-        () => getBrowserBodyText(browser),
+        () => getRedboxHeader(browser),
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })

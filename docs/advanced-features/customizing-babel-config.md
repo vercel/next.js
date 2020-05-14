@@ -57,4 +57,4 @@ To learn more about the available options for each config, visit their documenta
 
 > Next.js uses the **current** Node.js version for server-side compilations.
 
-> The `modules` option on `"preset-env"` should be kept to `false`, otherwise webpack code splitting is disabled.
+> The `modules` option on `"preset-env"` should be kept to `false`, otherwise webpack code splitting is turned off.

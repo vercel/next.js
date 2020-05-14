@@ -87,7 +87,7 @@ Router.push(url, as, options)
 - `url` - The URL to navigate to. This is usually the name of a `page`
 - `as` - Optional decorator for the URL that will be shown in the browser. Defaults to `url`
 - `options` - Optional object with the following configuration options:
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning `getServerSideProps` or `getInitialProps`. Defaults to `false`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
 > You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
@@ -127,7 +127,7 @@ import Router from 'next/router'
 const handler = () => {
   Router.push({
     pathname: '/about',
-    query: { name: 'Zeit' },
+    query: { name: 'Vercel' },
   })
 }
 
@@ -154,6 +154,59 @@ Router.replace('/home')
 
 The API for `Router.replace` is exactly the same as that used for [`Router.push`](#router.push).
 
+### Router.prefetch
+
+Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
+
+> This is a production only feature. Next.js doesn't prefetch pages on development.
+
+```jsx
+import Router from 'next/router'
+
+Router.prefetch(url, as)
+```
+
+- `url` - The path to a `page` inside the `pages` directory
+- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes). Defaults to `url`
+
+#### Usage
+
+Let's say you have a login page, and after a login, you redirect the user to the dashboard. For that case, we can prefetch the dashboard to make a faster transition, like in the following example:
+
+```jsx
+import { useCallback, useEffect } from 'react'
+import Router from 'next/router'
+
+export default function Login() {
+  const handleSubmit = useCallback(e => {
+    e.preventDefault()
+
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        /* Form data */
+      }),
+    }).then(res => {
+      // Do a fast client-side transition to the already prefetched dashboard page
+      if (res.ok) Router.push('/dashboard')
+    })
+  }, [])
+
+  useEffect(() => {
+    // Prefetch the dashboard page as the user will go there after the login
+    Router.prefetch('/dashboard')
+  }, [])
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+      <button type="submit">Login</button>
+    </form>
+  )
+}
+```
+
 ### Router.beforePopState
 
 In some cases (for example, if using a [Custom Server](/docs/advanced-features/custom-server.md)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
@@ -177,12 +230,32 @@ Router.beforePopState(({ url, as, options }) => {
 
 `Router.beforePopState(cb: () => boolean)`
 
-- `cb` - The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
+- `cb` - The function to run on incoming `popstate` events. The function receives the state of the event as an object with the following props:
   - `url`: `String` - the route for the new state. This is usually the name of a `page`
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [Router.push](#router.push)
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
+
+### Router.back
+
+Navigate back in history. Equivalent to clicking the browser’s back button. It executes `window.history.back()`.
+
+```jsx
+import Router from 'next/router'
+
+Router.back()
+```
+
+### Router.reload
+
+Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.
+
+```jsx
+import Router from 'next/router'
+
+Router.reload()
+```
 
 ### Router.events
 

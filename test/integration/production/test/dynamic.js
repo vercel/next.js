@@ -144,7 +144,7 @@ export default (context, render) => {
 
         while (true) {
           const bodyText = await browser.elementByCss('body').text()
-          if (/ZEIT Rocks/.test(bodyText)) break
+          if (/Vercel Rocks/.test(bodyText)) break
           await waitFor(1000)
         }
 
