@@ -55,8 +55,6 @@ function buildManifest(
             file
           )
 
-          // Does it need to be url.resolved?
-          // Will it be singular file or array?
           const css = chunk.files.filter(
             (chunkFile: string) =>
               chunkFile.match(/\.css$/) && chunkFile.match(/^static\/css\//)
