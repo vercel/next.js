@@ -169,7 +169,31 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
+
+    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    // Server-side runtime errors need to be re-thrown on the client-side so
+    // that the overlay is rendered.
+    if (err) {
+      setTimeout(() => {
+        let error
+        try {
+          // Generate a new error object. We `throw` it because some browsers
+          // will set the `stack` when thrown, and we want to ensure ours is
+          // not overridden when we re-throw it below.
+          throw new Error(err.message)
+        } catch (e) {
+          error = e
+        }
+
+        error.name = err.name
+        error.stack = err.stack
+
+        const node = getNodeError(error)
+        throw node
+      })
+    }
   }
+
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
 
@@ -290,29 +314,6 @@ export function renderError(props) {
       // A Next.js rendering runtime error is always unrecoverable
       // FIXME: let's make this recoverable (error in GIP client-transition)
       webpackHMR.onUnrecoverableError()
-
-      const { getNodeError } = require('@next/react-dev-overlay/lib/client')
-      // Server-side runtime errors need to be re-thrown on the client-side so
-      // that the overlay is rendered.
-      if (isInitialRender) {
-        setTimeout(() => {
-          let error
-          try {
-            // Generate a new error object. We `throw` it because some browsers
-            // will set the `stack` when thrown, and we want to ensure ours is
-            // not overridden when we re-throw it below.
-            throw new Error(err.message)
-          } catch (e) {
-            error = e
-          }
-
-          error.name = err.name
-          error.stack = err.stack
-
-          const node = getNodeError(error)
-          throw node
-        })
-      }
 
       // We need to render an empty <App> so that the `<ReactDevOverlay>` can
       // render itself.
