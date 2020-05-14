@@ -28,18 +28,6 @@ Deploy the native app to the App store and Play store using [Expo deployment](ht
 
 ## How to use
 
-**Web**
-
-- Start the Next.js project with `yarn dev` (`yarn next dev`).
-
-> Using default Expo web with Next.js is not supported. 
-
-**Native**
-
-- Install the Expo CLI `npm i -g expo-cli`.
-- Start the Metro bundler with `yarn ios` or `yarn android` -- This runs `expo start` with the Expo CLI. 
-- You can run the mobile app using the [Expo client app](https://expo.io/tools), or by running `yarn eject` and building the project manually (this requires a macbook for iOS).
-
 ### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
@@ -50,16 +38,21 @@ npx create-next-app --example with-expo with-expo-app
 yarn create next-app --example with-expo with-expo-app
 ```
 
-### Download manually
+### Running web
 
-Download the example:
+> 🚨 Using default Expo web with Next.js is not supported. 
 
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-expo
-cd with-expo
-```
+- Start the Next.js project with `yarn dev` (`yarn next dev`).
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy the web app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+### Running native
+
+- Install the Expo CLI `npm i -g expo-cli`.
+- Start the Metro bundler with `yarn ios` or `yarn android` -- This runs `expo start` with the Expo CLI. 
+- You can run the mobile app using the [Expo client app](https://expo.io/tools), or by running `yarn eject` and building the project manually (this requires a macbook for iOS).
+
+Deploy the native app to the App store and Play store using [Expo deployment](https://docs.expo.io/distribution/app-stores/).
 
 ## Troubleshooting
 
