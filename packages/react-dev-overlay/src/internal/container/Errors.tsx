@@ -14,6 +14,7 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
+import { isNodeError } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import {
   getOriginalStackFrames,
@@ -210,6 +211,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     )
   }
 
+  const isServerError = isNodeError(activeError.error)
   return (
     <Overlay>
       <Dialog
@@ -231,10 +233,22 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
             </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">Unhandled Runtime Error</h1>
+            <h1 id="nextjs__container_errors_label">
+              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+            </h1>
             <p id="nextjs__container_errors_desc">
               {activeError.error.name}: {activeError.error.message}
             </p>
+            {isServerError ? (
+              <div>
+                <small>
+                  This error happened while generating the page. Any console
+                  logs will be displayed in the terminal window.
+                </small>
+              </div>
+            ) : (
+              undefined
+            )}
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             <RuntimeError key={activeError.id.toString()} error={activeError} />
@@ -270,6 +284,10 @@ export const styles = css`
     margin-top: var(--size-gap-half);
     color: var(--color-ansi-red);
     white-space: pre-wrap;
+  }
+  .nextjs-container-errors-header > div > small {
+    margin: 0;
+    margin-top: var(--size-gap-half);
   }
 
   .nextjs-container-errors-body > h5:not(:first-child) {

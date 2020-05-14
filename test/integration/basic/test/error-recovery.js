@@ -201,10 +201,15 @@ export default (context, renderViaHTTP) => {
           'export default {};\nexport const fn ='
         )
 
-        await check(
-          () => getRedboxHeader(browser),
-          /The default export is not a React Component/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         aboutPage.restore()
 
@@ -241,10 +246,22 @@ export default (context, renderViaHTTP) => {
           'export default () => /search/;\nexport const fn ='
         )
 
-        await check(
-          () => getRedboxHeader(browser),
-          /Objects are not valid as a React child/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: Objects are not valid as a React child (found: /search/). If you meant to render a collection of children, use an array instead.
+              in Unknown
+              in App
+              in Unknown
+              in Context.Provider
+              in Context.Provider
+              in Context.Provider
+              in AppContainer
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         aboutPage.restore()
 
@@ -281,14 +298,20 @@ export default (context, renderViaHTTP) => {
           'export default undefined;\nexport const fn ='
         )
 
-        await check(async () => {
-          const txt = await getRedboxHeader(browser)
-          return txt
-        }, /The default export is not a React Component/)
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         aboutPage.restore()
 
         await check(() => getBrowserBodyText(browser), /This is the about page/)
+        expect(await hasRedbox(browser, false)).toBe(false)
       } catch (err) {
         aboutPage.restore()
 
@@ -317,9 +340,12 @@ export default (context, renderViaHTTP) => {
         await browser.elementByCss('#error-in-gip-link').click()
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /an-expected-error-in-gip/
-        )
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Unhandled Runtime Error
+
+          Error: an-expected-error-in-gip"
+        `)
 
         erroredPage.replace('throw error', 'return {}')
 
@@ -356,9 +382,14 @@ export default (context, renderViaHTTP) => {
         browser = await webdriver(context.appPort, '/hmr/error-in-gip')
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /an-expected-error-in-gip/
-        )
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: an-expected-error-in-gip
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         const erroredPage = new File(
           join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js')
