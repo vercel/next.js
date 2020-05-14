@@ -4,7 +4,7 @@ import { createAction, createReducer } from '@reduxjs/toolkit';
  * @param {boolean} light
  * @returns {Object}
  */
-export const tick = createAction('tick', function prepare(light) {
+export const tick = createAction('clock/tick', function prepare(light) {
   return {
     payload: {
       light,
