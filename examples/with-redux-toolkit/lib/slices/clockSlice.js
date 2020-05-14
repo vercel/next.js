@@ -26,9 +26,6 @@ const clockReducer = createReducer(
   },
 );
 
-export const selectClock = state => ({
-  lastUpdate: state.clock.lastUpdate,
-  light: state.clock.light,
-});
+export const selectClock = state => state.clock;
 
 export default clockReducer;

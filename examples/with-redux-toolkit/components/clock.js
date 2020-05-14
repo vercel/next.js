@@ -1,5 +1,5 @@
 import React from 'react';
-import { shallowEqual, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 
 import { selectClock } from '../lib/slices/clockSlice';
 
@@ -9,7 +9,7 @@ const formatTime = time => {
 };
 
 const Clock = () => {
-  const { lastUpdate, light } = useSelector(selectClock, shallowEqual);
+  const { lastUpdate, light } = useSelector(selectClock);
 
   return (
     <div className={light ? 'light' : ''}>
