@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit'
 
 const clockSlice = createSlice({
   name: 'clock',
@@ -8,14 +8,14 @@ const clockSlice = createSlice({
   },
   reducers: {
     tick: (state, action) => {
-      state.lastUpdate = action.payload.lastUpdate;
-      state.light = !!action.payload.light;
+      state.lastUpdate = action.payload.lastUpdate
+      state.light = !!action.payload.light
     },
   },
-});
+})
 
-export const selectClock = state => state.clock;
+export const selectClock = (state) => state.clock
 
-export const { tick } = clockSlice.actions;
+export const { tick } = clockSlice.actions
 
-export default clockSlice.reducer;
+export default clockSlice.reducer

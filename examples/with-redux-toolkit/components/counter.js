@@ -1,20 +1,25 @@
-import React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 
-import { decrement, increment, reset, selectCount } from '../lib/slices/counterSlice';
+import {
+  decrement,
+  increment,
+  reset,
+  selectCount,
+} from '../lib/slices/counterSlice'
 
 const Counter = () => {
-  const dispatch = useDispatch();
-  const count = useSelector(selectCount);
+  const dispatch = useDispatch()
+  const count = useSelector(selectCount)
 
   function dispatchIncrement() {
-    dispatch(increment());
+    dispatch(increment())
   }
   function dispatchDecrement() {
-    dispatch(decrement());
+    dispatch(decrement())
   }
   function dispatchReset() {
-    dispatch(reset());
+    dispatch(reset())
   }
 
   return (
@@ -26,7 +31,7 @@ const Counter = () => {
       <button onClick={dispatchDecrement}>-1</button>
       <button onClick={dispatchReset}>Reset</button>
     </>
-  );
-};
+  )
+}
 
-export default Counter;
+export default Counter

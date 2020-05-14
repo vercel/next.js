@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit'
 
 const counterSlice = createSlice({
   name: 'counter',
@@ -10,17 +10,17 @@ const counterSlice = createSlice({
     // doesn't actually mutate the state because it uses the Immer library,
     // which detects changes to a "draft state" and produces a brand new
     // immutable state based off those changes
-    increment: state => {
-      state.value += 1;
+    increment: (state) => {
+      state.value += 1
     },
-    decrement: state => {
-      state.value -= 1;
+    decrement: (state) => {
+      state.value -= 1
     },
-    reset: state => {
-      state.value = 0;
+    reset: (state) => {
+      state.value = 0
     },
   },
-});
+})
 
 /**
  * Extract count from root state
@@ -28,8 +28,8 @@ const counterSlice = createSlice({
  * @param   {Object} state The root state
  * @returns {number} The current count
  */
-export const selectCount = state => state.counter.value;
+export const selectCount = (state) => state.counter.value
 
-export const { increment, decrement, reset } = counterSlice.actions;
+export const { increment, decrement, reset } = counterSlice.actions
 
-export default counterSlice.reducer;
+export default counterSlice.reducer
