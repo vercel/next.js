@@ -180,11 +180,29 @@ export class Head extends Component<
 
   context!: React.ContextType<typeof DocumentComponentContext>
 
+  getDynamicCssLinks() {
+    const { dynamicImports } = this.context._documentProps
+
+    return Object.keys(
+      dynamicImports
+        .map(({ css }: { css: string[] }) => css)
+        .reduce((accum: Record<string, boolean>, css: string[]) => {
+          const result = { ...accum }
+          if (css) {
+            css.forEach((link: string) => (result[link] = true))
+          }
+          return result
+        }, {})
+    )
+  }
+
   getCssLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const cssFiles =
       files && files.length ? files.filter(f => /\.css$/.test(f)) : []
+
+    cssFiles.push(...this.getDynamicCssLinks())
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach(file => {
