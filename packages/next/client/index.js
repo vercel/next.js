@@ -223,6 +223,40 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     initialErr = error
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    // Server-side runtime errors need to be re-thrown on the client-side so
+    // that the overlay is rendered.
+    if (initialErr) {
+      if (initialErr === err) {
+        setTimeout(() => {
+          let error
+          try {
+            // Generate a new error object. We `throw` it because some browsers
+            // will set the `stack` when thrown, and we want to ensure ours is
+            // not overridden when we re-throw it below.
+            throw new Error(initialErr.message)
+          } catch (e) {
+            error = e
+          }
+
+          error.name = initialErr.name
+          error.stack = initialErr.stack
+
+          const node = getNodeError(error)
+          throw node
+        })
+      }
+      // We replaced the server-side error with a client-side error, and should
+      // no longer rewrite the stack trace to a Node error.
+      else {
+        setTimeout(() => {
+          throw initialErr
+        })
+      }
+    }
+  }
+
   if (window.__NEXT_PRELOADREADY) {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
@@ -273,6 +307,12 @@ export async function render(props) {
   try {
     await doRender(props)
   } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      // Ensure this error is displayed in the overlay in development
+      setTimeout(() => {
+        throw err
+      })
+    }
     await renderError({ ...props, err })
   }
 }
@@ -290,29 +330,6 @@ export function renderError(props) {
       // A Next.js rendering runtime error is always unrecoverable
       // FIXME: let's make this recoverable (error in GIP client-transition)
       webpackHMR.onUnrecoverableError()
-
-      const { getNodeError } = require('@next/react-dev-overlay/lib/client')
-      // Server-side runtime errors need to be re-thrown on the client-side so
-      // that the overlay is rendered.
-      if (isInitialRender) {
-        setTimeout(() => {
-          let error
-          try {
-            // Generate a new error object. We `throw` it because some browsers
-            // will set the `stack` when thrown, and we want to ensure ours is
-            // not overridden when we re-throw it below.
-            throw new Error(err.message)
-          } catch (e) {
-            error = e
-          }
-
-          error.name = err.name
-          error.stack = err.stack
-
-          const node = getNodeError(error)
-          throw node
-        })
-      }
 
       // We need to render an empty <App> so that the `<ReactDevOverlay>` can
       // render itself.
