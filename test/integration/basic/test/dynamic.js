@@ -145,7 +145,6 @@ export default (context, render) => {
         const $ = await get$('/dynamic/chunkfilename')
         expect($('body').text()).toMatch(/test chunkfilename/)
         expect($('html').html()).toMatch(/hello-world\.js/)
-        expect($('html').html()).toMatch(/hello-world-css\.css/)
       })
 
       it('should render the component on client side', async () => {

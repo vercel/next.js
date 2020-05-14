@@ -12,6 +12,11 @@ export default (context, render) => {
   describe('Dynamic import', () => {
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
+        const $ = await get$('/dynamic/with-css')
+        console.log($('body').html())
+      })
+
+      it('should render dynamic import components and insert their css files', async () => {
         const $ = await get$('/dynamic/ssr')
         expect($('body').text()).toMatch(/Hello World 1/)
       })
