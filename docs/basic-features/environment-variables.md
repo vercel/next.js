@@ -47,6 +47,7 @@ npx cross-env NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
 
 - Trying to destructure `process.env` variables won't work due to the limitations of webpack's [DefinePlugin](https://webpack.js.org/plugins/define-plugin/).
 - To avoid exposing secrets, do not use the `NEXT_PUBLIC_` prefix for them. Instead, [expose the variables using `.env`](#exposing-environment-variables).
+- You cannot have `dotenv` installed in your project, as this will cause Next.js to disable the auto-loading of the environment variables. Look for and uninstall this package if your variables are showing up as `undefined`.
 
 ## Exposing Environment Variables
 
