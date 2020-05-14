@@ -100,8 +100,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -130,8 +130,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (pos.source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -188,8 +188,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         () => false
       )
       if (!fileExists) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
