@@ -169,29 +169,6 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
-
-    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
-    // Server-side runtime errors need to be re-thrown on the client-side so
-    // that the overlay is rendered.
-    if (err) {
-      setTimeout(() => {
-        let error
-        try {
-          // Generate a new error object. We `throw` it because some browsers
-          // will set the `stack` when thrown, and we want to ensure ours is
-          // not overridden when we re-throw it below.
-          throw new Error(err.message)
-        } catch (e) {
-          error = e
-        }
-
-        error.name = err.name
-        error.stack = err.stack
-
-        const node = getNodeError(error)
-        throw node
-      })
-    }
   }
 
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
@@ -245,6 +222,38 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   } catch (error) {
     // This catches errors like throwing in the top level of a module
     initialErr = error
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    // Server-side runtime errors need to be re-thrown on the client-side so
+    // that the overlay is rendered.
+    if (initialErr === err) {
+      setTimeout(() => {
+        let error
+        try {
+          // Generate a new error object. We `throw` it because some browsers
+          // will set the `stack` when thrown, and we want to ensure ours is
+          // not overridden when we re-throw it below.
+          throw new Error(initialErr.message)
+        } catch (e) {
+          error = e
+        }
+
+        error.name = initialErr.name
+        error.stack = initialErr.stack
+
+        const node = getNodeError(error)
+        throw node
+      })
+    }
+    // We replaced the server-side error with a client-side error, and should
+    // no longer rewrite the stack trace to a Node error.
+    else if (initialErr) {
+      setTimeout(() => {
+        throw initialErr
+      })
+    }
   }
 
   if (window.__NEXT_PRELOADREADY) {
