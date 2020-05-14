@@ -52,7 +52,7 @@ export function getOriginalStackFrame(
       .finally(() => {
         clearTimeout(tm)
       })
-    if (!res.ok) {
+    if (!res.ok || res.status === 204) {
       return Promise.reject(new Error(await res.text()))
     }
 
