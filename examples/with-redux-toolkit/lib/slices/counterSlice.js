@@ -28,7 +28,7 @@ const counterSlice = createSlice({
  * @param   {Object} state The root state
  * @returns {number} The current count
  */
-export const selectCount = state => state.count.value;
+export const selectCount = state => state.counter.value;
 
 export const { increment, decrement, reset } = counterSlice.actions;
 
