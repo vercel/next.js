@@ -40,7 +40,7 @@ yarn create next-app --example with-expo with-expo-app
 
 ### Running web
 
-> 🚨 Using default Expo web with Next.js is not supported. 
+> 🚨 Using default Expo web with Next.js is not supported.
 
 - Start the Next.js project with `yarn dev` (`yarn next dev`).
 
@@ -49,7 +49,7 @@ Deploy the web app to the cloud with [Vercel](https://vercel.com/import?filter=n
 ### Running native
 
 - Install the Expo CLI `npm i -g expo-cli`.
-- Start the Metro bundler with `yarn ios` or `yarn android` -- This runs `expo start` with the Expo CLI. 
+- Start the Metro bundler with `yarn ios` or `yarn android` -- This runs `expo start` with the Expo CLI.
 - You can run the mobile app using the [Expo client app](https://expo.io/tools), or by running `yarn eject` and building the project manually (this requires a macbook for iOS).
 
 Deploy the native app to the App store and Play store using [Expo deployment](https://docs.expo.io/distribution/app-stores/).
