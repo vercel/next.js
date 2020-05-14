@@ -1,3 +1,6 @@
+// This is not the correct way to implement the Next.js serverless target for production traffic
+// It is only used for testing cases of rendering specific pages in the integration test suite
+
 const path = require('path')
 const http = require('http')
 const send = require('send')
@@ -12,6 +15,27 @@ const server = http.createServer((req, res) => {
       req,
       res
     )
+  }
+
+  if (req.url === '/api/api-route') {
+    return require('./.next/serverless/pages/api/api-route.js').default(
+      req,
+      res
+    )
+  }
+
+  if (req.url === '/user/a') {
+    return send(
+      req,
+      path.join(__dirname, '.next/serverless/pages/user/a.html')
+    ).pipe(res)
+  }
+
+  if (req.url === '/user/b') {
+    return send(
+      req,
+      path.join(__dirname, '.next/serverless/pages/user/b.html')
+    ).pipe(res)
   }
 
   if (req.url === '/static') {
