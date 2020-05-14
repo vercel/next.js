@@ -1,0 +1,23 @@
+# @generated: @expo/next-adapter@2.1.5
+node_modules/**/*
+.expo/*
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+web-report/
+
+# debug
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# misc
+.DS_Store
+.env*
