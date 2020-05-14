@@ -7,11 +7,10 @@ import { tick } from '../lib/slices/clockSlice';
 import useInterval from '../lib/useInterval';
 
 const IndexPage = () => {
-  // Use state or dispatch here
   const dispatch = useDispatch();
   // Tick the time every second
   useInterval(() => {
-    dispatch(tick(true));
+    dispatch(tick({ light: true, lastUpdate: Date.now() }));
   }, 1000);
 
   return (
