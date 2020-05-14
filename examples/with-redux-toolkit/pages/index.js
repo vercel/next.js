@@ -1,32 +1,25 @@
-import React from 'react'
-import { createAction } from '@reduxjs/toolkit'
-import { connect } from 'react-redux'
-import useInterval from '../lib/useInterval'
-import Clock from '../components/clock'
-import Counter from '../components/counter'
+import React from 'react';
+import { connect } from 'react-redux';
 
-const tick = createAction('TICK', light => {
-  return {
-    payload: {
-      light: light,
-      lastUpdate: Date.now(),
-    },
-  }
-})
+import Clock from '../components/clock';
+import Counter from '../components/counter';
+import { tick } from '../lib/slices/clockSlice';
+import useInterval from '../lib/useInterval';
 
 const IndexPage = ({ dispatch }) => {
   // Use state or dispatch here
 
   // Tick the time every second
   useInterval(() => {
-    dispatch(tick(true))
-  }, 1000)
+    dispatch(tick(true));
+  }, 1000);
+
   return (
     <>
       <Clock />
       <Counter />
     </>
-  )
-}
+  );
+};
 
-export default connect(state => state)(IndexPage)
+export default connect(state => state)(IndexPage);

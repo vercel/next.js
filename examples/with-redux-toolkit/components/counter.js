@@ -1,29 +1,32 @@
-import React from 'react'
-import { createAction } from '@reduxjs/toolkit'
-import { useSelector, useDispatch } from 'react-redux'
+import React from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
-const useCounter = () => {
-  const count = useSelector(state => state.count)
-  const dispatch = useDispatch()
-  const increment = () => dispatch(createAction('INCREMENT')())
-  const decrement = () => dispatch(createAction('DECREMENT')())
-  const reset = () => dispatch(createAction('RESET')())
-
-  return { count, increment, decrement, reset }
-}
+import { decrement, increment, reset, selectCount } from '../lib/slices/counterSlice';
 
 const Counter = () => {
-  const { count, increment, decrement, reset } = useCounter()
+  const dispatch = useDispatch();
+  const count = useSelector(selectCount);
+
+  function dispatchIncrement() {
+    dispatch(increment());
+  }
+  function dispatchDecrement() {
+    dispatch(decrement());
+  }
+  function dispatchReset() {
+    dispatch(reset());
+  }
+
   return (
-    <div>
+    <>
       <h1>
         Count: <span>{count}</span>
       </h1>
-      <button onClick={increment}>+1</button>
-      <button onClick={decrement}>-1</button>
-      <button onClick={reset}>Reset</button>
-    </div>
-  )
-}
+      <button onClick={dispatchIncrement}>+1</button>
+      <button onClick={dispatchDecrement}>-1</button>
+      <button onClick={dispatchReset}>Reset</button>
+    </>
+  );
+};
 
-export default Counter
+export default Counter;
