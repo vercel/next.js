@@ -102,7 +102,7 @@
     "sass-loader": "8.0.2",
     "schema-utils": "2.6.6",
     "style-loader": "1.2.1",
-    "styled-jsx": "3.2.5",
+    "styled-jsx": "3.3.0",
     "use-subscription": "1.4.1",
     "watchpack": "2.0.0-beta.13",
     "web-vitals": "0.2.1",
