@@ -1,2 +1,3 @@
 import React from 'react'
-export default () => <div>Hello World</div>
+import styles from './index.module.css'
+export default () => <div className={styles.hello}>Hello World</div>
