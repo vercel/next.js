@@ -1,5 +1,5 @@
-import { parse as parseStack } from 'stacktrace-parser'
 import * as Bus from './internal/bus'
+import { parseStack } from './internal/helpers/parseStack'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
