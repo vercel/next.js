@@ -57,6 +57,7 @@ const babel = async (
         babelPresetPlugins: [],
         hasModern,
         development,
+        hasReactRefresh: Boolean(!isServer && development),
       },
     })(code, null)
 
@@ -326,6 +327,50 @@ describe('next-babel-loader', () => {
       )
       expect(code).toMatchInlineSnapshot(
         `"var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";export var __N_SSG=true;export default function(){return __jsx(\\"div\\",null,cats+bar());}"`
+      )
+    })
+
+    it('should support 9.4 regression', async () => {
+      const output = await babel(
+        `
+          import React from "react";
+          import queryGraphql from "../graphql/schema";
+
+          const gql = String.raw;
+
+          export default function Home({ greeting }) {
+            return <h1>{greeting}</h1>;
+          }
+
+          export async function getStaticProps() {
+            const greeting = await getGreeting();
+
+            return {
+              props: {
+                greeting,
+              },
+            };
+          }
+
+          async function getGreeting() {
+            const result = await queryGraphql(
+              gql\`
+                {
+                  query {
+                    greeting
+                  }
+                }
+              \`
+            );
+
+            return result.data.greeting;
+          }
+        `,
+        { resourcePath: pageFile, isServer: false, development: true }
+      )
+
+      expect(output).toMatchInlineSnapshot(
+        `"var __jsx=React.createElement;import React from\\"react\\";export var __N_SSG=true;export default function Home(_ref){var greeting=_ref.greeting;return __jsx(\\"h1\\",null,greeting);}_c=Home;var _c;$RefreshReg$(_c,\\"Home\\");"`
       )
     })
 
