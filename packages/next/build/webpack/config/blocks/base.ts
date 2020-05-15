@@ -13,10 +13,10 @@ export const base = curry(function base(
   // https://webpack.js.org/configuration/devtool/#development
   config.devtool = ctx.isDevelopment
     ? ctx.isReactRefreshEnabled
-      ? ctx.isServer
-        ? // Non-eval based source maps are very slow to rebuild, so we only
-          // enable them for the server. Unfortunately, eval source maps are
-          // not supported by Node.js.
+      ? ctx.isServer || process.platform === 'win32'
+        ? // Non-eval based source maps are slow to rebuild, so we only enable
+          // them for the server and Windows. Unfortunately, eval source maps
+          // are not supported by Node.js, and are slow on Windows.
           'inline-source-map'
         : // `eval-source-map` provides full-fidelity source maps for the
           // original source, including columns and original variable names.
