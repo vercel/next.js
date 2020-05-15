@@ -1,8 +1,8 @@
 import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import {
-  STATIC_PROPS_ID,
   SERVER_PROPS_ID,
+  STATIC_PROPS_ID,
 } from '../../../next-server/lib/constants'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
@@ -134,7 +134,19 @@ export default function nextTransformSsg({
     ident: NodePath<BabelTypes.Identifier>
   ): boolean {
     const b = ident.scope.getBinding(ident.node.name)
-    return b != null && b.referenced
+    if (b?.referenced) {
+      // Functions can reference themselves, so we need to check if there's a
+      // binding outside the function scope or not.
+      if (b.path.type === 'FunctionDeclaration') {
+        return !b.constantViolations
+          .concat(b.referencePaths)
+          // Check that every reference is contained within the function:
+          .every(ref => ref.findParent(p => p === b.path))
+      }
+
+      return true
+    }
+    return false
   }
 
   function markFunction(
