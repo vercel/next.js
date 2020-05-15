@@ -488,7 +488,6 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
-        hotRouterUpdates: this.config.experimental.reactRefresh !== true,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
           pagesBufferLength: number
