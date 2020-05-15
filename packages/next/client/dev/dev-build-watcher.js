@@ -63,6 +63,7 @@ export default function initializeBuildWatcher() {
         updateContainer()
         break
       case 'built':
+      case 'sync':
         isBuilding = false
         // Wait for the fade out transtion to complete
         timeoutId = setTimeout(() => {
