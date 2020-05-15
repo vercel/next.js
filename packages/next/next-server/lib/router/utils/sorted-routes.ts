@@ -9,11 +9,11 @@ class UrlNode {
     this._insert(urlPath.split('/').filter(Boolean), [], false)
   }
 
-  smoosh(allPages: string[]): string[] {
-    return this._smoosh(allPages)
+  smoosh(normalizedPages: string[]): string[] {
+    return this._smoosh(normalizedPages)
   }
 
-  private _smoosh(allPages: string[], prefix: string = '/'): string[] {
+  private _smoosh(normalizedPages: string[], prefix: string = '/'): string[] {
     const childrenPaths = [...this.children.keys()].sort()
     if (this.slugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
@@ -23,14 +23,16 @@ class UrlNode {
     }
 
     const routes = childrenPaths
-      .map(c => this.children.get(c)!._smoosh(allPages, `${prefix}${c}/`))
+      .map(c =>
+        this.children.get(c)!._smoosh(normalizedPages, `${prefix}${c}/`)
+      )
       .reduce((prev, curr) => [...prev, ...curr], [])
 
     if (this.slugName !== null) {
       routes.push(
         ...this.children
           .get('[]')!
-          ._smoosh(allPages, `${prefix}[${this.slugName}]/`)
+          ._smoosh(normalizedPages, `${prefix}[${this.slugName}]/`)
       )
     }
 
@@ -41,7 +43,7 @@ class UrlNode {
     if (this.restSlugName !== null) {
       if (
         this.isOptional &&
-        allPages.includes(prefix === '/' ? '/' : prefix.slice(0, -1))
+        normalizedPages.includes(prefix === '/' ? '/' : prefix.slice(0, -1))
       ) {
         throw new Error(
           `An optional route at "${prefix}" can't coexist with an index route at its root`
@@ -51,7 +53,7 @@ class UrlNode {
         ...this.children
           .get('[...]')!
           ._smoosh(
-            allPages,
+            normalizedPages,
             prefix +
               (this.isOptional
                 ? `[[...${this.restSlugName}]]/`

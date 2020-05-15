@@ -23,16 +23,18 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
 
     Object.keys(groups).forEach((slugName: string) => {
       const g = groups[slugName]
-      const m = routeMatch[g.pos]
-      if (m !== undefined) {
-        params[slugName] = ~m.indexOf('/')
-          ? m.split('/').map(entry => decode(entry))
-          : g.repeat
-          ? m
-            ? [decode(m)]
-            : []
-          : decode(m)
+      let m = routeMatch[g.pos]
+      if (m === undefined) {
+        return
       }
+      m = m.replace(/^\//, '')
+      params[slugName] = ~m.indexOf('/')
+        ? m.split('/').map(entry => decode(entry))
+        : g.repeat
+        ? m
+          ? [decode(m)]
+          : []
+        : decode(m)
     })
     return params
   }

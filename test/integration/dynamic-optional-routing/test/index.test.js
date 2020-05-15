@@ -4,6 +4,7 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
@@ -24,37 +25,55 @@ function runTests() {
   it('should render catch-all top-level route with multiple segments', async () => {
     const html = await renderViaHTTP(appPort, '/hello/world')
     const $ = cheerio.load(html)
-    expect($('#optional-route').text()).toBe('hello/world')
+    expect($('#optional-route').text()).toBe('top level route: hello,world')
   })
 
   it('should render catch-all top-level route with single segment', async () => {
     const html = await renderViaHTTP(appPort, '/hello')
     const $ = cheerio.load(html)
-    expect($('#optional-route').text()).toBe('hello')
+    expect($('#optional-route').text()).toBe('top level route: hello')
   })
 
   it('should render catch-all top-level route with no segments', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
-    expect($('#optional-route').text()).toBe('')
+    expect($('#optional-route').text()).toBe('top level route: ')
   })
 
   it('should render catch-all nested route with multiple segments', async () => {
     const html = await renderViaHTTP(appPort, '/nested/hello/world')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe('hello/world')
+    expect($('#nested-optional-route').text()).toBe('nested route: hello,world')
   })
 
   it('should render catch-all nested route with single segment', async () => {
     const html = await renderViaHTTP(appPort, '/nested/hello')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe('hello')
+    expect($('#nested-optional-route').text()).toBe('nested route: hello')
   })
 
   it('should render catch-all nested route with no segments', async () => {
     const html = await renderViaHTTP(appPort, '/nested/')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe('')
+    expect($('#nested-optional-route').text()).toBe('nested route: ')
+  })
+
+  it('should match catch-all api route with multiple segments', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/post/ab/cd')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ slug: ['ab', 'cd'] })
+  })
+
+  it('should match catch-all api route with single segment', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/post/a')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ slug: ['a'] })
+  })
+
+  it('should match catch-all api route with no segments', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/post')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ slug: [] })
   })
 }
 

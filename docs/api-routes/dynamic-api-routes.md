@@ -80,6 +80,12 @@ export default (req, res) => {
 
 Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
+### Optional catch all routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`). For example
+
+- `pages/api/post/[...slug].js` matches `/api/post` as well
+
 ## Caveats
 
 - Predefined API routes take precedence over dynamic API routes, and dynamic API routes over catch all API routes. Take a look at the following examples:

@@ -85,6 +85,12 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 
 > A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
 
+### Optional catch all routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`). For example
+
+- `pages/post/[[...slug]].js` matches `/post` as well
+
 ## Caveats
 
 - Predefined routes take precedence over dynamic routes, and dynamic routes over catch all routes. Take a look at the following examples:

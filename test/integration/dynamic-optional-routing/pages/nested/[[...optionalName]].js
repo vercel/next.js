@@ -8,6 +8,8 @@ export async function getServerSideProps({ query }) {
 
 export default function Page(props) {
   return (
-    <div id="nested-optional-route">{props.query.optionalName.join('/')}</div>
+    <div id="nested-optional-route">
+      nested route: {props.query.optionalName.join(',')}
+    </div>
   )
 }
