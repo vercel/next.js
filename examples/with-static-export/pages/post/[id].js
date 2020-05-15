@@ -1,7 +1,6 @@
 import { Component } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
-import fetch from 'isomorphic-unfetch'
 
 export async function getStaticPaths() {
   const response = await fetch(

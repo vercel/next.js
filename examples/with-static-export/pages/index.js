@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import fetch from 'isomorphic-unfetch'
 
 import Post from '../components/post'
 

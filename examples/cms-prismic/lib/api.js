@@ -1,4 +1,3 @@
-import 'isomorphic-unfetch'
 import Prismic from 'prismic-javascript'
 
 const REPOSITORY = process.env.NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME

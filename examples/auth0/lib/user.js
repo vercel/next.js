@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import fetch from 'isomorphic-unfetch'
 
 export async function fetchUser(cookie = '') {
   if (typeof window !== 'undefined' && window.__user) {

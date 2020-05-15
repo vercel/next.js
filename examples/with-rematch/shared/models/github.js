@@ -1,5 +1,3 @@
-import fetch from 'isomorphic-unfetch'
-
 const github = {
   state: {
     users: [],
