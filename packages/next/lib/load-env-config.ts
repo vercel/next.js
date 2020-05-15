@@ -6,7 +6,13 @@ import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
 
 export type Env = { [key: string]: string }
 
-export function loadEnvConfig(dir: string, dev?: boolean): void {
+let combinedEnv: Env | undefined = undefined
+
+export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
+  // don't reload env if we already have since this breaks escaped
+  // environment values e.g. \$ENV_FILE_KEY
+  if (combinedEnv) return combinedEnv
+
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
   const dotenvFiles = [
@@ -19,9 +25,9 @@ export function loadEnvConfig(dir: string, dev?: boolean): void {
     '.env',
   ].filter(Boolean) as string[]
 
-  const combinedEnv: Env = {
+  combinedEnv = {
     ...(process.env as any),
-  }
+  } as Env
 
   for (const envFile of dotenvFiles) {
     // only load .env if the user provided has an env config file
@@ -62,4 +68,6 @@ export function loadEnvConfig(dir: string, dev?: boolean): void {
       process.env[key] = combinedEnv[key]
     }
   }
+
+  return combinedEnv
 }
