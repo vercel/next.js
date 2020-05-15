@@ -91,7 +91,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: node run-tests.js test/integration/production/
+      - run: node run-tests.js test/integration/production/test/index.test.js
 
   testSafari:
     name: Test Safari (production)
@@ -110,7 +110,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/test/index.test.js'
 
   testSafariOld:
     name: Test Safari 10.1 (nav)
@@ -130,7 +130,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
 
   publishRelease:
     name: Potentially publish release
