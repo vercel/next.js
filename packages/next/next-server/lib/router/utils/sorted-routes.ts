@@ -1,18 +1,21 @@
+import { isDynamicRoute } from './is-dynamic'
+
 class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
   restSlugName: string | null = null
+  isOptional: boolean = false
 
   insert(urlPath: string): void {
     this._insert(urlPath.split('/').filter(Boolean), [], false)
   }
 
-  smoosh(): string[] {
-    return this._smoosh()
+  smoosh(allPages: string[]): string[] {
+    return this._smoosh(allPages)
   }
 
-  private _smoosh(prefix: string = '/'): string[] {
+  private _smoosh(allPages: string[], prefix: string = '/'): string[] {
     const childrenPaths = [...this.children.keys()].sort()
     if (this.slugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
@@ -22,12 +25,14 @@ class UrlNode {
     }
 
     const routes = childrenPaths
-      .map(c => this.children.get(c)!._smoosh(`${prefix}${c}/`))
+      .map(c => this.children.get(c)!._smoosh(allPages, `${prefix}${c}/`))
       .reduce((prev, curr) => [...prev, ...curr], [])
 
     if (this.slugName !== null) {
       routes.push(
-        ...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`)
+        ...this.children
+          .get('[]')!
+          ._smoosh(allPages, `${prefix}[${this.slugName}]/`)
       )
     }
 
@@ -36,10 +41,24 @@ class UrlNode {
     }
 
     if (this.restSlugName !== null) {
+      if (
+        this.isOptional &&
+        allPages.includes(prefix === '/' ? '/' : prefix.slice(0, -1))
+      ) {
+        throw new Error(
+          `An optional route at "${prefix}" can't coexist with an index route at its root`
+        )
+      }
       routes.push(
         ...this.children
           .get('[...]')!
-          ._smoosh(`${prefix}[...${this.restSlugName}]/`)
+          ._smoosh(
+            allPages,
+            prefix +
+              (this.isOptional
+                ? `[[...${this.restSlugName}]]/`
+                : `[...${this.restSlugName}]/`)
+          )
       )
     }
 
@@ -67,6 +86,13 @@ class UrlNode {
     if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
       // Strip `[` and `]`, leaving only `something`
       let segmentName = nextSegment.slice(1, -1)
+
+      const isOptional =
+        segmentName.startsWith('[') && segmentName.endsWith(']')
+      if (isOptional) {
+        segmentName = segmentName.slice(1, -1)
+      }
+
       if (segmentName.startsWith('...')) {
         segmentName = segmentName.substring(3)
         isCatchAll = true
@@ -106,6 +132,7 @@ class UrlNode {
         handleSlug(this.restSlugName, segmentName)
         // slugName is kept as it can only be one particular slugName
         this.restSlugName = segmentName
+        this.isOptional = isOptional
         // nextSegment is overwritten to [] so that it can later be sorted specifically
         nextSegment = '[...]'
       } else {
@@ -128,7 +155,7 @@ class UrlNode {
   }
 }
 
-export function getSortedRoutes(normalizedPages: string[]): string[] {
+export function getSortedDynamicRoutes(normalizedPages: string[]): string[] {
   // First the UrlNode is created, and every UrlNode can have only 1 dynamic segment
   // Eg you can't have pages/[post]/abc.js and pages/[hello]/something-else.js
   // Only 1 dynamic segment per nesting level
@@ -142,8 +169,9 @@ export function getSortedRoutes(normalizedPages: string[]): string[] {
   // Instead what has to be passed through is the upwards path's dynamic names
   const root = new UrlNode()
 
+  const dynamicPages = normalizedPages.filter(isDynamicRoute)
   // Here the `root` gets injected multiple paths, and insert will break them up into sublevels
-  normalizedPages.forEach(pagePath => root.insert(pagePath))
+  dynamicPages.forEach(pagePath => root.insert(pagePath))
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
-  return root.smoosh()
+  return root.smoosh(normalizedPages)
 }

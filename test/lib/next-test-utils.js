@@ -161,6 +161,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
         start: /started server/i,
       }
       if (
+        !opts.ignoreBootupMarkers &&
         bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
       ) {
         if (!didResolve) {

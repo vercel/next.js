@@ -30,7 +30,7 @@ import {
 import {
   getRouteMatcher,
   getRouteRegex,
-  getSortedRoutes,
+  getSortedDynamicRoutes,
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
@@ -754,13 +754,12 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
-      isDynamicRoute
+    return getSortedDynamicRoutes(Object.keys(this.pagesManifest!)).map(
+      page => ({
+        page,
+        match: getRouteMatcher(getRouteRegex(page)),
+      })
     )
-    return getSortedRoutes(dynamicRoutedPages).map(page => ({
-      page,
-      match: getRouteMatcher(getRouteRegex(page)),
-    }))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse) {

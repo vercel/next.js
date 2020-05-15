@@ -18,7 +18,9 @@ let app
 let appPort
 const appDir = join(__dirname, '../')
 
-function runTests(dev) {
+const DUMMY_PAGE = 'export default () => null'
+
+function runTests() {
   it('should render catch-all top-level route with multiple segments', async () => {
     const html = await renderViaHTTP(appPort, '/hello/world')
     const $ = cheerio.load(html)
@@ -58,7 +60,48 @@ function runTests(dev) {
 
 const nextConfig = join(appDir, 'next.config.js')
 
-describe('Dynamic Routing', () => {
+function runInvalidPagesTests(buildFn) {
+  it('should fail to build when optional route has index.js at root', async () => {
+    const invalidRoute = appDir + 'pages/index.js'
+    try {
+      await fs.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      const { stderr } = await buildFn(appDir)
+      await expect(stderr).toMatch(
+        `An optional route at "/" can't coexist with an index route at its root`
+      )
+    } finally {
+      await fs.unlink(invalidRoute)
+    }
+  })
+
+  it('should fail to build when optional route has same page at root', async () => {
+    const invalidRoute = appDir + 'pages/nested.js'
+    try {
+      await fs.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      const { stderr } = await buildFn(appDir)
+      await expect(stderr).toMatch(
+        `An optional route at "/nested/" can't coexist with an index route at its root`
+      )
+    } finally {
+      await fs.unlink(invalidRoute)
+    }
+  })
+
+  it('should fail to build when mixed with regular catch-all', async () => {
+    const invalidRoute = appDir + 'pages/nested/[...param].js'
+    try {
+      await fs.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      const { stderr } = await buildFn(appDir)
+      await expect(stderr).toMatch(
+        'You cannot use different slug names for the same dynamic path'
+      )
+    } finally {
+      await fs.unlink(invalidRoute)
+    }
+  })
+}
+
+describe('Dynamic Optional Routing', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -66,7 +109,17 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests(true)
+    runTests()
+    runInvalidPagesTests(async appDir => {
+      let stderr = ''
+      await launchApp(appDir, await findPort(), {
+        ignoreBootupMarkers: true,
+        onStderr: msg => {
+          stderr += msg
+        },
+      })
+      return { stderr }
+    })
   })
 
   describe('production mode', () => {
@@ -93,6 +146,9 @@ describe('Dynamic Routing', () => {
     afterAll(() => killApp(app))
 
     runTests()
+    runInvalidPagesTests(async appDir =>
+      nextBuild(appDir, [], { stderr: true })
+    )
   })
 
   describe('serverless mode', () => {

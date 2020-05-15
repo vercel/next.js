@@ -19,8 +19,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
+  getSortedDynamicRoutes,
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
@@ -191,7 +190,7 @@ export default class DevServer extends Server {
       wp.watch([], [pagesDir!], 0)
 
       wp.on('aggregated', () => {
-        const dynamicRoutedPages = []
+        const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -203,14 +202,10 @@ export default class DevServer extends Server {
           pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
-          if (!isDynamicRoute(pageName)) {
-            continue
-          }
-
-          dynamicRoutedPages.push(pageName)
+          routedPages.push(pageName)
         }
 
-        this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
+        this.dynamicRoutes = getSortedDynamicRoutes(routedPages).map(page => ({
           page,
           match: getRouteMatcher(getRouteRegex(page)),
         }))

@@ -40,7 +40,7 @@ import {
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
-  getSortedRoutes,
+  getSortedDynamicRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
@@ -217,7 +217,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     config
   )
   const pageKeys = Object.keys(mappedPages)
-  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
@@ -291,7 +290,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
     headers: headers.map(r => buildCustomRoute(r, 'header')),
-    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => {
+    dynamicRoutes: getSortedDynamicRoutes(pageKeys).map(page => {
       const routeRegex = getRouteRegex(page)
       return {
         page,
@@ -629,7 +628,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (serverPropsPages.size > 0 || ssgPages.size > 0) {
     // We update the routes manifest after the build with the
     // data routes since we can't determine these until after build
-    routesManifest.dataRoutes = getSortedRoutes([
+    routesManifest.dataRoutes = getSortedDynamicRoutes([
       ...serverPropsPages,
       ...ssgPages,
     ]).map(page => {
