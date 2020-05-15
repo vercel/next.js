@@ -87,6 +87,10 @@ module.exports = {
           source: '/unnamed-params/nested/(.*)/:test/(.*)',
           destination: '/with-params',
         },
+        {
+          source: '/catchall-rewrite/:path*',
+          destination: '/with-params',
+        },
       ]
     },
     async redirects() {

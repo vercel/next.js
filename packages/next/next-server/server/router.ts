@@ -69,7 +69,7 @@ export const prepareDestination = (
   if (appendParamsToQuery) {
     for (const [name, value] of Object.entries(params)) {
       if (!(name in destQuery)) {
-        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+        destQuery[name] = value
       }
     }
   }
