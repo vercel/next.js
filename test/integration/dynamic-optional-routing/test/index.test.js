@@ -10,6 +10,7 @@ import {
   killApp,
   nextBuild,
   nextStart,
+  waitFor,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -58,7 +59,7 @@ function runTests() {
     expect($('#nested-optional-route').text()).toBe('nested route: ')
   })
 
-  it('should render catch-all nested route with no segments', async () => {
+  it('should render catch-all nested route with no segments and leading slash', async () => {
     const html = await renderViaHTTP(appPort, '/nested/')
     const $ = cheerio.load(html)
     expect($('#nested-optional-route').text()).toBe('nested route: ')
@@ -82,7 +83,7 @@ function runTests() {
     expect(await res.json()).toEqual({ slug: [] })
   })
 
-  it('should match catch-all api route with no segments', async () => {
+  it('should match catch-all api route with no segments and leading slash', async () => {
     const res = await fetchViaHTTP(appPort, '/api/post/')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ slug: [] })
@@ -95,7 +96,7 @@ function runInvalidPagesTests(buildFn) {
   it('should fail to build when optional route has index.js at root', async () => {
     const invalidRoute = appDir + 'pages/index.js'
     try {
-      await fs.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
       await expect(stderr).toMatch(
         `An optional route at "/" can't coexist with an index route at its root`
@@ -108,7 +109,7 @@ function runInvalidPagesTests(buildFn) {
   it('should fail to build when optional route has same page at root', async () => {
     const invalidRoute = appDir + 'pages/nested.js'
     try {
-      await fs.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
       await expect(stderr).toMatch(
         `An optional route at "/nested/" can't coexist with an index route at its root`
@@ -121,10 +122,23 @@ function runInvalidPagesTests(buildFn) {
   it('should fail to build when mixed with regular catch-all', async () => {
     const invalidRoute = appDir + 'pages/nested/[...param].js'
     try {
-      await fs.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
       await expect(stderr).toMatch(
         'You cannot use different slug names for the same dynamic path'
+      )
+    } finally {
+      await fs.unlink(invalidRoute)
+    }
+  })
+
+  it('should fail to build when optional but no catch-all', async () => {
+    const invalidRoute = appDir + 'pages/invalid/[[param]].js'
+    try {
+      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      const { stderr } = await buildFn(appDir)
+      await expect(stderr).toMatch(
+        'Optional parameters are only supported for catch all routes ([[param]])'
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -144,11 +158,11 @@ describe('Dynamic Optional Routing', () => {
     runInvalidPagesTests(async appDir => {
       let stderr = ''
       await launchApp(appDir, await findPort(), {
-        ignoreBootupMarkers: true,
         onStderr: msg => {
           stderr += msg
         },
       })
+      await waitFor(1000)
       return { stderr }
     })
   })

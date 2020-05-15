@@ -87,9 +87,13 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 
 ### Optional catch all routes
 
-Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`). For example
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
-- `pages/post/[[...slug]].js` matches `/post` as well
+For example, `pages/post/[[...slug]].js` will match `/post` as well, and have the following params object:
+
+```json
+{ "slug": [] }
+```
 
 ## Caveats
 

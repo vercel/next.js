@@ -87,8 +87,7 @@ class UrlNode {
       // Strip `[` and `]`, leaving only `something`
       let segmentName = nextSegment.slice(1, -1)
 
-      const isOptional =
-        segmentName.startsWith('[') && segmentName.endsWith(']')
+      const isOptional = /^\[.*]$/.test(segmentName)
       if (isOptional) {
         segmentName = segmentName.slice(1, -1)
       }
@@ -96,6 +95,12 @@ class UrlNode {
       if (segmentName.startsWith('...')) {
         segmentName = segmentName.substring(3)
         isCatchAll = true
+      }
+
+      if (isOptional && !isCatchAll) {
+        throw new Error(
+          `Optional parameters are only supported for catch all routes ([[${segmentName}]]).`
+        )
       }
 
       if (segmentName.startsWith('.')) {
