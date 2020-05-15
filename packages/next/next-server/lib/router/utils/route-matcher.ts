@@ -25,13 +25,10 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
       const g = groups[slugName]
       let m = routeMatch[g.pos]
       if (m !== undefined) {
-        m = m.replace(/(^\/|\/$)/g, '')
         params[slugName] = ~m.indexOf('/')
           ? m.split('/').map(entry => decode(entry))
           : g.repeat
-          ? m
-            ? [decode(m)]
-            : []
+          ? [decode(m)]
           : decode(m)
       }
     })

@@ -32,7 +32,7 @@ export function getRouteRegex(
           .replace(/^\.{3}/, '')
         // eslint-disable-next-line no-sequences
       ] = { pos: groupIndex++, repeat: isCatchAll }
-      return isOptional ? '(/.+|)' : isCatchAll ? '/(.+?)' : '/([^/]+?)'
+      return isOptional ? '(?:/(.+?))?' : isCatchAll ? '/(.+?)' : '/([^/]+?)'
     }
   )
 

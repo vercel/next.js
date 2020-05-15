@@ -92,7 +92,7 @@ Catch all routes can be made optional by including the parameter in double brack
 For example, `pages/post/[[...slug]].js` will match `/post` as well, and have the following params object:
 
 ```json
-{ "slug": [] }
+{}
 ```
 
 ## Caveats

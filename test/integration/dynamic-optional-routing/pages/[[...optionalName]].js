@@ -9,7 +9,10 @@ export async function getServerSideProps({ query }) {
 export default function Page(props) {
   return (
     <div id="optional-route">
-      top level route: {props.query.optionalName.join(',')}
+      top level route param:{' '}
+      {props.query.optionalName === undefined
+        ? 'undefined'
+        : `[${props.query.optionalName.join(',')}]`}
     </div>
   )
 }
