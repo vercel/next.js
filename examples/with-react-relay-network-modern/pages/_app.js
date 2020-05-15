@@ -12,13 +12,18 @@ export default class App extends NextApp {
 
     try {
       if (initEnvironment && Component.query) {
-        const { environment, relaySSR } = initEnvironment()
+        const { environment } = initEnvironment()
 
         await fetchQuery(environment, Component.query, variables)
 
+        const records = environment
+          .getStore()
+          .getSource()
+          .toJSON()
+
         return {
           variables,
-          relayData: await relaySSR.getCache(),
+          records,
         }
       }
     } catch (e) {
@@ -31,17 +36,12 @@ export default class App extends NextApp {
   }
 
   render() {
-    const { Component, variables = {}, relayData } = this.props
-    const environment = createEnvironment(
-      relayData,
-      JSON.stringify({
-        queryID: Component.query ? Component.query.params.name : undefined,
-        variables,
-      })
-    )
+    const { Component, variables = {}, records } = this.props
+    const environment = createEnvironment(records)
 
     return (
       <QueryRenderer
+        fetchPolicy="store-and-network"
         environment={environment}
         query={Component.query}
         variables={variables}

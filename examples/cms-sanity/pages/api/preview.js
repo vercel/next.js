@@ -2,7 +2,7 @@ import { getPreviewPostBySlug } from '../../lib/api'
 
 export default async (req, res) => {
   // Check the secret and next parameters
-  // This secret should only be know to this API route and the CMS
+  // This secret should only be known to this API route and the CMS
   if (
     req.query.secret !== process.env.NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET ||
     !req.query.slug

@@ -53,7 +53,15 @@ export type PageConfig = {
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
     bodyParser?: { sizeLimit?: number | string } | false
+    /**
+     * Flag to disable warning "API page resolved
+     * without sending a response", due to explicitly
+     * using an external API resolver, like express
+     */
+    externalResolver?: true
   }
+  env?: Array<string>
+  unstable_runtimeJS?: false
 }
 
 export {
@@ -64,31 +72,43 @@ export {
   NextApiHandler,
 }
 
-export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any }
-> = (ctx: {
-  params?: ParsedUrlQuery
+export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
+  params?: Q
   preview?: boolean
   previewData?: any
-}) => Promise<{
+}
+
+export type GetStaticProps<
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (
+  ctx: GetStaticPropsContext<Q>
+) => Promise<{
   props: P
-  revalidate?: number | boolean
+  unstable_revalidate?: number | boolean
 }>
 
-export type GetStaticPaths = () => Promise<{
-  paths: Array<string | { params: ParsedUrlQuery }>
+export type GetStaticPaths<
+  P extends ParsedUrlQuery = ParsedUrlQuery
+> = () => Promise<{
+  paths: Array<string | { params: P }>
   fallback: boolean
 }>
 
-export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any }
-> = (context: {
+export type GetServerSidePropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = {
   req: IncomingMessage
   res: ServerResponse
-  params?: ParsedUrlQuery
+  params?: Q
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
-}) => Promise<{ props: P }>
+}
+
+export type GetServerSideProps<
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (context: GetServerSidePropsContext<Q>) => Promise<{ props: P }>
 
 export default next

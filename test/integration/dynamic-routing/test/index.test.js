@@ -443,6 +443,39 @@ function runTests(dev) {
     expect(res.status).toBe(200)
   })
 
+  it('should serve file with space from static folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with plus from static folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello+copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world +')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file from static folder encoded', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello%20copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with %20 from static folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/static/hello%2520copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world %20')
+    expect(res.status).toBe(200)
+  })
+
+  it('should respond with bad request with invalid encoding', async () => {
+    const res = await fetchViaHTTP(appPort, '/%')
+    expect(res.status).toBe(400)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
@@ -499,78 +532,110 @@ function runTests(dev) {
         redirects: [],
         dataRoutes: [
           {
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/p1/p2/all\\-ssg/(?<rest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
               )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/all-ssg/[...rest]',
+            routeKeys: ['rest'],
           },
           {
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
               )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/nested-all-ssg/[...rest]',
+            routeKeys: ['rest'],
           },
           {
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/p1/p2/predefined\\-ssg/(?<rest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
               )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/predefined-ssg/[...rest]',
+            routeKeys: ['rest'],
           },
         ],
         dynamicRoutes: [
           {
+            namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
               '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
             ),
+            routeKeys: ['name', 'id'],
           },
           {
+            namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['post'],
           },
           {
+            namedRegex: `^/p1/p2/all\\-ssg/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssg/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
+            routeKeys: ['rest'],
           },
           {
+            namedRegex: `^/p1/p2/all\\-ssr/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssr/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
+            routeKeys: ['rest'],
           },
           {
+            namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/nested-all-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
             ),
+            routeKeys: ['rest'],
           },
           {
+            namedRegex: `^/p1/p2/predefined\\-ssg/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/predefined-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
             ),
+            routeKeys: ['rest'],
           },
           {
+            namedRegex: `^/(?<name>[^/]+?)(?:/)?$`,
             page: '/[name]',
             regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['name'],
           },
           {
+            namedRegex: `^/(?<name>[^/]+?)/comments(?:/)?$`,
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
+            routeKeys: ['name'],
           },
           {
+            namedRegex: `^/(?<name>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
             page: '/[name]/on-mount-redir',
             regex: normalizeRegEx(
               '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
             ),
+            routeKeys: ['name'],
           },
           {
+            namedRegex: `^/(?<name>[^/]+?)/(?<comment>[^/]+?)(?:/)?$`,
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['name', 'comment'],
           },
         ],
       })

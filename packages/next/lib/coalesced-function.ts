@@ -3,7 +3,7 @@ type CoalescedInvoke<T> = {
   value: T
 }
 
-type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
 
 const globalInvokeCache = new Map<string, Promise<CoalescedInvoke<unknown>>>()
 

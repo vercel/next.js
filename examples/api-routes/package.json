@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "node-fetch": "2.6.0",
     "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "react-dom": "^16.8.6",
+    "swr": "0.1.18"
   },
   "license": "ISC"
 }
