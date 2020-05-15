@@ -153,8 +153,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const isReactRefreshEnabled = config.experimental.reactRefresh === true
-  const hasReactRefresh = dev && !isServer && isReactRefreshEnabled
+  const hasReactRefresh = dev && !isServer
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -229,9 +228,8 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors = dev
-    ? Boolean(isReactRefreshEnabled || config.typescript?.ignoreDevErrors)
-    : Boolean(config.typescript?.ignoreBuildErrors)
+  const ignoreTypeScriptErrors =
+    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -845,7 +843,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
         ),
-        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -948,13 +945,14 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !isServer &&
+      !dev &&
+        !isServer &&
         useTypeScript &&
         !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
-            async: dev,
+            async: false,
             useTypescriptIncrementalApi: true,
             checkSyntacticErrors: true,
             tsconfig: tsConfigPath,
@@ -1032,7 +1030,6 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
   })
