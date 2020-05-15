@@ -13,29 +13,31 @@ const Index = () => (
       <strong>Important:</strong> exceptions in development mode take a
       different path than in production. These tests should be run on a
       production build (i.e. 'next build').{' '}
-      <a href="https://nextjs.org/docs#custom-error-handling">Read more</a>
+      <a href="https://nextjs.org/docs/advanced-features/custom-error-page#customizing-the-error-page">
+        Read more
+      </a>
     </p>
     <ul>
       <li>Server exceptions</li>
       <ul>
         <li>
-          getInitialProps throws an Error. This should cause _error.js to render
-          and record Error('Client Test 1') in Sentry.{' '}
+          getServerSideProps throws an Error. This should cause _error.js to
+          render and record Error('Server Test 1') in Sentry.{' '}
           <a href="/server/test1" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
-          getInitialProps returns a Promise that rejects. This should cause
+          getServerSideProps returns a Promise that rejects. This should cause
           _error.js to render and record Error('Server Test 2') in Sentry.{' '}
           <a href="/server/test2" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
-          getInitialProps calls a Promise that rejects, but does not handle the
-          rejection or await its result (returning synchronously). Sentry should
-          record Error('Server Test 3').{' '}
+          getServerSideProps calls a Promise that rejects, but does not handle
+          the rejection or await its result (returning synchronously). Sentry
+          should record Error('Server Test 3').{' '}
           <a href="/server/test3" target="_blank">
             Open in a new tab
           </a>
