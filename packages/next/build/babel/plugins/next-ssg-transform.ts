@@ -168,13 +168,85 @@ export default function nextTransformSsg({
   return {
     visitor: {
       Program: {
-        enter(_, state) {
+        enter(path, state) {
           state.refs = new Set<NodePath<BabelTypes.Identifier>>()
           state.isPrerender = false
           state.isServerProps = false
           state.done = false
-        },
-        exit(path, state) {
+
+          path.traverse(
+            {
+              VariableDeclarator(path, state) {
+                if (path.node.id.type !== 'Identifier') {
+                  return
+                }
+
+                const local = path.get('id') as NodePath<BabelTypes.Identifier>
+                if (isIdentifierReferenced(local)) {
+                  state.refs.add(local)
+                }
+              },
+              FunctionDeclaration: markFunction,
+              FunctionExpression: markFunction,
+              ArrowFunctionExpression: markFunction,
+              ImportSpecifier: markImport,
+              ImportDefaultSpecifier: markImport,
+              ImportNamespaceSpecifier: markImport,
+              ExportNamedDeclaration(path, state) {
+                const specifiers = path.get('specifiers')
+                if (specifiers.length) {
+                  specifiers.forEach(s => {
+                    if (isDataIdentifier(s.node.exported.name, state)) {
+                      s.remove()
+                    }
+                  })
+
+                  if (path.node.specifiers.length < 1) {
+                    path.remove()
+                  }
+                  return
+                }
+
+                const decl = path.get('declaration') as NodePath<
+                  | BabelTypes.FunctionDeclaration
+                  | BabelTypes.VariableDeclaration
+                >
+                if (decl == null || decl.node == null) {
+                  return
+                }
+
+                switch (decl.node.type) {
+                  case 'FunctionDeclaration': {
+                    const name = decl.node.id!.name
+                    if (isDataIdentifier(name, state)) {
+                      path.remove()
+                    }
+                    break
+                  }
+                  case 'VariableDeclaration': {
+                    const inner = decl.get('declarations') as NodePath<
+                      BabelTypes.VariableDeclarator
+                    >[]
+                    inner.forEach(d => {
+                      if (d.node.id.type !== 'Identifier') {
+                        return
+                      }
+                      const name = d.node.id.name
+                      if (isDataIdentifier(name, state)) {
+                        d.remove()
+                      }
+                    })
+                    break
+                  }
+                  default: {
+                    break
+                  }
+                }
+              },
+            },
+            state
+          )
+
           if (!state.isPrerender && !state.isServerProps) {
             return
           }
@@ -256,72 +328,6 @@ export default function nextTransformSsg({
 
           decorateSsgExport(t, path, state)
         },
-      },
-      VariableDeclarator(path, state) {
-        if (path.node.id.type !== 'Identifier') {
-          return
-        }
-
-        const local = path.get('id') as NodePath<BabelTypes.Identifier>
-        if (isIdentifierReferenced(local)) {
-          state.refs.add(local)
-        }
-      },
-      FunctionDeclaration: markFunction,
-      FunctionExpression: markFunction,
-      ArrowFunctionExpression: markFunction,
-      ImportSpecifier: markImport,
-      ImportDefaultSpecifier: markImport,
-      ImportNamespaceSpecifier: markImport,
-      ExportNamedDeclaration(path, state) {
-        const specifiers = path.get('specifiers')
-        if (specifiers.length) {
-          specifiers.forEach(s => {
-            if (isDataIdentifier(s.node.exported.name, state)) {
-              s.remove()
-            }
-          })
-
-          if (path.node.specifiers.length < 1) {
-            path.remove()
-          }
-          return
-        }
-
-        const decl = path.get('declaration') as NodePath<
-          BabelTypes.FunctionDeclaration | BabelTypes.VariableDeclaration
-        >
-        if (decl == null || decl.node == null) {
-          return
-        }
-
-        switch (decl.node.type) {
-          case 'FunctionDeclaration': {
-            const name = decl.node.id!.name
-            if (isDataIdentifier(name, state)) {
-              path.remove()
-            }
-            break
-          }
-          case 'VariableDeclaration': {
-            const inner = decl.get('declarations') as NodePath<
-              BabelTypes.VariableDeclarator
-            >[]
-            inner.forEach(d => {
-              if (d.node.id.type !== 'Identifier') {
-                return
-              }
-              const name = d.node.id.name
-              if (isDataIdentifier(name, state)) {
-                d.remove()
-              }
-            })
-            break
-          }
-          default: {
-            break
-          }
-        }
       },
     },
   }
