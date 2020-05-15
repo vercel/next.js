@@ -197,7 +197,6 @@
     "postcss-loader": "3.0.0",
     "postcss-preset-env": "6.7.0",
     "raw-body": "2.4.1",
-    "react-error-overlay": "5.1.6",
     "recast": "0.18.5",
     "resolve": "1.11.0",
     "send": "0.17.1",

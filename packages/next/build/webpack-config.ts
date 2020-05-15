@@ -153,8 +153,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const isReactRefreshEnabled = config.experimental.reactRefresh === true
-  const hasReactRefresh = dev && !isServer && isReactRefreshEnabled
+  const hasReactRefresh = dev && !isServer
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -844,7 +843,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
         ),
-        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1032,7 +1030,6 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
   })

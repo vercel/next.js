@@ -48,7 +48,6 @@ export default function onDemandEntryHandler(
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
-    hotRouterUpdates,
   }: {
     buildId: string
     pagesDir: string
@@ -56,7 +55,6 @@ export default function onDemandEntryHandler(
     pageExtensions: string[]
     maxInactiveAge: number
     pagesBufferLength: number
-    hotRouterUpdates: boolean
   }
 ) {
   const { compilers } = multiCompiler
@@ -90,7 +88,6 @@ export default function onDemandEntryHandler(
           const pageLoaderOpts: ClientPagesLoaderOptions = {
             page,
             absolutePagePath,
-            hotRouterUpdates,
           }
           return addEntry(compilation, compiler.context, name, [
             compiler.name === 'client'

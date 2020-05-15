@@ -52,7 +52,6 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     pageEnv: false,
-    reactRefresh: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
