@@ -62,6 +62,7 @@ const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
+let lastRenderResolver
 let webpackHMR
 export let router
 let ErrorComponent
@@ -269,9 +270,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback,
-    subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err })
-    },
+    subscription: async ({ Component, props, err }, App) =>
+      await render({ App, Component, props, err }),
   })
 
   // call init-client middleware
@@ -531,10 +531,24 @@ async function doRender({ App, Component, props, err }) {
     appProps,
   })
 
+  if (lastRenderResolver) {
+    lastRenderResolver()
+  }
+  const renderPromise = new Promise(resolve => {
+    const self = (lastRenderResolver = () => {
+      resolve()
+      if (lastRenderResolver === self) {
+        lastRenderResolver = null
+      }
+    })
+  })
+
   const elem = (
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>
+    <Root callback={lastRenderResolver}>
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    </Root>
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
@@ -547,5 +561,13 @@ async function doRender({ App, Component, props, err }) {
     appElement
   )
 
+  await renderPromise
   emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+}
+
+function Root({ callback, children }) {
+  React.useLayoutEffect(() => {
+    callback()
+  }, [callback])
+  return children
 }
