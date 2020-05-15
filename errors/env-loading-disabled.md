@@ -8,7 +8,9 @@ This is also disabled if a `package.json` isn't able to found in your project so
 
 #### Possible Ways to Fix It
 
-Remove `dotenv` from your `devDependencies` or `dependencies` and allow Next.js to load your `dotenv` files for you
+Update to the latest version of Next.js (>= v9.4.1) where this support is enabled regardless of `dotenv` being installed.
+
+Remove `dotenv` from your `devDependencies` or `dependencies` and allow Next.js to load your `dotenv` files for you.
 
 ### Useful Links
 
