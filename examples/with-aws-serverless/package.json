@@ -19,6 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "next": "9.4.0",
+    "next-images": "1.4.0",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "typescript": "3.8.3"

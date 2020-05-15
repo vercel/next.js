@@ -2,7 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 
 export default () => {
-  const title: string = 'Home';
+  const title: string = 'About';
 
   return (
     <>
@@ -11,7 +11,7 @@ export default () => {
       </Head>
       <div>
         <h1>{title}</h1>
-        <img src='/images/bg1.png' alt={'example image'} width={500}/>
+        <img src='/images/bg2.png' alt={'example image'} width={500}/>
       </div>
     </>
   );
