@@ -1,7 +1,7 @@
 module.exports = {
-    sassOptions: {
-      prependData: `
-        $var: red;
-      `,
-    },
+  sassOptions: {
+    prependData: `
+      $var: red;
+    `,
+  },
 }
