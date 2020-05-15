@@ -40,7 +40,7 @@ import {
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
-  getSortedDynamicRoutes,
+  getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
@@ -290,15 +290,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
     headers: headers.map(r => buildCustomRoute(r, 'header')),
-    dynamicRoutes: getSortedDynamicRoutes(pageKeys).map(page => {
-      const routeRegex = getRouteRegex(page)
-      return {
-        page,
-        regex: routeRegex.re.source,
-        namedRegex: routeRegex.namedRegex,
-        routeKeys: Object.keys(routeRegex.groups),
-      }
-    }),
+    dynamicRoutes: getSortedRoutes(pageKeys)
+      .filter(isDynamicRoute)
+      .map(page => {
+        const routeRegex = getRouteRegex(page)
+        return {
+          page,
+          regex: routeRegex.re.source,
+          namedRegex: routeRegex.namedRegex,
+          routeKeys: Object.keys(routeRegex.groups),
+        }
+      }),
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -628,7 +630,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (serverPropsPages.size > 0 || ssgPages.size > 0) {
     // We update the routes manifest after the build with the
     // data routes since we can't determine these until after build
-    routesManifest.dataRoutes = getSortedDynamicRoutes([
+    routesManifest.dataRoutes = getSortedRoutes([
       ...serverPropsPages,
       ...ssgPages,
     ]).map(page => {

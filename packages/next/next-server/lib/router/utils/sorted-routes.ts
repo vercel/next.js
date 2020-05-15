@@ -1,5 +1,3 @@
-import { isDynamicRoute } from './is-dynamic'
-
 class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
@@ -155,7 +153,7 @@ class UrlNode {
   }
 }
 
-export function getSortedDynamicRoutes(normalizedPages: string[]): string[] {
+export function getSortedRoutes(normalizedPages: string[]): string[] {
   // First the UrlNode is created, and every UrlNode can have only 1 dynamic segment
   // Eg you can't have pages/[post]/abc.js and pages/[hello]/something-else.js
   // Only 1 dynamic segment per nesting level
@@ -169,9 +167,8 @@ export function getSortedDynamicRoutes(normalizedPages: string[]): string[] {
   // Instead what has to be passed through is the upwards path's dynamic names
   const root = new UrlNode()
 
-  const dynamicPages = normalizedPages.filter(isDynamicRoute)
   // Here the `root` gets injected multiple paths, and insert will break them up into sublevels
-  dynamicPages.forEach(pagePath => root.insert(pagePath))
+  normalizedPages.forEach(pagePath => root.insert(pagePath))
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
   return root.smoosh(normalizedPages)
 }

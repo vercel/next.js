@@ -19,7 +19,8 @@ import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
-  getSortedDynamicRoutes,
+  getSortedRoutes,
+  isDynamicRoute,
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
@@ -205,10 +206,12 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        this.dynamicRoutes = getSortedDynamicRoutes(routedPages).map(page => ({
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }))
+        this.dynamicRoutes = getSortedRoutes(routedPages)
+          .filter(isDynamicRoute)
+          .map(page => ({
+            page,
+            match: getRouteMatcher(getRouteRegex(page)),
+          }))
         this.router.setDynamicRoutes(this.dynamicRoutes)
 
         if (!resolved) {
