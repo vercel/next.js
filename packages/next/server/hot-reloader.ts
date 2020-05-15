@@ -10,7 +10,6 @@ import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -362,19 +361,7 @@ export default class HotReloader {
   }
 
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
-    const tsConfigPath = join(this.dir, 'tsconfig.json')
-    const useTypeScript = await fileExists(tsConfigPath)
-    const ignoreTypeScriptErrors = Boolean(
-      this.config.experimental.reactRefresh === true ||
-        this.config.typescript?.ignoreDevErrors
-    )
-
-    watchCompilers(
-      multiCompiler.compilers[0],
-      multiCompiler.compilers[1],
-      useTypeScript && !ignoreTypeScriptErrors,
-      ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
-    )
+    watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
