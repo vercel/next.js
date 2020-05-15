@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-material-ui",
-  "version": "9.4.1-canary.6",
+  "version": "9.4.1-canary.7",
   "repository": {
     "url": "zeit/next.js",
     "directory": "packages/next-plugin-material-ui"
