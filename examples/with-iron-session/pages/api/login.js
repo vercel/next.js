@@ -1,4 +1,4 @@
-import fetch from '../../lib/fetch'
+import fetchJson from '../../lib/fetchJson'
 import withSession from '../../lib/session'
 
 export default withSession(async (req, res) => {
@@ -7,14 +7,13 @@ export default withSession(async (req, res) => {
 
   try {
     // we check that the user exists on GitHub and store some data in session
-    const { login, avatar_url: avatarUrl } = await fetch(url)
+    const { login, avatar_url: avatarUrl } = await fetchJson(url)
     const user = { isLoggedIn: true, login, avatarUrl }
     req.session.set('user', user)
     await req.session.save()
     res.json(user)
   } catch (error) {
     const { response: fetchResponse } = error
-    res.status(fetchResponse?.status || 500)
-    res.json(error.data)
+    res.status(fetchResponse?.status || 500).json(error.data)
   }
 })

@@ -6,7 +6,7 @@ import path from 'path'
 
 const rootSandboxDirectory = path.join(__dirname, '__tmp__')
 
-export async function sandbox(id = nanoid()) {
+export async function sandbox(id = nanoid(), initialFiles = new Map()) {
   const sandboxDirectory = path.join(rootSandboxDirectory, id)
 
   const pagesDirectory = path.join(sandboxDirectory, 'pages')
@@ -21,6 +21,9 @@ export async function sandbox(id = nanoid()) {
     path.join(sandboxDirectory, 'index.js'),
     `export default () => 'new sandbox';`
   )
+  for (const [k, v] of initialFiles.entries()) {
+    await fs.writeFile(path.join(sandboxDirectory, k), v)
+  }
 
   const appPort = await findPort()
   const app = await launchApp(sandboxDirectory, appPort)
@@ -42,7 +45,7 @@ export async function sandbox(id = nanoid()) {
 
           var timeout = setTimeout(() => {
             window.__HMR_STATE = 'timeout'
-          }, 10000)
+          }, 30 * 1000)
           window.__NEXT_HMR_CB = function() {
             clearTimeout(timeout)
             window.__HMR_STATE = 'success'
@@ -62,7 +65,7 @@ export async function sandbox(id = nanoid()) {
               if (window.__NEXT_HYDRATED) {
                 callback()
               } else {
-                var timeout = setTimeout(callback, 10 * 1000)
+                var timeout = setTimeout(callback, 30 * 1000)
                 window.__NEXT_HYDRATED_CB = function() {
                   clearTimeout(timeout)
                   callback()
@@ -106,15 +109,62 @@ export async function sandbox(id = nanoid()) {
           )
         }
       },
-      async getOverlayContent() {
-        await browser.waitForElementByCss('iframe', 10000)
-        const hasIframe = await browser.hasElementByCssSelector('iframe')
-        if (!hasIframe) {
-          throw new Error('Unable to find overlay')
+      async hasRedbox(expected = false) {
+        let attempts = 3
+        do {
+          const has = await this.evaluate(() => {
+            return Boolean(
+              [].slice
+                .call(document.querySelectorAll('nextjs-portal'))
+                .find(p =>
+                  p.shadowRoot.querySelector(
+                    '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+                  )
+                )
+            )
+          })
+          if (has) {
+            return true
+          }
+          if (--attempts < 0) {
+            break
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        } while (expected)
+        return false
+      },
+      async getRedboxSource(includeHeader = false) {
+        const header = includeHeader
+          ? await this.evaluate(() => {
+              const portal = [].slice
+                .call(document.querySelectorAll('nextjs-portal'))
+                .find(p =>
+                  p.shadowRoot.querySelector('[data-nextjs-dialog-header')
+                )
+              const root = portal.shadowRoot
+              return root.querySelector('[data-nextjs-dialog-header]').innerText
+            })
+          : ''
+
+        const source = await this.evaluate(() => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find(p =>
+              p.shadowRoot.querySelector(
+                '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              )
+            )
+          const root = portal.shadowRoot
+          return root.querySelector(
+            '[data-nextjs-codeframe], [data-nextjs-terminal]'
+          ).innerText
+        })
+
+        if (includeHeader) {
+          return `${header}\n\n${source}`
         }
-        return browser.eval(
-          `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-        )
+        return source
       },
     },
     function cleanup() {

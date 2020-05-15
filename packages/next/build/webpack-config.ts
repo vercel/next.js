@@ -50,6 +50,7 @@ import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
+import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -152,8 +153,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasReactRefresh =
-    dev && !isServer && config.experimental.reactRefresh === true
+  const hasReactRefresh = dev && !isServer
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -228,9 +228,8 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors = dev
-    ? config.typescript?.ignoreDevErrors
-    : config.typescript?.ignoreBuildErrors
+  const ignoreTypeScriptErrors =
+    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -640,6 +639,7 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
+          extractComments: false,
           cache: path.join(distDir, 'cache', 'next-minifier'),
           parallel: config.experimental.cpus || true,
           terserOptions,
@@ -764,15 +764,15 @@ export default async function getBaseWebpackConfig(
                     workerParallelJobs: Infinity,
                   },
                 },
-                defaultLoaders.babel,
                 hasReactRefresh
                   ? require.resolve('@next/react-refresh-utils/loader')
                   : '',
+                defaultLoaders.babel,
               ].filter(Boolean)
             : hasReactRefresh
             ? [
-                defaultLoaders.babel,
                 require.resolve('@next/react-refresh-utils/loader'),
+                defaultLoaders.babel,
               ]
             : defaultLoaders.babel,
         },
@@ -842,9 +842,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
-        ),
-        'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
-          config.experimental.measureFid
         ),
         ...(isServer
           ? {
@@ -948,13 +945,14 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !isServer &&
+      !dev &&
+        !isServer &&
         useTypeScript &&
         !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
-            async: dev,
+            async: false,
             useTypescriptIncrementalApi: true,
             checkSyntacticErrors: true,
             tsconfig: tsConfigPath,
@@ -1005,6 +1003,7 @@ export default async function getBaseWebpackConfig(
               }),
           ].filter(Boolean),
         }),
+      new WellKnownErrorsPlugin(),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -1032,7 +1031,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     assetPrefix: config.assetPrefix || '',
-    sassOptions: config.experimental.sassOptions,
+    sassOptions: config.sassOptions,
   })
 
   if (typeof config.webpack === 'function') {

@@ -12,6 +12,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
+- [Contentful](/examples/cms-contentful)
 
 ## How to use
 
@@ -109,12 +110,14 @@ Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
 - `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
+- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 
 Your `.env` file should look like this:
 
 ```bash
 NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
+NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
 
 ### Step 6. Run Next.js in development mode
@@ -145,15 +148,15 @@ Once saved, go to one of the posts you've created and:
 - Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in draft state.
 - Right next to the **Publish** button you should see the **Preview** button, displayed with an eye icon. Click on it!
 
-You should now be able to see the updated title. To exit the preview mode, you can click on **Click here to exit preview mode** at the top of the page.
+You should now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
 ### Step 8. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Now CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
 
 ```bash
 now secrets add next_example_cms_prismic_api_token <NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>

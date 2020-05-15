@@ -1,16 +1,12 @@
-import fs from 'fs'
+import { promises } from 'fs'
 import { join } from 'path'
 import { promisify } from 'util'
 
-const readdir = promisify(fs.readdir)
-const stat = promisify(fs.stat)
-const rmdir = promisify(fs.rmdir)
-const unlink = promisify(fs.unlink)
 const sleep = promisify(setTimeout)
 
 const unlinkFile = async (p: string, t = 1): Promise<void> => {
   try {
-    await unlink(p)
+    await promises.unlink(p)
   } catch (e) {
     if (
       (e.code === 'EBUSY' ||
@@ -45,7 +41,7 @@ export async function recursiveDelete(
 ): Promise<void> {
   let result
   try {
-    result = await readdir(dir)
+    result = await promises.readdir(dir)
   } catch (e) {
     if (e.code === 'ENOENT') {
       return
@@ -56,7 +52,7 @@ export async function recursiveDelete(
   await Promise.all(
     result.map(async (part: string) => {
       const absolutePath = join(dir, part)
-      const pathStat = await stat(absolutePath).catch(e => {
+      const pathStat = await promises.stat(absolutePath).catch(e => {
         if (e.code !== 'ENOENT') throw e
       })
       if (!pathStat) {
@@ -66,7 +62,7 @@ export async function recursiveDelete(
       const pp = join(previousPath, part)
       if (pathStat.isDirectory() && (!exclude || !exclude.test(pp))) {
         await recursiveDelete(absolutePath, exclude, pp)
-        return rmdir(absolutePath)
+        return promises.rmdir(absolutePath)
       }
 
       if (!exclude || !exclude.test(pp)) {

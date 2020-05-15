@@ -4,6 +4,14 @@ description: API Routes provide built-in middlewares that parse the incoming r
 
 # API Middlewares
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
+  </ul>
+</details>
+
 API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
 
 - `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
@@ -44,6 +52,16 @@ export const config = {
     bodyParser: {
       sizeLimit: '500kb',
     },
+  },
+}
+```
+
+`externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
+
+```js
+export const config = {
+  api: {
+    externalResolver: true,
   },
 }
 ```
@@ -96,3 +114,5 @@ async function handler(req, res) {
 
 export default handler
 ```
+
+> Go to the [API Routes with CORS](https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors) example to see the finished app

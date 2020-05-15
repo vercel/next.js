@@ -8,7 +8,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
+  check,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -59,6 +59,11 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello/)
     })
 
+    it('should resolve a single matching alias', async () => {
+      const $ = await get$('/wildcard-alias')
+      expect($('body').text()).toMatch(/world/)
+    })
+
     it('should have correct module not found error', async () => {
       const basicPage = join(appDir, 'pages/basic-alias.js')
       const contents = await fs.readFile(basicPage, 'utf8')
@@ -66,9 +71,13 @@ describe('TypeScript Features', () => {
       await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
       await renderViaHTTP(appPort, '/basic-alias')
 
-      await waitFor(2 * 1000)
+      const found = await check(
+        () => output,
+        /Module not found: Can't resolve '@c\/worldd' in/,
+        false
+      )
       await fs.writeFile(basicPage, contents)
-      expect(output).toContain(`Module not found: Can't resolve '@c/worldd' in`)
+      expect(found).toBe(true)
     })
   })
 })

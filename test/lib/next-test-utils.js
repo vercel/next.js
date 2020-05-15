@@ -156,16 +156,26 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
     function handleStdout(data) {
       const message = data.toString()
-      if (/ready on/i.test(message)) {
+      const bootupMarkers = {
+        dev: /compiled successfully/i,
+        start: /started server/i,
+      }
+      if (
+        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+      ) {
         if (!didResolve) {
           didResolve = true
           resolve(stdOut ? message : instance)
         }
       }
+
       if (typeof opts.onStdout === 'function') {
         opts.onStdout(message)
       }
-      process.stdout.write(message)
+
+      if (opts.stdout !== false) {
+        process.stdout.write(message)
+      }
     }
 
     function handleStderr(data) {
@@ -173,7 +183,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
-      process.stderr.write(message)
+
+      if (opts.stderr !== false) {
+        process.stderr.write(message)
+      }
     }
 
     instance.stdout.on('data', handleStdout)
@@ -212,7 +225,10 @@ export function nextExportDefault(dir, opts = {}) {
 }
 
 export function nextStart(dir, port, opts = {}) {
-  return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
+  return runNextCommandDev(['start', '-p', port, dir], undefined, {
+    ...opts,
+    nextStart: true,
+  })
 }
 
 export function buildTS(args = [], cwd, env = {}) {
@@ -322,32 +338,31 @@ export async function startCleanStaticServer(dir) {
   return server
 }
 
-export async function check(contentFn, regex) {
-  let found = false
-  const timeout = setTimeout(async () => {
-    if (found) {
-      return
-    }
-    let content
+// check for content in 1 second intervals timing out after
+// 30 seconds
+export async function check(contentFn, regex, hardError = true) {
+  let content
+  let lastErr
+
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-    } catch (err) {
-      console.error('Error while getting content', { regex })
-    }
-    console.error('TIMED OUT CHECK: ', { regex, content })
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      const newContent = await contentFn()
-      if (regex.test(newContent)) {
-        found = true
-        clearTimeout(timeout)
-        break
+      if (regex.test(content)) {
+        // found the content
+        return true
       }
       await waitFor(1000)
-    } catch (ex) {}
+    } catch (err) {
+      await waitFor(1000)
+      lastErr = err
+    }
   }
+  console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
+
+  if (hardError) {
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+  }
+  return false
 }
 
 export class File {
@@ -379,36 +394,65 @@ export class File {
   }
 }
 
-// react-error-overlay uses an iframe so we have to read the contents from the frame
-export async function getReactErrorOverlayContent(browser) {
-  let found = false
-  setTimeout(() => {
-    if (found) {
-      return
-    }
-    console.error('TIMED OUT CHECK FOR IFRAME')
-    throw new Error('TIMED OUT CHECK FOR IFRAME')
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      await browser.waitForElementByCss('iframe', 10000)
-
-      const hasIframe = await browser.hasElementByCssSelector('iframe')
-      if (!hasIframe) {
-        throw new Error('Waiting for iframe')
-      }
-
-      found = true
-      return browser.eval(
-        `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-      )
-    } catch (ex) {
-      await waitFor(1000)
-    }
+export async function evaluate(browser, input) {
+  if (typeof input === 'function') {
+    const result = await browser.executeScript(input)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    return result
+  } else {
+    throw new Error(`You must pass a function to be evaluated in the browser.`)
   }
-  return browser.eval(
-    `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-  )
+}
+
+export async function hasRedbox(browser, expected = true) {
+  let attempts = 30
+  do {
+    const has = await evaluate(browser, () => {
+      return Boolean(
+        [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find(p =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+            )
+          )
+      )
+    })
+    if (has) {
+      return true
+    }
+    if (--attempts < 0) {
+      break
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  } while (expected)
+  return false
+}
+
+export async function getRedboxHeader(browser) {
+  return evaluate(browser, () => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find(p => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+    const root = portal.shadowRoot
+    return root.querySelector('[data-nextjs-dialog-header]').innerText
+  })
+}
+
+export async function getRedboxSource(browser) {
+  return evaluate(browser, () => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find(p =>
+        p.shadowRoot.querySelector(
+          '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+        )
+      )
+    const root = portal.shadowRoot
+    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+      .innerText
+  })
 }
 
 export function getBrowserBodyText(browser) {
