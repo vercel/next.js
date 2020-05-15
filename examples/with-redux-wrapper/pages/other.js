@@ -4,6 +4,7 @@ import { addCount } from '../store/count/action'
 import { startClock, serverRenderClock } from '../store/tick/action'
 import { connect } from 'react-redux'
 import Page from '../components/Page'
+import { wrapper } from '../store/store'
 
 const Counter = props => {
   useEffect(() => {
@@ -17,12 +18,12 @@ const Counter = props => {
   return <Page title="Other Page" linkTo="/" />
 }
 
-Counter.getInitialProps = async ({ store, req }) => {
-  const isServer = !!req
-  store.dispatch(serverRenderClock(isServer))
-  store.dispatch(addCount())
-  return { isServer }
-}
+export const getServerSideProps = wrapper.getServerSideProps(
+  async ({ store }) => {
+    store.dispatch(serverRenderClock(true))
+    store.dispatch(addCount())
+  }
+)
 
 const mapDispatchToProps = dispatch => {
   return {
@@ -31,4 +32,4 @@ const mapDispatchToProps = dispatch => {
   }
 }
 
-export default connect(null, mapDispatchToProps)(Counter)
+export default wrapper.withRedux(connect(null, mapDispatchToProps)(Counter))
