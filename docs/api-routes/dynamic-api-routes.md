@@ -84,7 +84,7 @@ Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`). For example
 
-- `pages/api/post/[...slug].js` matches `/api/post` as well
+- `pages/api/post/[[...slug]].js` matches `/api/post` as well
 
 ## Caveats
 

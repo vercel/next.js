@@ -53,6 +53,12 @@ function runTests() {
   })
 
   it('should render catch-all nested route with no segments', async () => {
+    const html = await renderViaHTTP(appPort, '/nested')
+    const $ = cheerio.load(html)
+    expect($('#nested-optional-route').text()).toBe('nested route: ')
+  })
+
+  it('should render catch-all nested route with no segments', async () => {
     const html = await renderViaHTTP(appPort, '/nested/')
     const $ = cheerio.load(html)
     expect($('#nested-optional-route').text()).toBe('nested route: ')
@@ -72,6 +78,12 @@ function runTests() {
 
   it('should match catch-all api route with no segments', async () => {
     const res = await fetchViaHTTP(appPort, '/api/post')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ slug: [] })
+  })
+
+  it('should match catch-all api route with no segments', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/post/')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ slug: [] })
   })
