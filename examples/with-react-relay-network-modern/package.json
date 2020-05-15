@@ -7,7 +7,7 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
+    "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql --artifactDirectory __generated__",
     "schema": "graphql get-schema -e dev"
   },
   "author": "",
@@ -15,19 +15,19 @@
   "dependencies": {
     "dotenv": "^8.0.0",
     "dotenv-webpack": "^1.5.4",
-    "graphql": "^14.3.0",
+    "graphql": "^14.6.0",
     "isomorphic-fetch": "^2.2.1",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-relay": "^5.0.0",
-    "react-relay-network-modern": "^4.0.0",
-    "react-relay-network-modern-ssr": "^1.2.2"
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0",
+    "react-relay": "^9.0.0",
+    "react-relay-network-modern": "^4.5.0",
+    "react-relay-network-modern-ssr": "^1.4.0"
   },
   "devDependencies": {
-    "babel-plugin-relay": "^5.0.0",
+    "babel-plugin-relay": "^9.0.0",
     "graphcool": "^1.2.1",
     "graphql-cli": "^3.0.11",
-    "relay-compiler": "^5.0.0"
+    "relay-compiler": "^9.0.0"
   }
 }

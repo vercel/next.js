@@ -14,7 +14,7 @@ describe('Legacy Prerender', () => {
       const out = await nextBuild(appDir, [], { stderr: true })
       expect(out.stderr).toMatch(`Build error occurred`)
       expect(out.stderr).toMatch(
-        'unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.'
+        'unstable_getStaticParams was replaced with getStaticPaths. Please update your code.'
       )
     })
 
@@ -27,7 +27,7 @@ describe('Legacy Prerender', () => {
       await fs.remove(nextConfig)
       expect(out.stderr).toMatch(`Build error occurred`)
       expect(out.stderr).toMatch(
-        'unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.'
+        'unstable_getStaticParams was replaced with getStaticPaths. Please update your code.'
       )
     })
   })

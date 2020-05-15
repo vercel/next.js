@@ -9,6 +9,7 @@ import { createApp } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { shouldUseYarn } from './helpers/should-use-yarn'
+import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -21,13 +22,28 @@ const program = new Commander.Command(packageJson.name)
   })
   .option('--use-npm')
   .option(
-    '-e, --example <example-path>',
-    'an example to bootstrap the app with'
+    '-e, --example [name]|[github-url]',
+    `
+
+  An example to bootstrap the app with. You can use an example name
+  from the official Next.js repo or a GitHub URL. The URL can use
+  any branch and/or subdirectory
+`
+  )
+  .option(
+    '--example-path <path-to-example>',
+    `
+
+  In a rare case, your GitHub URL might contain a branch name with
+  a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
+  In this case, you must specify the path to the example separately:
+  --example-path foo/bar
+`
   )
   .allowUnknownOption()
   .parse(process.argv)
 
-async function run() {
+async function run(): Promise<void> {
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
@@ -83,18 +99,85 @@ async function run() {
     process.exit(1)
   }
 
+  if (!program.example) {
+    const template = await prompts({
+      type: 'select',
+      name: 'value',
+      message: 'Pick a template',
+      choices: [
+        { title: 'Default starter app', value: 'default' },
+        { title: 'Example from the Next.js repo', value: 'example' },
+      ],
+    })
+
+    if (!template.value) {
+      console.log()
+      console.log('Please specify the template')
+      process.exit(1)
+    }
+
+    if (template.value === 'example') {
+      let examplesJSON: any
+
+      try {
+        examplesJSON = await listExamples()
+      } catch (error) {
+        console.log()
+        console.log(
+          'Failed to fetch the list of examples with the following error:'
+        )
+        console.error(error)
+        console.log()
+        console.log('Switching to the default starter app')
+        console.log()
+      }
+
+      if (examplesJSON) {
+        const choices = examplesJSON.map((example: any) => ({
+          title: example.name,
+          value: example.name,
+        }))
+        // The search function built into `prompts` isn’t very helpful:
+        // someone searching for `styled-components` would get no results since
+        // the example is called `with-styled-components`, and `prompts` searches
+        // the beginnings of titles.
+        const nameRes = await prompts({
+          type: 'autocomplete',
+          name: 'exampleName',
+          message: 'Pick an example',
+          choices,
+          suggest: (input: any, choices: any) => {
+            const regex = new RegExp(input, 'i')
+            return choices.filter((choice: any) => regex.test(choice.title))
+          },
+        })
+
+        if (!nameRes.exampleName) {
+          console.log()
+          console.log(
+            'Please specify an example or use the default starter app.'
+          )
+          process.exit(1)
+        }
+
+        program.example = nameRes.exampleName
+      }
+    }
+  }
+
   await createApp({
     appPath: resolvedProjectPath,
     useNpm: !!program.useNpm,
     example:
       (typeof program.example === 'string' && program.example.trim()) ||
       undefined,
+    examplePath: program.examplePath,
   })
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)
 
-async function notifyUpdate() {
+async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {
@@ -114,6 +197,7 @@ async function notifyUpdate() {
       )
       console.log()
     }
+    process.exit()
   } catch {
     // ignore error
   }

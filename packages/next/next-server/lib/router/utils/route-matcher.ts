@@ -8,7 +8,17 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
       return false
     }
 
-    const decode = decodeURIComponent
+    const decode = (param: string) => {
+      try {
+        return decodeURIComponent(param)
+      } catch (_) {
+        const err: Error & { code?: string } = new Error(
+          'failed to decode param'
+        )
+        err.code = 'DECODE_FAILED'
+        throw err
+      }
+    }
     const params: { [paramName: string]: string | string[] } = {}
 
     Object.keys(groups).forEach((slugName: string) => {

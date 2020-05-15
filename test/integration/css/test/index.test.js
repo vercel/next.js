@@ -163,7 +163,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}"`
+        `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
       )
 
       // Contains a source map
@@ -184,12 +184,16 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
+          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
             color: green;
           }
+        }
+
+        .flex-parsing {
+          flex: 0 0 calc(50% - var(--vertical-gutter));
         }
         ",
           ],
@@ -802,6 +806,93 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Ordering with Global CSS and Modules (dev)', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+
+    it('should have the correct color (css ordering) during hot reloads', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#blueText')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        const cssFile = new File(join(appDir, 'pages/index.module.css'))
+        try {
+          cssFile.replace('color: blue;', 'color: blue; ')
+          await waitFor(2000) // wait for HMR
+
+          const refreshedColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('#blueText')).color`
+          )
+          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+        } finally {
+          cssFile.restore()
+        }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Ordering with Global CSS and Modules (prod)', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
+
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+  })
+
   describe('Basic Tailwind CSS', () => {
     const appDir = join(fixturesDir, 'with-tailwindcss')
 
@@ -815,6 +906,7 @@ describe('CSS Support', () => {
       })
       expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toContain('.css')
     })
 
     it(`should've compiled and prefixed`, async () => {

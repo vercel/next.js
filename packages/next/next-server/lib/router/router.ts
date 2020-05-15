@@ -16,10 +16,16 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
-function addBasePath(path: string): string {
-  // variable is always a string
-  const p = process.env.__NEXT_ROUTER_BASEPATH as string
-  return path.indexOf(p) !== 0 ? p + path : path
+const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+
+export function addBasePath(path: string): string {
+  return path.indexOf(basePath) !== 0 ? basePath + path : path
+}
+
+export function delBasePath(path: string): string {
+  return path.indexOf(basePath) === 0
+    ? path.substr(basePath.length) || '/'
+    : path
 }
 
 function toRoute(path: string): string {
@@ -31,11 +37,14 @@ const prepareRoute = (path: string) =>
 
 type Url = UrlObject | string
 
+type ComponentRes = { page: ComponentType; mod: any }
+
 export type BaseRouter = {
   route: string
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
 }
 
 export type NextRouter = BaseRouter &
@@ -57,6 +66,8 @@ export type PrefetchOptions = {
 
 type RouteInfo = {
   Component: ComponentType
+  __N_SSG?: boolean
+  __N_SSP?: boolean
   props?: any
   err?: Error
   error?: any
@@ -80,10 +91,26 @@ function fetchNextData(
   function getResponse(): Promise<any> {
     return fetch(
       formatWithValidation({
-        // @ts-ignore __NEXT_DATA__
-        pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+        pathname: addBasePath(
+          // @ts-ignore __NEXT_DATA__
+          `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
+        ),
         query,
-      })
+      }),
+      {
+        // Cookies are required to be present for Next.js' SSG "Preview Mode".
+        // Cookies may also be required for `getServerSideProps`.
+        //
+        // > `fetch` won’t send cookies, unless you set the credentials init
+        // > option.
+        // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+        //
+        // > For maximum browser compatibility when it comes to sending &
+        // > receiving cookies, always supply the `credentials: 'same-origin'`
+        // > option instead of relying on the default.
+        // https://github.com/github/fetch#caveats
+        credentials: 'same-origin',
+      }
     ).then(res => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
@@ -115,6 +142,8 @@ export default class Router implements BaseRouter {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
+
   /**
    * Map of all components loaded in `Router`
    */
@@ -165,7 +194,13 @@ export default class Router implements BaseRouter {
     // Otherwise, this cause issues when when going back and
     // come again to the errored page.
     if (pathname !== '/_error') {
-      this.components[this.route] = { Component, props: initialProps, err }
+      this.components[this.route] = {
+        Component,
+        props: initialProps,
+        err,
+        __N_SSG: initialProps && initialProps.__N_SSG,
+        __N_SSP: initialProps && initialProps.__N_SSP,
+      }
     }
 
     this.components['/_app'] = { Component: App }
@@ -182,6 +217,7 @@ export default class Router implements BaseRouter {
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
       isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+    this.basePath = basePath
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
@@ -192,13 +228,17 @@ export default class Router implements BaseRouter {
     this.isFallback = isFallback
 
     if (typeof window !== 'undefined') {
-      // in order for `e.state` to work on the `onpopstate` event
-      // we have to register the initial route upon initialization
-      this.changeState(
-        'replaceState',
-        formatWithValidation({ pathname, query }),
-        as
-      )
+      // make sure "as" doesn't start with double slashes or else it can
+      // throw an error as it's considered invalid
+      if (as.substr(0, 2) !== '//') {
+        // in order for `e.state` to work on the `onpopstate` event
+        // we have to register the initial route upon initialization
+        this.changeState(
+          'replaceState',
+          formatWithValidation({ pathname, query }),
+          as
+        )
+      }
 
       window.addEventListener('popstate', this.onPopState)
     }
@@ -240,8 +280,8 @@ export default class Router implements BaseRouter {
     if (
       e.state &&
       this.isSsr &&
-      e.state.url === this.pathname &&
-      e.state.as === this.asPath
+      e.state.as === this.asPath &&
+      parse(e.state.url).pathname === this.pathname
     ) {
       return
     }
@@ -270,7 +310,12 @@ export default class Router implements BaseRouter {
       throw new Error(`Cannot update unavailable route: ${route}`)
     }
 
-    const newData = { ...data, Component }
+    const newData = {
+      ...data,
+      Component,
+      __N_SSG: mod.__N_SSG,
+      __N_SSP: mod.__N_SSP,
+    }
     this.components[route] = newData
 
     // pages/_app.js updated
@@ -332,8 +377,11 @@ export default class Router implements BaseRouter {
 
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
-      const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
+      let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
       let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
+
+      url = addBasePath(url)
+      as = addBasePath(as)
 
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
@@ -357,7 +405,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, addBasePath(as), options)
+        this.changeState(method, url, as, options)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -429,7 +477,7 @@ export default class Router implements BaseRouter {
         }
 
         Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, addBasePath(as), options)
+        this.changeState(method, url, as, options)
 
         if (process.env.NODE_ENV !== 'production') {
           const appComp: any = this.components['/_app'].Component
@@ -500,73 +548,36 @@ export default class Router implements BaseRouter {
       return Promise.resolve(cachedRouteInfo)
     }
 
-    return (new Promise((resolve, reject) => {
-      if (cachedRouteInfo) {
-        return resolve(cachedRouteInfo)
-      }
+    const handleError = (
+      err: Error & { code: any; cancelled: boolean },
+      loadErrorFail?: boolean
+    ) => {
+      return new Promise(resolve => {
+        if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+          // If we can't load the page it could be one of following reasons
+          //  1. Page doesn't exists
+          //  2. Page does exist in a different zone
+          //  3. Internal error while loading the page
 
-      this.fetchComponent(route).then(
-        Component => resolve({ Component }),
-        reject
-      )
-    }) as Promise<RouteInfo>)
-      .then((routeInfo: RouteInfo) => {
-        const { Component } = routeInfo
+          // So, doing a hard reload is the proper way to deal with this.
+          window.location.href = as
 
-        if (process.env.NODE_ENV !== 'production') {
-          const { isValidElementType } = require('react-is')
-          if (!isValidElementType(Component)) {
-            throw new Error(
-              `The default export is not a React Component in page: "${pathname}"`
-            )
-          }
+          // Changing the URL doesn't block executing the current code path.
+          // So, we need to mark it as a cancelled error and stop the routing logic.
+          err.cancelled = true
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
         }
 
-        return this._getData<RouteInfo>(() =>
-          (Component as any).__N_SSG
-            ? this._getStaticData(as)
-            : (Component as any).__N_SSP
-            ? this._getServerData(as)
-            : this.getInitialProps(
-                Component,
-                // we provide AppTree later so this needs to be `any`
-                {
-                  pathname,
-                  query,
-                  asPath: as,
-                } as any
-              )
-        ).then(props => {
-          routeInfo.props = props
-          this.components[route] = routeInfo
-          return routeInfo
-        })
-      })
-      .catch(err => {
-        return new Promise(resolve => {
-          if (err.code === 'PAGE_LOAD_ERROR') {
-            // If we can't load the page it could be one of following reasons
-            //  1. Page doesn't exists
-            //  2. Page does exist in a different zone
-            //  3. Internal error while loading the page
+        if (err.cancelled) {
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
 
-            // So, doing a hard reload is the proper way to deal with this.
-            window.location.href = as
-
-            // Changing the URL doesn't block executing the current code path.
-            // So, we need to mark it as a cancelled error and stop the routing logic.
-            err.cancelled = true
-            // @ts-ignore TODO: fix the control flow here
-            return resolve({ error: err })
-          }
-
-          if (err.cancelled) {
-            // @ts-ignore TODO: fix the control flow here
-            return resolve({ error: err })
-          }
-
-          resolve(
-            this.fetchComponent('/_error').then(Component => {
+        resolve(
+          this.fetchComponent('/_error')
+            .then(res => {
+              const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
               return new Promise(resolve => {
                 this.getInitialProps(Component, {
@@ -591,9 +602,59 @@ export default class Router implements BaseRouter {
                 )
               }) as Promise<RouteInfo>
             })
-          )
-        }) as Promise<RouteInfo>
+            .catch(err => handleError(err, true))
+        )
+      }) as Promise<RouteInfo>
+    }
+
+    return (new Promise((resolve, reject) => {
+      if (cachedRouteInfo) {
+        return resolve(cachedRouteInfo)
+      }
+
+      this.fetchComponent(route).then(
+        res =>
+          resolve({
+            Component: res.page,
+            __N_SSG: res.mod.__N_SSG,
+            __N_SSP: res.mod.__N_SSP,
+          }),
+        reject
+      )
+    }) as Promise<RouteInfo>)
+      .then((routeInfo: RouteInfo) => {
+        const { Component, __N_SSG, __N_SSP } = routeInfo
+
+        if (process.env.NODE_ENV !== 'production') {
+          const { isValidElementType } = require('react-is')
+          if (!isValidElementType(Component)) {
+            throw new Error(
+              `The default export is not a React Component in page: "${pathname}"`
+            )
+          }
+        }
+
+        return this._getData<RouteInfo>(() =>
+          __N_SSG
+            ? this._getStaticData(as)
+            : __N_SSP
+            ? this._getServerData(as)
+            : this.getInitialProps(
+                Component,
+                // we provide AppTree later so this needs to be `any`
+                {
+                  pathname,
+                  query,
+                  asPath: as,
+                } as any
+              )
+        ).then(props => {
+          routeInfo.props = props
+          this.components[route] = routeInfo
+          return routeInfo
+        })
       })
+      .catch(handleError)
   }
 
   set(
@@ -695,20 +756,22 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-
-      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
-        toRoute(pathname)
-      ).then(() => resolve(), reject)
+      const route = delBasePath(toRoute(pathname))
+      Promise.all([
+        this.pageLoader.prefetchData(url, delBasePath(asPath)),
+        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
+      ]).then(() => resolve(), reject)
     })
   }
 
-  async fetchComponent(route: string): Promise<ComponentType> {
+  async fetchComponent(route: string): Promise<ComponentRes> {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
     })
+    route = delBasePath(route)
 
-    const Component = await this.pageLoader.loadPage(route)
+    const componentResult = await this.pageLoader.loadPage(route)
 
     if (cancelled) {
       const error: any = new Error(
@@ -722,7 +785,7 @@ export default class Router implements BaseRouter {
       this.clc = null
     }
 
-    return Component
+    return componentResult
   }
 
   _getData<T>(fn: () => Promise<T>): Promise<T> {

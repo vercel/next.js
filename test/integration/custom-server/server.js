@@ -9,7 +9,7 @@ const app = next({ dev, dir })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = new http.Server((req, res) => {
+  const server = new http.Server(async (req, res) => {
     if (req.url === '/no-query') {
       return app.render(req, res, '/no-query')
     }
@@ -29,11 +29,19 @@ app.prepare().then(() => {
     }
 
     if (/dashboard/.test(req.url)) {
-      return app.render(req, res, '/dashboard/index')
+      return app.render(req, res, '/dashboard')
     }
 
     if (/static\/hello\.text/.test(req.url)) {
       return app.render(req, res, '/static/hello.text')
+    }
+
+    if (/no-slash/.test(req.url)) {
+      try {
+        await app.render(req, res, 'dashboard')
+      } catch (err) {
+        res.end(err.message)
+      }
     }
 
     handleNextRequests(req, res)

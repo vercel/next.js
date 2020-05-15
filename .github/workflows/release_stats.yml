@@ -4,10 +4,9 @@ name: Generate Release Stats
 
 jobs:
   prStats:
-    name: PR Stats
+    name: Release Stats
     runs-on: ubuntu-latest
     steps:
-      - name: PR Stats
-        uses: zeit/next-stats-action@master
+      - uses: zeit/next-stats-action@master
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}

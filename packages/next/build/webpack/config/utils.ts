@@ -11,6 +11,8 @@ export type ConfigurationContext = {
   isClient: boolean
 
   assetPrefix: string
+
+  sassOptions: any
 }
 
 export type ConfigurationFn = (

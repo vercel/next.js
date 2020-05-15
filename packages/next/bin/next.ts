@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
+import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 ;['react', 'react-dom'].forEach(dependency => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -63,7 +65,6 @@ if (!foundCommand && args['--help']) {
 
     Options
       --version, -v   Version number
-      --inspect       Enable the Node.js inspector
       --help, -h      Displays this message
 
     For more information run a command with the --help flag
@@ -77,7 +78,7 @@ const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 if (args['--inspect'])
   throw new Error(
-    `Use env variable NODE_OPTIONS instead: NODE_OPTIONS="--inspect" next ${command}`
+    `--inspect flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${command}`
   )
 
 // Make sure the `next <subcommand> --help` case is covered
@@ -86,6 +87,13 @@ if (args['--help']) {
 }
 
 const defaultEnv = command === 'dev' ? 'development' : 'production'
+
+const standardEnv = ['production', 'development', 'test']
+
+if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
+  log.warn(NON_STANDARD_NODE_ENV)
+}
+
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
 // this needs to come after we set the correct NODE_ENV or

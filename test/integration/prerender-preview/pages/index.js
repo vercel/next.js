@@ -1,5 +1,11 @@
-export function unstable_getStaticProps({ preview, previewData }) {
-  return { props: { hasProps: true, preview, previewData } }
+export function getStaticProps({ preview, previewData }) {
+  return {
+    props: {
+      hasProps: true,
+      preview: !!preview,
+      previewData: previewData || null,
+    },
+  }
 }
 
 export default function({ hasProps, preview, previewData }) {

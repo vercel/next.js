@@ -1,14 +1,12 @@
 /* eslint-env jest */
 /* global jasmine */
-import fs from 'fs'
+import { promises } from 'fs'
 import { join } from 'path'
-import { promisify } from 'util'
 import { validateAMP } from 'amp-test-utils'
 import { File, nextBuild, nextExport, runNextCommand } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-const access = promisify(fs.access)
-const readFile = promisify(fs.readFile)
+const { access, readFile } = promises
 const appDir = join(__dirname, '../')
 const outDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))

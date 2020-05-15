@@ -5,7 +5,7 @@ export function install(
   root: string,
   dependencies: string[] | null,
   { useYarn, isOnline }: { useYarn: boolean; isOnline: boolean }
-) {
+): Promise<void> {
   return new Promise((resolve, reject) => {
     let command: string
     let args: string[]

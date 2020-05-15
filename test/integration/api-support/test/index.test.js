@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -322,6 +323,11 @@ function runTests(dev = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
+  it('should work with child_process correctly', async () => {
+    const data = await renderViaHTTP(appPort, '/api/child-process')
+    expect(data).toBe('hi')
+  })
+
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/')
@@ -371,7 +377,37 @@ function runTests(dev = false) {
         `API resolved without sending a response for /api/test-res-pipe`
       )
     })
+
+    it('should show false positive warning if not using externalResolver flag', async () => {
+      const apiURL = '/api/external-resolver-false-positive'
+      const req = await fetchViaHTTP(appPort, apiURL)
+      expect(stderr).toContain(
+        `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
+      )
+      expect(await req.text()).toBe('hello world')
+    })
+
+    it('should not show warning if using externalResolver flag', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      const apiURL = '/api/external-resolver'
+      const req = await fetchViaHTTP(appPort, apiURL)
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for ${apiURL}`
+      )
+      expect(await req.text()).toBe('hello world')
+    })
   } else {
+    it('should show warning with next export', async () => {
+      const { stdout } = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        { stdout: true }
+      )
+      expect(stdout).toContain(
+        'https://err.sh/zeit/next.js/api-routes-static-export'
+      )
+    })
+
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
         await fs.readFile(

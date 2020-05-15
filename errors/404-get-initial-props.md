@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-In your `404.js` page you added `getInitialProps` or `getServerProps` which is not allowed as this prevents the page from being static and `404.js` is meant to provide more flexibility for a static 404 page. Having a static 404 page is the most ideal as this page can be served very often and if not static puts extra strain on your server and more invocations for serverless functions which increase the cost of hosting your site unnecessarily.
+In your `404.js` page you added `getInitialProps` or `getServerSideProps` which is not allowed as this prevents the page from being static and `404.js` is meant to provide more flexibility for a static 404 page. Having a static 404 page is the most ideal as this page can be served very often and if not static puts extra strain on your server and more invocations for serverless functions which increase the cost of hosting your site unnecessarily.
 
 #### Possible Ways to Fix It
 

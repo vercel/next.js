@@ -1,20 +1,17 @@
-import mkdirpModule from 'mkdirp'
-import { promisify } from 'util'
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../next-server/server/render'
-import { writeFile, access } from 'fs'
-import AmpHtmlValidator from 'amphtml-validator'
+import { promises } from 'fs'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../next-server/server/load-components'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
+import 'next/dist/next-server/server/node-polyfill-fetch'
 
 const envConfig = require('../next-server/lib/runtime-config')
-const writeFileP = promisify(writeFile)
-const mkdirp = promisify(mkdirpModule)
-const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {
   nextExport: true,
@@ -113,15 +110,13 @@ export default async function({
     const baseDir = join(outDir, dirname(htmlFilename))
     let htmlFilepath = join(outDir, htmlFilename)
 
-    await mkdirp(baseDir)
+    await promises.mkdir(baseDir, { recursive: true })
     let html
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
-    // eslint-disable-next-line camelcase
-    const renderedDuringBuild = unstable_getStaticProps => {
-      // eslint-disable-next-line camelcase
-      return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
+    const renderedDuringBuild = getStaticProps => {
+      return !buildExport && getStaticProps && !isDynamicRoute(path)
     }
 
     if (serverless) {
@@ -133,12 +128,16 @@ export default async function({
           ...query,
         },
       })
-      const { Component: mod } = await loadComponents(
+      const { Component: mod, getServerSideProps } = await loadComponents(
         distDir,
         buildId,
         page,
         serverless
       )
+
+      if (getServerSideProps) {
+        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
+      }
 
       // if it was auto-exported the HTML is loaded here
       if (typeof mod === 'string') {
@@ -147,16 +146,22 @@ export default async function({
       } else {
         // for non-dynamic SSG pages we should have already
         // prerendered the file
-        if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
+        if (renderedDuringBuild(mod.getStaticProps)) return results
 
-        if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+        if (mod.getStaticProps && !htmlFilepath.endsWith('.html')) {
           // make sure it ends with .html if the name contains a dot
           htmlFilename += '.html'
           htmlFilepath += '.html'
         }
 
         renderMethod = mod.renderReqToHTML
-        const result = await renderMethod(req, res, true, { ampPath }, params)
+        const result = await renderMethod(
+          req,
+          res,
+          'export',
+          { ampPath },
+          params
+        )
         curRenderOpts = result.renderOpts || {}
         html = result.html
       }
@@ -172,17 +177,18 @@ export default async function({
         serverless
       )
 
+      if (components.getServerSideProps) {
+        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
+      }
+
       // for non-dynamic SSG pages we should have already
       // prerendered the file
-      if (renderedDuringBuild(components.unstable_getStaticProps)) {
+      if (renderedDuringBuild(components.getStaticProps)) {
         return results
       }
 
       // TODO: de-dupe the logic here between serverless and server mode
-      if (
-        components.unstable_getStaticProps &&
-        !htmlFilepath.endsWith('.html')
-      ) {
+      if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
         // make sure it ends with .html if the name contains a dot
         htmlFilepath += '.html'
         htmlFilename += '.html'
@@ -214,7 +220,7 @@ export default async function({
       }
     }
 
-    if (curRenderOpts.inAmpMode) {
+    if (curRenderOpts.inAmpMode && !curRenderOpts.ampSkipValidation) {
       await validateAmp(html, path, curRenderOpts.ampValidatorPath)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
@@ -226,13 +232,13 @@ export default async function({
       const ampHtmlFilepath = join(outDir, ampHtmlFilename)
 
       try {
-        await accessP(ampHtmlFilepath)
+        await promises.access(ampHtmlFilepath)
       } catch (_) {
         // make sure it doesn't exist from manual mapping
         let ampHtml
         if (serverless) {
           req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
-          ampHtml = (await renderMethod(req, res, true)).html
+          ampHtml = (await renderMethod(req, res, 'export')).html
         } else {
           ampHtml = await renderMethod(
             req,
@@ -243,9 +249,11 @@ export default async function({
           )
         }
 
-        await validateAmp(ampHtml, page + '?amp=1')
-        await mkdirp(ampBaseDir)
-        await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
+        if (!curRenderOpts.ampSkipValidation) {
+          await validateAmp(ampHtml, page + '?amp=1')
+        }
+        await promises.mkdir(ampBaseDir, { recursive: true })
+        await promises.writeFile(ampHtmlFilepath, ampHtml, 'utf8')
       }
     }
 
@@ -255,17 +263,21 @@ export default async function({
         htmlFilename.replace(/\.html$/, '.json')
       )
 
-      await mkdirp(dirname(dataFile))
-      await writeFileP(dataFile, JSON.stringify(curRenderOpts.pageData), 'utf8')
+      await promises.mkdir(dirname(dataFile), { recursive: true })
+      await promises.writeFile(
+        dataFile,
+        JSON.stringify(curRenderOpts.pageData),
+        'utf8'
+      )
     }
     results.fromBuildExportRevalidate = curRenderOpts.revalidate
 
-    await writeFileP(htmlFilepath, html, 'utf8')
+    await promises.writeFile(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {
     console.error(
-      `\nError occurred prerendering page "${path}" https://err.sh/zeit/next.js/prerender-error:`,
-      error
+      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
+        error
     )
     return { ...results, error: true }
   }

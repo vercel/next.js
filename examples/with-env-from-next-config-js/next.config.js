@@ -10,7 +10,8 @@ module.exports = phase => {
   // when `next build` or `npm run build` is used
   const isProd = phase === PHASE_PRODUCTION_BUILD && process.env.STAGING !== '1'
   // when `next build` or `npm run build` is used
-  const isStaging = PHASE_PRODUCTION_BUILD && process.env.STAGING === '1'
+  const isStaging =
+    phase === PHASE_PRODUCTION_BUILD && process.env.STAGING === '1'
 
   console.log(`isDev:${isDev}  isProd:${isProd}   isStaging:${isStaging}`)
 

@@ -1,4 +1,4 @@
-import findUp from 'find-up'
+import findUp from 'next/dist/compiled/find-up'
 import path from 'path'
 import {
   CONFIG_FILE,

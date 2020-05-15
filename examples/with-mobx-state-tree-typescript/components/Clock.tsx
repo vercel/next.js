@@ -13,4 +13,4 @@ const Clock = props => {
   return <div style={divStyle}>{format(new Date(props.lastUpdate))}</div>
 }
 
-export { Clock }
+export default Clock

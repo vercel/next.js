@@ -46,7 +46,7 @@ function EventSourceWrapper(options) {
 
   return {
     close: () => {
-      clearTimeout(timer)
+      clearInterval(timer)
       source.close()
     },
     addMessageListener: function(fn) {

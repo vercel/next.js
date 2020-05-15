@@ -5,18 +5,6 @@ import { Provider } from 'overmind-react'
 import { config } from '../overmind'
 
 class MyApp extends App {
-  // From the documentation of Next
-  // CLIENT: After initial route, on page change
-  // SERVER: On initial route
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
   // CLIENT: On initial route
   // SERVER: On initial route
   constructor(props) {
