@@ -105,11 +105,11 @@ test('logbox: can recover from a event handler error', async () => {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "index.js (8:16) @ <unknown>
 
-        6 | const increment = useCallback(() => {
-        7 |   setCount(c => c + 1)
+         6 | const increment = useCallback(() => {
+         7 |   setCount(c => c + 1)
       >  8 |   throw new Error('oops')
-          |        ^
-        9 | }, [setCount])
+           |        ^
+         9 | }, [setCount])
         10 | return (
         11 |   <main>"
     `)
@@ -117,11 +117,11 @@ test('logbox: can recover from a event handler error', async () => {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "index.js (8:16) @ eval
 
-        6 | const increment = useCallback(() => {
-        7 |   setCount(c => c + 1)
+         6 | const increment = useCallback(() => {
+         7 |   setCount(c => c + 1)
       >  8 |   throw new Error('oops')
-          |        ^
-        9 | }, [setCount])
+           |        ^
+         9 | }, [setCount])
         10 | return (
         11 |   <main>"
     `)
