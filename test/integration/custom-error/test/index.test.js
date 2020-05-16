@@ -39,7 +39,7 @@ describe('Custom _error', () => {
         },
       })
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404 when rendering error first', async () => {
       stderr = ''
@@ -62,7 +62,7 @@ describe('Custom _error', () => {
         },
       })
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404', async () => {
       stderr = ''
