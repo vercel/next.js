@@ -523,22 +523,9 @@ export async function path_to_regexp(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('path-to-regexp')))
     .target('dist/compiled/path-to-regexp')
 }
-externals['react-error-overlay'] = 'next/dist/compiled/react-error-overlay'
-export async function react_error_overlay(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('react-error-overlay'))
-    )
-    .target('dist/compiled/react-error-overlay')
-}
 
 export async function precompile(task) {
-  await task.parallel([
-    'browser_polyfills',
-    'path_to_regexp',
-    'react_error_overlay',
-    'copy_ncced',
-  ])
+  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
 }
 
 // eslint-disable-next-line camelcase

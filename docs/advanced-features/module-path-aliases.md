@@ -2,7 +2,7 @@
 description: Configure module path aliases that allow you to remap certain import paths.
 ---
 
-## Absolute Imports and Module path aliases
+# Absolute Imports and Module path aliases
 
 Next.js automatically supports the `tsconfig.json` and `jsconfig.json` `"paths"` and `"baseUrl"` options.
 
