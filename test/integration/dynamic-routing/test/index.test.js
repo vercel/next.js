@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs-extra'
@@ -17,7 +17,7 @@ import {
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort

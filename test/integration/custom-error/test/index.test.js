@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -11,7 +11,7 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const page404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
@@ -39,7 +39,7 @@ describe('Custom _error', () => {
         },
       })
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404 when rendering error first', async () => {
       stderr = ''
@@ -62,7 +62,7 @@ describe('Custom _error', () => {
         },
       })
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404', async () => {
       stderr = ''
