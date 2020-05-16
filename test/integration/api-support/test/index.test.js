@@ -48,8 +48,8 @@ function runTests(dev = false) {
     const res = await fetchViaHTTP(appPort, '/api/cors', null, {
       method: 'OPTIONS',
       headers: {
-        origin: 'example.com'
-      }
+        origin: 'example.com',
+      },
     })
 
     expect(res.status).toEqual(204)
