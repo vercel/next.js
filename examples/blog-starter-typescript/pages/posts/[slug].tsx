@@ -56,7 +56,13 @@ const Post: React.FC<Props> = ({ post, morePosts, preview }) => {
 
 export default Post
 
-export async function getStaticProps(params: PostType) {
+type Params = {
+  params: {
+    slug: string
+  }
+}
+
+export async function getStaticProps({ params }: Params) {
   const post = getPostBySlug(params.slug, [
     'title',
     'date',
