@@ -12,6 +12,10 @@ const cwd = path.join(
     .substring(2)
 )
 
+jest.setTimeout(1000 * 60 * 2)
+// there's no use in retrying these without emptying cwd between each test
+jest.retryTimes(1)
+
 const run = (...args) => execa('node', [cli, ...args], { cwd })
 const runStarter = (...args) => {
   const res = run(...args)
@@ -29,7 +33,6 @@ const runStarter = (...args) => {
 
 describe('create next app', () => {
   beforeAll(async () => {
-    jest.setTimeout(1000 * 60 * 2)
     await fs.mkdirp(cwd)
   })
 
