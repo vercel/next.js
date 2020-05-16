@@ -1,11 +1,11 @@
-import React from "react";
-import PostPreview from "./post-preview";
-import Author from "../types/author";
-import Post from "../types/post";
+import React from 'react'
+import PostPreview from './post-preview'
+import Author from '../types/author'
+import Post from '../types/post'
 
 type Props = {
-  posts: Post[];
-};
+  posts: Post[]
+}
 
 const MoreStories: React.FC<Props> = ({ posts }) => {
   return (
@@ -27,7 +27,7 @@ const MoreStories: React.FC<Props> = ({ posts }) => {
         ))}
       </div>
     </section>
-  );
-};
+  )
+}
 
-export default MoreStories;
+export default MoreStories

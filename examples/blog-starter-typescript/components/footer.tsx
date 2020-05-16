@@ -1,6 +1,6 @@
-import React from "react";
-import Container from "./container";
-import { EXAMPLE_PATH } from "../lib/constants";
+import React from 'react'
+import Container from './container'
+import { EXAMPLE_PATH } from '../lib/constants'
 
 const Footer: React.FC = () => {
   return (
@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
         </div>
       </Container>
     </footer>
-  );
-};
+  )
+}
 
-export default Footer;
+export default Footer

@@ -1,18 +1,18 @@
-import React from "react";
-import Avatar from "./avatar";
-import DateFormater from "./date-formater";
-import CoverImage from "./cover-image";
-import Link from "next/link";
-import Author from "../types/author";
+import React from 'react'
+import Avatar from './avatar'
+import DateFormater from './date-formater'
+import CoverImage from './cover-image'
+import Link from 'next/link'
+import Author from '../types/author'
 
 type Props = {
-  title: string;
-  coverImage: string;
-  date: string;
-  excerpt: string;
-  author: Author;
-  slug: string;
-};
+  title: string
+  coverImage: string
+  date: string
+  excerpt: string
+  author: Author
+  slug: string
+}
 
 const HeroPost: React.FC<Props> = ({
   title,
@@ -44,7 +44,7 @@ const HeroPost: React.FC<Props> = ({
         </div>
       </div>
     </section>
-  );
-};
+  )
+}
 
-export default HeroPost;
+export default HeroPost
