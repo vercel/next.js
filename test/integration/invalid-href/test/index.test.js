@@ -143,7 +143,7 @@ describe('Invalid hrefs', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('does not show error in production when mailto: is used as href on Link', async () => {
       await noError('/first')
