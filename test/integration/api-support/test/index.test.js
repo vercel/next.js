@@ -47,6 +47,9 @@ function runTests(dev = false) {
   it('should set cors headers when adding cors middleware', async () => {
     const res = await fetchViaHTTP(appPort, '/api/cors', null, {
       method: 'OPTIONS',
+      headers: {
+        origin: 'example.com'
+      }
     })
 
     expect(res.status).toEqual(204)
