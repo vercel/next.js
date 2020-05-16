@@ -44,6 +44,20 @@ function runTests(dev = false) {
     expect(res.status).not.toEqual(404)
   })
 
+  it('should set cors headers when adding cors middleware', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/cors', null, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'example.com',
+      },
+    })
+
+    expect(res.status).toEqual(204)
+    expect(res.headers.get('access-control-allow-methods')).toEqual(
+      'GET,POST,OPTIONS'
+    )
+  })
+
   it('should work with index api', async () => {
     const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
       res => res.ok && res.text()
