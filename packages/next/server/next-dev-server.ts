@@ -28,7 +28,6 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
@@ -49,10 +48,7 @@ export default class DevServer extends Server {
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    ;(this.renderOpts as any).ErrorDebug =
-      this.nextConfig.experimental?.reactRefresh === true
-        ? ReactDevOverlay
-        : ErrorDebug
+    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
