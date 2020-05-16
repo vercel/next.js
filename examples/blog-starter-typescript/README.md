@@ -6,18 +6,6 @@ The blog posts are stored in `/_posts` as markdown files with front matter suppo
 
 To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) and [`remark-html`](https://github.com/remarkjs/remark-html) to convert the markdown files into an HTML string, and then send it down as a prop to the page. The metadata of every post is handled by [`gray-matter`](https://github.com/jonschlinkert/gray-matter) and also sent in props to the page.
 
-## Demo
-
-[https://next-blog-starter-typescript.now.sh/](https://next-blog-starter-typescript.now.sh/)
-
-### Related examples
-
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-
 ## How to use
 
 ### Using `create-next-app`
