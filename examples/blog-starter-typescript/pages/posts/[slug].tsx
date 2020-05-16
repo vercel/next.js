@@ -11,11 +11,11 @@ import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
 import markdownToHtml from '../../lib/markdownToHtml'
-import Post from '../../types/post'
+import PostType from '../../types/post'
 
 type Props = {
-  post: Post
-  morePosts: Post[]
+  post: PostType
+  morePosts: PostType[]
   preview?: boolean
 }
 
@@ -54,7 +54,9 @@ const Post: React.FC<Props> = ({ post, morePosts, preview }) => {
   )
 }
 
-export async function getStaticProps(params: Post) {
+export default Post
+
+export async function getStaticProps(params: PostType) {
   const post = getPostBySlug(params.slug, [
     'title',
     'date',
