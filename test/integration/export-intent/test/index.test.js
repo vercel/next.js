@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { remove } from 'fs-extra'
 import { nextBuild, nextExport, nextExportDefault } from 'next-test-utils'
 import path, { join } from 'path'
 import fs from 'fs'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
 

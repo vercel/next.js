@@ -1,8 +1,7 @@
-/* global jasmine */
 /* eslint-env jest */
 import { sandbox } from './helpers'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L989-L1048
 test('re-runs accepted modules', async () => {

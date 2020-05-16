@@ -1,8 +1,7 @@
-/* global jasmine */
 /* eslint-env jest */
 import { sandbox } from './helpers'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 test('logbox: can recover from a syntax error without losing state', async () => {
   const [session, cleanup] = await sandbox()

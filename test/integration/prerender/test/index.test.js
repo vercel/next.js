@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -26,7 +26,7 @@ import {
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 const indexPage = join(__dirname, '../pages/index.js')

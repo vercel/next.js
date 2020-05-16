@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { runNextCommand, runNextCommandDev, findPort } from 'next-test-utils'
 import { join } from 'path'
 import pkg from 'next/package'
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const dir = join(__dirname, '..')
 

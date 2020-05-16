@@ -1,12 +1,12 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { remove } from 'fs-extra'
 import { findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '../')
 

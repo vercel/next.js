@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { readFileSync, writeFileSync } from 'fs'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -13,7 +13,7 @@ import {
 
 let appPort
 let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('App asPath', () => {
   beforeAll(async () => {

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
@@ -20,7 +20,7 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 

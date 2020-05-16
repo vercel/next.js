@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { existsSync, readdirSync, readFileSync } from 'fs'
@@ -19,7 +19,7 @@ const chunksDir = join(appDir, '.next/static/chunks')
 const buildIdFile = join(appDir, '.next/BUILD_ID')
 let appPort
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Serverless Trace', () => {
   beforeAll(async () => {

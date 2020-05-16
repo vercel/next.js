@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import 'flat-map-polyfill'
 import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
@@ -16,7 +16,7 @@ import {
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
@@ -21,7 +21,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -11,7 +11,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 const appDir = path.join(__dirname, '..')
 let app
 let port

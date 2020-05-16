@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import cookie from 'cookie'
 import fs from 'fs-extra'
@@ -18,7 +18,7 @@ import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import express from 'express'
 import { access, readdir, readFile, unlink } from 'fs-extra'
@@ -8,7 +8,7 @@ import { nextBuild, nextServer, promiseCall, stopApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '../')
 

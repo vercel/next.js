@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { nextBuild, nextServer, startApp, stopApp } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import fetch from 'node-fetch'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let server
 let scriptsUrls

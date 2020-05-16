@@ -1,8 +1,7 @@
-/* global jasmine */
 /* eslint-env jest */
 import { sandbox } from './helpers'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 // https://github.com/zeit/next.js/issues/12422
 test('styled-components hydration mismatch', async () => {

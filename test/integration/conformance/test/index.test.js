@@ -1,11 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
-import { killApp, nextBuild } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 describe('Conformance system', () => {
   let build
@@ -15,7 +14,6 @@ describe('Conformance system', () => {
       stderr: true,
     })
   })
-  afterAll(() => killApp(server))
 
   it('Should warn about sync external sync scripts', async () => {
     const { stderr } = build

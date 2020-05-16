@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import {
   nextServer,
   runNextCommand,
@@ -12,7 +12,7 @@ import { join } from 'path'
 import { readFile } from 'fs-extra'
 import { parse } from 'url'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const appDir = join(__dirname, '../')
 let appPort

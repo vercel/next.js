@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
@@ -37,7 +37,7 @@ const doPing = page => {
   })
 }
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('On Demand Entries', () => {
   it('should pass', () => {})
@@ -87,7 +87,7 @@ describe('On Demand Entries', () => {
       '../.next/static/development/pages/third.js'
     )
 
-    // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
+    // Wait maximum of jest.setTimeout checking
     // for disposing /about
     while (true) {
       await waitFor(1000 * 1)
