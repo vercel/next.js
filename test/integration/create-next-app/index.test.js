@@ -34,7 +34,7 @@ async function usingTempDir(fn) {
   try {
     return await fn(folder)
   } finally {
-    await fs.rmdir(folder, { recursive: true })
+    await fs.remove(folder)
   }
 }
 
