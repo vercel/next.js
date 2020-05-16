@@ -62,6 +62,7 @@
     "cheerio": "0.22.0",
     "clone": "2.1.2",
     "cookie": "0.4.1",
+    "cors": "2.8.5",
     "coveralls": "3.0.3",
     "cross-env": "6.0.3",
     "cross-spawn": "6.0.5",

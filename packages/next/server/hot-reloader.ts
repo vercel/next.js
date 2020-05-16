@@ -9,7 +9,7 @@ import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { NEXT_PROJECT_ROOT_DIST_CLIENT, API_ROUTE } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
@@ -47,6 +47,12 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
+  const isApiRoute = req.url!.match(API_ROUTE)
+  // API routes handle their own CORS headers
+  if (isApiRoute) {
+    return { preflight: false }
+  }
+
   if (!req.headers.origin) {
     return { preflight: false }
   }
