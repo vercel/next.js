@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { killApp, findPort, nextBuild, nextStart } from 'next-test-utils'
@@ -7,7 +7,7 @@ import { killApp, findPort, nextBuild, nextStart } from 'next-test-utils'
 const appDir = join(__dirname, '../')
 let appPort
 let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 describe('Analytics relayer', () => {
   beforeAll(async () => {
