@@ -11,32 +11,32 @@ export default function({ app }, suiteName, render, fetch) {
   describe(suiteName, () => {
     test('renders css imports', async () => {
       const $ = await get$('/webpack-css')
-      expect($('._46QtCORzC4BWRnIseSbG-').text() === 'Hello World')
+      expect($('._46QtCORzC4BWRnIseSbG-').text()).toBe('Hello World kut')
     })
 
     test('renders non-js imports from node_modules', async () => {
       const $ = await get$('/webpack-css')
-      expect($('._2pRSkKTPDMGLMnmsEkP__J').text() === 'Hello World')
+      expect($('._2pRSkKTPDMGLMnmsEkP__J').text()).toBe('Hello World')
     })
 
     test('renders server config on the server only', async () => {
       const $ = await get$('/next-config')
-      expect($('#server-only').text() === 'mySecret')
+      expect($('#server-only').text()).toBe('mySecret')
     })
 
     test('renders public config on the server only', async () => {
       const $ = await get$('/next-config')
-      expect($('#server-and-client').text() === '/static')
+      expect($('#server-and-client').text()).toBe('/static')
     })
 
     test('renders the build id in development mode', async () => {
       const $ = await get$('/build-id')
-      expect($('#buildId').text() === '-')
+      expect($('#buildId').text()).toBe('-')
     })
 
     test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
       const $ = await get$('/module-only-content')
-      expect($('#messageInAPackage').text() === 'OK')
+      expect($('#messageInAPackage').text()).toBe('OK')
     })
   })
 }
