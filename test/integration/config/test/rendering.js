@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 
-export default function({ app }, suiteName, render, fetch) {
+export default function({ app }, suiteName, render) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -21,7 +21,7 @@ export default function({ app }, suiteName, render, fetch) {
 
     test('renders server config on the server only', async () => {
       const $ = await get$('/next-config')
-      expect($('#server-only').text()).toBe('mySecret')
+      expect($('#server-only').text()).toBe('secret')
     })
 
     test('renders public config on the server only', async () => {

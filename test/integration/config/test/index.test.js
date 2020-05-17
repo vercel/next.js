@@ -1,13 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 import fetch from 'node-fetch'
 
 // test suits
@@ -41,11 +35,8 @@ describe('Configuration', () => {
     killApp(context.server)
   })
 
-  rendering(
-    context,
-    'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
+  rendering(context, 'Rendering via HTTP', (p, q) =>
+    renderViaHTTP(context.appPort, p, q)
   )
   client(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })
