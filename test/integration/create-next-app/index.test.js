@@ -188,47 +188,51 @@ describe('create next app', () => {
     })
   })
 
-  it('should allow to manually select an example', async () => {
-    await usingTempDir(async cwd => {
-      const runExample = (...args) => {
-        const res = run(cwd, ...args)
+  // TODO: investigate why this test stalls on yarn install when
+  // stdin is piped instead of inherited on windows
+  if (process.platform !== 'win32') {
+    it('should allow to manually select an example', async () => {
+      await usingTempDir(async cwd => {
+        const runExample = (...args) => {
+          const res = run(cwd, ...args)
 
-        const rl = readline.createInterface({
-          input: res.stdout,
-        })
+          const rl = readline.createInterface({
+            input: res.stdout,
+          })
 
-        function pickExample(data) {
-          if (/hello-world/.test(data.toString())) {
-            rl.removeListener('line', pickExample)
-            res.stdin.write('\n')
+          function pickExample(data) {
+            if (/hello-world/.test(data.toString())) {
+              rl.removeListener('line', pickExample)
+              res.stdin.write('\n')
+            }
           }
+
+          function searchExample(data) {
+            if (/Pick an example/.test(data.toString())) {
+              rl.removeListener('line', searchExample)
+              res.stdin.write('hello-world')
+              rl.on('line', pickExample)
+            }
+          }
+
+          function selectExample(data) {
+            if (/Pick a template/.test(data.toString())) {
+              rl.removeListener('line', selectExample)
+              res.stdin.write('\u001b[B\n') // Down key and enter
+              rl.on('line', searchExample)
+            }
+          }
+
+          rl.on('line', selectExample)
+
+          return res
         }
 
-        function searchExample(data) {
-          if (/Pick an example/.test(data.toString())) {
-            rl.removeListener('line', searchExample)
-            res.stdin.write('hello-world')
-            rl.on('line', pickExample)
-          }
-        }
+        const res = await runExample('no-example')
 
-        function selectExample(data) {
-          if (/Pick a template/.test(data.toString())) {
-            rl.removeListener('line', selectExample)
-            res.stdin.write('\u001b[B\n') // Down key and enter
-            rl.on('line', searchExample)
-          }
-        }
-
-        rl.on('line', selectExample)
-
-        return res
-      }
-
-      const res = await runExample('no-example')
-
-      expect(res.exitCode).toBe(0)
-      expect(res.stdout).toMatch(/Downloading files for example hello-world/)
+        expect(res.exitCode).toBe(0)
+        expect(res.stdout).toMatch(/Downloading files for example hello-world/)
+      })
     })
-  })
+  }
 })
