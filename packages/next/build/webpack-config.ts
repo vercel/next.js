@@ -645,7 +645,6 @@ export default async function getBaseWebpackConfig(
           cache: path.join(distDir, 'cache', 'next-minifier'),
           parallel: config.experimental.cpus || true,
           terserOptions,
-          sourceMap: productionBrowserSourceMaps,
         }),
         // Minify CSS
         new CssMinimizerPlugin({
