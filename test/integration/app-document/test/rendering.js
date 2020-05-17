@@ -24,11 +24,7 @@ export default function({ app }, suiteName, render, fetch) {
 
       test('It injects custom head tags', async () => {
         const $ = await get$('/')
-        expect(
-          $('head')
-            .text()
-            .includes()
-        ).toMatch('body { margin: 0 }')
+        expect($('head').text()).toMatch('body { margin: 0 }')
       })
 
       test('It passes props from Document.getInitialProps to Document', async () => {
