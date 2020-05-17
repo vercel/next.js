@@ -14,7 +14,6 @@ const styles = css`
       rgba(0, 0, 0, 0.25);
     max-height: calc(100% - 3.5rem);
     overflow-y: hidden;
-    direction: ltr;
   }
 
   @media (min-width: 576px) {
