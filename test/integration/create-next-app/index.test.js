@@ -43,7 +43,7 @@ async function usingTempDir(fn) {
 }
 
 describe('create next app', () => {
-  it.only('non-empty directory', async () => {
+  it('non-empty directory', async () => {
     await usingTempDir(async cwd => {
       const projectName = 'non-empty-directory'
       await fs.mkdirp(path.join(cwd, projectName))
