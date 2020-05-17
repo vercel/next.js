@@ -34,7 +34,7 @@ export default function({ app }, suiteName, render) {
       expect($('#buildId').text()).toBe('development')
     })
 
-    test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
+    test.skip('correctly imports a package that defines `module` but no `main` in package.json', async () => {
       const $ = await get$('/module-only-content')
       expect($('#messageInAPackage').text()).toBe('OK')
     })
