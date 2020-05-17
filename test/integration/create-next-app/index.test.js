@@ -193,30 +193,34 @@ describe('create next app', () => {
       const runExample = (...args) => {
         const res = run(cwd, ...args)
 
+        const rl = readline.createInterface({
+          input: res.stdout,
+        })
+
         function pickExample(data) {
           if (/hello-world/.test(data.toString())) {
-            res.stdout.removeListener('data', pickExample)
+            rl.removeListener('line', pickExample)
             res.stdin.write('\n')
           }
         }
 
         function searchExample(data) {
           if (/Pick an example/.test(data.toString())) {
-            res.stdout.removeListener('data', searchExample)
+            rl.removeListener('line', searchExample)
             res.stdin.write('hello-world')
-            res.stdout.on('data', pickExample)
+            rl.on('line', pickExample)
           }
         }
 
         function selectExample(data) {
           if (/Pick a template/.test(data.toString())) {
-            res.stdout.removeListener('data', selectExample)
+            rl.removeListener('line', selectExample)
             res.stdin.write('\u001b[B\n') // Down key and enter
-            res.stdout.on('data', searchExample)
+            rl.on('line', searchExample)
           }
         }
 
-        res.stdout.on('data', selectExample)
+        rl.on('line', selectExample)
 
         return res
       }
