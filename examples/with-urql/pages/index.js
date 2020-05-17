@@ -1,26 +1,28 @@
-import { useQuery } from 'urql'
-const PikachuQuery = `
-  {
-    pokemon(name: "pikachu") {
-      name
-      image
-    }
-  }
-`
+import Link from 'next/link'
+import { getPokemons } from '../graphql/getPokemons'
 
-export default () => {
-  const [{ data, fetching, error }] = useQuery({ query: PikachuQuery })
-  if (fetching) {
-    return <div>Loading...</div>
-  }
-  if (error) {
-    return <div>{error.message}</div>
-  }
-
+export default ({ pokemons }) => {
   return (
-    <div>
-      <h2>{data.pokemon.name}</h2>
-      <img src={data.pokemon.image} alt={`${data.pokemon.name} picture`} />
-    </div>
+    <ul>
+      {pokemons.map(pokemon => (
+        <li key={pokemon.name}>
+          <Link as={`/pokemon/${pokemon.name}`} href="/pokemon/[name]">
+            <a>
+              <h2 style={{ textTransform: 'capitalize' }}>{pokemon.name}</h2>
+              <img src={pokemon.image} alt={`${pokemon.name} picture`} />
+            </a>
+          </Link>
+        </li>
+      ))}
+    </ul>
   )
+}
+
+export const getStaticProps = async () => {
+  const pokemons = await getPokemons()
+  return {
+    props: {
+      pokemons,
+    },
+  }
 }
