@@ -11,11 +11,13 @@ export default function({ app }, suiteName, render) {
   describe(suiteName, () => {
     test('renders css imports', async () => {
       const $ = await get$('/webpack-css')
+      console.log($.html())
       expect($('._46QtCORzC4BWRnIseSbG-').text()).toBe('Hello World')
     })
 
     test('renders non-js imports from node_modules', async () => {
       const $ = await get$('/webpack-css')
+      console.log($.html())
       expect($('._2pRSkKTPDMGLMnmsEkP__J').text()).toBe('Hello World')
     })
 
