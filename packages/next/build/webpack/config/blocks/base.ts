@@ -27,7 +27,7 @@ export const base = curry(function base(
   } else {
     // Enable browser sourcemaps
     if (ctx.productionBrowserSourceMaps) {
-      config.devtool = 'cheap-module-source-map'
+      config.devtool = 'source-map'
     } else {
       config.devtool = false
     }
