@@ -3,6 +3,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import execa from 'execa'
 import os from 'os'
+import readline from 'readline'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -12,11 +13,14 @@ const run = (cwd, ...args) => execa('node', [cli, ...args], { cwd })
 const runStarter = (cwd, ...args) => {
   const res = run(cwd, ...args)
 
-  res.stdout.on('data', data => {
-    const stdout = data.toString()
-
-    if (/Pick a template/.test(stdout)) {
-      res.stdin.write('\n')
+  const rl = readline.createInterface({
+    input: res.stdout,
+    output: res.stdin,
+  })
+  rl.on('line', line => {
+    rl.prompt()
+    if (/Pick a template/.test(line)) {
+      rl.write('\n')
     }
   })
 
@@ -39,12 +43,12 @@ async function usingTempDir(fn) {
 }
 
 describe('create next app', () => {
-  it('non-empty directory', async () => {
+  it.only('non-empty directory', async () => {
     await usingTempDir(async cwd => {
       const projectName = 'non-empty-directory'
       await fs.mkdirp(path.join(cwd, projectName))
       const pkg = path.join(cwd, projectName, 'package.json')
-      fs.writeFileSync(pkg, '{ "foo": "bar" }')
+      await fs.writeFile(pkg, '{ "foo": "bar" }')
 
       expect.assertions(1)
       try {
@@ -55,24 +59,20 @@ describe('create next app', () => {
     })
   })
 
-  // TODO: investigate why this test stalls on yarn install when
-  // stdin is piped instead of inherited on windows
-  if (process.platform !== 'win32') {
-    it('empty directory', async () => {
-      await usingTempDir(async cwd => {
-        const projectName = 'empty-directory'
-        const res = await runStarter(cwd, projectName)
+  it('empty directory', async () => {
+    await usingTempDir(async cwd => {
+      const projectName = 'empty-directory'
+      const res = await runStarter(cwd, projectName)
 
-        expect(res.exitCode).toBe(0)
-        expect(
-          fs.existsSync(path.join(cwd, projectName, 'package.json'))
-        ).toBeTruthy()
-        expect(
-          fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-        ).toBeTruthy()
-      })
+      expect(res.exitCode).toBe(0)
+      expect(
+        await fs.exists(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        await fs.exists(path.join(cwd, projectName, 'pages/index.js'))
+      ).toBeTruthy()
     })
-  }
+  })
 
   it('invalid example name', async () => {
     await usingTempDir(async cwd => {
@@ -84,7 +84,7 @@ describe('create next app', () => {
         expect(e.stderr).toMatch(/Could not locate an example named/i)
       }
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+        await fs.exists(path.join(cwd, projectName, 'package.json'))
       ).toBeFalsy()
     })
   })
@@ -96,14 +96,14 @@ describe('create next app', () => {
       expect(res.exitCode).toBe(0)
 
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+        await fs.exists(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/index.js'))
       ).toBeTruthy()
       // check we copied default `.gitignore`
       expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+        await fs.exists(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
     })
   })
@@ -120,16 +120,16 @@ describe('create next app', () => {
 
       expect(res.exitCode).toBe(0)
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+        await fs.exists(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/index.js'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/about.js'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+        await fs.exists(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
     })
   })
@@ -148,16 +148,16 @@ describe('create next app', () => {
 
       expect(res.exitCode).toBe(0)
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+        await fs.exists(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/index.js'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/about.js'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+        await fs.exists(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
     })
   })
@@ -176,61 +176,57 @@ describe('create next app', () => {
 
       expect(res.exitCode).toBe(0)
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+        await fs.exists(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/index.js'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
+        await fs.exists(path.join(cwd, projectName, 'pages/about.js'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+        await fs.exists(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
     })
   })
 
-  // TODO: investigate why this test stalls on yarn install when
-  // stdin is piped instead of inherited on windows
-  if (process.platform !== 'win32') {
-    it('should allow to manually select an example', async () => {
-      await usingTempDir(async cwd => {
-        const runExample = (...args) => {
-          const res = run(cwd, ...args)
+  it('should allow to manually select an example', async () => {
+    await usingTempDir(async cwd => {
+      const runExample = (...args) => {
+        const res = run(cwd, ...args)
 
-          function pickExample(data) {
-            if (/hello-world/.test(data.toString())) {
-              res.stdout.removeListener('data', pickExample)
-              res.stdin.write('\n')
-            }
+        function pickExample(data) {
+          if (/hello-world/.test(data.toString())) {
+            res.stdout.removeListener('data', pickExample)
+            res.stdin.write('\n')
           }
-
-          function searchExample(data) {
-            if (/Pick an example/.test(data.toString())) {
-              res.stdout.removeListener('data', searchExample)
-              res.stdin.write('hello-world')
-              res.stdout.on('data', pickExample)
-            }
-          }
-
-          function selectExample(data) {
-            if (/Pick a template/.test(data.toString())) {
-              res.stdout.removeListener('data', selectExample)
-              res.stdin.write('\u001b[B\n') // Down key and enter
-              res.stdout.on('data', searchExample)
-            }
-          }
-
-          res.stdout.on('data', selectExample)
-
-          return res
         }
 
-        const res = await runExample('no-example')
+        function searchExample(data) {
+          if (/Pick an example/.test(data.toString())) {
+            res.stdout.removeListener('data', searchExample)
+            res.stdin.write('hello-world')
+            res.stdout.on('data', pickExample)
+          }
+        }
 
-        expect(res.exitCode).toBe(0)
-        expect(res.stdout).toMatch(/Downloading files for example hello-world/)
-      })
+        function selectExample(data) {
+          if (/Pick a template/.test(data.toString())) {
+            res.stdout.removeListener('data', selectExample)
+            res.stdin.write('\u001b[B\n') // Down key and enter
+            res.stdout.on('data', searchExample)
+          }
+        }
+
+        res.stdout.on('data', selectExample)
+
+        return res
+      }
+
+      const res = await runExample('no-example')
+
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).toMatch(/Downloading files for example hello-world/)
     })
-  }
+  })
 })
