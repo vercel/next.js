@@ -15,12 +15,10 @@ const runStarter = (cwd, ...args) => {
 
   const rl = readline.createInterface({
     input: res.stdout,
-    output: res.stdin,
   })
   rl.on('line', line => {
-    rl.prompt()
     if (/Pick a template/.test(line)) {
-      rl.write('\n')
+      res.stdin.write('\n')
     }
   })
 
