@@ -31,7 +31,7 @@ export default function({ app }, suiteName, render) {
 
     test('renders the build id in development mode', async () => {
       const $ = await get$('/build-id')
-      expect($('#buildId').text()).toBe('-')
+      expect($('#buildId').text()).toBe('development')
     })
 
     test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
