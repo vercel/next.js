@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "classnames": "2.2.6",
-    "date-fns": "2.10.0",
+    "date-fns": "2.13.0",
     "next": "latest",
-    "react": "^16.13.0",
-    "react-datocms": "1.1.0",
-    "react-dom": "^16.13.0",
-    "remark": "11.0.2",
-    "remark-html": "10.0.0"
+    "react": "^16.13.1",
+    "react-datocms": "1.2.4",
+    "react-dom": "^16.13.1",
+    "remark": "12.0.0",
+    "remark-html": "11.0.2"
   },
   "devDependencies": {
     "dotenv": "8.2.0",
