@@ -1,5 +1,7 @@
 /* eslint-env jest */
 
+/* eslint-disable jest/no-identical-title */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {

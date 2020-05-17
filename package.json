@@ -121,5 +121,8 @@
   },
   "engines": {
     "node": ">= 10.13.0"
+  },
+  "dependencies": {
+    "eslint-plugin-jest": "23.13.1"
   }
 }
