@@ -1,4 +1,3 @@
-import React from 'react'
 import { useMachine } from '@xstate/react'
 import { Counter, Toggle } from '../components'
 import { toggleMachine } from '../machines/toggleMachine'
