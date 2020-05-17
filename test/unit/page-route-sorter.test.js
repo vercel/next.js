@@ -57,13 +57,13 @@ describe('getSortedRoutes', () => {
     ).toThrowError(/the same slug name/)
   })
 
-  it('catches reused param names', () => {
+  it('catches reused param names with catch-all', () => {
     expect(() =>
       getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])
     ).toThrowError(/the same slug name/)
   })
 
-  it('catches middle catch-all', () => {
+  it('catches middle catch-all before catch-all', () => {
     expect(() => getSortedRoutes(['/blog/[...id]/[...id2]'])).toThrowError(
       /must be the last part/
     )
