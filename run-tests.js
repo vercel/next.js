@@ -136,6 +136,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
         {
           stdio: 'inherit',
           env: {
+            JEST_RETRY_TIMES: 3,
             ...process.env,
             ...(isAzure
               ? {
