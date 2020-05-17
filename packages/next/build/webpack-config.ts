@@ -136,6 +136,8 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  const productionBrowserSourceMaps =
+    config.experimental.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -1032,6 +1034,7 @@ export default async function getBaseWebpackConfig(
     isServer,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
+    productionBrowserSourceMaps,
   })
 
   if (typeof config.webpack === 'function') {
