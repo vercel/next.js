@@ -25,7 +25,12 @@ export const base = curry(function base(
       config.devtool = 'eval-source-map'
     }
   } else {
-    config.devtool = false
+    // Enable browser sourcemaps
+    if (ctx.productionBrowserSourceMaps) {
+      config.devtool = 'cheap-module-source-map'
+    } else {
+      config.devtool = false
+    }
   }
 
   if (!config.module) {
