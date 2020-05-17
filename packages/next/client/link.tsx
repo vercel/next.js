@@ -9,8 +9,9 @@ import {
   getLocationOrigin,
 } from '../next-server/lib/utils'
 import Router from './router'
+import { addBasePath } from '../next-server/lib/router/router'
 
-function isLocal(href: string) {
+function isLocal(href: string): boolean {
   const url = parse(href, false, true)
   const origin = parse(getLocationOrigin(), false, true)
 
@@ -39,7 +40,7 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
-function formatUrl(url: Url) {
+function formatUrl(url: Url): string {
   return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
 
@@ -54,12 +55,12 @@ export type LinkProps = {
 }
 
 let observer: IntersectionObserver
-const listeners = new Map()
+const listeners = new Map<Element, () => void>()
 const IntersectionObserver =
-  typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
+  typeof window !== 'undefined' ? window.IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
 
-function getObserver() {
+function getObserver(): IntersectionObserver | undefined {
   // Return shared instance of IntersectionObserver if already created
   if (observer) {
     return observer
@@ -71,13 +72,13 @@ function getObserver() {
   }
 
   return (observer = new IntersectionObserver(
-    (entries: any) => {
-      entries.forEach((entry: any) => {
+    entries => {
+      entries.forEach(entry => {
         if (!listeners.has(entry.target)) {
           return
         }
 
-        const cb = listeners.get(entry.target)
+        const cb = listeners.get(entry.target)!
         if (entry.isIntersecting || entry.intersectionRatio > 0) {
           observer.unobserve(entry.target)
           listeners.delete(entry.target)
@@ -89,7 +90,7 @@ function getObserver() {
   ))
 }
 
-const listenToIntersections = (el: any, cb: any) => {
+const listenToIntersections = (el: Element, cb: () => void) => {
   const observer = getObserver()
   if (!observer) {
     return () => {}
@@ -124,11 +125,11 @@ class Link extends Component<LinkProps> {
 
   cleanUpListeners = () => {}
 
-  componentWillUnmount() {
+  componentWillUnmount(): void {
     this.cleanUpListeners()
   }
 
-  getPaths() {
+  getPaths(): string[] {
     const { pathname } = window.location
     const { href: parsedHref, as: parsedAs } = this.formatUrls(
       this.props.href,
@@ -138,7 +139,7 @@ class Link extends Component<LinkProps> {
     return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
 
-  handleRef(ref: Element) {
+  handleRef(ref: Element): void {
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
@@ -161,12 +162,12 @@ class Link extends Component<LinkProps> {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: formatUrl(href),
-      as: asHref ? formatUrl(asHref) : asHref,
+      href: addBasePath(formatUrl(href)),
+      as: asHref ? addBasePath(formatUrl(asHref)) : asHref,
     }
   })
 
-  linkClicked = (e: React.MouseEvent) => {
+  linkClicked = (e: React.MouseEvent): void => {
     const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
@@ -211,7 +212,7 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch(options?: PrefetchOptions) {
+  prefetch(options?: PrefetchOptions): void {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const paths = this.getPaths()

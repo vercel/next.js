@@ -1,19 +1,20 @@
+import reactDevOverlayMiddleware from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
+import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
+import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import { join, normalize, relative as relativePath, sep } from 'path'
 import { UrlObject } from 'url'
 import webpack from 'webpack'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
-import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { NEXT_PROJECT_ROOT_DIST_CLIENT, API_ROUTE } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
@@ -45,6 +46,12 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
+  const isApiRoute = req.url!.match(API_ROUTE)
+  // API routes handle their own CORS headers
+  if (isApiRoute) {
+    return { preflight: false }
+  }
+
   if (!req.headers.origin) {
     return { preflight: false }
   }
@@ -252,6 +259,7 @@ export default class HotReloader {
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
+      /* dev */ true,
       pages,
       'server',
       this.buildId,
@@ -266,6 +274,10 @@ export default class HotReloader {
         this.dir,
         join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
       )
+
+    additionalClientEntrypoints[
+      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+    ] = require.resolve(`@next/react-refresh-utils/runtime`)
 
     return Promise.all([
       getBaseWebpackConfig(this.dir, {
@@ -347,21 +359,15 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackHotMiddleware,
       errorOverlayMiddleware({ dir: this.dir }),
+      reactDevOverlayMiddleware({
+        rootDirectory: this.dir,
+        stats: () => this.stats,
+      }),
     ]
   }
 
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
-    const tsConfigPath = join(this.dir, 'tsconfig.json')
-    const useTypeScript = await fileExists(tsConfigPath)
-    const ignoreTypeScriptErrors =
-      this.config.typescript && this.config.typescript.ignoreDevErrors
-
-    watchCompilers(
-      multiCompiler.compilers[0],
-      multiCompiler.compilers[1],
-      useTypeScript && !ignoreTypeScriptErrors,
-      ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
-    )
+    watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
@@ -484,15 +490,14 @@ export default class HotReloader {
       webpackDevMiddleware,
       multiCompiler,
       {
-        dir: this.dir,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
-        distDir: this.config.distDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
-        publicRuntimeConfig: this.config.publicRuntimeConfig,
-        serverRuntimeConfig: this.config.serverRuntimeConfig,
-        ...this.config.onDemandEntries,
+        ...(this.config.onDemandEntries as {
+          maxInactiveAge: number
+          pagesBufferLength: number
+        }),
       }
     )
 

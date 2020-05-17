@@ -1,5 +1,6 @@
 import { buildStaticPaths } from '../build/utils'
 import { loadComponents } from '../next-server/server/load-components'
+import '../next-server/server/node-polyfill-fetch'
 
 let workerWasUsed = false
 

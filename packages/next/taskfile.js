@@ -41,11 +41,15 @@ const externals = {
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
+  'webpack-sources': 'webpack-sources',
   // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
+  // dependents: terser-webpack-plugin
+  'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
+  'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',
   chokidar: 'chokidar',
-  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader
+  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader, terser-webpack-plugin
   'find-cache-dir': 'find-cache-dir',
   // dependents: thread-loader
   'loader-runner': 'loader-runner',
@@ -57,6 +61,9 @@ const externals = {
   'neo-async': 'neo-async',
   // dependents: cache-loader, style-loader, file-loader
   'schema-utils': 'schema-utils',
+  // dependents: terser-webpack-plugin
+  'jest-worker': 'jest-worker',
+  cacache: 'cacache',
 }
 
 // eslint-disable-next-line camelcase
@@ -122,7 +129,7 @@ export async function ncc_cache_loader(task, opts) {
     .target('compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
@@ -178,6 +185,14 @@ export async function ncc_cssnano_simple(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
     .ncc({ packageName: 'cssnano-simple', externals })
     .target('compiled/cssnano-simple')
+}
+// eslint-disable-next-line camelcase
+externals['debug'] = 'next/dist/compiled/debug'
+export async function ncc_debug(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('debug')))
+    .ncc({ packageName: 'debug', externals })
+    .target('compiled/debug')
 }
 // eslint-disable-next-line camelcase
 externals['devalue'] = 'next/dist/compiled/devalue'
@@ -395,7 +410,7 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['resolve'] = 'next/dist/compiled/resolve'
 export async function ncc_resolve(task, opts) {
@@ -413,7 +428,7 @@ export async function ncc_send(task, opts) {
     .target('compiled/send')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map'] = 'next/dist/compiled/source-map'
 export async function ncc_source_map(task, opts) {
@@ -492,28 +507,25 @@ export async function ncc_webpack_hot_middleware(task, opts) {
     .ncc({ packageName: 'webpack-hot-middleware', externals })
     .target('compiled/webpack-hot-middleware')
 }
+externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
+export async function ncc_terser_webpack_plugin(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('terser-webpack-plugin'))
+    )
+    .ncc({ packageName: 'terser-webpack-plugin', externals })
+    .target('compiled/terser-webpack-plugin')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('path-to-regexp')))
     .target('dist/compiled/path-to-regexp')
 }
-externals['react-error-overlay'] = 'next/dist/compiled/react-error-overlay'
-export async function react_error_overlay(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('react-error-overlay'))
-    )
-    .target('dist/compiled/react-error-overlay')
-}
 
 export async function precompile(task) {
-  await task.parallel([
-    'browser_polyfills',
-    'path_to_regexp',
-    'react_error_overlay',
-    'copy_ncced',
-  ])
+  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
 }
 
 // eslint-disable-next-line camelcase
@@ -541,6 +553,7 @@ export async function ncc(task) {
       'ncc_content_type',
       'ncc_cookie',
       'ncc_cssnano_simple',
+      'ncc_debug',
       'ncc_devalue',
       'ncc_dotenv',
       'ncc_dotenv_expand',
@@ -578,6 +591,7 @@ export async function ncc(task) {
       'ncc_unistore',
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
+      'ncc_terser_webpack_plugin',
     ])
 }
 

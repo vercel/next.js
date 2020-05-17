@@ -1,5 +1,5 @@
 interface Chain {
-  elementByCss: () => Chain
+  elementByCss: (selector: string) => Chain
   elementById: () => Chain
   getValue: () => Chain
   text: () => Chain

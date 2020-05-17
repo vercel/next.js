@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
@@ -21,7 +21,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -166,6 +166,18 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should have correct params for catchall rewrite', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-rewrite/hello/world?a=b'
+    )
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      a: 'b',
+      path: ['hello', 'world'],
+    })
+  })
+
   it('should allow params in query for redirect', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -181,6 +193,7 @@ const runTests = (isDev = false) => {
     expect(query).toEqual({
       first: 'hello',
       second: 'world',
+      a: 'b',
     })
   })
 
@@ -189,6 +202,31 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/this-should-be-the-value/)
     expect(html).not.toMatch(/first/)
     expect(html).toMatch(/second/)
+  })
+
+  it('should handle query for rewrite correctly', async () => {
+    // query merge order lowest priority to highest
+    // 1. initial URL query values
+    // 2. path segment values
+    // 3. destination specified query values
+
+    const html = await renderViaHTTP(
+      appPort,
+      '/query-rewrite/first/second?section=overridden&name=overridden&first=overridden&second=overridden&keep=me'
+    )
+
+    const data = JSON.parse(
+      cheerio
+        .load(html)('p')
+        .text()
+    )
+    expect(data).toEqual({
+      first: 'first',
+      second: 'second',
+      section: 'first',
+      name: 'second',
+      keep: 'me',
+    })
   })
 
   // current routes order do not allow rewrites to override page
@@ -280,10 +318,56 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should apply params for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/my-other-header/first')
+    expect(res.headers.get('x-path')).toBe('first')
+    expect(res.headers.get('somefirst')).toBe('hi')
+  })
+
+  it('should support URL for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/without-params/url')
+    expect(res.headers.get('x-origin')).toBe('https://example.com')
+  })
+
+  it('should apply params header key/values with URL', async () => {
+    const res = await fetchViaHTTP(appPort, '/with-params/url/first')
+    expect(res.headers.get('x-url')).toBe('https://example.com/first')
+  })
+
+  it('should apply params header key/values with URL that has port', async () => {
+    const res = await fetchViaHTTP(appPort, '/with-params/url2/first')
+    expect(res.headers.get('x-url')).toBe(
+      'https://example.com:8080/?hello=first'
+    )
+  })
+
+  it('should support named pattern for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/named-pattern/hello')
+    expect(res.headers.get('x-something')).toBe('value=hello')
+    expect(res.headers.get('path-hello')).toBe('end')
+  })
+
   it('should support proxying to external resource', async () => {
-    const res = await fetchViaHTTP(appPort, '/proxy-me/first')
+    const res = await fetchViaHTTP(appPort, '/proxy-me/first?keep=me&and=me')
     expect(res.status).toBe(200)
-    expect([...externalServerHits]).toEqual(['/first?path=first'])
+    expect(
+      [...externalServerHits].map(u => {
+        const { pathname, query } = url.parse(u, true)
+        return {
+          pathname,
+          query,
+        }
+      })
+    ).toEqual([
+      {
+        pathname: '/first',
+        query: {
+          path: 'first',
+          keep: 'me',
+          and: 'me',
+        },
+      },
+    ])
     expect(await res.text()).toContain('hi from external')
   })
 
@@ -561,6 +645,54 @@ const runTests = (isDev = false) => {
           {
             headers: [
               {
+                key: 'x-path',
+                value: ':path',
+              },
+              {
+                key: 'some:path',
+                value: 'hi',
+              },
+            ],
+            regex: normalizeRegEx('^\\/my-other-header(?:\\/([^\\/]+?))$'),
+            source: '/my-other-header/:path',
+          },
+          {
+            headers: [
+              {
+                key: 'x-origin',
+                value: 'https://example.com',
+              },
+            ],
+            regex: normalizeRegEx('^\\/without-params\\/url$'),
+            source: '/without-params/url',
+          },
+          {
+            headers: [
+              {
+                key: 'x-url',
+                value: 'https://example.com/:path*',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^\\/with-params\\/url(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/with-params/url/:path*',
+          },
+          {
+            headers: [
+              {
+                key: 'x-url',
+                value: 'https://example.com:8080?hello=:path*',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^\\/with-params\\/url2(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/with-params/url2/:path*',
+          },
+          {
+            headers: [
+              {
                 key: 'x-something',
                 value: 'applied-everywhere',
               },
@@ -569,6 +701,20 @@ const runTests = (isDev = false) => {
               '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/:path*',
+          },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'value=:path',
+              },
+              {
+                key: 'path-:path',
+                value: 'end',
+              },
+            ],
+            regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))$'),
+            source: '/named-pattern/:path(.*)',
           },
         ],
         rewrites: [
@@ -687,19 +833,32 @@ const runTests = (isDev = false) => {
             ),
             source: '/unnamed-params/nested/(.*)/:test/(.*)',
           },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx(
+              '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-rewrite/:path*',
+          },
         ],
         dynamicRoutes: [
           {
+            namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['id'],
           },
           {
+            namedRegex: '^/api/dynamic/(?<slug>[^/]+?)(?:/)?$',
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['slug'],
           },
           {
+            namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: ['post'],
           },
         ],
       })
