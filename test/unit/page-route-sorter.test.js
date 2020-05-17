@@ -36,7 +36,26 @@ describe('getSortedRoutes', () => {
         '/foo/[d]/bar/baz/[f]',
         '/apples/[ab]/[cd]/ef',
       ])
-    ).toMatchSnapshot()
+    ).toMatchInlineSnapshot(`
+      Array [
+        "/",
+        "/apples/[ab]/[cd]/ef",
+        "/blog/abc",
+        "/blog/abc/post",
+        "/blog/abc/[id]",
+        "/blog/[id]",
+        "/blog/[id]/comments/[cid]",
+        "/foo/[d]/bar/baz/[f]",
+        "/p/[...rest]",
+        "/p2/[id]",
+        "/p2/[id]/abc",
+        "/p2/[...rest]",
+        "/posts",
+        "/posts/[id]",
+        "/[root-slug]",
+        "/[...rest]",
+      ]
+    `)
   })
 
   it('catches mismatched param names', () => {
