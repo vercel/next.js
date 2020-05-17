@@ -11,7 +11,7 @@ export default function({ app }, suiteName, render, fetch) {
   describe(suiteName, () => {
     test('renders css imports', async () => {
       const $ = await get$('/webpack-css')
-      expect($('._46QtCORzC4BWRnIseSbG-').text()).toBe('Hello World kut')
+      expect($('._46QtCORzC4BWRnIseSbG-').text()).toBe('Hello World')
     })
 
     test('renders non-js imports from node_modules', async () => {
