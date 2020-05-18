@@ -1,4 +1,4 @@
-export default () => (
+export default function Home()  (
   <div className="hello">
     <p>Hello World</p>
     <style jsx>{`
