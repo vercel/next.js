@@ -1,5 +1,5 @@
 ---
-description: Next.js will add `x-powered-by` header by default. Learn to opt-out of it here.
+description: Next.js will add the `x-powered-by` header by default. Learn to opt-out of it here.
 ---
 
 # Disabling x-powered-by
