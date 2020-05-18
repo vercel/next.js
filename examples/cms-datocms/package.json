@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "classnames": "2.2.6",
-    "date-fns": "2.13.0",
+    "date-fns": "2.14.0",
     "next": "latest",
     "react": "^16.13.1",
     "react-datocms": "1.2.4",
