@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@ampproject/toolbox-optimizer": "2.3.1",
+    "@babel/code-frame": "7.8.3",
     "@babel/core": "7.7.7",
     "@babel/plugin-proposal-class-properties": "7.8.3",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.8.3",
@@ -119,6 +120,7 @@
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
+    "@types/babel__code-frame": "7.0.1",
     "@types/babel__core": "7.1.7",
     "@types/babel__generator": "7.6.1",
     "@types/babel__template": "7.0.2",
