@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { promises } from 'fs'
 import {
@@ -20,7 +20,7 @@ import dev from './dev'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const { access, mkdir, writeFile } = promises
 const appDir = join(__dirname, '../')
