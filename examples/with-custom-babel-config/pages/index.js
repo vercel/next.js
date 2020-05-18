@@ -1,3 +1,4 @@
+import { Component } from "react"
 export default class MyLuckNo extends React.Component {
   constructor(...args) {
     super(...args)
