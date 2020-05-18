@@ -28,7 +28,7 @@ describe('CSS Customization', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -44,7 +44,7 @@ describe('CSS Customization', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+    const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
     expect(cssMapFiles.length).toBe(1)
     const cssMapContent = (
@@ -98,7 +98,7 @@ describe('Legacy Next-CSS Customization', () => {
     const cssFolder = join(appDir, '.next/static/chunks')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -127,7 +127,7 @@ describe('CSS Customization Array', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -143,7 +143,7 @@ describe('CSS Customization Array', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+    const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
     expect(cssMapFiles.length).toBe(1)
     const cssMapContent = (
@@ -197,7 +197,7 @@ describe('Bad CSS Customization', () => {
       'postcss-modules-extract-imports',
       'postcss-modules-local-by-default',
       'postcss-modules',
-    ].forEach(plugin => {
+    ].forEach((plugin) => {
       expect(stderr).toMatch(
         new RegExp(`Please remove the.*?${escapeStringRegexp(plugin)}`)
       )
@@ -208,7 +208,7 @@ describe('Bad CSS Customization', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -224,7 +224,7 @@ describe('Bad CSS Customization', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+    const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
     expect(cssMapFiles.length).toBe(1)
   })

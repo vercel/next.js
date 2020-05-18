@@ -340,7 +340,7 @@ describe('Telemetry CLI', () => {
     let port = await findPort()
     let stderr = ''
 
-    const handleStderr = msg => {
+    const handleStderr = (msg) => {
       stderr += msg
     }
     let app = await launchApp(appDir, port, {

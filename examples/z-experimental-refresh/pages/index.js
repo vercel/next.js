@@ -16,7 +16,7 @@ function foo() {
 function Home() {
   const [count, setCount] = useState(0)
   const increment = useCallback(() => {
-    setCount(v => v + 1)
+    setCount((v) => v + 1)
   }, [setCount])
 
   useEffect(() => {
@@ -45,7 +45,7 @@ function Home() {
         <button
           className={styles.btn}
           type="button"
-          onClick={e => {
+          onClick={(e) => {
             setTimeout(() => document.parentNode(), 0)
             foo()
           }}

@@ -19,4 +19,4 @@ export default ({ lastUpdate, light }) => {
   )
 }
 
-const format = t => t.toJSON().slice(11, 19) // cut off except hh:mm:ss
+const format = (t) => t.toJSON().slice(11, 19) // cut off except hh:mm:ss

@@ -17,7 +17,7 @@ const CREATE_POST_MUTATION = gql`
 export default function Submit() {
   const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
 
-  const handleSubmit = event => {
+  const handleSubmit = (event) => {
     event.preventDefault()
     const form = event.target
     const formData = new window.FormData(form)
