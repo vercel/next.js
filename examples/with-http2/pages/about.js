@@ -1,5 +1,5 @@
 import Link from 'next/link'
-export default () => (
+export default function About() (
   <div>
     <h3>This is the /about page. </h3>
     <Link href="/">
