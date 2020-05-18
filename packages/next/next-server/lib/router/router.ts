@@ -492,7 +492,7 @@ export default class Router implements BaseRouter {
               Router.events.emit('routeChangeError', error, as)
               throw error
             }
-  
+
             Router.events.emit('routeChangeComplete', as)
             return resolve(true)
           })
