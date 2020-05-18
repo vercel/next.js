@@ -1,7 +1,6 @@
-import React from 'react'
 import { Anchor, Box, Heading, Paragraph } from 'grommet'
 
-export default () => (
+export default function Home() (
   <Box align="center" margin="large">
     <Heading>Grommet is awesome!</Heading>
     <Paragraph>
