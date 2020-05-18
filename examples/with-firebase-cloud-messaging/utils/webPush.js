@@ -7,7 +7,7 @@ const firebaseCloudMessaging = {
     return localforage.getItem('fcm_token')
   },
 
-  init: async function() {
+  init: async function () {
     firebase.initializeApp({
       apiKey: 'YOUR-API-KEY',
       projectId: 'YOUR-PROJECT-ID',

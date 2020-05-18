@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import useClient from './useClient'
 
-const useStomp = topic => {
+const useStomp = (topic) => {
   const [message, setMessage] = useState({})
   const client = useClient()
 
   // subscribe to a channel, then listen to the messages.
   const subscribe = useCallback(() => {
-    client.subscribe(topic, msg => {
+    client.subscribe(topic, (msg) => {
       const change = JSON.parse(msg.body)
       setMessage(change)
     })

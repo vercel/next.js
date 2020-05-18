@@ -4,7 +4,7 @@ const regexNextStatic = /\/_next(\/static\/.+)/g
 
 export function parseStack(stack: string): StackFrame[] {
   const frames = parse(stack)
-  return frames.map(frame => {
+  return frames.map((frame) => {
     try {
       const url = new URL(frame.file)
       const res = regexNextStatic.exec(url.pathname)

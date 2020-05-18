@@ -16,7 +16,7 @@ const TodoPage = (props: { todo: GetTodoQuery['getTodo'] }) => {
   )
 }
 
-TodoPage.getInitialProps = async context => {
+TodoPage.getInitialProps = async (context) => {
   const { id } = context.query
   try {
     const todo = (await API.graphql({

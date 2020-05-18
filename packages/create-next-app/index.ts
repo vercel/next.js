@@ -17,7 +17,7 @@ const program = new Commander.Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
   .usage(`${chalk.green('<project-directory>')} [options]`)
-  .action(name => {
+  .action((name) => {
     projectPath = name
   })
   .option('--use-npm')
@@ -54,7 +54,7 @@ async function run(): Promise<void> {
       name: 'path',
       message: 'What is your project named?',
       initial: 'my-app',
-      validate: name => {
+      validate: (name) => {
         const validation = validateNpmName(path.basename(path.resolve(name)))
         if (validation.valid) {
           return true
@@ -95,7 +95,7 @@ async function run(): Promise<void> {
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach(p => console.error(`    ${chalk.red.bold('*')} ${p}`))
+    problems!.forEach((p) => console.error(`    ${chalk.red.bold('*')} ${p}`))
     process.exit(1)
   }
 
@@ -205,7 +205,7 @@ async function notifyUpdate(): Promise<void> {
 
 run()
   .then(notifyUpdate)
-  .catch(async reason => {
+  .catch(async (reason) => {
     console.log()
     console.log('Aborting installation.')
     if (reason.command) {

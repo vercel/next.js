@@ -5,8 +5,8 @@ import { kea } from 'kea'
 const logic = kea({
   path: () => ['kea'],
   actions: () => ({
-    increment: amount => ({ amount }),
-    decrement: amount => ({ amount }),
+    increment: (amount) => ({ amount }),
+    decrement: (amount) => ({ amount }),
   }),
   reducers: ({ actions }) => ({
     counter: [
@@ -21,7 +21,7 @@ const logic = kea({
   selectors: ({ selectors }) => ({
     doubleCounter: [
       () => [selectors.counter],
-      counter => counter * 2,
+      (counter) => counter * 2,
       PropTypes.number,
     ],
   }),

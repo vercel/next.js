@@ -48,7 +48,7 @@ describe('Basic CSS Module Support', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -104,7 +104,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -320,7 +320,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -373,7 +373,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -406,7 +406,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -439,7 +439,7 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -487,7 +487,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -537,7 +537,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')

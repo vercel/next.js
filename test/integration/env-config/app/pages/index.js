@@ -23,7 +23,7 @@ const variables = [
 export async function getStaticProps() {
   const items = {}
 
-  variables.forEach(variable => {
+  variables.forEach((variable) => {
     if (process.env[variable]) {
       items[variable] = process.env[variable]
     }

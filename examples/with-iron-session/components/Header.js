@@ -41,7 +41,7 @@ const Header = () => {
               <li>
                 <a
                   href="/api/logout"
-                  onClick={async e => {
+                  onClick={async (e) => {
                     e.preventDefault()
                     await mutateUser(fetchJson('/api/logout'))
                     router.push('/login')

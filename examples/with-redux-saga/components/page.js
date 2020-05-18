@@ -33,4 +33,4 @@ function Page({
   )
 }
 
-export default connect(state => state)(Page)
+export default connect((state) => state)(Page)

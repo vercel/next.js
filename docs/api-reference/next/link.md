@@ -67,7 +67,7 @@ A `Link` to a dynamic route is a combination of the `href` and `as` props. A lin
 ```jsx
 const pids = ['id1', 'id2', 'id3']
 {
-  pids.map(pid => (
+  pids.map((pid) => (
     <Link href="/post/[pid]" as={`/post/${pid}`}>
       <a>Post {pid}</a>
     </Link>

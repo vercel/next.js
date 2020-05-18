@@ -73,7 +73,7 @@ async function collectPluginMeta(
   }
 
   // remove the extension from the middleware
-  middleware = middleware.map(item => {
+  middleware = middleware.map((item) => {
     const parts = item.split('.')
     parts.pop()
     return parts.join('.')
@@ -158,7 +158,7 @@ async function _collectPlugins(
   const hasPluginConfig = Array.isArray(pluginsConfig)
 
   const nextPluginConfigNames = hasPluginConfig
-    ? pluginsConfig!.map(config =>
+    ? pluginsConfig!.map((config) =>
         typeof config === 'string' ? config : config.name
       )
     : null
@@ -188,7 +188,7 @@ async function _collectPlugins(
     // @scope/next-plugin-[name]
     // @next/plugin-[name]
     // next-plugin-[name]
-    const filteredDeps = dependencies.filter(name => {
+    const filteredDeps = dependencies.filter((name) => {
       return name.match(/(^@next\/plugin|next-plugin-)/)
     })
 
@@ -205,7 +205,7 @@ async function _collectPlugins(
   }
 
   const nextPluginMetaData = await Promise.all(
-    nextPluginNames.map(name =>
+    nextPluginNames.map((name) =>
       collectPluginMeta(
         env,
         resolve.sync(path.join(name, 'package.json'), {
@@ -220,7 +220,7 @@ async function _collectPlugins(
     // Add plugin config from `next.config.js`
     if (hasPluginConfig) {
       const curPlugin = pluginsConfig!.find(
-        config =>
+        (config) =>
           config && typeof config === 'object' && config.name === plugin.pkgName
       )
       if (curPlugin && typeof curPlugin === 'object') {

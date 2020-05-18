@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin'
 
-export const verifyIdToken = token => {
+export const verifyIdToken = (token) => {
   const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY
 
   if (!admin.apps.length) {
@@ -18,7 +18,7 @@ export const verifyIdToken = token => {
   return admin
     .auth()
     .verifyIdToken(token)
-    .catch(error => {
+    .catch((error) => {
       throw error
     })
 }

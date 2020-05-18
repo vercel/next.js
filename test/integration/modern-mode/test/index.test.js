@@ -44,16 +44,16 @@ describe('Modern Mode', () => {
     const buildFiles = [
       ...readdirSync(join(appDir, '.next/static', buildId, 'pages')),
       ...readdirSync(join(appDir, '.next/static/runtime')).map(
-        file => file.replace(/-\w+\./, '.') // remove hash
+        (file) => file.replace(/-\w+\./, '.') // remove hash
       ),
       ...readdirSync(join(appDir, '.next/static/chunks')).map(
-        file => file.replace(/\.\w+\./, '.') // remove hash
+        (file) => file.replace(/\.\w+\./, '.') // remove hash
       ),
     ]
 
     console.log(`Client files: ${buildFiles.join(', ')}`)
 
-    expectedFiles.forEach(file => {
+    expectedFiles.forEach((file) => {
       expect(buildFiles).toContain(`${file}.js`)
       expect(buildFiles).toContain(`${file}.module.js`)
     })

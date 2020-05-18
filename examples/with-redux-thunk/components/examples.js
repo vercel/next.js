@@ -3,8 +3,8 @@ import Clock from './clock'
 import Counter from './counter'
 
 const Examples = () => {
-  const lastUpdate = useSelector(state => state.timer.lastUpdate)
-  const light = useSelector(state => state.timer.light)
+  const lastUpdate = useSelector((state) => state.timer.lastUpdate)
+  const light = useSelector((state) => state.timer.light)
 
   return (
     <div style={{ marginBottom: 10 }}>

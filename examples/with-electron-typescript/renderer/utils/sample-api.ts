@@ -14,7 +14,7 @@ export const dataArray: User[] = [
  * Throws an error if not found.
  */
 export async function findData(id: number | string) {
-  const selected = dataArray.find(data => data.id === Number(id))
+  const selected = dataArray.find((data) => data.id === Number(id))
 
   if (!selected) {
     throw new Error('Cannot find user')

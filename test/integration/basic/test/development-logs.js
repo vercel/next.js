@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 
-export default context => {
+export default (context) => {
   describe('Development Logs', () => {
     it('should warn when prefetch is true', async () => {
       let browser
@@ -9,7 +9,7 @@ export default context => {
         browser = await webdriver(context.appPort, '/development-logs')
         const browserLogs = await browser.log('browser')
         let foundLog = false
-        browserLogs.forEach(log => {
+        browserLogs.forEach((log) => {
           if (log.message.includes('Next.js auto-prefetches automatically')) {
             foundLog = true
           }
@@ -30,7 +30,7 @@ export default context => {
         )
         const browserLogs = await browser.log('browser')
         let found = false
-        browserLogs.forEach(log => {
+        browserLogs.forEach((log) => {
           if (log.message.includes('Next.js auto-prefetches automatically')) {
             found = true
           }
@@ -51,7 +51,7 @@ export default context => {
         )
         const browserLogs = await browser.log('browser')
         let found = false
-        browserLogs.forEach(log => {
+        browserLogs.forEach((log) => {
           if (log.message.includes('Next.js auto-prefetches automatically')) {
             found = true
           }

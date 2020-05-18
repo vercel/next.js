@@ -21,7 +21,7 @@ let app
 let appPort
 let indexPageContent
 
-const runTests = isDev => {
+const runTests = (isDev) => {
   const getData = async () => {
     if (isDev) {
       appPort = await findPort()

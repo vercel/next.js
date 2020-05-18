@@ -63,5 +63,5 @@ export const Animated = styled('div')`
   & code {
     background-color: linen;
   }
-  animation: ${props => props.animation} 0.2s infinite ease-in-out alternate;
+  animation: ${(props) => props.animation} 0.2s infinite ease-in-out alternate;
 `

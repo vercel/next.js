@@ -4,7 +4,7 @@ import useInterval from '../lib/useInterval'
 import Clock from '../components/clock'
 import Counter from '../components/counter'
 
-const tick = createAction('TICK', light => {
+const tick = createAction('TICK', (light) => {
   return {
     payload: {
       light: light,
@@ -28,4 +28,4 @@ const IndexPage = ({ dispatch }) => {
   )
 }
 
-export default connect(state => state)(IndexPage)
+export default connect((state) => state)(IndexPage)

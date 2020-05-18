@@ -19,7 +19,7 @@ let appPort
 let app
 let output
 
-const handleOutput = msg => {
+const handleOutput = (msg) => {
   output += msg
 }
 

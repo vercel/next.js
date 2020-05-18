@@ -5,7 +5,7 @@ const server = new http.Server(async (req, res) => {
   res.end(JSON.stringify({ foo: 'bar' }))
 })
 
-server.listen(port, err => {
+server.listen(port, (err) => {
   if (err) {
     throw err
   }

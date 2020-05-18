@@ -111,7 +111,7 @@ function fetchNextData(
         // https://github.com/github/fetch#caveats
         credentials: 'same-origin',
       }
-    ).then(res => {
+    ).then((res) => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
           return getResponse()
@@ -123,7 +123,7 @@ function fetchNextData(
   }
 
   return getResponse()
-    .then(data => {
+    .then((data) => {
       return cb ? cb(data) : data
     })
     .catch((err: Error) => {
@@ -440,7 +440,7 @@ export default class Router implements BaseRouter {
         const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
           const missingParams = Object.keys(routeRegex.groups).filter(
-            param => !query[param]
+            (param) => !query[param]
           )
 
           if (missingParams.length > 0) {
@@ -469,33 +469,36 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
-      this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
-        const { error } = routeInfo
+      this.getRouteInfo(route, pathname, query, as, shallow).then(
+        (routeInfo) => {
+          const { error } = routeInfo
 
-        if (error && error.cancelled) {
-          return resolve(false)
-        }
+          if (error && error.cancelled) {
+            return resolve(false)
+          }
 
-        Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, as, options)
+          Router.events.emit('beforeHistoryChange', as)
+          this.changeState(method, url, as, options)
 
-        if (process.env.NODE_ENV !== 'production') {
-          const appComp: any = this.components['/_app'].Component
-          ;(window as any).next.isPrerendered =
-            appComp.getInitialProps === appComp.origGetInitialProps &&
-            !(routeInfo.Component as any).getInitialProps
-        }
+          if (process.env.NODE_ENV !== 'production') {
+            const appComp: any = this.components['/_app'].Component
+            ;(window as any).next.isPrerendered =
+              appComp.getInitialProps === appComp.origGetInitialProps &&
+              !(routeInfo.Component as any).getInitialProps
+          }
 
-        this.set(route, pathname, query, as, routeInfo)
+          this.set(route, pathname, query, as, routeInfo)
 
-        if (error) {
-          Router.events.emit('routeChangeError', error, as)
-          throw error
-        }
+          if (error) {
+            Router.events.emit('routeChangeError', error, as)
+            throw error
+          }
 
-        Router.events.emit('routeChangeComplete', as)
-        return resolve(true)
-      }, reject)
+          Router.events.emit('routeChangeComplete', as)
+          return resolve(true)
+        },
+        reject
+      )
     })
   }
 
@@ -552,7 +555,7 @@ export default class Router implements BaseRouter {
       err: Error & { code: any; cancelled: boolean },
       loadErrorFail?: boolean
     ) => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
           // If we can't load the page it could be one of following reasons
           //  1. Page doesn't exists
@@ -576,21 +579,21 @@ export default class Router implements BaseRouter {
 
         resolve(
           this.fetchComponent('/_error')
-            .then(res => {
+            .then((res) => {
               const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
-              return new Promise(resolve => {
+              return new Promise((resolve) => {
                 this.getInitialProps(Component, {
                   err,
                   pathname,
                   query,
                 } as any).then(
-                  props => {
+                  (props) => {
                     routeInfo.props = props
                     routeInfo.error = err
                     resolve(routeInfo)
                   },
-                  gipErr => {
+                  (gipErr) => {
                     console.error(
                       'Error in error page `getInitialProps`: ',
                       gipErr
@@ -602,7 +605,7 @@ export default class Router implements BaseRouter {
                 )
               }) as Promise<RouteInfo>
             })
-            .catch(err => handleError(err, true))
+            .catch((err) => handleError(err, true))
         )
       }) as Promise<RouteInfo>
     }
@@ -613,7 +616,7 @@ export default class Router implements BaseRouter {
       }
 
       this.fetchComponent(route).then(
-        res =>
+        (res) =>
           resolve({
             Component: res.page,
             __N_SSG: res.mod.__N_SSG,
@@ -648,7 +651,7 @@ export default class Router implements BaseRouter {
                   asPath: as,
                 } as any
               )
-        ).then(props => {
+        ).then((props) => {
           routeInfo.props = props
           this.components[route] = routeInfo
           return routeInfo
@@ -794,7 +797,7 @@ export default class Router implements BaseRouter {
       cancelled = true
     }
     this.clc = cancel
-    return fn().then(data => {
+    return fn().then((data) => {
       if (cancel === this.clc) {
         this.clc = null
       }
@@ -818,7 +821,7 @@ export default class Router implements BaseRouter {
           pathname,
           null,
           this.isSsr,
-          data => (this.sdc[pathname] = data)
+          (data) => (this.sdc[pathname] = data)
         )
   }
 

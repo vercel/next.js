@@ -38,7 +38,7 @@ export default class WebpackConformancePlugin {
   }
 
   private gatherResults(results: Array<IConformanceTestResult>): void {
-    results.forEach(result => {
+    results.forEach((result) => {
       if (result.result === IConformanceTestStatus.FAILED) {
         result.errors && this.errors.push(...result.errors)
         result.warnings && this.warnings.push(...result.warnings)
@@ -51,7 +51,7 @@ export default class WebpackConformancePlugin {
     callback: () => void
   ) => {
     const buildStartedResults: IConformanceTestResult[] = this.tests.map(
-      test => {
+      (test) => {
         if (test.buildStared && this.compiler) {
           return test.buildStared(this.compiler.options)
         }
@@ -70,7 +70,7 @@ export default class WebpackConformancePlugin {
     cb: () => void
   ): void => {
     const buildCompletedResults: IConformanceTestResult[] = this.tests.map(
-      test => {
+      (test) => {
         if (test.buildCompleted) {
           return test.buildCompleted(compilation.assets)
         }
@@ -90,10 +90,10 @@ export default class WebpackConformancePlugin {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     const collectedVisitors: Map<string, [NodeInspector?]> = new Map()
     // Collect all interested visitors from all tests.
-    this.tests.forEach(test => {
+    this.tests.forEach((test) => {
       if (test.getAstNode) {
         const getAstNodeCallbacks: IGetAstNodeResult[] = test.getAstNode()
-        getAstNodeCallbacks.forEach(result => {
+        getAstNodeCallbacks.forEach((result) => {
           if (!collectedVisitors.has(result.visitor)) {
             collectedVisitors.set(result.visitor, [])
           }
@@ -108,14 +108,14 @@ export default class WebpackConformancePlugin {
     for (const type of JS_TYPES) {
       factory.hooks.parser
         .for('javascript/' + type)
-        .tap(this.constructor.name, parser => {
+        .tap(this.constructor.name, (parser) => {
           parser.hooks.program.tap(this.constructor.name, (ast: any) => {
             const visitors: VisitorMap = {}
             const that = this
             for (const visitorKey of collectedVisitors.keys()) {
-              visitors[visitorKey] = function(path: NodePath) {
+              visitors[visitorKey] = function (path: NodePath) {
                 const callbacks = collectedVisitors.get(visitorKey) || []
-                callbacks.forEach(cb => {
+                callbacks.forEach((cb) => {
                   if (!cb) {
                     return
                   }

@@ -72,8 +72,8 @@ function getObserver(): IntersectionObserver | undefined {
   }
 
   return (observer = new IntersectionObserver(
-    entries => {
-      entries.forEach(entry => {
+    (entries) => {
+      entries.forEach((entry) => {
         if (!listeners.has(entry.target)) {
           return
         }
@@ -220,7 +220,7 @@ class Link extends Component<LinkProps> {
     // loading with priority which can reject but we don't
     // want to force navigation since this is only a prefetch
     Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
-      err => {
+      (err) => {
         if (process.env.NODE_ENV !== 'production') {
           // rethrow to show invalid URL errors
           throw err

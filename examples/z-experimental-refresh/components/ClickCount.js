@@ -4,7 +4,7 @@ import styles from './ClickCount.module.css'
 export default function ClickCount() {
   const [count, setCount] = useState(0)
   const increment = useCallback(() => {
-    setCount(v => v + 1)
+    setCount((v) => v + 1)
   }, [setCount])
 
   return (

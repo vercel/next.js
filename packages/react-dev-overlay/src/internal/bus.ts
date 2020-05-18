@@ -37,7 +37,7 @@ let queue: BusEvent[] = []
 function drain() {
   // Draining should never happen synchronously in case multiple handlers are
   // registered.
-  setTimeout(function() {
+  setTimeout(function () {
     while (
       // Until we are out of events:
       Boolean(queue.length) &&
@@ -46,7 +46,7 @@ function drain() {
       Boolean(handlers.size)
     ) {
       const ev = queue.shift()
-      handlers.forEach(handler => handler(ev))
+      handlers.forEach((handler) => handler(ev))
     }
   }, 1)
 }

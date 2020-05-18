@@ -18,7 +18,7 @@ function getEntries(data) {
   return data ? data.entries.data.reverse() : []
 }
 
-export default props => {
+export default (props) => {
   const { data, errorMessage } = useGuestbookEntries()
   const [entries, setEntries] = useState([])
   const [twitterHandle, setTwitterHandle] = useState('')
@@ -43,14 +43,14 @@ export default props => {
     }
     setSubmitting(true)
     createGuestbookEntry(twitterHandle, story)
-      .then(data => {
+      .then((data) => {
         entries.unshift(data.data.createGuestbookEntry)
         setTwitterHandle('')
         setStory('')
         setEntries(entries)
         setSubmitting(false)
       })
-      .catch(error => {
+      .catch((error) => {
         console.log(`boo :( ${error}`)
         alert('🤷‍♀️')
         setSubmitting(false)

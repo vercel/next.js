@@ -25,7 +25,7 @@ async function webpackFinal(config) {
   }
 
   config.module.rules = [
-    ...config.module.rules.filter(rule => {
+    ...config.module.rules.filter((rule) => {
       // the rules we're filtering use RegExp for the test
       if (!rule.test instanceof RegExp) return true
       // use Next.js' built-in CSS
@@ -42,7 +42,7 @@ async function webpackFinal(config) {
       }
       return true
     }),
-    ...nextWebpackConfig.module.rules.map(rule => {
+    ...nextWebpackConfig.module.rules.map((rule) => {
       // we need to resolve next-babel-loader since it's not available
       // relative with storybook's config
       if (rule.use && rule.use.loader === 'next-babel-loader') {

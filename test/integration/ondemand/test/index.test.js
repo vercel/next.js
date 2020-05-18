@@ -17,7 +17,7 @@ import {
 
 const context = {}
 
-const doPing = page => {
+const doPing = (page) => {
   const controller = new AbortController()
   const signal = controller.signal
   return fetchViaHTTP(
@@ -25,8 +25,8 @@ const doPing = page => {
     '/_next/webpack-hmr',
     { page },
     { signal }
-  ).then(res => {
-    res.body.on('data', chunk => {
+  ).then((res) => {
+    res.body.on('data', (chunk) => {
       try {
         const payload = JSON.parse(chunk.toString().split('data:')[1])
         if (payload.success || payload.invalid) {

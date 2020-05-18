@@ -14,13 +14,13 @@ const CheckoutForm: React.FunctionComponent = () => {
   })
   const stripe = useStripe()
 
-  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = e =>
+  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
     setInput({
       ...input,
       [e.currentTarget.name]: e.currentTarget.value,
     })
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async e => {
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
     // Create a Checkout Session.
     const response = await fetchPostJSON('/api/checkout_sessions', {

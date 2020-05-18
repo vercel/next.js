@@ -14,13 +14,13 @@ export default {
         store,
         network: new RelayNetworkLayer([
           urlMiddleware({
-            url: req => process.env.RELAY_ENDPOINT,
+            url: (req) => process.env.RELAY_ENDPOINT,
           }),
         ]),
       }),
     }
   },
-  createEnvironment: records => {
+  createEnvironment: (records) => {
     const source = new RecordSource(records)
     const store = new Store(source)
 
@@ -28,7 +28,7 @@ export default {
       store,
       network: new RelayNetworkLayer([
         urlMiddleware({
-          url: req => process.env.RELAY_ENDPOINT,
+          url: (req) => process.env.RELAY_ENDPOINT,
         }),
       ]),
     })

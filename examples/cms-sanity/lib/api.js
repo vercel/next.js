@@ -1,9 +1,9 @@
 import client, { previewClient } from './sanity'
 import sanityImage from '@sanity/image-url'
 
-const getUniquePosts = posts => {
+const getUniquePosts = (posts) => {
   const slugs = new Set()
-  return posts.filter(post => {
+  return posts.filter((post) => {
     if (slugs.has(post.slug)) {
       return false
     } else {
@@ -23,7 +23,7 @@ const postFields = `
   'author': author->{name, 'picture': picture.asset->url},
 `
 
-const getClient = preview => (preview ? previewClient : client)
+const getClient = (preview) => (preview ? previewClient : client)
 
 export const imageBuilder = sanityImage(client)
 
@@ -62,7 +62,7 @@ export async function getPostAndMorePosts(slug, preview) {
       }`,
         { slug }
       )
-      .then(res => res?.[0]),
+      .then((res) => res?.[0]),
     curClient.fetch(
       `*[_type == "post" && slug.current != $slug] | order(date desc, _updatedAt desc){
         ${postFields}

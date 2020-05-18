@@ -20,8 +20,8 @@ class Store {
   }
 
   @computed get timeString() {
-    const pad = n => (n < 10 ? `0${n}` : n)
-    const format = t =>
+    const pad = (n) => (n < 10 ? `0${n}` : n)
+    const format = (t) =>
       `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(
         t.getUTCSeconds()
       )}`
@@ -30,7 +30,7 @@ class Store {
 
   stop = () => clearInterval(this.timer)
 
-  hydrate = data => {
+  hydrate = (data) => {
     if (!data) return
 
     this.lastUpdate = data.lastUpdate !== null ? data.lastUpdate : Date.now()

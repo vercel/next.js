@@ -17,10 +17,10 @@ function runTests() {
       /.*/
     )
     const jsFiles = browserFiles.filter(
-      file => file.endsWith('.js') && file.includes('/pages/')
+      (file) => file.endsWith('.js') && file.includes('/pages/')
     )
 
-    jsFiles.forEach(file => {
+    jsFiles.forEach((file) => {
       expect(browserFiles.includes(`${file}.map`)).toBe(true)
     })
   })

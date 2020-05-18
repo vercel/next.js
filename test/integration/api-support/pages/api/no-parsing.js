@@ -5,10 +5,10 @@ export const config = {
 }
 
 export default (req, res) => {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     if (!req.body) {
       let buffer = ''
-      req.on('data', chunk => {
+      req.on('data', (chunk) => {
         buffer += chunk
       })
 

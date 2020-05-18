@@ -3,7 +3,7 @@ import loaderUtils from 'loader-utils'
 import path from 'path'
 import { loader } from 'webpack'
 
-const ErrorLoader: loader.Loader = function() {
+const ErrorLoader: loader.Loader = function () {
   const options = loaderUtils.getOptions(this) || {}
 
   const { reason = 'An unknown error has occurred' } = options

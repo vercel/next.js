@@ -9,9 +9,9 @@ import * as types from './actionTypes'
 export const fetchUserEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.START_FETCHING_CHARACTERS),
-    mergeMap(action => {
+    mergeMap((action) => {
       return interval(3000).pipe(
-        map(x => actions.fetchCharacter()),
+        map((x) => actions.fetchCharacter()),
         takeUntil(
           action$.ofType(
             types.STOP_FETCHING_CHARACTERS,
@@ -25,17 +25,17 @@ export const fetchUserEpic = (action$, state$) =>
 export const fetchCharacterEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.FETCH_CHARACTER),
-    mergeMap(action =>
+    mergeMap((action) =>
       request({
         url: `https://swapi.co/api/people/${state$.value.nextCharacterId}`,
       }).pipe(
-        map(response =>
+        map((response) =>
           actions.fetchCharacterSuccess(
             response.response,
             action.payload.isServer
           )
         ),
-        catchError(error =>
+        catchError((error) =>
           of(
             actions.fetchCharacterFailure(
               error.xhr.response,

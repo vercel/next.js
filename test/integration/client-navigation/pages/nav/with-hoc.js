@@ -1,7 +1,7 @@
 import { withRouter } from 'next/router'
 
 const Link = withRouter(({ router, children, href }) => {
-  const handleClick = e => {
+  const handleClick = (e) => {
     e.preventDefault()
     router.push(href)
   }

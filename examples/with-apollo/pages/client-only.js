@@ -5,7 +5,7 @@ import Submit from '../components/Submit'
 import PostList from '../components/PostList'
 import { withApollo } from '../lib/apollo'
 
-const ClientOnlyPage = props => (
+const ClientOnlyPage = (props) => (
   <App>
     <Header />
     <InfoBox>

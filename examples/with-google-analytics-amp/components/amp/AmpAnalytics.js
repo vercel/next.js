@@ -2,7 +2,7 @@ import React from 'react'
 
 import AmpIncludeCustomElement from './AmpIncludeCustomElement'
 
-export default props => (
+export default (props) => (
   <>
     <AmpIncludeCustomElement name="amp-analytics" version="0.1" />
     <amp-analytics type={props.type}>

@@ -4,7 +4,7 @@ import createSagaMiddleware from 'redux-saga'
 import rootReducer, { exampleInitialState } from './reducer'
 import rootSaga from './saga'
 
-const bindMiddleware = middleware => {
+const bindMiddleware = (middleware) => {
   if (process.env.NODE_ENV !== 'production') {
     const { composeWithDevTools } = require('redux-devtools-extension')
     return composeWithDevTools(applyMiddleware(...middleware))

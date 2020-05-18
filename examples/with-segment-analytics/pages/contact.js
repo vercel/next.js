@@ -35,11 +35,11 @@ export default class extends Component {
     )
   }
 
-  handleInput = e => {
+  handleInput = (e) => {
     this.setState({ message: e.target.value })
   }
 
-  handleSubmit = e => {
+  handleSubmit = (e) => {
     e.preventDefault()
     global.analytics.track('Form Submitted', {
       message: this.state.message,

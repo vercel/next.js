@@ -73,7 +73,7 @@ export const resetCount = () => {
   return { type: actionTypes.RESET }
 }
 
-export const loadExampleData = data => {
+export const loadExampleData = (data) => {
   return { type: actionTypes.LOAD_EXAMPLE_DATA, data }
 }
 

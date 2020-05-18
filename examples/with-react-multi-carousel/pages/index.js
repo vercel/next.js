@@ -4,7 +4,7 @@ import Carousel from 'react-multi-carousel'
 
 import Image from '../components/image'
 
-const styles = theme => ({
+const styles = (theme) => ({
   root: {
     textAlign: 'center',
   },
@@ -58,7 +58,7 @@ class Index extends React.Component {
           itemClass="image-item"
           deviceType={''}
         >
-          {images.map(image => {
+          {images.map((image) => {
             return <Image url={image} alt={image} />
           })}
         </Carousel>

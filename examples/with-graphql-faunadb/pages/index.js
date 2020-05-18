@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Footer from '../components/Footer'
 import Hero from '../components/Hero'
 
-const Guestbook = props => {
+const Guestbook = (props) => {
   return (
     <>
       <Head>

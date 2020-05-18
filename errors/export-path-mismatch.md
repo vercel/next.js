@@ -11,7 +11,7 @@ Change your `exportPathMap` function in `next.config.js` to have a path that mat
 
 ```js
 module.exports = {
-  exportPathMap: function() {
+  exportPathMap: function () {
     return {
       '/': { page: '/' },
       // '/blog/nextjs': { page: '/blog/[post]/comment/[id]' },        // wrong

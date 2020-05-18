@@ -15,13 +15,13 @@ RefreshRuntime.injectIntoGlobalHook(self)
 
 // noop fns to prevent runtime errors during initialization
 self.$RefreshReg$ = () => {}
-self.$RefreshSig$ = () => type => type
+self.$RefreshSig$ = () => (type) => type
 
 // Register global helpers
 self.$RefreshHelpers$ = RefreshHelpers
 
 // Register a helper for module execution interception
-self.$RefreshInterceptModuleExecution$ = function(webpackModuleId) {
+self.$RefreshInterceptModuleExecution$ = function (webpackModuleId) {
   const prevRefreshReg = self.$RefreshReg$
   const prevRefreshSig = self.$RefreshSig$
 

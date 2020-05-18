@@ -29,7 +29,7 @@ describe('Browserslist: Old', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -61,7 +61,7 @@ describe('Browserslist: New', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -93,7 +93,7 @@ describe('Custom Properties: Pass-Through IE11', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -125,7 +125,7 @@ describe('Custom Properties: Pass-Through Modern', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -193,7 +193,7 @@ describe('CSS Modules: Import Global CSS', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')

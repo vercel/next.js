@@ -32,10 +32,10 @@ const getModernOptions = (babelOptions = {}) => {
   }
 }
 
-const nextBabelPresetModern = presetOptions => context =>
+const nextBabelPresetModern = (presetOptions) => (context) =>
   nextBabelPreset(context, getModernOptions(presetOptions))
 
-module.exports = babelLoader.custom(babel => {
+module.exports = babelLoader.custom((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -168,11 +168,11 @@ module.exports = babelLoader.custom(babel => {
 
       if (isModern) {
         const nextPreset = options.presets.find(
-          preset => preset && preset.value === nextBabelPreset
+          (preset) => preset && preset.value === nextBabelPreset
         ) || { options: {} }
 
         const additionalPresets = options.presets.filter(
-          preset => preset !== nextPreset
+          (preset) => preset !== nextPreset
         )
 
         const presetItemModern = babel.createConfigItem(

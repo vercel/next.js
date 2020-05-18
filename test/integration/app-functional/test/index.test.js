@@ -8,7 +8,7 @@ const context = {
 }
 jest.setTimeout(1000 * 60 * 5)
 
-const collectOutput = message => {
+const collectOutput = (message) => {
   context.output += message
 }
 

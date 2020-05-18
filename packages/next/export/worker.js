@@ -17,7 +17,7 @@ global.__NEXT_DATA__ = {
   nextExport: true,
 }
 
-export default async function({
+export default async function ({
   path,
   pathMap,
   distDir,
@@ -115,7 +115,7 @@ export default async function({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
-    const renderedDuringBuild = getStaticProps => {
+    const renderedDuringBuild = (getStaticProps) => {
       return !buildExport && getStaticProps && !isDynamicRoute(path)
     }
 
@@ -206,8 +206,8 @@ export default async function({
     const validateAmp = async (html, page, validatorPath) => {
       const validator = await AmpHtmlValidator.getInstance(validatorPath)
       const result = validator.validateString(html)
-      const errors = result.errors.filter(e => e.severity === 'ERROR')
-      const warnings = result.errors.filter(e => e.severity !== 'ERROR')
+      const errors = result.errors.filter((e) => e.severity === 'ERROR')
+      const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
       if (warnings.length || errors.length) {
         results.ampValidations.push({

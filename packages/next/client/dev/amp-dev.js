@@ -41,7 +41,7 @@ async function tryApplyUpdates() {
     const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
     const data = await res.json()
     const curPage = page === '/' ? 'index' : page
-    const pageUpdated = Object.keys(data.c).some(mod => {
+    const pageUpdated = Object.keys(data.c).some((mod) => {
       return (
         mod.indexOf(
           `pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`
@@ -67,7 +67,7 @@ async function tryApplyUpdates() {
 
 getEventSourceWrapper({
   path: `${assetPrefix}/_next/webpack-hmr`,
-}).addMessageListener(event => {
+}).addMessageListener((event) => {
   if (event.data === '\uD83D\uDC93') {
     return
   }

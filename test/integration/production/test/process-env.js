@@ -3,10 +3,10 @@ import webdriver from 'next-webdriver'
 import { promises } from 'fs'
 import { join } from 'path'
 
-const readNextBuildFile = relativePath =>
+const readNextBuildFile = (relativePath) =>
   promises.readFile(join(__dirname, '../.next', relativePath), 'utf8')
 
-export default context => {
+export default (context) => {
   describe('process.env', () => {
     it('should set process.env.NODE_ENV in production', async () => {
       const browser = await webdriver(context.appPort, '/process-env')

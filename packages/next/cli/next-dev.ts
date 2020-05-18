@@ -7,7 +7,7 @@ import { printAndExit } from '../server/lib/utils'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
-const nextDev: cliCommand = argv => {
+const nextDev: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -61,10 +61,10 @@ const nextDev: cliCommand = argv => {
     port,
     args['--hostname']
   )
-    .then(async app => {
+    .then(async (app) => {
       await app.prepare()
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`
         const pkgAppPath = require('next/dist/compiled/find-up').sync(
@@ -76,7 +76,7 @@ const nextDev: cliCommand = argv => {
         const appPackage = require(pkgAppPath)
         if (appPackage.scripts) {
           const nextScript = Object.entries(appPackage.scripts).find(
-            scriptLine => scriptLine[1] === 'next'
+            (scriptLine) => scriptLine[1] === 'next'
           )
           if (nextScript) {
             errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`

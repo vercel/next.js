@@ -48,7 +48,7 @@ export function useFetchUser({ required } = {}) {
       setLoading(true)
       let isMounted = true
 
-      fetchUser().then(user => {
+      fetchUser().then((user) => {
         // Only set the user if the component is still mounted
         if (isMounted) {
           // When the user is not logged in but login is required

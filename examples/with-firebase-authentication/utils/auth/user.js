@@ -10,7 +10,7 @@ import { get, has } from 'lodash/object'
  * @return {String} AuthUser.email - The user's email
  * @return {Boolean} AuthUser.emailVerified - Whether the user has verified their email
  */
-export const createAuthUser = firebaseUser => {
+export const createAuthUser = (firebaseUser) => {
   if (!firebaseUser || !firebaseUser.uid) {
     return null
   }

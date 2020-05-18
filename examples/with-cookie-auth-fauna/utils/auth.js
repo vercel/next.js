@@ -13,9 +13,9 @@ export const logout = async () => {
   Router.push('/login')
 }
 
-export const withAuthSync = Component => {
-  const Wrapper = props => {
-    const syncLogout = event => {
+export const withAuthSync = (Component) => {
+  const Wrapper = (props) => {
+    const syncLogout = (event) => {
       if (event.key === 'logout') {
         console.log('logged out from storage!')
         Router.push('/login')

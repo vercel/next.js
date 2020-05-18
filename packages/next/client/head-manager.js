@@ -51,7 +51,7 @@ function updateElements(type, components) {
       oldTags.push(j)
     }
   }
-  const newTags = components.map(reactElementToDOM).filter(newTag => {
+  const newTags = components.map(reactElementToDOM).filter((newTag) => {
     for (let k = 0, len = oldTags.length; k < len; k++) {
       const oldTag = oldTags[k]
       if (oldTag.isEqualNode(newTag)) {
@@ -62,22 +62,22 @@ function updateElements(type, components) {
     return true
   })
 
-  oldTags.forEach(t => t.parentNode.removeChild(t))
-  newTags.forEach(t => headEl.insertBefore(t, headCountEl))
+  oldTags.forEach((t) => t.parentNode.removeChild(t))
+  newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
 
 export default function initHeadManager() {
   let updatePromise = null
 
-  return head => {
+  return (head) => {
     const promise = (updatePromise = Promise.resolve().then(() => {
       if (promise !== updatePromise) return
 
       updatePromise = null
       const tags = {}
 
-      head.forEach(h => {
+      head.forEach((h) => {
         const components = tags[h.type] || []
         components.push(h)
         tags[h.type] = components
@@ -90,7 +90,7 @@ export default function initHeadManager() {
         title = typeof children === 'string' ? children : children.join('')
       }
       if (title !== document.title) document.title = title
-      ;['meta', 'base', 'link', 'style', 'script'].forEach(type => {
+      ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
         updateElements(type, tags[type] || [])
       })
     }))

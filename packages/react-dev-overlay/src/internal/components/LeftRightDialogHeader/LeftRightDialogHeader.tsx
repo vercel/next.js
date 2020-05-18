@@ -62,7 +62,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
     if (root !== d) {
       d.addEventListener('keydown', handler)
     }
-    return function() {
+    return function () {
       root.removeEventListener('keydown', handler)
       if (root !== d) {
         d.removeEventListener('keydown', handler)

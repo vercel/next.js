@@ -669,24 +669,15 @@ export async function nextbuildstatic(task, opts) {
 }
 
 export async function pages_app(task) {
-  await task
-    .source('pages/_app.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_app.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_error(task) {
-  await task
-    .source('pages/_error.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_error.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_document(task) {
-  await task
-    .source('pages/_document.tsx')
-    .babel('server')
-    .target('dist/pages')
+  await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
 export async function pages(task, opts) {
@@ -705,7 +696,7 @@ export async function build(task) {
   await task.serial(['precompile', 'compile'])
 }
 
-export default async function(task) {
+export default async function (task) {
   await task.clear('dist')
   await task.start('build')
   await task.watch('bin/*', 'bin')

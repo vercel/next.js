@@ -40,13 +40,13 @@ export class ProfilingPlugin {
     const tracer = this.tracer
 
     // Compiler Hooks
-    Object.keys(compiler.hooks).forEach(hookName => {
+    Object.keys(compiler.hooks).forEach((hookName) => {
       compiler.hooks[hookName].intercept(
         makeInterceptorFor('Compiler', tracer)(hookName)
       )
     })
 
-    Object.keys(compiler.resolverFactory.hooks).forEach(hookName => {
+    Object.keys(compiler.resolverFactory.hooks).forEach((hookName) => {
       compiler.resolverFactory.hooks[hookName].intercept(
         makeInterceptorFor('Resolver', tracer)(hookName)
       )
@@ -106,8 +106,8 @@ const interceptTemplateInstancesFrom = (compilation: any, tracer: any) => {
       instance: webassembly,
       name: 'WebAssemblyModuleTemplate',
     },
-  ].forEach(templateObject => {
-    Object.keys(templateObject.instance.hooks).forEach(hookName => {
+  ].forEach((templateObject) => {
+    Object.keys(templateObject.instance.hooks).forEach((hookName) => {
       templateObject.instance.hooks[hookName].intercept(
         makeInterceptorFor(templateObject.name, tracer)(hookName)
       )
@@ -117,7 +117,7 @@ const interceptTemplateInstancesFrom = (compilation: any, tracer: any) => {
 
 const interceptAllHooksFor = (instance: any, tracer: any, logLabel: any) => {
   if (Reflect.has(instance, 'hooks')) {
-    Object.keys(instance.hooks).forEach(hookName => {
+    Object.keys(instance.hooks).forEach((hookName) => {
       instance.hooks[hookName].intercept(
         makeInterceptorFor(logLabel, tracer)(hookName)
       )
@@ -134,7 +134,7 @@ const interceptAllParserHooks = (moduleFactory: any, tracer: any) => {
     'webassembly/experimental',
   ]
 
-  moduleTypes.forEach(moduleType => {
+  moduleTypes.forEach((moduleType) => {
     moduleFactory.hooks.parser
       .for(moduleType)
       .tap('ProfilingPlugin', (parser: any, parserOpts: any) => {

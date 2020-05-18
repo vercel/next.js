@@ -4,7 +4,7 @@ import Router from 'next/router'
 import PropTypes from 'prop-types'
 
 const HelloBundle = dynamic({
-  modules: props => {
+  modules: (props) => {
     const components = {
       HelloContext: import('../../components/hello-context'),
       Hello1: import('../../components/hello1'),

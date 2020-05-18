@@ -17,7 +17,7 @@ export function getClientStyleLoader({
           // and prod. To fix this, we render a <noscript> tag as
           // an anchor for the styles to be placed before. These
           // styles will be applied _before_ <style jsx global>.
-          insert: function(element: Node) {
+          insert: function (element: Node) {
             // These elements should always exist. If they do not,
             // this code should fail.
             var anchorElement = document.querySelector(
@@ -38,7 +38,7 @@ export function getClientStyleLoader({
             // We use `requestAnimationFrame` as a way to defer
             // this operation since there may be multiple style
             // tags.
-            ;(self.requestAnimationFrame || setTimeout)(function() {
+            ;(self.requestAnimationFrame || setTimeout)(function () {
               for (
                 var x = document.querySelectorAll('[data-next-hide-fouc]'),
                   i = x.length;

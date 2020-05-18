@@ -29,7 +29,7 @@ const Post = ({ blogpost }) => {
 export async function getStaticPaths() {
   const paths = fs
     .readdirSync(path.join(process.cwd(), 'content/blogPosts'))
-    .map(blogName => {
+    .map((blogName) => {
       const trimmedName = blogName.substring(0, blogName.length - 3)
       return {
         params: { slug: trimmedName },

@@ -37,7 +37,7 @@ export function getNodeError(error: Error): Error {
   try {
     n.stack = parse(error.stack)
       .map(getFilesystemFrame)
-      .map(f => {
+      .map((f) => {
         let str = `    at ${f.methodName}`
         if (f.file) {
           let loc = f.file

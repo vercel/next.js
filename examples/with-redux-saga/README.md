@@ -97,7 +97,7 @@ import nextReduxSaga from 'next-redux-saga'
 import configureStore from './store'
 
 export function withReduxSaga(...connectArgs) {
-  return BaseComponent =>
+  return (BaseComponent) =>
     withRedux(configureStore, ...connectArgs)(nextReduxSaga(BaseComponent))
 }
 

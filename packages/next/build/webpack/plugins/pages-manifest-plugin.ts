@@ -17,7 +17,7 @@ export default class PagesManifestPlugin implements Plugin {
   }
 
   apply(compiler: Compiler): void {
-    compiler.hooks.emit.tap('NextJsPagesManifest', compilation => {
+    compiler.hooks.emit.tap('NextJsPagesManifest', (compilation) => {
       const { chunks } = compilation
       const pages: { [page: string]: string } = {}
 

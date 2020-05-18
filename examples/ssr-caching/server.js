@@ -38,7 +38,7 @@ app.prepare().then(() => {
 
   server.get('*', (req, res) => handle(req, res))
 
-  server.listen(port, err => {
+  server.listen(port, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

@@ -1,11 +1,7 @@
 /* eslint-env jest */
 import { transform } from '@babel/core'
 
-const trim = s =>
-  s
-    .join('\n')
-    .trim()
-    .replace(/^\s+/gm, '')
+const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 // avoid generating __source annotations in JSX during testing:
 const NODE_ENV = process.env.NODE_ENV

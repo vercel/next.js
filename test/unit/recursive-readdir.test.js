@@ -20,7 +20,7 @@ describe('recursiveReadDir', () => {
       /^[\\/]nav[\\/]products[\\/]product\.js/,
     ]
     expect(
-      result.filter(item => {
+      result.filter((item) => {
         for (const page of pages) {
           if (page.test(item)) {
             return false

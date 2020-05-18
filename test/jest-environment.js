@@ -33,7 +33,7 @@ class CustomEnvironment extends NodeEnvironment {
     const newTabPort = await getPort()
 
     await new Promise((resolve, reject) => {
-      this.server.listen(newTabPort, err => {
+      this.server.listen(newTabPort, (err) => {
         if (err) return reject(err)
         resolve()
       })
@@ -44,7 +44,7 @@ class CustomEnvironment extends NodeEnvironment {
     if (browserName !== 'chrome' && SKIP_LOCAL_SELENIUM_SERVER !== 'true') {
       console.log('Installing selenium server')
       await new Promise((resolve, reject) => {
-        seleniumServer.install(err => {
+        seleniumServer.install((err) => {
           if (err) return reject(err)
           resolve()
         })

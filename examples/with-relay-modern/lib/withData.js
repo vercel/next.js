@@ -24,10 +24,7 @@ export default (ComposedComponent, options = {}) => {
         // TODO: Consider RelayQueryResponseCache
         // https://github.com/facebook/relay/issues/1687#issuecomment-302931855
         queryProps = await fetchQuery(environment, options.query, variables)
-        queryRecords = environment
-          .getStore()
-          .getSource()
-          .toJSON()
+        queryRecords = environment.getStore().getSource().toJSON()
       }
 
       return {

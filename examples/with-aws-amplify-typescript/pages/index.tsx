@@ -46,24 +46,24 @@ type Action =
 const reducer: React.Reducer<State, Action> = (state, action) => {
   switch (action.type) {
     case 'add-todo': {
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.todos.push(action.payload)
       })
     }
     case 'delete-todo': {
       const index = state.todos.findIndex(({ id }) => action.payload === id)
       if (index === -1) return state
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.todos.splice(index, 1)
       })
     }
     case 'reset-current': {
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.currentName = ''
       })
     }
     case 'set-current': {
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.currentName = action.payload
       })
     }
@@ -111,14 +111,14 @@ const App = (props: Props) => {
     <div>
       <h3>Add a Todo</h3>
       <form
-        onSubmit={ev => {
+        onSubmit={(ev) => {
           ev.preventDefault()
           createToDo(dispatch, state.currentName)
         }}
       >
         <input
           value={state.currentName}
-          onChange={e => {
+          onChange={(e) => {
             dispatch({ type: 'set-current', payload: e.target.value })
           }}
         />

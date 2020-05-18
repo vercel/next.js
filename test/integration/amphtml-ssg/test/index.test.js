@@ -22,7 +22,7 @@ let app
 
 jest.setTimeout(1000 * 60 * 2)
 
-const fsExists = file =>
+const fsExists = (file) =>
   fs
     .access(file)
     .then(() => true)
@@ -58,7 +58,7 @@ const runTests = (isDev = false) => {
   })
 
   if (!isDev) {
-    const builtPage = file => join(builtServerPagesDir, file)
+    const builtPage = (file) => join(builtServerPagesDir, file)
 
     it('should output prerendered files correctly during build', async () => {
       expect(await fsExists(builtPage('amp.js'))).toBe(true)
@@ -132,7 +132,7 @@ describe('AMP SSG Support', () => {
     })
 
     it('should have copied SSG files correctly', async () => {
-      const outFile = file => join(appDir, 'out', file)
+      const outFile = (file) => join(appDir, 'out', file)
 
       expect(await fsExists(outFile('amp.html'))).toBe(true)
       expect(await fsExists(outFile('index.html'))).toBe(true)

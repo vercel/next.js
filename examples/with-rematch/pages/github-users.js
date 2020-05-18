@@ -32,7 +32,7 @@ class Github extends Component {
         <p>
           <button onClick={fetchUsers}>Get users</button>
         </p>
-        {userList.map(user => (
+        {userList.map((user) => (
           <div key={user.login}>
             <Link href={user.html_url} passHref>
               <a>
@@ -51,7 +51,7 @@ class Github extends Component {
   }
 }
 
-const mapState = state => ({
+const mapState = (state) => ({
   userList: state.github.users,
   isLoading: state.github.isLoading,
 })

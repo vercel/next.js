@@ -17,7 +17,7 @@ let output = ''
 let appPort
 let app
 
-const handleOutput = msg => {
+const handleOutput = (msg) => {
   output += msg
 }
 

@@ -108,7 +108,7 @@ describe('AMP Usage', () => {
             $('link[rel=preload]')
               .toArray()
               .find(
-                i => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
+                (i) => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
               )
           ).attr('href')
         ).toBe('https://cdn.ampproject.org/v0.js')
@@ -166,11 +166,9 @@ describe('AMP Usage', () => {
       it('should render link rel amphtml', async () => {
         const html = await renderViaHTTP(appPort, '/use-amp-hook')
         const $ = cheerio.load(html)
-        expect(
-          $('link[rel=amphtml]')
-            .first()
-            .attr('href')
-        ).toBe('http://localhost:1234/use-amp-hook.amp')
+        expect($('link[rel=amphtml]').first().attr('href')).toBe(
+          'http://localhost:1234/use-amp-hook.amp'
+        )
       })
 
       it('should render amphtml from provided rel link', async () => {
@@ -187,32 +185,24 @@ describe('AMP Usage', () => {
         const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
         const $ = cheerio.load(html)
         await validateAMP(html)
-        expect(
-          $('link[rel=canonical]')
-            .first()
-            .attr('href')
-        ).toBe('http://localhost:1234/use-amp-hook')
+        expect($('link[rel=canonical]').first().attr('href')).toBe(
+          'http://localhost:1234/use-amp-hook'
+        )
       })
 
       it('should render a canonical regardless of amp-only status (explicit)', async () => {
         const html = await renderViaHTTP(appPort, '/only-amp')
         const $ = cheerio.load(html)
         await validateAMP(html)
-        expect(
-          $('link[rel=canonical]')
-            .first()
-            .attr('href')
-        ).toBe('http://localhost:1234/only-amp')
+        expect($('link[rel=canonical]').first().attr('href')).toBe(
+          'http://localhost:1234/only-amp'
+        )
       })
 
       it('should not render amphtml link tag with no AMP page', async () => {
         const html = await renderViaHTTP(appPort, '/normal')
         const $ = cheerio.load(html)
-        expect(
-          $('link[rel=amphtml]')
-            .first()
-            .attr('href')
-        ).not.toBeTruthy()
+        expect($('link[rel=amphtml]').first().attr('href')).not.toBeTruthy()
       })
 
       it('should remove conflicting amp tags', async () => {
@@ -245,11 +235,7 @@ describe('AMP Usage', () => {
       it('should combine style tags', async () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
-        expect(
-          $('style[amp-custom]')
-            .first()
-            .text()
-        ).toMatch(
+        expect($('style[amp-custom]').first().text()).toMatch(
           /div.jsx-\d+{color:red}span.jsx-\d+{color:#00f}body{background-color:green}/
         )
       })
@@ -257,9 +243,7 @@ describe('AMP Usage', () => {
       it('should remove sourceMaps from styles', async () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
-        const styles = $('style[amp-custom]')
-          .first()
-          .text()
+        const styles = $('style[amp-custom]').first().text()
 
         expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
         expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)

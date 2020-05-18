@@ -9,7 +9,7 @@ module.exports = class NextInitializer extends Initializer {
 
   async initialize() {
     api.next = {
-      render: async connection => {
+      render: async (connection) => {
         if (connection.type !== 'web') {
           throw new Error('Connections for NEXT apps must be of type "web"')
         }

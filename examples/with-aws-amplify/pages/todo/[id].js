@@ -6,7 +6,7 @@ import config from '../../src/aws-exports'
 
 API.configure(config)
 
-const TodoPage = props => {
+const TodoPage = (props) => {
   return (
     <div>
       <h2>Individual Todo {props.todo.id}</h2>
@@ -15,7 +15,7 @@ const TodoPage = props => {
   )
 }
 
-TodoPage.getInitialProps = async context => {
+TodoPage.getInitialProps = async (context) => {
   const { id } = context.query
   try {
     const todo = await API.graphql({

@@ -24,7 +24,7 @@ async function checkInjected(browser) {
   }
 }
 
-module.exports = context => {
+module.exports = (context) => {
   describe('With Security Related Issues', () => {
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
@@ -80,7 +80,7 @@ module.exports = context => {
       }
 
       const homeDir = homedir()
-      buildFiles.forEach(buildFile => {
+      buildFiles.forEach((buildFile) => {
         const content = readFileSync(join(readPath, buildFile), 'utf8')
         if (content.includes(homeDir)) {
           throw new Error(

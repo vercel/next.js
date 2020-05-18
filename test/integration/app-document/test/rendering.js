@@ -4,7 +4,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { check, File, waitFor } from 'next-test-utils'
 
-export default function({ app }, suiteName, render, fetch) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -53,46 +53,32 @@ export default function({ app }, suiteName, render, fetch) {
       test('It renders ctx.renderPage with enhancer correctly', async () => {
         const $ = await get$('/?withEnhancer=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-component')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+          true
+        )
       })
 
       test('It renders ctx.renderPage with enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-component')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+          true
+        )
       })
 
       test('It renders ctx.renderPage with enhanceApp correctly', async () => {
         const $ = await get$('/?withEnhanceApp=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-app')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
       })
 
       test('It renders ctx.renderPage with enhanceApp and enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true&withEnhanceApp=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-app')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
-        expect(
-          $('#render-page-enhance-component')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
+        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+          true
+        )
       })
 
       // This is a workaround to fix https://github.com/zeit/next.js/issues/5860

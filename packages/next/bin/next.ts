@@ -2,7 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-;['react', 'react-dom'].forEach(dependency => {
+;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
     require.resolve(dependency)
@@ -17,13 +17,13 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: async () => await import('../cli/next-build').then(i => i.nextBuild),
-  start: async () => await import('../cli/next-start').then(i => i.nextStart),
+  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
+  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
   export: async () =>
-    await import('../cli/next-export').then(i => i.nextExport),
-  dev: async () => await import('../cli/next-dev').then(i => i.nextDev),
+    await import('../cli/next-export').then((i) => i.nextExport),
+  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
   telemetry: async () =>
-    await import('../cli/next-telemetry').then(i => i.nextTelemetry),
+    await import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
 const args = arg(
@@ -106,7 +106,7 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
-commands[command]().then(exec => exec(forwardedArgs))
+commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')

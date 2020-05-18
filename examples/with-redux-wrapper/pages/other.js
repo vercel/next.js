@@ -5,7 +5,7 @@ import { startClock, serverRenderClock } from '../store/tick/action'
 import { connect } from 'react-redux'
 import Page from '../components/Page'
 
-const Counter = props => {
+const Counter = (props) => {
   useEffect(() => {
     const timer = props.startClock()
 
@@ -23,7 +23,7 @@ Counter.getInitialProps = async ({ store, isServer }) => {
   return { isServer }
 }
 
-const mapDispatchToProps = dispatch => {
+const mapDispatchToProps = (dispatch) => {
   return {
     addCount: bindActionCreators(addCount, dispatch),
     startClock: bindActionCreators(startClock, dispatch),

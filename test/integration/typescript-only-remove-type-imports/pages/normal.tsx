@@ -1,1 +1,1 @@
-export default () => "A normal one"
+export default () => 'A normal one'

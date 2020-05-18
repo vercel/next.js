@@ -12,7 +12,7 @@ const run = (cwd, ...args) => execa('node', [cli, ...args], { cwd })
 const runStarter = (cwd, ...args) => {
   const res = run(cwd, ...args)
 
-  res.stdout.on('data', data => {
+  res.stdout.on('data', (data) => {
     const stdout = data.toString()
 
     if (/Pick a template/.test(stdout)) {
@@ -24,12 +24,7 @@ const runStarter = (cwd, ...args) => {
 }
 
 async function usingTempDir(fn) {
-  const folder = path.join(
-    os.tmpdir(),
-    Math.random()
-      .toString(36)
-      .substring(2)
-  )
+  const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
   await fs.mkdirp(folder)
   try {
     return await fn(folder)
@@ -40,7 +35,7 @@ async function usingTempDir(fn) {
 
 describe('create next app', () => {
   it('non-empty directory', async () => {
-    await usingTempDir(async cwd => {
+    await usingTempDir(async (cwd) => {
       const projectName = 'non-empty-directory'
       await fs.mkdirp(path.join(cwd, projectName))
       const pkg = path.join(cwd, projectName, 'package.json')
@@ -59,7 +54,7 @@ describe('create next app', () => {
   // stdin is piped instead of inherited on windows
   if (process.platform !== 'win32') {
     it('empty directory', async () => {
-      await usingTempDir(async cwd => {
+      await usingTempDir(async (cwd) => {
         const projectName = 'empty-directory'
         const res = await runStarter(cwd, projectName)
 
@@ -75,7 +70,7 @@ describe('create next app', () => {
   }
 
   it('invalid example name', async () => {
-    await usingTempDir(async cwd => {
+    await usingTempDir(async (cwd) => {
       const projectName = 'invalid-example-name'
       expect.assertions(2)
       try {
@@ -90,7 +85,7 @@ describe('create next app', () => {
   })
 
   it('valid example', async () => {
-    await usingTempDir(async cwd => {
+    await usingTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(cwd, projectName, '--example', 'basic-css')
       expect(res.exitCode).toBe(0)
@@ -109,7 +104,7 @@ describe('create next app', () => {
   })
 
   it('should allow example with GitHub URL', async () => {
-    await usingTempDir(async cwd => {
+    await usingTempDir(async (cwd) => {
       const projectName = 'github-app'
       const res = await run(
         cwd,
@@ -135,7 +130,7 @@ describe('create next app', () => {
   })
 
   it('should allow example with GitHub URL and example-path', async () => {
-    await usingTempDir(async cwd => {
+    await usingTempDir(async (cwd) => {
       const projectName = 'github-example-path'
       const res = await run(
         cwd,
@@ -163,7 +158,7 @@ describe('create next app', () => {
   })
 
   it('should use --example-path over the file path in the GitHub URL', async () => {
-    await usingTempDir(async cwd => {
+    await usingTempDir(async (cwd) => {
       const projectName = 'github-example-path-2'
       const res = await run(
         cwd,
@@ -194,7 +189,7 @@ describe('create next app', () => {
   // stdin is piped instead of inherited on windows
   if (process.platform !== 'win32') {
     it('should allow to manually select an example', async () => {
-      await usingTempDir(async cwd => {
+      await usingTempDir(async (cwd) => {
         const runExample = (...args) => {
           const res = run(cwd, ...args)
 

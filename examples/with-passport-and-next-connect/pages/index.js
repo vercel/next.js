@@ -8,7 +8,7 @@ function UserList() {
       <h2>All users</h2>
       {!!users?.length && (
         <ul>
-          {users.map(user => (
+          {users.map((user) => (
             <li key={user.username}>{JSON.stringify(user)}</li>
           ))}
         </ul>

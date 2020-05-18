@@ -492,7 +492,7 @@ export async function renderToHTML(
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <LoadableContext.Provider
-          value={moduleName => reactLoadableModules.push(moduleName)}
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           {children}
         </LoadableContext.Provider>
@@ -541,7 +541,7 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'unstable_revalidate' && key !== 'props'
       )
 
       if (invalidKeys.includes('revalidate')) {
@@ -626,7 +626,7 @@ export async function renderToHTML(
         throw err
       }
 
-      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -748,7 +748,7 @@ export async function renderToHTML(
     const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach(item => {
+      manifestItem.forEach((item) => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })

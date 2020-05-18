@@ -58,7 +58,7 @@ export default class PageLoader {
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
-      this.promisedBuildManifest = new Promise(resolve => {
+      this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
         } else {
@@ -69,7 +69,7 @@ export default class PageLoader {
       })
     }
     /** @type {Promise<Set<string>>} */
-    this.promisedSsgManifest = new Promise(resolve => {
+    this.promisedSsgManifest = new Promise((resolve) => {
       if (window.__SSG_MANIFEST) {
         resolve(window.__SSG_MANIFEST)
       } else {
@@ -83,10 +83,10 @@ export default class PageLoader {
   // Returns a promise for the dependencies for a particular route
   getDependencies(route) {
     return this.promisedBuildManifest.then(
-      man =>
+      (man) =>
         (man[route] &&
           man[route].map(
-            url => `${this.assetPrefix}/_next/${encodeURI(url)}`
+            (url) => `${this.assetPrefix}/_next/${encodeURI(url)}`
           )) ||
         []
     )
@@ -123,7 +123,7 @@ export default class PageLoader {
 
       interpolatedRoute = route
       if (
-        !Object.keys(dynamicGroups).every(param => {
+        !Object.keys(dynamicGroups).every((param) => {
           let value = dynamicMatches[param]
           const repeat = dynamicGroups[param].repeat
 
@@ -216,8 +216,8 @@ export default class PageLoader {
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
-          this.getDependencies(route).then(deps => {
-            deps.forEach(d => {
+          this.getDependencies(route).then((deps) => {
+            deps.forEach((d) => {
               if (
                 /\.js$/.test(d) &&
                 !document.querySelector(`script[src^="${d}"]`)
@@ -293,7 +293,7 @@ export default class PageLoader {
           `Waiting for webpack to become "idle" to initialize the page: "${route}"`
         )
 
-        const check = status => {
+        const check = (status) => {
           if (status === 'idle') {
             module.hot.removeStatusHandler(check)
             register()
@@ -350,8 +350,8 @@ export default class PageLoader {
             ),
             process.env.__NEXT_GRANULAR_CHUNKS &&
               !isDependency &&
-              this.getDependencies(route).then(urls =>
-                Promise.all(urls.map(url => this.prefetch(url, true)))
+              this.getDependencies(route).then((urls) =>
+                Promise.all(urls.map((url) => this.prefetch(url, true)))
               ),
           ]
     ).then(

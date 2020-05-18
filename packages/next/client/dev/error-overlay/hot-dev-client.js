@@ -45,7 +45,7 @@ let customHmrEventHandler
 export default function connect(options) {
   DevOverlay.register()
 
-  getEventSourceWrapper(options).addMessageListener(event => {
+  getEventSourceWrapper(options).addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -307,10 +307,10 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
   // https://webpack.js.org/api/hot-module-replacement/#check
   module.hot.check(/* autoApply */ true).then(
-    updatedModules => {
+    (updatedModules) => {
       handleApplyUpdates(null, updatedModules)
     },
-    err => {
+    (err) => {
       handleApplyUpdates(err, null)
     }
   )

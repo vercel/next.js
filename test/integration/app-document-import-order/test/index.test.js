@@ -60,12 +60,12 @@ describe('Root components import order', () => {
     const requiredByRegex = /^\/_next\/static\/chunks\/(requiredBy\w*).*\.js/
     const chunks = Array.from($('head').contents())
       .filter(
-        child =>
+        (child) =>
           child.type === 'tag' &&
           child.name === 'link' &&
           child.attribs.href.match(requiredByRegex)
       )
-      .map(child => child.attribs.href.match(requiredByRegex)[1])
+      .map((child) => child.attribs.href.match(requiredByRegex)[1])
 
     const requiredByAppIndex = chunks.indexOf('requiredByApp')
     const requiredByPageIndex = chunks.indexOf('requiredByPage')

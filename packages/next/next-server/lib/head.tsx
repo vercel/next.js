@@ -149,9 +149,9 @@ const Effect = withSideEffect()
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <AmpStateContext.Consumer>
-      {ampState => (
+      {(ampState) => (
         <HeadManagerContext.Consumer>
-          {updateHead => (
+          {(updateHead) => (
             <Effect
               reduceComponentsToState={reduceComponents}
               handleStateChange={updateHead}

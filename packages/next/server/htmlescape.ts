@@ -12,5 +12,5 @@ const ESCAPE_LOOKUP: { [match: string]: string } = {
 const ESCAPE_REGEX = /[&><\u2028\u2029]/g
 
 export function htmlEscapeJsonString(str: string): string {
-  return str.replace(ESCAPE_REGEX, match => ESCAPE_LOOKUP[match])
+  return str.replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match])
 }

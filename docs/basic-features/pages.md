@@ -93,7 +93,7 @@ Some pages require fetching external data for pre-rendering. There are two scena
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>{post.title}</li>
       ))}
     </ul>
@@ -152,7 +152,7 @@ export async function getStaticPaths() {
   const posts = await res.json()
 
   // Get the paths we want to pre-render based on posts
-  const paths = posts.map(post => `/posts/${post.id}`)
+  const paths = posts.map((post) => `/posts/${post.id}`)
 
   // We'll pre-render only these paths at build time.
   // { fallback: false } means other routes should 404.

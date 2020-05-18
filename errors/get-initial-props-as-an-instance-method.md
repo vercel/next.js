@@ -23,7 +23,7 @@ export default class YourEntryComponent extends React.Component {
 or
 
 ```js
-const YourEntryComponent = function() {
+const YourEntryComponent = function () {
   return 'foo'
 }
 

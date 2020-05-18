@@ -36,7 +36,7 @@ function buildManifest(
   let context = compiler.options.context
   let manifest: { [k: string]: any[] } = {}
 
-  compilation.chunkGroups.forEach(chunkGroup => {
+  compilation.chunkGroups.forEach((chunkGroup) => {
     if (chunkGroup.isInitial()) {
       return
     }
@@ -69,7 +69,7 @@ function buildManifest(
             // Avoid duplicate files
             if (
               manifest[request].some(
-                item => item.id === id && item.file === file
+                (item) => item.id === id && item.file === file
               )
             ) {
               continue

@@ -4,7 +4,7 @@ import mitt from 'next/dist/next-server/lib/mitt'
 describe('mitt', () => {
   describe('With listeners', () => {
     it('should listen to a event', () => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         const ev = mitt()
         ev.on('sample', resolve)
         ev.emit('sample')
@@ -30,7 +30,7 @@ describe('mitt', () => {
     it('should listen to multiple events', () => {
       const ev = mitt()
       const data = []
-      const cb = name => {
+      const cb = (name) => {
         data.push(name)
       }
 

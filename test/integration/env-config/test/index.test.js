@@ -21,13 +21,9 @@ let appPort
 let buildId
 const appDir = join(__dirname, '../app')
 
-const getEnvFromHtml = async path => {
+const getEnvFromHtml = async (path) => {
   const html = await renderViaHTTP(appPort, path)
-  return JSON.parse(
-    cheerio
-      .load(html)('p')
-      .text()
-  )
+  return JSON.parse(cheerio.load(html)('p').text())
 }
 
 const runTests = (mode = 'dev') => {
@@ -35,7 +31,7 @@ const runTests = (mode = 'dev') => {
   const isTestEnv = mode === 'test'
   const isDev = isDevOnly || isTestEnv
 
-  const checkEnvData = data => {
+  const checkEnvData = (data) => {
     expect(data.ENV_FILE_KEY).toBe('env')
     expect(data.LOCAL_ENV_FILE_KEY).toBe(!isTestEnv ? 'localenv' : undefined)
     expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(

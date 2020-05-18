@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import useSWR from 'swr'
 
-const fetcher = url => fetch(url).then(res => res.json())
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
 const useMounted = () => {
   const [mounted, setMounted] = useState(false)

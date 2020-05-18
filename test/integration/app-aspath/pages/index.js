@@ -1,1 +1,1 @@
-export default props => JSON.stringify(props, null, 2)
+export default (props) => JSON.stringify(props, null, 2)

@@ -6,7 +6,7 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextExport: cliCommand = argv => {
+const nextExport: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -60,7 +60,7 @@ const nextExport: cliCommand = argv => {
     .then(() => {
       printAndExit('Export successful', 0)
     })
-    .catch(err => {
+    .catch((err) => {
       printAndExit(err)
     })
 }

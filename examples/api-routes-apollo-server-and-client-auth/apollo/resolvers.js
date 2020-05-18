@@ -31,7 +31,7 @@ export const resolvers = {
         try {
           const { id, email } = jwt.verify(token, JWT_SECRET)
 
-          return users.find(user => user.id === id && user.email === email)
+          return users.find((user) => user.id === id && user.email === email)
         } catch {
           throw new AuthenticationError(
             'Authentication token is invalid, please log in'
@@ -50,7 +50,7 @@ export const resolvers = {
     },
 
     async signIn(_parent, args, context, _info) {
-      const user = users.find(user => user.email === args.input.email)
+      const user = users.find((user) => user.email === args.input.email)
 
       if (user && validPassword(user, args.input.password)) {
         const token = jwt.sign(

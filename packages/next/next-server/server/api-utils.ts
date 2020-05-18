@@ -53,9 +53,9 @@ export async function apiResolver(
       )
     }
 
-    apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
-    apiRes.send = data => sendData(apiRes, data)
-    apiRes.json = data => sendJson(apiRes, data)
+    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
+    apiRes.send = (data) => sendData(apiRes, data)
+    apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
@@ -523,7 +523,7 @@ export function setLazyProp<T>(
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value
     },
-    set: value => {
+    set: (value) => {
       Object.defineProperty(req, prop, { ...optsReset, value })
     },
   })

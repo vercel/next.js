@@ -5,7 +5,7 @@ import { FAUNA_SECRET_COOKIE } from '../utils/fauna-auth'
 import { profileApi } from './api/profile'
 import Layout from '../components/layout'
 
-const Profile = props => {
+const Profile = (props) => {
   const { userId } = props
 
   return (
@@ -21,7 +21,7 @@ const Profile = props => {
   )
 }
 
-Profile.getInitialProps = async ctx => {
+Profile.getInitialProps = async (ctx) => {
   if (typeof window === 'undefined') {
     const { req, res } = ctx
     const cookies = cookie.parse(req.headers.cookie ?? '')

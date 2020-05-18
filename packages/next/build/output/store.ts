@@ -22,7 +22,7 @@ function hasStoreChanged(nextStore: OutputState) {
   if (
     ([
       ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-    ] as Array<keyof OutputState>).every(key =>
+    ] as Array<keyof OutputState>).every((key) =>
       Object.is(lastStore[key], nextStore[key])
     )
   ) {
@@ -33,7 +33,7 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
-store.subscribe(state => {
+store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
   }

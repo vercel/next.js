@@ -2,7 +2,7 @@
 import { join } from 'path'
 import { File, runNextCommand } from 'next-test-utils'
 
-export default function(context) {
+export default function (context) {
   describe('Dynamic routes export', () => {
     const nextConfig = new File(join(context.appDir, 'next.config.js'))
     beforeEach(() => {
@@ -17,7 +17,7 @@ export default function(context) {
       const { stderr } = await runNextCommand(
         ['export', context.appDir, '--outdir', outdir],
         { stderr: true }
-      ).catch(err => err)
+      ).catch((err) => err)
 
       expect(stderr).toContain(
         'https://err.sh/zeit/next.js/export-path-mismatch'

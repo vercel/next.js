@@ -15,7 +15,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   ...props
 }) {
   const [dialog, setDialog] = React.useState<HTMLDivElement>(null)
-  const onDialog = React.useCallback(node => {
+  const onDialog = React.useCallback((node) => {
     setDialog(node)
   }, [])
   useOnClickOutside(dialog, onClose)

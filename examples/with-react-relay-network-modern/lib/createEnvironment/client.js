@@ -10,7 +10,7 @@ let store, source
 let storeEnvironment = null
 
 export default {
-  createEnvironment: records => {
+  createEnvironment: (records) => {
     if (!store) {
       source = new RecordSource(records)
       store = new Store(source)
@@ -25,7 +25,7 @@ export default {
           ttl: 60 * 1000,
         }),
         urlMiddleware({
-          url: req => process.env.RELAY_ENDPOINT,
+          url: (req) => process.env.RELAY_ENDPOINT,
         }),
       ]),
     })

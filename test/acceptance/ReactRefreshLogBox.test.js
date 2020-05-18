@@ -477,7 +477,7 @@ test('syntax > runtime error', async () => {
     `
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   if (process.platform === 'win32') {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -518,7 +518,7 @@ test('syntax > runtime error', async () => {
       export default function FunctionNamed() {`
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "./index.js:8:47
@@ -531,7 +531,7 @@ test('syntax > runtime error', async () => {
   `)
 
   // Test that runtime error does not take over:
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "./index.js:8:47

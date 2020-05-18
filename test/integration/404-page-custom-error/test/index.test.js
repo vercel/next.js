@@ -21,7 +21,7 @@ let appPort
 let buildId
 let app
 
-const runTests = mode => {
+const runTests = (mode) => {
   const isDev = mode === 'dev'
 
   it('should respond to 404 correctly', async () => {

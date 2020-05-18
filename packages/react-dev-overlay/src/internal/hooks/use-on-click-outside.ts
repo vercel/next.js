@@ -21,7 +21,7 @@ export function useOnClickOutside(
     const root = el.getRootNode()
     root.addEventListener('mousedown', listener)
     root.addEventListener('touchstart', listener)
-    return function() {
+    return function () {
       root.removeEventListener('mousedown', listener)
       root.removeEventListener('touchstart', listener)
     }

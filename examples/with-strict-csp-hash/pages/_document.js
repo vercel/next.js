@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import Document, { Head, Main, NextScript } from 'next/document'
 
-const cspHashOf = text => {
+const cspHashOf = (text) => {
   const hash = crypto.createHash('sha256')
   hash.update(text)
   return `'sha256-${hash.digest('base64')}'`

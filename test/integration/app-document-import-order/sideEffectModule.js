@@ -1,4 +1,4 @@
-const sideEffect = arg => {
+const sideEffect = (arg) => {
   if (!sideEffect.callArguments) {
     sideEffect.callArguments = []
   }

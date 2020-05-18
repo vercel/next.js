@@ -1,7 +1,7 @@
 import React, { useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from 'react-three-fiber'
 
-const Box = props => {
+const Box = (props) => {
   const mesh = useRef()
 
   const [hovered, setHover] = useState(false)
@@ -14,9 +14,9 @@ const Box = props => {
       {...props}
       ref={mesh}
       scale={active ? [6, 6, 6] : [5, 5, 5]}
-      onClick={e => setActive(!active)}
-      onPointerOver={e => setHover(true)}
-      onPointerOut={e => setHover(false)}
+      onClick={(e) => setActive(!active)}
+      onPointerOver={(e) => setHover(true)}
+      onPointerOut={(e) => setHover(false)}
     >
       <boxBufferGeometry attach="geometry" args={[1, 1, 1]} />
       <meshStandardMaterial

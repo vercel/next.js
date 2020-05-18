@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import NextEditor from '../components/NextEditor'
 
-const IndexPage = props => {
+const IndexPage = (props) => {
   return (
     <React.Fragment>
       <Link href="/multiple">

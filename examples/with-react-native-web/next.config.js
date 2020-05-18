@@ -1,5 +1,5 @@
 module.exports = {
-  webpack: config => {
+  webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       // Transform all direct `react-native` imports to `react-native-web`

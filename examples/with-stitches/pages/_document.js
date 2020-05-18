@@ -11,7 +11,7 @@ export default class MyDocument extends Document {
     try {
       ctx.renderPage = () =>
         originalRenderPage({
-          enhanceApp: App => props => <App {...props} serverCss={css} />,
+          enhanceApp: (App) => (props) => <App {...props} serverCss={css} />,
         })
 
       const initialProps = await Document.getInitialProps(ctx)

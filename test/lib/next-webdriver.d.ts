@@ -21,7 +21,7 @@ interface Chain {
   quit: () => Chain
 }
 
-export default function(
+export default function (
   appPort: number,
   path: string,
   waitHydration?: boolean
