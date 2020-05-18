@@ -15,10 +15,11 @@ describe('jsconfig.json', () => {
   })
 
   it('should fail on invalid jsconfig.json', async () => {
-    const originalJsconfig = await fs.readFile(join(appDir, 'jsconfig.json'), {
+    const jsconfigPath = join(appDir, 'jsconfig.json')
+    const originalJsconfig = await fs.readFile(jsconfigPath, {
       encoding: 'utf-8',
     })
-    await fs.writeFile(join(appDir, 'jsconfig.json'), '{', {
+    await fs.writeFile(jsconfigPath, '{', {
       encoding: 'utf-8',
     })
     try {
@@ -26,7 +27,7 @@ describe('jsconfig.json', () => {
       expect(res.stderr).toMatch(/Error: Failed to parse "/)
       expect(res.stderr).toMatch(/JSON5: invalid end of input at 1:2/)
     } finally {
-      await fs.writeFile(join(appDir, 'jsconfig.json'), originalJsconfig, {
+      await fs.writeFile(jsconfigPath, originalJsconfig, {
         encoding: 'utf-8',
       })
     }
