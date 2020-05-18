@@ -1,1 +1,3 @@
-export default () => <div>Hello Day</div>
+export default function DayPage() {
+  return <div>Hello Day</div>
+}

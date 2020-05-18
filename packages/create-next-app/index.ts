@@ -43,7 +43,7 @@ const program = new Commander.Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
-async function run() {
+async function run(): Promise<void> {
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
@@ -177,7 +177,7 @@ async function run() {
 
 const update = checkForUpdate(packageJson).catch(() => null)
 
-async function notifyUpdate() {
+async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {

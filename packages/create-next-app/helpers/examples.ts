@@ -12,7 +12,7 @@ export type RepoInfo = {
   filePath: string
 }
 
-export async function isUrlOk(url: string) {
+export async function isUrlOk(url: string): Promise<boolean> {
   const res = await got(url).catch(e => e)
   return res.statusCode === 200
 }
@@ -47,7 +47,12 @@ export async function getRepoInfo(
   }
 }
 
-export function hasRepo({ username, name, branch, filePath }: RepoInfo) {
+export function hasRepo({
+  username,
+  name,
+  branch,
+  filePath,
+}: RepoInfo): Promise<boolean> {
   const contentsUrl = `https://api.github.com/repos/${username}/${name}/contents`
   const packagePath = `${filePath ? `/${filePath}` : ''}/package.json`
 

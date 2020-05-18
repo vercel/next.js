@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { nextBuild, nextServer, startApp, stopApp } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import fetch from 'node-fetch'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let server
 let scriptsUrls
@@ -80,7 +80,7 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    const delta = responseSizesBytes - 258 * 1024
+    const delta = responseSizesBytes - 263 * 1024
     expect(delta).toBeLessThanOrEqual(1024) // don't increase size more than 1kb
     expect(delta).toBeGreaterThanOrEqual(-1024) // don't decrease size more than 1kb without updating target
   })
@@ -100,7 +100,7 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    const delta = responseSizesBytes - 166 * 1024
+    const delta = responseSizesBytes - 168 * 1024
     expect(delta).toBeLessThanOrEqual(1024) // don't increase size more than 1kb
     expect(delta).toBeGreaterThanOrEqual(-1024) // don't decrease size more than 1kb without updating target
   })
