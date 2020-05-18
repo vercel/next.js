@@ -1,6 +1,6 @@
 import { headerBanner, headerTitle } from '../styles/header'
 
-export default props => (
+export default (props) => (
   <>
     <a href="https://fauna.com" target="_blank" rel="noopener noreferrer">
       <img

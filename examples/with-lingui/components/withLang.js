@@ -7,7 +7,7 @@ export default (Component, defaultLang = 'en') =>
       const language = ctx.query.lang || defaultLang
       const [props, catalog] = await Promise.all([
         Component.getInitialProps ? Component.getInitialProps(ctx) : {},
-        import(`../locale/${language}/messages.po`).then(m => m.default),
+        import(`../locale/${language}/messages.po`).then((m) => m.default),
       ])
 
       return {

@@ -4,7 +4,7 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin')
 
 module.exports = withCSS(
   withFonts({
-    webpack: config => {
+    webpack: (config) => {
       config.plugins.push(
         new MonacoWebpackPlugin({
           // Add languages as needed...

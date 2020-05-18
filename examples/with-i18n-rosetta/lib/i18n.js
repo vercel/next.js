@@ -32,7 +32,7 @@ export default function I18n({ children, locale, lngDict }) {
       i18n.set(locale, activeDict)
       activeLocaleRef.current = locale
       // force rerender
-      setTick(tick => tick + 1)
+      setTick((tick) => tick + 1)
     }
   }, [locale, activeDict])
 
@@ -46,7 +46,7 @@ export default function I18n({ children, locale, lngDict }) {
         i18n.set(l, dict)
         setActiveDict(dict)
       } else {
-        setTick(tick => tick + 1)
+        setTick((tick) => tick + 1)
       }
     },
   }
