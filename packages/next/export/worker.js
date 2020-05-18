@@ -9,14 +9,7 @@ import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
-import fetch from 'next/dist/compiled/node-fetch'
-
-// @ts-ignore fetch exists globally
-if (!global.fetch) {
-  // Polyfill fetch() in the Node.js environment
-  // @ts-ignore fetch exists globally
-  global.fetch = fetch
-}
+import 'next/dist/next-server/server/node-polyfill-fetch'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -283,7 +276,7 @@ export default async function({
     return results
   } catch (error) {
     console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error:\n` +
+      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
         error
     )
     return { ...results, error: true }
