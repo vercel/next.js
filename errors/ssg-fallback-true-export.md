@@ -6,7 +6,7 @@ You attempted to export a page with a `fallback: true` return value from `getSta
 
 #### Possible Ways to Fix It
 
-If you would like the `fallback: true` behavior, `next export` should not be used. Instead follow the [deployment documentation](https://nextjs.org/docs/deployment) to deploy without statically exporting your application
+If you would like the `fallback: true` behavior, `next export` should not be used. Instead follow the [deployment documentation](https://nextjs.org/docs/deployment) to deploy your incrementally generated static site.
 
 ### Useful Links
 
