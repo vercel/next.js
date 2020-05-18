@@ -1,6 +1,7 @@
+import { Component } from 'react'
 import { UniversalPortal } from '@jesstelford/react-portal-universal'
 
-export default class Index extends React.Component {
+export default class Index extends Component {
   constructor() {
     super(...arguments)
     this.state = { opened: true }
