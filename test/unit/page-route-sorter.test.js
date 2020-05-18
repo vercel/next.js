@@ -28,10 +28,14 @@ describe('getSortedRoutes', () => {
         '/[...rest]',
         '/blog/abc/post',
         '/blog/abc',
+        '/p1/[[...incl]]',
         '/p/[...rest]',
         '/p2/[...rest]',
         '/p2/[id]',
         '/p2/[id]/abc',
+        '/p3/[[...rest]]',
+        '/p3/[id]',
+        '/p3/[id]/abc',
         '/blog/[id]',
         '/foo/[d]/bar/baz/[f]',
         '/apples/[ab]/[cd]/ef',
@@ -47,9 +51,13 @@ describe('getSortedRoutes', () => {
         "/blog/[id]/comments/[cid]",
         "/foo/[d]/bar/baz/[f]",
         "/p/[...rest]",
+        "/p1/[[...incl]]",
         "/p2/[id]",
         "/p2/[id]/abc",
         "/p2/[...rest]",
+        "/p3/[id]",
+        "/p3/[id]/abc",
+        "/p3/[[...rest]]",
         "/posts",
         "/posts/[id]",
         "/[root-slug]",
@@ -83,26 +91,117 @@ describe('getSortedRoutes', () => {
   })
 
   it('catches middle catch-all', () => {
-    expect(() => getSortedRoutes(['/blog/[...id]/[...id2]'])).toThrowError(
-      /must be the last part/
+    expect(() =>
+      getSortedRoutes(['/blog/[...id]/[...id2]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Catch-all must be the last part of the URL."`
     )
   })
 
   it('catches middle catch-all', () => {
-    expect(() => getSortedRoutes(['/blog/[...id]/abc'])).toThrowError(
-      /must be the last part/
+    expect(() =>
+      getSortedRoutes(['/blog/[...id]/abc'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Catch-all must be the last part of the URL."`
     )
   })
 
   it('catches extra dots in catch-all', () => {
-    expect(() => getSortedRoutes(['/blog/[....id]/abc'])).toThrowError(
-      /erroneous period/
+    expect(() =>
+      getSortedRoutes(['/blog/[....id]/abc'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start with erroneous periods ('.id')."`
     )
   })
 
   it('catches missing dots in catch-all', () => {
-    expect(() => getSortedRoutes(['/blog/[..id]/abc'])).toThrowError(
-      /erroneous period/
+    expect(() =>
+      getSortedRoutes(['/blog/[..id]/abc'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start with erroneous periods ('..id')."`
+    )
+  })
+
+  it('catches extra brackets for optional', () => {
+    expect(() =>
+      getSortedRoutes(['/blog/[[...id]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start or end with extra brackets ('[...id')."`
+    )
+    expect(() =>
+      getSortedRoutes(['/blog/[[[...id]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start or end with extra brackets ('[...id')."`
+    )
+    expect(() =>
+      getSortedRoutes(['/blog/[...id]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start or end with extra brackets ('id]')."`
+    )
+    expect(() =>
+      getSortedRoutes(['/blog/[[...id]]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start or end with extra brackets ('id]')."`
+    )
+    expect(() =>
+      getSortedRoutes(['/blog/[[[...id]]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Segment names may not start or end with extra brackets ('[...id]')."`
+    )
+  })
+
+  it('disallows optional params', () => {
+    expect(() =>
+      getSortedRoutes(['/[[blog]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+    )
+    expect(() =>
+      getSortedRoutes(['/abc/[[blog]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+    )
+    expect(() =>
+      getSortedRoutes(['/abc/[[blog]]/def'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+    )
+  })
+
+  it('disallows mixing required catch all and optional catch all', () => {
+    expect(() =>
+      getSortedRoutes(['/[...one]', '/[[...one]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"You cannot use both an required and optional catch-all route at the same level (\\"[...one]\\" and \\"[[...one]]\\" )."`
+    )
+    expect(() =>
+      getSortedRoutes(['/[[...one]]', '/[...one]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"You cannot use both an optional and required catch-all route at the same level (\\"[[...one]]\\" and \\"[...one]\\")."`
+    )
+  })
+
+  it('disallows apex and optional catch all', () => {
+    expect(() =>
+      getSortedRoutes(['/', '/[[...all]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+    )
+    expect(() =>
+      getSortedRoutes(['/[[...all]]', '/'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+    )
+
+    expect(() =>
+      getSortedRoutes(['/sub', '/sub/[[...all]]'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+    )
+    expect(() =>
+      getSortedRoutes(['/sub/[[...all]]', '/sub'])
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
     )
   })
 })

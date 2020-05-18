@@ -80,6 +80,20 @@ export default (req, res) => {
 
 Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
+### Optional catch all API routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
+
+For example, `pages/api/post/[[...slug]].js` will match `/api/post`, `/api/post/a`, `/api/post/a/b`, and so on.
+
+The `query` objects are as follows:
+
+```json
+{ } // GET `/api/post` (empty object)
+{ "slug": ["a"] } // `GET /api/post/a` (single-element array)
+{ "slug": ["a", "b"] } // `GET /api/post/a/b` (multi-element array)
+```
+
 ## Caveats
 
 - Predefined API routes take precedence over dynamic API routes, and dynamic API routes over catch all API routes. Take a look at the following examples:
