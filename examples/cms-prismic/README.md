@@ -120,6 +120,8 @@ NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
 
+Make sure the locale matches your settings in the Prismic dashboard.
+
 ### Step 6. Run Next.js in development mode
 
 ```bash
