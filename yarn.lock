@@ -2689,6 +2689,11 @@
   resolved "https://registry.yarnpkg.com/@types/anymatch/-/anymatch-1.3.1.tgz#336badc1beecb9dacc38bea2cf32adf627a8421a"
   integrity sha512-/+CRPXpBDpo2RK9C68N3b2cOvO0Cf5B9aPijHsoDQTHivnGSObdOF2BRQOYjojWTDy6nQvMjmqRXIxH55VjxxA==
 
+"@types/babel__code-frame@7.0.1":
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/@types/babel__code-frame/-/babel__code-frame-7.0.1.tgz#baf2529c4abbfb5e4008c845efcfe39a187e2f99"
+  integrity sha512-FFfbQozKxYmOnCKFYV+EQprjBI7u2yaNc2ly/K9AhzyC8MzXtCtSRqptpw+HUJxhwCOo5mLwf1ATmzyhOaVbDg==
+
 "@types/babel__core@7.1.7", "@types/babel__core@^7.1.7":
   version "7.1.7"
   resolved "https://registry.yarnpkg.com/@types/babel__core/-/babel__core-7.1.7.tgz#1dacad8840364a57c98d0dd4855c6dd3752c6b89"
