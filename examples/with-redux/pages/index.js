@@ -23,17 +23,4 @@ const IndexPage = () => {
   )
 }
 
-IndexPage.getInitialProps = ({ reduxStore }) => {
-  // Tick the time once, so we'll have a
-  // valid time before first render
-  const { dispatch } = reduxStore
-  dispatch({
-    type: 'TICK',
-    light: typeof window === 'object',
-    lastUpdate: Date.now(),
-  })
-
-  return {}
-}
-
 export default withRedux(IndexPage)
