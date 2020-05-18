@@ -1,4 +1,4 @@
-export default () => {
+export default function Home() {
   return (
     <div>
       RESTURL_SPEAKERS {process.env.RESTURL_SPEAKERS}
