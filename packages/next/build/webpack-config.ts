@@ -64,7 +64,13 @@ const escapePathVariables = (value: any) => {
 
 function parseJsonFile(path: string) {
   const JSON5 = require('next/dist/compiled/json5')
-  const contents = readFileSync(path)
+  const contents = readFileSync(path, 'utf8')
+
+  // Special case an empty file
+  if (contents.trim() === '') {
+    return {}
+  }
+
   return JSON5.parse(contents)
 }
 
