@@ -89,10 +89,14 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
-For example, `pages/post/[[...slug]].js` will match `/post` as well, and have the following params object:
+For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
+
+The `query` objects are as follows:
 
 ```json
-{}
+{ } // GET `/post` (empty object)
+{ "slug": ["a"] } // `GET /post/a` (single-element array)
+{ "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
 ```
 
 ## Caveats
