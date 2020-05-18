@@ -8,7 +8,7 @@ const availableLanguageNames = {
 }
 const availableLanguages = Object.keys(availableLanguageNames)
 
-export default () => {
+export default function LangSwitcher() {
   function onSubmit(evt) {
     evt.preventDefault()
     Router.push({
