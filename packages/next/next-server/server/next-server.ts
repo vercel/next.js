@@ -763,13 +763,12 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
-      isDynamicRoute
-    )
-    return getSortedRoutes(dynamicRoutedPages).map(page => ({
-      page,
-      match: getRouteMatcher(getRouteRegex(page)),
-    }))
+    return getSortedRoutes(Object.keys(this.pagesManifest!))
+      .filter(isDynamicRoute)
+      .map(page => ({
+        page,
+        match: getRouteMatcher(getRouteRegex(page)),
+      }))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse) {

@@ -217,7 +217,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     config
   )
   const pageKeys = Object.keys(mappedPages)
-  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
@@ -283,6 +282,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
+  const firstOptionalCatchAllPage =
+    pageKeys.find(f => /\[\[\.{3}[^\][/]*\]\]/.test(f)) ?? null
+  if (
+    config.experimental?.optionalCatchAll !== true &&
+    firstOptionalCatchAllPage
+  ) {
+    const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
+    throw new Error(msg)
+  }
+
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 1,
@@ -291,15 +300,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
     headers: headers.map(r => buildCustomRoute(r, 'header')),
-    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => {
-      const routeRegex = getRouteRegex(page)
-      return {
-        page,
-        regex: routeRegex.re.source,
-        namedRegex: routeRegex.namedRegex,
-        routeKeys: Object.keys(routeRegex.groups),
-      }
-    }),
+    dynamicRoutes: getSortedRoutes(pageKeys)
+      .filter(isDynamicRoute)
+      .map(page => {
+        const routeRegex = getRouteRegex(page)
+        return {
+          page,
+          regex: routeRegex.re.source,
+          namedRegex: routeRegex.namedRegex,
+          routeKeys: Object.keys(routeRegex.groups),
+        }
+      }),
   }
 
   await promises.mkdir(distDir, { recursive: true })
