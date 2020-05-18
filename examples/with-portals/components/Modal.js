@@ -1,12 +1,12 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import ClientOnlyPortal from './ClientOnlyPortal'
 
 export default function Modal() {
   const [open, setOpen] = useState()
 
   return (
-    <React.Fragment>
-      <button type="button" onClick={event => setOpen(true)}>
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
         Open Modal
       </button>
       {open && (
@@ -24,7 +24,7 @@ export default function Modal() {
                 </a>
                 .
               </p>
-              <button type="button" onClick={event => setOpen(false)}>
+              <button type="button" onClick={() => setOpen(false)}>
                 Close Modal
               </button>
             </div>
@@ -55,6 +55,6 @@ export default function Modal() {
           </div>
         </ClientOnlyPortal>
       )}
-    </React.Fragment>
+    </>
   )
 }
