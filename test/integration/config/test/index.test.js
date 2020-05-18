@@ -6,9 +6,8 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
   File,
-  check,
+  checkExpectations,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 import cheerio from 'cheerio'
@@ -134,18 +133,25 @@ describe('Configuration', () => {
       // Change the page
       writeFileSync(pagePath, editedContent, 'utf8')
 
-      await waitFor(10000)
-
       try {
-        // Check whether the this page has reloaded or not.
-        const editedPTag = await browser.elementByCss('.hello-world')
-        const editedFontSize = await editedPTag.getComputedCss('font-size')
-
-        expect(editedFontSize).toBe('200px')
+        await checkExpectations(async () => {
+          // Check whether the this page has reloaded or not.
+          const editedFontSize = await browser
+            .elementByCss('.hello-world')
+            .getComputedCss('font-size')
+          expect(editedFontSize).toBe('200px')
+        })
       } finally {
         // Finally is used so that we revert the content back to the original regardless of the test outcome
         // restore the about page content.
         writeFileSync(pagePath, originalContent, 'utf8')
+        await checkExpectations(async () => {
+          // This also make sure that the change is reverted when the etst ends
+          const editedFontSize = await browser
+            .elementByCss('.hello-world')
+            .getComputedCss('font-size')
+          expect(editedFontSize).toBe('100px')
+        })
       }
     } finally {
       if (browser) {
@@ -154,44 +160,34 @@ describe('Configuration', () => {
     }
   })
 
-  it.skip('should update sass styles using hmr', async () => {
+  it('should update sass styles using hmr', async () => {
     const file = new File(
       join(__dirname, '../', 'components', 'hello-webpack-sass.scss')
     )
     let browser
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
-
       expect(
         await browser.elementByCss('.hello-world').getComputedCss('color')
       ).toBe('rgba(255, 255, 0, 1)')
 
-      file.replace('yellow', 'red')
-
-      await waitFor(10000)
-
-      await check(async () => {
-        const tag = await browser.elementByCss('.hello-world')
-        const prop = await tag.getComputedCss('color')
-
-        expect(prop).toBe('rgba(255, 0, 0, 1)')
-        return 'works'
-      }, /works/)
-
-      file.restore()
-
-      await waitFor(10000)
-
-      await check(async () => {
-        const tag = await browser.elementByCss('.hello-world')
-        const prop = await tag.getComputedCss('color')
-        expect(prop).toBe('rgba(255, 255, 0, 1)')
-        return 'works'
-      }, /works/)
-    } catch (err) {
-      file.restore()
-
-      throw err
+      try {
+        file.replace('yellow', 'red')
+        await checkExpectations(async () => {
+          const color = await browser
+            .elementByCss('.hello-world')
+            .getComputedCss('color')
+          expect(color).toBe('rgba(255, 0, 0, 1)')
+        })
+      } finally {
+        file.restore()
+        await checkExpectations(async () => {
+          const color = await browser
+            .elementByCss('.hello-world')
+            .getComputedCss('color')
+          expect(color).toBe('rgba(255, 255, 0, 1)')
+        })
+      }
     } finally {
       if (browser) {
         await browser.close()
