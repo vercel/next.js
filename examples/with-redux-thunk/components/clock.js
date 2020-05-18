@@ -1,5 +1,3 @@
-import React from 'react'
-
 const pad = n => (n < 10 ? `0${n}` : n)
 
 const format = t =>
