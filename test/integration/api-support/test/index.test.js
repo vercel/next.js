@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import AbortController from 'abort-controller'
@@ -15,7 +15,7 @@ import {
 } from 'next-test-utils'
 import json from '../big.json'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -42,6 +42,20 @@ function runTests(dev = false) {
   it('should not conflict with /api routes', async () => {
     const res = await fetchViaHTTP(appPort, '/api-conflict')
     expect(res.status).not.toEqual(404)
+  })
+
+  it('should set cors headers when adding cors middleware', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/cors', null, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'example.com',
+      },
+    })
+
+    expect(res.status).toEqual(204)
+    expect(res.headers.get('access-control-allow-methods')).toEqual(
+      'GET,POST,OPTIONS'
+    )
   })
 
   it('should work with index api', async () => {

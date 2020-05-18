@@ -50,6 +50,7 @@ import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
+import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -135,6 +136,8 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  const productionBrowserSourceMaps =
+    config.experimental.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -152,8 +155,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const isReactRefreshEnabled = config.experimental.reactRefresh === true
-  const hasReactRefresh = dev && !isServer && isReactRefreshEnabled
+  const hasReactRefresh = dev && !isServer
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -228,9 +230,8 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors = dev
-    ? Boolean(isReactRefreshEnabled || config.typescript?.ignoreDevErrors)
-    : Boolean(config.typescript?.ignoreBuildErrors)
+  const ignoreTypeScriptErrors =
+    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -844,7 +845,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
         ),
-        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -947,13 +947,14 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !isServer &&
+      !dev &&
+        !isServer &&
         useTypeScript &&
         !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
-            async: dev,
+            async: false,
             useTypescriptIncrementalApi: true,
             checkSyntacticErrors: true,
             tsconfig: tsConfigPath,
@@ -1004,6 +1005,7 @@ export default async function getBaseWebpackConfig(
               }),
           ].filter(Boolean),
         }),
+      new WellKnownErrorsPlugin(),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -1030,9 +1032,9 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
-    sassOptions: config.experimental.sassOptions,
+    sassOptions: config.sassOptions,
+    productionBrowserSourceMaps,
   })
 
   if (typeof config.webpack === 'function') {

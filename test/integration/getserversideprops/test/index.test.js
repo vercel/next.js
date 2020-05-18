@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   findPort,
   getBrowserBodyText,
+  getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
@@ -19,7 +20,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let app
@@ -471,7 +472,7 @@ const runTests = (dev = false) => {
       await browser.elementByCss('#non-json').click()
 
       await check(
-        () => getBrowserBodyText(browser),
+        () => getRedboxHeader(browser),
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })

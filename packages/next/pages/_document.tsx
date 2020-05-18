@@ -1,11 +1,11 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import flush from 'styled-jsx/server'
-
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   AMP_RENDER_TARGET,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
@@ -37,7 +37,7 @@ function dedupe(bundles: any[]): any[] {
   return kept
 }
 
-function getOptionalModernScriptVariant(path: string) {
+function getOptionalModernScriptVariant(path: string): string {
   if (process.env.__NEXT_MODERN_BUILD) {
     return path.replace(/\.js$/, '.module.js')
   }
@@ -626,7 +626,7 @@ export class NextScript extends Component<OriginProps> {
       ))
   }
 
-  static getInlineScriptSource(documentProps: DocumentProps) {
+  static getInlineScriptSource(documentProps: DocumentProps): string {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
@@ -661,6 +661,7 @@ export class NextScript extends Component<OriginProps> {
       }
 
       const devFiles = [
+        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
       ]
@@ -821,11 +822,11 @@ export class NextScript extends Component<OriginProps> {
   }
 }
 
-function getAmpPath(ampPath: string, asPath: string) {
+function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-function getPageFile(page: string, buildId?: string) {
+function getPageFile(page: string, buildId?: string): string {
   const startingUrl = page === '/' ? '/index' : page
   return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }

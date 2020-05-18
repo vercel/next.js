@@ -28,6 +28,10 @@
             {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
+            },
+            {
+              "title": "Environment Variables",
+              "path": "/docs/basic-features/environment-variables.md"
             }
           ]
         },

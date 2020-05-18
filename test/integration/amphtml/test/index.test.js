@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -29,7 +29,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -392,7 +392,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
       const $ = cheerio.load(html)
       expect($('html').attr('data-ampdevmode')).toBe('')
-      expect($('script[data-ampdevmode]').length).toBe(3)
+      expect($('script[data-ampdevmode]').length).toBe(4)
     })
 
     it('should detect the changes and display it', async () => {

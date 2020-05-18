@@ -25,8 +25,6 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 `getInitialProps` is an [`async`](https://vercel.com/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
 
 ```jsx
-import fetch from 'isomorphic-unfetch'
-
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
@@ -44,7 +42,6 @@ Or using a class component:
 
 ```jsx
 import React from 'react'
-import fetch from 'isomorphic-unfetch'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
