@@ -154,17 +154,17 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[[blog]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported."`
+      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
     )
     expect(() =>
       getSortedRoutes(['/abc/[[blog]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported."`
+      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
     )
     expect(() =>
       getSortedRoutes(['/abc/[[blog]]/def'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported."`
+      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
     )
   })
 

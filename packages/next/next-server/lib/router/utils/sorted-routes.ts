@@ -164,7 +164,9 @@ class UrlNode {
         }
       } else {
         if (isOptional) {
-          throw new Error(`Optional route parameters are not yet supported.`)
+          throw new Error(
+            `Optional route parameters are not yet supported ("${urlPaths[0]}").`
+          )
         }
         handleSlug(this.slugName, segmentName)
         // slugName is kept as it can only be one particular slugName
