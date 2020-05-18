@@ -31,7 +31,7 @@ export const addSession = (req, res) => {
   includeSession(req, res, () => {})
 }
 
-export default handler => (req, res) => {
+export default (handler) => (req, res) => {
   try {
     addSession(req, res)
   } catch (e) {

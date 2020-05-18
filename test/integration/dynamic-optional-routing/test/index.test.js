@@ -163,10 +163,10 @@ describe('Dynamic Optional Routing', () => {
     afterAll(() => killApp(app))
 
     runTests()
-    runInvalidPagesTests(async appDir => {
+    runInvalidPagesTests(async (appDir) => {
       let stderr = ''
       await launchApp(appDir, await findPort(), {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -193,7 +193,7 @@ describe('Dynamic Optional Routing', () => {
     afterAll(() => killApp(app))
 
     runTests()
-    runInvalidPagesTests(async appDir =>
+    runInvalidPagesTests(async (appDir) =>
       nextBuild(appDir, [], { stderr: true })
     )
   })

@@ -125,7 +125,7 @@ export async function getPostCssPlugins(
   }
 
   // Warn user about configuration keys which are not respected
-  const invalidKey = Object.keys(config).find(key => key !== 'plugins')
+  const invalidKey = Object.keys(config).find((key) => key !== 'plugins')
   if (invalidKey) {
     console.warn(
       `${chalk.yellow.bold(
@@ -160,7 +160,7 @@ export async function getPostCssPlugins(
   }
 
   const parsed: CssPluginShape[] = []
-  plugins.forEach(plugin => {
+  plugins.forEach((plugin) => {
     if (plugin == null) {
       console.warn(
         `${chalk.yellow.bold('Warning')}: A ${chalk.bold(
@@ -218,7 +218,7 @@ export async function getPostCssPlugins(
   })
 
   const resolved = await Promise.all(
-    parsed.map(p => loadPlugin(dir, p[0], p[1]))
+    parsed.map((p) => loadPlugin(dir, p[0], p[1]))
   )
   const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
     Boolean

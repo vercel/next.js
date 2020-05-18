@@ -50,7 +50,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
     try {
       const compilation = options.stats()?.compilation
-      const m = compilation?.modules?.find(m => m.id === id)
+      const m = compilation?.modules?.find((m) => m.id === id)
       return (
         m?.source(
           compilation.dependencyTemplates,
@@ -63,7 +63,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     }
   }
 
-  return async function(
+  return async function (
     req: IncomingMessage,
     res: ServerResponse,
     next: Function

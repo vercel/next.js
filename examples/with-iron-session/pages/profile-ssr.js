@@ -32,7 +32,7 @@ const SsrProfile = ({ user }) => {
   )
 }
 
-export const getServerSideProps = withSession(async function({ req, res }) {
+export const getServerSideProps = withSession(async function ({ req, res }) {
   const user = req.session.get('user')
 
   if (user === undefined) {

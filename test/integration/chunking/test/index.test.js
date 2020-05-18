@@ -16,8 +16,8 @@ let buildId
 let chunks
 let stats
 
-const existsChunkNamed = name => {
-  return chunks.some(chunk => new RegExp(name).test(chunk))
+const existsChunkNamed = (name) => {
+  return chunks.some((chunk) => new RegExp(name).test(chunk))
 }
 
 describe('Chunking', () => {
@@ -26,7 +26,7 @@ describe('Chunking', () => {
       // If a previous build has left chunks behind, delete them
       const oldChunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
       await Promise.all(
-        oldChunks.map(chunk => {
+        oldChunks.map((chunk) => {
           return unlink(join(appDir, '.next', 'static', 'chunks', chunk))
         })
       )
@@ -41,7 +41,7 @@ describe('Chunking', () => {
     console.error(stderr)
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
-      .replace(/"static\\(.*?":?)/g, match => match.replace(/\\/g, '\\\\'))
+      .replace(/"static\\(.*?":?)/g, (match) => match.replace(/\\/g, '\\\\'))
 
     stats = JSON.parse(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
@@ -49,7 +49,7 @@ describe('Chunking', () => {
   })
 
   it('should use all url friendly names', () => {
-    expect(chunks).toEqual(chunks.map(name => encodeURIComponent(name)))
+    expect(chunks).toEqual(chunks.map((name) => encodeURIComponent(name)))
   })
 
   it('should create a framework chunk', () => {
@@ -85,8 +85,8 @@ describe('Chunking', () => {
     expect(
       [].slice
         .call($('link[rel="preload"][as="script"]'))
-        .map(e => e.attribs.href)
-        .some(entry => entry.includes('_buildManifest'))
+        .map((e) => e.attribs.href)
+        .some((entry) => entry.includes('_buildManifest'))
     ).toBe(false)
   })
 
@@ -98,18 +98,18 @@ describe('Chunking', () => {
     const $ = cheerio.load(indexPage)
     expect(
       Array.from($('script'))
-        .map(e => e.attribs.src)
-        .some(entry => entry && entry.includes('_buildManifest'))
+        .map((e) => e.attribs.src)
+        .some((entry) => entry && entry.includes('_buildManifest'))
     ).toBe(true)
   })
 
   it('should not include more than one instance of react-dom', async () => {
-    const misplacedReactDom = stats.chunks.some(chunk => {
+    const misplacedReactDom = stats.chunks.some((chunk) => {
       if (chunk.names.includes('framework')) {
         // disregard react-dom in framework--it's supposed to be there
         return false
       }
-      return chunk.modules.some(module => {
+      return chunk.modules.some((module) => {
         return /react-dom/.test(module.name)
       })
     })
