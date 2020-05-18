@@ -1,5 +1,4 @@
 import { Environment, Network, RecordSource, Store } from 'relay-runtime'
-import fetch from 'isomorphic-unfetch'
 
 let relayEnvironment = null
 
@@ -16,7 +15,7 @@ function fetchQuery(operation, variables, cacheConfig, uploadables) {
       query: operation.text, // GraphQL text from input
       variables,
     }),
-  }).then(response => response.json())
+  }).then((response) => response.json())
 }
 
 export default function initEnvironment({ records = {} } = {}) {

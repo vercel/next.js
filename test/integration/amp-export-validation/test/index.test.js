@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { promises } from 'fs'
 import { join } from 'path'
 import { validateAMP } from 'amp-test-utils'
 import { File, nextBuild, nextExport, runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const { access, readFile } = promises
 const appDir = join(__dirname, '../')
 const outDir = join(appDir, 'out')
@@ -35,7 +35,7 @@ describe('AMP Validation on Export', () => {
   it('should export AMP pages', async () => {
     const toCheck = ['first', 'second', 'third.amp']
     await Promise.all(
-      toCheck.map(async page => {
+      toCheck.map(async (page) => {
         const content = await readFile(join(outDir, `${page}.html`))
         await validateAMP(content.toString())
       })

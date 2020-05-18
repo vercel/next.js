@@ -8,7 +8,7 @@ import {
   footerColumnListURL,
 } from '../styles/footer.js'
 
-export default props => (
+export default (props) => (
   <footer className={footer.className}>
     <div className={footerContent.className}>
       <div

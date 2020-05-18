@@ -18,7 +18,7 @@ export async function __overrideCssConfiguration(
     } else if (Array.isArray(rule.oneOf)) {
       rule.oneOf.forEach(patch)
     } else if (Array.isArray(rule.use)) {
-      rule.use.forEach(u => {
+      rule.use.forEach((u) => {
         if (typeof u === 'object') {
           patch(u)
         }
@@ -26,7 +26,7 @@ export async function __overrideCssConfiguration(
     }
   }
 
-  config.module?.rules?.forEach(entry => {
+  config.module?.rules?.forEach((entry) => {
     patch(entry)
   })
 }

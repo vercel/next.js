@@ -52,7 +52,8 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     pageEnv: false,
-    reactRefresh: true,
+    productionBrowserSourceMaps: false,
+    optionalCatchAll: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -123,7 +124,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
 
-      pageExtensions.forEach(ext => {
+      pageExtensions.forEach((ext) => {
         if (typeof ext !== 'string') {
           throw new Error(
             `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`

@@ -14,6 +14,7 @@ const babelClientOpts = {
         targets: {
           esmodules: true,
         },
+        bugfixes: true,
         loose: true,
         // This is handled by the Next.js webpack config that will run next/babel over the same code.
         exclude: [
@@ -57,9 +58,9 @@ const babelServerOpts = {
   ],
 }
 
-module.exports = function(task) {
+module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('babel', {}, function*(
+  task.plugin('babel', {}, function* (
     file,
     serverOrClient,
     { stripExtension } = {}

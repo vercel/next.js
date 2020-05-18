@@ -21,11 +21,11 @@ export default class extends Component {
     this.setState({ message })
   }
 
-  handleChange = event => {
+  handleChange = (event) => {
     this.setState({ input: event.target.value })
   }
 
-  handleSubmit = event => {
+  handleSubmit = (event) => {
     event.preventDefault()
     global.ipcRenderer.send('message', this.state.input)
     this.setState({ message: null })

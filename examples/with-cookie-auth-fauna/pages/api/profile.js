@@ -2,7 +2,7 @@ import { query as q } from 'faunadb'
 import cookie from 'cookie'
 import { faunaClient, FAUNA_SECRET_COOKIE } from '../../utils/fauna-auth'
 
-export const profileApi = async faunaSecret => {
+export const profileApi = async (faunaSecret) => {
   const ref = await faunaClient(faunaSecret).query(q.Identity())
   return ref.id
 }
