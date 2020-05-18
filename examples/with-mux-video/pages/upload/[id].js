@@ -4,10 +4,11 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import useSwr from 'swr'
 import Layout from '../../components/layout'
+import Spinner from '../../components/spinner'
 import VideoPlayer from '../../components/video-player'
 const UploadForm = dynamic(() => import('../../components/upload-form'), {
   ssr: false,
-  loading: () => <p>Loading...</p>,
+  loading: () => <Spinner />,
 })
 
 const fetcher = url => {
@@ -15,8 +16,30 @@ const fetcher = url => {
 }
 
 const Asset = ({ id, status, playbackId }) => {
-  if (status === 'preparing') return <div>Preparing asset...</div>
-  return <VideoPlayer src={`https://stream.mux.com/${playbackId}.m3u8`} />
+  if (status === 'preparing')
+    return (
+      <div>
+        <div>Preparing asset...</div>
+        <Spinner />
+      </div>
+    )
+  const src = `https://stream.mux.com/${playbackId}.m3u8`
+  return (
+    <div>
+      <p>
+        Your video is now ready for playback. View your video here or try using
+        this URL in a player that supports HLS playback:
+      </p>
+      <p className="code">{src}</p>
+      <VideoPlayer src={src} />
+      <style jsx>{`
+        .code {
+          padding-bottom: 30px;
+          font-family: courier;
+        }
+      `}</style>
+    </div>
+  )
 }
 
 export default function Upload() {
@@ -50,22 +73,20 @@ export default function Upload() {
   if (!data)
     return (
       <Layout>
-        <div>Loading</div>
+        <Spinner />
       </Layout>
     )
 
   const onUploadStart = () => setShouldPoll(false)
   const onUploadSuccess = () => setShouldPoll(true)
+  const getTitle = () => {
+    if (asset && asset.status === 'ready') return 'Your video'
+    return 'Upload a video'
+  }
+  const getStatus = () => `status: ${asset ? asset.status : upload.status}`
 
   return (
-    <Layout
-      title={
-        asset && asset.status === 'ready'
-          ? 'Watch your video'
-          : 'Upload a video'
-      }
-      description={`status: ${asset ? asset.status : upload.status}`}
-    >
+    <Layout title={getTitle()} description={getStatus()}>
       {upload.status === 'timed_out' && (
         <div>
           This upload timed out.. <Link href="/">Go back</Link>

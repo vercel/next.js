@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Router from 'next/router'
 import Layout from '../components/layout'
 import Button from '../components/button'
+import Spinner from '../components/spinner'
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
@@ -31,7 +32,7 @@ export default function Home() {
       ) : (
         <form onSubmit={createUpload}>
           {isLoading ? (
-            <div>Loading...</div>
+            <Spinner />
           ) : (
             <Button type="submit">Upload a video</Button>
           )}
