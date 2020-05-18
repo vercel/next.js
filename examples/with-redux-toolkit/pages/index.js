@@ -1,4 +1,3 @@
-import React from 'react'
 import { createAction } from '@reduxjs/toolkit'
 import { connect } from 'react-redux'
 import useInterval from '../lib/useInterval'

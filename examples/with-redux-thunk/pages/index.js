@@ -1,4 +1,4 @@
-import React, { PureComponent } from 'react'
+import { PureComponent } from 'react'
 import { connect } from 'react-redux'
 import Link from 'next/link'
 import { startClock, serverRenderClock } from '../actions'

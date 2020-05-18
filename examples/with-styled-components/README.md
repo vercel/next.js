@@ -58,7 +58,6 @@ When wrapping a [Link](https://nextjs.org/docs/api-reference/next/link) from `ne
 **components/StyledLink.js**
 
 ```javascript
-import React from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 
@@ -88,7 +87,6 @@ export default styled(StyledLink)`
 **pages/index.js**
 
 ```javascript
-import React from 'react'
 import StyledLink from '../components/StyledLink'
 
 export default () => (

@@ -1,4 +1,3 @@
-import React from 'react'
 import { createAction } from '@reduxjs/toolkit'
 import { useSelector, useDispatch } from 'react-redux'
 

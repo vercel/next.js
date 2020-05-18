@@ -1,9 +1,9 @@
-import React from 'react'
+import { Component } from 'react'
 import { connect } from 'react-redux'
 import { startClock, serverRenderClock } from '../store'
 import Examples from '../components/examples'
 
-class Index extends React.Component {
+class Index extends Component {
   static getInitialProps({ reduxStore, req }) {
     const isServer = !!req
     // DISPATCH ACTIONS HERE ONLY WITH `reduxStore.dispatch`

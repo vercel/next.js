@@ -1,4 +1,3 @@
-import React from 'react'
 import { useDispatch } from 'react-redux'
 import { withRedux } from '../lib/redux'
 import useInterval from '../lib/useInterval'
