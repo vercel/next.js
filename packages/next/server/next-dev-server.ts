@@ -168,7 +168,7 @@ export default class DevServer extends Server {
     )
 
     let resolved = false
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
@@ -201,18 +201,42 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+        try {
+          this.dynamicRoutes = getSortedRoutes(routedPages)
+            .filter(isDynamicRoute)
+            .map(page => ({
+              page,
+              match: getRouteMatcher(getRouteRegex(page)),
+            }))
 
-        this.dynamicRoutes = getSortedRoutes(routedPages)
-          .filter(isDynamicRoute)
-          .map(page => ({
-            page,
-            match: getRouteMatcher(getRouteRegex(page)),
-          }))
-        this.router.setDynamicRoutes(this.dynamicRoutes)
+          const firstOptionalCatchAllPage =
+            this.dynamicRoutes.find(f => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
+              ?.page ?? null
+          if (
+            this.nextConfig.experimental?.optionalCatchAll !== true &&
+            firstOptionalCatchAllPage
+          ) {
+            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
+            if (resolved) {
+              console.warn(msg)
+            } else {
+              throw new Error(msg)
+            }
+          }
 
-        if (!resolved) {
-          resolve()
-          resolved = true
+          this.router.setDynamicRoutes(this.dynamicRoutes)
+
+          if (!resolved) {
+            resolve()
+            resolved = true
+          }
+        } catch (e) {
+          if (!resolved) {
+            reject(e)
+            resolved = true
+          } else {
+            console.warn('Failed to reload dynamic routes:', e)
+          }
         }
       })
     })

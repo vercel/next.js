@@ -282,6 +282,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
+  const firstOptionalCatchAllPage =
+    pageKeys.find(f => /\[\[\.{3}[^\][/]*\]\]/.test(f)) ?? null
+  if (
+    config.experimental?.optionalCatchAll !== true &&
+    firstOptionalCatchAllPage
+  ) {
+    const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
+    throw new Error(msg)
+  }
+
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 1,
