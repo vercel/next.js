@@ -26,8 +26,8 @@ export type OriginalStackFrameResponse = {
 type Source = { map: () => RawSourceMap } | null
 
 function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
-  async function getSourceById(protocol: string, id: string): Promise<Source> {
-    if (protocol === 'file:') {
+  async function getSourceById(isFile: boolean, id: string): Promise<Source> {
+    if (isFile) {
       const fileContent: string | null = await fs
         .readFile(id, 'utf-8')
         .catch(() => null)
@@ -50,7 +50,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
     try {
       const compilation = options.stats()?.compilation
-      const m = compilation?.modules?.find(m => m.id === id)
+      const m = compilation?.modules?.find((m) => m.id === id)
       return (
         m?.source(
           compilation.dependencyTemplates,
@@ -63,7 +63,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     }
   }
 
-  return async function(
+  return async function (
     req: IncomingMessage,
     res: ServerResponse,
     next: Function
@@ -84,17 +84,14 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
-      const moduleUrl = new URL(frame.file)
-      const moduleId: string =
-        moduleUrl.protocol === 'webpack-internal:'
-          ? // Important to use original file to retain full path structure.
-            // e.g. `webpack-internal:///./pages/index.js`
-            frame.file.slice(20)
-          : moduleUrl.pathname
+      const moduleId: string = frame.file.replace(
+        /^(webpack-internal:\/\/\/|file:\/\/)/,
+        ''
+      )
 
       let source: Source
       try {
-        source = await getSourceById(moduleUrl.protocol, moduleId)
+        source = await getSourceById(frame.file.startsWith('file:'), moduleId)
       } catch (err) {
         console.log('Failed to get source map:', err)
         res.statusCode = 500
@@ -103,8 +100,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -133,8 +130,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (pos.source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -191,8 +188,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         () => false
       )
       if (!fileExists) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 

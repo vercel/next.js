@@ -10,7 +10,7 @@ function EventSourceWrapper(options) {
   }
 
   init()
-  var timer = setInterval(function() {
+  var timer = setInterval(function () {
     if (new Date() - lastActivity > options.timeout) {
       handleDisconnect()
     }
@@ -34,7 +34,7 @@ function EventSourceWrapper(options) {
       listeners[i](event)
     }
     if (event.data.indexOf('action') !== -1) {
-      eventCallbacks.forEach(cb => cb(event))
+      eventCallbacks.forEach((cb) => cb(event))
     }
   }
 
@@ -49,7 +49,7 @@ function EventSourceWrapper(options) {
       clearInterval(timer)
       source.close()
     },
-    addMessageListener: function(fn) {
+    addMessageListener: function (fn) {
       listeners.push(fn)
     },
   }
@@ -58,7 +58,7 @@ function EventSourceWrapper(options) {
 export function getEventSourceWrapper(options) {
   if (!options.ondemand) {
     return {
-      addMessageListener: cb => {
+      addMessageListener: (cb) => {
         eventCallbacks.push(cb)
       },
     }

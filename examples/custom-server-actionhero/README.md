@@ -54,7 +54,7 @@ module.exports = class NextInitializer extends Initializer {
 
   async initialize() {
     api.next = {
-      render: async connection => {
+      render: async (connection) => {
         if (connection.type !== 'web') {
           throw new Error('Connections for NEXT apps must be of type "web"')
         }
@@ -111,7 +111,7 @@ Note that this is where the websocket server, if you enable it, will place the `
 // config/routes.js
 
 exports['default'] = {
-  routes: api => {
+  routes: (api) => {
     return {
       get: [
         { path: '/time', action: 'time' },

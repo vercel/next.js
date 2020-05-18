@@ -1,7 +1,6 @@
 import { Component } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
-import fetch from 'isomorphic-unfetch'
 
 export async function getStaticPaths() {
   const response = await fetch(
@@ -9,7 +8,7 @@ export async function getStaticPaths() {
   )
   const postList = await response.json()
   return {
-    paths: postList.map(post => {
+    paths: postList.map((post) => {
       return {
         params: {
           id: `${post.id}`,

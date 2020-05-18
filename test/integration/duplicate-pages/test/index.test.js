@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 
 import {
@@ -10,7 +10,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 const appDir = path.join(__dirname, '..')
 
 describe('Handles Duplicate Pages', () => {
@@ -24,7 +24,7 @@ describe('Handles Duplicate Pages', () => {
   describe('dev mode', () => {
     it('Shows warning in development', async () => {
       let output
-      const handleOutput = msg => {
+      const handleOutput = (msg) => {
         output += msg
       }
       const appPort = await findPort()

@@ -129,7 +129,7 @@ export async function ncc_cache_loader(task, opts) {
     .target('compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
@@ -410,7 +410,7 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['resolve'] = 'next/dist/compiled/resolve'
 export async function ncc_resolve(task, opts) {
@@ -428,7 +428,7 @@ export async function ncc_send(task, opts) {
     .target('compiled/send')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map'] = 'next/dist/compiled/source-map'
 export async function ncc_source_map(task, opts) {
@@ -523,22 +523,9 @@ export async function path_to_regexp(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('path-to-regexp')))
     .target('dist/compiled/path-to-regexp')
 }
-externals['react-error-overlay'] = 'next/dist/compiled/react-error-overlay'
-export async function react_error_overlay(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('react-error-overlay'))
-    )
-    .target('dist/compiled/react-error-overlay')
-}
 
 export async function precompile(task) {
-  await task.parallel([
-    'browser_polyfills',
-    'path_to_regexp',
-    'react_error_overlay',
-    'copy_ncced',
-  ])
+  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
 }
 
 // eslint-disable-next-line camelcase
@@ -682,24 +669,15 @@ export async function nextbuildstatic(task, opts) {
 }
 
 export async function pages_app(task) {
-  await task
-    .source('pages/_app.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_app.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_error(task) {
-  await task
-    .source('pages/_error.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_error.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_document(task) {
-  await task
-    .source('pages/_document.tsx')
-    .babel('server')
-    .target('dist/pages')
+  await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
 export async function pages(task, opts) {
@@ -718,7 +696,7 @@ export async function build(task) {
   await task.serial(['precompile', 'compile'])
 }
 
-export default async function(task) {
+export default async function (task) {
   await task.clear('dist')
   await task.start('build')
   await task.watch('bin/*', 'bin')

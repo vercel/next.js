@@ -2,7 +2,7 @@ import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   [data-nextjs-terminal] {
-    border-radius: 0.3rem;
+    border-radius: var(--size-gap-half);
     background-color: var(--color-ansi-bg);
     color: var(--color-ansi-fg);
   }
@@ -17,7 +17,8 @@ const styles = css`
   }
   [data-nextjs-terminal] > * {
     margin: 0;
-    padding: 0.5rem;
+    padding: calc(var(--size-gap) + var(--size-gap-half))
+      calc(var(--size-gap-double) + var(--size-gap-half));
   }
 
   [data-nextjs-terminal] pre {

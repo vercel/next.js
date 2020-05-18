@@ -64,14 +64,7 @@ import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
-import fetch from 'next/dist/compiled/node-fetch'
-
-// @ts-ignore fetch exists globally
-if (!global.fetch) {
-  // Polyfill fetch() in the Node.js environment
-  // @ts-ignore fetch exists globally
-  global.fetch = fetch
-}
+import './node-polyfill-fetch'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -489,13 +482,17 @@ export default class Server {
           !parsedDestination.pathname ||
           !parsedDestination.pathname.startsWith('/')
         ) {
-          return compilePathToRegex(value, { validate: false })(params)
+          // the value needs to start with a forward-slash to be compiled
+          // correctly
+          return compilePathToRegex(`/${value}`, { validate: false })(
+            params
+          ).substr(1)
         }
         return formatUrl(parsedDestination)
       }
 
       // Headers come very first
-      headers = this.customRoutes.headers.map(r => {
+      headers = this.customRoutes.headers.map((r) => {
         const route = getCustomRoute(r, 'header')
         return {
           match: route.match,
@@ -517,7 +514,7 @@ export default class Server {
         } as Route
       })
 
-      redirects = this.customRoutes.redirects.map(redirect => {
+      redirects = this.customRoutes.redirects.map((redirect) => {
         const route = getCustomRoute(redirect, 'redirect')
         return {
           type: route.type,
@@ -549,7 +546,7 @@ export default class Server {
         } as Route
       })
 
-      rewrites = this.customRoutes.rewrites.map(rewrite => {
+      rewrites = this.customRoutes.rewrites.map((rewrite) => {
         const route = getCustomRoute(rewrite, 'rewrite')
         return {
           check: true,
@@ -729,7 +726,7 @@ export default class Server {
 
   protected generatePublicRoutes(): Route[] {
     const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map(p => p.replace(/\\/g, '/'))
+      recursiveReadDirSync(this.publicDir).map((p) => p.replace(/\\/g, '/'))
     )
 
     return [
@@ -761,13 +758,12 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
-      isDynamicRoute
-    )
-    return getSortedRoutes(dynamicRoutedPages).map(page => ({
-      page,
-      match: getRouteMatcher(getRouteRegex(page)),
-    }))
+    return getSortedRoutes(Object.keys(this.pagesManifest!))
+      .filter(isDynamicRoute)
+      .map((page) => ({
+        page,
+        match: getRouteMatcher(getRouteRegex(page)),
+      }))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse) {
@@ -1082,7 +1078,7 @@ export default class Server {
           return { isOrigin: true, value }
         }
 
-    const doRender = maybeCoalesceInvoke(async function(): Promise<{
+    const doRender = maybeCoalesceInvoke(async function (): Promise<{
       html: string | null
       pageData: any
       sprRevalidate: number | false
@@ -1415,14 +1411,14 @@ export default class Server {
     const pathUserFilesStatic = join(this.dir, 'static')
     let userFilesStatic: string[] = []
     if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
-      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map(f =>
+      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map((f) =>
         join('.', 'static', f)
       )
     }
 
     let userFilesPublic: string[] = []
     if (this.publicDir && fs.existsSync(this.publicDir)) {
-      userFilesPublic = recursiveReadDirSync(this.publicDir).map(f =>
+      userFilesPublic = recursiveReadDirSync(this.publicDir).map((f) =>
         join('.', 'public', f)
       )
     }
@@ -1430,7 +1426,7 @@ export default class Server {
     let nextFilesStatic: string[] = []
     nextFilesStatic = recursiveReadDirSync(
       join(this.distDir, 'static')
-    ).map(f => join('.', relative(this.dir, this.distDir), 'static', f))
+    ).map((f) => join('.', relative(this.dir, this.distDir), 'static', f))
 
     return (this._validFilesystemPathSet = new Set<string>([
       ...nextFilesStatic,

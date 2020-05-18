@@ -26,7 +26,7 @@ export default class OnClick extends Component {
         <Link href="/nav/on-click">
           <a
             id="on-click-link-prevent-default"
-            onClick={e => {
+            onClick={(e) => {
               e.preventDefault()
               this.setState({ stateCounter: stateCounter + 1 })
             }}
