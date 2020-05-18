@@ -9,8 +9,8 @@ class App extends NextApp {
     const { Component } = this.props
     return (
       <ThemeProvider theme={theme}>
-        <CSSReset />
         <ColorModeProvider>
+          <CSSReset />
           <Component />
         </ColorModeProvider>
       </ThemeProvider>
