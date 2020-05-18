@@ -3,7 +3,7 @@ import thunkMiddleware from 'redux-thunk'
 import count from './count/reducer'
 import tick from './tick/reducer'
 
-const bindMiddleware = middleware => {
+const bindMiddleware = (middleware) => {
   if (process.env.NODE_ENV !== 'production') {
     const { composeWithDevTools } = require('redux-devtools-extension')
     return composeWithDevTools(applyMiddleware(...middleware))

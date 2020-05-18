@@ -4,7 +4,7 @@ export function getStaticProps() {
   return { props: {} }
 }
 
-export default function() {
+export default function () {
   return (
     <main>
       <Link href="/">

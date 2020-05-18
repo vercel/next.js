@@ -5,7 +5,7 @@ import React, { useEffect } from 'react'
 export default () => {
   const router = useRouter()
   useEffect(() => {
-    router.events.on('routeChangeError', err => {
+    router.events.on('routeChangeError', (err) => {
       if (err.cancelled) {
         window.routeCancelled = 'yes'
       }

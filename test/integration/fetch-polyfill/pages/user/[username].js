@@ -10,7 +10,7 @@ export async function getStaticPaths() {
 
   return {
     fallback: false,
-    paths: usernames.map(username => {
+    paths: usernames.map((username) => {
       return {
         params: {
           username,

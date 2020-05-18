@@ -244,7 +244,7 @@ export default class HotReloader {
     return { finished }
   }
 
-  async clean() {
+  async clean(): Promise<void> {
     return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
@@ -255,7 +255,7 @@ export default class HotReloader {
     ])
 
     const pages = createPagesMapping(
-      pagePaths.filter(i => i !== null) as string[],
+      pagePaths.filter((i) => i !== null) as string[],
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
@@ -299,7 +299,7 @@ export default class HotReloader {
     ])
   }
 
-  async start() {
+  async start(): Promise<void> {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
@@ -312,7 +312,9 @@ export default class HotReloader {
     this.stats = ((await this.waitUntilValid()) as any).stats[0]
   }
 
-  async stop(webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware) {
+  async stop(
+    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
+  ): Promise<void> {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
@@ -324,7 +326,7 @@ export default class HotReloader {
     }
   }
 
-  async reload() {
+  async reload(): Promise<void> {
     this.stats = null
 
     await this.clean()
@@ -349,7 +351,7 @@ export default class HotReloader {
     webpackDevMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
     webpackHotMiddleware: NextHandleFunction & WebpackHotMiddleware.EventStream
     onDemandEntries: any
-  }) {
+  }): void {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
@@ -372,7 +374,7 @@ export default class HotReloader {
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
-      stats => {
+      (stats) => {
         if (!this.initialized) {
           return
         }
@@ -382,7 +384,8 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          c => c.name === normalize(`static/${this.buildId}/pages/_document.js`)
+          (c) =>
+            c.name === normalize(`static/${this.buildId}/pages/_document.js`)
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
@@ -409,12 +412,12 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
-      stats => {
+      (stats) => {
         const { compilation } = stats
         const chunkNames = new Set(
           compilation.chunks
-            .map(c => c.name)
-            .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
+            .map((c) => c.name)
+            .filter((name) => IS_BUNDLED_PAGE_REGEX.test(name))
         )
 
         if (this.initialized) {
@@ -510,9 +513,9 @@ export default class HotReloader {
 
   waitUntilValid(
     webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
-  ) {
+  ): Promise<webpack.Stats> {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       middleware!.waitUntilValid(resolve)
     })
   }
@@ -545,7 +548,7 @@ export default class HotReloader {
     return []
   }
 
-  send = (action: string, ...args: any[]) => {
+  send = (action: string, ...args: any[]): void => {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 
@@ -559,5 +562,5 @@ export default class HotReloader {
 }
 
 function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter(v => !b.has(v)))
+  return new Set([...a].filter((v) => !b.has(v)))
 }

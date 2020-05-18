@@ -24,7 +24,7 @@ describe('Handles Duplicate Pages', () => {
   describe('dev mode', () => {
     it('Shows warning in development', async () => {
       let output
-      const handleOutput = msg => {
+      const handleOutput = (msg) => {
         output += msg
       }
       const appPort = await findPort()
