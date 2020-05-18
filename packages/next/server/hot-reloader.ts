@@ -9,7 +9,7 @@ import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { NEXT_PROJECT_ROOT_DIST_CLIENT, API_ROUTE } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -46,6 +46,12 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
+  const isApiRoute = req.url!.match(API_ROUTE)
+  // API routes handle their own CORS headers
+  if (isApiRoute) {
+    return { preflight: false }
+  }
+
   if (!req.headers.origin) {
     return { preflight: false }
   }
@@ -488,7 +494,6 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
-        hotRouterUpdates: this.config.experimental.reactRefresh !== true,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
           pagesBufferLength: number

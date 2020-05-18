@@ -6,7 +6,6 @@ export type ConfigurationContext = {
 
   isDevelopment: boolean
   isProduction: boolean
-  isReactRefreshEnabled: boolean
 
   isServer: boolean
   isClient: boolean
@@ -14,6 +13,7 @@ export type ConfigurationContext = {
   assetPrefix: string
 
   sassOptions: any
+  productionBrowserSourceMaps: boolean
 }
 
 export type ConfigurationFn = (
