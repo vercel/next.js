@@ -14,26 +14,22 @@ export default function({ app }, suiteName, render, fetch) {
     describe('_document', () => {
       test('It has a custom html class', async () => {
         const $ = await get$('/')
-        expect($('html').hasClass('test-html-props'))
+        expect($('html').hasClass('test-html-props')).toBe(true)
       })
 
       test('It has a custom body class', async () => {
         const $ = await get$('/')
-        expect($('body').hasClass('custom_class'))
+        expect($('body').hasClass('custom_class')).toBe(true)
       })
 
       test('It injects custom head tags', async () => {
         const $ = await get$('/')
-        expect(
-          $('head')
-            .text()
-            .includes('body { margin: 0 }')
-        )
+        expect($('head').text()).toMatch('body { margin: 0 }')
       })
 
       test('It passes props from Document.getInitialProps to Document', async () => {
         const $ = await get$('/')
-        expect($('#custom-property').text() === 'Hello Document')
+        expect($('#custom-property').text()).toBe('Hello Document')
       })
 
       test('It adds nonces to all scripts and preload links', async () => {

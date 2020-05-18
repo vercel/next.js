@@ -3,10 +3,12 @@ import mitt from 'next/dist/next-server/lib/mitt'
 
 describe('mitt', () => {
   describe('With listeners', () => {
-    it('should listen to a event', done => {
-      const ev = mitt()
-      ev.on('sample', done)
-      ev.emit('sample')
+    it('should listen to a event', () => {
+      return new Promise(resolve => {
+        const ev = mitt()
+        ev.on('sample', resolve)
+        ev.emit('sample')
+      })
     })
 
     it('should listen to multiple listeners', () => {

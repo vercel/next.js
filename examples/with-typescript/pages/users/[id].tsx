@@ -11,31 +11,32 @@ type Props = {
   errors?: string
 }
 
-export default class StaticPropsDetail extends React.Component<Props> {
-  render() {
-    const { item, errors } = this.props
-
-    if (errors) {
-      return (
-        <Layout title={`Error | Next.js + TypeScript Example`}>
-          <p>
-            <span style={{ color: 'red' }}>Error:</span> {errors}
-          </p>
-        </Layout>
-      )
-    }
-
+const StaticPropsDetail: React.FunctionComponent<Props> = ({
+  item,
+  errors,
+}) => {
+  if (errors) {
     return (
-      <Layout
-        title={`${
-          item ? item.name : 'User Detail'
-        } | Next.js + TypeScript Example`}
-      >
-        {item && <ListDetail item={item} />}
+      <Layout title="Error | Next.js + TypeScript Example">
+        <p>
+          <span style={{ color: 'red' }}>Error:</span> {errors}
+        </p>
       </Layout>
     )
   }
+
+  return (
+    <Layout
+      title={`${
+        item ? item.name : 'User Detail'
+      } | Next.js + TypeScript Example`}
+    >
+      {item && <ListDetail item={item} />}
+    </Layout>
+  )
 }
+
+export default StaticPropsDetail
 
 export const getStaticPaths: GetStaticPaths = async () => {
   // Get the paths we want to pre-render based on users
