@@ -28,7 +28,6 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
@@ -49,10 +48,7 @@ export default class DevServer extends Server {
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    ;(this.renderOpts as any).ErrorDebug =
-      this.nextConfig.experimental?.reactRefresh === true
-        ? ReactDevOverlay
-        : ErrorDebug
+    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
@@ -172,7 +168,7 @@ export default class DevServer extends Server {
     )
 
     let resolved = false
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
@@ -191,7 +187,7 @@ export default class DevServer extends Server {
       wp.watch([], [pagesDir!], 0)
 
       wp.on('aggregated', () => {
-        const dynamicRoutedPages = []
+        const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -203,22 +199,44 @@ export default class DevServer extends Server {
           pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
-          if (!isDynamicRoute(pageName)) {
-            continue
+          routedPages.push(pageName)
+        }
+        try {
+          this.dynamicRoutes = getSortedRoutes(routedPages)
+            .filter(isDynamicRoute)
+            .map(page => ({
+              page,
+              match: getRouteMatcher(getRouteRegex(page)),
+            }))
+
+          const firstOptionalCatchAllPage =
+            this.dynamicRoutes.find(f => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
+              ?.page ?? null
+          if (
+            this.nextConfig.experimental?.optionalCatchAll !== true &&
+            firstOptionalCatchAllPage
+          ) {
+            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
+            if (resolved) {
+              console.warn(msg)
+            } else {
+              throw new Error(msg)
+            }
           }
 
-          dynamicRoutedPages.push(pageName)
-        }
+          this.router.setDynamicRoutes(this.dynamicRoutes)
 
-        this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }))
-        this.router.setDynamicRoutes(this.dynamicRoutes)
-
-        if (!resolved) {
-          resolve()
-          resolved = true
+          if (!resolved) {
+            resolve()
+            resolved = true
+          }
+        } catch (e) {
+          if (!resolved) {
+            reject(e)
+            resolved = true
+          } else {
+            console.warn('Failed to reload dynamic routes:', e)
+          }
         }
       })
     })
