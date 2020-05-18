@@ -1,11 +1,13 @@
 import Head from 'next/head'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
 import AddNoteForm from '../components/add-note'
+import EditNoteForm from '../components/edit-note'
 import { deleteNote, loadNotes, selectNotes } from '../lib/slices/notesSlice'
 
 const Notes = () => {
+  const [selectedNote, setSelectedNote] = useState()
   const dispatch = useDispatch()
   const { notes } = useSelector(selectNotes)
 
@@ -28,6 +30,12 @@ const Notes = () => {
       >
         🗑️
       </button>
+      <button
+        onClick={() => setSelectedNote(note)}
+        aria-label={`Edit note with title: ${note.title}`}
+      >
+        ✏️
+      </button>
     </li>
   )
 
@@ -40,6 +48,7 @@ const Notes = () => {
       <hr />
       <h3>All Notes</h3>
       <ul>{notes.map(renderNote)}</ul>
+      <EditNoteForm note={selectedNote} />
     </>
   )
 }
