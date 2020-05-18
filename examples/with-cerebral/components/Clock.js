@@ -1,4 +1,4 @@
-export default (props) => {
+export default function Clock(props) {
   return (
     <div className={props.light ? 'light' : ''}>
       {format(new Date(props.lastUpdate))}
