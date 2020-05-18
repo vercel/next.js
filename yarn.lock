@@ -16970,8 +16970,6 @@ styled-components@5.1.0:
     shallowequal "^1.1.0"
     supports-color "^5.5.0"
 
-<<<<<<< HEAD
-=======
 styled-jsx-plugin-postcss@2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/styled-jsx-plugin-postcss/-/styled-jsx-plugin-postcss-2.0.1.tgz#577209580276928188457c957986bca6f710cb29"
@@ -16981,7 +16979,6 @@ styled-jsx-plugin-postcss@2.0.1:
     postcss "^7.0.2"
     postcss-load-plugins "^2.3.0"
 
->>>>>>> canary
 styled-jsx@3.3.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-3.3.0.tgz#32335c1a3ecfc923ba4f9c056eeb3d4699006b09"

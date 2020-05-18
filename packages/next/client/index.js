@@ -523,10 +523,10 @@ async function doRender({ App, Component, props, err }) {
   if (lastRenderResolver) {
     lastRenderResolver()
   }
-  const renderPromise = new Promise(resolve => {
-    const self = (lastRenderResolver = () => {
+  const renderPromise = new Promise((resolve) => {
+    const currRenderResolver = (lastRenderResolver = () => {
       resolve()
-      if (lastRenderResolver === self) {
+      if (lastRenderResolver === currRenderResolver) {
         lastRenderResolver = null
       }
     })
