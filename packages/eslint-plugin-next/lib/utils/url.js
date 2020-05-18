@@ -10,13 +10,21 @@ function isDirectory(source) {
 }
 
 /**
+ * Checks if the source is a directory.
+ * @param {string} source
+ */
+function isSymlink(source) {
+  return fs.lstatSync(source).isSymbolicLink()
+}
+
+/**
  * Gets the possible URLs from a directory.
  * @param {string} urlprefix
  * @param {string} directory
  */
 function getUrlFromPagesDirectory(urlPrefix, directory) {
   return parseUrlForPages(urlPrefix, directory).map(
-    url => new RegExp(normalizeURL(url))
+    (url) => new RegExp(normalizeURL(url))
   )
 }
 
@@ -28,7 +36,7 @@ function getUrlFromPagesDirectory(urlPrefix, directory) {
 function parseUrlForPages(urlprefix, directory) {
   const files = fs.readdirSync(directory)
   const res = []
-  files.forEach(fname => {
+  files.forEach((fname) => {
     if (/(\.(j|t)sx?)$/.test(fname)) {
       fname = fname.replace(/\[.*\]/g, '.*')
       if (/^index(\.(j|t)sx?)$/.test(fname)) {
@@ -37,7 +45,7 @@ function parseUrlForPages(urlprefix, directory) {
       res.push(`${urlprefix}${fname.replace(/(\.(j|t)sx?)$/, '')}`)
     } else {
       const dirPath = path.join(directory, fname)
-      if (isDirectory(dirPath)) {
+      if (isDirectory(dirPath) && !isSymlink(dirPath)) {
         res.push(...parseUrlForPages(urlprefix + fname + '/', dirPath))
       }
     }
