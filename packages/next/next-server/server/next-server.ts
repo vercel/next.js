@@ -482,7 +482,11 @@ export default class Server {
           !parsedDestination.pathname ||
           !parsedDestination.pathname.startsWith('/')
         ) {
-          return compilePathToRegex(value, { validate: false })(params)
+          // the value needs to start with a forward-slash to be compiled
+          // correctly
+          return compilePathToRegex(`/${value}`, { validate: false })(
+            params
+          ).substr(1)
         }
         return formatUrl(parsedDestination)
       }
