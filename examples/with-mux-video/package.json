@@ -1,7 +1,7 @@
 {
   "name": "with-mux-video",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +11,7 @@
     "@mux/mux-node": "2.8.0",
     "@mux/upchunk": "1.0.6",
     "hls.js": "0.13.2",
-    "next": "9.4.0",
+    "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "swr": "0.2.0"
