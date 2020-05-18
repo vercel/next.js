@@ -12,6 +12,7 @@ export async function build(
     isServer,
     assetPrefix,
     sassOptions,
+    productionBrowserSourceMaps,
   }: {
     rootDirectory: string
     customAppFile: string | null
@@ -19,6 +20,7 @@ export async function build(
     isServer: boolean
     assetPrefix: string
     sassOptions: any
+    productionBrowserSourceMaps: boolean
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -34,6 +36,7 @@ export async function build(
         : assetPrefix
       : '',
     sassOptions,
+    productionBrowserSourceMaps,
   }
 
   const fn = pipe(base(ctx), css(ctx))
