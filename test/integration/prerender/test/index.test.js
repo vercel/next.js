@@ -382,8 +382,13 @@ const runTests = (dev = false, looseMode = false) => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+    expect(
+      await check(() => browser.eval('window.beforeClick'), {
+        test(v) {
+          return v !== 'abc'
+        },
+      })
+    ).toBe(true)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -393,8 +398,13 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-at-first-post').click()
-      await waitFor(3000)
-      expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+      expect(
+        await check(() => browser.eval('window.beforeClick'), {
+          test(v) {
+            return v !== 'abc'
+          },
+        })
+      ).toBe(true)
 
       const text = await browser.elementByCss('#params').text()
       expect(text).toMatch(/post.*?post-999/)
