@@ -92,6 +92,7 @@ module.exports = function(task) {
       babelrc: false,
       configFile: false,
       filename: file.base,
+      sourceMaps: true,
     }
     const output = transform(file.data, options)
     const ext = extname(file.base)
@@ -109,6 +110,17 @@ module.exports = function(task) {
         /__REPLACE_NOOP_IMPORT__/g,
         `import('./dev/noop');`
       )
+    }
+
+    if (output.map) {
+      const map = `${file.base}.map`
+
+      // add sourcemap to `files` array
+      this._.files.push({
+        base: map,
+        dir: file.dir,
+        data: Buffer.from(JSON.stringify(output.map)),
+      })
     }
 
     file.data = Buffer.from(setNextVersion(output.code))
