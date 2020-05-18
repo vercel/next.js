@@ -1,3 +1,5 @@
 import Modal from '../components/Modal'
 
-export default () => <Modal />
+export default function Home() {
+  return <Modal />
+}
