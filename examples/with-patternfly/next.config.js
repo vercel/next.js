@@ -46,7 +46,7 @@ module.exports = withCSS(
 
       config.module.rules.push({
         test: /\.svg$/,
-        include: input => input.indexOf('background-filter.svg') > 1,
+        include: (input) => input.indexOf('background-filter.svg') > 1,
         use: [
           {
             loader: 'url-loader',
@@ -64,7 +64,7 @@ module.exports = withCSS(
         test: /\.svg$/,
         // only process SVG modules with this loader if they live under a 'bgimages' directory
         // this is primarily useful when applying a CSS background using an SVG
-        include: input => input.indexOf(BG_IMAGES_DIRNAME) > -1,
+        include: (input) => input.indexOf(BG_IMAGES_DIRNAME) > -1,
         use: {
           loader: 'svg-url-loader',
           options: {},
@@ -75,7 +75,7 @@ module.exports = withCSS(
         test: /\.svg$/,
         // only process SVG modules with this loader when they don't live under a 'bgimages',
         // 'fonts', or 'pficon' directory, those are handled with other loaders
-        include: input =>
+        include: (input) =>
           input.indexOf(BG_IMAGES_DIRNAME) === -1 &&
           input.indexOf('fonts') === -1 &&
           input.indexOf('background-filter') === -1 &&
