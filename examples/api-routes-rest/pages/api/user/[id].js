@@ -1,4 +1,4 @@
-export default (req, res) => {
+export default function userHandler(req, res) {
   const {
     query: { id, name },
     method,

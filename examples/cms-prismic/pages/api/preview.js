@@ -10,7 +10,7 @@ function linkResolver(doc) {
   return `/${doc.uid}`
 }
 
-export default async (req, res) => {
+export default async function preview(req, res) {
   const ref = req.query.token
 
   // Check the token parameter against the Prismic SDK

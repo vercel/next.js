@@ -3,7 +3,7 @@ import firebase from '../firebase/clientApp'
 
 export const UserContext = createContext()
 
-export default ({ children }) => {
+export default function UserContextComp({ children }) {
   const [user, setUser] = useState(null)
   const [loadingUser, setLoadingUser] = useState(true) // Helpful, to update the UI accordingly.
 

@@ -1,1 +1,3 @@
-export default () => <div>b</div>
+export default function B() {
+  return <div>b</div>
+}

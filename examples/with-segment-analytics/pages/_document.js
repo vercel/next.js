@@ -8,7 +8,7 @@ const {
   NODE_ENV = 'development',
 } = process.env
 
-export default class extends Document {
+export default class MyDocument extends Document {
   renderSnippet() {
     const opts = {
       apiKey: ANALYTICS_WRITE_KEY,

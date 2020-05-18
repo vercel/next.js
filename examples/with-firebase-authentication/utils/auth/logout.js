@@ -2,7 +2,7 @@
 import firebase from 'firebase/app'
 import 'firebase/auth'
 
-export default async () => {
+export default async function logout() {
   return firebase
     .auth()
     .signOut()

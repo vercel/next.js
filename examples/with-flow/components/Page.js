@@ -7,11 +7,16 @@ type Props = {
   title?: string,
 }
 
-export default ({ children, title = 'This is the default title' }: Props) => (
-  <section>
-    <Head>
-      <title>{title}</title>
-    </Head>
-    {children}
-  </section>
-)
+export default function Page({
+  children,
+  title = 'This is the default title',
+}: Props) {
+  return (
+    <section>
+      <Head>
+        <title>{title}</title>
+      </Head>
+      {children}
+    </section>
+  )
+}

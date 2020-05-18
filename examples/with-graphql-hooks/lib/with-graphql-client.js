@@ -3,7 +3,7 @@ import initGraphQL from './init-graphql'
 import Head from 'next/head'
 import { getInitialState } from 'graphql-hooks-ssr'
 
-export default (App) => {
+export default function withGraphqlClient(App) {
   return class GraphQLHooks extends React.Component {
     static displayName = 'GraphQLHooks(App)'
     static async getInitialProps(ctx) {

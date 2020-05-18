@@ -1,6 +1,6 @@
 import { Component } from 'react'
 
-export default class extends Component {
+export default class Home extends Component {
   state = {
     input: '',
     message: null,

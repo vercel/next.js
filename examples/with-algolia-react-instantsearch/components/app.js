@@ -37,7 +37,7 @@ HitComponent.propTypes = {
   hit: PropTypes.object,
 }
 
-export default class extends React.Component {
+export default class App extends React.Component {
   static propTypes = {
     searchState: PropTypes.object,
     resultsState: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),

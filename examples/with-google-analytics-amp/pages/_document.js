@@ -11,7 +11,7 @@ function AmpWrap({ ampOnly, nonAmp }) {
   return !isAmp && nonAmp
 }
 
-export default class extends Document {
+export default class MyDocument extends Document {
   render() {
     return (
       <html>

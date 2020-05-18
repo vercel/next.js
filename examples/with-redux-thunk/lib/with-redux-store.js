@@ -16,7 +16,7 @@ function getOrCreateStore(initialState) {
   return window[__NEXT_REDUX_STORE__]
 }
 
-export default (App) => {
+export default function withReduxStore(App) {
   return class AppWithRedux extends Component {
     static async getInitialProps(appContext) {
       // Get or Create the store with `undefined` as initialState

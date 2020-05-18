@@ -18,7 +18,7 @@ function getEntries(data) {
   return data ? data.entries.data.reverse() : []
 }
 
-export default (props) => {
+export default function Hero(props) {
   const { data, errorMessage } = useGuestbookEntries()
   const [entries, setEntries] = useState([])
   const [twitterHandle, setTwitterHandle] = useState('')

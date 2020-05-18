@@ -2,7 +2,7 @@ import { query as q } from 'faunadb'
 import cookie from 'cookie'
 import { faunaClient, FAUNA_SECRET_COOKIE } from '../../utils/fauna-auth'
 
-export default async (req, res) => {
+export default async function logout(req, res) {
   const cookies = cookie.parse(req.headers.cookie ?? '')
   const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
   if (!faunaSecret) {

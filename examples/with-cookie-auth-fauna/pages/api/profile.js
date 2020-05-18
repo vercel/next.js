@@ -7,7 +7,7 @@ export const profileApi = async (faunaSecret) => {
   return ref.id
 }
 
-export default async (req, res) => {
+export default async function profile(req, res) {
   const cookies = cookie.parse(req.headers.cookie ?? '')
   const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
 

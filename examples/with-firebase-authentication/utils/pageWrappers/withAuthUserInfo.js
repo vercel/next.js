@@ -6,7 +6,7 @@ import { get } from 'lodash/object'
 import { AuthUserInfoContext } from '../auth/hooks'
 
 // Provides an AuthUserInfo prop to the composed component.
-export default (ComposedComponent) => {
+export default function withAuthUserInfo(ComposedComponent) {
   const WithAuthUserInfoComp = (props) => {
     const { AuthUserInfo: AuthUserInfoFromSession, ...otherProps } = props
     return (

@@ -5,7 +5,7 @@ import DropdownMenu, {
 } from '@atlaskit/dropdown-menu'
 import { Label } from '@atlaskit/field-base'
 
-export default () => {
+export default function DropdownMenuComponent() {
   return (
     <React.Fragment>
       <Label label="DropdownMenu" />

@@ -5,4 +5,6 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   whyDidYouRender(React)
 }
 
-export default ({ Component, pageProps }) => <Component {...pageProps} />
+export default function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}

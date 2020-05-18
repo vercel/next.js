@@ -2,13 +2,15 @@ import React from 'react'
 import { StyleSheet, StyleResolver } from 'style-sheet'
 const cls = StyleResolver.resolve
 
-export default () => (
-  <div className={cls([styles.root, styles.color])}>
-    <div>
-      Hello from <span className={cls(styles.brand)}>Next.js</span>
+export default function Home() {
+  return (
+    <div className={cls([styles.root, styles.color])}>
+      <div>
+        Hello from <span className={cls(styles.brand)}>Next.js</span>
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 const styles = StyleSheet.create({
   root: {

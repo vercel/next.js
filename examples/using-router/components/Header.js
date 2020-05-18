@@ -1,11 +1,13 @@
 import { useRouter } from 'next/router'
 
-export default () => (
-  <div>
-    <Link href="/">Home</Link>
-    <Link href="/about">About</Link>
-  </div>
-)
+export default function Header() {
+  return (
+    <div>
+      <Link href="/">Home</Link>
+      <Link href="/about">About</Link>
+    </div>
+  )
+}
 
 const Link = ({ children, href }) => {
   const router = useRouter()

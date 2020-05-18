@@ -1,7 +1,7 @@
 import React from 'react'
 import { Checkbox } from '@atlaskit/checkbox'
 
-export default () => {
+export default function CheckboxComponent() {
   return (
     <React.Fragment>
       <Checkbox

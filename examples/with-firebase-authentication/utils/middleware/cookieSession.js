@@ -31,11 +31,13 @@ export const addSession = (req, res) => {
   includeSession(req, res, () => {})
 }
 
-export default (handler) => (req, res) => {
-  try {
-    addSession(req, res)
-  } catch (e) {
-    return res.status(500).json({ error: 'Could not get user session.' })
+export default function cookieSessionWrapper(handler) {
+  return (req, res) => {
+    try {
+      addSession(req, res)
+    } catch (e) {
+      return res.status(500).json({ error: 'Could not get user session.' })
+    }
+    return handler(req, res)
   }
-  return handler(req, res)
 }

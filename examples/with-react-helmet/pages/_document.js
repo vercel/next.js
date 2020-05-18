@@ -1,7 +1,7 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 import { Helmet } from 'react-helmet'
 
-export default class extends Document {
+export default class MyDocument extends Document {
   static async getInitialProps(...args) {
     const documentProps = await super.getInitialProps(...args)
     // see https://github.com/nfl/react-helmet#server-usage for more information

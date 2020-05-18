@@ -46,6 +46,6 @@ const formats = [
   'video',
 ]
 
-export default () => (
-  <QuillNoSSRWrapper modules={modules} formats={formats} theme="snow" />
-)
+export default function Home() {
+  return <QuillNoSSRWrapper modules={modules} formats={formats} theme="snow" />
+}

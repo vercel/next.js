@@ -1,7 +1,7 @@
 import Document from 'next/document'
 import { ServerPortal } from '@jesstelford/react-portal-universal/server'
 
-export default class extends Document {
+export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const portals = new ServerPortal()
     const originalRenderPage = ctx.renderPage

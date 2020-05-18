@@ -9,7 +9,7 @@ const updateAfter = 700
 const searchStateToUrl = (searchState) =>
   searchState ? `${window.location.pathname}?${qs.stringify(searchState)}` : ''
 
-export default class extends React.Component {
+export default class Home extends React.Component {
   static propTypes = {
     resultsState: PropTypes.object,
     searchState: PropTypes.object,

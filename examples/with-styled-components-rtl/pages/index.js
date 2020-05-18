@@ -7,4 +7,6 @@ const Title = styled.h1`
   text-align: left;
 `
 
-export default () => <Title>My page</Title>
+export default function Home() {
+  return <Title>My page</Title>
+}
