@@ -280,7 +280,7 @@ export default async function (
     hasApiRoutes = true
   }
 
-  if (prerenderManifest) {
+  if (prerenderManifest && !options.buildExport) {
     const fallbackTruePages = new Set()
 
     for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
