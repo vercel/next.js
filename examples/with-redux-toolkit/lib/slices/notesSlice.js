@@ -59,6 +59,18 @@ export const editNote = createAsyncThunk(
   }
 )
 
+export const deleteNote = createAsyncThunk(
+  'notes/deleteNote',
+  async (id, thunkAPI) => {
+    try {
+      await fetch(`/api/notes?noteId=${id}`, { method: 'DELETE' })
+      return id
+    } catch (error) {
+      return thunkAPI.rejectWithValue({ error: error.message })
+    }
+  }
+)
+
 const notesSlice = createSlice({
   name: 'notes',
   initialState: {
@@ -104,6 +116,23 @@ const notesSlice = createSlice({
       state.error = action.payload.error || action.error.message
       Object.assign(note, state.tempNote)
       delete state.tempNote
+    },
+    [deleteNote.pending]: (state, action) => {
+      const position = state.notes.findIndex(
+        note => note.id === action.meta.arg
+      )
+      state.backupNote = Object.assign({}, state.notes[position])
+      state.backupPosition = position
+      state.notes.splice(position, 1)
+    },
+    [deleteNote.fulfilled]: state => {
+      delete state.backupNote
+      delete state.backupPosition
+    },
+    [deleteNote.rejected]: state => {
+      state.notes.splice(state.backupPosition, 0, state.backupNote)
+      delete state.backupPosition
+      delete state.backupNote
     },
   },
 })
