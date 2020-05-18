@@ -840,6 +840,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
+        await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'json')
       }
 
       if (isSsg) {
@@ -869,6 +870,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 `${route}.amp`,
                 true,
                 'html'
+              )
+              await moveExportedPage(
+                `${route}.amp`,
+                `${route}.amp`,
+                true,
+                'json'
               )
             }
 
