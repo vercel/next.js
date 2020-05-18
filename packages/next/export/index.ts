@@ -84,7 +84,7 @@ type ExportPathMap = {
   [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
-export default async function(
+export default async function (
   dir: string,
   options: any,
   configuration?: any
@@ -270,7 +270,7 @@ export default async function(
   const exportPaths = Object.keys(exportPathMap)
   const filteredPaths = exportPaths.filter(
     // Remove API routes
-    route => !exportPathMap[route].page.match(API_ROUTE)
+    (route) => !exportPathMap[route].page.match(API_ROUTE)
   )
 
   if (filteredPaths.length !== exportPaths.length) {
@@ -335,7 +335,7 @@ export default async function(
   let renderError = false
 
   await Promise.all(
-    filteredPaths.map(async path => {
+    filteredPaths.map(async (path) => {
       const result = await worker.default({
         path,
         pathMap: exportPathMap[path],
@@ -375,7 +375,7 @@ export default async function(
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
-      Object.keys(prerenderManifest.routes).map(async route => {
+      Object.keys(prerenderManifest.routes).map(async (route) => {
         route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
         const htmlDest = join(

@@ -64,7 +64,7 @@ const Birds = () => {
   })
 }
 
-const BirdsPage = props => {
+const BirdsPage = (props) => {
   useEffect(() => {
     GLTFLoader = require('three/examples/jsm/loaders/GLTFLoader').GLTFLoader
   }, [])
