@@ -1,7 +1,31 @@
-import { nanoid } from '@reduxjs/toolkit'
+import { nSQL } from '@nano-sql/core'
 
-const notes = new Map()
-const saveNote = (req, res) => {
+const connectMiddleware = handler => async (req, res) => {
+  const dbName = 'with-redux-toolkit'
+
+  if (!nSQL().listDatabases().includes(dbName)) {
+    await nSQL().createDatabase({
+      id: dbName,
+      mode: 'PERM',
+      tables: [
+        {
+          name: 'notes',
+          model: {
+            'id:uuid': { pk: true },
+            'title:string': { notNull: true },
+            'content:string': { notNull: true },
+            'createdAt:date': { default: () => new Date() },
+          },
+        },
+      ],
+      version: 1,
+    })
+  }
+  nSQL().useDatabase(dbName)
+
+  return handler(req, res)
+}
+const saveNote = async (req, res) => {
   const { title, content } = req.body
   const errors = {}
 
@@ -16,66 +40,73 @@ const saveNote = (req, res) => {
       errors,
     })
 
-  const now = new Date()
-  const note = { id: nanoid(), title, content, createdAt: now, updatedAt: now }
-  notes.set(note.id, note)
+  const [note] = await nSQL('notes').query('upsert', { title, content }).exec()
 
   res.status(201).json(note)
 }
-const listNotes = (_, res) => {
-  res.json(Array.from(notes.values()))
-}
-const updateNote = (req, res) => {
-  const { noteId } = req.query
-  const { title, content } = req.body
+const listNotes = async (_, res) => {
+  const notes = await nSQL('notes').query('select').exec()
 
-  if (!notes.has(noteId))
+  res.json(notes)
+}
+const updateNote = async (req, res) => {
+  const { noteId } = req.query
+  const [note] = await nSQL()
+    .query('select')
+    .where(['id', '=', noteId])
+    .limit(1)
+    .exec()
+
+  if (!note)
     return res.status(404).json({
       statusCode: 404,
       message: 'Not Found',
     })
 
-  const note = notes.get(noteId)
+  const { title = note.title, content = note.content } = req.body
+  const [noteUpdated] = await nSQL('notes')
+    .query('upsert', { title, content })
+    .where(['id', '=', noteId])
+    .limit(1)
+    .exec()
 
-  note.title = title || note.title
-  note.content = content || note.content
-  note.updatedAt = new Date()
-
-  res.json(note)
+  res.json(noteUpdated)
 }
-const removeNote = (req, res) => {
+const removeNote = async (req, res) => {
   const { noteId } = req.query
+  const [note] = await nSQL()
+    .query('select')
+    .where(['id', '=', noteId])
+    .limit(1)
+    .exec()
 
-  if (!notes.has(noteId))
+  if (!note)
     return res.status(404).json({
       statusCode: 404,
       message: 'Not Found',
     })
 
-  notes.delete(noteId)
+  await nSQL('notes').query('delete').where(['id', '=', noteId]).limit(1).exec()
 
   res.status(204).send(null)
 }
 
-export default (req, res) => {
+const handler = (req, res) => {
   switch (req.method) {
     case 'POST':
-      saveNote(req, res)
-      break
+      return saveNote(req, res)
     case 'GET':
-      listNotes(req, res)
-      break
+      return listNotes(req, res)
     case 'PUT':
-      updateNote(req, res)
-      break
+      return updateNote(req, res)
     case 'DELETE':
-      removeNote(req, res)
-      break
+      return removeNote(req, res)
     default:
-      res.status(404).json({
+      return res.status(404).json({
         statusCode: 404,
         message: 'Not Found',
       })
-      break
   }
 }
+
+export default connectMiddleware(handler)
