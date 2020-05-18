@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
 
 export const addNote = createAsyncThunk(
   'notes/addNote',
@@ -136,5 +136,13 @@ const notesSlice = createSlice({
     },
   },
 })
+
+export const selectNotes = createSelector(
+  state => ({
+    notes: state.notes.notes,
+    error: state.notes.error,
+  }),
+  state => state
+)
 
 export default notesSlice.reducer
