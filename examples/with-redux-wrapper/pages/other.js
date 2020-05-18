@@ -6,7 +6,7 @@ import { connect } from 'react-redux'
 import Page from '../components/Page'
 import { wrapper } from '../store/store'
 
-const Counter = props => {
+const Other = props => {
   useEffect(() => {
     const timer = props.startClock()
 
@@ -32,4 +32,4 @@ const mapDispatchToProps = dispatch => {
   }
 }
 
-export default wrapper.withRedux(connect(null, mapDispatchToProps)(Counter))
+export default connect(null, mapDispatchToProps)(Other)
