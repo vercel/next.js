@@ -77,7 +77,7 @@ function runTests(startServer = nextStart) {
     const originalCookies = res.headers.get('set-cookie').split(',')
     const cookies = originalCookies.map(cookie.parse)
 
-    expect(originalCookies.every(c => c.includes('; Secure;'))).toBe(true)
+    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
@@ -103,7 +103,7 @@ function runTests(startServer = nextStart) {
     const originalCookies = res.headers.get('set-cookie').split(',')
     const cookies = originalCookies.map(cookie.parse)
 
-    expect(originalCookies.every(c => c.includes('; Secure;'))).toBe(true)
+    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
@@ -214,10 +214,7 @@ describe('Prerender Preview Mode', () => {
       const res = await fetchViaHTTP(appPort, '/api/preview', { lets: 'goooo' })
       expect(res.status).toBe(200)
 
-      const cookies = res.headers
-        .get('set-cookie')
-        .split(',')
-        .map(cookie.parse)
+      const cookies = res.headers.get('set-cookie').split(',').map(cookie.parse)
 
       expect(cookies.length).toBe(2)
       previewCookieString =

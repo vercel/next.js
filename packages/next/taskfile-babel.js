@@ -58,9 +58,9 @@ const babelServerOpts = {
   ],
 }
 
-module.exports = function(task) {
+module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('babel', {}, function*(
+  task.plugin('babel', {}, function* (
     file,
     serverOrClient,
     { stripExtension } = {}

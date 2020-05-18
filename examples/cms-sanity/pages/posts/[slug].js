@@ -64,7 +64,7 @@ export async function getStaticPaths() {
   const allPosts = await getAllPostsWithSlug()
   return {
     paths:
-      allPosts?.map(post => ({
+      allPosts?.map((post) => ({
         params: {
           slug: post.slug,
         },

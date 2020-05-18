@@ -49,7 +49,7 @@ export default class DevServer extends Server {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
-    this.devReady = new Promise(resolve => {
+    this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
     })
     ;(this.renderOpts as any).ampSkipValidation =
@@ -62,14 +62,14 @@ export default class DevServer extends Server {
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
-      return AmpHtmlValidator.getInstance(validatorPath).then(validator => {
+      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(
           pathname,
           result.errors
-            .filter(e => e.severity === 'ERROR')
-            .filter(e => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter(e => e.severity !== 'ERROR')
+            .filter((e) => e.severity === 'ERROR')
+            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+          result.errors.filter((e) => e.severity !== 'ERROR')
         )
       })
     }
@@ -139,8 +139,8 @@ export default class DevServer extends Server {
             const { query: urlQuery } = parsedUrl
 
             Object.keys(urlQuery)
-              .filter(key => query[key] === undefined)
-              .forEach(key =>
+              .filter((key) => query[key] === undefined)
+              .forEach((key) =>
                 console.warn(
                   `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
@@ -204,13 +204,13 @@ export default class DevServer extends Server {
         try {
           this.dynamicRoutes = getSortedRoutes(routedPages)
             .filter(isDynamicRoute)
-            .map(page => ({
+            .map((page) => ({
               page,
               match: getRouteMatcher(getRouteRegex(page)),
             }))
 
           const firstOptionalCatchAllPage =
-            this.dynamicRoutes.find(f => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
+            this.dynamicRoutes.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
               ?.page ?? null
           if (
             this.nextConfig.experimental?.optionalCatchAll !== true &&

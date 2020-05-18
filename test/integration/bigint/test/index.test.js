@@ -29,7 +29,7 @@ const runTests = () => {
   it('should return the BigInt result text', async () => {
     const resText = await fetchViaHTTP(appPort, '/api/bigint', null, {
       method: 'GET',
-    }).then(res => res.ok && res.text())
+    }).then((res) => res.ok && res.text())
     expect(resText).toEqual('3')
   })
 }

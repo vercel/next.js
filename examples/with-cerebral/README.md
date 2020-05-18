@@ -23,11 +23,11 @@ function getUser() {
   this.isLoading = true
   ajax
     .get('/user')
-    .then(user => {
+    .then((user) => {
       this.data = user
       this.isLoading = false
     })
-    .catch(error => {
+    .catch((error) => {
       this.error = error
       this.isLoading = false
     })

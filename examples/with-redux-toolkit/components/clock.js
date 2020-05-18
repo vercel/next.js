@@ -2,7 +2,7 @@ import { useSelector } from 'react-redux'
 
 import { selectClock } from '../lib/slices/clockSlice'
 
-const formatTime = time => {
+const formatTime = (time) => {
   // cut off except hh:mm:ss
   return new Date(time).toJSON().slice(11, 19)
 }

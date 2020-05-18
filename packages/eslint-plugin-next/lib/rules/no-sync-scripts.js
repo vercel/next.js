@@ -1,4 +1,4 @@
-module.exports = function(context) {
+module.exports = function (context) {
   return {
     JSXOpeningElement(node) {
       if (node.name.name !== 'script') {
@@ -9,9 +9,9 @@ module.exports = function(context) {
       }
 
       if (
-        node.attributes.find(attr => attr.name.name === 'src') &&
+        node.attributes.find((attr) => attr.name.name === 'src') &&
         !node.attributes.find(
-          attr => attr.name.name === 'async' || attr.name.name === 'defer'
+          (attr) => attr.name.name === 'async' || attr.name.name === 'defer'
         )
       ) {
         context.report({
