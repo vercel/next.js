@@ -41,8 +41,8 @@ describe('TypeScript with error handling options', () => {
             try {
               const appPort = await findPort()
               app = await launchApp(appDir, appPort, {
-                onStdout: msg => (output += msg),
-                onStderr: msg => (output += msg),
+                onStdout: (msg) => (output += msg),
+                onStderr: (msg) => (output += msg),
               })
               await renderViaHTTP(appPort, '')
 

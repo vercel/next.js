@@ -1,5 +1,5 @@
 module.exports = {
-  webpack: configuration => {
+  webpack: (configuration) => {
     configuration.module.rules.push({
       test: /\.md$/,
       use: 'frontmatter-markdown-loader',

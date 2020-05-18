@@ -52,7 +52,7 @@ const showsError = async (
     await waitFor(2000)
     const warnLogs = await browser.eval('window.warnLogs')
     console.log(warnLogs)
-    expect(warnLogs.some(log => log.match(regex))).toBe(true)
+    expect(warnLogs.some((log) => log.match(regex))).toBe(true)
   } else {
     expect(await hasRedbox(browser)).toBe(true)
     const errorContent = await getRedboxHeader(browser)
@@ -181,7 +181,7 @@ describe('Invalid hrefs', () => {
       await waitFor(500)
       const errors = await browser.eval('window.caughtErrors')
       expect(
-        errors.find(err =>
+        errors.find((err) =>
           err.includes(
             'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/zeit/next.js/incompatible-href-as'
           )

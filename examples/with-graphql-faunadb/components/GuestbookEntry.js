@@ -12,7 +12,7 @@ import {
   guestbookEntryShareTwitterButtonLogo2,
 } from '../styles/guestbookentry'
 
-export default props => (
+export default (props) => (
   <>
     <div className={guestbookEntry.className}>
       <div className={guestbookEntryUserDetail.className}>

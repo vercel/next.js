@@ -9,7 +9,7 @@ export default ({ children }) => {
 
   useEffect(() => {
     // Listen authenticated user
-    const unsubscriber = firebase.auth().onAuthStateChanged(async user => {
+    const unsubscriber = firebase.auth().onAuthStateChanged(async (user) => {
       try {
         if (user) {
           // User is signed in.

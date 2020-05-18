@@ -31,7 +31,7 @@ export type OriginalStackFrame =
     }
 
 export function getOriginalStackFrames(frames: StackFrame[]) {
-  return Promise.all(frames.map(frame => getOriginalStackFrame(frame)))
+  return Promise.all(frames.map((frame) => getOriginalStackFrame(frame)))
 }
 
 export function getOriginalStackFrame(

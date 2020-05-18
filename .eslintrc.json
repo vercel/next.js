@@ -1,7 +1,7 @@
 {
   "root": true,
   "parser": "babel-eslint",
-  "plugins": ["react", "react-hooks"],
+  "plugins": ["react", "react-hooks", "jest"],
   "env": {
     "browser": true,
     "commonjs": true,
@@ -21,6 +21,15 @@
     }
   },
   "overrides": [
+    {
+      "files": ["test/**/*.test.js"],
+      "extends": ["plugin:jest/recommended"],
+      "rules": {
+        "jest/expect-expect": "off",
+        "jest/no-disabled-tests": "off",
+        "jest/no-try-expect": "off"
+      }
+    },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
       "files": ["**/*.ts", "**/*.tsx"],
