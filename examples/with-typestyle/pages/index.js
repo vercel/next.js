@@ -1,4 +1,3 @@
-import React from 'react'
 import { style } from 'typestyle'
 
 const className = style({ color: 'red' })
