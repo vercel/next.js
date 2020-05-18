@@ -9,7 +9,7 @@ const styles = css`
     left: 0;
     overflow: auto;
     z-index: 9000;
-
+    direction: ltr,
     display: flex;
     align-content: center;
     align-items: center;
