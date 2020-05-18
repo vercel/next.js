@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild, nextExport } from 'next-test-utils'
 
@@ -9,6 +10,7 @@ const outdir = join(appDir, 'out')
 
 describe('Export error for fallback: true', () => {
   it('should build successfully', async () => {
+    await fs.remove(join(appDir, '.next'))
     const { code } = await nextBuild(appDir)
     if (code !== 0) throw new Error(`build failed with status ${code}`)
   })

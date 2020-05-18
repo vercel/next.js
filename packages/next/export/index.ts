@@ -140,24 +140,6 @@ export default async function(
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
 
-  if (prerenderManifest) {
-    const fallbackTruePages = new Set()
-
-    for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
-      if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
-        fallbackTruePages.add(key)
-      }
-    }
-
-    if (fallbackTruePages.size) {
-      throw new Error(
-        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
-          '\n'
-        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
-      )
-    }
-  }
-
   const distPagesDir = join(
     distDir,
     isLikeServerless
@@ -166,6 +148,7 @@ export default async function(
     'pages'
   )
 
+  const excludedPrerenderRoutes = new Set<string>()
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
   let hasApiRoutes = false
@@ -189,6 +172,7 @@ export default async function(
     // could run `getStaticProps`. If users make their page work lazily, they
     // can manually add it to the `exportPathMap`.
     if (prerenderManifest?.dynamicRoutes[page]) {
+      excludedPrerenderRoutes.add(page)
       continue
     }
 
@@ -294,6 +278,29 @@ export default async function(
 
   if (filteredPaths.length !== exportPaths.length) {
     hasApiRoutes = true
+  }
+
+  if (prerenderManifest) {
+    const fallbackTruePages = new Set()
+
+    for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
+      // only error if page is included in path map
+      if (!exportPathMap[key] && !excludedPrerenderRoutes.has(key)) {
+        continue
+      }
+
+      if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
+        fallbackTruePages.add(key)
+      }
+    }
+
+    if (fallbackTruePages.size) {
+      throw new Error(
+        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
+          '\n'
+        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+      )
+    }
   }
 
   // Warn if the user defines a path for an API page
