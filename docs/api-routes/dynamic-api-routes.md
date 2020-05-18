@@ -80,7 +80,7 @@ export default (req, res) => {
 
 Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
-### Optional catch all routes
+### Optional catch all API routes
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
