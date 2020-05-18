@@ -62,7 +62,7 @@ describe('AMP Usage', () => {
         expect(html).toMatch(/Hello World/)
 
         const $ = cheerio.load(html)
-        expect($('.abc').length === 1)
+        expect($('.abc')).toHaveLength(1)
       })
 
       it('should render the page without leaving render target', async () => {
