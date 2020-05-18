@@ -827,7 +827,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         await moveExportedPage(page, file, isSsg, 'html')
       }
 
-      if (hasAmp) {
+      if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
       }
 
@@ -851,6 +851,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')
             await moveExportedPage(route, route, true, 'json')
+
+            if (hasAmp) {
+              await moveExportedPage(
+                `${route}.amp`,
+                `${route}.amp`,
+                true,
+                'html'
+              )
+            }
+
             finalPrerenderRoutes[route] = {
               initialRevalidateSeconds:
                 exportConfig.initialPageRevalidationMap[route],
