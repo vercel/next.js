@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { useDispatch } from 'react-redux'
 
 import { editNote } from '../lib/slices/notesSlice'
