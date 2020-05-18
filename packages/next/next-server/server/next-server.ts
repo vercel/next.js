@@ -482,7 +482,11 @@ export default class Server {
           !parsedDestination.pathname ||
           !parsedDestination.pathname.startsWith('/')
         ) {
-          return compilePathToRegex(value, { validate: false })(params)
+          // the value needs to start with a forward-slash to be compiled
+          // correctly
+          return compilePathToRegex(`/${value}`, { validate: false })(
+            params
+          ).substr(1)
         }
         return formatUrl(parsedDestination)
       }
@@ -754,13 +758,12 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
-      isDynamicRoute
-    )
-    return getSortedRoutes(dynamicRoutedPages).map(page => ({
-      page,
-      match: getRouteMatcher(getRouteRegex(page)),
-    }))
+    return getSortedRoutes(Object.keys(this.pagesManifest!))
+      .filter(isDynamicRoute)
+      .map(page => ({
+        page,
+        match: getRouteMatcher(getRouteRegex(page)),
+      }))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse) {

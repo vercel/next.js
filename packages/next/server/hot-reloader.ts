@@ -9,7 +9,7 @@ import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { NEXT_PROJECT_ROOT_DIST_CLIENT, API_ROUTE } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -46,6 +46,12 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
+  const isApiRoute = req.url!.match(API_ROUTE)
+  // API routes handle their own CORS headers
+  if (isApiRoute) {
+    return { preflight: false }
+  }
+
   if (!req.headers.origin) {
     return { preflight: false }
   }
@@ -238,7 +244,7 @@ export default class HotReloader {
     return { finished }
   }
 
-  async clean() {
+  async clean(): Promise<void> {
     return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
@@ -293,7 +299,7 @@ export default class HotReloader {
     ])
   }
 
-  async start() {
+  async start(): Promise<void> {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
@@ -306,7 +312,9 @@ export default class HotReloader {
     this.stats = ((await this.waitUntilValid()) as any).stats[0]
   }
 
-  async stop(webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware) {
+  async stop(
+    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
+  ): Promise<void> {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
@@ -318,7 +326,7 @@ export default class HotReloader {
     }
   }
 
-  async reload() {
+  async reload(): Promise<void> {
     this.stats = null
 
     await this.clean()
@@ -343,7 +351,7 @@ export default class HotReloader {
     webpackDevMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
     webpackHotMiddleware: NextHandleFunction & WebpackHotMiddleware.EventStream
     onDemandEntries: any
-  }) {
+  }): void {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
@@ -504,7 +512,7 @@ export default class HotReloader {
 
   waitUntilValid(
     webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
-  ) {
+  ): Promise<webpack.Stats> {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     return new Promise(resolve => {
       middleware!.waitUntilValid(resolve)
@@ -539,7 +547,7 @@ export default class HotReloader {
     return []
   }
 
-  send = (action: string, ...args: any[]) => {
+  send = (action: string, ...args: any[]): void => {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 

@@ -3,6 +3,7 @@ class UrlNode {
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
   restSlugName: string | null = null
+  optionalRestSlugName: string | null = null
 
   insert(urlPath: string): void {
     this._insert(urlPath.split('/').filter(Boolean), [], false)
@@ -20,6 +21,9 @@ class UrlNode {
     if (this.restSlugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[...]'), 1)
     }
+    if (this.optionalRestSlugName !== null) {
+      childrenPaths.splice(childrenPaths.indexOf('[[...]]'), 1)
+    }
 
     const routes = childrenPaths
       .map(c => this.children.get(c)!._smoosh(`${prefix}${c}/`))
@@ -32,7 +36,14 @@ class UrlNode {
     }
 
     if (!this.placeholder) {
-      routes.unshift(prefix === '/' ? '/' : prefix.slice(0, -1))
+      const r = prefix === '/' ? '/' : prefix.slice(0, -1)
+      if (this.optionalRestSlugName != null) {
+        throw new Error(
+          `You cannot define a route with the same specificity as a optional catch-all route ("${r}" and "${r}[[...${this.optionalRestSlugName}]]").`
+        )
+      }
+
+      routes.unshift(r)
     }
 
     if (this.restSlugName !== null) {
@@ -40,6 +51,14 @@ class UrlNode {
         ...this.children
           .get('[...]')!
           ._smoosh(`${prefix}[...${this.restSlugName}]/`)
+      )
+    }
+
+    if (this.optionalRestSlugName !== null) {
+      routes.push(
+        ...this.children
+          .get('[[...]]')!
+          ._smoosh(`${prefix}[[...${this.optionalRestSlugName}]]/`)
       )
     }
 
@@ -67,9 +86,24 @@ class UrlNode {
     if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
       // Strip `[` and `]`, leaving only `something`
       let segmentName = nextSegment.slice(1, -1)
+
+      let isOptional = false
+      if (segmentName.startsWith('[') && segmentName.endsWith(']')) {
+        // Strip optional `[` and `]`, leaving only `something`
+        segmentName = segmentName.slice(1, -1)
+        isOptional = true
+      }
+
       if (segmentName.startsWith('...')) {
+        // Strip `...`, leaving only `something`
         segmentName = segmentName.substring(3)
         isCatchAll = true
+      }
+
+      if (segmentName.startsWith('[') || segmentName.endsWith(']')) {
+        throw new Error(
+          `Segment names may not start or end with extra brackets ('${segmentName}').`
+        )
       }
 
       if (segmentName.startsWith('.')) {
@@ -103,12 +137,37 @@ class UrlNode {
       }
 
       if (isCatchAll) {
-        handleSlug(this.restSlugName, segmentName)
-        // slugName is kept as it can only be one particular slugName
-        this.restSlugName = segmentName
-        // nextSegment is overwritten to [] so that it can later be sorted specifically
-        nextSegment = '[...]'
+        if (isOptional) {
+          if (this.restSlugName != null) {
+            throw new Error(
+              `You cannot use both an required and optional catch-all route at the same level ("[...${this.restSlugName}]" and "${urlPaths[0]}" ).`
+            )
+          }
+
+          handleSlug(this.optionalRestSlugName, segmentName)
+          // slugName is kept as it can only be one particular slugName
+          this.optionalRestSlugName = segmentName
+          // nextSegment is overwritten to [[...]] so that it can later be sorted specifically
+          nextSegment = '[[...]]'
+        } else {
+          if (this.optionalRestSlugName != null) {
+            throw new Error(
+              `You cannot use both an optional and required catch-all route at the same level ("[[...${this.optionalRestSlugName}]]" and "${urlPaths[0]}").`
+            )
+          }
+
+          handleSlug(this.restSlugName, segmentName)
+          // slugName is kept as it can only be one particular slugName
+          this.restSlugName = segmentName
+          // nextSegment is overwritten to [...] so that it can later be sorted specifically
+          nextSegment = '[...]'
+        }
       } else {
+        if (isOptional) {
+          throw new Error(
+            `Optional route parameters are not yet supported ("${urlPaths[0]}").`
+          )
+        }
         handleSlug(this.slugName, segmentName)
         // slugName is kept as it can only be one particular slugName
         this.slugName = segmentName

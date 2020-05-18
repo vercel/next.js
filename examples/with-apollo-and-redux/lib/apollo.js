@@ -1,10 +1,8 @@
-import React from 'react'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient } from 'apollo-client'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
-import fetch from 'isomorphic-unfetch'
 
 let globalApolloClient = null
 
@@ -130,7 +128,6 @@ function createApolloClient(initialState = {}) {
     link: new HttpLink({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
-      fetch,
     }),
     cache: new InMemoryCache().restore(initialState),
   })

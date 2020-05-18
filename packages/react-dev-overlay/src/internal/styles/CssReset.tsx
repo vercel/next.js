@@ -8,6 +8,9 @@ export function CssReset() {
         __html: css`
           :host {
             all: initial;
+
+            /* the direction property is not reset by 'all' */
+            direction: ltr;
           }
 
           /*!

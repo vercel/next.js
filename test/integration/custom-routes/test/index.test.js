@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
@@ -21,7 +21,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -176,6 +176,22 @@ const runTests = (isDev = false) => {
       a: 'b',
       path: ['hello', 'world'],
     })
+  })
+
+  it('should have correct query for catchall rewrite', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall-query/hello/world?a=b')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      a: 'b',
+      another: 'hello/world',
+      path: ['hello', 'world'],
+    })
+  })
+
+  it('should have correct header for catchall rewrite', async () => {
+    const res = await fetchViaHTTP(appPort, '/catchall-header/hello/world?a=b')
+    const headerValue = res.headers.get('x-value')
+    expect(headerValue).toBe('hello/world')
   })
 
   it('should allow params in query for redirect', async () => {
@@ -716,6 +732,18 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))$'),
             source: '/named-pattern/:path(.*)',
           },
+          {
+            headers: [
+              {
+                key: 'x-value',
+                value: ':path*',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^\\/catchall-header(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-header/:path*',
+          },
         ],
         rewrites: [
           {
@@ -839,6 +867,13 @@ const runTests = (isDev = false) => {
               '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/catchall-rewrite/:path*',
+          },
+          {
+            destination: '/with-params?another=:path*',
+            regex: normalizeRegEx(
+              '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-query/:path*',
           },
         ],
         dynamicRoutes: [
