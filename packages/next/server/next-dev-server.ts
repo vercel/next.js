@@ -224,7 +224,7 @@ export default class DevServer extends Server {
     })
   }
 
-  stopWatcher() {
+  async stopWatcher(): Promise<void> {
     if (!this.webpackWatcher) {
       return
     }
