@@ -1,7 +1,7 @@
 import App from '../components/app'
 import Header from '../components/header'
 
-export default () => (
+const About = () => (
   <App>
     <Header />
     <article>
@@ -28,3 +28,5 @@ export default () => (
     </article>
   </App>
 )
+
+export default About
