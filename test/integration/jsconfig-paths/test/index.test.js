@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -11,7 +11,7 @@ import {
   check,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let appPort
@@ -49,7 +49,7 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello from a/)
     })
 
-    it('should resolve the first item in the array first', async () => {
+    it('should resolve the second item as fallback', async () => {
       const $ = await get$('/resolve-fallback')
       expect($('body').text()).toMatch(/Hello from only b/)
     })
@@ -59,7 +59,7 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello/)
     })
 
-    it('should resolve a single matching alias', async () => {
+    it('should resolve a wildcard alias', async () => {
       const $ = await get$('/wildcard-alias')
       expect($('body').text()).toMatch(/world/)
     })

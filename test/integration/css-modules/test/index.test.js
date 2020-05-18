@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
@@ -15,7 +15,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const fixturesDir = join(__dirname, '../../css-fixtures')
 
@@ -257,7 +257,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 })
 
-describe('Invalid CSS Module Usage in node_modules', () => {
+describe('Invalid Global CSS Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-global-module')
 
   beforeAll(async () => {

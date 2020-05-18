@@ -1,12 +1,12 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { readFileSync, readdirSync } from 'fs'
 import rimraf from 'rimraf'
 import { promisify } from 'util'
 import { nextServer, runNextCommand, startApp, stopApp } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const rimrafPromise = promisify(rimraf)
 let appDir = join(__dirname, '..')

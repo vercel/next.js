@@ -19,6 +19,12 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
+const symbolNodeError = Symbol('NextjsNodeError')
+
+export function isNodeError(error: Error): boolean {
+  return symbolNodeError in error
+}
+
 export function getNodeError(error: Error): Error {
   let n: Error
   try {
@@ -50,5 +56,10 @@ export function getNodeError(error: Error): Error {
     n.stack = error.stack
   }
 
+  Object.defineProperty(n, symbolNodeError, {
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  })
   return n
 }

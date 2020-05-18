@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import {
   fetchViaHTTP,
   findPort,
@@ -16,7 +16,7 @@ import { join } from 'path'
 import renderingSuite from './rendering'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {
@@ -949,7 +949,7 @@ describe('Client Navigation', () => {
   })
 
   describe('runtime errors', () => {
-    it('should show react-error-overlay when a client side error is thrown inside a component', async () => {
+    it('should show redbox when a client side error is thrown inside a component', async () => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/error-inside-browser-page')
@@ -964,7 +964,7 @@ describe('Client Navigation', () => {
       }
     })
 
-    it('should show react-error-overlay when a client side error is thrown outside a component', async () => {
+    it('should show redbox when a client side error is thrown outside a component', async () => {
       let browser
       try {
         browser = await webdriver(
