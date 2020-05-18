@@ -188,7 +188,7 @@ const runTests = (isDev = false) => {
     })
   })
 
-  it('should have correct query for catchall rewrite', async () => {
+  it('should have correct header for catchall rewrite', async () => {
     const res = await fetchViaHTTP(appPort, '/catchall-header/hello/world?a=b')
     const headerValue = res.headers.get('x-value')
     expect(headerValue).toBe('hello/world')
