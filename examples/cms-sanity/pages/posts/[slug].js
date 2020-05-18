@@ -54,8 +54,8 @@ export async function getStaticProps({ params, preview = false }) {
   return {
     props: {
       preview,
-      post: data.post || null,
-      morePosts: data.morePosts || null,
+      post: data?.post || null,
+      morePosts: data?.morePosts || null,
     },
   }
 }

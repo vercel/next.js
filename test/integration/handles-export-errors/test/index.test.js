@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 const appDir = path.join(__dirname, '..')
 
 describe('Handles Errors During Export', () => {

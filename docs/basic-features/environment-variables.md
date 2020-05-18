@@ -62,7 +62,7 @@ Next.js allows you to expose variables using an environment variables file (`.en
 The supported environments are `development`, `production` and `test`. The environment is selected in the following way:
 
 - [`next dev`](/docs/api-reference/cli#development) uses `development`
-- [`next build`](/docs/api-reference/cli#build) and [`next-start`](/docs/api-reference/cli#production) use `production`
+- [`next build`](/docs/api-reference/cli#build) and [`next start`](/docs/api-reference/cli#production) use `production`
 
 If the same environment variable is defined multiple times, the priority of which variable to use is decided in the following order:
 

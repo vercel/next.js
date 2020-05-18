@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
@@ -21,7 +21,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -163,6 +163,18 @@ const runTests = (isDev = false) => {
       a: 'b',
       section: 'hello',
       name: 'world',
+    })
+  })
+
+  it('should have correct params for catchall rewrite', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-rewrite/hello/world?a=b'
+    )
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      a: 'b',
+      path: ['hello', 'world'],
     })
   })
 
@@ -820,6 +832,13 @@ const runTests = (isDev = false) => {
               '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))$'
             ),
             source: '/unnamed-params/nested/(.*)/:test/(.*)',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx(
+              '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-rewrite/:path*',
           },
         ],
         dynamicRoutes: [
