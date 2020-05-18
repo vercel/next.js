@@ -172,12 +172,12 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[...one]', '/[[...one]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an required and optional catch-all route at the same level."`
+      `"You cannot use both an required and optional catch-all route at the same level (\\"[...one]\\" and \\"[[...one]]\\" )."`
     )
     expect(() =>
       getSortedRoutes(['/[[...one]]', '/[...one]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an optional and required catch-all route at the same level."`
+      `"You cannot use both an optional and required catch-all route at the same level (\\"[[...one]]\\" and \\"[...one]\\")."`
     )
   })
 
