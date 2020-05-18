@@ -1,4 +1,4 @@
-import React from 'react'
+import { Component } from 'react'
 import Link from 'next/link'
 import { of, Subject } from 'rxjs'
 import { StateObservable } from 'redux-observable'
@@ -7,7 +7,7 @@ import CharacterInfo from '../components/CharacterInfo'
 import { rootEpic } from '../redux/epics'
 import * as actions from '../redux/actions'
 
-class Counter extends React.Component {
+class Counter extends Component {
   static async getInitialProps({ store, isServer }) {
     const state$ = new StateObservable(new Subject(), store.getState())
     const resultAction = await rootEpic(
