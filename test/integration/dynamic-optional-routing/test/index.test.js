@@ -1,18 +1,18 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import cheerio from 'cheerio'
 import fs from 'fs-extra'
 import {
-  renderViaHTTP,
   fetchViaHTTP,
   findPort,
-  launchApp,
   killApp,
+  launchApp,
   nextBuild,
   nextStart,
+  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -109,7 +109,7 @@ function runInvalidPagesTests(buildFn) {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
       await expect(stderr).toMatch(
-        `An optional route at "/" can't coexist with an index route at its root`
+        'You cannot define a route with the same specificity as a optional catch-all route'
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -122,7 +122,7 @@ function runInvalidPagesTests(buildFn) {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
       await expect(stderr).toMatch(
-        `An optional route at "/nested/" can't coexist with an index route at its root`
+        'You cannot define a route with the same specificity as a optional catch-all route'
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -134,9 +134,7 @@ function runInvalidPagesTests(buildFn) {
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'You cannot use different slug names for the same dynamic path'
-      )
+      await expect(stderr).toMatch(/You cannot use both .+ at the same level/)
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -148,7 +146,7 @@ function runInvalidPagesTests(buildFn) {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       const { stderr } = await buildFn(appDir)
       await expect(stderr).toMatch(
-        'Optional parameters are only supported for catch all routes ([[param]])'
+        'Optional route parameters are not yet supported'
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -182,16 +180,7 @@ describe('Dynamic Optional Routing', () => {
       const curConfig = await fs.readFile(nextConfig, 'utf8')
 
       if (curConfig.includes('target')) {
-        await fs.writeFile(
-          nextConfig,
-          `
-          module.exports = {
-            experimental: {
-              modern: true
-            }
-          }
-        `
-        )
+        await fs.writeFile(nextConfig, `module.exports = {}`)
       }
       await nextBuild(appDir)
 
@@ -213,14 +202,7 @@ describe('Dynamic Optional Routing', () => {
       origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          experimental: {
-            modern: true
-          }
-        }
-      `
+        `module.exports = { target: 'serverless' }`
       )
 
       await nextBuild(appDir)
