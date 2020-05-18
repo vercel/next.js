@@ -38,6 +38,27 @@ export const loadNotes = createAsyncThunk(
   }
 )
 
+export const editNote = createAsyncThunk(
+  'notes/editNote',
+  async (updates, thunkAPI) => {
+    const { id, title, content } = updates
+
+    try {
+      const response = await fetch(`/api/notes?noteId=${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title, content }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      return response.json()
+    } catch (error) {
+      return thunkAPI.rejectWithValue({ error: error.message })
+    }
+  }
+)
+
 const notesSlice = createSlice({
   name: 'notes',
   initialState: {
@@ -66,6 +87,23 @@ const notesSlice = createSlice({
     [loadNotes.rejected]: (state, action) => {
       state.loading = 'error'
       state.error = action.payload.error
+    },
+    [editNote.pending]: (state, action) => {
+      const note = state.notes.find(note => note.id === action.meta.arg.id)
+      state.tempNote = Object.assign({}, note)
+      note.title = action.meta.arg.title || note.title
+      note.content = action.meta.arg.content || note.content
+    },
+    [editNote.fulfilled]: (state, action) => {
+      const note = state.notes.find(note => note.id === action.payload.id)
+      delete state.tempNote
+      Object.assign(note, action.payload)
+    },
+    [editNote.rejected]: (state, action) => {
+      const note = state.notes.find(note => note.id === action.meta.arg.id)
+      state.error = action.payload.error || action.error.message
+      Object.assign(note, state.tempNote)
+      delete state.tempNote
     },
   },
 })
