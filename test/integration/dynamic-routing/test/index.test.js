@@ -96,19 +96,19 @@ function runTests(dev) {
     expect(await browser.elementByCss('h3').text()).toBe('My blog')
   })
 
-  // it('should navigate optional dynamic page', async () => {
-  //   let browser
-  //   try {
-  //     browser = await webdriver(appPort, '/')
-  //     await browser.elementByCss('#view-blog-post-1-comments').click()
-  //     await browser.waitForElementByCss('p')
+  it.skip('should navigate optional dynamic page', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#view-blog-post-1-comments').click()
+      await browser.waitForElementByCss('p')
 
-  //     const text = await browser.elementByCss('p').text()
-  //     expect(text).toMatch(/blog post.*543.*comment.*\(all\)/i)
-  //   } finally {
-  //     if (browser) await browser.close()
-  //   }
-  // })
+      const text = await browser.elementByCss('p').text()
+      expect(text).toMatch(/blog post.*543.*comment.*\(all\)/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 
   it('should navigate optional dynamic page with value', async () => {
     let browser

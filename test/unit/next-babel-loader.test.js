@@ -86,7 +86,7 @@ describe('next-babel-loader', () => {
       expect(code).toMatchInlineSnapshot(`"\\"undefined\\";"`)
     })
 
-    it('should replace typeof window expression nested', async () => {
+    it('should replace typeof window in === expression nested', async () => {
       const code = await babel(
         `function a(){console.log(typeof window === 'undefined')}`
       )
@@ -98,29 +98,29 @@ describe('next-babel-loader', () => {
       expect(code).toMatchInlineSnapshot(`"false;"`)
     })
 
-    it('should replace typeof window expression top level', async () => {
+    it('should replace typeof window in === expression top level', async () => {
       const code = await babel(`typeof window === 'object';`)
       expect(code).toMatchInlineSnapshot(`"true;"`)
     })
 
-    it('should replace typeof window expression top level', async () => {
+    it('should replace typeof window in !== expression top level', async () => {
       const code = await babel(`typeof window !== 'undefined';`)
       expect(code).toMatchInlineSnapshot(`"true;"`)
     })
 
-    it('should replace typeof window expression top level', async () => {
+    it('should replace typeof window expression !== object top level', async () => {
       const code = await babel(`typeof window !== 'object';`)
       expect(code).toMatchInlineSnapshot(`"false;"`)
     })
 
-    it('should replace typeof window expression top level', async () => {
+    it('should replace typeof window expression top level serverside', async () => {
       const code = await babel(`typeof window !== 'undefined';`, {
         isServer: true,
       })
       expect(code).toMatchInlineSnapshot(`"false;"`)
     })
 
-    it('should replace typeof window expression top level', async () => {
+    it('should replace typeof window expression !== object top level serverside', async () => {
       const code = await babel(`typeof window !== 'object';`, {
         isServer: true,
       })
@@ -193,12 +193,12 @@ describe('next-babel-loader', () => {
       expect(code).toMatchInlineSnapshot(`"if(true){}"`)
     })
 
-    it('should replace NODE_ENV in statement (prod)', async () => {
+    it('should replace NODE_ENV in === statement (prod)', async () => {
       const code = await babel(`if (process.env.NODE_ENV === 'production') {}`)
       expect(code).toMatchInlineSnapshot(`"if(true){}"`)
     })
 
-    it('should replace NODE_ENV in statement (prod)', async () => {
+    it('should replace NODE_ENV in !== statement (prod)', async () => {
       const code = await babel(`if (process.env.NODE_ENV !== 'production') {}`)
       expect(code).toMatchInlineSnapshot(`"if(false){}"`)
     })

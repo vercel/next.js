@@ -61,7 +61,7 @@ const runTests = mode => {
           )
           .then(() => true)
           .catch(() => false)
-      )
+      ).toBe(true)
     })
   }
 }

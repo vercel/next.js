@@ -71,7 +71,7 @@ function runTests(startServer = nextStart) {
     const originalCookies = res.headers.get('set-cookie').split(',')
     const cookies = originalCookies.map(cookie.parse)
 
-    expect(originalCookies.every(c => c.includes('; Secure;')))
+    expect(originalCookies.every(c => c.includes('; Secure;'))).toBe(true)
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })

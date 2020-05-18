@@ -84,13 +84,13 @@ describe('getSortedRoutes', () => {
     ).toThrowError(/the same slug name/)
   })
 
-  it('catches reused param names', () => {
+  it('catches reused param names with catch-all', () => {
     expect(() =>
       getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])
     ).toThrowError(/the same slug name/)
   })
 
-  it('catches middle catch-all', () => {
+  it('catches middle catch-all with another catch-all', () => {
     expect(() =>
       getSortedRoutes(['/blog/[...id]/[...id2]'])
     ).toThrowErrorMatchingInlineSnapshot(
@@ -98,7 +98,7 @@ describe('getSortedRoutes', () => {
     )
   })
 
-  it('catches middle catch-all', () => {
+  it('catches middle catch-all with fixed route', () => {
     expect(() =>
       getSortedRoutes(['/blog/[...id]/abc'])
     ).toThrowErrorMatchingInlineSnapshot(

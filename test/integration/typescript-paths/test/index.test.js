@@ -33,7 +33,7 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello from a/)
     })
 
-    it('should resolve the first item in the array first', async () => {
+    it('should resolve the second item in as a fallback', async () => {
       const $ = await get$('/resolve-fallback')
       expect($('body').text()).toMatch(/Hello from only b/)
     })

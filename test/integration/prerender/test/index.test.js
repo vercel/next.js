@@ -508,13 +508,13 @@ const runTests = (dev = false, looseMode = false) => {
 
   if (dev) {
     // TODO: re-enable when this is supported in dev
-    // it('should show error when rewriting to dynamic SSG page', async () => {
-    //   const item = Math.round(Math.random() * 100)
-    //   const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
-    //   expect(html).toContain(
-    //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
-    //   )
-    // })
+    it.skip('should show error when rewriting to dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+      expect(html).toContain(
+        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+      )
+    })
 
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
@@ -749,7 +749,7 @@ const runTests = (dev = false, looseMode = false) => {
         await check(() => getBrowserBodyText(browser), /hello /)
       })
 
-      it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
         const browser = await webdriver(appPort, '/')
         await browser.elementByCss('#non-json').click()
         await check(() => getBrowserBodyText(browser), /hello /)

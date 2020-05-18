@@ -256,7 +256,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 })
 
-describe('Invalid CSS Module Usage in node_modules', () => {
+describe('Invalid CSS Global Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-global-module')
 
   beforeAll(async () => {
