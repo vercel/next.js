@@ -22,14 +22,16 @@ export type Header = {
 
 const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
-export function getRedirectStatus(route: Redirect) {
+export function getRedirectStatus(route: Redirect): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
   )
 }
 
-function checkRedirect(route: Redirect) {
+function checkRedirect(
+  route: Redirect
+): { invalidParts: string[]; hadInvalidStatus: boolean } {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
 
@@ -47,7 +49,7 @@ function checkRedirect(route: Redirect) {
   }
 }
 
-function checkHeader(route: Header) {
+function checkHeader(route: Header): string[] {
   const invalidParts: string[] = []
 
   if (!Array.isArray(route.headers)) {
