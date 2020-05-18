@@ -3,17 +3,17 @@ class UrlNode {
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
   restSlugName: string | null = null
-  isOptional: boolean = false
+  optionalRestSlugName: string | null = null
 
   insert(urlPath: string): void {
     this._insert(urlPath.split('/').filter(Boolean), [], false)
   }
 
-  smoosh(normalizedPages: string[]): string[] {
-    return this._smoosh(normalizedPages)
+  smoosh(): string[] {
+    return this._smoosh()
   }
 
-  private _smoosh(normalizedPages: string[], prefix: string = '/'): string[] {
+  private _smoosh(prefix: string = '/'): string[] {
     const childrenPaths = [...this.children.keys()].sort()
     if (this.slugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
@@ -21,44 +21,44 @@ class UrlNode {
     if (this.restSlugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[...]'), 1)
     }
+    if (this.optionalRestSlugName !== null) {
+      childrenPaths.splice(childrenPaths.indexOf('[[...]]'), 1)
+    }
 
     const routes = childrenPaths
-      .map(c =>
-        this.children.get(c)!._smoosh(normalizedPages, `${prefix}${c}/`)
-      )
+      .map(c => this.children.get(c)!._smoosh(`${prefix}${c}/`))
       .reduce((prev, curr) => [...prev, ...curr], [])
 
     if (this.slugName !== null) {
       routes.push(
-        ...this.children
-          .get('[]')!
-          ._smoosh(normalizedPages, `${prefix}[${this.slugName}]/`)
+        ...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`)
       )
     }
 
     if (!this.placeholder) {
-      routes.unshift(prefix === '/' ? '/' : prefix.slice(0, -1))
+      const r = prefix === '/' ? '/' : prefix.slice(0, -1)
+      if (this.optionalRestSlugName != null) {
+        throw new Error(
+          `You cannot define a route with the same specificity as a optional catch-all route ("${r}" and "${r}[[...${this.optionalRestSlugName}]]").`
+        )
+      }
+
+      routes.unshift(r)
     }
 
     if (this.restSlugName !== null) {
-      if (
-        this.isOptional &&
-        normalizedPages.includes(prefix === '/' ? '/' : prefix.slice(0, -1))
-      ) {
-        throw new Error(
-          `An optional route at "${prefix}" can't coexist with an index route at its root`
-        )
-      }
       routes.push(
         ...this.children
           .get('[...]')!
-          ._smoosh(
-            normalizedPages,
-            prefix +
-              (this.isOptional
-                ? `[[...${this.restSlugName}]]/`
-                : `[...${this.restSlugName}]/`)
-          )
+          ._smoosh(`${prefix}[...${this.restSlugName}]/`)
+      )
+    }
+
+    if (this.optionalRestSlugName !== null) {
+      routes.push(
+        ...this.children
+          .get('[[...]]')!
+          ._smoosh(`${prefix}[[...${this.optionalRestSlugName}]]/`)
       )
     }
 
@@ -87,19 +87,22 @@ class UrlNode {
       // Strip `[` and `]`, leaving only `something`
       let segmentName = nextSegment.slice(1, -1)
 
-      const isOptional = /^\[.*]$/.test(segmentName)
-      if (isOptional) {
+      let isOptional = false
+      if (segmentName.startsWith('[') && segmentName.endsWith(']')) {
+        // Strip optional `[` and `]`, leaving only `something`
         segmentName = segmentName.slice(1, -1)
+        isOptional = true
       }
 
       if (segmentName.startsWith('...')) {
+        // Strip `...`, leaving only `something`
         segmentName = segmentName.substring(3)
         isCatchAll = true
       }
 
-      if (isOptional && !isCatchAll) {
+      if (segmentName.startsWith('[') || segmentName.endsWith(']')) {
         throw new Error(
-          `Optional parameters are only supported for catch all routes ([[${segmentName}]]).`
+          `Segment names may not start or end with extra brackets ('${segmentName}').`
         )
       }
 
@@ -134,13 +137,35 @@ class UrlNode {
       }
 
       if (isCatchAll) {
-        handleSlug(this.restSlugName, segmentName)
-        // slugName is kept as it can only be one particular slugName
-        this.restSlugName = segmentName
-        this.isOptional = isOptional
-        // nextSegment is overwritten to [] so that it can later be sorted specifically
-        nextSegment = '[...]'
+        if (isOptional) {
+          if (this.restSlugName != null) {
+            throw new Error(
+              'You cannot use both an required and optional catch-all route at the same level.'
+            )
+          }
+
+          handleSlug(this.optionalRestSlugName, segmentName)
+          // slugName is kept as it can only be one particular slugName
+          this.optionalRestSlugName = segmentName
+          // nextSegment is overwritten to [[...]] so that it can later be sorted specifically
+          nextSegment = '[[...]]'
+        } else {
+          if (this.optionalRestSlugName != null) {
+            throw new Error(
+              'You cannot use both an optional and required catch-all route at the same level.'
+            )
+          }
+
+          handleSlug(this.restSlugName, segmentName)
+          // slugName is kept as it can only be one particular slugName
+          this.restSlugName = segmentName
+          // nextSegment is overwritten to [...] so that it can later be sorted specifically
+          nextSegment = '[...]'
+        }
       } else {
+        if (isOptional) {
+          throw new Error(`Optional route parameters are not yet supported.`)
+        }
         handleSlug(this.slugName, segmentName)
         // slugName is kept as it can only be one particular slugName
         this.slugName = segmentName
@@ -177,5 +202,5 @@ export function getSortedRoutes(normalizedPages: string[]): string[] {
   // Here the `root` gets injected multiple paths, and insert will break them up into sublevels
   normalizedPages.forEach(pagePath => root.insert(pagePath))
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
-  return root.smoosh(normalizedPages)
+  return root.smoosh()
 }
