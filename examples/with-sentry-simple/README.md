@@ -54,7 +54,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 ### Error tracking
 
 1. Copy your Sentry DSN. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN (Public)**.
-2. Put the DSN inside the `SENTRY_DSN` environment variable.
+2. Put the DSN inside the `SENTRY_DSN` environment variable inside a new environment file called `.env.local`
 
 > **Note:** Error tracking is disabled in development mode using the `NODE_ENV` environment variable. To change this behaviour, remove the `enabled` property from the `Sentry.init()` call inside your `_app.js` file.
 
