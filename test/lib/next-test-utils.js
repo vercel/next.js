@@ -365,23 +365,6 @@ export async function check(contentFn, regex, hardError = true) {
   return false
 }
 
-// Runs the provided expectations periodically until they pass or time out
-export async function checkExpectations(runExpectations) {
-  const interval = 250
-  const timeout = 30000
-  const startTime = Date.now()
-  while (true) {
-    try {
-      return await runExpectations()
-    } catch (err) {
-      if (Date.now() - startTime > timeout) {
-        throw err
-      }
-    }
-    await waitFor(interval)
-  }
-}
-
 export class File {
   constructor(path) {
     this.path = path
