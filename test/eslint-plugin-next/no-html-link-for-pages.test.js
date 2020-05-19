@@ -70,15 +70,15 @@ export class Blah extends Head {
 }
 `
 
-describe('no-html-link-for-pages', function() {
-  it('valid', function() {
+describe('no-html-link-for-pages', function () {
+  it('valid', function () {
     const report = linter.verify(validCode, linterConfig, {
       filename: 'foo.js',
     })
     assert.deepEqual(report, [])
   })
 
-  it('invalid static route', function() {
+  it('invalid static route', function () {
     const [report] = linter.verify(invalidStaticCode, linterConfig, {
       filename: 'foo.js',
     })
@@ -89,7 +89,7 @@ describe('no-html-link-for-pages', function() {
     )
   })
 
-  it('invalid dynamic route', function() {
+  it('invalid dynamic route', function () {
     const [report] = linter.verify(invalidDynamicCode, linterConfig, {
       filename: 'foo.js',
     })

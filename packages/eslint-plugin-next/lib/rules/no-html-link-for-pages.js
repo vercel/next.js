@@ -16,7 +16,7 @@ module.exports = {
     schema: ['pagesDirectory'],
   },
 
-  create: function(context) {
+  create: function (context) {
     const [pagesDirectory] = context.options
     const pagesDir = pagesDirectory || path.join(context.getCwd(), 'pages')
     if (!fs.existsSync(pagesDir)) {
@@ -36,14 +36,14 @@ module.exports = {
           return
         }
 
-        const href = node.attributes.find(attr => attr.name.name === 'href')
+        const href = node.attributes.find((attr) => attr.name.name === 'href')
 
         if (!href || href.value.type !== 'Literal') {
           return
         }
 
         const hrefPath = normalizeURL(href.value.value)
-        urls.forEach(url => {
+        urls.forEach((url) => {
           if (url.test(normalizeURL(hrefPath))) {
             context.report({
               node,
