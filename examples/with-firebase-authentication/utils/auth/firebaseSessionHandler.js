@@ -1,10 +1,10 @@
 // From:
 // https://github.com/zeit/next.js/blob/canary/examples/with-firebase-authentication/pages/index.js
 
-export const setSession = user => {
+export const setSession = (user) => {
   // Log in.
   if (user) {
-    return user.getIdToken().then(token => {
+    return user.getIdToken().then((token) => {
       return fetch('/api/login', {
         method: 'POST',
         // eslint-disable-next-line no-undef

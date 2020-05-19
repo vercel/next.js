@@ -15,13 +15,13 @@ export class UnlinkRemovedPagesPlugin {
       'NextJsUnlinkRemovedPages',
       (compilation, callback) => {
         const removed = Object.keys(this.prevAssets).filter(
-          a => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a]
+          (a) => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a]
         )
 
         this.prevAssets = compilation.assets
 
         Promise.all(
-          removed.map(async f => {
+          removed.map(async (f) => {
             const path = join((compiler as any).outputPath, f)
             try {
               await promises.unlink(path)

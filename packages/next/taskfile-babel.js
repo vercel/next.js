@@ -14,6 +14,7 @@ const babelClientOpts = {
         targets: {
           esmodules: true,
         },
+        bugfixes: true,
         loose: true,
         // This is handled by the Next.js webpack config that will run next/babel over the same code.
         exclude: [
@@ -31,6 +32,12 @@ const babelClientOpts = {
     '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
   ],
+  overrides: [
+    {
+      test: /\.tsx?$/,
+      plugins: [require('@babel/plugin-proposal-numeric-separator').default],
+    },
+  ],
 }
 
 const babelServerOpts = {
@@ -45,7 +52,12 @@ const babelServerOpts = {
           node: '8.3',
         },
         loose: true,
-        exclude: ['transform-typeof-symbol'],
+        // This is handled by the Next.js webpack config that will run next/babel over the same code.
+        exclude: [
+          'transform-typeof-symbol',
+          'transform-async-to-generator',
+          'transform-spread',
+        ],
       },
     ],
   ],
@@ -55,11 +67,17 @@ const babelServerOpts = {
     'babel-plugin-dynamic-import-node',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
   ],
+  overrides: [
+    {
+      test: /\.tsx?$/,
+      plugins: [require('@babel/plugin-proposal-numeric-separator').default],
+    },
+  ],
 }
 
-module.exports = function(task) {
+module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('babel', {}, function*(
+  task.plugin('babel', {}, function* (
     file,
     serverOrClient,
     { stripExtension } = {}
@@ -91,6 +109,7 @@ module.exports = function(task) {
       babelrc: false,
       configFile: false,
       filename: file.base,
+      sourceMaps: true,
     }
     const output = transform(file.data, options)
     const ext = extname(file.base)
@@ -108,6 +127,17 @@ module.exports = function(task) {
         /__REPLACE_NOOP_IMPORT__/g,
         `import('./dev/noop');`
       )
+    }
+
+    if (output.map) {
+      const map = `${file.base}.map`
+
+      // add sourcemap to `files` array
+      this._.files.push({
+        base: map,
+        dir: file.dir,
+        data: Buffer.from(JSON.stringify(output.map)),
+      })
     }
 
     file.data = Buffer.from(setNextVersion(output.code))

@@ -9,7 +9,7 @@ const steps = [
   { name: 'Review', component: <p>Review Step</p>, nextButtonText: 'Finish' },
 ]
 
-export default () => {
+export default function Home() {
   const [isOpen, setIsOpen] = useState(false)
   return (
     <>

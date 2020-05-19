@@ -61,7 +61,7 @@ export default (context, render) => {
           if (global.browserName === 'chrome') {
             const logs = await browser.log('browser')
 
-            logs.forEach(logItem => {
+            logs.forEach((logItem) => {
               expect(logItem.message).not.toMatch(
                 /Expected server HTML to contain/
               )
