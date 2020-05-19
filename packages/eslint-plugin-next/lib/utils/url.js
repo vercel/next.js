@@ -67,6 +67,11 @@ function normalizeURL(url) {
   url = url.split('?')[0]
   url = url.split('#')[0]
   url = url = url.replace(/(\/index\.html)$/, '/')
+  // empty URLs should not be trailed with `/`, e.g. `#heading`
+  if (url === '') {
+    return url
+  }
+
   url = url.endsWith('/') ? url : url + '/'
   return url
 }
