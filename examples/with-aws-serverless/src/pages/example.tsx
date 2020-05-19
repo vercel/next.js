@@ -27,7 +27,7 @@ export default () => {
         }
       `}</style>
       <Head>
-        <title>{title}</title>
+        <title>nextjs-with-aws-serveress : {title}</title>
       </Head>
       <div className={'example'}>
         <h1>{title}</h1>

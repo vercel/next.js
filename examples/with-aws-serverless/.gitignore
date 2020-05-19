@@ -1,4 +1,7 @@
 node_modules
+jspm_packages
+
 .next
+.serverless
 
 awsconfiguration.json

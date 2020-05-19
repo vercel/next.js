@@ -7,7 +7,7 @@ export default () => {
   return (
     <>
       <Head>
-        <title>{title}</title>
+        <title>nextjs-with-aws-serveress : {title}</title>
       </Head>
       <div>
         <h1>{title}</h1>
