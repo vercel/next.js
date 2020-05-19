@@ -1,8 +1,7 @@
-/* global jasmine */
 /* eslint-env jest */
 import { sandbox } from './helpers'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 test('logbox: can recover from a syntax error without losing state', async () => {
   const [session, cleanup] = await sandbox()
@@ -33,7 +32,13 @@ test('logbox: can recover from a syntax error without losing state', async () =>
   await session.patch('index.js', `export default () => <div/`)
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatch('SyntaxError')
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "./index.js:1:26
+    Syntax error: Unexpected token, expected \\"jsxTagEnd\\"
+
+    > 1 | export default () => <div/
+        |                           ^"
+  `)
 
   await session.patch(
     'index.js',
@@ -95,17 +100,31 @@ test('logbox: can recover from a event handler error', async () => {
   ).toBe('1')
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (8:16) @ eval
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (8:16) @ <unknown>
 
-       6 | const increment = useCallback(() => {
-       7 |   setCount(c => c + 1)
-    >  8 |   throw new Error('oops')
-         |        ^
-       9 | }, [setCount])
-      10 | return (
-      11 |   <main>"
-  `)
+         6 | const increment = useCallback(() => {
+         7 |   setCount(c => c + 1)
+      >  8 |   throw new Error('oops')
+           |        ^
+         9 | }, [setCount])
+        10 | return (
+        11 |   <main>"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (8:16) @ eval
+
+         6 | const increment = useCallback(() => {
+         7 |   setCount(c => c + 1)
+      >  8 |   throw new Error('oops')
+           |        ^
+         9 | }, [setCount])
+        10 | return (
+        11 |   <main>"
+    `)
+  }
 
   await session.patch(
     'index.js',
@@ -458,19 +477,33 @@ test('syntax > runtime error', async () => {
     `
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (6:14) @ eval
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (6:14) @ <unknown>
 
-      4 | setInterval(() => {
-      5 |   i++
-    > 6 |   throw Error('no ' + i)
-        |        ^
-      7 | }, 1000)
-      8 | export default function FunctionNamed() {
-      9 |   return <div />"
-  `)
+        4 | setInterval(() => {
+        5 |   i++
+      > 6 |   throw Error('no ' + i)
+          |        ^
+        7 | }, 1000)
+        8 | export default function FunctionNamed() {
+        9 |   return <div />"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (6:14) @ eval
+
+        4 | setInterval(() => {
+        5 |   i++
+      > 6 |   throw Error('no ' + i)
+          |        ^
+        7 | }, 1000)
+        8 | export default function FunctionNamed() {
+        9 |   return <div />"
+    `)
+  }
 
   // Make a syntax error.
   await session.patch(
@@ -482,18 +515,33 @@ test('syntax > runtime error', async () => {
         i++
         throw Error('no ' + i)
       }, 1000)
-      export default function FunctionNamed() {
-    `
+      export default function FunctionNamed() {`
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatch('SyntaxError')
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "./index.js:8:47
+    Syntax error: Unexpected token
+
+      6 |         throw Error('no ' + i)
+      7 |       }, 1000)
+    > 8 |       export default function FunctionNamed() {
+        |                                                ^"
+  `)
 
   // Test that runtime error does not take over:
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatch('SyntaxError')
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    "./index.js:8:47
+    Syntax error: Unexpected token
+
+      6 |         throw Error('no ' + i)
+      7 |       }, 1000)
+    > 8 |       export default function FunctionNamed() {
+        |                                                ^"
+  `)
 
   await cleanup()
 })
@@ -600,13 +648,23 @@ test('unterminated JSX', async () => {
   expect(await session.hasRedbox(true)).toBe(true)
 
   const source = await session.getRedboxSource()
-  expect(source).not.toMatch('Unexpected token')
-  expect(source).toMatch('Unterminated JSX contents')
+  expect(source).toMatchInlineSnapshot(`
+    "./index.js:5:22
+    Syntax error: Unterminated JSX contents
+
+      3 |         return (
+      4 |           <div>
+    > 5 |             <p>lol</p>
+        |                       ^
+      6 |           div
+      7 |         )
+      8 |       }"
+  `)
 
   await cleanup()
 })
 
-test.only('conversion to class component (1)', async () => {
+test('conversion to class component (1)', async () => {
   const [session, cleanup] = await sandbox()
 
   await session.write(
@@ -679,6 +737,53 @@ test.only('conversion to class component (1)', async () => {
   expect(
     await session.evaluate(() => document.querySelector('p').textContent)
   ).toBe('hello new')
+
+  await cleanup()
+})
+
+test('css syntax errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.write('index.module.css', `.button {}`)
+  await session.patch(
+    'index.js',
+    `
+      import './index.module.css';
+      export default () => {
+        return (
+          <div>
+            <p>lol</p>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+
+  // Syntax error
+  await session.patch('index.module.css', `.button {`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.module.css:1:1
+    Syntax error: Unclosed block
+
+    > 1 | .button {
+        | ^"
+  `)
+
+  // Not local error
+  await session.patch('index.module.css', `button {}`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source2 = await session.getRedboxSource()
+  expect(source2).toMatchInlineSnapshot(`
+    "./index.module.css:1:1
+    Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+
+    > 1 | button {}
+        | ^"
+  `)
 
   await cleanup()
 })
