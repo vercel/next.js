@@ -604,7 +604,7 @@ export default class Server {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
-            pathname!,
+            pathname,
             query
           )
           if (handled) {
@@ -701,7 +701,16 @@ export default class Server {
     // or else it won't be in the manifest yet
     await this.ensureApiPage(page)
 
-    const builtPagePath = await this.getPagePath(page)
+    let builtPagePath
+    try {
+      builtPagePath = await this.getPagePath(page)
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return false
+      }
+      throw err
+    }
+
     const pageModule = require(builtPagePath)
     query = { ...query, ...params }
 
@@ -1025,9 +1034,7 @@ export default class Server {
     }
 
     // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}${
-      query.amp ? '.amp' : ''
-    }`
+    let urlPathname = `${parseUrl(req.url || '').pathname!}`
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
@@ -1039,10 +1046,11 @@ export default class Server {
 
     const ssgCacheKey = isPreviewMode
       ? undefined // Preview mode bypasses the cache
-      : urlPathname
+      : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)

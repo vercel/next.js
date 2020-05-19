@@ -58,7 +58,7 @@ class NavigationLink extends PureComponent {
   }
 }
 
-export default () => {
+export default function Home() {
   const closeButton = (
     <Button
       icon

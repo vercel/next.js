@@ -72,7 +72,6 @@ function normalizeURL(url) {
   if (url === '') {
     return url
   }
-
   url = url.endsWith('/') ? url : url + '/'
   return url
 }
