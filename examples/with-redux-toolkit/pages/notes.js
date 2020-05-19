@@ -19,7 +19,7 @@ const Notes = () => {
     dispatchLoadNotes()
   }, [dispatch])
 
-  const renderNote = note => (
+  const renderNote = (note) => (
     <li key={note.id}>
       <strong>{note.title}</strong>
       <br />

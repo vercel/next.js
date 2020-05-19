@@ -12,7 +12,7 @@ const AddNoteForm = () => {
   })
 
   return (
-    <form onSubmit={handleSubmit(data => dispatch(addNote(data)))}>
+    <form onSubmit={handleSubmit((data) => dispatch(addNote(data)))}>
       <h3>Create a Note</h3>
       <label htmlFor="titleText">
         Title:

@@ -19,7 +19,7 @@ const EditNoteForm = ({ note = {} }) => {
   return (
     <dialog ref={dialogRef}>
       <form
-        onSubmit={handleSubmit(async data => {
+        onSubmit={handleSubmit(async (data) => {
           await dispatch(editNote(data))
           dialogRef.current.removeAttribute('open')
         })}
