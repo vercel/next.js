@@ -17,9 +17,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-redux-toolkit with-redux-toolkit
+npx create-next-app --example with-redux-toolkit with-redux-toolkit-app
 # or
-yarn create next-app --example with-redux-toolkit with-redux-toolkit
+yarn create next-app --example with-redux-toolkit with-redux-toolkit-app
 ```
 
 ### Download manually
