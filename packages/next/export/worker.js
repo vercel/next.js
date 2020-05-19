@@ -269,6 +269,14 @@ export default async function ({
         JSON.stringify(curRenderOpts.pageData),
         'utf8'
       )
+
+      if (curRenderOpts.hybridAmp) {
+        await promises.writeFile(
+          dataFile.replace(/\.json$/, '.amp.json'),
+          JSON.stringify(curRenderOpts.pageData),
+          'utf8'
+        )
+      }
     }
     results.fromBuildExportRevalidate = curRenderOpts.revalidate
 

@@ -1025,9 +1025,7 @@ export default class Server {
     }
 
     // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}${
-      query.amp ? '.amp' : ''
-    }`
+    let urlPathname = `${parseUrl(req.url || '').pathname!}`
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
@@ -1039,10 +1037,11 @@ export default class Server {
 
     const ssgCacheKey = isPreviewMode
       ? undefined // Preview mode bypasses the cache
-      : urlPathname
+      : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)

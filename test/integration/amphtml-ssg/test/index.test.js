@@ -46,6 +46,20 @@ const runTests = (isDev = false) => {
     expect($('#hello').text()).toContain('hello')
   })
 
+  it('should load dynamic hybrid SSG/AMP page', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1')
+    const $ = cheerio.load(html)
+    expect($('#use-amp').text()).toContain('no')
+    expect($('#hello').text()).toContain('hello')
+  })
+
+  it('should load dynamic hybrid SSG/AMP page with query', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1?amp=1')
+    const $ = cheerio.load(html)
+    expect($('#use-amp').text()).toContain('yes')
+    expect($('#hello').text()).toContain('hello')
+  })
+
   it('should load a hybrid amp page with query correctly', async () => {
     const html = await renderViaHTTP(appPort, '/hybrid?amp=1')
 
@@ -139,6 +153,8 @@ describe('AMP SSG Support', () => {
       expect(await fsExists(outFile('hybrid.html'))).toBe(true)
       expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
       expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+      expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+      expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
 
       expect(
         await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
