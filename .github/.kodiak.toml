@@ -17,4 +17,4 @@ include_pr_number = true
 
 [update]
 always = true
-require_automerge_label = false
+require_automerge_label = true
