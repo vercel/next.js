@@ -14,7 +14,3 @@ notify_on_conflict = false
 title = "pull_request_title"
 body = "pull_request_body"
 include_pr_number = true
-
-[update]
-always = true
-require_automerge_label = true
