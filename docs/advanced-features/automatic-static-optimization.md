@@ -18,7 +18,7 @@ If `getServerSideProps` or `getInitialProps` is present in a page, Next.js will 
 
 If the above is not the case, Next.js will **statically optimize** your page automatically by prerendering the page to static HTML.
 
-During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client-side after hydration.
+During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 
 > **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will always be available inside the `query` object.
 
