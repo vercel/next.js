@@ -38,7 +38,7 @@ export async function getStaticProps({ params }) {
 
 export async function getStaticPaths() {
   return {
-    paths: languages.map(l => ({ params: { lng: l } })),
+    paths: languages.map((l) => ({ params: { lng: l } })),
     fallback: false,
   }
 }

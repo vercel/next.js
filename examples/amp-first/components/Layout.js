@@ -10,7 +10,7 @@ const THEME_COLOR = '#005af0'
  *
  * @param {Props} props
  */
-const Layout = props => (
+const Layout = (props) => (
   <>
     <NextHead>
       <title>{props.title || ''}</title>

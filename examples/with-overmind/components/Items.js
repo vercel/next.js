@@ -6,7 +6,7 @@ function Items() {
 
   return (
     <ul>
-      {state.items.map(item => (
+      {state.items.map((item) => (
         <li key={item.id}>{item.title}</li>
       ))}
     </ul>

@@ -57,7 +57,7 @@ describe('Client Navigation', () => {
       '/nested-cdm',
     ]
     await Promise.all(
-      prerender.map(route => renderViaHTTP(context.appPort, route))
+      prerender.map((route) => renderViaHTTP(context.appPort, route))
     )
   })
   afterAll(() => killApp(context.server))
@@ -639,10 +639,7 @@ describe('Client Navigation', () => {
         .text()
       expect(counter).toBe('Counter: 2')
 
-      counter = await browser
-        .back()
-        .elementByCss('#counter')
-        .text()
+      counter = await browser.back().elementByCss('#counter').text()
       expect(counter).toBe('Counter: 1')
 
       const getInitialPropsRunCount = await browser

@@ -1,7 +1,7 @@
 import { loader } from 'webpack'
 import hash from 'next/dist/compiled/string-hash'
 import { basename } from 'path'
-const nextDataLoader: loader.Loader = function(source) {
+const nextDataLoader: loader.Loader = function (source) {
   const filename = this.resourcePath
   return `
   import {createHook} from 'next/data'
