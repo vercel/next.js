@@ -1,7 +1,7 @@
-import * as React from 'react'
+import { Component } from 'react'
 import { UniversalPortal } from '@jesstelford/react-portal-universal'
 
-export default class Index extends React.Component {
+export default class Index extends Component {
   constructor() {
     super(...arguments)
     this.state = { opened: true }
@@ -17,7 +17,7 @@ export default class Index extends React.Component {
 
   render() {
     return (
-      <React.Fragment>
+      <>
         {/* A portal that is adjacent to its target */}
         <div id="target" />
         <UniversalPortal selector="#target">
@@ -65,7 +65,7 @@ export default class Index extends React.Component {
             </div>
           </UniversalPortal>
         )}
-      </React.Fragment>
+      </>
     )
   }
 }
