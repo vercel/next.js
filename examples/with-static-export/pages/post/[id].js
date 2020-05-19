@@ -1,4 +1,3 @@
-import { Component } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
 
@@ -30,24 +29,20 @@ export async function getStaticProps({ params }) {
   }
 }
 
-export default class extends Component {
-  render() {
-    const { title, body } = this.props
+export default function Post({ title, body }) {
+  return (
+    <main>
+      <Head>
+        <title>{title}</title>
+      </Head>
 
-    return (
-      <main>
-        <Head>
-          <title>{title}</title>
-        </Head>
+      <h1>{title}</h1>
 
-        <h1>{title}</h1>
+      <p>{body}</p>
 
-        <p>{body}</p>
-
-        <Link href="/">
-          <a>Go back to home</a>
-        </Link>
-      </main>
-    )
-  }
+      <Link href="/">
+        <a>Go back to home</a>
+      </Link>
+    </main>
+  )
 }

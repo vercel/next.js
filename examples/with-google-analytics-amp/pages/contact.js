@@ -3,7 +3,7 @@ import Page from '../components/Page'
 
 import * as gtag from '../lib/gtag'
 
-export default class extends Component {
+export default class Contact extends Component {
   state = { message: '' }
 
   handleInput = (e) => {
