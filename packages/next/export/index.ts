@@ -13,7 +13,7 @@ import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
-import { API_ROUTE } from '../lib/constants'
+import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
@@ -35,6 +35,7 @@ import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
+import { PrerenderManifest } from '../build'
 
 const exists = promisify(existsOrig)
 
@@ -134,7 +135,7 @@ export default async function (
       PAGES_MANIFEST
     ))
 
-  let prerenderManifest
+  let prerenderManifest: PrerenderManifest | undefined = undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
@@ -147,6 +148,7 @@ export default async function (
     'pages'
   )
 
+  const excludedPrerenderRoutes = new Set<string>()
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
   let hasApiRoutes = false
@@ -170,6 +172,7 @@ export default async function (
     // could run `getStaticProps`. If users make their page work lazily, they
     // can manually add it to the `exportPathMap`.
     if (prerenderManifest?.dynamicRoutes[page]) {
+      excludedPrerenderRoutes.add(page)
       continue
     }
 
@@ -275,6 +278,29 @@ export default async function (
 
   if (filteredPaths.length !== exportPaths.length) {
     hasApiRoutes = true
+  }
+
+  if (prerenderManifest && !options.buildExport) {
+    const fallbackTruePages = new Set()
+
+    for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
+      // only error if page is included in path map
+      if (!exportPathMap[key] && !excludedPrerenderRoutes.has(key)) {
+        continue
+      }
+
+      if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
+        fallbackTruePages.add(key)
+      }
+    }
+
+    if (fallbackTruePages.size) {
+      throw new Error(
+        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
+          '\n'
+        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+      )
+    }
   }
 
   // Warn if the user defines a path for an API page
