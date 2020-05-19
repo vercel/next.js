@@ -1,3 +1,5 @@
 import MainLayout from '../layouts/main'
 
-export default () => <MainLayout>Welcome!</MainLayout>
+export default function Welcome() {
+  return <MainLayout>Welcome!</MainLayout>
+}
