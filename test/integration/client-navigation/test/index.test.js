@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import {
   fetchViaHTTP,
   findPort,
@@ -16,7 +16,7 @@ import { join } from 'path'
 import renderingSuite from './rendering'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {
@@ -57,7 +57,7 @@ describe('Client Navigation', () => {
       '/nested-cdm',
     ]
     await Promise.all(
-      prerender.map(route => renderViaHTTP(context.appPort, route))
+      prerender.map((route) => renderViaHTTP(context.appPort, route))
     )
   })
   afterAll(() => killApp(context.server))
@@ -639,10 +639,7 @@ describe('Client Navigation', () => {
         .text()
       expect(counter).toBe('Counter: 2')
 
-      counter = await browser
-        .back()
-        .elementByCss('#counter')
-        .text()
+      counter = await browser.back().elementByCss('#counter').text()
       expect(counter).toBe('Counter: 1')
 
       const getInitialPropsRunCount = await browser

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -26,7 +26,7 @@ import {
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 const indexPage = join(__dirname, '../pages/index.js')
@@ -171,7 +171,7 @@ const navigateTest = (dev = false) => {
 
     await waitFor(2500)
 
-    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+    await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -382,8 +382,13 @@ const runTests = (dev = false, looseMode = false) => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+    expect(
+      await check(() => browser.eval('window.beforeClick'), {
+        test(v) {
+          return v !== 'abc'
+        },
+      })
+    ).toBe(true)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -393,8 +398,13 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-at-first-post').click()
-      await waitFor(3000)
-      expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+      expect(
+        await check(() => browser.eval('window.beforeClick'), {
+          test(v) {
+            return v !== 'abc'
+          },
+        })
+      ).toBe(true)
 
       const text = await browser.elementByCss('#params').text()
       expect(text).toMatch(/post.*?post-999/)
@@ -406,11 +416,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -461,11 +467,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -475,11 +477,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
@@ -498,13 +496,13 @@ const runTests = (dev = false, looseMode = false) => {
 
   if (dev) {
     // TODO: re-enable when this is supported in dev
-    // it('should show error when rewriting to dynamic SSG page', async () => {
-    //   const item = Math.round(Math.random() * 100)
-    //   const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
-    //   expect(html).toContain(
-    //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
-    //   )
-    // })
+    it.skip('should show error when rewriting to dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+      expect(html).toContain(
+        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+      )
+    })
 
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
@@ -739,7 +737,7 @@ const runTests = (dev = false, looseMode = false) => {
         await check(() => getBrowserBodyText(browser), /hello /)
       })
 
-      it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
         const browser = await webdriver(appPort, '/')
         await browser.elementByCss('#non-json').click()
         await check(() => getBrowserBodyText(browser), /hello /)
@@ -869,7 +867,7 @@ const runTests = (dev = false, looseMode = false) => {
       )
       const escapedBuildId = escapeRegex(buildId)
 
-      Object.keys(manifest.dynamicRoutes).forEach(key => {
+      Object.keys(manifest.dynamicRoutes).forEach((key) => {
         const item = manifest.dynamicRoutes[key]
 
         if (item.dataRouteRegex) {
@@ -1064,7 +1062,7 @@ describe('SSG Prerender', () => {
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1151,7 +1149,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1264,7 +1262,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

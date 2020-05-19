@@ -167,18 +167,18 @@ export class Telemetry {
     }
 
     const prom = wrapper()
-      .then(value => ({
+      .then((value) => ({
         isFulfilled: true,
         isRejected: false,
         value,
       }))
-      .catch(reason => ({
+      .catch((reason) => ({
         isFulfilled: false,
         isRejected: true,
         reason,
       }))
       // Acts as `Promise#finally` because `catch` transforms the error
-      .then(res => {
+      .then((res) => {
         // Clean up the event to prevent unbounded `Set` growth
         this.queue.delete(prom)
         return res
