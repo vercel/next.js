@@ -20,7 +20,7 @@ let app
 function runTests() {
   it('should return data when catch-all', async () => {
     const data = await fetchViaHTTP(appPort, '/api/users/1', null, {}).then(
-      res => res.ok && res.json()
+      (res) => res.ok && res.json()
     )
 
     expect(data).toEqual({ slug: ['1'] })
@@ -28,7 +28,7 @@ function runTests() {
 
   it('should 404 when catch-all with index and trailing slash', async () => {
     const data = await fetchViaHTTP(appPort, '/api/users/', null, {}).then(
-      res => res.status
+      (res) => res.status
     )
 
     expect(data).toEqual(404)
@@ -36,7 +36,7 @@ function runTests() {
 
   it('should return data when catch-all with index and no trailing slash', async () => {
     const data = await fetchViaHTTP(appPort, '/api/users', null, {}).then(
-      res => res.ok && res.json()
+      (res) => res.ok && res.json()
     )
 
     expect(data).toEqual({})
