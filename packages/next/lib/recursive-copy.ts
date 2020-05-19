@@ -16,7 +16,7 @@ export async function recursiveCopy(
     overwrite?: boolean
     filter?(path: string): boolean
   } = {}
-) {
+): Promise<void> {
   const cwdPath = process.cwd()
   const from = path.resolve(cwdPath, source)
   const to = path.resolve(cwdPath, dest)
