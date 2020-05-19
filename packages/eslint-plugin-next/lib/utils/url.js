@@ -24,7 +24,8 @@ function isSymlink(source) {
  */
 function getUrlFromPagesDirectory(urlPrefix, directory) {
   return parseUrlForPages(urlPrefix, directory).map(
-    (url) => new RegExp(normalizeURL(url))
+    // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
+    (url) => new RegExp(`^${normalizeURL(url)}$`)
   )
 }
 
