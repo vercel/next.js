@@ -12,7 +12,6 @@ import {
 import fetch from 'node-fetch'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync } from 'fs'
 
 const context = {}
 jest.setTimeout(1000 * 60 * 5)
@@ -112,28 +111,16 @@ describe('Configuration', () => {
   })
 
   it('should update css styles using hmr', async () => {
+    const file = new File(
+      join(__dirname, '../', 'components', 'hello-webpack-css.css')
+    )
     let browser
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
-      const pTag = await browser.elementByCss('.hello-world')
-      const initialFontSize = await pTag.getComputedCss('font-size')
-
-      expect(initialFontSize).toBe('100px')
-
-      const pagePath = join(
-        __dirname,
-        '../',
-        'components',
-        'hello-webpack-css.css'
-      )
-
-      const originalContent = readFileSync(pagePath, 'utf8')
-      const editedContent = originalContent.replace('100px', '200px')
-
-      // Change the page
-      writeFileSync(pagePath, editedContent, 'utf8')
 
       try {
+        // Change the page
+        file.replace('100px', '200px')
         await checkExpectations(async () => {
           // Check whether the this page has reloaded or not.
           const editedFontSize = await browser
@@ -142,11 +129,9 @@ describe('Configuration', () => {
           expect(editedFontSize).toBe('200px')
         })
       } finally {
-        // Finally is used so that we revert the content back to the original regardless of the test outcome
-        // restore the about page content.
-        writeFileSync(pagePath, originalContent, 'utf8')
+        file.restore()
         await checkExpectations(async () => {
-          // This also make sure that the change is reverted when the etst ends
+          // This also make sure that the change is reverted before the test ends
           const editedFontSize = await browser
             .elementByCss('.hello-world')
             .getComputedCss('font-size')
@@ -154,6 +139,7 @@ describe('Configuration', () => {
         })
       }
     } finally {
+      file.restore()
       if (browser) {
         await browser.close()
       }
@@ -189,6 +175,7 @@ describe('Configuration', () => {
         })
       }
     } finally {
+      file.restore()
       if (browser) {
         await browser.close()
       }
