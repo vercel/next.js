@@ -15,9 +15,9 @@ try {
     exclude: ['./dist/**', './*.d.ts', './constants.d.ts'],
   }
 
-  module.exports = function(task) {
+  module.exports = function (task) {
     // eslint-disable-next-line require-yield
-    task.plugin('typescript', { every: true }, function*(file, options) {
+    task.plugin('typescript', { every: true }, function* (file, options) {
       const opts = {
         fileName: file.base,
         compilerOptions: {

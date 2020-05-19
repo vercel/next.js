@@ -40,7 +40,7 @@ export function install(
       stdio: 'inherit',
       env: { ...process.env, ADBLOCK: '1', DISABLE_OPENCOLLECTIVE: '1' },
     })
-    child.on('close', code => {
+    child.on('close', (code) => {
       if (code !== 0) {
         reject({ command: `${command} ${args.join(' ')}` })
         return

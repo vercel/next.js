@@ -79,10 +79,10 @@ class Container extends React.Component {
     if (process.env.__NEXT_PLUGINS) {
       // eslint-disable-next-line
       import('next-plugin-loader?middleware=unstable-post-hydration!')
-        .then(mod => {
+        .then((mod) => {
           return mod.default()
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Error calling post-hydration for plugins', err)
         })
     }
@@ -152,13 +152,8 @@ class Container extends React.Component {
       return this.props.children
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (process.env.__NEXT_FAST_REFRESH) {
-        const {
-          ReactDevOverlay,
-        } = require('@next/react-dev-overlay/lib/client')
-        return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
-      }
-      return this.props.children
+      const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
+      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
 }
@@ -184,8 +179,9 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       entries,
     }) => {
       // Combines timestamp with random number for unique ID
-      const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) +
-        1e12}`
+      const uniqueID = `${Date.now()}-${
+        Math.floor(Math.random() * (9e12 - 1)) + 1e12
+      }`
       let perfStartEntry
 
       if (entries && entries.length) {
@@ -278,10 +274,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-init-client!')
-      .then(mod => {
+      .then((mod) => {
         return mod.default({ router })
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Error calling client-init for plugins', err)
       })
   }
@@ -323,36 +319,29 @@ export async function render(props) {
 export function renderError(props) {
   const { App, err } = props
 
-  // In development runtime errors are caught by react-error-overlay
+  // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
-    if (process.env.__NEXT_FAST_REFRESH) {
-      // A Next.js rendering runtime error is always unrecoverable
-      // FIXME: let's make this recoverable (error in GIP client-transition)
-      webpackHMR.onUnrecoverableError()
+    // A Next.js rendering runtime error is always unrecoverable
+    // FIXME: let's make this recoverable (error in GIP client-transition)
+    webpackHMR.onUnrecoverableError()
 
-      // We need to render an empty <App> so that the `<ReactDevOverlay>` can
-      // render itself.
-      return doRender({
-        App: () => null,
-        props: {},
-        Component: () => null,
-        err: null,
-      })
-    }
-
-    // Legacy behavior:
-    return Promise.resolve(
-      webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
-    )
+    // We need to render an empty <App> so that the `<ReactDevOverlay>` can
+    // render itself.
+    return doRender({
+      App: () => null,
+      props: {},
+      Component: () => null,
+      err: null,
+    })
   }
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-error-client!')
-      .then(mod => {
+      .then((mod) => {
         return mod.default({ err })
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('error calling on-error-client for plugins', err)
       })
   }
@@ -372,7 +361,7 @@ export function renderError(props) {
     }
     return Promise.resolve(
       props.props ? props.props : loadGetInitialProps(App, appCtx)
-    ).then(initProps =>
+    ).then((initProps) =>
       doRender({
         ...props,
         err,
@@ -457,7 +446,7 @@ function markRenderComplete() {
       .forEach(onPerfEntry)
   }
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach(measure =>
+  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
     performance.clearMeasures(measure)
   )
 }
@@ -468,14 +457,14 @@ function clearMarks() {
     'afterHydrate',
     'afterRender',
     'routeChange',
-  ].forEach(mark => performance.clearMarks(mark))
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function AppContainer({ children }) {
   return (
     <Container
-      fn={error =>
-        renderError({ App, err: error }).catch(err =>
+      fn={(error) =>
+        renderError({ App, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
       }
@@ -489,7 +478,7 @@ function AppContainer({ children }) {
   )
 }
 
-const wrapApp = App => props => {
+const wrapApp = (App) => (props) => {
   const appProps = { ...props, Component, err, router }
   return (
     <AppContainer>

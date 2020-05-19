@@ -1,8 +1,7 @@
-import React from 'react'
 import { useSelector, shallowEqual } from 'react-redux'
 
 const useClock = () => {
-  return useSelector(state => {
+  return useSelector((state) => {
     return {
       lastUpdate: state.lastUpdate,
       light: state.light,
@@ -10,7 +9,7 @@ const useClock = () => {
   }, shallowEqual)
 }
 
-const formatTime = time => {
+const formatTime = (time) => {
   // cut off except hh:mm:ss
   return new Date(time).toJSON().slice(11, 19)
 }
