@@ -1,20 +1,22 @@
 /* eslint-env jest */
-/* global jasmine */
-import { join } from 'path'
-import webdriver from 'next-webdriver'
-import renderingSuite from './rendering'
+
 import {
-  waitFor,
-  findPort,
-  killApp,
-  launchApp,
   fetchViaHTTP,
+  findPort,
+  getRedboxSource,
+  hasRedbox,
+  killApp,
+  getRedboxHeader,
+  launchApp,
   renderViaHTTP,
-  getReactErrorOverlayContent
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
+import renderingSuite from './rendering'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {
@@ -52,7 +54,7 @@ describe('Client Navigation', () => {
       '/nav/as-path-using-router',
       '/nav/url-prop-change',
 
-      '/nested-cdm/index'
+      '/nested-cdm',
     ]
     await Promise.all(
       prerender.map(route => renderViaHTTP(context.appPort, route))
@@ -72,6 +74,33 @@ describe('Client Navigation', () => {
 
       expect(text).toBe('This is the about page.')
       await browser.close()
+    })
+
+    it('should navigate back after reload', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.elementByCss('#about-link').click()
+      await browser.waitForElementByCss('.nav-about')
+      await browser.refresh()
+      await waitFor(3000)
+      await browser.back()
+      await waitFor(3000)
+      const text = await browser.elementByCss('#about-link').text()
+      if (browser) await browser.close()
+      expect(text).toMatch(/About/)
+    })
+
+    it('should navigate forwards after reload', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.elementByCss('#about-link').click()
+      await browser.waitForElementByCss('.nav-about')
+      await browser.back()
+      await browser.refresh()
+      await waitFor(3000)
+      await browser.forward()
+      await waitFor(3000)
+      const text = await browser.elementByCss('p').text()
+      if (browser) await browser.close()
+      expect(text).toMatch(/this is the about page/i)
     })
 
     it('should navigate via the client side', async () => {
@@ -106,12 +135,12 @@ describe('Client Navigation', () => {
       expect(JSON.parse(urlResult)).toMatchObject({
         query: { added: 'yes' },
         pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes'
+        asPath: '/nav/url-prop-change?added=yes',
       })
       expect(JSON.parse(previousUrlResult)).toMatchObject({
         query: {},
         pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change'
+        asPath: '/nav/url-prop-change',
       })
 
       await browser.close()
@@ -182,10 +211,8 @@ describe('Client Navigation', () => {
       try {
         browser = await webdriver(context.appPort, '/nav')
         await browser.elementByCss('#empty-props').click()
-
-        await waitFor(3000)
-
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatch(
           /should resolve to an object\. But found "null" instead\./
         )
       } finally {
@@ -529,18 +556,50 @@ describe('Client Navigation', () => {
         await browser.close()
       })
     })
+  })
 
-    describe('when hash changed to a different hash', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+  describe('with hash changes with state', () => {
+    describe('when passing state via hash change', () => {
+      it('should increment the history state counter', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          '/nav/hash-changes-with-state#'
+        )
 
-        const counter = await browser
-          .elementByCss('#via-a')
+        const historyCount = await browser
+          .elementByCss('#increment-history-count')
           .click()
-          .elementByCss('#via-link')
+          .elementByCss('#increment-history-count')
           .click()
-          .elementByCss('p')
+          .elementByCss('div#history-count')
           .text()
+
+        expect(historyCount).toBe('HISTORY COUNT: 2')
+
+        const counter = await browser.elementByCss('p').text()
+
+        expect(counter).toBe('COUNT: 2')
+
+        await browser.close()
+      })
+
+      it('should increment the shallow history state counter', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          '/nav/hash-changes-with-state#'
+        )
+
+        const historyCount = await browser
+          .elementByCss('#increment-shallow-history-count')
+          .click()
+          .elementByCss('#increment-shallow-history-count')
+          .click()
+          .elementByCss('div#shallow-history-count')
+          .text()
+
+        expect(historyCount).toBe('SHALLOW HISTORY COUNT: 2')
+
+        const counter = await browser.elementByCss('p').text()
 
         expect(counter).toBe('COUNT: 0')
 
@@ -890,14 +949,14 @@ describe('Client Navigation', () => {
   })
 
   describe('runtime errors', () => {
-    it('should show react-error-overlay when a client side error is thrown inside a component', async () => {
+    it('should show redbox when a client side error is thrown inside a component', async () => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/error-inside-browser-page')
-        await waitFor(3000)
-        const text = await getReactErrorOverlayContent(browser)
+        expect(await hasRedbox(browser)).toBe(true)
+        const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
+        expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:12\)/)
       } finally {
         if (browser) {
           await browser.close()
@@ -905,17 +964,17 @@ describe('Client Navigation', () => {
       }
     })
 
-    it('should show react-error-overlay when a client side error is thrown outside a component', async () => {
+    it('should show redbox when a client side error is thrown outside a component', async () => {
       let browser
       try {
         browser = await webdriver(
           context.appPort,
           '/error-in-the-browser-global-scope'
         )
-        await waitFor(3000)
-        const text = await getReactErrorOverlayContent(browser)
+        expect(await hasRedbox(browser)).toBe(true)
+        const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
+        expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
       } finally {
         if (browser) {
           await browser.close()
@@ -1036,6 +1095,15 @@ describe('Client Navigation', () => {
       'This is an index.js nested in an index/ folder.'
     )
     await browser.close()
+  })
+
+  it('should handle undefined prop in head client-side', async () => {
+    const browser = await webdriver(context.appPort, '/head')
+    const value = await browser.eval(
+      `document.querySelector('meta[name="empty-content"]').hasAttribute('content')`
+    )
+
+    expect(value).toBe(false)
   })
 
   renderingSuite(

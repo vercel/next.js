@@ -1,6 +1,6 @@
 import { withRouter } from 'next/router'
 
-function useWithRouter (props) {
+function useWithRouter(props) {
   return <div>I use withRouter</div>
 }
 

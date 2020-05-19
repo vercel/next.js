@@ -1,5 +1,5 @@
 module.exports = {
-  webpack: function (cfg) {
+  webpack: function(cfg) {
     const originalEntry = cfg.entry
     cfg.entry = async () => {
       const entries = await originalEntry()
@@ -15,5 +15,5 @@ module.exports = {
     }
 
     return cfg
-  }
+  },
 }

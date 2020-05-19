@@ -1,7 +1,7 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
-  static async getInitialProps (ctx) {
+  static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx)
 
     return {
@@ -11,15 +11,15 @@ class MyDocument extends Document {
           {initialProps.styles}
           <style
             dangerouslySetInnerHTML={{
-              __html: `html { background: hotpink; }`
+              __html: `html { background: hotpink; }`,
             }}
           />
         </>
-      )
+      ),
     }
   }
 
-  render () {
+  render() {
     return (
       <Html>
         <Head />

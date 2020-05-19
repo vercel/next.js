@@ -22,5 +22,5 @@ export const config = { amp: true }
 
 ### Useful Links
 
-- [Enabling AMP Support](https://github.com/zeit/next.js/#enabling-amp-support)
-- [API Middlewares](https://github.com/zeit/next.js/#api-middlewares)
+- [Enabling AMP Support](https://nextjs.org/docs#enabling-amp-support)
+- [API Middlewares](https://nextjs.org/docs#api-middlewares)

@@ -1,5 +1,3 @@
-'use strict'
-
 const path = require('path')
 
 exports['default'] = {
@@ -55,15 +53,15 @@ exports['default'] = {
         cli: [path.join(__dirname, '/../bin')],
         initializer: [path.join(__dirname, '/../initializers')],
         plugin: [path.join(__dirname, '/../node_modules')],
-        locale: [path.join(__dirname, '/../locales')]
+        locale: [path.join(__dirname, '/../locales')],
       },
       // hash containing chat rooms you wish to be created at server boot
       startingChatRooms: {
         // format is {roomName: {authKey, authValue}}
         // 'secureRoom': {authorized: true},
-      }
+      },
     }
-  }
+  },
 }
 
 exports.test = {
@@ -74,24 +72,24 @@ exports.test = {
       developmentMode: true,
       startingChatRooms: {
         defaultRoom: {},
-        otherRoom: {}
+        otherRoom: {},
       },
       paths: {
         locale: [
           // require('os').tmpdir() + require('path').sep + 'locales',
-          path.join(__dirname, '/../locales')
-        ]
+          path.join(__dirname, '/../locales'),
+        ],
       },
-      rpcTimeout: 3000
+      rpcTimeout: 3000,
     }
-  }
+  },
 }
 
 exports.production = {
   general: api => {
     return {
       fileRequestLogLevel: 'debug',
-      developmentMode: false
+      developmentMode: false,
     }
-  }
+  },
 }

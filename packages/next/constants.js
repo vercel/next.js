@@ -1,1 +1,1 @@
-module.exports = require('next-server/constants')
+module.exports = require('./dist/next-server/lib/constants')

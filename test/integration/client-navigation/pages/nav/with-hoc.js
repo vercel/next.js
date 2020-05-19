@@ -8,9 +8,9 @@ const Link = withRouter(({ router, children, href }) => {
 
   return (
     <div>
-      <span id='pathname'>Current path: {router.pathname}</span>
-      <span id='asPath'>Current asPath: {router.asPath}</span>
-      <a href='#' onClick={handleClick}>
+      <span id="pathname">Current path: {router.pathname}</span>
+      <span id="asPath">Current asPath: {router.asPath}</span>
+      <a href="#" onClick={handleClick}>
         {children}
       </a>
     </div>
@@ -18,8 +18,8 @@ const Link = withRouter(({ router, children, href }) => {
 })
 
 export default () => (
-  <div className='nav-with-hoc'>
-    <Link href='/nav'>Go Back</Link>
+  <div className="nav-with-hoc">
+    <Link href="/nav">Go Back</Link>
     <p>This is the about page.</p>
   </div>
 )

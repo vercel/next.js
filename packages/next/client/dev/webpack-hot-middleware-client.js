@@ -2,7 +2,7 @@ import connect from './error-overlay/hot-dev-client'
 
 export default ({ assetPrefix }) => {
   const options = {
-    path: `${assetPrefix}/_next/webpack-hmr`
+    path: `${assetPrefix}/_next/webpack-hmr`,
   }
 
   const devClient = connect(options)

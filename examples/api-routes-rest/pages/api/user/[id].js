@@ -1,7 +1,7 @@
 export default (req, res) => {
   const {
     query: { id, name },
-    method
+    method,
   } = req
 
   switch (method) {

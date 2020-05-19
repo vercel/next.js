@@ -1,2 +1,2 @@
-export * from 'next-server/config'
-export { default } from 'next-server/config'
+export * from './dist/next-server/lib/runtime-config'
+export { default } from './dist/next-server/lib/runtime-config'

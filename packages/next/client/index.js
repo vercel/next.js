@@ -1,30 +1,23 @@
 /* global location */
-import React, { Suspense } from 'react'
-import ReactDOM from 'react-dom'
-import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
-import mitt from 'next-server/dist/lib/mitt'
-import {
-  loadGetInitialProps,
-  getURL,
-  SUPPORTS_PERFORMANCE_USER_TIMING
-} from 'next-server/dist/lib/utils'
-import PageLoader from './page-loader'
-import * as envConfig from 'next-server/config'
-import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
-import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
-import { RouterContext } from 'next-server/dist/lib/router-context'
-import { DataManager } from 'next-server/dist/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
+import React from 'react'
+import ReactDOM from 'react-dom'
+import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import mitt from '../next-server/lib/mitt'
+import { RouterContext } from '../next-server/lib/router-context'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import * as envConfig from '../next-server/lib/runtime-config'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import initHeadManager from './head-manager'
+import PageLoader from './page-loader'
+import measureWebVitals from './performance-relayer'
 
-// Polyfill Promise globally
-// This is needed because Webpack's dynamic loading(common chunks) code
-// depends on Promise.
-// So, we need to polyfill it.
-// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-if (!window.Promise) {
-  window.Promise = Promise
+/// <reference types="react-dom/experimental" />
+
+if (!('finally' in Promise.prototype)) {
+  // eslint-disable-next-line no-extend-native
+  Promise.prototype.finally = require('next/dist/build/polyfills/finally-polyfill.min')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -40,11 +33,9 @@ const {
   buildId,
   assetPrefix,
   runtimeConfig,
-  dynamicIds
+  dynamicIds,
+  isFallback,
 } = data
-
-const d = JSON.parse(window.__NEXT_DATA__.dataManager)
-export const dataManager = new DataManager(d)
 
 const prefix = assetPrefix || ''
 
@@ -54,7 +45,7 @@ __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
-  publicRuntimeConfig: runtimeConfig || {}
+  publicRuntimeConfig: runtimeConfig || {},
 })
 
 const asPath = getURL()
@@ -67,29 +58,45 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 window.__NEXT_P.push = register
 
-const headManager = new HeadManager()
+const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
 let webpackHMR
 export let router
-export let ErrorComponent
+let ErrorComponent
 let Component
-let App
+let App, onPerfEntry
 
 class Container extends React.Component {
-  componentDidCatch (err, info) {
+  componentDidCatch(err, info) {
     this.props.fn(err, info)
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.scrollToHash()
 
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
+    if (process.env.__NEXT_PLUGINS) {
+      // eslint-disable-next-line
+      import('next-plugin-loader?middleware=unstable-post-hydration!')
+        .then(mod => {
+          return mod.default()
+        })
+        .catch(err => {
+          console.error('Error calling post-hydration for plugins', err)
+        })
+    }
+
+    // We need to replace the router state if:
+    // - the page was (auto) exported and has a query string or search (hash)
+    // - it was auto exported and is a dynamic route (to provide params)
+    // - if it is a client-side skeleton (fallback render)
     if (
-      data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search || data.skeleton)
+      router.isSsr &&
+      (isFallback ||
+        (data.nextExport &&
+          (isDynamicRoute(router.pathname) || location.search)) ||
+        (props && props.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -97,24 +104,37 @@ class Container extends React.Component {
           '?' +
           stringifyQs({
             ...router.query,
-            ...parseQs(location.search.substr(1))
+            ...parseQs(location.search.substr(1)),
           }),
         asPath,
         {
           // WARNING: `_h` is an internal option for handing Next.js
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
-          _h: 1
+          _h: 1,
+          // Fallback pages must trigger the data fetch, so the transition is
+          // not shallow.
+          // Other pages (strictly updating query) happens shallowly, as data
+          // requirements would already be present.
+          shallow: !isFallback,
         }
       )
     }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }
   }
 
-  componentDidUpdate () {
+  componentDidUpdate() {
     this.scrollToHash()
   }
 
-  scrollToHash () {
+  scrollToHash() {
     let { hash } = location
     hash = hash && hash.substring(1)
     if (!hash) return
@@ -127,8 +147,14 @@ class Container extends React.Component {
     setTimeout(() => el.scrollIntoView(), 0)
   }
 
-  render () {
-    return this.props.children
+  render() {
+    if (process.env.NODE_ENV === 'production') {
+      return this.props.children
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
+      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+    }
   }
 }
 
@@ -139,12 +165,45 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  App = await pageLoader.loadPage('/_app')
+  const { page: app, mod } = await pageLoader.loadPageScript('/_app')
+  App = app
+
+  if (mod && mod.reportWebVitals) {
+    onPerfEntry = ({
+      id,
+      name,
+      startTime,
+      value,
+      duration,
+      entryType,
+      entries,
+    }) => {
+      // Combines timestamp with random number for unique ID
+      const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) +
+        1e12}`
+      let perfStartEntry
+
+      if (entries && entries.length) {
+        perfStartEntry = entries[0].startTime
+      }
+
+      mod.reportWebVitals({
+        id: id || uniqueID,
+        name,
+        startTime: startTime || perfStartEntry,
+        value: value == null ? duration : value,
+        label:
+          entryType === 'mark' || entryType === 'measure'
+            ? 'custom'
+            : 'web-vital',
+      })
+    }
+  }
 
   let initialErr = err
 
   try {
-    Component = await pageLoader.loadPage(page)
+    ;({ page: Component } = await pageLoader.loadPage(page))
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -159,6 +218,40 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     initialErr = error
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    // Server-side runtime errors need to be re-thrown on the client-side so
+    // that the overlay is rendered.
+    if (initialErr) {
+      if (initialErr === err) {
+        setTimeout(() => {
+          let error
+          try {
+            // Generate a new error object. We `throw` it because some browsers
+            // will set the `stack` when thrown, and we want to ensure ours is
+            // not overridden when we re-throw it below.
+            throw new Error(initialErr.message)
+          } catch (e) {
+            error = e
+          }
+
+          error.name = initialErr.name
+          error.stack = initialErr.stack
+
+          const node = getNodeError(error)
+          throw node
+        })
+      }
+      // We replaced the server-side error with a client-side error, and should
+      // no longer rewrite the stack trace to a Node error.
+      else {
+        setTimeout(() => {
+          throw initialErr
+        })
+      }
+    }
+  }
+
   if (window.__NEXT_PRELOADREADY) {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
@@ -170,17 +263,37 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     Component,
     wrapApp,
     err: initialErr,
+    isFallback,
     subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err, emitter })
-    }
+      render({ App, Component, props, err })
+    },
   })
-  const renderCtx = { App, Component, props, err: initialErr, emitter }
-  render(renderCtx)
 
-  return emitter
+  // call init-client middleware
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-init-client!')
+      .then(mod => {
+        return mod.default({ router })
+      })
+      .catch(err => {
+        console.error('Error calling client-init for plugins', err)
+      })
+  }
+
+  const renderCtx = { App, Component, props, err: initialErr }
+
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
-export async function render (props) {
+export async function render(props) {
   if (props.err) {
     await renderError(props)
     return
@@ -189,6 +302,12 @@ export async function render (props) {
   try {
     await doRender(props)
   } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      // Ensure this error is displayed in the overlay in development
+      setTimeout(() => {
+        throw err
+      })
+    }
     await renderError({ ...props, err })
   }
 }
@@ -196,57 +315,97 @@ export async function render (props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (props) {
+export function renderError(props) {
   const { App, err } = props
 
-  // In development runtime errors are caught by react-error-overlay
+  // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
-    return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+    // A Next.js rendering runtime error is always unrecoverable
+    // FIXME: let's make this recoverable (error in GIP client-transition)
+    webpackHMR.onUnrecoverableError()
+
+    // We need to render an empty <App> so that the `<ReactDevOverlay>` can
+    // render itself.
+    return doRender({
+      App: () => null,
+      props: {},
+      Component: () => null,
+      err: null,
+    })
+  }
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-error-client!')
+      .then(mod => {
+        return mod.default({ err })
+      })
+      .catch(err => {
+        console.error('error calling on-error-client for plugins', err)
+      })
   }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-
-  ErrorComponent = await pageLoader.loadPage('/_error')
-
-  // In production we do a normal render with the `ErrorComponent` as component.
-  // If we've gotten here upon initial render, we can use the props from the server.
-  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-  const AppTree = wrapApp(App)
-  const appCtx = {
-    Component: ErrorComponent,
-    AppTree,
-    router,
-    ctx: { err, pathname: page, query, asPath, AppTree }
-  }
-
-  const initProps = props.props
-    ? props.props
-    : await loadGetInitialProps(App, appCtx)
-
-  await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
+  return pageLoader.loadPage('/_error').then(({ page: ErrorComponent }) => {
+    // In production we do a normal render with the `ErrorComponent` as component.
+    // If we've gotten here upon initial render, we can use the props from the server.
+    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+    const AppTree = wrapApp(App)
+    const appCtx = {
+      Component: ErrorComponent,
+      AppTree,
+      router,
+      ctx: { err, pathname: page, query, asPath, AppTree },
+    }
+    return Promise.resolve(
+      props.props ? props.props : loadGetInitialProps(App, appCtx)
+    ).then(initProps =>
+      doRender({
+        ...props,
+        err,
+        Component: ErrorComponent,
+        props: initProps,
+      })
+    )
+  })
 }
 
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
-function renderReactElement (reactEl, domEl) {
-  // mark start of hydrate/render
-  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
-    performance.mark('beforeRender')
-  }
-
-  // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-    isInitialRender = false
+let reactRoot = null
+function renderReactElement(reactEl, domEl) {
+  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+    if (!reactRoot) {
+      const opts = { hydrate: true }
+      reactRoot =
+        process.env.__NEXT_REACT_MODE === 'concurrent'
+          ? ReactDOM.unstable_createRoot(domEl, opts)
+          : ReactDOM.unstable_createBlockingRoot(domEl, opts)
+    }
+    reactRoot.render(reactEl)
   } else {
-    ReactDOM.render(reactEl, domEl, markRenderComplete)
+    // mark start of hydrate/render
+    if (ST) {
+      performance.mark('beforeRender')
+    }
+
+    // The check for `.hydrate` is there to support React alternatives like preact
+    if (isInitialRender) {
+      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      isInitialRender = false
+
+      if (onPerfEntry && ST) {
+        measureWebVitals(onPerfEntry)
+      }
+    } else {
+      ReactDOM.render(reactEl, domEl, markRenderComplete)
+    }
   }
 }
 
-function markHydrateComplete () {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+function markHydrateComplete() {
+  if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
 
@@ -257,11 +416,14 @@ function markHydrateComplete () {
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+  }
   clearMarks()
 }
 
-function markRenderComplete () {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+function markRenderComplete() {
+  if (!ST) return
 
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
@@ -276,20 +438,28 @@ function markRenderComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
+    performance
+      .getEntriesByName('Next.js-route-change-to-render')
+      .forEach(onPerfEntry)
+  }
   clearMarks()
+  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach(measure =>
+    performance.clearMeasures(measure)
+  )
 }
 
-function clearMarks () {
-  performance.clearMarks()
-  /*
-   * TODO: uncomment the following line when we have a way to
-   * expose this to user code.
-   */
-  // performance.clearMeasures()
+function clearMarks() {
+  ;[
+    'beforeRender',
+    'afterHydrate',
+    'afterRender',
+    'routeChange',
+  ].forEach(mark => performance.clearMarks(mark))
 }
 
-function AppContainer ({ children }) {
+function AppContainer({ children }) {
   return (
     <Container
       fn={error =>
@@ -298,15 +468,11 @@ function AppContainer ({ children }) {
         )
       }
     >
-      <Suspense fallback={<div>Loading...</div>}>
-        <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <DataManagerContext.Provider value={dataManager}>
-            <HeadManagerContext.Provider value={headManager.updateHead}>
-              {children}
-            </HeadManagerContext.Provider>
-          </DataManagerContext.Provider>
-        </RouterContext.Provider>
-      </Suspense>
+      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+        <HeadManagerContext.Provider value={updateHead}>
+          {children}
+        </HeadManagerContext.Provider>
+      </RouterContext.Provider>
     </Container>
   )
 }
@@ -320,7 +486,7 @@ const wrapApp = App => props => {
   )
 }
 
-async function doRender ({ App, Component, props, err }) {
+async function doRender({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (
@@ -335,7 +501,7 @@ async function doRender ({ App, Component, props, err }) {
       router,
       AppTree,
       Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath, AppTree }
+      ctx: { err, pathname, query, asPath, AppTree },
     }
     props = await loadGetInitialProps(App, appCtx)
   }
@@ -350,14 +516,22 @@ async function doRender ({ App, Component, props, err }) {
   emitter.emit('before-reactdom-render', {
     Component,
     ErrorComponent,
-    appProps
+    appProps,
   })
+
+  const elem = (
+    <AppContainer>
+      <App {...appProps} />
+    </AppContainer>
+  )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>,
+    process.env.__NEXT_STRICT_MODE ? (
+      <React.StrictMode>{elem}</React.StrictMode>
+    ) : (
+      elem
+    ),
     appElement
   )
 

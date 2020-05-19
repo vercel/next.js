@@ -4,10 +4,10 @@ import { createHook } from 'overmind-react'
 export const config = {
   state: {
     page: null,
-    items: []
+    items: [],
   },
   actions: {
-    changePage ({ state }, mutations) {
+    changePage({ state }, mutations) {
       rehydrate(state, mutations || [])
 
       switch (state.page) {
@@ -17,9 +17,11 @@ export const config = {
         case 'About':
           // Do some additional logic
           break
+        default:
+          break
       }
-    }
-  }
+    },
+  },
 }
 
 export const useOvermind = createHook()

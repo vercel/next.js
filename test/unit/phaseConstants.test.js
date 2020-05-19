@@ -3,7 +3,7 @@ import {
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
-  PHASE_DEVELOPMENT_SERVER
+  PHASE_DEVELOPMENT_SERVER,
 } from 'next/constants'
 
 describe('phaseConstants', () => {

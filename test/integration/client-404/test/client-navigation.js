@@ -17,7 +17,7 @@ export default context => {
 
         expect({ serverCode, clientCode }).toMatchObject({
           serverCode: '404',
-          clientCode: '404'
+          clientCode: '404',
         })
         await browser.close()
       })

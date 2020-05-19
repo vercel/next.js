@@ -30,6 +30,7 @@
       "color-primary-contrast": "var(--color-dark-contrast)",
       "color-accent-contrast": "var(--color-dark-contrast)"
     },
-    "output": "static"
+    "output": "public",
+    "javascript": "./theme.js"
   }
 }

@@ -2,13 +2,13 @@ import Document from 'next/document'
 import { ServerPortal } from '@jesstelford/react-portal-universal/server'
 
 export default class extends Document {
-  static async getInitialProps (ctx) {
+  static async getInitialProps(ctx) {
     const portals = new ServerPortal()
     const originalRenderPage = ctx.renderPage
 
     ctx.renderPage = () =>
       originalRenderPage({
-        enhanceApp: App => props => portals.collectPortals(<App {...props} />)
+        enhanceApp: App => props => portals.collectPortals(<App {...props} />),
       })
 
     const { html, ...props } = await Document.getInitialProps(ctx)
@@ -17,7 +17,7 @@ export default class extends Document {
 
     return {
       html: htmlWithPortals,
-      ...props
+      ...props,
     }
   }
 }

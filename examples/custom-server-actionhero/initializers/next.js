@@ -1,14 +1,13 @@
-'use strict'
 const { Initializer, api } = require('actionhero')
 const next = require('next')
 
 module.exports = class NextInitializer extends Initializer {
-  constructor () {
+  constructor() {
     super()
     this.name = 'next'
   }
 
-  async initialize () {
+  async initialize() {
     api.next = {
       render: async connection => {
         if (connection.type !== 'web') {
@@ -17,7 +16,7 @@ module.exports = class NextInitializer extends Initializer {
         const req = connection.rawConnection.req
         const res = connection.rawConnection.res
         return api.next.handle(req, res)
-      }
+      },
     }
 
     api.next.dev = api.env === 'development'
@@ -30,7 +29,7 @@ module.exports = class NextInitializer extends Initializer {
     await api.next.app.prepare()
   }
 
-  async stop () {
+  async stop() {
     await api.next.app.close()
   }
 }

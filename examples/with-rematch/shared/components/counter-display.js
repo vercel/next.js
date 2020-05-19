@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import { connect } from 'react-redux'
 
 class CounterDisplay extends Component {
-  render () {
+  render() {
     const { counter, incrementBy3 } = this.props
 
     return (
@@ -23,14 +23,11 @@ class CounterDisplay extends Component {
 }
 
 const mapState = state => ({
-  counter: state.counter
+  counter: state.counter,
 })
 
 const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
-  incrementBy3: () => increment(3)
+  incrementBy3: () => increment(3),
 })
 
-export default connect(
-  mapState,
-  mapDispatch
-)(CounterDisplay)
+export default connect(mapState, mapDispatch)(CounterDisplay)

@@ -8,8 +8,6 @@ export default (context, render) => {
   describe('Configuration', () => {
     it('should have config available on the client', async () => {
       const browser = await webdriver(context.appPort, '/next-config')
-      // Wait for client side to load
-      await waitFor(10000)
 
       const serverText = await browser.elementByCss('#server-only').text()
       const serverClientText = await browser

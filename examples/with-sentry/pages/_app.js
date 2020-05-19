@@ -4,15 +4,15 @@ import sentry from '../utils/sentry'
 const { Sentry, captureException } = sentry()
 
 export default class MyApp extends App {
-  constructor () {
+  constructor() {
     super(...arguments)
     this.state = {
       hasError: false,
-      errorEventId: undefined
+      errorEventId: undefined,
     }
   }
 
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     try {
       let pageProps = {}
 
@@ -27,27 +27,27 @@ export default class MyApp extends App {
       const errorEventId = captureException(error, ctx)
       return {
         hasError: true,
-        errorEventId
+        errorEventId,
       }
     }
   }
 
-  static getDerivedStateFromProps (props, state) {
+  static getDerivedStateFromProps(props, state) {
     // If there was an error generated within getInitialProps, and we haven't
     // yet seen an error, we add it to this.state here
     return {
       hasError: props.hasError || state.hasError || false,
-      errorEventId: props.errorEventId || state.errorEventId || undefined
+      errorEventId: props.errorEventId || state.errorEventId || undefined,
     }
   }
 
-  static getDerivedStateFromError () {
+  static getDerivedStateFromError() {
     // React Error Boundary here allows us to set state flagging the error (and
     // later render a fallback UI).
     return { hasError: true }
   }
 
-  componentDidCatch (error, errorInfo) {
+  componentDidCatch(error, errorInfo) {
     const errorEventId = captureException(error, { errorInfo })
 
     // Store the event id at this point as we don't have access to it within
@@ -55,13 +55,13 @@ export default class MyApp extends App {
     this.setState({ errorEventId })
   }
 
-  render () {
+  render() {
     return this.state.hasError ? (
       <section>
         <h1>There was an error!</h1>
         <p>
           <a
-            href='#'
+            href="#"
             onClick={() =>
               Sentry.showReportDialog({ eventId: this.state.errorEventId })
             }
@@ -71,7 +71,7 @@ export default class MyApp extends App {
         </p>
         <p>
           <a
-            href='#'
+            href="#"
             onClick={() => {
               window.location.reload(true)
             }}

@@ -19,17 +19,17 @@ export const allPostsQuery = `
   }
 `
 
-export default function PostList () {
+export default function PostList() {
   const [skip, setSkip] = useState(0)
   const { loading, error, data, refetch } = useQuery(allPostsQuery, {
     variables: { skip, first: 10 },
     updateData: (prevResult, result) => ({
       ...result,
-      allPosts: [...prevResult.allPosts, ...result.allPosts]
-    })
+      allPosts: [...prevResult.allPosts, ...result.allPosts],
+    }),
   })
 
-  if (error) return <ErrorMessage message='Error loading posts.' />
+  if (error) return <ErrorMessage message="Error loading posts." />
   if (!data) return <div>Loading</div>
 
   const { allPosts, _allPostsMeta } = data

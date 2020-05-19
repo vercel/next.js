@@ -11,7 +11,7 @@ const { actionCreator, getState: getHomepageState } = namespaceConfig(
   DEFAULT_STATE
 )
 
-const bumpBuild = actionCreator(function bumpBuild (state, increment) {
+const bumpBuild = actionCreator(function bumpBuild(state, increment) {
   return { ...state, build: state.build + increment }
 })
 
@@ -22,21 +22,18 @@ const Homepage = ({ build, bumpBuild }) => (
     <p>
       <button onClick={e => bumpBuild(1)}>Bump build!</button>
     </p>
-    <Link href='/about'>
+    <Link href="/about">
       <a>About Us</a>
     </Link>
   </div>
 )
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   return getHomepageState(state)
 }
 
-function mapDispatchToProps (dispatch) {
+function mapDispatchToProps(dispatch) {
   return bindActionCreators({ bumpBuild }, dispatch)
 }
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Homepage)
+export default connect(mapStateToProps, mapDispatchToProps)(Homepage)

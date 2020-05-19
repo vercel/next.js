@@ -2,13 +2,13 @@ import Document, { Head, Main, NextScript } from 'next/document'
 import { StyleSheetServer } from 'aphrodite'
 
 export default class MyDocument extends Document {
-  static async getInitialProps ({ renderPage }) {
+  static async getInitialProps({ renderPage }) {
     const { html, css } = StyleSheetServer.renderStatic(() => renderPage())
     const ids = css.renderedClassNames
     return { ...html, css, ids }
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     /* Take the renderedClassNames from aphrodite (as generated
     in getInitialProps) and assign them to __NEXT_DATA__ so that they
@@ -19,7 +19,7 @@ export default class MyDocument extends Document {
     }
   }
 
-  render () {
+  render() {
     /* Make sure to use data-aphrodite attribute in the style tag here
     so that aphrodite knows which style tag it's in control of when
     the client goes to render styles. If you don't you'll get a second

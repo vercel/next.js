@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
+import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 ;['react', 'react-dom'].forEach(dependency => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -7,7 +9,7 @@ import arg from 'next/dist/compiled/arg/index.js'
   } catch (err) {
     // tslint:disable-next-line
     console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install --save ${dependency}'`
+      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
     )
   }
 })
@@ -20,6 +22,8 @@ const commands: { [command: string]: () => Promise<cliCommand> } = {
   export: async () =>
     await import('../cli/next-export').then(i => i.nextExport),
   dev: async () => await import('../cli/next-dev').then(i => i.nextDev),
+  telemetry: async () =>
+    await import('../cli/next-telemetry').then(i => i.nextTelemetry),
 }
 
 const args = arg(
@@ -61,7 +65,6 @@ if (!foundCommand && args['--help']) {
 
     Options
       --version, -v   Version number
-      --inspect       Enable the Node.js inspector
       --help, -h      Displays this message
 
     For more information run a command with the --help flag
@@ -75,7 +78,7 @@ const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 if (args['--inspect'])
   throw new Error(
-    `Use env variable NODE_OPTIONS instead: NODE_OPTIONS="--inspect" next ${command}`
+    `--inspect flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${command}`
   )
 
 // Make sure the `next <subcommand> --help` case is covered
@@ -84,6 +87,13 @@ if (args['--help']) {
 }
 
 const defaultEnv = command === 'dev' ? 'development' : 'production'
+
+const standardEnv = ['production', 'development', 'test']
+
+if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
+  log.warn(NON_STANDARD_NODE_ENV)
+}
+
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
 // this needs to come after we set the correct NODE_ENV or
@@ -92,14 +102,14 @@ const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
   )
 }
 
 commands[command]().then(exec => exec(forwardedArgs))
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('next-server/constants')
+  const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {

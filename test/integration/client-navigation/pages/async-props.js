@@ -1,16 +1,16 @@
 import React from 'react'
 
 export default class AsyncProps extends React.Component {
-  static async getInitialProps () {
+  static async getInitialProps() {
     return fetchData()
   }
 
-  render () {
+  render() {
     return <p>{this.props.name}</p>
   }
 }
 
-function fetchData () {
+function fetchData() {
   const p = new Promise(resolve => {
     setTimeout(() => resolve({ name: 'Diego Milito' }), 10)
   })

@@ -9,24 +9,20 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
     dsn: process.env.SENTRY_DSN,
     release,
     maxBreadcrumbs: 50,
-    attachStacktrace: true
+    attachStacktrace: true,
   }
 
   // When we're developing locally
   if (process.env.NODE_ENV !== 'production') {
-    /* eslint-disable-next-line global-require */
-    const sentryTestkit = require('sentry-testkit')
-    const { sentryTransport } = sentryTestkit()
-
     // Don't actually send the errors to Sentry
-    sentryOptions.transport = sentryTransport
+    sentryOptions.beforeSend = () => null
 
     // Instead, dump the errors to the console
     sentryOptions.integrations = [
       new SentryIntegrations.Debug({
         // Trigger DevTools debugger instead of using console.log
-        debugger: false
-      })
+        debugger: false,
+      }),
     ]
   }
 
@@ -86,6 +82,6 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
       })
 
       return Sentry.captureException(err)
-    }
+    },
   }
 }

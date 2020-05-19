@@ -6,12 +6,12 @@ import { persistStore } from 'redux-persist'
 import { PersistGate } from 'redux-persist/integration/react'
 
 class MyApp extends App {
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.persistor = persistStore(props.reduxStore)
   }
 
-  render () {
+  render() {
     const { Component, pageProps, reduxStore } = this.props
     return (
       <Provider store={reduxStore}>

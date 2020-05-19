@@ -1,5 +1,5 @@
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 import * as Log from './log'
 
@@ -17,11 +17,13 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
-let lastStore: OutputState = {} as any
+let lastStore: OutputState = { appUrl: null, bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
-    [...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)])].every(
-      key => Object.is((lastStore as any)[key], (nextStore as any)[key])
+    ([
+      ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
+    ] as Array<keyof OutputState>).every(key =>
+      Object.is(lastStore[key], nextStore[key])
     )
   ) {
     return false
@@ -37,15 +39,14 @@ store.subscribe(state => {
   }
 
   if (state.bootstrap) {
-    Log.wait('starting the development server ...')
     if (state.appUrl) {
-      Log.info(`waiting on ${state.appUrl} ...`)
+      Log.ready(`started server on ${state.appUrl}`)
     }
     return
   }
 
   if (state.loading) {
-    Log.wait('compiling ...')
+    Log.wait('compiling...')
     return
   }
 
@@ -78,12 +79,9 @@ store.subscribe(state => {
   }
 
   if (state.typeChecking) {
-    Log.info('bundled successfully, waiting for typecheck results ...')
+    Log.info('bundled successfully, waiting for typecheck results...')
     return
   }
 
-  Log.ready(
-    'compiled successfully' +
-      (state.appUrl ? ` - ready on ${state.appUrl}` : '')
-  )
+  Log.event('compiled successfully')
 })

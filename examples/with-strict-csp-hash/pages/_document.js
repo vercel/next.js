@@ -8,7 +8,7 @@ const cspHashOf = text => {
 }
 
 export default class extends Document {
-  render () {
+  render() {
     const csp = `default-src 'self'; script-src 'self' ${cspHashOf(
       NextScript.getInlineScriptSource(this.props)
     )}`
@@ -16,7 +16,7 @@ export default class extends Document {
     return (
       <html>
         <Head>
-          <meta httpEquiv='Content-Security-Policy' content={csp} />
+          <meta httpEquiv="Content-Security-Policy" content={csp} />
         </Head>
         <body>
           <Main />

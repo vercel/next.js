@@ -13,18 +13,18 @@ process.env.NODE_ENV = 'production'
 const preset = require('next/dist/build/babel/preset')
 process.env.NODE_ENV = NODE_ENV
 
-const babel = (code, esm = false) =>
+const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
   transform(code, {
-    filename: 'noop.js',
-    presets: [preset],
+    filename,
+    presets: [[preset, presetOptions]],
     babelrc: false,
     configFile: false,
     sourceType: 'module',
     compact: true,
     caller: {
       name: 'tests',
-      supportsStaticESM: esm
-    }
+      supportsStaticESM: esm,
+    },
   }).code
 
 describe('next/babel', () => {
@@ -69,7 +69,7 @@ describe('next/babel', () => {
       expect(output).toMatch(`__jsx("a",{href:"/"`)
 
       expect(babel(`const a = ()=><a href="/">home</a>`)).toMatchInlineSnapshot(
-        `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime-corejs2/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+        `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
       )
     })
 
@@ -133,6 +133,66 @@ describe('next/babel', () => {
       expect(output).toMatchInlineSnapshot(
         `"import{useState}from'react';var _useState=useState(0),setCount=_useState[1];"`
       )
+    })
+  })
+
+  describe('@babel/preset-typescript', () => {
+    describe('should allow passing options', () => {
+      const code = trim`
+        import { Tesla } from "./tesla";
+        import { Car } from "./car";
+
+        const benediktsDreamCar: Car = new Tesla();
+      `
+
+      function compileMyCar(options) {
+        return babel(
+          code,
+          false,
+          {
+            'preset-typescript': options,
+          },
+          'my-car.ts'
+        )
+      }
+
+      describe('when setting { onlyRemoveTypeImports: true }', () => {
+        it('should not elide import', () => {
+          const output = compileMyCar({ onlyRemoveTypeImports: true })
+
+          expect(output).toContain('require("./car")')
+        })
+      })
+
+      describe('when setting { onlyRemoveTypeImports: false }', () => {
+        it('should elide import', () => {
+          const output = compileMyCar({ onlyRemoveTypeImports: false })
+
+          expect(output).not.toContain('require("./car")')
+        })
+      })
+    })
+  })
+
+  describe('experimental-modern-preset', () => {
+    it('should allow passing a custom Babel preset', () => {
+      const code = trim`
+        const [, b, c] = [...[1,2,3]];
+        ({a}) => a;
+      `
+      const output = babel(code, true, {
+        'preset-env': {
+          targets: {
+            esmodules: true,
+          },
+        },
+        // our modern preset is no preset at all
+        'experimental-modern-preset': () => ({}),
+      })
+
+      expect(output).toMatch(trim`
+        const[,b,c]=[...[1,2,3]];({a})=>a;
+      `)
     })
   })
 })

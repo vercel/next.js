@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -7,10 +7,10 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let output = ''
@@ -26,7 +26,7 @@ describe('Empty Project', () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort, {
       onStdout: handleOutput,
-      onStderr: handleOutput
+      onStderr: handleOutput,
     })
   })
   afterAll(() => killApp(app))
@@ -60,7 +60,7 @@ describe('Empty Project', () => {
       }
       window.next.router.replace('/another')
     })()`)
-    await waitFor(300)
+    await waitFor(1000)
     const gotWarn = await browser.eval(`window.gotWarn`)
     expect(gotWarn).toBe(true)
     await browser.close()

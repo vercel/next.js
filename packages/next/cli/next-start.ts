@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
 import { cliCommand } from '../bin/next'
+import * as Log from '../build/output/log'
 
 const nextStart: cliCommand = argv => {
   const args = arg(
@@ -31,10 +32,8 @@ const nextStart: cliCommand = argv => {
       Usage
         $ next start <dir> -p <port>
 
-      <dir> is the directory that contains the compiled dist folder
-      created by running \`next build\`.
-      If no directory is provided, the current directory will be assumed.
-      You can set a custom dist folder in config https://github.com/zeit/next.js#custom-configuration
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         --port, -p      A port number on which to start the application
@@ -49,8 +48,8 @@ const nextStart: cliCommand = argv => {
   startServer({ dir }, port, args['--hostname'])
     .then(async app => {
       // tslint:disable-next-line
-      console.log(
-        `> Ready on http://${args['--hostname'] || 'localhost'}:${port}`
+      Log.ready(
+        `started server on http://${args['--hostname'] || 'localhost'}:${port}`
       )
       await app.prepare()
     })

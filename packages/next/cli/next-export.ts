@@ -14,7 +14,6 @@ const nextExport: cliCommand = argv => {
       '--silent': Boolean,
       '--outdir': String,
       '--threads': Number,
-      '--concurrency': Number,
 
       // Aliases
       '-h': '--help',
@@ -33,8 +32,8 @@ const nextExport: cliCommand = argv => {
       Usage
         $ next export [options] <dir>
 
-      <dir> represents where the compiled dist folder should go.
-      If no directory is provided, the 'out' folder will be created in the current directory.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         -h - list this help
@@ -51,22 +50,9 @@ const nextExport: cliCommand = argv => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (!existsSync(join(dir, 'pages'))) {
-    if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit(
-        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
-      )
-    }
-
-    printAndExit(
-      "> Couldn't find a `pages` directory. Please create one under the project root"
-    )
-  }
-
   const options = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
-    concurrency: args['--concurrency'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
   }
 

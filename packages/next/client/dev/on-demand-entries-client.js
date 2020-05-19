@@ -1,5 +1,3 @@
-/* global window */
-
 import Router from 'next/router'
 import { setupPing, currentPage, closePing } from './on-demand-entries-utils'
 
@@ -22,6 +20,10 @@ export default async ({ assetPrefix }) => {
       } else {
         closePing()
       }
+    })
+
+    window.addEventListener('beforeunload', () => {
+      closePing()
     })
   }
 }

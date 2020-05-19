@@ -1,7 +1,7 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from 'next-server/dist/lib/router/router'
-import { RouterContext } from 'next-server/dist/lib/router-context'
+import Router, { NextRouter } from '../next-server/lib/router/router'
+import { RouterContext } from '../next-server/lib/router-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -29,7 +29,15 @@ const singletonRouter: SingletonRouterBase = {
 }
 
 // Create public properties and methods of the router in the singletonRouter
-const urlPropertyFields = ['pathname', 'route', 'query', 'asPath', 'components']
+const urlPropertyFields = [
+  'pathname',
+  'route',
+  'query',
+  'asPath',
+  'components',
+  'isFallback',
+  'basePath',
+]
 const routerEvents = [
   'routeChangeStart',
   'beforeHistoryChange',
@@ -96,7 +104,7 @@ routerEvents.forEach(event => {
   })
 })
 
-function getRouter() {
+function getRouter(): Router {
   if (!singletonRouter.router) {
     const message =
       'No router instance found.\n' +
@@ -112,7 +120,7 @@ export default singletonRouter as SingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
-export function useRouter() {
+export function useRouter(): NextRouter {
   return React.useContext(RouterContext)
 }
 
@@ -123,7 +131,7 @@ export function useRouter() {
 // Create a router and assign it as the singleton instance.
 // This is used in client side when we are initilizing the app.
 // This should **not** use inside the server.
-export const createRouter = (...args: RouterArgs) => {
+export const createRouter = (...args: RouterArgs): Router => {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach(cb => cb())
   singletonRouter.readyCallbacks = []
@@ -138,7 +146,7 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   for (const property of urlPropertyFields) {
     if (typeof _router[property] === 'object') {
-      instance[property] = { ..._router[property] } // makes sure query is not stateful
+      instance[property] = Object.assign({}, _router[property]) // makes sure query is not stateful
       continue
     }
 

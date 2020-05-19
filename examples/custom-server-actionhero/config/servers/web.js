@@ -1,5 +1,3 @@
-'use strict'
-
 const os = require('os')
 
 exports['default'] = {
@@ -27,7 +25,7 @@ exports['default'] = {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods':
             'HEAD, GET, POST, PUT, PATCH, DELETE, OPTIONS, TRACE',
-          'Access-Control-Allow-Headers': 'Content-Type'
+          'Access-Control-Allow-Headers': 'Content-Type',
         },
         // Route that actions will be served from; secondary route against this route will be treated as actions,
         //  IE: /api/?action=test == /api/test/
@@ -61,15 +59,15 @@ exports['default'] = {
           onlyStaticElements: false,
           settings: {
             path: '/',
-            expires: 3600000
-          }
+            expires: 3600000,
+          },
         },
         // Options to be applied to incoming file uploads.
         //  More options and details at https://github.com/felixge/node-formidable
         formOptions: {
           uploadDir: os.tmpdir(),
           keepExtensions: false,
-          maxFieldsSize: 1024 * 1024 * 100
+          maxFieldsSize: 1024 * 1024 * 100,
         },
         // Should we pad JSON responses with whitespace to make them more human-readable?
         // set to null to disable
@@ -77,7 +75,7 @@ exports['default'] = {
         // Options to configure metadata in responses
         metadataOptions: {
           serverInformation: true,
-          requesterInformation: true
+          requesterInformation: true,
         },
         // When true, returnErrorCodes will modify the response header for http(s) clients if connection.error is not null.
         // You can also set connection.rawConnection.responseHttpCode to specify a code per request.
@@ -87,10 +85,10 @@ exports['default'] = {
         compress: false,
         // options to pass to the query parser
         // learn more about the options @ https://github.com/hapijs/qs
-        queryParseOptions: {}
+        queryParseOptions: {},
       }
-    }
-  }
+    },
+  },
 }
 
 exports.production = {
@@ -100,11 +98,11 @@ exports.production = {
         padding: null,
         metadataOptions: {
           serverInformation: false,
-          requesterInformation: false
-        }
+          requesterInformation: false,
+        },
       }
-    }
-  }
+    },
+  },
 }
 
 exports.test = {
@@ -116,9 +114,9 @@ exports.test = {
         matchExtensionMime: true,
         metadataOptions: {
           serverInformation: true,
-          requesterInformation: true
-        }
+          requesterInformation: true,
+        },
       }
-    }
-  }
+    },
+  },
 }

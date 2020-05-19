@@ -5,9 +5,9 @@
     "react-dom": "^16.7.0"
   },
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
     "build-rust": "rustc +nightly --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm",
-    "start": "NODE_ENV=production node server.js"
+    "start": "next start"
   }
 }

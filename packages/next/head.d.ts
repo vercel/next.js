@@ -1,2 +1,2 @@
-export * from 'next-server/head'
-export { default } from 'next-server/head'
+export * from './dist/next-server/lib/head'
+export { default } from './dist/next-server/lib/head'

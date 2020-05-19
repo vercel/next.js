@@ -1,12 +1,12 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   renderViaHTTP,
   fetchViaHTTP,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 
@@ -15,7 +15,7 @@ import rendering from './rendering'
 import client from './client'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Configuration', () => {
   beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('Configuration', () => {
       renderViaHTTP(context.appPort, '/next-config'),
       renderViaHTTP(context.appPort, '/build-id'),
       renderViaHTTP(context.appPort, '/webpack-css'),
-      renderViaHTTP(context.appPort, '/module-only-component')
+      renderViaHTTP(context.appPort, '/module-only-component'),
     ])
   })
 

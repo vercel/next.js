@@ -1,17 +1,17 @@
-/* global window, location */
+/* global location */
 
-import fetch from 'unfetch'
+import fetch from 'next/dist/build/polyfills/unfetch'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 
 let evtSource
 export let currentPage
 
-export function closePing () {
+export function closePing() {
   if (evtSource) evtSource.close()
   evtSource = null
 }
 
-export function setupPing (assetPrefix, pathnameFn, retry) {
+export function setupPing(assetPrefix, pathnameFn, retry) {
   const pathname = pathnameFn()
 
   // Make sure to only create new EventSource request if page has changed
@@ -31,7 +31,7 @@ export function setupPing (assetPrefix, pathnameFn, retry) {
         // Payload can be invalid even if the page does not exist.
         // So, we need to make sure it exists before reloading.
         fetch(location.href, {
-          credentials: 'same-origin'
+          credentials: 'same-origin',
         }).then(pageRes => {
           if (pageRes.status === 200) {
             location.reload()

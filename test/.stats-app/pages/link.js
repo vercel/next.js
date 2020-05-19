@@ -1,10 +1,10 @@
 import Link from 'next/link'
 
-function aLink (props) {
+function aLink(props) {
   return (
     <div>
       <h3>A Link page!</h3>
-      <Link href='/'>Go to /</Link>
+      <Link href="/">Go to /</Link>
     </div>
   )
 }

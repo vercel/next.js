@@ -10,6 +10,7 @@ This handling has been moved up the tree so the `<Container>` component is no lo
 Remove the `<Container>` component from your Custom `<App>` (`./pages/_app.js`).
 
 **Before**
+
 ```jsx
 import React from 'react'
 import App, { Container } from 'next/app'
@@ -29,6 +30,7 @@ export default MyApp
 ```
 
 **After**
+
 ```jsx
 import React from 'react'
 import App from 'next/app'

@@ -6,9 +6,9 @@ const Container = ({ children }) => (
       maxWidth: 700,
       marginLeft: 'auto',
       marginRight: 'auto',
-      lineHeight: 1.5
+      lineHeight: 1.5,
     }}
-    as='div'
+    as="div"
   >
     {children}
   </FelaComponent>
@@ -18,16 +18,16 @@ const textRule = ({ size, theme }) => ({
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   fontSize: size,
-  color: '#333'
+  color: '#333',
 })
 
-function Text ({ size = 16, children }) {
+function Text({ size = 16, children }) {
   const { css } = useFela({ size })
 
   return <p className={css(textRule)}>{children}</p>
 }
 
-function Title ({ children, size = 24 }) {
+function Title({ children, size = 24 }) {
   const { css } = useFela()
 
   return <h1 className={css({ fontSize: size, color: '#555' })}>{children}</h1>

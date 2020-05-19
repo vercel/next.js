@@ -1,16 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  SERVER_DIRECTORY,
-  CLIENT_STATIC_FILES_PATH
-} from 'next-server/constants'
+import { SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next/constants'
 import {
   requirePage,
   getPagePath,
-  pageNotFoundError
-} from 'next-server/dist/server/require'
-import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
+  pageNotFoundError,
+} from 'next/dist/next-server/server/require'
+import { normalizePagePath } from 'next/dist/next-server/server/normalize-page-path'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
@@ -24,8 +21,9 @@ const pathToBundles = join(
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
+    expect.assertions(1)
     try {
-      pageNotFoundError('test')
+      throw pageNotFoundError('test')
     } catch (err) {
       expect(err.code).toBe('ENOENT')
     }
@@ -87,6 +85,7 @@ describe('requirePage', () => {
   })
 
   it('Should throw when using /../../test.js', async () => {
+    expect.assertions(1)
     try {
       await requirePage('/../../test', distDir)
     } catch (err) {
@@ -95,6 +94,7 @@ describe('requirePage', () => {
   })
 
   it('Should throw when using non existent pages like /non-existent.js', async () => {
+    expect.assertions(1)
     try {
       await requirePage('/non-existent', distDir)
     } catch (err) {
@@ -103,6 +103,7 @@ describe('requirePage', () => {
   })
 
   it('Should bubble up errors in the child component', async () => {
+    expect.assertions(1)
     try {
       await requirePage('/non-existent-child', distDir)
     } catch (err) {

@@ -1,17 +1,15 @@
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer')
   .BundleAnalyzerPlugin
 module.exports = {
-  experimental: {
-    granularChunks: true
-  },
-  webpack (config) {
+  assetPrefix: '/foo/',
+  webpack(config) {
     config.plugins = config.plugins || []
     config.plugins.push(
       new BundleAnalyzerPlugin({
         analyzerMode: 'disabled',
-        generateStatsFile: true
+        generateStatsFile: true,
       })
     )
     return config
-  }
+  },
 }

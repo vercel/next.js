@@ -4,7 +4,7 @@ const fs = require('fs-extra')
 const recursiveCopyNpm = require('recursive-copy')
 
 const {
-  recursiveCopy: recursiveCopyCustom
+  recursiveCopy: recursiveCopyCustom,
 } = require('next/dist/lib/recursive-copy')
 
 const fixturesDir = join(__dirname, 'fixtures')
@@ -23,8 +23,8 @@ const createSrcFolder = async () => {
   await Promise.all(files.map(file => fs.outputFile(file, 'hello')))
 }
 
-async function run (fn) {
-  async function test () {
+async function run(fn) {
+  async function test() {
     const start = process.hrtime()
 
     await fn(srcDir, destDir)
@@ -48,7 +48,7 @@ async function run (fn) {
   console.log({ sum, nb, avg })
 }
 
-async function main () {
+async function main() {
   await createSrcFolder()
 
   console.log('test recursive-copy npm module')

@@ -23,5 +23,5 @@ exports['default'] = {
     */
 
     return {}
-  }
+  },
 }

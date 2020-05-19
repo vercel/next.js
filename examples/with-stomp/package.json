@@ -1,0 +1,15 @@
+{
+  "name": "with-stomp",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "@stomp/stompjs": "^5.4.2"
+  }
+}

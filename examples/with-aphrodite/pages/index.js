@@ -20,8 +20,8 @@ const styles = StyleSheet.create({
     height: 60,
     background: 'white',
     ':hover': {
-      background: 'black'
-    }
+      background: 'black',
+    },
   },
 
   title: {
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     color: 'black',
     fontSize: 22,
     ':hover': {
-      color: 'white'
-    }
-  }
+      color: 'white',
+    },
+  },
 })

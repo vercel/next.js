@@ -1,13 +1,23 @@
 # With universal configuration
 
+This example shows how to use environment variables and customize one based on NODE_ENV for your application using `dotenv`, a `.env`-file and `next.config.js`.
+
+When you build your application the environment variable is transformed into a primitive (string or undefined) and can only be changed with a new build. This happens for both client-side and server-side. If the environment variable is used directly in your application it will only have an effect on the server side, not the client side.
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-universal-configuration-build-time)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-universal-configuration-build-time with-universal-configuration-build-time-app
+npm init next-app --example with-universal-configuration-build-time with-universal-configuration-build-time-app
 # or
 yarn create next-app --example with-universal-configuration-build-time with-universal-configuration-build-time-app
 ```
@@ -31,17 +41,7 @@ yarn
 VARIABLE_EXAMPLE=next.js yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-This example shows how to use environment variables and customize one based on NODE_ENV for your application using `dotenv`, a `.env`-file and `next.config.js`.
-
-When you build your application the environment variable is transformed into a primitive (string or undefined) and can only be changed with a new build. This happens for both client-side and server-side. If the environment variable is used directly in your application it will only have an effect on the server side, not the client side.
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## Please note
 

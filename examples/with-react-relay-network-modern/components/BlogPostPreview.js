@@ -11,5 +11,5 @@ export default createFragmentContainer(BlogPostPreview, {
       id
       title
     }
-  `
+  `,
 })

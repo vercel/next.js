@@ -4,7 +4,7 @@ import { connect } from 'react-redux'
 import Header from '../shared/components/header'
 
 class Home extends Component {
-  render () {
+  render() {
     const { counter, increment, incrementBy, incrementAsync } = this.props
 
     return (
@@ -27,16 +27,13 @@ class Home extends Component {
 }
 
 const mapState = state => ({
-  counter: state.counter
+  counter: state.counter,
 })
 
 const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   increment: () => increment(1),
   incrementBy: amount => () => increment(amount),
-  incrementAsync: () => incrementAsync(1)
+  incrementAsync: () => incrementAsync(1),
 })
 
-export default connect(
-  mapState,
-  mapDispatch
-)(Home)
+export default connect(mapState, mapDispatch)(Home)

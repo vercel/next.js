@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Next.js provides a router which can be utilized via a component imported via `next/link`, a wrapper `withRouter(Component)`, and now a hook `useRouter()`. 
+Next.js provides a router which can be utilized via a component imported via `next/link`, a wrapper `withRouter(Component)`, and now a hook `useRouter()`.
 When using any of these, it is expected they are only used for internal navigation, i.e. navigating between pages in the same Next.js application.
 
 Either you passed a non-internal `href` to a `next/link` component or you called `Router#push` or `Router#replace` with one.

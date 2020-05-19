@@ -2,7 +2,7 @@
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-export default function (context) {
+export default function(context) {
   describe('Render via SSR', () => {
     it('should render the home page', async () => {
       const html = await renderViaHTTP(context.port, '/')
@@ -58,11 +58,12 @@ export default function (context) {
       expect(html).toMatch(/404.*page.*not.*found/i)
     })
 
-    it('should not render _error on /404/index.html', async () => {
+    // since exportTrailingSlash is enabled we should allow this
+    it('should render _error on /404/index.html', async () => {
       const html = await renderViaHTTP(context.port, '/404/index.html')
       // The default error page from the test server
       // contains "404", so need to be specific here
-      expect(html).not.toMatch(/404.*page.*not.*found/i)
+      expect(html).toMatch(/404.*page.*not.*found/i)
     })
 
     it('Should serve static files', async () => {
@@ -70,12 +71,10 @@ export default function (context) {
       expect(data).toBe('item')
     })
 
-    it('Should serve public files and prioritize pages', async () => {
+    it('Should serve public files', async () => {
       const html = await renderViaHTTP(context.port, '/about')
-      const html2 = await renderViaHTTP(context.port, '/query')
       const data = await renderViaHTTP(context.port, '/about/data.txt')
       expect(html).toMatch(/This is the About page foobar/)
-      expect(html2).toMatch(/{"a":"blue"}/)
       expect(data).toBe('data')
     })
 

@@ -4,7 +4,7 @@ const rimrafMod = require('rimraf')
 const resolveDataDir = join(__dirname, `fixtures-${process.argv[2]}`, '**/*')
 const rimraf = promisify(rimrafMod)
 
-async function test () {
+async function test() {
   const time = process.hrtime()
   await rimraf(resolveDataDir)
 

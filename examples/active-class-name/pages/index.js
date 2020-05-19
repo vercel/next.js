@@ -1,8 +1,10 @@
 import Nav from '../components/Nav'
 
-export default () => (
-  <div>
+const IndexPage = () => (
+  <>
     <Nav />
-    <p>Hello, I'm the home page</p>
-  </div>
+    <p>Hello, I'm the index page</p>
+  </>
 )
+
+export default IndexPage

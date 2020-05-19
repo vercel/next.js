@@ -1,5 +1,5 @@
 export default ({ title, children }) => (
-  <div className='main'>
+  <div className="main">
     <h1>{title}</h1>
     {children}
     <style jsx>{`

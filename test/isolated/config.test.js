@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import loadConfig from 'next-server/next-config'
-import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
+import loadConfig from 'next/dist/next-server/server/config'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -31,7 +31,7 @@ describe('config', () => {
 
   it('Should pass the customConfig correctly', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      customConfig: true
+      customConfig: true,
     })
     expect(config.customConfig).toBe(true)
   })
@@ -44,7 +44,7 @@ describe('config', () => {
   it('Should assign object defaults deeply to customConfig', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
       customConfig: true,
-      onDemandEntries: { custom: true }
+      onDemandEntries: { custom: true },
     })
     expect(config.customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
@@ -52,7 +52,7 @@ describe('config', () => {
 
   it('Should allow setting objects which do not have defaults', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      bogusSetting: { custom: true }
+      bogusSetting: { custom: true },
     })
     expect(config.bogusSetting).toBeDefined()
     expect(config.bogusSetting.custom).toBe(true)
@@ -60,7 +60,7 @@ describe('config', () => {
 
   it('Should override defaults for arrays from user arrays', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      pageExtensions: ['.bogus']
+      pageExtensions: ['.bogus'],
     })
     expect(config.pageExtensions).toEqual(['.bogus'])
   })
@@ -84,5 +84,28 @@ describe('config', () => {
       join(__dirname, '_resolvedata', 'valid-target')
     )
     expect(config.target).toBe('serverless')
+  })
+
+  it('Should throw an error when next.config.js is not present', () => {
+    try {
+      loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        join(__dirname, '_resolvedata', 'typescript-config')
+      )
+      // makes sure we don't just pass if the loadConfig passes while it should fail
+      throw new Error('failed')
+    } catch (err) {
+      expect(err.message).toMatch(
+        /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'./
+      )
+    }
+  })
+
+  it('Should not throw an error when two versions of next.config.js are present', () => {
+    const config = loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      join(__dirname, '_resolvedata', 'js-ts-config')
+    )
+    expect(config.__test__ext).toBe('js')
   })
 })
