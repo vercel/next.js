@@ -310,12 +310,11 @@ export default class Router implements BaseRouter {
       throw new Error(`Cannot update unavailable route: ${route}`)
     }
 
-    const newData = {
-      ...data,
+    const newData = Object.assign({}, data, {
       Component,
       __N_SSG: mod.__N_SSG,
       __N_SSP: mod.__N_SSP,
-    }
+    })
     this.components[route] = newData
 
     // pages/_app.js updated
