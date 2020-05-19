@@ -29,9 +29,9 @@ export function isSerializableProps(
         page,
         method,
         path,
-        `Circular references cannot be expressed in JSON (references: \`${visited.get(
-          value
-        ) || '(self)'}\`).`
+        `Circular references cannot be expressed in JSON (references: \`${
+          visited.get(value) || '(self)'
+        }\`).`
       )
     }
 

@@ -421,12 +421,12 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
   }
 
   if (p) {
-    p.on('exit', function(errorCode) {
+    p.on('exit', function (errorCode) {
       if (errorCode) {
         printInstructions(fileName, '(code ' + errorCode + ')')
       }
     })
-    p.on('error', function(error) {
+    p.on('error', function (error) {
       printInstructions(fileName, error.message)
     })
   }

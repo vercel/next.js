@@ -56,13 +56,15 @@ const menuItemRender = (options: MenuDataItem, element: React.ReactNode) => (
   </Link>
 )
 
-export default ({ children }) => (
-  <ProLayout
-    style={{ minHeight: '100vh' }}
-    route={ROUTES}
-    menuItemRender={menuItemRender}
-    menuHeaderRender={menuHeaderRender}
-  >
-    {children}
-  </ProLayout>
-)
+export default function Main({ children }) {
+  return (
+    <ProLayout
+      style={{ minHeight: '100vh' }}
+      route={ROUTES}
+      menuItemRender={menuItemRender}
+      menuHeaderRender={menuHeaderRender}
+    >
+      {children}
+    </ProLayout>
+  )
+}

@@ -1,4 +1,4 @@
-module.exports = function(context) {
+module.exports = function (context) {
   return {
     JSXOpeningElement(node) {
       if (node.name.name !== 'link') {
@@ -10,10 +10,12 @@ module.exports = function(context) {
 
       if (
         node.attributes.find(
-          attr => attr.name.name === 'rel' && attr.value.value === 'stylesheet'
+          (attr) =>
+            attr.name.name === 'rel' && attr.value.value === 'stylesheet'
         ) &&
         node.attributes.find(
-          attr => attr.name.name === 'href' && !/^https?/.test(attr.value.value)
+          (attr) =>
+            attr.name.name === 'href' && !/^https?/.test(attr.value.value)
         )
       ) {
         context.report({

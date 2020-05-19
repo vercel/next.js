@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { nextBuild, nextServer, startApp, stopApp } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import fetch from 'node-fetch'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let server
 let scriptsUrls
@@ -13,8 +13,8 @@ let baseResponseSize
 
 function getResponseSizes(resourceUrls) {
   return Promise.all(
-    resourceUrls.map(async url => {
-      const context = await fetch(url).then(res => res.text())
+    resourceUrls.map(async (url) => {
+      const context = await fetch(url).then((res) => res.text())
       return {
         url,
         bytes: context.length,
@@ -57,7 +57,7 @@ describe('Production response size', () => {
     scriptsUrls = $('script[src]')
       .map((i, el) => $(el).attr('src'))
       .get()
-      .map(path => `${baseUrl}${path}`)
+      .map((path) => `${baseUrl}${path}`)
   })
 
   afterAll(async () => {
@@ -69,13 +69,13 @@ describe('Production response size', () => {
     const responseSizes = [
       baseResponseSize,
       ...(await getResponseSizes(
-        scriptsUrls.filter(path => !path.endsWith('.module.js'))
+        scriptsUrls.filter((path) => !path.endsWith('.module.js'))
       )),
     ]
     const responseSizesBytes = getResponseSizesBytes(responseSizes)
     console.log(
       `Response Sizes for default:\n${responseSizes
-        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+        .map((obj) => ` ${obj.url}: ${obj.bytes} (bytes)`)
         .join('\n')} \nOverall: ${responseSizesBytes} KB`
     )
 
@@ -89,13 +89,13 @@ describe('Production response size', () => {
     const responseSizes = [
       baseResponseSize,
       ...(await getResponseSizes(
-        scriptsUrls.filter(path => path.endsWith('.module.js'))
+        scriptsUrls.filter((path) => path.endsWith('.module.js'))
       )),
     ]
     const responseSizesBytes = getResponseSizesBytes(responseSizes)
     console.log(
       `Response Sizes for modern:\n${responseSizes
-        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+        .map((obj) => ` ${obj.url}: ${obj.bytes} (bytes)`)
         .join('\n')} \nOverall: ${responseSizesBytes} bytes`
     )
 

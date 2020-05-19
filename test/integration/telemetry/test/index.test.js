@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 import fs from 'fs-extra'
 import {
@@ -11,7 +11,7 @@ import {
   nextBuild,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = path.join(__dirname, '..')
 
@@ -340,7 +340,7 @@ describe('Telemetry CLI', () => {
     let port = await findPort()
     let stderr = ''
 
-    const handleStderr = msg => {
+    const handleStderr = (msg) => {
       stderr += msg
     }
     let app = await launchApp(appDir, port, {

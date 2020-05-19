@@ -7,7 +7,7 @@ function webpack4(compiler: Compiler) {
   // `strictModuleExceptionHandling` in `MainTemplate`:
   // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
-  compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', compilation => {
+  compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     const hookRequire: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
       .mainTemplate.hooks as any).require
 
@@ -19,7 +19,7 @@ function webpack4(compiler: Compiler) {
       // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
       const lines = source.split('\n')
-      const evalIndex = lines.findIndex(l =>
+      const evalIndex = lines.findIndex((l) =>
         l.includes('modules[moduleId].call(')
       )
       // Unable to find the module execution, that's OK:
