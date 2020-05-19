@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 
 export async function getServerSideProps({ params }) {
   if (params.post === 'post-10') {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(() => resolve(), 1000)
     })
   }
