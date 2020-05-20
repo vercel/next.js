@@ -123,6 +123,12 @@ export default function Layout ({ title, description, children }) {
             width: 100%;
             flex-direction: column;
           }
+          .title {
+            font-size: 2.5rem;
+          }
+          footer {
+            height: 60px;
+          }
         }
       `}</style>
 
