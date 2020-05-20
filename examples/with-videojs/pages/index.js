@@ -1,7 +1,7 @@
-import React from 'react'
+import { Component } from 'react'
 import Player from '../components/Player'
 
-export default class Index extends React.Component {
+export default class Index extends Component {
   render() {
     const videoJsOptions = {
       techOrder: ['youtube'],
