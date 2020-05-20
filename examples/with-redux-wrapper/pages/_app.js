@@ -1,15 +1,12 @@
+import App from 'next/app'
 import React from 'react'
-import { Provider } from 'react-redux'
-import withRedux from 'next-redux-wrapper'
-import { initStore } from '../store/store'
+import { wrapper } from '../store/store'
 
-const MyApp = (props) => {
-  const { Component, pageProps, store } = props
-  return (
-    <Provider store={store}>
-      <Component {...pageProps} />
-    </Provider>
-  )
+class WrappedApp extends App {
+  render() {
+    const { Component, pageProps } = this.props
+    return <Component {...pageProps} />
+  }
 }
 
-export default withRedux(initStore)(MyApp)
+export default wrapper.withRedux(WrappedApp)

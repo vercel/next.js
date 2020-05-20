@@ -82,14 +82,28 @@ export function downloadAndExtractRepo(
   )
 }
 
-export function downloadAndExtractExample(
+export async function downloadAndExtractExample(
   root: string,
   name: string
 ): Promise<void> {
-  return pipeline(
-    got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),
-    tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
-  )
+  try {
+    return await pipeline(
+      got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),
+      tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
+    )
+  } catch (err) {
+    // TODO: remove after this change has been landed
+    if (err?.response?.statusCode === 404) {
+      return pipeline(
+        got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
+        tar.extract({ cwd: root, strip: 3 }, [
+          `next.js-canary/examples/${name}`,
+        ])
+      )
+    } else {
+      throw err
+    }
+  }
 }
 
 export async function listExamples(): Promise<any> {
