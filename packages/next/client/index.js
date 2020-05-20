@@ -530,7 +530,10 @@ async function doRender({ App, Component, props, err }) {
   })
 
   const elem = (
-    <Root callback={resolvePromise} eventArgs={{ Component, ErrorComponent, appProps }}>
+    <Root
+      callback={resolvePromise}
+      eventArgs={{ Component, ErrorComponent, appProps }}
+    >
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -547,7 +550,7 @@ async function doRender({ App, Component, props, err }) {
     appElement
   )
 
-  return renderPromise
+  await renderPromise
 }
 
 class Root extends React.Component {
