@@ -49,6 +49,7 @@ import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
+  GranularChunksConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { codeFrameColumns } from '@babel/code-frame'
@@ -489,6 +490,9 @@ export default async function getBaseWebpackConfig(
           config.conformance?.DuplicatePolyfillsConformanceCheck
             ?.BlockedAPIToBePolyfilled || []
         ),
+      },
+      GranularChunksConformanceCheck: {
+        enabled: true,
       },
     },
     config.conformance
@@ -1019,6 +1023,12 @@ export default async function getBaseWebpackConfig(
                   conformanceConfig.DuplicatePolyfillsConformanceCheck
                     .BlockedAPIToBePolyfilled,
               }),
+            !isServer &&
+              config.experimental.granularChunks &&
+              conformanceConfig.GranularChunksConformanceCheck.enabled &&
+              new GranularChunksConformanceCheck(
+                splitChunksConfigs.prodGranular
+              ),
           ].filter(Boolean),
         }),
       new WellKnownErrorsPlugin(),

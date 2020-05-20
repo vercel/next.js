@@ -1281,6 +1281,16 @@ describe('SSG Prerender', () => {
   })
 
   describe('export mode', () => {
+    // disable fallback: true since this is an error during `next export`
+    const fallbackTruePages = [
+      '/blog/[post]/[comment].js',
+      '/user/[user]/profile.js',
+      '/catchall/[...slug].js',
+      '/non-json/[p].js',
+      '/blog/[post]/index.js',
+    ]
+    const fallbackTruePageContents = {}
+
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
       await fs.writeFile(
@@ -1296,6 +1306,19 @@ describe('SSG Prerender', () => {
         }`
       )
       await fs.remove(join(appDir, '.next'))
+
+      for (const page of fallbackTruePages) {
+        const pagePath = join(appDir, 'pages', page)
+        fallbackTruePageContents[page] = await fs.readFile(pagePath, 'utf8')
+        await fs.writeFile(
+          pagePath,
+          fallbackTruePageContents[page].replace(
+            'fallback: true',
+            'fallback: false'
+          )
+        )
+      }
+
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
@@ -1305,6 +1328,12 @@ describe('SSG Prerender', () => {
     afterAll(async () => {
       await stopApp(app)
       await fs.remove(nextConfig)
+
+      for (const page of fallbackTruePages) {
+        const pagePath = join(appDir, 'pages', page)
+
+        await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
     })
 
     it('should copy prerender files and honor exportTrailingSlash', async () => {
