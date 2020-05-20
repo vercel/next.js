@@ -359,6 +359,32 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
+  async _handleError(
+    err: Error,
+    pathname: string,
+    query: any,
+    props?: any
+  ): Promise<RouteInfo> {
+    const { page: Component } = await this.fetchComponent('/_error')
+    const routeInfo: RouteInfo = { Component, err, error: err, props }
+
+    if (!props) {
+      try {
+        props = await this.getInitialProps(Component, {
+          err,
+          pathname,
+          query,
+        } as any)
+        routeInfo.props = props
+      } catch (gipErr) {
+        console.error('Error in error page `getInitialProps`: ', gipErr)
+        routeInfo.props = {}
+      }
+    }
+
+    return routeInfo
+  }
+
   change(
     method: HistoryMethod,
     _url: Url,
@@ -467,37 +493,40 @@ export default class Router implements BaseRouter {
 
       Router.events.emit('routeChangeStart', as)
 
-      // If shallow is true and the route exists in the router cache we reuse the previous result
-      this.getRouteInfo(route, pathname, query, as, shallow).then(
-        (routeInfo) => {
-          const { error } = routeInfo
+      // WARNING: `_e` is an internal option.  Your app should _never_ use
+      // this property. It may change at any time without notice.
+      const routeInfoPromise = options._e
+        ? this._handleError(options._e.err, pathname, query, options._e.props)
+        : // If shallow is true and the route exists in the router cache we reuse the previous result
+          this.getRouteInfo(route, pathname, query, as, shallow)
 
-          if (error && error.cancelled) {
-            return resolve(false)
-          }
+      routeInfoPromise.then((routeInfo) => {
+        const { error } = routeInfo
 
-          Router.events.emit('beforeHistoryChange', as)
-          this.changeState(method, url, as, options)
+        if (error && error.cancelled) {
+          return resolve(false)
+        }
 
-          if (process.env.NODE_ENV !== 'production') {
-            const appComp: any = this.components['/_app'].Component
-            ;(window as any).next.isPrerendered =
-              appComp.getInitialProps === appComp.origGetInitialProps &&
-              !(routeInfo.Component as any).getInitialProps
-          }
+        Router.events.emit('beforeHistoryChange', as)
+        this.changeState(method, url, as, options)
 
-          this.set(route, pathname, query, as, routeInfo)
+        if (process.env.NODE_ENV !== 'production') {
+          const appComp: any = this.components['/_app'].Component
+          ;(window as any).next.isPrerendered =
+            appComp.getInitialProps === appComp.origGetInitialProps &&
+            !(routeInfo.Component as any).getInitialProps
+        }
 
-          if (error) {
-            Router.events.emit('routeChangeError', error, as)
-            throw error
-          }
+        this.set(route, pathname, query, as, routeInfo)
 
-          Router.events.emit('routeChangeComplete', as)
-          return resolve(true)
-        },
-        reject
-      )
+        if (error) {
+          Router.events.emit('routeChangeError', error, as)
+          throw error
+        }
+
+        Router.events.emit('routeChangeComplete', as)
+        return resolve(true)
+      }, reject)
     })
   }
 
@@ -577,34 +606,9 @@ export default class Router implements BaseRouter {
         }
 
         resolve(
-          this.fetchComponent('/_error')
-            .then((res) => {
-              const { page: Component } = res
-              const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolve) => {
-                this.getInitialProps(Component, {
-                  err,
-                  pathname,
-                  query,
-                } as any).then(
-                  (props) => {
-                    routeInfo.props = props
-                    routeInfo.error = err
-                    resolve(routeInfo)
-                  },
-                  (gipErr) => {
-                    console.error(
-                      'Error in error page `getInitialProps`: ',
-                      gipErr
-                    )
-                    routeInfo.error = err
-                    routeInfo.props = {}
-                    resolve(routeInfo)
-                  }
-                )
-              }) as Promise<RouteInfo>
-            })
-            .catch((err) => handleError(err, true))
+          this._handleError(err, pathname, query).catch((err) =>
+            handleError(err, true)
+          )
         )
       }) as Promise<RouteInfo>
     }
