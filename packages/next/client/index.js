@@ -514,12 +514,6 @@ async function doRender({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitter.emit('before-reactdom-render', {
-    Component,
-    ErrorComponent,
-    appProps,
-  })
-
   const elem = (
     <AppContainer>
       <App {...appProps} />
@@ -535,6 +529,4 @@ async function doRender({ App, Component, props, err }) {
     ),
     appElement
   )
-
-  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
