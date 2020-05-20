@@ -6,7 +6,7 @@ export default () => {
   return (
     <>
       <p>onmpost: {query.post || 'pending'}</p>
-      {Array.from({ length: 500 }, (x, i) => i + 1).map(i => {
+      {Array.from({ length: 500 }, (x, i) => i + 1).map((i) => {
         return (
           <div key={`item-${i}`} id={`item-${i}`}>
             {i}

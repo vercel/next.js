@@ -141,7 +141,6 @@ export type RenderOptsPartial = {
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
-  hasCssMode: boolean
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
@@ -154,11 +153,11 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
   basePath: string
+  unstable_runtimeJS?: false
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -179,7 +178,6 @@ function renderDocument(
     isFallback,
     dynamicImportsIds,
     dangerousAsPath,
-    hasCssMode,
     err,
     dev,
     ampPath,
@@ -200,6 +198,7 @@ function renderDocument(
     customServer,
     gip,
     appGip,
+    unstable_runtimeJS,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -256,7 +255,6 @@ function renderDocument(
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
-          hasCssMode,
           hybridAmp,
           staticMarkup,
           devFiles,
@@ -268,6 +266,7 @@ function renderDocument(
           htmlProps,
           bodyTags,
           headTags,
+          unstable_runtimeJS,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -295,13 +294,11 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    documentMiddlewareEnabled = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
     pageConfig = {},
-    DocumentMiddleware,
     Component,
     buildManifest,
     reactLoadableManifest,
@@ -483,10 +480,6 @@ export async function renderToHTML(
   }
   let props: any
 
-  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
-    await DocumentMiddleware(ctx)
-  }
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -499,7 +492,7 @@ export async function renderToHTML(
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <LoadableContext.Provider
-          value={moduleName => reactLoadableModules.push(moduleName)}
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           {children}
         </LoadableContext.Provider>
@@ -548,7 +541,7 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'unstable_revalidate' && key !== 'props'
       )
 
       if (invalidKeys.includes('revalidate')) {
@@ -633,7 +626,7 @@ export async function renderToHTML(
         throw err
       }
 
-      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -755,7 +748,7 @@ export async function renderToHTML(
     const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach(item => {
+      manifestItem.forEach((item) => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })
@@ -772,6 +765,11 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    // Only enabled in production as development mode has features relying on HMR (style injection for example)
+    unstable_runtimeJS:
+      process.env.NODE_ENV === 'production'
+        ? pageConfig.unstable_runtimeJS
+        : undefined,
     dangerousAsPath: router.asPath,
     ampState,
     props,

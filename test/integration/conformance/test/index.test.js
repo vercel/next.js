@@ -1,12 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { killApp, nextBuild } from 'next-test-utils'
 import chalk from 'chalk'
 
 const appDir = join(__dirname, '../')
-let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 describe('Conformance system', () => {
   let build
@@ -16,7 +15,6 @@ describe('Conformance system', () => {
       stderr: true,
     })
   })
-  afterAll(() => killApp(server))
 
   it('Should warn about sync external sync scripts', async () => {
     const { stderr } = build
@@ -25,7 +23,7 @@ describe('Conformance system', () => {
     )
   })
 
-  it('Should warn about duplicate polyfills', async () => {
+  it('Should warn about using polyfill.io for fetch', async () => {
     const { stderr } = build
     expect(stderr).toContain(
       '[BUILD CONFORMANCE WARNING]: Found polyfill.io loading polyfill for fetch.'
