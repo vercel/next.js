@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { logout } from '../utils/auth'
 
-const Header = props => (
+const Header = (props) => (
   <header>
     <nav>
       <ul>

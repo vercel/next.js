@@ -6,8 +6,8 @@ export class DropClientPage implements Plugin {
   ampPages = new Set()
 
   apply(compiler: Compiler) {
-    compiler.hooks.emit.tap('DropClientPage', compilation => {
-      Object.keys(compilation.assets).forEach(assetKey => {
+    compiler.hooks.emit.tap('DropClientPage', (compilation) => {
+      Object.keys(compilation.assets).forEach((assetKey) => {
         const asset = compilation.assets[assetKey]
 
         if (asset?._value?.includes?.('__NEXT_DROP_CLIENT_FILE__')) {

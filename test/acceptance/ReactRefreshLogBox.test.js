@@ -359,17 +359,31 @@ test('module init error not shown', async () => {
   )
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (4:12) @ Module../index.js
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ Module../index.js
 
-      2 | // top offset for snapshot
-      3 | import * as React from 'react';
-    > 4 | throw new Error('no')
-        |      ^
-      5 | class ClassDefault extends React.Component {
-      6 |   render() {
-      7 |     return <h1>Default Export</h1>;"
-  `)
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ eval
+
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  }
 
   await cleanup()
 })
@@ -477,7 +491,7 @@ test('syntax > runtime error', async () => {
     `
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   if (process.platform === 'win32') {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -518,7 +532,7 @@ test('syntax > runtime error', async () => {
       export default function FunctionNamed() {`
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "./index.js:8:47
@@ -531,7 +545,7 @@ test('syntax > runtime error', async () => {
   `)
 
   // Test that runtime error does not take over:
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "./index.js:8:47

@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import Header from './header'
 
-const Layout = props => (
+const Layout = (props) => (
   <>
     <Head>
       <title>With Cookies</title>

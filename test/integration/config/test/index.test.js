@@ -1,18 +1,18 @@
 /* eslint-env jest */
 
-import { join } from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-  File,
-  checkExpectations,
-} from 'next-test-utils'
-import fetch from 'node-fetch'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync } from 'fs'
+import {
+  check,
+  File,
+  findPort,
+  killApp,
+  launchApp,
+  renderViaHTTP,
+} from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import fetch from 'node-fetch'
+import { join } from 'path'
 
 const context = {}
 jest.setTimeout(1000 * 60 * 5)
@@ -50,10 +50,15 @@ describe('Configuration', () => {
     let browser
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
-      const fontSize = await browser
-        .elementByCss('.hello-world')
-        .getComputedCss('font-size')
-      expect(fontSize).toBe('100px')
+
+      await check(
+        () => browser.elementByCss('.hello-world').getComputedCss('font-size'),
+        {
+          test(content) {
+            return content === '100px'
+          },
+        }
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -65,10 +70,17 @@ describe('Configuration', () => {
     let browser
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
-      const backgroundColor = await browser
-        .elementByCss('.hello-world')
-        .getComputedCss('background-color')
-      expect(backgroundColor).toBe('rgba(0, 0, 255, 1)')
+      await check(
+        () =>
+          browser
+            .elementByCss('.hello-world')
+            .getComputedCss('background-color'),
+        {
+          test(content) {
+            return content === 'rgba(0, 0, 255, 1)'
+          },
+        }
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -115,10 +127,19 @@ describe('Configuration', () => {
     let browser
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
-      const pTag = await browser.elementByCss('.hello-world')
-      const initialFontSize = await pTag.getComputedCss('font-size')
 
-      expect(initialFontSize).toBe('100px')
+      await check(
+        async () => {
+          const pTag = await browser.elementByCss('.hello-world')
+          const initialFontSize = await pTag.getComputedCss('font-size')
+          return initialFontSize
+        },
+        {
+          test(content) {
+            return content === '100px'
+          },
+        }
+      )
 
       const pagePath = join(
         __dirname,
@@ -134,24 +155,30 @@ describe('Configuration', () => {
       writeFileSync(pagePath, editedContent, 'utf8')
 
       try {
-        await checkExpectations(async () => {
-          // Check whether the this page has reloaded or not.
-          const editedFontSize = await browser
-            .elementByCss('.hello-world')
-            .getComputedCss('font-size')
-          expect(editedFontSize).toBe('200px')
-        })
+        // Check whether the this page has reloaded or not.
+        await check(
+          () =>
+            browser.elementByCss('.hello-world').getComputedCss('font-size'),
+          {
+            test(content) {
+              return content === '200px'
+            },
+          }
+        )
       } finally {
         // Finally is used so that we revert the content back to the original regardless of the test outcome
         // restore the about page content.
         writeFileSync(pagePath, originalContent, 'utf8')
-        await checkExpectations(async () => {
-          // This also make sure that the change is reverted when the etst ends
-          const editedFontSize = await browser
-            .elementByCss('.hello-world')
-            .getComputedCss('font-size')
-          expect(editedFontSize).toBe('100px')
-        })
+        // This also make sure that the change is reverted when the test ends
+        await check(
+          () =>
+            browser.elementByCss('.hello-world').getComputedCss('font-size'),
+          {
+            test(content) {
+              return content === '100px'
+            },
+          }
+        )
       }
     } finally {
       if (browser) {
@@ -167,26 +194,35 @@ describe('Configuration', () => {
     let browser
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
-      expect(
-        await browser.elementByCss('.hello-world').getComputedCss('color')
-      ).toBe('rgba(255, 255, 0, 1)')
+      await check(
+        () => browser.elementByCss('.hello-world').getComputedCss('color'),
+        {
+          test(content) {
+            return content === 'rgba(255, 255, 0, 1)'
+          },
+        }
+      )
 
       try {
         file.replace('yellow', 'red')
-        await checkExpectations(async () => {
-          const color = await browser
-            .elementByCss('.hello-world')
-            .getComputedCss('color')
-          expect(color).toBe('rgba(255, 0, 0, 1)')
-        })
+        await check(
+          () => browser.elementByCss('.hello-world').getComputedCss('color'),
+          {
+            test(content) {
+              return content === 'rgba(255, 0, 0, 1)'
+            },
+          }
+        )
       } finally {
         file.restore()
-        await checkExpectations(async () => {
-          const color = await browser
-            .elementByCss('.hello-world')
-            .getComputedCss('color')
-          expect(color).toBe('rgba(255, 255, 0, 1)')
-        })
+        await check(
+          () => browser.elementByCss('.hello-world').getComputedCss('color'),
+          {
+            test(content) {
+              return content === 'rgba(255, 255, 0, 1)'
+            },
+          }
+        )
       }
     } finally {
       if (browser) {

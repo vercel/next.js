@@ -2,9 +2,9 @@ const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join } = require('path')
 
-module.exports = function(task) {
+module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('ncc', {}, function*(file, options) {
+  task.plugin('ncc', {}, function* (file, options) {
     if (options.externals && options.packageName) {
       options.externals = { ...options.externals }
       delete options.externals[options.packageName]
@@ -14,7 +14,7 @@ module.exports = function(task) {
       minify: true,
       ...options,
     }).then(({ code, assets }) => {
-      Object.keys(assets).forEach(key => {
+      Object.keys(assets).forEach((key) => {
         let data = assets[key].source
 
         if (join(file.dir, key).endsWith('terser-webpack-plugin/worker.js')) {

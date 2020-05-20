@@ -60,7 +60,7 @@ export function initNextServerScript(
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', err => {
+    instance.on('error', (err) => {
       reject(err)
     })
   })
@@ -72,7 +72,7 @@ export function renderViaAPI(app, pathname, query) {
 }
 
 export function renderViaHTTP(appPort, pathname, query) {
-  return fetchViaHTTP(appPort, pathname, query).then(res => res.text())
+  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
@@ -113,19 +113,19 @@ export function runNextCommand(argv, options = {}) {
 
     let stderrOutput = ''
     if (options.stderr) {
-      instance.stderr.on('data', function(chunk) {
+      instance.stderr.on('data', function (chunk) {
         stderrOutput += chunk
       })
     }
 
     let stdoutOutput = ''
     if (options.stdout) {
-      instance.stdout.on('data', function(chunk) {
+      instance.stdout.on('data', function (chunk) {
         stdoutOutput += chunk
       })
     }
 
-    instance.on('close', code => {
+    instance.on('close', (code) => {
       resolve({
         code,
         stdout: stdoutOutput,
@@ -133,7 +133,7 @@ export function runNextCommand(argv, options = {}) {
       })
     })
 
-    instance.on('error', err => {
+    instance.on('error', (err) => {
       err.stdout = stdoutOutput
       err.stderr = stderrOutput
       reject(err)
@@ -201,7 +201,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       }
     })
 
-    instance.on('error', err => {
+    instance.on('error', (err) => {
       reject(err)
     })
   })
@@ -243,14 +243,14 @@ export function buildTS(args = [], cwd, env = {}) {
     )
     let output = ''
 
-    const handleData = chunk => {
+    const handleData = (chunk) => {
       output += chunk.toString()
     }
 
     instance.stdout.on('data', handleData)
     instance.stderr.on('data', handleData)
 
-    instance.on('exit', code => {
+    instance.on('exit', (code) => {
       if (code) {
         return reject(new Error('exited with code: ' + code + '\n' + output))
       }
@@ -262,7 +262,7 @@ export function buildTS(args = [], cwd, env = {}) {
 // Kill a launched app
 export async function killApp(instance) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, err => {
+    treeKill(instance.pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -306,7 +306,7 @@ export function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
-      function(err, res) {
+      function (err, res) {
         if (err) return reject(err)
         resolve(res)
       },
@@ -317,7 +317,7 @@ export function promiseCall(obj, method, ...args) {
 }
 
 export function waitFor(millis) {
-  return new Promise(resolve => setTimeout(resolve, millis))
+  return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
 export async function startStaticServer(dir) {
@@ -365,23 +365,6 @@ export async function check(contentFn, regex, hardError = true) {
   return false
 }
 
-// Runs the provided expectations periodically until they pass or time out
-export async function checkExpectations(runExpectations) {
-  const interval = 250
-  const timeout = 30000
-  const startTime = Date.now()
-  while (true) {
-    try {
-      return await runExpectations()
-    } catch (err) {
-      if (Date.now() - startTime > timeout) {
-        throw err
-      }
-    }
-    await waitFor(interval)
-  }
-}
-
 export class File {
   constructor(path) {
     this.path = path
@@ -414,7 +397,7 @@ export class File {
 export async function evaluate(browser, input) {
   if (typeof input === 'function') {
     const result = await browser.executeScript(input)
-    await new Promise(resolve => setTimeout(resolve, 30))
+    await new Promise((resolve) => setTimeout(resolve, 30))
     return result
   } else {
     throw new Error(`You must pass a function to be evaluated in the browser.`)
@@ -428,7 +411,7 @@ export async function hasRedbox(browser, expected = true) {
       return Boolean(
         [].slice
           .call(document.querySelectorAll('nextjs-portal'))
-          .find(p =>
+          .find((p) =>
             p.shadowRoot.querySelector(
               '#nextjs__container_errors_label, #nextjs__container_build_error_label'
             )
@@ -442,7 +425,7 @@ export async function hasRedbox(browser, expected = true) {
       break
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
   } while (expected)
   return false
 }
@@ -451,7 +434,7 @@ export async function getRedboxHeader(browser) {
   return evaluate(browser, () => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
-      .find(p => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
     const root = portal.shadowRoot
     return root.querySelector('[data-nextjs-dialog-header]').innerText
   })
@@ -461,7 +444,7 @@ export async function getRedboxSource(browser) {
   return evaluate(browser, () => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
-      .find(p =>
+      .find((p) =>
         p.shadowRoot.querySelector(
           '#nextjs__container_errors_label, #nextjs__container_build_error_label'
         )
