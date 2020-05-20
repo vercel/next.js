@@ -789,3 +789,11 @@ export function hasCustomGetInitialProps(
   }
   return mod.getInitialProps !== mod.origGetInitialProps
 }
+
+export function getNamedExports(
+  bundle: string,
+  runtimeEnvConfig: any
+): Array<string> {
+  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  return Object.keys(require(bundle))
+}
