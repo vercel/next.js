@@ -62,9 +62,9 @@ export async function getAllPostsForHome(preview) {
         edges {
           node {
             title
-            content
             excerpt
             slug
+            date
             featuredImage {
               sourceUrl
             }
@@ -76,7 +76,6 @@ export async function getAllPostsForHome(preview) {
                 url
               }
             }
-            date
           }
         }
       }
@@ -102,6 +101,7 @@ export async function getPostAndMorePosts(slug, preview) {
         content
         excerpt
         slug
+        date
         featuredImage {
           sourceUrl
         }
@@ -113,7 +113,6 @@ export async function getPostAndMorePosts(slug, preview) {
             url
           }
         }
-        date
       }
       posts(first: 4, where: { orderby: { field: DATE, order: DESC } }) {
         edges {
@@ -121,6 +120,7 @@ export async function getPostAndMorePosts(slug, preview) {
             title
             excerpt
             slug
+            date
             featuredImage {
               sourceUrl
             }
@@ -132,7 +132,6 @@ export async function getPostAndMorePosts(slug, preview) {
                 url
               }
             }
-            date
           }
         }
       }
@@ -141,7 +140,8 @@ export async function getPostAndMorePosts(slug, preview) {
     { variables: { slug } }
   )
 
-  console.log('POSTS', JSON.stringify(data, null, 2))
+  // Filter out the main post
+  data.posts.edges = data.posts.edges.filter(({ node }) => node.slug !== slug)
 
   return data
 }
