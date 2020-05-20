@@ -1,6 +1,5 @@
 import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
-import { getImageUrl } from 'takeshape-routing'
 import Container from '../../components/container'
 import PostBody from '../../components/post-body'
 import MoreStories from '../../components/more-stories'
@@ -12,13 +11,15 @@ import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
-import markdownToHtml from '../../lib/markdownToHtml'
 
-export default function Post({ post, morePosts, preview }) {
+export default function Post({ post, posts, preview }) {
   const router = useRouter()
+  const morePosts = posts.edges
+
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
   }
+
   return (
     <Layout preview={preview}>
       <Container>
@@ -34,17 +35,12 @@ export default function Post({ post, morePosts, preview }) {
                 </title>
                 <meta
                   property="og:image"
-                  content={getImageUrl(post.coverImage, {
-                    fm: 'jpg',
-                    fit: 'crop',
-                    w: 2000,
-                    h: 1000,
-                  })}
+                  content={post.featuredImage.sourceUrl}
                 />
               </Head>
               <PostHeader
                 title={post.title}
-                coverImage={post.coverImage}
+                coverImage={post.featuredImage}
                 date={post.date}
                 author={post.author}
               />
@@ -61,18 +57,12 @@ export default function Post({ post, morePosts, preview }) {
 
 export async function getStaticProps({ params, preview = false }) {
   const data = await getPostAndMorePosts(params.slug, preview)
-  const content = await markdownToHtml(
-    (data?.post?.items || [])[0]?.content || ''
-  )
 
   return {
     props: {
       preview,
-      post: {
-        ...(data?.post?.items || [])[0],
-        content,
-      },
-      morePosts: data?.morePosts.items ?? [],
+      post: data.post,
+      posts: data.posts,
     },
   }
 }
@@ -80,7 +70,7 @@ export async function getStaticProps({ params, preview = false }) {
 export async function getStaticPaths() {
   const allPosts = await getAllPostsWithSlug()
   return {
-    paths: allPosts?.map((post) => `/posts/${post.slug}`) || [],
+    paths: allPosts.edges.map(({ node }) => `/posts/${node.slug}`) || [],
     fallback: true,
   }
 }

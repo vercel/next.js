@@ -1,18 +1,18 @@
-.markdown {
+.content {
   @apply text-lg leading-relaxed;
 }
 
-.markdown p,
-.markdown ul,
-.markdown ol,
-.markdown blockquote {
+.content p,
+.content ul,
+.content ol,
+.content blockquote {
   @apply my-6;
 }
 
-.markdown h2 {
+.content h2 {
   @apply text-3xl mt-12 mb-4 leading-snug;
 }
 
-.markdown h3 {
+.content h3 {
   @apply text-2xl mt-8 mb-4 leading-snug;
 }

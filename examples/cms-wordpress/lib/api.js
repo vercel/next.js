@@ -42,39 +42,41 @@ export async function getPreviewPostBySlug(slug) {
 export async function getAllPostsWithSlug() {
   const data = await fetchAPI(`
     {
-      allPosts: getPostList {
-        items {
-          slug
+      posts(first: 10000) {
+        edges {
+          node {
+            slug
+          }
         }
       }
     }
   `)
-  return data?.allPosts?.items
+  return data?.posts
 }
 
 export async function getAllPostsForHome(preview) {
   const data = await fetchAPI(
     `
-    query MyQuery {
+    query AllPosts {
       posts(first: 20, where: { orderby: { field: DATE, order: DESC } }) {
         edges {
           node {
             title
             content
+            excerpt
             slug
             featuredImage {
               sourceUrl
             }
             author {
               name
+              firstName
+              lastName
               avatar {
                 url
               }
-              firstName
-              lastName
             }
             date
-            excerpt
           }
         }
       }
@@ -88,63 +90,58 @@ export async function getAllPostsForHome(preview) {
     }
   )
 
-  console.log('POSTS', JSON.stringify(data, null, 2))
-
   return data?.posts
 }
 
 export async function getPostAndMorePosts(slug, preview) {
   const data = await fetchAPI(
     `
-  query PostBySlug($slug: String, $onlyEnabled: Boolean) {
-    post: getPostList(filter: { term: {slug: $slug}}, ${
-      preview ? '' : 'where: { _status: { eq: "enabled" } },'
-    } size: 1, onlyEnabled: $onlyEnabled) {
-      items {
+    query PostBySlug($slug: ID!) {
+      post(id: $slug, idType: SLUG) {
         title
-        slug
         content
-        date
-        coverImage {
-          path
-        }
-        author {
-          name
-          picture {
-            path
-          }
-        }
-      }
-    }
-    morePosts: getPostList(
-      filter: { bool: { must_not: { term: {slug: $slug}}}}, , ${
-        preview ? '' : 'where: { _status: { eq: "enabled" } },'
-      }
-      sort: { field: "date", order: "desc" }, size: 2, onlyEnabled: $onlyEnabled) {
-      items {
-        title
-        slug
         excerpt
-        date
-        coverImage {
-          path
+        slug
+        featuredImage {
+          sourceUrl
         }
         author {
           name
-          picture {
-            path
+          firstName
+          lastName
+          avatar {
+            url
+          }
+        }
+        date
+      }
+      posts(first: 4, where: { orderby: { field: DATE, order: DESC } }) {
+        edges {
+          node {
+            title
+            excerpt
+            slug
+            featuredImage {
+              sourceUrl
+            }
+            author {
+              name
+              firstName
+              lastName
+              avatar {
+                url
+              }
+            }
+            date
           }
         }
       }
     }
-  }
   `,
-    {
-      variables: {
-        slug,
-        onlyEnabled: !preview,
-      },
-    }
+    { variables: { slug } }
   )
+
+  console.log('POSTS', JSON.stringify(data, null, 2))
+
   return data
 }
