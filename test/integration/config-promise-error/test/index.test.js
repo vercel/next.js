@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { runNextCommand, findPort, File } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
+jest.setTimeout(1000 * 30)
 const configFile = new File(join(__dirname, '../next.config.js'))
 
 describe('Promise in next config', () => {

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -20,9 +20,9 @@ let builtServerPagesDir
 let appPort
 let app
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
-const fsExists = file =>
+const fsExists = (file) =>
   fs
     .access(file)
     .then(() => true)
@@ -46,6 +46,20 @@ const runTests = (isDev = false) => {
     expect($('#hello').text()).toContain('hello')
   })
 
+  it('should load dynamic hybrid SSG/AMP page', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1')
+    const $ = cheerio.load(html)
+    expect($('#use-amp').text()).toContain('no')
+    expect($('#hello').text()).toContain('hello')
+  })
+
+  it('should load dynamic hybrid SSG/AMP page with query', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1?amp=1')
+    const $ = cheerio.load(html)
+    expect($('#use-amp').text()).toContain('yes')
+    expect($('#hello').text()).toContain('hello')
+  })
+
   it('should load a hybrid amp page with query correctly', async () => {
     const html = await renderViaHTTP(appPort, '/hybrid?amp=1')
 
@@ -58,7 +72,7 @@ const runTests = (isDev = false) => {
   })
 
   if (!isDev) {
-    const builtPage = file => join(builtServerPagesDir, file)
+    const builtPage = (file) => join(builtServerPagesDir, file)
 
     it('should output prerendered files correctly during build', async () => {
       expect(await fsExists(builtPage('amp.js'))).toBe(true)
@@ -132,13 +146,15 @@ describe('AMP SSG Support', () => {
     })
 
     it('should have copied SSG files correctly', async () => {
-      const outFile = file => join(appDir, 'out', file)
+      const outFile = (file) => join(appDir, 'out', file)
 
       expect(await fsExists(outFile('amp.html'))).toBe(true)
       expect(await fsExists(outFile('index.html'))).toBe(true)
       expect(await fsExists(outFile('hybrid.html'))).toBe(true)
       expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
       expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+      expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+      expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
 
       expect(
         await fsExists(outFile(join('_next/data', buildId, 'amp.json')))

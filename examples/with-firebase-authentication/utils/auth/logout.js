@@ -2,7 +2,7 @@
 import firebase from 'firebase/app'
 import 'firebase/auth'
 
-export default async () => {
+export default async function logout() {
   return firebase
     .auth()
     .signOut()
@@ -20,7 +20,7 @@ export default async () => {
       }
       return true
     })
-    .catch(e => {
+    .catch((e) => {
       console.error(e)
       return false
     })
