@@ -100,6 +100,8 @@ export async function downloadAndExtractExample(
           `next.js-canary/examples/${name}`,
         ])
       )
+    } else {
+      throw err
     }
   }
 }
