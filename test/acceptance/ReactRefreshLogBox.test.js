@@ -360,7 +360,7 @@ test('module init error not shown', async () => {
 
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (4:12) @ Module../index.js
+    "index.js (4:12) @ eval
 
       2 | // top offset for snapshot
       3 | import * as React from 'react';
