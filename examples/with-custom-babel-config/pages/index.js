@@ -1,4 +1,4 @@
-import { Component } from "react"
+import { Component } from 'react'
 export default class MyLuckNo extends Component {
   constructor(...args) {
     super(...args)
