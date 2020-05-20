@@ -88,13 +88,13 @@ export class GranularChunksConformanceCheck {
     }
 
     if (warnings.length) {
-      failedResult.warnings = warnings.map(warning => ({
+      failedResult.warnings = warnings.map((warning) => ({
         message: getWarningMessage(warning),
       }))
     }
 
     if (errors.length) {
-      failedResult.warnings = errors.map(error => ({
+      failedResult.warnings = errors.map((error) => ({
         message: getErrorMessage(error),
       }))
     }
