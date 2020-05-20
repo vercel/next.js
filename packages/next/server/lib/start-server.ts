@@ -25,6 +25,10 @@ export default async function start(
     })
 
     if (socket) {
+      console.log('connecting to socket', socket)
+      console.log('Socket stats:', fs.statSync(socket), {
+        isSocket: fs.statSync(socket).isSocket(),
+      })
       if (fs.existsSync(socket) && fs.statSync(socket).isSocket()) {
         fs.unlinkSync(socket)
       }
