@@ -530,10 +530,7 @@ async function doRender({ App, Component, props, err }) {
   })
 
   const elem = (
-    <Root
-      callback={resolvePromise}
-      eventArgs={{ Component, ErrorComponent, appProps }}
-    >
+    <Root callback={resolvePromise}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -553,23 +550,9 @@ async function doRender({ App, Component, props, err }) {
   await renderPromise
 }
 
-class Root extends React.Component {
-  getSnapshotBeforeUpdate(prevProps) {
-    if (prevProps.eventArgs !== this.props.eventArgs) {
-      emitter.emit('before-reactdom-render', this.props.eventArgs)
-      return true
-    }
-    return null
-  }
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    if (snapshot === true) {
-      emitter.emit('after-reactdom-render', this.props.eventArgs)
-    }
-    if (prevProps.callback !== this.props.callback) {
-      this.props.callback()
-    }
-  }
-  render() {
-    return this.props.children
-  }
+function Root({ callback, children }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return children
 }
