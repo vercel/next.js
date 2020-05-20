@@ -1,6 +1,6 @@
-# Next.js and UrQL
+# Next.js and urql
 
-Use [UrQL](https://github.com/FormidableLabs/urql) with Next.js using SSG.
+Use [urql](https://github.com/FormidableLabs/urql) with Next.js using SSG.
 
 ## Deploy your own
 
