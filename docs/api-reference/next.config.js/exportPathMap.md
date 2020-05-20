@@ -23,7 +23,7 @@ Open `next.config.js` and add the following `exportPathMap` config:
 
 ```js
 module.exports = {
-  exportPathMap: async function(
+  exportPathMap: async function (
     defaultPathMap,
     { dev, dir, outDir, distDir, buildId }
   ) {
