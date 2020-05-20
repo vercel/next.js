@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
-import { join } from 'path'
-import { killApp, nextBuild } from 'next-test-utils'
 import chalk from 'chalk'
+import { nextBuild } from 'next-test-utils'
+import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 jest.setTimeout(1000 * 60 * 2)
