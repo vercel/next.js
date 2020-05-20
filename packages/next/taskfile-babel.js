@@ -1,7 +1,7 @@
 // taskr babel plugin with Babel 7 support
 // https://github.com/lukeed/taskr/pull/305
 
-const extname = require('path').extname
+const path = require('path')
 const transform = require('@babel/core').transform
 
 const babelClientOpts = {
@@ -88,6 +88,10 @@ module.exports = function (task) {
     const babelOpts =
       serverOrClient === 'client' ? babelClientOpts : babelServerOpts
 
+    const filePath = path.join(file.dir, file.base)
+    const fullFilePath = path.join(__dirname, filePath)
+    const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
+
     const options = {
       ...babelOpts,
       plugins: [
@@ -108,11 +112,14 @@ module.exports = function (task) {
       compact: true,
       babelrc: false,
       configFile: false,
-      filename: file.base,
+      cwd: __dirname,
+      filename: path.join(file.dir, file.base),
+      sourceFileName: path.relative(distFilePath, fullFilePath),
       sourceMaps: true,
     }
+
     const output = transform(file.data, options)
-    const ext = extname(file.base)
+    const ext = path.extname(file.base)
 
     // Replace `.ts|.tsx` with `.js` in files with an extension
     if (ext) {
@@ -131,6 +138,8 @@ module.exports = function (task) {
 
     if (output.map) {
       const map = `${file.base}.map`
+
+      output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
 
       // add sourcemap to `files` array
       this._.files.push({
