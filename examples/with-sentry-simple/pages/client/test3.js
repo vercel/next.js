@@ -1,13 +1,11 @@
-import React from 'react'
+import { useEffect } from 'react'
 
-const Test3 = () => <h1>Client Test 3</h1>
+const Test3 = () => {
+  useEffect(() => {
+    throw new Error('Client Test 3')
+  }, [])
 
-Test3.getInitialProps = () => {
-  const doAsyncWork = () => Promise.reject(new Error('Client Test 3'))
-
-  doAsyncWork()
-
-  return {}
+  return <h1>Client Test 3</h1>
 }
 
 export default Test3
