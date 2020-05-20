@@ -1,5 +1,5 @@
-import { createCss } from '@stitches/css'
 import Document from 'next/document'
+import { createCss } from '@stitches/css'
 import { config } from '../css'
 
 export default class MyDocument extends Document {
@@ -19,9 +19,7 @@ export default class MyDocument extends Document {
         styles: (
           <>
             {initialProps.styles}
-            {css.getStyles().map((css, index) => (
-              <style key={index}>{css}</style>
-            ))}
+            <style>{css.getStyles()}</style>
           </>
         ),
       }
