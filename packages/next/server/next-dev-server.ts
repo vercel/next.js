@@ -45,7 +45,7 @@ export default class DevServer extends Server {
   private hotReloader?: HotReloader
   private isCustomServer: boolean
 
-  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
+  constructor(options: ServerConstructor) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay

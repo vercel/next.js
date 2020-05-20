@@ -14,11 +14,13 @@ const nextDev: cliCommand = (argv) => {
       '--help': Boolean,
       '--port': Number,
       '--hostname': String,
+      '--socket': String,
 
       // Aliases
       '-h': '--help',
       '-p': '--port',
       '-H': '--hostname',
+      '-S': '--socket',
     },
     { argv }
   )
@@ -39,6 +41,7 @@ const nextDev: cliCommand = (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application
+        --socket, -S    Unix Socket to bind the application to. port and hostname will be ignored if socket is provided
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -52,14 +55,18 @@ const nextDev: cliCommand = (argv) => {
   }
 
   const port = args['--port'] || 3000
-  const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
+  const socket = args['--socket']
+  const appUrl = socket
+    ? socket
+    : `http://${args['--hostname'] || 'localhost'}:${port}`
 
   startedDevelopmentServer(appUrl)
 
   startServer(
     { dir, dev: true, isNextDevCommand: true },
     port,
-    args['--hostname']
+    args['--hostname'],
+    socket
   )
     .then(async (app) => {
       await app.prepare()

@@ -2,7 +2,7 @@ import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import * as log from '../build/output/log'
 
-type NextServerConstructor = Omit<ServerConstructor, 'staticMarkup'> & {
+export type NextServerConstructor = Omit<ServerConstructor, 'staticMarkup'> & {
   /**
    * Whether to launch Next.js in dev mode - @default false
    */
@@ -14,7 +14,7 @@ function createServer(options: NextServerConstructor): Server {
   const standardEnv = ['production', 'development', 'test']
 
   if (
-    !(options as any).isNextDevCommand &&
+    !options.isNextDevCommand &&
     process.env.NODE_ENV &&
     !standardEnv.includes(process.env.NODE_ENV)
   ) {

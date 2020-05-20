@@ -13,11 +13,13 @@ const nextStart: cliCommand = (argv) => {
       '--help': Boolean,
       '--port': Number,
       '--hostname': String,
+      '--socket': String,
 
       // Aliases
       '-h': '--help',
       '-p': '--port',
       '-H': '--hostname',
+      '-S': '--socket',
     },
     { argv }
   )
@@ -38,6 +40,7 @@ const nextStart: cliCommand = (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application
+        --socket, -S    Unix Socket to bind the application to. port and hostname will be ignored if socket is provided
         --help, -h      Displays this message
     `)
     process.exit(0)

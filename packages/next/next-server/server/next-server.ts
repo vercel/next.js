@@ -97,6 +97,7 @@ export type ServerConstructor = {
   conf?: NextConfig
   dev?: boolean
   customServer?: boolean
+  isNextDevCommand?: boolean
 }
 
 export default class Server {
