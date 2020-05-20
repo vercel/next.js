@@ -1,7 +1,7 @@
 // taskr babel plugin with Babel 7 support
 // https://github.com/lukeed/taskr/pull/305
 
-const extname = require('path').extname
+const path = require('path')
 const transform = require('@babel/core').transform
 
 const babelClientOpts = {
@@ -32,6 +32,12 @@ const babelClientOpts = {
     '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
   ],
+  overrides: [
+    {
+      test: /\.tsx?$/,
+      plugins: [require('@babel/plugin-proposal-numeric-separator').default],
+    },
+  ],
 }
 
 const babelServerOpts = {
@@ -46,7 +52,12 @@ const babelServerOpts = {
           node: '8.3',
         },
         loose: true,
-        exclude: ['transform-typeof-symbol'],
+        // This is handled by the Next.js webpack config that will run next/babel over the same code.
+        exclude: [
+          'transform-typeof-symbol',
+          'transform-async-to-generator',
+          'transform-spread',
+        ],
       },
     ],
   ],
@@ -55,6 +66,12 @@ const babelServerOpts = {
     '@babel/plugin-proposal-nullish-coalescing-operator',
     'babel-plugin-dynamic-import-node',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
+  ],
+  overrides: [
+    {
+      test: /\.tsx?$/,
+      plugins: [require('@babel/plugin-proposal-numeric-separator').default],
+    },
   ],
 }
 
@@ -70,6 +87,10 @@ module.exports = function (task) {
 
     const babelOpts =
       serverOrClient === 'client' ? babelClientOpts : babelServerOpts
+
+    const filePath = path.join(file.dir, file.base)
+    const fullFilePath = path.join(__dirname, filePath)
+    const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
 
     const options = {
       ...babelOpts,
@@ -91,10 +112,14 @@ module.exports = function (task) {
       compact: true,
       babelrc: false,
       configFile: false,
-      filename: file.base,
+      cwd: __dirname,
+      filename: path.join(file.dir, file.base),
+      sourceFileName: path.relative(distFilePath, fullFilePath),
+      sourceMaps: true,
     }
+
     const output = transform(file.data, options)
-    const ext = extname(file.base)
+    const ext = path.extname(file.base)
 
     // Replace `.ts|.tsx` with `.js` in files with an extension
     if (ext) {
@@ -109,6 +134,19 @@ module.exports = function (task) {
         /__REPLACE_NOOP_IMPORT__/g,
         `import('./dev/noop');`
       )
+    }
+
+    if (output.map) {
+      const map = `${file.base}.map`
+
+      output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
+
+      // add sourcemap to `files` array
+      this._.files.push({
+        base: map,
+        dir: file.dir,
+        data: Buffer.from(JSON.stringify(output.map)),
+      })
     }
 
     file.data = Buffer.from(setNextVersion(output.code))
