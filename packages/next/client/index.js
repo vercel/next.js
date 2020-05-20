@@ -62,7 +62,7 @@ const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
-let lastRenderResolver
+let lastRenderReject
 let webpackHMR
 export let router
 let ErrorComponent
@@ -266,8 +266,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback,
-    subscription: async ({ Component, props, err }, App) =>
-      await render({ App, Component, props, err }),
+    subscription: ({ Component, props, err }, App) =>
+      render({ App, Component, props, err }),
   })
 
   // call init-client middleware
@@ -514,26 +514,23 @@ async function doRender({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitter.emit('before-reactdom-render', {
-    Component,
-    ErrorComponent,
-    appProps,
-  })
-
-  if (lastRenderResolver) {
-    lastRenderResolver()
-  }
-  const renderPromise = new Promise((resolve) => {
-    const currRenderResolver = (lastRenderResolver = () => {
+  let resolvePromise
+  const renderPromise = new Promise((resolve, reject) => {
+    if (lastRenderReject) {
+      lastRenderReject()
+    }
+    resolvePromise = () => {
+      lastRenderReject = null
       resolve()
-      if (lastRenderResolver === currRenderResolver) {
-        lastRenderResolver = null
-      }
-    })
+    }
+    lastRenderReject = () => {
+      lastRenderReject = null
+      reject()
+    }
   })
 
   const elem = (
-    <Root callback={lastRenderResolver}>
+    <Root callback={resolvePromise} eventArgs={{ Component, ErrorComponent, appProps }}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -550,13 +547,26 @@ async function doRender({ App, Component, props, err }) {
     appElement
   )
 
-  await renderPromise
-  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+  return renderPromise
 }
 
-function Root({ callback, children }) {
-  React.useLayoutEffect(() => {
-    callback()
-  }, [callback])
-  return children
+class Root extends React.Component {
+  getSnapshotBeforeUpdate(prevProps) {
+    if (prevProps.eventArgs !== this.props.eventArgs) {
+      emitter.emit('before-reactdom-render', this.props.eventArgs)
+      return true
+    }
+    return null
+  }
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    if (snapshot === true) {
+      emitter.emit('after-reactdom-render', this.props.eventArgs)
+    }
+    if (prevProps.callback !== this.props.callback) {
+      this.props.callback()
+    }
+  }
+  render() {
+    return this.props.children
+  }
 }
