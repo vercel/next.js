@@ -9,6 +9,7 @@ delete_branch_on_merge = true
 optimistic_updates = true
 prioritize_ready_to_merge = true
 notify_on_conflict = false
+update_branch_immediately = true
 
 [merge.message]
 title = "pull_request_title"
