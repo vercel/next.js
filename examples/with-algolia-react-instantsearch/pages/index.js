@@ -6,10 +6,10 @@ import qs from 'qs'
 
 const updateAfter = 700
 
-const searchStateToUrl = searchState =>
+const searchStateToUrl = (searchState) =>
   searchState ? `${window.location.pathname}?${qs.stringify(searchState)}` : ''
 
-export default class extends React.Component {
+export default class Home extends React.Component {
   static propTypes = {
     resultsState: PropTypes.object,
     searchState: PropTypes.object,
@@ -33,7 +33,7 @@ export default class extends React.Component {
     return { resultsState, searchState }
   }
 
-  onSearchStateChange = searchState => {
+  onSearchStateChange = (searchState) => {
     clearTimeout(this.debouncedSetState)
     this.debouncedSetState = setTimeout(() => {
       const href = searchStateToUrl(searchState)

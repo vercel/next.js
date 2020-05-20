@@ -58,8 +58,11 @@ export const prepareDestination = (
   for (const [key, strOrArray] of Object.entries(destQuery)) {
     let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
     if (value) {
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      value = `/${value}`
       const queryCompiler = compilePathToRegex(value, { validate: false })
-      value = queryCompiler(params)
+      value = queryCompiler(params).substr(1)
     }
     destQuery[key] = value
   }
@@ -69,7 +72,7 @@ export const prepareDestination = (
   if (appendParamsToQuery) {
     for (const [name, value] of Object.entries(params)) {
       if (!(name in destQuery)) {
-        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+        destQuery[name] = value
       }
     }
   }

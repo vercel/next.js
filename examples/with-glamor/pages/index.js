@@ -7,8 +7,6 @@ if (typeof window !== 'undefined') {
   rehydrate(window.__NEXT_DATA__.ids)
 }
 
-const Home = () => {
+export default function Home() {
   return <h1 css={{ color: 'red', fontSize: 50 }}>My page</h1>
 }
-
-export default Home

@@ -20,7 +20,7 @@ function ActiveLink({ children, href }) {
     color: router.pathname === href ? 'red' : 'black',
   }
 
-  const handleClick = e => {
+  const handleClick = (e) => {
     e.preventDefault()
     router.push(href)
   }
@@ -127,7 +127,7 @@ import Router from 'next/router'
 const handler = () => {
   Router.push({
     pathname: '/about',
-    query: { name: 'Zeit' },
+    query: { name: 'Vercel' },
   })
 }
 
@@ -153,6 +153,59 @@ Router.replace('/home')
 ```
 
 The API for `Router.replace` is exactly the same as that used for [`Router.push`](#router.push).
+
+### Router.prefetch
+
+Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
+
+> This is a production only feature. Next.js doesn't prefetch pages on development.
+
+```jsx
+import Router from 'next/router'
+
+Router.prefetch(url, as)
+```
+
+- `url` - The path to a `page` inside the `pages` directory
+- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes). Defaults to `url`
+
+#### Usage
+
+Let's say you have a login page, and after a login, you redirect the user to the dashboard. For that case, we can prefetch the dashboard to make a faster transition, like in the following example:
+
+```jsx
+import { useCallback, useEffect } from 'react'
+import Router from 'next/router'
+
+export default function Login() {
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault()
+
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        /* Form data */
+      }),
+    }).then((res) => {
+      // Do a fast client-side transition to the already prefetched dashboard page
+      if (res.ok) Router.push('/dashboard')
+    })
+  }, [])
+
+  useEffect(() => {
+    // Prefetch the dashboard page as the user will go there after the login
+    Router.prefetch('/dashboard')
+  }, [])
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+      <button type="submit">Login</button>
+    </form>
+  )
+}
+```
 
 ### Router.beforePopState
 
@@ -184,6 +237,26 @@ Router.beforePopState(({ url, as, options }) => {
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 
+### Router.back
+
+Navigate back in history. Equivalent to clicking the browser’s back button. It executes `window.history.back()`.
+
+```jsx
+import Router from 'next/router'
+
+Router.back()
+```
+
+### Router.reload
+
+Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.
+
+```jsx
+import Router from 'next/router'
+
+Router.reload()
+```
+
 ### Router.events
 
 <details>
@@ -210,7 +283,7 @@ For example, to listen to the router event `routeChangeStart`, do the following:
 ```jsx
 import Router from 'next/router'
 
-const handleRouteChange = url => {
+const handleRouteChange = (url) => {
   console.log('App is changing to: ', url)
 }
 
@@ -243,7 +316,7 @@ Router events should be registered when a component mounts ([useEffect](https://
 import Router from 'next/router'
 
 useEffect(() => {
-  const handleRouteChange = url => {
+  const handleRouteChange = (url) => {
     console.log('App is changing to: ', url)
   }
 

@@ -15,10 +15,41 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   ...props
 }) {
   const [dialog, setDialog] = React.useState<HTMLDivElement>(null)
-  const onDialog = React.useCallback(node => {
+  const onDialog = React.useCallback((node) => {
     setDialog(node)
   }, [])
   useOnClickOutside(dialog, onClose)
+
+  // Make HTMLElements with `role=link` accessible to be triggered by the
+  // keyboard, i.e. [Enter].
+  React.useEffect(() => {
+    if (dialog == null) {
+      return
+    }
+
+    const root = dialog.getRootNode()
+    // Always true, but we do this for TypeScript:
+    if (!(root instanceof ShadowRoot)) {
+      return
+    }
+    const shadowRoot = root
+    function handler(e: KeyboardEvent) {
+      const el = shadowRoot.activeElement
+      if (
+        e.key === 'Enter' &&
+        el instanceof HTMLElement &&
+        el.getAttribute('role') === 'link'
+      ) {
+        e.preventDefault()
+        e.stopPropagation()
+
+        el.click()
+      }
+    }
+
+    shadowRoot.addEventListener('keydown', handler)
+    return () => shadowRoot.removeEventListener('keydown', handler)
+  }, [dialog])
 
   return (
     <div

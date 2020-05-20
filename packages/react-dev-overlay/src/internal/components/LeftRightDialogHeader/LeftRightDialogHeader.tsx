@@ -48,12 +48,8 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         e.stopPropagation()
         if (root instanceof ShadowRoot) {
           const a = root.activeElement
-          if (a !== buttonClose.current && a instanceof HTMLElement) {
-            if (buttonClose.current) {
-              buttonClose.current.focus()
-            } else {
-              a.blur()
-            }
+          if (a && a !== buttonClose.current && a instanceof HTMLElement) {
+            a.blur()
             return
           }
         }
@@ -66,7 +62,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
     if (root !== d) {
       d.addEventListener('keydown', handler)
     }
-    return function() {
+    return function () {
       root.removeEventListener('keydown', handler)
       if (root !== d) {
         d.removeEventListener('keydown', handler)
@@ -74,24 +70,74 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
     }
   }, [close, nav, next, previous])
 
+  // Unlock focus for browsers like Firefox, that break all user focus if the
+  // currently focused item becomes disabled.
+  React.useEffect(() => {
+    if (nav == null) {
+      return
+    }
+
+    const root = nav.getRootNode()
+    // Always true, but we do this for TypeScript:
+    if (root instanceof ShadowRoot) {
+      const a = root.activeElement
+
+      if (previous == null) {
+        if (a === buttonLeft.current) {
+          buttonLeft.current.blur()
+        }
+      } else if (next == null) {
+        if (a === buttonRight.current) {
+          buttonRight.current.blur()
+        }
+      }
+    }
+  }, [nav, next, previous])
+
   return (
     <div data-nextjs-dialog-left-right className={className}>
       <nav ref={onNav}>
         <button
           ref={buttonLeft}
           type="button"
+          disabled={previous == null ? true : undefined}
           aria-disabled={previous == null ? true : undefined}
           onClick={previous ?? undefined}
         >
-          &larr;
+          <svg
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M6.99996 1.16666L1.16663 6.99999L6.99996 12.8333M12.8333 6.99999H1.99996H12.8333Z"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
         <button
           ref={buttonRight}
           type="button"
+          disabled={next == null ? true : undefined}
           aria-disabled={next == null ? true : undefined}
           onClick={next ?? undefined}
         >
-          &rarr;
+          <svg
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M6.99996 1.16666L12.8333 6.99999L6.99996 12.8333M1.16663 6.99999H12H1.16663Z"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
         &nbsp;
         {children}
@@ -104,18 +150,26 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
       >
         <span aria-hidden="true">
           <svg
-            xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <path
+              d="M18 6L6 18"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M6 6L18 18"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </span>
       </button>

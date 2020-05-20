@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   launchApp,
@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 let stderr = ''
@@ -32,7 +32,7 @@ describe('Custom routes invalid multi-match', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -46,7 +46,7 @@ describe('Custom routes invalid multi-match', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

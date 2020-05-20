@@ -14,9 +14,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   const formattedFrame = React.useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
     const prefixLength = lines
-      .map(line => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
+      .map((line) => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
       .filter(Boolean)
-      .map(v => v.pop())
+      .map((v) => v.pop())
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
 
     if (prefixLength > 1) {
@@ -40,11 +40,45 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
     })
   }, [formattedFrame])
 
+  const open = React.useCallback(() => {
+    const params = new URLSearchParams()
+    for (const key in stackFrame) {
+      params.append(key, (stackFrame[key] ?? '').toString())
+    }
+
+    self.fetch(`/__nextjs_launch-editor?${params.toString()}`).then(
+      () => {},
+      () => {
+        // TODO: report error
+      }
+    )
+  }, [stackFrame])
+
   // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
-      <p>
-        {getFrameSource(stackFrame)} @ {stackFrame.methodName}
+      <p
+        role="link"
+        onClick={open}
+        tabIndex={1}
+        title="Click to open in your editor"
+      >
+        <span>
+          {getFrameSource(stackFrame)} @ {stackFrame.methodName}
+        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
       </p>
       <hr />
       <pre>

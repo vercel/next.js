@@ -11,18 +11,27 @@ export const base = curry(function base(
   config.target = ctx.isServer ? 'node' : 'web'
 
   // https://webpack.js.org/configuration/devtool/#development
-  config.devtool = ctx.isDevelopment
-    ? ctx.hasReactRefresh
-      ? // `eval-source-map` results in the fastest rebuilds during dev. The
-        // only drawback is cold boot time, but this is mitigated by the fact
-        // that we load entries on-demand.
-        'eval-source-map'
-      : // `cheap-module-source-map` is the old preferred format that was
-        // required for `react-error-overlay`.
-        'cheap-module-source-map'
-    : ctx.isProduction
-    ? false
-    : false
+  if (ctx.isDevelopment) {
+    if (process.platform === 'win32') {
+      // Non-eval based source maps are slow to rebuild, so we only enable
+      // them for Windows. Unfortunately, eval source maps are flagged as
+      // suspicious by Windows Defender and block HMR.
+      config.devtool = 'inline-source-map'
+    } else {
+      // `eval-source-map` provides full-fidelity source maps for the
+      // original source, including columns and original variable names.
+      // This is desirable so the in-browser debugger can correctly pause
+      // and show scoped variables with their original names.
+      config.devtool = 'eval-source-map'
+    }
+  } else {
+    // Enable browser sourcemaps
+    if (ctx.productionBrowserSourceMaps) {
+      config.devtool = 'source-map'
+    } else {
+      config.devtool = false
+    }
+  }
 
   if (!config.module) {
     config.module = { rules: [] }

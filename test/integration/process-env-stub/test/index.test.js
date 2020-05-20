@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import {
   findPort,
   killApp,
@@ -12,13 +12,13 @@ import {
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 let app
 let stderr
 let appPort
 
-const buildWarning = prop =>
+const buildWarning = (prop) =>
   `An environment variable (${prop}) that was not provided in the environment was accessed`
 
 const checkMissing = async (pathname, prop, shouldWarn = false) => {
@@ -49,7 +49,7 @@ const checkMissingClient = async (pathname, prop, shouldWarn = false) => {
 
   const logs = await browser.eval(`window.warnLogs`)
   const warning = buildWarning(prop)
-  const hasWarn = logs.some(log => log.includes(warning))
+  const hasWarn = logs.some((log) => log.includes(warning))
 
   expect(hasWarn).toBe(shouldWarn)
   await browser.close()
