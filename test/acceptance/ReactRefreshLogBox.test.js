@@ -359,17 +359,31 @@ test('module init error not shown', async () => {
   )
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (4:12) @ eval
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ Module../index.js
 
-      2 | // top offset for snapshot
-      3 | import * as React from 'react';
-    > 4 | throw new Error('no')
-        |      ^
-      5 | class ClassDefault extends React.Component {
-      6 |   render() {
-      7 |     return <h1>Default Export</h1>;"
-  `)
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ eval
+
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  }
 
   await cleanup()
 })

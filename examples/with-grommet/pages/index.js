@@ -1,4 +1,3 @@
-import React from 'react'
 import { Anchor, Box, Heading, Paragraph } from 'grommet'
 
 export default function Home() {
