@@ -5,7 +5,7 @@ Due to [this bug fix](https://github.com/zeit/next.js/pull/3849), we had to remo
 We use this hook to detect a new app deployment when switching pages and act accordingly. Although there are many things you can do in this hook, it's often used to navigate the page via the server as shown below:
 
 ```js
-Router.onAppUpdated = function(nextRoute) {
+Router.onAppUpdated = function (nextRoute) {
   location.href = nextRoute
 }
 ```
@@ -17,7 +17,7 @@ One real use of this hook is to persist your application state to local-storage 
 This is code for that:
 
 ```js
-window.onbeforeunload = function(e) {
+window.onbeforeunload = function (e) {
   // Get the application state (usually from a store like Redux)
   const appState = {}
   localStorage.setItem('app-state', JSON.stringify(appState))

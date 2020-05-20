@@ -1,7 +1,9 @@
 import Header from 'components/header.js'
 
-export default () => (
-  <div>
-    <Header />
-  </div>
-)
+export default function Home() {
+  return (
+    <div>
+      <Header />
+    </div>
+  )
+}

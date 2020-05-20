@@ -14,7 +14,6 @@
     "apollo-link-http": "1.5.16",
     "graphql": "14.5.8",
     "graphql-tag": "2.10.1",
-    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
     "prop-types": "^15.6.0",
     "react": "^16.11.0",

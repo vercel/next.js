@@ -50,7 +50,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
     try {
       const compilation = options.stats()?.compilation
-      const m = compilation?.modules?.find(m => m.id === id)
+      const m = compilation?.modules?.find((m) => m.id === id)
       return (
         m?.source(
           compilation.dependencyTemplates,
@@ -63,7 +63,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     }
   }
 
-  return async function(
+  return async function (
     req: IncomingMessage,
     res: ServerResponse,
     next: Function
@@ -100,8 +100,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -130,8 +130,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (pos.source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -188,8 +188,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         () => false
       )
       if (!fileExists) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 

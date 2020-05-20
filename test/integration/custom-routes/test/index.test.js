@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
@@ -21,7 +21,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -166,6 +166,34 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should have correct params for catchall rewrite', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-rewrite/hello/world?a=b'
+    )
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      a: 'b',
+      path: ['hello', 'world'],
+    })
+  })
+
+  it('should have correct query for catchall rewrite', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall-query/hello/world?a=b')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      a: 'b',
+      another: 'hello/world',
+      path: ['hello', 'world'],
+    })
+  })
+
+  it('should have correct header for catchall rewrite', async () => {
+    const res = await fetchViaHTTP(appPort, '/catchall-header/hello/world?a=b')
+    const headerValue = res.headers.get('x-value')
+    expect(headerValue).toBe('hello/world')
+  })
+
   it('should allow params in query for redirect', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -203,11 +231,7 @@ const runTests = (isDev = false) => {
       '/query-rewrite/first/second?section=overridden&name=overridden&first=overridden&second=overridden&keep=me'
     )
 
-    const data = JSON.parse(
-      cheerio
-        .load(html)('p')
-        .text()
-    )
+    const data = JSON.parse(cheerio.load(html)('p').text())
     expect(data).toEqual({
       first: 'first',
       second: 'second',
@@ -339,7 +363,7 @@ const runTests = (isDev = false) => {
     const res = await fetchViaHTTP(appPort, '/proxy-me/first?keep=me&and=me')
     expect(res.status).toBe(200)
     expect(
-      [...externalServerHits].map(u => {
+      [...externalServerHits].map((u) => {
         const { pathname, query } = url.parse(u, true)
         return {
           pathname,
@@ -434,11 +458,7 @@ const runTests = (isDev = false) => {
       appPort,
       '/unnamed-params/nested/first/second/hello/world'
     )
-    const params = JSON.parse(
-      cheerio
-        .load(html)('p')
-        .text()
-    )
+    const params = JSON.parse(cheerio.load(html)('p').text())
     expect(params).toEqual({ test: 'hello' })
   })
 
@@ -704,6 +724,18 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))$'),
             source: '/named-pattern/:path(.*)',
           },
+          {
+            headers: [
+              {
+                key: 'x-value',
+                value: ':path*',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^\\/catchall-header(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-header/:path*',
+          },
         ],
         rewrites: [
           {
@@ -821,6 +853,20 @@ const runTests = (isDev = false) => {
             ),
             source: '/unnamed-params/nested/(.*)/:test/(.*)',
           },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx(
+              '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-rewrite/:path*',
+          },
+          {
+            destination: '/with-params?another=:path*',
+            regex: normalizeRegEx(
+              '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-query/:path*',
+          },
         ],
         dynamicRoutes: [
           {
@@ -891,7 +937,7 @@ describe('Custom routes', () => {
       res.end('hi from external')
     })
     await new Promise((resolve, reject) => {
-      externalServer.listen(externalServerPort, error => {
+      externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
         resolve()
       })
@@ -945,7 +991,7 @@ describe('Custom routes', () => {
       stdout = buildStdout
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStdout: msg => {
+        onStdout: (msg) => {
           stdout += msg
         },
       })
@@ -982,11 +1028,7 @@ describe('Custom routes', () => {
 
     it('should apply rewrites in lambda correctly for page route', async () => {
       const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
-      const data = JSON.parse(
-        cheerio
-          .load(html)('p')
-          .text()
-      )
+      const data = JSON.parse(cheerio.load(html)('p').text())
       expect(data).toEqual({
         first: 'first',
         second: 'second',
@@ -1027,7 +1069,7 @@ describe('Custom routes', () => {
   })
 
   describe('should load custom routes when only one type is used', () => {
-    const runSoloTests = isDev => {
+    const runSoloTests = (isDev) => {
       const buildAndStart = async () => {
         if (isDev) {
           appPort = await findPort()

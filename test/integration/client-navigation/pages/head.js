@@ -105,7 +105,7 @@ export default () => (
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
 
       {/* such style can be used for alternate links on _app vs individual pages */}
-      {['pl', 'en'].map(language => (
+      {['pl', 'en'].map((language) => (
         <link
           rel="alternate"
           key={language}
@@ -113,7 +113,7 @@ export default () => (
           href={'/first/' + language}
         />
       ))}
-      {['pl', 'en'].map(language => (
+      {['pl', 'en'].map((language) => (
         <link
           rel="alternate"
           key={language}

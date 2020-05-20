@@ -2,16 +2,16 @@ const fs = require('fs')
 const cluster = require('cluster')
 
 exports['default'] = {
-  logger: api => {
+  logger: (api) => {
     let logger = { transports: [] }
 
     // console logger
     if (cluster.isMaster) {
-      logger.transports.push(function(api, winston) {
+      logger.transports.push(function (api, winston) {
         return new winston.transports.Console({
           colorize: true,
           level: 'info',
-          timestamp: function() {
+          timestamp: function () {
             return api.id + ' @ ' + new Date().toISOString()
           },
         })
@@ -19,7 +19,7 @@ exports['default'] = {
     }
 
     // file logger
-    logger.transports.push(function(api, winston) {
+    logger.transports.push(function (api, winston) {
       if (api.config.general.paths.log.length === 1) {
         const logDirectory = api.config.general.paths.log[0]
         try {
@@ -35,7 +35,7 @@ exports['default'] = {
         filename:
           api.config.general.paths.log[0] + '/' + api.pids.title + '.log',
         level: 'info',
-        timestamp: function() {
+        timestamp: function () {
           return api.id + ' @ ' + new Date().toISOString()
         },
       })
@@ -55,7 +55,7 @@ exports['default'] = {
 }
 
 exports.test = {
-  logger: api => {
+  logger: (api) => {
     return {
       transports: null,
     }

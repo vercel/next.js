@@ -12,6 +12,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
+- [Contentful](/examples/cms-contentful)
 
 ## How to use
 
@@ -118,6 +119,8 @@ NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
+
+Make sure the locale matches your settings in the Prismic dashboard.
 
 ### Step 6. Run Next.js in development mode
 

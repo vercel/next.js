@@ -16,11 +16,15 @@ declare const module: {
 
 // This function gets unwrapped into global scope, which is why we don't invert
 // if-blocks. Also, you cannot use `return`.
-export default function() {
+export default function () {
   // Legacy CSS implementations will `eval` browser code in a Node.js context
   // to extract CSS. For backwards compatibility, we need to check we're in a
   // browser context before continuing.
-  if (typeof self !== 'undefined') {
+  if (
+    typeof self !== 'undefined' &&
+    // AMP / No-JS mode does not inject these helpers:
+    '$RefreshHelpers$' in self
+  ) {
     const currentExports = module.__proto__.exports
     const prevExports = module.hot.data?.prevExports ?? null
 
@@ -36,7 +40,7 @@ export default function() {
     if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {
       // Save the previous exports on update so we can compare the boundary
       // signatures.
-      module.hot.dispose(data => {
+      module.hot.dispose((data) => {
         data.prevExports = currentExports
       })
       // Unconditionally accept an update to this module, we'll check if it's

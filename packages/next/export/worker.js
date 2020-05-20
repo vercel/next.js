@@ -9,14 +9,7 @@ import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
-import fetch from 'next/dist/compiled/node-fetch'
-
-// @ts-ignore fetch exists globally
-if (!global.fetch) {
-  // Polyfill fetch() in the Node.js environment
-  // @ts-ignore fetch exists globally
-  global.fetch = fetch
-}
+import 'next/dist/next-server/server/node-polyfill-fetch'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -24,7 +17,7 @@ global.__NEXT_DATA__ = {
   nextExport: true,
 }
 
-export default async function({
+export default async function ({
   path,
   pathMap,
   distDir,
@@ -122,7 +115,7 @@ export default async function({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
-    const renderedDuringBuild = getStaticProps => {
+    const renderedDuringBuild = (getStaticProps) => {
       return !buildExport && getStaticProps && !isDynamicRoute(path)
     }
 
@@ -213,8 +206,8 @@ export default async function({
     const validateAmp = async (html, page, validatorPath) => {
       const validator = await AmpHtmlValidator.getInstance(validatorPath)
       const result = validator.validateString(html)
-      const errors = result.errors.filter(e => e.severity === 'ERROR')
-      const warnings = result.errors.filter(e => e.severity !== 'ERROR')
+      const errors = result.errors.filter((e) => e.severity === 'ERROR')
+      const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
       if (warnings.length || errors.length) {
         results.ampValidations.push({
@@ -276,6 +269,14 @@ export default async function({
         JSON.stringify(curRenderOpts.pageData),
         'utf8'
       )
+
+      if (curRenderOpts.hybridAmp) {
+        await promises.writeFile(
+          dataFile.replace(/\.json$/, '.amp.json'),
+          JSON.stringify(curRenderOpts.pageData),
+          'utf8'
+        )
+      }
     }
     results.fromBuildExportRevalidate = curRenderOpts.revalidate
 
@@ -283,7 +284,7 @@ export default async function({
     return results
   } catch (error) {
     console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error:\n` +
+      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
         error
     )
     return { ...results, error: true }
