@@ -1,4 +1,4 @@
-import reactDevOverlayMiddleware from '@next/react-dev-overlay/lib/middleware'
+import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
@@ -9,7 +9,7 @@ import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { NEXT_PROJECT_ROOT_DIST_CLIENT, API_ROUTE } from '../lib/constants'
+import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -133,6 +133,7 @@ export default class HotReloader {
   private initialized: boolean
   private config: any
   private stats: any
+  private serverStats: any
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
@@ -160,6 +161,7 @@ export default class HotReloader {
     this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
+    this.serverStats = null
     this.serverPrevDocumentHash = null
 
     this.config = config
@@ -309,7 +311,11 @@ export default class HotReloader {
     const buildTools = await this.prepareBuildTools(multiCompiler)
     this.assignBuildTools(buildTools)
 
-    this.stats = ((await this.waitUntilValid()) as any).stats[0]
+    // [Client, Server]
+    ;[
+      this.stats,
+      this.serverStats,
+    ] = ((await this.waitUntilValid()) as any).stats
   }
 
   async stop(
@@ -328,6 +334,7 @@ export default class HotReloader {
 
   async reload(): Promise<void> {
     this.stats = null
+    this.serverStats = null
 
     await this.clean()
 
@@ -335,7 +342,11 @@ export default class HotReloader {
     const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
-    this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
+    // [Client, Server]
+    ;[
+      this.stats,
+      this.serverStats,
+    ] = ((await this.waitUntilValid()) as any).stats
 
     const oldWebpackDevMiddleware = this.webpackDevMiddleware
 
@@ -361,9 +372,10 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackHotMiddleware,
       errorOverlayMiddleware({ dir: this.dir }),
-      reactDevOverlayMiddleware({
+      getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
+        serverStats: () => this.serverStats,
       }),
     ]
   }
@@ -375,6 +387,7 @@ export default class HotReloader {
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
+        this.serverStats = stats
         if (!this.initialized) {
           return
         }

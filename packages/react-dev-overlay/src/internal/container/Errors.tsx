@@ -64,7 +64,10 @@ async function getErrorByType(
         id,
         runtime: true,
         error: event.reason,
-        frames: await getOriginalStackFrames(event.frames),
+        frames: await getOriginalStackFrames(
+          isNodeError(event.reason),
+          event.frames
+        ),
       }
     }
     default: {
