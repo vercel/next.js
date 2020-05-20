@@ -64,7 +64,6 @@ const appElement = document.getElementById('__next')
 let lastAppProps
 let webpackHMR
 export let router
-let ErrorComponent
 let Component
 let App, onPerfEntry
 
