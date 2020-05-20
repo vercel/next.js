@@ -18,6 +18,7 @@ jest.setTimeout(1000 * 60 * 2)
 let app
 let appPort
 let stdout
+let stderr
 const appDir = join(__dirname, '../app')
 const nextConfigPath = join(appDir, 'next.config.js')
 
@@ -64,6 +65,10 @@ function runTests() {
     expect(stdout).toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
     expect(stdout).toMatch(/loaded plugin: next-plugin-normal/i)
   })
+
+  it('should ignore directories in plugins', async () => {
+    expect(stderr).not.toMatch(/listed invalid middleware/i)
+  })
 }
 
 describe('Next.js plugins', () => {
@@ -77,6 +82,9 @@ describe('Next.js plugins', () => {
       app = await launchApp(appDir, appPort, {
         onStdout(msg) {
           stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
         },
       })
     })
@@ -107,9 +115,13 @@ describe('Next.js plugins', () => {
         )
         appPort = await findPort()
         stdout = ''
+        stderr = ''
         app = await launchApp(appDir, appPort, {
           onStdout(msg) {
             stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
           },
         })
       })
@@ -136,8 +148,10 @@ describe('Next.js plugins', () => {
       )
       const results = await nextBuild(appDir, undefined, {
         stdout: true,
+        stderr: true,
       })
       stdout = results.stdout
+      stderr = results.stderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -157,8 +171,10 @@ describe('Next.js plugins', () => {
       )
       const results = await nextBuild(appDir, undefined, {
         stdout: true,
+        stderr: true,
       })
       stdout = results.stdout
+      stderr = results.stderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
