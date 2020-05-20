@@ -26,8 +26,7 @@
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
-        "jest/no-disabled-tests": "off",
-        "jest/no-try-expect": "off"
+        "jest/no-disabled-tests": "off"
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },

@@ -25,6 +25,7 @@ describe('pageNotFoundError', () => {
     try {
       throw pageNotFoundError('test')
     } catch (err) {
+      // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('ENOENT')
     }
   })
@@ -89,6 +90,7 @@ describe('requirePage', () => {
     try {
       await requirePage('/../../test', distDir)
     } catch (err) {
+      // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('ENOENT')
     }
   })
@@ -98,6 +100,7 @@ describe('requirePage', () => {
     try {
       await requirePage('/non-existent', distDir)
     } catch (err) {
+      // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('ENOENT')
     }
   })
@@ -107,6 +110,7 @@ describe('requirePage', () => {
     try {
       await requirePage('/non-existent-child', distDir)
     } catch (err) {
+      // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('MODULE_NOT_FOUND')
     }
   })

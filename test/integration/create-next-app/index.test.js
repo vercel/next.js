@@ -45,6 +45,7 @@ describe('create next app', () => {
       try {
         await runStarter(cwd, projectName)
       } catch (e) {
+        // eslint-disable-next-line jest/no-try-expect
         expect(e.stdout).toMatch(/contains files that could conflict/)
       }
     })
@@ -76,6 +77,7 @@ describe('create next app', () => {
       try {
         await run(cwd, projectName, '--example', 'not a real example')
       } catch (e) {
+        // eslint-disable-next-line jest/no-try-expect
         expect(e.stderr).toMatch(/Could not locate an example named/i)
       }
       expect(
