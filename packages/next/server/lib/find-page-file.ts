@@ -8,9 +8,7 @@ import { promisify } from 'util'
 const readdir = promisify(fs.readdir)
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  const pageSegments = normalize(pagePath)
-    .split(pathSeparator)
-    .filter(Boolean)
+  const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
 
   const segmentExistsPromises = pageSegments.map(async (segment, i) => {
     const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
