@@ -21,7 +21,7 @@ yarn create next-app --example with-strict-csp with-strict-csp-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-strict-csp
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-strict-csp
 cd with-strict-csp
 ```
 

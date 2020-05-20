@@ -10,7 +10,7 @@ Note: There are still valid cases for using a nonce in case you need to inline s
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-strict-csp-hash)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-strict-csp-hash)
 
 ## How to use
 
@@ -29,7 +29,7 @@ yarn create next-app --example with-strict-csp-hash with-strict-csp-hash-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-strict-csp-hash
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-strict-csp-hash
 cd with-strict-csp-hash
 ```
 

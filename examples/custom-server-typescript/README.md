@@ -22,7 +22,7 @@ yarn create next-app --example custom-server-typescript custom-server-typescript
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-typescript
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-typescript
 cd custom-server-typescript
 ```
 
