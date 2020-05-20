@@ -367,7 +367,7 @@ export async function check(contentFn, regex, hardError = true) {
 
 // Runs the provided expectations periodically until they pass or time out
 export async function checkExpectations(runExpectations) {
-  const interval = 250
+  const interval = 1000
   const timeout = 30000
   const startTime = Date.now()
   while (true) {
