@@ -1,1 +1,3 @@
-export default (req, res) => res.send(req.query.word)
+export default function handler(req, res) {
+  return res.send(req.query.word)
+}
