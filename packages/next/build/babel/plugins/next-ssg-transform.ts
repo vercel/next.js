@@ -216,6 +216,28 @@ export default function nextTransformSsg({
                       state.refs.add(local)
                     }
                   })
+                } else if (path.node.id.type === 'ArrayPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ArrayPattern
+                  >
+
+                  const elements = pattern.get('elements')
+                  elements.forEach((e) => {
+                    let local: NodePath<BabelTypes.Identifier>
+                    if (e.node?.type === 'Identifier') {
+                      local = e as NodePath<BabelTypes.Identifier>
+                    } else if (e.node?.type === 'RestElement') {
+                      local = e.get('argument') as NodePath<
+                        BabelTypes.Identifier
+                      >
+                    } else {
+                      return
+                    }
+
+                    if (isIdentifierReferenced(local)) {
+                      state.refs.add(local)
+                    }
+                  })
                 }
               },
               FunctionDeclaration: markFunction,
@@ -374,6 +396,37 @@ export default function nextTransformSsg({
                   if (
                     beforeCount !== count &&
                     pattern.get('properties').length < 1
+                  ) {
+                    path.remove()
+                  }
+                } else if (path.node.id.type === 'ArrayPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ArrayPattern
+                  >
+
+                  const beforeCount = count
+                  const elements = pattern.get('elements')
+                  elements.forEach((e) => {
+                    let local: NodePath<BabelTypes.Identifier>
+                    if (e.node?.type === 'Identifier') {
+                      local = e as NodePath<BabelTypes.Identifier>
+                    } else if (e.node?.type === 'RestElement') {
+                      local = e.get('argument') as NodePath<
+                        BabelTypes.Identifier
+                      >
+                    } else {
+                      return
+                    }
+
+                    if (refs.has(local) && !isIdentifierReferenced(local)) {
+                      ++count
+                      e.remove()
+                    }
+                  })
+
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('elements').length < 1
                   ) {
                     path.remove()
                   }
