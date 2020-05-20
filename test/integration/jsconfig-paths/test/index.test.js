@@ -49,7 +49,7 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello from a/)
     })
 
-    it('should resolve the first item in the array first', async () => {
+    it('should resolve the second item as fallback', async () => {
       const $ = await get$('/resolve-fallback')
       expect($('body').text()).toMatch(/Hello from only b/)
     })
@@ -59,7 +59,7 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello/)
     })
 
-    it('should resolve a single matching alias', async () => {
+    it('should resolve a wildcard alias', async () => {
       const $ = await get$('/wildcard-alias')
       expect($('body').text()).toMatch(/world/)
     })

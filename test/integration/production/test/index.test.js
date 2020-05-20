@@ -218,15 +218,15 @@ describe('Production Usage', () => {
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
-      ;[...cssStaticAssets, ...mediaStaticAssets].forEach(asset => {
+      ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
         resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
-        [...resources].map(resource => fetch(resource))
+        [...resources].map((resource) => fetch(resource))
       )
 
-      responses.forEach(res => {
+      responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'public, max-age=31536000, immutable'
@@ -358,18 +358,12 @@ describe('Production Usage', () => {
     let id = await browser.elementByCss('#q0').text()
     expect(id).toBe('0')
 
-    await browser
-      .elementByCss('#first')
-      .click()
-      .waitForElementByCss('#q1')
+    await browser.elementByCss('#first').click().waitForElementByCss('#q1')
 
     id = await browser.elementByCss('#q1').text()
     expect(id).toBe('1')
 
-    await browser
-      .elementByCss('#second')
-      .click()
-      .waitForElementByCss('#q2')
+    await browser.elementByCss('#second').click().waitForElementByCss('#q2')
 
     id = await browser.elementByCss('#q2').text()
     expect(id).toBe('2')
@@ -570,7 +564,7 @@ describe('Production Usage', () => {
         await waitFor(3000)
         const browserLogs = await browser.log('browser')
         let foundLog = false
-        browserLogs.forEach(log => {
+        browserLogs.forEach((log) => {
           if (
             log.message.match(/\/no-such-page\.js - Failed to load resource/)
           ) {
@@ -662,7 +656,7 @@ describe('Production Usage', () => {
       browser = await webdriver(appPort, '/development-logs')
       const browserLogs = await browser.log('browser')
       let found = false
-      browserLogs.forEach(log => {
+      browserLogs.forEach((log) => {
         if (log.message.includes('Next.js auto-prefetches automatically')) {
           found = true
         }
@@ -707,7 +701,7 @@ describe('Production Usage', () => {
         'routeChange',
       ]
 
-      allPerfMarks.forEach(name =>
+      allPerfMarks.forEach((name) =>
         expect(currentPerfMarks).not.toContainEqual(
           expect.objectContaining({ name })
         )

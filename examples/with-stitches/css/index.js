@@ -1,5 +1,5 @@
-import * as React from 'react'
 import { createConfig } from '@stitches/css'
+import * as React from 'react'
 
 const config = createConfig({
   tokens: {
@@ -18,7 +18,7 @@ const context = React.createContext(null)
 /*
   With Typescript:
   const Provider: React.FC<{ css: TCss<typeof config> }> = ({ css, children }) => {
-    return <context.Provider value={css}>{children}</context.Provider>  
+    return <context.Provider value={css}>{children}</context.Provider>
   }
 */
 const Provider = ({ css, children }) => {

@@ -5,7 +5,7 @@ const areIntlLocalesSupported = require('intl-locales-supported').default
 // Get the supported languages by looking for translations in the `lang/` dir.
 const supportedLanguages = glob
   .sync('./lang/*.json')
-  .map(f => basename(f, '.json'))
+  .map((f) => basename(f, '.json'))
 
 // Polyfill Node with `Intl` that has data for all locales.
 // See: https://formatjs.io/guides/runtime-environments/#server
@@ -49,7 +49,7 @@ const handle = app.getRequestHandler()
 // We need to expose React Intl's locale data on the request for the user's
 // locale. This function will also cache the scripts by lang in memory.
 const localeDataCache = new Map()
-const getLocaleDataScript = locale => {
+const getLocaleDataScript = (locale) => {
   const lang = locale.split('-')[0]
   if (!localeDataCache.has(lang)) {
     const localeDataFile = require.resolve(
@@ -64,7 +64,7 @@ const getLocaleDataScript = locale => {
 // We need to load and expose the translations on the request for the user's
 // locale. These will only be used in production, in dev the `defaultMessage` in
 // each message description in the source code will be used.
-const getMessages = locale => {
+const getMessages = (locale) => {
   return require(`./lang/${locale}.json`)
 }
 
@@ -76,7 +76,7 @@ app.prepare().then(() => {
     req.localeDataScript = getLocaleDataScript(locale)
     req.messages = dev ? {} : getMessages(locale)
     handle(req, res)
-  }).listen(port, err => {
+  }).listen(port, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

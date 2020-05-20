@@ -14,7 +14,7 @@ const SubTitle = styled('h2', ({ $size }) => ({
   fontSize: `${$size}px`,
 }))
 
-export default () => {
+export default function Home() {
   // an alternative hook based API
   const [css] = useStyletron()
   return (
