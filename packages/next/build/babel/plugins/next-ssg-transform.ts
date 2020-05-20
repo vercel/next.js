@@ -189,13 +189,33 @@ export default function nextTransformSsg({
           path.traverse(
             {
               VariableDeclarator(path, state) {
-                if (path.node.id.type !== 'Identifier') {
-                  return
-                }
+                if (path.node.id.type === 'Identifier') {
+                  const local = path.get('id') as NodePath<
+                    BabelTypes.Identifier
+                  >
+                  if (isIdentifierReferenced(local)) {
+                    state.refs.add(local)
+                  }
+                } else if (path.node.id.type === 'ObjectPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ObjectPattern
+                  >
 
-                const local = path.get('id') as NodePath<BabelTypes.Identifier>
-                if (isIdentifierReferenced(local)) {
-                  state.refs.add(local)
+                  const properties = pattern.get('properties')
+                  properties.forEach((p) => {
+                    const local = p.get(
+                      p.node.type === 'ObjectProperty'
+                        ? 'value'
+                        : p.node.type === 'RestElement'
+                        ? 'argument'
+                        : (function () {
+                            throw new Error('invariant')
+                          })()
+                    ) as NodePath<BabelTypes.Identifier>
+                    if (isIdentifierReferenced(local)) {
+                      state.refs.add(local)
+                    }
+                  })
                 }
               },
               FunctionDeclaration: markFunction,
@@ -319,14 +339,44 @@ export default function nextTransformSsg({
             path.traverse({
               // eslint-disable-next-line no-loop-func
               VariableDeclarator(path) {
-                if (path.node.id.type !== 'Identifier') {
-                  return
-                }
+                if (path.node.id.type === 'Identifier') {
+                  const local = path.get('id') as NodePath<
+                    BabelTypes.Identifier
+                  >
+                  if (refs.has(local) && !isIdentifierReferenced(local)) {
+                    ++count
+                    path.remove()
+                  }
+                } else if (path.node.id.type === 'ObjectPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ObjectPattern
+                  >
 
-                const local = path.get('id') as NodePath<BabelTypes.Identifier>
-                if (refs.has(local) && !isIdentifierReferenced(local)) {
-                  ++count
-                  path.remove()
+                  const beforeCount = count
+                  const properties = pattern.get('properties')
+                  properties.forEach((p) => {
+                    const local = p.get(
+                      p.node.type === 'ObjectProperty'
+                        ? 'value'
+                        : p.node.type === 'RestElement'
+                        ? 'argument'
+                        : (function () {
+                            throw new Error('invariant')
+                          })()
+                    ) as NodePath<BabelTypes.Identifier>
+
+                    if (refs.has(local) && !isIdentifierReferenced(local)) {
+                      ++count
+                      p.remove()
+                    }
+                  })
+
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('properties').length < 1
+                  ) {
+                    path.remove()
+                  }
                 }
               },
               FunctionDeclaration: sweepFunction,

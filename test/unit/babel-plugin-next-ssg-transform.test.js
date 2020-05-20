@@ -452,5 +452,29 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
       )
     })
+
+    it('destructuring assignment (object)', () => {
+      const output = babel(trim`
+        import fs from 'fs';
+        import other from 'other';
+
+        const {readFile, readdir, access: foo} = fs.promises;
+        const {a,b, cat: bar,...rem} = other;
+
+        export async function getStaticProps() {
+          readFile;
+          readdir;
+          foo;
+          b;
+          cat;
+          rem;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"import other from'other';const{a,cat:bar}=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+      )
+    })
   })
 })
