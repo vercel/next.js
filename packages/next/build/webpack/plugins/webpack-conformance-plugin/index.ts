@@ -13,6 +13,7 @@ import { visit } from 'next/dist/compiled/recast'
 export { MinificationConformanceCheck } from './checks/minification-conformance-check'
 export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
 export { DuplicatePolyfillsConformanceCheck } from './checks/duplicate-polyfills-conformance-check'
+export { GranularChunksConformanceCheck } from './checks/granular-chunks-conformance'
 
 export interface IWebpackConformancePluginOptions {
   tests: IWebpackConformanceTest[]

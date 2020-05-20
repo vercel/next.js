@@ -1,7 +1,8 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import chalk from 'chalk'
 import { nextBuild } from 'next-test-utils'
+import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 jest.setTimeout(1000 * 60 * 2)
@@ -26,6 +27,16 @@ describe('Conformance system', () => {
     const { stderr } = build
     expect(stderr).toContain(
       '[BUILD CONFORMANCE WARNING]: Found polyfill.io loading polyfill for fetch.'
+    )
+  })
+
+  it('Should warn about changes to granularChunks config', async () => {
+    const { stderr } = build
+    expect(stderr).toContain(
+      '[BUILD CONFORMANCE ERROR]: The splitChunks config as part of the granularChunks flag has ' +
+        `been carefully crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
+          'splitChunks.cacheGroups.vendors'
+        )}`
     )
   })
 })
