@@ -54,6 +54,7 @@ export default function Layout ({ title, description, children }) {
 
         footer img {
           margin-left: 0.5rem;
+          width: 71px;
         }
 
         footer a {
