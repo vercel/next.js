@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@mux/mux-node": "2.8.0",
-    "@mux/upchunk": "1.0.6",
+    "@mux/upchunk": "1.0.8",
     "hls.js": "0.13.2",
     "next": "latest",
     "react": "16.13.1",

@@ -1,10 +1,5 @@
 import Layout from '../components/layout'
-import Spinner from '../components/spinner'
-import dynamic from 'next/dynamic'
-const UploadForm = dynamic(() => import('../components/upload-form'), {
-  ssr: false,
-  loading: () => <Spinner />,
-})
+import UploadForm from '../components/upload-form'
 
 export default function Home() {
   return (
