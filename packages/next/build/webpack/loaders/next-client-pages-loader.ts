@@ -6,7 +6,7 @@ export type ClientPagesLoaderOptions = {
   page: string
 }
 
-const nextClientPagesLoader: loader.Loader = function() {
+const nextClientPagesLoader: loader.Loader = function () {
   const { absolutePagePath, page } = loaderUtils.getOptions(
     this
   ) as ClientPagesLoaderOptions

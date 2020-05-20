@@ -120,7 +120,7 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 
 const buildStore = createStore<BuildStatusStore>()
 
-buildStore.subscribe(state => {
+buildStore.subscribe((state) => {
   const { amp, client, server } = state
 
   const [{ status }] = [
@@ -175,7 +175,7 @@ export function ampValidation(
   if (!(errors.length || warnings.length)) {
     buildStore.setState({
       amp: Object.keys(amp)
-        .filter(k => k !== page)
+        .filter((k) => k !== page)
         .sort()
         // eslint-disable-next-line no-sequences
         .reduce((a, c) => ((a[c] = amp[c]), a), {} as AmpPageStatus),
@@ -235,10 +235,10 @@ export function watchCompilers(
     )
   }
 
-  tapCompiler('client', client, status =>
+  tapCompiler('client', client, (status) =>
     buildStore.setState({ client: status })
   )
-  tapCompiler('server', server, status =>
+  tapCompiler('server', server, (status) =>
     buildStore.setState({ server: status })
   )
 

@@ -7,7 +7,7 @@ import withAuthUser from '../utils/pageWrappers/withAuthUser'
 import withAuthUserInfo from '../utils/pageWrappers/withAuthUserInfo'
 import logout from '../utils/auth/logout'
 
-const Index = props => {
+const Index = (props) => {
   const { AuthUserInfo, data } = props
   const AuthUser = get(AuthUserInfo, 'AuthUser', null)
   const { favoriteFood } = data
@@ -58,7 +58,7 @@ const Index = props => {
 }
 
 // Just an example.
-const mockFetchData = async userId => ({
+const mockFetchData = async (userId) => ({
   user: {
     ...(userId && {
       id: userId,
@@ -67,7 +67,7 @@ const mockFetchData = async userId => ({
   favoriteFood: 'pizza',
 })
 
-Index.getInitialProps = async ctx => {
+Index.getInitialProps = async (ctx) => {
   // Get the AuthUserInfo object. This is set in `withAuthUser.js`.
   // The AuthUserInfo object is available on both the server and client.
   const AuthUserInfo = get(ctx, 'myCustomData.AuthUserInfo', null)

@@ -26,7 +26,7 @@ handler
     // const hashedPass = await argon2.hash(password);
     // const user = { username, password: hashedPass, name }
     createUser(req, user)
-    req.logIn(user, err => {
+    req.logIn(user, (err) => {
       if (err) throw err
       // Log the signed up user in
       res.status(201).json({

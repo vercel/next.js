@@ -10,7 +10,7 @@ const nextConfig = path.join(appDir, 'next.config.js')
 
 describe('Building Firebase', () => {
   // TODO: investigate re-enabling this test in node 12 environment
-  xit('Throws an error when building with firebase dependency with worker_threads', async () => {
+  it.skip('Throws an error when building with firebase dependency with worker_threads', async () => {
     await fs.writeFile(
       nextConfig,
       `module.exports = { experimental: { workerThreads: true } }`

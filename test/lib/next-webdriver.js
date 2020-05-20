@@ -148,7 +148,7 @@ const freshWindow = async () => {
   await newTabLink.click()
 
   allWindows = await browser.getAllWindowHandles()
-  const newWindow = allWindows.find(win => win !== initialWindow)
+  const newWindow = allWindows.find((win) => win !== initialWindow)
   await browser.switchTo().window(newWindow)
 }
 
@@ -175,7 +175,7 @@ export default async (appPort, path, waitHydration = true) => {
   // Wait for application to hydrate
   if (waitHydration) {
     console.log(`\n> Waiting hydration for ${url}\n`)
-    await browser.executeAsyncScript(function() {
+    await browser.executeAsyncScript(function () {
       var callback = arguments[arguments.length - 1]
 
       // if it's not a Next.js app return
@@ -187,7 +187,7 @@ export default async (appPort, path, waitHydration = true) => {
         callback()
       } else {
         var timeout = setTimeout(callback, 10 * 1000)
-        window.__NEXT_HYDRATED_CB = function() {
+        window.__NEXT_HYDRATED_CB = function () {
           clearTimeout(timeout)
           callback()
         }
