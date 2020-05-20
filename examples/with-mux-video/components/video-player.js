@@ -32,6 +32,8 @@ export default function VideoPlayer({ src }) {
           width: 800px;
           max-width: 100%;
           cursor: pointer;
+          padding-top: 40px;
+          padding-bottom: 40px;
         }
       `}</style>
     </>

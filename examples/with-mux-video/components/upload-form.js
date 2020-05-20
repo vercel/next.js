@@ -1,24 +1,59 @@
 import { useRef, useState } from 'react'
+import Router from 'next/router'
 import * as UpChunk from '@mux/upchunk'
+import useSwr from 'swr'
 import Button from './button'
 import Spinner from './spinner'
 
-const UploadForm = ({ uploadUrl, onStart, onSuccess }) => {
+const fetcher = url => {
+  return fetch(url).then(res => res.json())
+}
+
+const UploadForm = () => {
   const [isUploading, setIsUploading] = useState(false)
+  const [isPreparing, setIsPreparing] = useState(false)
+  const [uploadId, setUploadId] = useState(null)
   const [progress, setProgress] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
   const inputRef = useRef(null)
 
-  const startUpload = () => {
-    onStart()
+  const { data, error } = useSwr(
+    () => (isPreparing ? `/api/upload/${uploadId}` : null),
+    fetcher,
+    { refreshInterval: 5000 }
+  )
+
+  const asset = data && data.asset
+
+  if (asset && asset.playback_id && asset.status === 'ready') {
+    return Router.push(`/v/${asset.playback_id}`)
+  }
+
+  if (error) return <div>Error from useSwr</div>
+
+  const createUpload = async () => {
+    try {
+      return fetch('/api/upload', {
+        method: 'POST',
+      }).then(res => res.json()).then(({ id, url }) => {
+        setUploadId(id)
+        return url
+      })
+    } catch (e) {
+      console.error('Error in createUpload', e)
+      setErrorMessage('Error creating upload')
+    }
+  }
+
+  const startUpload = (evt) => {
     setIsUploading(true)
     const upload = UpChunk.createUpload({
-      endpoint: uploadUrl,
+      endpoint: createUpload,
       file: inputRef.current.files[0],
     })
 
     upload.on('error', err => {
-      console.error('💥 🙀', err.detail)
+      console.error('Upload error', err.detail)
       setErrorMessage(err.detail)
     })
 
@@ -27,7 +62,7 @@ const UploadForm = ({ uploadUrl, onStart, onSuccess }) => {
     })
 
     upload.on('success', () => {
-      onSuccess()
+      setIsPreparing(true);
     })
   }
 
@@ -35,23 +70,10 @@ const UploadForm = ({ uploadUrl, onStart, onSuccess }) => {
 
   return (
     <>
-      <div className="instructions-wrapper">
-        <p className="instructions">
-          When you select a file, it will uploaded via{' '}
-          <a
-            href="https://docs.mux.com/docs/direct-upload"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Mux Direct Upload API
-          </a>
-          . Shortly after, the video will be ready for playback on this URL.
-        </p>
-      </div>
-      <div className="button-wrapper">
+      <div>
         {isUploading ? (
           <>
-            <p>Uploading...{progress ? `${progress}%` : ''}</p>
+            { isPreparing ? <p>Preparing..</p> : <p>Uploading...{progress ? `${progress}%` : ''}</p> }
             <Spinner />
           </>
         ) : (
@@ -64,18 +86,6 @@ const UploadForm = ({ uploadUrl, onStart, onSuccess }) => {
         )}
       </div>
       <style jsx>{`
-        .instructions-wrapper {
-          display: flex;
-          width: 100%;
-          justify-content: space-around;
-        }
-        .instructions {
-          max-width: 400px;
-        }
-        .button-wrapper {
-          padding-top: 40px;
-          text-align: center;
-        }
         input {
           display: none;
         }
