@@ -1,4 +1,3 @@
-import React from 'react'
 import preval from 'preval.macro'
 
 const whoami = preval`

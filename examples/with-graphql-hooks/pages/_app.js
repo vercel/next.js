@@ -1,5 +1,4 @@
 import App from 'next/app'
-import React from 'react'
 import withGraphQLClient from '../lib/with-graphql-client'
 import { ClientContext } from 'graphql-hooks'
 
