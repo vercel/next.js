@@ -1,4 +1,4 @@
-const compose = plugins => ({
+const compose = (plugins) => ({
   webpack(config, options) {
     return plugins.reduce((config, plugin) => {
       if (plugin instanceof Array) {

@@ -1,8 +1,7 @@
-/* global jasmine */
 /* eslint-env jest */
 import { sandbox } from './helpers'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 test('logbox: can recover from a syntax error without losing state', async () => {
   const [session, cleanup] = await sandbox()
@@ -101,17 +100,31 @@ test('logbox: can recover from a event handler error', async () => {
   ).toBe('1')
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (8:16) @ eval
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (8:16) @ <unknown>
 
-       6 | const increment = useCallback(() => {
-       7 |   setCount(c => c + 1)
-    >  8 |   throw new Error('oops')
-         |        ^
-       9 | }, [setCount])
-      10 | return (
-      11 |   <main>"
-  `)
+         6 | const increment = useCallback(() => {
+         7 |   setCount(c => c + 1)
+      >  8 |   throw new Error('oops')
+           |        ^
+         9 | }, [setCount])
+        10 | return (
+        11 |   <main>"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (8:16) @ eval
+
+         6 | const increment = useCallback(() => {
+         7 |   setCount(c => c + 1)
+      >  8 |   throw new Error('oops')
+           |        ^
+         9 | }, [setCount])
+        10 | return (
+        11 |   <main>"
+    `)
+  }
 
   await session.patch(
     'index.js',
@@ -346,17 +359,31 @@ test('module init error not shown', async () => {
   )
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (4:12) @ Module../index.js
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ Module../index.js
 
-      2 | // top offset for snapshot
-      3 | import * as React from 'react';
-    > 4 | throw new Error('no')
-        |      ^
-      5 | class ClassDefault extends React.Component {
-      6 |   render() {
-      7 |     return <h1>Default Export</h1>;"
-  `)
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ eval
+
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  }
 
   await cleanup()
 })
@@ -464,19 +491,33 @@ test('syntax > runtime error', async () => {
     `
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (6:14) @ eval
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (6:14) @ <unknown>
 
-      4 | setInterval(() => {
-      5 |   i++
-    > 6 |   throw Error('no ' + i)
-        |        ^
-      7 | }, 1000)
-      8 | export default function FunctionNamed() {
-      9 |   return <div />"
-  `)
+        4 | setInterval(() => {
+        5 |   i++
+      > 6 |   throw Error('no ' + i)
+          |        ^
+        7 | }, 1000)
+        8 | export default function FunctionNamed() {
+        9 |   return <div />"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (6:14) @ eval
+
+        4 | setInterval(() => {
+        5 |   i++
+      > 6 |   throw Error('no ' + i)
+          |        ^
+        7 | }, 1000)
+        8 | export default function FunctionNamed() {
+        9 |   return <div />"
+    `)
+  }
 
   // Make a syntax error.
   await session.patch(
@@ -491,7 +532,7 @@ test('syntax > runtime error', async () => {
       export default function FunctionNamed() {`
   )
 
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "./index.js:8:47
@@ -504,7 +545,7 @@ test('syntax > runtime error', async () => {
   `)
 
   // Test that runtime error does not take over:
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   expect(await session.hasRedbox(true)).toBe(true)
   expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
     "./index.js:8:47

@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { promises } from 'fs'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { nextBuild, nextExport } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 const { access, readFile } = promises
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')

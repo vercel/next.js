@@ -1,5 +1,7 @@
 /* eslint-env jest */
-/* global jasmine */
+
+/* eslint-disable jest/no-identical-title */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -11,13 +13,13 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 let appPort
 let app
 
-const expectStatus = async path => {
+const expectStatus = async (path) => {
   const containRegex = /(This page could not be found|Bad Request)/
   // test base mount point `public/`
   const res = await fetchViaHTTP(appPort, path)

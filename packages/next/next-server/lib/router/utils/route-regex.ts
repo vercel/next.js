@@ -20,15 +20,21 @@ export function getRouteRegex(
   const parameterizedRoute = escapedRoute.replace(
     /\/\\\[([^/]+?)\\\](?=\/|$)/g,
     (_, $1) => {
+      const isOptional = /^\\\[.*\\\]$/.test($1)
+      if (isOptional) {
+        $1 = $1.slice(2, -2)
+      }
       const isCatchAll = /^(\\\.){3}/.test($1)
+      if (isCatchAll) {
+        $1 = $1.slice(6)
+      }
       groups[
         $1
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-          .replace(/^\.{3}/, '')
         // eslint-disable-next-line no-sequences
       ] = { pos: groupIndex++, repeat: isCatchAll }
-      return isCatchAll ? '/(.+?)' : '/([^/]+?)'
+      return isCatchAll ? (isOptional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
     }
   )
 
@@ -56,10 +62,8 @@ export function getRouteRegex(
   return {
     re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
     groups,
-    ...(namedParameterizedRoute
-      ? {
-          namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
-        }
-      : {}),
+    namedRegex: namedParameterizedRoute
+      ? `^${namedParameterizedRoute}(?:/)?$`
+      : undefined,
   }
 }

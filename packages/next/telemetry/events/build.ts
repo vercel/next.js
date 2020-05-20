@@ -22,11 +22,12 @@ export function eventBuildCompleted(
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some(path =>
+      hasDunderPages: pagePaths.some((path) =>
         REGEXP_DIRECTORY_DUNDER.test(path)
       ),
       hasTestPages: pagePaths.some(
-        path => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+        (path) =>
+          REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
     },
   }
@@ -58,11 +59,12 @@ export function eventBuildOptimize(
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some(path =>
+      hasDunderPages: pagePaths.some((path) =>
         REGEXP_DIRECTORY_DUNDER.test(path)
       ),
       hasTestPages: pagePaths.some(
-        path => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+        (path) =>
+          REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
     },
   }
