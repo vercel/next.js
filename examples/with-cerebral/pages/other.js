@@ -1,3 +1,4 @@
+import React from 'react'
 import { Controller } from 'cerebral'
 import Devtools from 'cerebral/devtools'
 import { Container } from '@cerebral/react'
