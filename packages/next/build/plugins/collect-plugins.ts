@@ -62,7 +62,11 @@ async function collectPluginMeta(
   // TODO: add err.sh explaining requirements
   let middleware: string[] = []
   try {
-    middleware = await promises.readdir(path.join(pkgDir, 'src'))
+    middleware = (
+      await promises.readdir(path.join(pkgDir, 'src'), { withFileTypes: true })
+    )
+      .filter((dirent) => dirent.isFile())
+      .map((file) => file.name)
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.error(err)
