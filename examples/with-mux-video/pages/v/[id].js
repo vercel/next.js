@@ -11,11 +11,8 @@ export default function Asset () {
   return (
     <Layout
       title="View your video"
-      description="Your video is ready"
+      description="This page is sharable. Share this video by sharing the URL in your address bar."
     >
-      <p>
-        This page is sharable. Share this video by sharing the URL in your address bar.
-      </p>
       <VideoPlayer src={src} />
       <p>
         Go <Link href='/'><a>back home</a></Link> to upload another video.

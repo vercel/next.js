@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Router from 'next/router'
 import * as UpChunk from '@mux/upchunk'
 import useSwr from 'swr'
@@ -38,9 +38,11 @@ const UploadForm = () => {
 
   const asset = data && data.asset
 
-  if (asset && asset.playback_id && asset.status === 'ready') {
-    return Router.push(`/v/${asset.playback_id}`)
-  }
+  useEffect(() => {
+    if (asset && asset.playback_id && asset.status === 'ready') {
+      Router.push(`/v/${asset.playback_id}`)
+    }
+  }, [asset]);
 
   if (error) return <ErrorMessage message='Error fetching api' />
   if (data && data.error) return <ErrorMessage message={data.error} />
