@@ -44,3 +44,4 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 ### Reference
 
 https://www.serverless.com/blog/serverless-nextjs/
+https://github.com/danielcondemarin/serverless-next.js#motivation
