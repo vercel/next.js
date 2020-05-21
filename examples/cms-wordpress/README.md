@@ -64,53 +64,47 @@ The process to add WPGraphiQL is the same as the one for WPGraphQL, go to the [W
 
 ![WPGraphiQL page](./docs/wp-graphiql.png)
 
-### Step 4. Populate Content
+### Step 2. Populate Content
 
-Select **Author** and create a new record.
+Inside your WordPress admin, go to **Posts** and start adding new posts:
 
-- You just need **1 Author record**.
-- Use dummy data for the text.
-- For the image, you can download one from [Unsplash](https://unsplash.com/).
+- We recommend creating at least **2 posts**
+- Use dummy data for the content
+- Pick an author from your WordPress users
+- Add a **Featured Image**, you can download one from [Unsplash](https://unsplash.com/)
+- Fill the **Excerpt** field
 
-When you’re done, make sure to click **Enabled** under **Workflow Status**.
+![New post](./docs/new-post.png)
 
-Next, select **Post** and create a new record.
+When you’re done, make sure to **Publish** the posts
 
-- We recommend creating at least **2 Post records**.
-- Use dummy data for the text.
-- You can write markdown for the **Content** field.
-- For the images, you can download ones from [Unsplash](https://unsplash.com/).
-- Pick the **Author** you created earlier.
+> **Note:** Only **public** posts that have been published will be rendered by the app, unless Preview Mode is enabled.
 
-When you’re done, make sure to click **Enabled** under **Workflow Status**.
-
-### Step 5. Set up environment variables
+### Step 3. Set up environment variables
 
 From the dropdown next to the project name, click **API Keys**.
 
 Create a new API Key with the **Read** permission.
 
-Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then open `.env.local` and set `NEXT_EXAMPLE_CMS_WORDPRESS_API_URL` to be the URL to your GraphQL endpoint in WordPress. For example: `https://myapp.wpengine.com/graphql`.
 
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY` should be the API token you just copied.
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID` should be the project ID, which is a substring in the project page URL: `https://app.takeshape.io/projects/<project-id>/...`
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
-
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID=...
-NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY=...
-NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET=...
+NEXT_EXAMPLE_CMS_WORDPRESS_API_URL=...
+
+# Only required if you want to enable preview mode
+# NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN=
+# NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=
 ```
 
-### Step 6. Run Next.js in development mode
+### Step 4. Run Next.js in development mode
 
 ```bash
 npm install
@@ -124,22 +118,77 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
+### Step 5. Add authentication for Preview Mode
+
+By default, the blog will work with the public posts from your WordPress site, private content cannot be retrieved, like unpublished posts and private fields. To have access to unpublished posts you'll need to setup authentication. This is completely optional.
+
+To add [authentication to WPGraphQL](https://docs.wpgraphql.com/guides/authentication-and-authorization/), first you need to add the [WPGraphQL JWT plugin](https://github.com/wp-graphql/wp-graphql-jwt-authentication) to your Wordpress Admin following the same process you used to add the WPGraphQL plugin.
+
+> Adding the WPGraphQL JWT plugin will disable your GraphQL API until you add a JWT secret ([#91](https://github.com/wp-graphql/wp-graphql-jwt-authentication/issues/91))
+
+Once that's done, you'll need to access the WordPress filesystem to add the secret required to validate JWT tokens, for that it's recommended to use SFTP, there are many guides for this, and it may vary depending in your provider. For example:
+
+- [SFTP guide for WP Engine](https://wpengine.com/support/sftp/)
+- [SFTP guide for WordPress.com](https://wordpress.com/support/sftp/)
+
+Once you have SFTP access, open `wp-config.php` and add a secret for your JWT:
+
+```php
+define( 'GRAPHQL_JWT_AUTH_SECRET_KEY', 'YOUR_STRONG_SECRET' );
+```
+
+> You can read more about this in the documentation for [WPGraphQL JWT Authentication](https://docs.wpgraphql.com/extensions/wpgraphql-jwt-authentication/).
+
+Now, you need to get a **refresh token** to make authenticated requests with GraphQL. Make the following GraphQL mutation to your WordPress site:
+
+```graphql
+mutation Login {
+  login(
+    input: {
+      clientMutationId: "uniqueId"
+      password: "your_password"
+      username: "your_username"
+    }
+  ) {
+    refreshToken
+  }
+}
+```
+
+Replace `your_username` with the **username** of an user with the `Administrator` role, and `your_password` with your user's password.
+
+Copy the `refreshToken` returned by the mutation, then open `.env.local`, and make the following changes:
+
+- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you just got
+- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET` and set it to be any random string (ideally URL friendly)
+
+Your `.env.local` file should look like this:
+
+```bash
+NEXT_EXAMPLE_CMS_WORDPRESS_API_URL=...
+
+# Only required if you want to enable preview mode
+NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN=...
+NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=...
+```
+
 ### Step 7. Try preview mode
 
-On TakeShape, create a new post like before. But **DO NOT** click **Enabled** under **Workflow Status**.
+On your WordPress admin, create a new post like before. But **DO NOT** click **Publish** it.
 
-Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
-To enable the Preview Mode, go to this URL:
+To enable Preview Mode, go to this URL:
 
 ```
-http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
+http://localhost:3000/api/preview?secret=<secret>&id=<id>
 ```
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET`.
-- `<slug>` should be the post's `slug` attribute (you can check on TakeShape).
+- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET`
+- `<id>` should be the post's `databaseId` field, this is the integer that you usually see in the URL (`?post=18`)
+- `<slug>` can be used instead of `id`, it's generated based on the title
 
-You should now be able to see this post. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+You should now be able to see this post. To exit Preview Mode, you can click on **Click here to exit preview mode** at the top.
 
 ### Step 8. Deploy on Vercel
 
@@ -147,12 +196,12 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com/import?fil
 
 To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY>` and `<NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace the values with the corresponding strings in `.env.local`:
 
-```
-now secrets add next_example_cms_takeshape_api_key <NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY>
-now secrets add next_example_cms_takeshape_project_id <NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID>
-now secrets add next_example_cms_takeshape_preview_secret <NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET>
+```bash
+now secrets add next_example_cms_wordpress_api_url <NEXT_EXAMPLE_CMS_WORDPRESS_API_URL>
+now secrets add next_example_cms_wordpress_auth_refresh_token <NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN>
+now secrets add next_example_cms_wordpress_preview_secret <NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

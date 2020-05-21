@@ -1,11 +1,17 @@
-const API_URL = 'https://vercel.wpengine.com/graphql'
+const API_URL = process.env.NEXT_EXAMPLE_CMS_WORDPRESS_API_URL
 
 async function fetchAPI(query, { variables } = {}) {
+  const headers = { 'Content-Type': 'application/json' }
+
+  if (process.env.NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN) {
+    headers[
+      'Authorization'
+    ] = `Bearer ${process.env.NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN}`
+  }
+
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       query,
       variables,
@@ -20,23 +26,21 @@ async function fetchAPI(query, { variables } = {}) {
   return json.data
 }
 
-export async function getPreviewPostBySlug(slug) {
+export async function getPreviewPost(id, idType = 'DATABASE_ID') {
   const data = await fetchAPI(
     `
-    query PostBySlug($slug: String) {
-      post: getPostList(filter: {term: {slug: $slug}}, size: 1, onlyEnabled: false) {
-        items {
-          slug
-        }
+    query PreviewPost($id: ID!, $idType: PostIdType!) {
+      post(id: $id, idType: $idType) {
+        databaseId
+        slug
+        status
       }
     }`,
     {
-      variables: {
-        slug,
-      },
+      variables: { id, idType },
     }
   )
-  return (data?.post?.items || [])[0]
+  return data.post
 }
 
 export async function getAllPostsWithSlug() {
@@ -92,56 +96,92 @@ export async function getAllPostsForHome(preview) {
   return data?.posts
 }
 
-export async function getPostAndMorePosts(slug, preview) {
+export async function getPostAndMorePosts(slug, preview, previewData) {
+  const postPreview = preview && previewData?.post
+  // The slug may be the id of an unpublished post
+  const isId = Number.isInteger(Number(slug))
+  const isSamePost = isId
+    ? Number(slug) === postPreview.id
+    : slug === postPreview.slug
+  const isDraft = isSamePost && postPreview?.status === 'draft'
+  const isRevision = isSamePost && postPreview?.status === 'publish'
   const data = await fetchAPI(
     `
-    query PostBySlug($slug: ID!) {
-      post(id: $slug, idType: SLUG) {
-        title
-        content
-        excerpt
-        slug
-        date
-        featuredImage {
-          sourceUrl
-        }
-        author {
-          name
-          firstName
-          lastName
-          avatar {
-            url
-          }
-        }
+    fragment AuthorFields on User {
+      name
+      firstName
+      lastName
+      avatar {
+        url
       }
-      posts(first: 4, where: { orderby: { field: DATE, order: DESC } }) {
-        edges {
-          node {
-            title
-            excerpt
-            slug
-            date
-            featuredImage {
-              sourceUrl
-            }
-            author {
-              name
-              firstName
-              lastName
-              avatar {
-                url
+    }
+    fragment PostFields on Post {
+      title
+      excerpt
+      slug
+      date
+      featuredImage {
+        sourceUrl
+      }
+      author {
+        ...AuthorFields
+      }
+    }
+    query PostBySlug($id: ID!, $idType: PostIdType!) {
+      post(id: $id, idType: $idType) {
+        ...PostFields
+        content
+        ${
+          // Only some of the fields of a revision are considered as there are some inconsistencies
+          isRevision
+            ? `
+        revisions(first: 1, where: { orderby: { field: MODIFIED, order: ASC } }) {
+          edges {
+            node {
+              title
+              excerpt
+              content
+              author {
+                ...AuthorFields
               }
             }
+          }
+        }
+        `
+            : ''
+        }
+      }
+      posts(first: 3, where: { orderby: { field: DATE, order: DESC } }) {
+        edges {
+          node {
+            ...PostFields
           }
         }
       }
     }
   `,
-    { variables: { slug } }
+    {
+      variables: {
+        id: isDraft ? postPreview.id : slug,
+        idType: isDraft ? 'DATABASE_ID' : 'SLUG',
+      },
+    }
   )
+
+  // Draft posts may not have an slug
+  if (isDraft) data.post.slug = postPreview.id
+  // Apply a revision (changes in a published post)
+  if (isRevision && data.post.revisions) {
+    const revision = data.post.revisions.edges[0]?.node
+
+    if (revision) Object.assign(data.post, revision)
+    delete data.post.revisions
+  }
 
   // Filter out the main post
   data.posts.edges = data.posts.edges.filter(({ node }) => node.slug !== slug)
+  // If there are still 3 posts, remove the last one
+  if (data.posts.edges.length > 2) data.posts.edges.pop()
 
   return data
 }

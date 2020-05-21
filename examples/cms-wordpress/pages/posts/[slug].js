@@ -14,7 +14,7 @@ import { CMS_NAME } from '../../lib/constants'
 
 export default function Post({ post, posts, preview }) {
   const router = useRouter()
-  const morePosts = posts.edges
+  const morePosts = posts?.edges
 
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -35,7 +35,7 @@ export default function Post({ post, posts, preview }) {
                 </title>
                 <meta
                   property="og:image"
-                  content={post.featuredImage.sourceUrl}
+                  content={post.featuredImage?.sourceUrl}
                 />
               </Head>
               <PostHeader
@@ -55,8 +55,8 @@ export default function Post({ post, posts, preview }) {
   )
 }
 
-export async function getStaticProps({ params, preview = false }) {
-  const data = await getPostAndMorePosts(params.slug, preview)
+export async function getStaticProps({ params, preview = false, previewData }) {
+  const data = await getPostAndMorePosts(params.slug, preview, previewData)
 
   return {
     props: {
@@ -69,6 +69,7 @@ export async function getStaticProps({ params, preview = false }) {
 
 export async function getStaticPaths() {
   const allPosts = await getAllPostsWithSlug()
+
   return {
     paths: allPosts.edges.map(({ node }) => `/posts/${node.slug}`) || [],
     fallback: true,
