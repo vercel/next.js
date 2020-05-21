@@ -9,6 +9,19 @@ const fetcher = url => {
   return fetch(url).then(res => res.json())
 }
 
+const ErrorMessage = ({ message }) => (
+  <>
+    <div className='message'>
+      {message || 'Unknown error'}
+    </div>
+    <style jsx>{`
+      .message {
+        color: #d61313;
+      }
+    `}</style>
+  </>
+)
+
 const UploadForm = () => {
   const [isUploading, setIsUploading] = useState(false)
   const [isPreparing, setIsPreparing] = useState(false)
@@ -29,7 +42,8 @@ const UploadForm = () => {
     return Router.push(`/v/${asset.playback_id}`)
   }
 
-  if (error) return <div>Error from useSwr</div>
+  if (error) return <ErrorMessage message='Error fetching api' />
+  if (data && data.error) return <ErrorMessage message={data.error} />
 
   const createUpload = async () => {
     try {
@@ -53,7 +67,6 @@ const UploadForm = () => {
     })
 
     upload.on('error', err => {
-      console.error('Upload error', err.detail)
       setErrorMessage(err.detail)
     })
 
@@ -66,7 +79,7 @@ const UploadForm = () => {
     })
   }
 
-  if (errorMessage) return <div>{errorMessage}</div>
+  if (errorMessage) return <ErrorMessage message={errorMessage} />
 
   return (
     <>
