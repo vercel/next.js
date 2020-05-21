@@ -7,8 +7,7 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "deploy": "npm run build && sls deploy",
-    "start-sls": "npm run build && sls offline start"
+    "deploy": "serverless"
   },
   "keywords": [
     "next.js",
