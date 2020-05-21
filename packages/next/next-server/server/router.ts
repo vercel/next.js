@@ -162,7 +162,7 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
-    const pageChecks: { [name: string]: boolean } = {}
+    const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       if (pageChecks[p]) {
         return pageChecks[p]
