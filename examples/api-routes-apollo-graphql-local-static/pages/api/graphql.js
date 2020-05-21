@@ -13,20 +13,20 @@ const typeDefs = gql`
 const users = [
   { name: 'Leeroy Jenkins', username: 'leeroy' },
   { name: 'Foo Bar', username: 'foobar' },
-];
+]
 
 const resolvers = {
   Query: {
     users() {
-      return users;
+      return users
     },
     user(parent, { username }) {
-      return users.find(user => user.username === username);
-    }
+      return users.find((user) => user.username === username)
+    },
   },
 }
 
-export const schema = makeExecutableSchema({ typeDefs, resolvers });
+export const schema = makeExecutableSchema({ typeDefs, resolvers })
 
 export const config = {
   api: {
@@ -34,4 +34,6 @@ export const config = {
   },
 }
 
-export default (new ApolloServer({ schema })).createHandler({ path: '/api/graphql' })
+export default new ApolloServer({ schema }).createHandler({
+  path: '/api/graphql',
+})
