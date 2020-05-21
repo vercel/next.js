@@ -1,9 +1,9 @@
-import React from 'react';
+import React from 'react'
 
 type Props = {
-  name: string;
-  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
-};
+  name: string
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void
+}
 
 const Button = (props: Props) => {
   return (
@@ -27,7 +27,7 @@ const Button = (props: Props) => {
       `}</style>
       <button onClick={props.onClick}>{props.name}</button>
     </>
-  );
-};
+  )
+}
 
-export default Button;
+export default Button

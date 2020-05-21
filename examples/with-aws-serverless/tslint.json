@@ -1,8 +1,0 @@
-{
-  "extends": ["tslint-config-standard", "tslint-react"],
-  "rules": {
-    "semicolon": [true, "always"],
-    "no-trailing-whitespace": true,
-    "jsx-no-multiline-js": false
-  }
-}

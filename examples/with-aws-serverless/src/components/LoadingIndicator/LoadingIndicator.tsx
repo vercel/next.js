@@ -1,10 +1,8 @@
-import React from 'react';
-import LoadingImage from './images/loading.gif';
+import React from 'react'
+import LoadingImage from './images/loading.gif'
 
 const LoadingIndicator = () => {
-  return (
-    <img src={LoadingImage} width={200}/>
-  );
-};
+  return <img src={LoadingImage} width={200} />
+}
 
-export default LoadingIndicator;
+export default LoadingIndicator

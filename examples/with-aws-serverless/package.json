@@ -30,9 +30,6 @@
     "@types/node": "13.13.5",
     "@types/react": "16.9.35",
     "@types/react-dom": "16.9.8",
-    "serverless-next.js": "1.12.0-alpha.5",
-    "tslint": "6.1.2",
-    "tslint-config-standard": "9.0.0",
-    "tslint-react": "5.0.0"
+    "serverless-next.js": "1.12.0-alpha.5"
   }
 }

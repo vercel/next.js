@@ -1,5 +1,5 @@
-import React from 'react';
-import Link from 'next/link';
+import React from 'react'
+import Link from 'next/link'
 
 const GNB = () => {
   return (
@@ -15,17 +15,23 @@ const GNB = () => {
       `}</style>
       <ul>
         <li>
-          <Link href='/'><a>HOME</a></Link>
+          <Link href="/">
+            <a>HOME</a>
+          </Link>
         </li>
         <li>
-          <Link href='/about'><a>ABOUT</a></Link>
+          <Link href="/about">
+            <a>ABOUT</a>
+          </Link>
         </li>
         <li>
-          <Link href='/example'><a>EXAMPLE</a></Link>
+          <Link href="/example">
+            <a>EXAMPLE</a>
+          </Link>
         </li>
       </ul>
     </>
-  );
-};
+  )
+}
 
-export default GNB;
+export default GNB

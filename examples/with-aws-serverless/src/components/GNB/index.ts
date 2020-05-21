@@ -1,3 +1,3 @@
-import GNB from './GNB';
+import GNB from './GNB'
 
-export default GNB;
+export default GNB
