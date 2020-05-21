@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### TODO
+### [https://next-blog-wordpress.now.sh](https://next-blog-wordpress.now.sh)
 
 ### Related examples
 
@@ -79,7 +79,7 @@ Inside your WordPress admin, go to **Posts** and start adding new posts:
 
 When you’re done, make sure to **Publish** the posts
 
-> **Note:** Only **public** posts that have been published will be rendered by the app, unless Preview Mode is enabled.
+> **Note:** Only **public** posts that have been published will be rendered by the app, unless [Preview Mode](/docs/advanced-features/preview-mode.md) is enabled.
 
 ### Step 3. Set up environment variables
 
@@ -121,7 +121,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 5. Add authentication for Preview Mode
 
-By default, the blog will work with the public posts from your WordPress site, private content cannot be retrieved, like unpublished posts and private fields. To have access to unpublished posts you'll need to setup authentication. This is completely optional.
+By default, the blog will work with public posts from your WordPress site, private content cannot be retrieved, like unpublished posts and private fields. To have access to unpublished posts you'll need to setup authentication. This is completely optional.
 
 To add [authentication to WPGraphQL](https://docs.wpgraphql.com/guides/authentication-and-authorization/), first you need to add the [WPGraphQL JWT plugin](https://github.com/wp-graphql/wp-graphql-jwt-authentication) to your Wordpress Admin following the same process you used to add the WPGraphQL plugin.
 
@@ -156,7 +156,7 @@ mutation Login {
 }
 ```
 
-Replace `your_username` with the **username** of an user with the `Administrator` role, and `your_password` with your user's password.
+Replace `your_username` with the **username** of an user with the `Administrator` role, and `your_password` with the user's password.
 
 Copy the `refreshToken` returned by the mutation, then open `.env.local`, and make the following changes:
 
@@ -173,11 +173,11 @@ NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN=...
 NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=...
 ```
 
-### Step 7. Try preview mode
+### Step 6. Try preview mode
 
-On your WordPress admin, create a new post like before. But **DO NOT** click **Publish** it.
+On your WordPress admin, create a new post like before. But **do not Publish** it.
 
-Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to `http://localhost:3000`, you won’t see the post. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
 To enable Preview Mode, go to this URL:
 
@@ -191,7 +191,7 @@ http://localhost:3000/api/preview?secret=<secret>&id=<id>
 
 You should now be able to see this post. To exit Preview Mode, you can click on **Click here to exit preview mode** at the top.
 
-### Step 8. Deploy on Vercel
+### Step 7. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
