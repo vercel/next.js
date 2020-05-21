@@ -1,0 +1,18 @@
+{
+  "name": "get-stats",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "license": "MIT",
+  "dependencies": {
+    "async-sema": "^3.1.0",
+    "fs-extra": "^8.1.0",
+    "get-port": "^5.0.0",
+    "glob": "^7.1.4",
+    "gzip-size": "^5.1.1",
+    "minimatch": "^3.0.4",
+    "node-fetch": "^2.6.0",
+    "prettier": "^1.18.2",
+    "pretty-bytes": "^5.3.0",
+    "pretty-ms": "^5.0.0"
+  }
+}

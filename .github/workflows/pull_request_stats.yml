@@ -9,4 +9,5 @@ jobs:
     name: PR Stats
     runs-on: ubuntu-latest
     steps:
-      - uses: zeit/next-stats-action@master
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/next-stats-action

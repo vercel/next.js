@@ -29,3 +29,4 @@ test/**/next-env.d.ts
 examples/**/out
 examples/**/.env*.local
 
+pr-stats.md
