@@ -23,7 +23,7 @@ export default (props: Props) => {
         ) : (
           <>
             <h1>{props.data.id}</h1>
-            <Avatar data={props.data} size={'big'}/>
+            <Avatar data={props.data} size={'big'} disabled={true}/>
           </>
         )}
       </div>

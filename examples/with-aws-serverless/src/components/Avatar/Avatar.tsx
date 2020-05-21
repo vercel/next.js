@@ -1,10 +1,11 @@
-import React from 'react';
-import Link from 'next/link';
+import React from 'react'
+import Link from 'next/link'
 
 type Props = {
-  data: UserModel;
+  data: UserModel
   size?: 'big' | 'normal'
-};
+  disabled?: boolean
+}
 
 const Avatar = (props: Props) => {
   return (
@@ -24,6 +25,11 @@ const Avatar = (props: Props) => {
         .avatar:hover {
           text-decoration: underline;
         }
+        .avatar-disabled {
+          pointer-events: none;
+          color: inherit;
+          text-decoration: none;
+        }
         img {
           width: ${props.size === 'big' ? '150px' : '50px'};
           margin-right: 10px;
@@ -34,17 +40,17 @@ const Avatar = (props: Props) => {
           border: 0;
         }
       `}</style>
-        <Link href={`/users/${props.data.name}`}>
-          <a className='avatar'>
-            <img src={props.data.photo} alt={props.data.name}/>
-            <div className='avatar__text'>
-              <p>name : {props.data.name}</p>
-              <p>email : {props.data.email}</p>
-            </div>
-          </a>
-        </Link>
+      <Link href={`/users/${props.data.name}`}>
+        <a className={props.disabled ? 'avatar-disabled' : 'avatar'}>
+          <img src={props.data.photo} alt={props.data.name} />
+          <div className="avatar__text">
+            <p>name : {props.data.name}</p>
+            <p>email : {props.data.email}</p>
+          </div>
+        </a>
+      </Link>
     </>
-  );
-};
+  )
+}
 
-export default Avatar;
+export default Avatar

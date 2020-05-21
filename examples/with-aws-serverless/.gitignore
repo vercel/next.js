@@ -3,5 +3,4 @@ jspm_packages
 
 .next
 .serverless
-
-awsconfiguration.json
+.serverless_nextjs
