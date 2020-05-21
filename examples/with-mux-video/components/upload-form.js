@@ -85,7 +85,7 @@ const UploadForm = () => {
 
   return (
     <>
-      <div>
+      <div className='container'>
         {isUploading ? (
           <>
             {isPreparing ? (
@@ -105,6 +105,9 @@ const UploadForm = () => {
         )}
       </div>
       <style jsx>{`
+        .container {
+          min-height: 220px;
+        }
         input {
           display: none;
         }
