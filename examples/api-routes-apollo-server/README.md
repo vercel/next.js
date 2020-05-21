@@ -6,7 +6,7 @@ Next.js ships with two forms of pre-rendering: [Static Generation](https://nextj
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-apollo-graphql-local-static)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-apollo-server)
 
 ## How to use
 
@@ -15,9 +15,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example api-routes-apollo-graphql-local-static api-routes-apollo-graphql-local-static-app
+npm init next-app --example api-routes-apollo-server api-routes-apollo-server-app
 # or
-yarn create next-app --example api-routes-apollo-graphql-local-static api-routes-apollo-graphql-local-static-app
+yarn create next-app --example api-routes-apollo-server api-routes-apollo-server-app
 ```
 
 ### Download manually
@@ -25,8 +25,8 @@ yarn create next-app --example api-routes-apollo-graphql-local-static api-routes
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/api-routes-apollo-graphql-local-static
-cd api-routes-apollo-graphql-local-static
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/api-routes-apollo-server
+cd api-routes-apollo-server
 ```
 
 Install it and run:
