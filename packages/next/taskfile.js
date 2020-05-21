@@ -19,8 +19,10 @@ export async function finally_polyfill(task, opts) {
 }
 
 export async function unfetch(task, opts) {
+  const unfetch_source = relative(__dirname, require.resolve('unfetch'))
   await task
-    .source(opts.src || relative(__dirname, require.resolve('unfetch')))
+    .source(opts.src || unfetch_source)
+    .source(opts.src || unfetch_source.concat('.map'))
     .target('dist/build/polyfills')
 }
 
