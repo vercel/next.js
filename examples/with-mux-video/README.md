@@ -14,7 +14,7 @@ Deploy the example using [Vercel](https://vercel.com/now):
 
 ## Environment variables
 
-You will need to set up 2 environment variables. See how to [configure environment variables here](https://vercel.com/blog/environment-variables-ui). See `.env.example` file for the variables that are expected (`MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`). You can get these by creating a new Access Token on the [settings page](https://dashboard.mux.com/settings/access-tokens) in your Mux dashboard.
+You will need to set up 2 environment variables. See how to [configure environment variables here](https://vercel.com/blog/environment-variables-ui). See `.env.example` file for the variables that are expected (`MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`). You should create a `.env.local` file with this variables and you can create a new Access Token on the [settings page](https://dashboard.mux.com/settings/access-tokens) in your Mux dashboard.
 
 ### Using `create-next-app`
 
