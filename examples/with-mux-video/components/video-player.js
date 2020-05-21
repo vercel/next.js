@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import Hls from 'hls.js'
 
-export default function VideoPlayer({ src }) {
+export default function VideoPlayer({ src, poster }) {
   const videoRef = useRef(null)
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function VideoPlayer({ src }) {
 
   return (
     <>
-      <video ref={videoRef} />
+      <video ref={videoRef} poster={poster} />
       <style jsx>{`
         video {
           width: 800px;
