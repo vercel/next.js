@@ -1,5 +1,4 @@
 import http from 'http'
-import fs from 'fs'
 import next, { NextServerConstructor } from '../next'
 
 export default async function start(
@@ -18,20 +17,10 @@ export default async function start(
     // This code catches EADDRINUSE error if the port is already in use
     srv.on('error', reject)
     srv.on('listening', () => {
-      if (socket) {
-        fs.chmodSync(socket, 0o777)
-      }
       return () => resolve()
     })
 
     if (socket) {
-      console.log('connecting to socket', socket)
-      console.log('Socket stats:', fs.statSync(socket), {
-        isSocket: fs.statSync(socket).isSocket(),
-      })
-      if (fs.existsSync(socket) && fs.statSync(socket).isSocket()) {
-        fs.unlinkSync(socket)
-      }
       srv.listen(socket)
     } else {
       srv.listen(port, hostname)
