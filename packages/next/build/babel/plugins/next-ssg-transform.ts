@@ -33,7 +33,7 @@ function decorateSsgExport(
   t: typeof BabelTypes,
   path: NodePath<BabelTypes.Program>,
   state: PluginState
-) {
+): void {
   const gsspName = state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID
   const gsspId = t.identifier(gsspName)
 
@@ -41,7 +41,7 @@ function decorateSsgExport(
     path: NodePath<
       BabelTypes.ExportDefaultDeclaration | BabelTypes.ExportNamedDeclaration
     >
-  ) => {
+  ): void => {
     if (state.done) {
       return
     }
@@ -156,7 +156,7 @@ export default function nextTransformSsg({
       | BabelTypes.ArrowFunctionExpression
     >,
     state: PluginState
-  ) {
+  ): void {
     const ident = getIdentifier(path)
     if (ident?.node && isIdentifierReferenced(ident)) {
       state.refs.add(ident)
@@ -170,7 +170,7 @@ export default function nextTransformSsg({
       | BabelTypes.ImportNamespaceSpecifier
     >,
     state: PluginState
-  ) {
+  ): void {
     const local = path.get('local')
     if (isIdentifierReferenced(local)) {
       state.refs.add(local)
@@ -314,7 +314,7 @@ export default function nextTransformSsg({
               | BabelTypes.FunctionExpression
               | BabelTypes.ArrowFunctionExpression
             >
-          ) {
+          ): void {
             const ident = getIdentifier(path)
             if (
               ident?.node &&
@@ -340,7 +340,7 @@ export default function nextTransformSsg({
               | BabelTypes.ImportDefaultSpecifier
               | BabelTypes.ImportNamespaceSpecifier
             >
-          ) {
+          ): void {
             const local = path.get('local')
             if (refs.has(local) && !isIdentifierReferenced(local)) {
               ++count
