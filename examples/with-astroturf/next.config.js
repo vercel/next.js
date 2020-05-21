@@ -2,12 +2,12 @@ const withCSS = require('@zeit/next-css')
 
 module.exports = withCSS({
   cssModules: true,
-  webpack: config => {
+  webpack: (config) => {
     config.module.rules.push({
       test: /\.js$/,
-      use: ['astroturf/loader']
+      use: ['astroturf/loader'],
     })
 
     return config
-  }
+  },
 })

@@ -1,15 +1,21 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
+import url from 'url'
 import { join, resolve as resolvePath } from 'path'
-import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  getBrowserBodyText,
+  waitFor,
+  fetchViaHTTP,
+} from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
-// Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
-async function checkInjected (browser) {
+// Does the same evaluation checking for INJECTED for 5 seconds after hydration, triggering every 500ms
+async function checkInjected(browser) {
   const start = Date.now()
-  while (Date.now() - start < 15000) {
+  while (Date.now() - start < 5000) {
     const bodyText = await getBrowserBodyText(browser)
     if (/INJECTED/.test(bodyText)) {
       throw new Error('Vulnerable to XSS attacks')
@@ -18,7 +24,7 @@ async function checkInjected (browser) {
   }
 }
 
-module.exports = context => {
+module.exports = (context) => {
   describe('With Security Related Issues', () => {
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
@@ -35,12 +41,31 @@ module.exports = context => {
         `/../../../info.json`,
         `/../../info.json`,
         `/../info.json`,
-        `/info.json`
+        `/info.json`,
       ]
 
       for (const path of pathsToCheck) {
         const data = await renderViaHTTP(context.appPort, path)
         expect(data.includes('cool-version')).toBeFalsy()
+      }
+    })
+
+    it('should not allow accessing files outside .next/static directory', async () => {
+      const pathsToCheck = [
+        `/_next/static/../server/pages-manifest.json`,
+        `/_next/static/../server/build-manifest.json`,
+        `/_next/static/../BUILD_ID`,
+        `/_next/static/../routes-manifest.json`,
+      ]
+      for (const path of pathsToCheck) {
+        const res = await fetchViaHTTP(context.appPort, path)
+        const text = await res.text()
+        try {
+          expect(res.status).toBe(404)
+          expect(text).toMatch(/This page could not be found/)
+        } catch (err) {
+          throw new Error(`Path ${path} accessible from the browser`)
+        }
       }
     })
 
@@ -55,7 +80,7 @@ module.exports = context => {
       }
 
       const homeDir = homedir()
-      buildFiles.forEach(buildFile => {
+      buildFiles.forEach((buildFile) => {
         const content = readFileSync(join(readPath, buildFile), 'utf8')
         if (content.includes(homeDir)) {
           throw new Error(
@@ -151,6 +176,42 @@ module.exports = context => {
       )
       await checkInjected(browser)
       await browser.close()
+    })
+
+    it('should handle encoded value in the pathname correctly \\', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/' + encodeURI('\\google.com'),
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe(encodeURI('/\\google.com/about'))
+      expect(hostname).not.toBe('google.com')
+    })
+
+    it('should handle encoded value in the pathname correctly %', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/%25google.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/%25google.com/about')
+      expect(hostname).not.toBe('google.com')
     })
   })
 }

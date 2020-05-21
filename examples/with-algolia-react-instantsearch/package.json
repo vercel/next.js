@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "css-loader": "^0.28.1",
+    "css-loader": "1.0.0",
     "prop-types": "^15.5.10",
     "qs": "^6.4.0",
     "next": "latest",

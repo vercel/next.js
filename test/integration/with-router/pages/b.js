@@ -1,9 +1,9 @@
 import * as React from 'react'
 
 class PageB extends React.Component {
-  render () {
+  render() {
     return (
-      <div id='page-b'>
+      <div id="page-b">
         <p>Page B!</p>
       </div>
     )

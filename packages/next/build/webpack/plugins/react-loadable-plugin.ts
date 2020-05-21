@@ -22,7 +22,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to strip out unneeded results for Next's specific use case
 
 import url from 'url'
-import { Compiler, compilation } from 'webpack'
+
+import {
+  Compiler,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  compilation,
+} from 'webpack'
 
 function buildManifest(
   compiler: Compiler,
@@ -31,7 +36,7 @@ function buildManifest(
   let context = compiler.options.context
   let manifest: { [k: string]: any[] } = {}
 
-  compilation.chunkGroups.forEach(chunkGroup => {
+  compilation.chunkGroups.forEach((chunkGroup) => {
     if (chunkGroup.isInitial()) {
       return
     }
@@ -64,7 +69,7 @@ function buildManifest(
             // Avoid duplicate files
             if (
               manifest[request].some(
-                item => item.id === id && item.file === file
+                (item) => item.id === id && item.file === file
               )
             ) {
               continue
@@ -84,6 +89,7 @@ function buildManifest(
 
   manifest = Object.keys(manifest)
     .sort()
+    // eslint-disable-next-line no-sequences
     .reduce((a, c) => ((a[c] = manifest[c]), a), {} as any)
 
   return manifest

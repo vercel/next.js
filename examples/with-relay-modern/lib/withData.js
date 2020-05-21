@@ -2,11 +2,11 @@ import React from 'react'
 import initEnvironment from './createRelayEnvironment'
 import { fetchQuery, ReactRelayContext } from 'react-relay'
 
-export default (ComposedComponent, options = {}) => {
+export default function withData(ComposedComponent, options = {}) {
   return class WithData extends React.Component {
     static displayName = `WithData(${ComposedComponent.displayName})`
 
-    static async getInitialProps (ctx) {
+    static async getInitialProps(ctx) {
       // Evaluate the composed component's getInitialProps()
       let composedInitialProps = {}
       if (ComposedComponent.getInitialProps) {
@@ -24,27 +24,24 @@ export default (ComposedComponent, options = {}) => {
         // TODO: Consider RelayQueryResponseCache
         // https://github.com/facebook/relay/issues/1687#issuecomment-302931855
         queryProps = await fetchQuery(environment, options.query, variables)
-        queryRecords = environment
-          .getStore()
-          .getSource()
-          .toJSON()
+        queryRecords = environment.getStore().getSource().toJSON()
       }
 
       return {
         ...composedInitialProps,
         ...queryProps,
-        queryRecords
+        queryRecords,
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       this.environment = initEnvironment({
-        records: props.queryRecords
+        records: props.queryRecords,
       })
     }
 
-    render () {
+    render() {
       return (
         <ReactRelayContext.Provider
           value={{ environment: this.environment, variables: {} }}

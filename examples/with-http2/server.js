@@ -12,11 +12,11 @@ const app = next({ dev })
 // Don't forget to create the keys for your development
 const server = http2.createSecureServer({
   key: fs.readFileSync('localhost-privkey.pem'),
-  cert: fs.readFileSync('localhost-cert.pem')
+  cert: fs.readFileSync('localhost-cert.pem'),
 })
 
 app.prepare().then(() => {
-  server.on('error', err => console.error(err))
+  server.on('error', (err) => console.error(err))
 
   // Process the various routes based on `req`
   // `/`      -> Render index.js

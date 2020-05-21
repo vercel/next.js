@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import { Component } from 'react'
 import { connect } from 'react-redux'
 
 import { increment, decrement, reset } from '../actions'
@@ -16,7 +16,7 @@ class Counter extends Component {
     this.props.dispatch(reset())
   }
 
-  render () {
+  render() {
     const { count } = this.props
     return (
       <div>

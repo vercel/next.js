@@ -1,6 +1,8 @@
-import ciEnvironment from 'ci-info'
-import isDockerFunction from 'is-docker'
+import isDockerFunction from 'next/dist/compiled/is-docker'
+import isWslBoolean from 'next/dist/compiled/is-wsl'
 import os from 'os'
+
+import * as ciEnvironment from './ci-info'
 
 type AnonymousMeta = {
   systemPlatform: NodeJS.Platform
@@ -11,8 +13,11 @@ type AnonymousMeta = {
   cpuSpeed: number | null
   memoryInMb: number
   isDocker: boolean
+  isNowDev: boolean
+  isWsl: boolean
   isCI: boolean
   ciName: string | null
+  nextVersion: string
 }
 
 let traits: AnonymousMeta | undefined
@@ -23,6 +28,7 @@ export function getAnonymousMeta(): AnonymousMeta {
   }
 
   const cpus = os.cpus() || []
+  const { NOW_REGION } = process.env
   traits = {
     // Software information
     systemPlatform: os.platform(),
@@ -35,8 +41,11 @@ export function getAnonymousMeta(): AnonymousMeta {
     memoryInMb: Math.trunc(os.totalmem() / Math.pow(1024, 2)),
     // Environment information
     isDocker: isDockerFunction(),
+    isNowDev: NOW_REGION === 'dev1',
+    isWsl: isWslBoolean,
     isCI: ciEnvironment.isCI,
     ciName: (ciEnvironment.isCI && ciEnvironment.name) || null,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   return traits

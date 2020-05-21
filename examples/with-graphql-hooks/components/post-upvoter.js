@@ -11,7 +11,7 @@ const UPDATE_POST = `
   }
 `
 
-export default function PostUpvoter ({ votes, id, onUpdate }) {
+export default function PostUpvoter({ votes, id, onUpdate }) {
   const [updatePost] = useMutation(UPDATE_POST)
 
   return (
@@ -21,8 +21,8 @@ export default function PostUpvoter ({ votes, id, onUpdate }) {
           const result = await updatePost({
             variables: {
               id,
-              votes: votes + 1
-            }
+              votes: votes + 1,
+            },
           })
 
           onUpdate && onUpdate(result)

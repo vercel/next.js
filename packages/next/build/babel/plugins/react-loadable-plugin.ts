@@ -23,18 +23,20 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to put `webpack` and `modules` under `loadableGenerated` to be backwards compatible with next/dynamic which has a `modules` key
 // Modified to support `dynamic(import('something'))` and `dynamic(import('something'), options)
 
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 
-export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
+export default function ({
+  types: t,
+}: {
+  types: typeof BabelTypes
+}): PluginObj {
   return {
     visitor: {
       ImportDeclaration(path: NodePath<BabelTypes.ImportDeclaration>) {
         let source = path.node.source.value
         if (source !== 'next/dynamic') return
 
-        let defaultSpecifier = path.get('specifiers').find(specifier => {
+        let defaultSpecifier = path.get('specifiers').find((specifier) => {
           return specifier.isImportDefaultSpecifier()
         })
 
@@ -47,7 +49,7 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
           return
         }
 
-        binding.referencePaths.forEach(refPath => {
+        binding.referencePaths.forEach((refPath) => {
           let callExpression = refPath.parentPath
 
           if (
@@ -86,8 +88,6 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
               callExpression.node.arguments.push(t.objectExpression([]))
             }
             // This is needed as the code is modified above
-            // TODO: remove ignore statement
-            // @ts-ignore
             args = callExpression.get('arguments')
             loader = args[0]
             options = args[1]
@@ -104,7 +104,7 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
             >
           } = {}
 
-          properties.forEach(property => {
+          properties.forEach((property) => {
             const key: any = property.get('key')
             propertiesMap[key.node.name] = property
           })
@@ -146,7 +146,7 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
                   t.arrowFunctionExpression(
                     [],
                     t.arrayExpression(
-                      dynamicImports.map(dynamicImport => {
+                      dynamicImports.map((dynamicImport) => {
                         return t.callExpression(
                           t.memberExpression(
                             t.identifier('require'),

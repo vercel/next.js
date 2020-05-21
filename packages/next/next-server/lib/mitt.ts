@@ -38,6 +38,7 @@ export default function mitt(): MittEmitter {
     },
 
     emit(type: string, ...evts: any[]) {
+      // eslint-disable-next-line array-callback-return
       ;(all[type] || []).slice().map((handler: Handler) => {
         handler(...evts)
       })

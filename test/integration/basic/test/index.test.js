@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
@@ -9,9 +9,10 @@ import errorRecovery from './error-recovery'
 import dynamic from './dynamic'
 import processEnv from './process-env'
 import publicFolder from './public-folder'
+import security from './security'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Basic Features', () => {
   beforeAll(async () => {
@@ -25,7 +26,7 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/hmr/about'),
       renderViaHTTP(context.appPort, '/hmr/style'),
       renderViaHTTP(context.appPort, '/hmr/contact'),
-      renderViaHTTP(context.appPort, '/hmr/counter')
+      renderViaHTTP(context.appPort, '/hmr/counter'),
     ])
   })
   afterAll(() => killApp(context.server))
@@ -35,4 +36,5 @@ describe('Basic Features', () => {
   errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   processEnv(context)
   publicFolder(context)
+  security(context)
 })

@@ -1,14 +1,14 @@
-import React, { Component } from 'react'
+import { Component } from 'react'
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux'
 import { loadExampleData, loadingExampleDataFailure } from '../store'
 
 class DataList extends Component {
   state = {
-    isDataLoading: false
+    isDataLoading: false,
   }
 
-  componentDidMount () {
+  componentDidMount() {
     const { loadExampleData, loadingExampleDataFailure } = this.props
     const self = this
 
@@ -36,7 +36,7 @@ class DataList extends Component {
       })
   }
 
-  render () {
+  render() {
     const { exampleData, error } = this.props
     const { isDataLoading } = this.state
 
@@ -56,14 +56,11 @@ class DataList extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   const { exampleData, error } = state
   return { exampleData, error }
 }
-const mapDispatchToProps = dispatch =>
+const mapDispatchToProps = (dispatch) =>
   bindActionCreators({ loadExampleData, loadingExampleDataFailure }, dispatch)
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(DataList)
+export default connect(mapStateToProps, mapDispatchToProps)(DataList)

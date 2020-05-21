@@ -1,13 +1,12 @@
-import React from 'react'
 import { connect } from 'react-redux'
 
 const CharacterInfo = ({
   character,
   error,
   fetchCharacter,
-  isFetchedOnServer = false
+  isFetchedOnServer = false,
 }) => (
-  <div className='CharacterInfo'>
+  <div className="CharacterInfo">
     {error ? (
       <p>We encountered and error.</p>
     ) : (
@@ -38,8 +37,8 @@ const CharacterInfo = ({
   </div>
 )
 
-export default connect(state => ({
+export default connect((state) => ({
   character: state.character,
   error: state.error,
-  isFetchedOnServer: state.isFetchedOnServer
+  isFetchedOnServer: state.isFetchedOnServer,
 }))(CharacterInfo)

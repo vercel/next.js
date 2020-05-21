@@ -9,7 +9,6 @@
   "dependencies": {
     "next": "latest",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-no-ssr": "1.1.0"
+    "react-dom": "^16.7.0"
   }
 }

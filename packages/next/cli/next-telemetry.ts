@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 
 import { cliCommand } from '../bin/next'
-import { setTelemetryEnabled, isTelemetryEnabled } from '../telemetry/storage'
+import { Telemetry } from '../telemetry/storage'
 
-const nextTelemetry: cliCommand = argv => {
+const nextTelemetry: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -35,16 +35,18 @@ const nextTelemetry: cliCommand = argv => {
     return
   }
 
-  let isEnabled = isTelemetryEnabled()
+  const telemetry = new Telemetry({ distDir: process.cwd() })
+
+  let isEnabled = telemetry.isEnabled
 
   if (args['--enable'] || args._[0] === 'enable') {
-    setTelemetryEnabled(true)
+    telemetry.setEnabled(true)
     console.log(chalk.cyan('Success!'))
     console.log()
 
     isEnabled = true
   } else if (args['--disable'] || args._[0] === 'disable') {
-    setTelemetryEnabled(false)
+    telemetry.setEnabled(false)
     if (isEnabled) {
       console.log(chalk.cyan('Your preference has been saved.'))
     } else {

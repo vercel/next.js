@@ -1,13 +1,21 @@
-# Redux example
+# With Redux Wrapper Example
+
+Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use redux that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-redux-wrapper)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-redux-wrapper with-redux-wrapper-app
+npm init next-app --example with-redux-wrapper with-redux-wrapper-app
 # or
 yarn create next-app --example with-redux-wrapper with-redux-wrapper-app
 ```
@@ -31,15 +39,9 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-```bash
-now
-```
-
-## The idea behind the example
-
-Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use redux that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
+## Notes
 
 In the first example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color than the client one.
 
@@ -49,7 +51,7 @@ Our page is located at `pages/index.js` so it will map the route `/`. To get the
 
 For safety it is recommended to wrap all pages, no matter if they use Redux or not, so that you should not care about it anymore in all child components.
 
-`withRedux` function accepts `makeStore` as first argument, all other arguments are internally passed to `react-redux connect()` function. `makeStore` function will receive initialState as one argument and should return a new instance of redux store each time when called, no memoization needed here. See the [full example](https://github.com/kirill-konshin/next-redux-wrapper#usage) in the Next Redux Wrapper repository. And there's another package [next-connect-redux](https://github.com/huzidaha/next-connect-redux) available with similar features.
+This example wraps pages individually using `getStaticProps` and `getServerSideProps`. See the [full example](https://github.com/kirill-konshin/next-redux-wrapper#usage) in the Next Redux Wrapper repository, you can also opt-in to use `App.getInitialProps` and `Page.getInitialProps` as before.
 
 To pass the initial state from the server to the client we pass it as a prop called `initialState` so then it's available when the client takes over.
 
@@ -58,5 +60,3 @@ The trick here for supporting universal redux is to separate the cases for the c
 The clock, under `components/Clock.js`, has access to the state using the `connect` function from `react-redux`. In this case Clock is a direct child from the page but it could be deep down the render tree.
 
 The second example, under `components/AddCount.js`, shows a simple add counter function with a class component implementing a common redux pattern of mapping state and props. Again, the first render is happening in the server and instead of starting the count at 0, it will dispatch an action in redux that starts the count at 1. This continues to highlight how each navigation triggers a server render first and then a client render second, when you navigate between pages.
-
-For simplicity and readability, Reducers, Actions, and Store creators are all in the same file: `store.js`

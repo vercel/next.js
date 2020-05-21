@@ -1,27 +1,34 @@
-import React, { Component } from 'react'
+import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
-export const config = { experimentalPrerender: true }
-
-class Page extends Component {
-  static async getInitialProps () {
-    return { world: 'world' }
-  }
-
-  render () {
-    return (
-      <>
-        <p>hello {this.props.world}</p>
-        <Link href='/'>
-          <a id='home'>to home</a>
-        </Link>
-        <br />
-        <Link href='/another'>
-          <a id='another'>to another</a>
-        </Link>
-      </>
-    )
+export async function getStaticProps({ params }) {
+  return {
+    props: {
+      world: 'world',
+      params: params || {},
+      time: new Date().getTime(),
+      random: Math.random(),
+    },
+    unstable_revalidate: false,
   }
 }
 
-export default Page
+export default ({ world, time, params, random }) => {
+  return (
+    <>
+      <p>hello: {world}</p>
+      <span>time: {time}</span>
+      <div id="random">{random}</div>
+      <div id="params">{JSON.stringify(params)}</div>
+      <div id="query">{JSON.stringify(useRouter().query)}</div>
+      <Link href="/">
+        <a id="home">to home</a>
+      </Link>
+      <br />
+      <Link href="/another">
+        <a id="another">to another</a>
+      </Link>
+    </>
+  )
+}

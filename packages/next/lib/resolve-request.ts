@@ -5,7 +5,6 @@ export function resolveRequest(req: string, issuer: string) {
   // The `resolve` package is prebuilt through ncc, which prevents
   // PnP from being able to inject itself into it. To circumvent
   // this, we simply use PnP directly when available.
-  // @ts-ignore
   if (process.versions.pnp) {
     const { resolveRequest } = require(`pnpapi`)
     return resolveRequest(req, issuer, { considerBuiltins: false })

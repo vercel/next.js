@@ -1,9 +1,9 @@
 import React, { Component } from 'react'
 
-export default class extends Component {
+export default class Contact extends Component {
   state = { message: '' }
 
-  render () {
+  render() {
     return (
       <div>
         <h1>This is the Contact page</h1>
@@ -12,7 +12,7 @@ export default class extends Component {
             <span>Message:</span>
             <textarea onChange={this.handleInput} value={this.state.message} />
           </label>
-          <button type='submit'>submit</button>
+          <button type="submit">submit</button>
         </form>
 
         <style jsx>{`
@@ -35,14 +35,14 @@ export default class extends Component {
     )
   }
 
-  handleInput = e => {
+  handleInput = (e) => {
     this.setState({ message: e.target.value })
   }
 
-  handleSubmit = e => {
+  handleSubmit = (e) => {
     e.preventDefault()
     global.analytics.track('Form Submitted', {
-      message: this.state.message
+      message: this.state.message,
     })
     this.setState({ message: '' })
   }

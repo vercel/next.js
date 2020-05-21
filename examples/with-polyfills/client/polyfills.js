@@ -1,13 +1,8 @@
 /* eslint no-extend-native: 0 */
-// core-js comes with Next.js. So, you can import it like below
-import includes from 'core-js/library/fn/string/virtual/includes'
-import repeat from 'core-js/library/fn/string/virtual/repeat'
-import assign from 'core-js/library/fn/object/assign'
 
-// Add your polyfills
-// This files runs at the very beginning (even before React and Next.js core)
+// This file runs before React and Next.js core
+// This file is loaded for all browsers
+// Next.js includes a number of polyfills only for older browsers like IE11
+// Make sure you don't duplicate these in this file
+// https://github.com/zeit/next.js/blob/canary/packages/next-polyfill-nomodule/src/index.js
 console.log('Load your polyfills')
-
-String.prototype.includes = includes
-String.prototype.repeat = repeat
-Object.assign = assign

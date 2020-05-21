@@ -1,6 +1,0 @@
-{
-  "presets": [
-    "next/babel",
-    "@zeit/next-typescript/babel"
-  ]
-}

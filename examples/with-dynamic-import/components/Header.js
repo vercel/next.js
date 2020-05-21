@@ -1,19 +1,21 @@
 import Link from 'next/link'
 
-export default () => (
-  <div>
-    <Link href='/'>
-      <a style={styles.a}>Home</a>
-    </Link>
+export default function Header() {
+  return (
+    <div>
+      <Link href="/">
+        <a style={styles.a}>Home</a>
+      </Link>
 
-    <Link href='/about'>
-      <a style={styles.a}>About</a>
-    </Link>
-  </div>
-)
+      <Link href="/about">
+        <a style={styles.a}>About</a>
+      </Link>
+    </div>
+  )
+}
 
 const styles = {
   a: {
-    marginRight: 10
-  }
+    marginRight: 10,
+  },
 }

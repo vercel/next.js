@@ -6,25 +6,25 @@ import {
   Toolbar,
   NavLink,
   Flex,
-  Box
+  Box,
 } from 'rebass'
 
-function HomePage () {
+function HomePage() {
   return (
     <Provider>
-      <Heading is='h1' children='Next.js + Rebass' mb={3} center />
+      <Heading is="h1" children="Next.js + Rebass" mb={3} center />
 
       <Container>
-        <Toolbar bg='black'>
-          <NavLink href='https://github.com/zeit/next.js/' target='_blank'>
+        <Toolbar bg="black">
+          <NavLink href="https://github.com/zeit/next.js/" target="_blank">
             Next.js
           </NavLink>
-          <NavLink ml='auto' href='http://jxnblk.com/rebass/' target='_blank'>
+          <NavLink ml="auto" href="http://jxnblk.com/rebass/" target="_blank">
             REBASS
           </NavLink>
         </Toolbar>
 
-        <Flex justify='center'>
+        <Flex justify="center">
           <Box width={1 / 2}>
             <Blockquote center fontSize={3} py={4}>
               "Next.js is a minimalistic framework for server-rendered React
