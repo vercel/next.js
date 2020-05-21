@@ -85,7 +85,7 @@ const UploadForm = () => {
 
   return (
     <>
-      <div className='container'>
+      <div className="container">
         {isUploading ? (
           <>
             {isPreparing ? (

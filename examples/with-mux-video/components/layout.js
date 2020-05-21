@@ -1,11 +1,31 @@
 import Head from 'next/head'
 
-export default function Layout({ title, description, children }) {
+export default function Layout({
+  title,
+  description,
+  metaTitle,
+  metaDescription,
+  image,
+  children,
+}) {
   return (
     <div className="container">
       <Head>
-        <title>Mux Upload</title>
+        <title>Mux + Next.js</title>
         <link rel="icon" href="/favicon.ico" />
+        {metaTitle && <meta property="og:title" content={metaTitle} />}
+        {metaTitle && <meta property="twitter:title" content={metaTitle} />}
+        {metaDescription && (
+          <meta property="og:description" content={description} />
+        )}
+        {metaDescription && (
+          <meta property="twitter:description" content={description} />
+        )}
+        {image && <meta property="og:image" content={image} />}
+        {image && (
+          <meta property="twitter:card" content="summary_large_image" />
+        )}
+        {image && <meta property="twitter:image" content={image} />}
       </Head>
 
       <main>
