@@ -204,4 +204,6 @@ now secrets add next_example_cms_wordpress_auth_refresh_token <NEXT_EXAMPLE_CMS_
 now secrets add next_example_cms_wordpress_preview_secret <NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET>
 ```
 
+> If you don't need [Preview Mode](/docs/advanced-features/preview-mode.md), update `vercel.json` to only include `NEXT_EXAMPLE_CMS_WORDPRESS_API_URL`
+
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
