@@ -3,9 +3,9 @@ import Link from 'next/link'
 import Layout from '../../components/layout'
 import VideoPlayer from '../../components/video-player'
 
-export default function Asset () {
+export default function Asset() {
   const router = useRouter()
-  if (!router.query.id) return <Layout title='Your video'></Layout>
+  if (!router.query.id) return <Layout title="Your video"></Layout>
 
   const src = `https://stream.mux.com/${router.query.id}.m3u8`
   return (
@@ -15,7 +15,11 @@ export default function Asset () {
     >
       <VideoPlayer src={src} />
       <p>
-        Go <Link href='/'><a>back home</a></Link> to upload another video.
+        Go{' '}
+        <Link href="/">
+          <a>back home</a>
+        </Link>{' '}
+        to upload another video.
       </p>
       <style jsx>{`
         .code {

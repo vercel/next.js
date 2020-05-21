@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-export default function Layout ({ title, description, children }) {
+export default function Layout({ title, description, children }) {
   return (
     <div className="container">
       <Head>
@@ -137,8 +137,9 @@ export default function Layout ({ title, description, children }) {
         body {
           padding: 0;
           margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-            Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+            Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
+            sans-serif;
         }
 
         * {

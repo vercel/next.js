@@ -5,15 +5,13 @@ import useSwr from 'swr'
 import Button from './button'
 import Spinner from './spinner'
 
-const fetcher = url => {
-  return fetch(url).then(res => res.json())
+const fetcher = (url) => {
+  return fetch(url).then((res) => res.json())
 }
 
 const ErrorMessage = ({ message }) => (
   <>
-    <div className='message'>
-      {message || 'Unknown error'}
-    </div>
+    <div className="message">{message || 'Unknown error'}</div>
     <style jsx>{`
       .message {
         color: #d61313;
@@ -42,19 +40,21 @@ const UploadForm = () => {
     if (asset && asset.playback_id && asset.status === 'ready') {
       Router.push(`/v/${asset.playback_id}`)
     }
-  }, [asset]);
+  }, [asset])
 
-  if (error) return <ErrorMessage message='Error fetching api' />
+  if (error) return <ErrorMessage message="Error fetching api" />
   if (data && data.error) return <ErrorMessage message={data.error} />
 
   const createUpload = async () => {
     try {
       return fetch('/api/upload', {
         method: 'POST',
-      }).then(res => res.json()).then(({ id, url }) => {
-        setUploadId(id)
-        return url
       })
+        .then((res) => res.json())
+        .then(({ id, url }) => {
+          setUploadId(id)
+          return url
+        })
     } catch (e) {
       console.error('Error in createUpload', e)
       setErrorMessage('Error creating upload')
@@ -68,16 +68,16 @@ const UploadForm = () => {
       file: inputRef.current.files[0],
     })
 
-    upload.on('error', err => {
+    upload.on('error', (err) => {
       setErrorMessage(err.detail)
     })
 
-    upload.on('progress', progress => {
+    upload.on('progress', (progress) => {
       setProgress(progress.detail)
     })
 
     upload.on('success', () => {
-      setIsPreparing(true);
+      setIsPreparing(true)
     })
   }
 
@@ -88,7 +88,11 @@ const UploadForm = () => {
       <div>
         {isUploading ? (
           <>
-            { isPreparing ? <p>Preparing..</p> : <p>Uploading...{progress ? `${progress}%` : ''}</p> }
+            {isPreparing ? (
+              <p>Preparing..</p>
+            ) : (
+              <p>Uploading...{progress ? `${progress}%` : ''}</p>
+            )}
             <Spinner />
           </>
         ) : (
