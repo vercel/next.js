@@ -40,6 +40,36 @@ export class Blah extends Head {
 }
 `
 
+const validAnchorCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='#heading'>Homepage</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validExternalLinkCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='https://google.com/'>Homepage</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 const invalidStaticCode = `
 import Link from 'next/link';
 
@@ -71,8 +101,22 @@ export class Blah extends Head {
 `
 
 describe('no-html-link-for-pages', function () {
-  it('valid', function () {
+  it('valid link element', function () {
     const report = linter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid anchor element', function () {
+    const report = linter.verify(validAnchorCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid external link element', function () {
+    const report = linter.verify(validExternalLinkCode, linterConfig, {
       filename: 'foo.js',
     })
     assert.deepEqual(report, [])
