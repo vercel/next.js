@@ -4,15 +4,16 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-takeshape.now.sh/](https://next-blog-takeshape.now.sh/)
+### TODO
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
+- [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
