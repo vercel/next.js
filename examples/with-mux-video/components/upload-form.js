@@ -37,8 +37,8 @@ const UploadForm = () => {
   const asset = data && data.asset
 
   useEffect(() => {
-    if (asset && asset.playback_id && asset.status === 'ready') {
-      Router.push(`/v/${asset.playback_id}`)
+    if (asset && asset.id) {
+      Router.push(`/asset/${asset.id}`)
     }
   }, [asset])
 
