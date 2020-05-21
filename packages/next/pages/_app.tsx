@@ -1,5 +1,4 @@
 import React, { ErrorInfo } from 'react'
-import PropTypes from 'prop-types'
 import {
   execOnce,
   loadGetInitialProps,
@@ -7,7 +6,7 @@ import {
   AppInitialProps,
   AppPropsType,
 } from '../next-server/lib/utils'
-import { Router, makePublicRouterInstance } from '../client/router'
+import { Router } from '../client/router'
 
 export { AppInitialProps }
 
@@ -31,17 +30,8 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   P & AppProps<CP>,
   S
 > {
-  static childContextTypes = {
-    router: PropTypes.object,
-  }
   static origGetInitialProps = appGetInitialProps
   static getInitialProps = appGetInitialProps
-
-  getChildContext() {
-    return {
-      router: makePublicRouterInstance(this.props.router),
-    }
-  }
 
   // Kept here for backwards compatibility.
   // When someone ended App they could call `super.componentDidCatch`.
@@ -51,9 +41,19 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   }
 
   render() {
-    const { router, Component, pageProps } = this.props as AppProps<CP>
-    const url = createUrl(router)
-    return <Component {...pageProps} url={url} />
+    const { router, Component, pageProps, __N_SSG, __N_SSP } = this
+      .props as AppProps<CP>
+
+    return (
+      <Component
+        {...pageProps}
+        {
+          // we don't add the legacy URL prop if it's using non-legacy
+          // methods like getStaticProps and getServerSideProps
+          ...(!(__N_SSG || __N_SSP) ? { url: createUrl(router) } : {})
+        }
+      />
+    )
   }
 }
 

@@ -4,15 +4,15 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "build-docker": "docker build -t next-app .",
+    "build-docker-multistage": "docker build -t next-app -f ./Dockerfile.multistage .",
+    "run-docker": "docker run --rm -it -p 3000:3000 next-app"
   },
   "dependencies": {
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  },
-  "devDependencies": {
-    "isomorphic-unfetch": "^3.0.0"
   },
   "license": "ISC"
 }

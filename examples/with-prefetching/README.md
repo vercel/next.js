@@ -1,13 +1,25 @@
 # Example app with prefetching pages
 
+This example features an app with four simple pages:
+
+- Home/Features: Default API
+- About: Imperative API
+- Contact: Disable API
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-prefetching)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-prefetching with-prefetching-app
+npm init next-app --example with-prefetching with-prefetching-app
 # or
 yarn create next-app --example with-prefetching with-prefetching-app
 ```
@@ -31,16 +43,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-This example features:
-
-- An app with four simple pages
-- The "about" page uses the imperative (i.e.: "manual") prefetching API to prefetch on hover
-- It will prefetch all the pages in the background except the "contact" page
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

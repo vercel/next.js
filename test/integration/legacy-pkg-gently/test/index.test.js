@@ -1,15 +1,15 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   renderViaHTTP,
   runNextCommand,
   nextServer,
   startApp,
-  stopApp
+  stopApp,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 let app
 let appPort
@@ -23,7 +23,7 @@ describe('Legacy Packages', () => {
     app = nextServer({
       dir: appDir,
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

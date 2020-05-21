@@ -1,18 +1,14 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { promisify } from 'util'
 
 import { fileExists } from './file-exists'
 import { recursiveReadDir } from './recursive-readdir'
 import { resolveRequest } from './resolve-request'
 
-const writeFile = promisify(fs.writeFile)
-const readFile = promisify(fs.readFile)
-
 function writeJson(fileName: string, object: object): Promise<void> {
-  return writeFile(
+  return fs.promises.writeFile(
     fileName,
     JSON.stringify(object, null, 2).replace(/\n/g, os.EOL) + os.EOL
   )
@@ -20,7 +16,7 @@ function writeJson(fileName: string, object: object): Promise<void> {
 
 async function hasTypeScript(dir: string): Promise<boolean> {
   const typescriptFiles = await recursiveReadDir(
-    path.join(dir, 'pages'),
+    dir,
     /.*\.(ts|tsx)$/,
     /(node_modules|.*\.d\.ts)/
   )
@@ -41,16 +37,19 @@ async function checkDependencies({
     { file: '@types/node/index.d.ts', pkg: '@types/node' },
   ]
 
-  const missingPackages = requiredPackages.filter(p => {
+  let resolutions = new Map<string, string>()
+
+  const missingPackages = requiredPackages.filter((p) => {
     try {
-      resolveRequest(p.file, `${dir}/`)
+      resolutions.set(p.pkg, resolveRequest(p.file, `${dir}/`))
+      return false
     } catch (_) {
       return true
     }
   })
 
   if (missingPackages.length < 1) {
-    return
+    return resolutions.get('typescript')!
   }
 
   const packagesHuman = missingPackages
@@ -65,7 +64,7 @@ async function checkDependencies({
           : '') + p.pkg
     )
     .join('')
-  const packagesCli = missingPackages.map(p => p.pkg).join(' ')
+  const packagesCli = missingPackages.map((p) => p.pkg).join(' ')
 
   console.error(
     chalk.bold.red(
@@ -94,7 +93,10 @@ async function checkDependencies({
   process.exit(1)
 }
 
-export async function verifyTypeScriptSetup(dir: string): Promise<void> {
+export async function verifyTypeScriptSetup(
+  dir: string,
+  pagesDir: string
+): Promise<void> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
@@ -103,12 +105,12 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
 
   let firstTimeSetup = false
   if (hasTsConfig) {
-    const tsConfig = await readFile(tsConfigPath, 'utf8').then(val =>
-      val.trim()
-    )
+    const tsConfig = await fs.promises
+      .readFile(tsConfigPath, 'utf8')
+      .then((val) => val.trim())
     firstTimeSetup = tsConfig === '' || tsConfig === '{}'
   } else {
-    const hasTypeScriptFiles = await hasTypeScript(dir)
+    const hasTypeScriptFiles = await hasTypeScript(pagesDir)
     if (hasTypeScriptFiles) {
       firstTimeSetup = true
     } else {
@@ -116,9 +118,9 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     }
   }
 
-  await checkDependencies({ dir, isYarn })
+  const tsPath = await checkDependencies({ dir, isYarn })
+  const ts = (await import(tsPath)) as typeof import('typescript')
 
-  const ts = await import('typescript')
   const compilerOptions: any = {
     // These are suggested values and will be set when not present in the
     // tsconfig.json
@@ -211,7 +213,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
       )
     }
 
-    if (result.errors && result.errors.length) {
+    if (result.errors?.length) {
       throw new Error(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticHost)
       )
@@ -229,7 +231,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
       )
     }
 
-    console.info(e && e.message ? `${e.message}` : '')
+    console.info(e?.message ? `${e.message}` : '')
     process.exit(1)
     return
   }
@@ -292,7 +294,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
           'file:'
         )
       )
-      messages.forEach(message => {
+      messages.forEach((message) => {
         console.warn('  - ' + message)
       })
       console.warn()

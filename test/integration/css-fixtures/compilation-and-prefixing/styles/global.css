@@ -1,0 +1,9 @@
+@media (480px <= width < 768px) {
+  ::placeholder {
+    color: green;
+  }
+}
+
+.flex-parsing {
+  flex: 0 0 calc(50% - var(--vertical-gutter));
+}

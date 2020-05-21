@@ -1,4 +1,4 @@
 module.exports = {
   target: 'server',
-  pageExtensions: ['page.js']
+  pageExtensions: ['page.js'],
 }

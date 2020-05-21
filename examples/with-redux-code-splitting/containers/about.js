@@ -20,23 +20,20 @@ const About = ({ version, bumpVersion }) => (
     <h1>About us</h1>
     <h3>Current version: {version}</h3>
     <p>
-      <button onClick={e => bumpVersion(1)}>Bump version!</button>
+      <button onClick={(e) => bumpVersion(1)}>Bump version!</button>
     </p>
-    <Link href='/'>
+    <Link href="/">
       <a>Homepage</a>
     </Link>
   </div>
 )
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   return getAboutState(state, 'version')
 }
 
-function mapDispatchToProps (dispatch) {
+function mapDispatchToProps(dispatch) {
   return bindActionCreators({ bumpVersion }, dispatch)
 }
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(About)
+export default connect(mapStateToProps, mapDispatchToProps)(About)

@@ -4,14 +4,14 @@ import { connect } from 'react-redux'
 import Counter from './counter'
 import Clock from './clock'
 
-function Page ({
+function Page({
   error,
   lastUpdate,
   light,
   linkTo,
   NavigateTo,
   placeholderData,
-  title
+  title,
 }) {
   return (
     <div>
@@ -33,4 +33,4 @@ function Page ({
   )
 }
 
-export default connect(state => state)(Page)
+export default connect((state) => state)(Page)

@@ -9,7 +9,7 @@ const NextEditor = ({ slateKey, defaultValue, ...props }) => {
 
   return (
     <Editor
-      placeholder='Enter some plain text...'
+      placeholder="Enter some plain text..."
       value={state}
       onChange={({ value }) => setState(value)}
     />

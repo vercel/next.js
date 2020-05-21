@@ -1,4 +1,6 @@
-export default ({ message }) => (
+import PropTypes from 'prop-types'
+
+const ErrorMessage = ({ message }) => (
   <aside>
     {message}
     <style jsx>{`
@@ -11,3 +13,9 @@ export default ({ message }) => (
     `}</style>
   </aside>
 )
+
+ErrorMessage.propTypes = {
+  message: PropTypes.string.isRequired,
+}
+
+export default ErrorMessage

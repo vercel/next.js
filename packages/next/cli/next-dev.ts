@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve, join } from 'path'
+import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
@@ -7,7 +7,7 @@ import { printAndExit } from '../server/lib/utils'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
-const nextDev: cliCommand = argv => {
+const nextDev: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -33,9 +33,8 @@ const nextDev: cliCommand = argv => {
       Usage
         $ next dev <dir> -p <port number>
 
-      <dir> represents where the compiled folder should go.
-      If no directory is provided, the folder will be created in the current directory.
-      You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         --port, -p      A port number on which to start the application
@@ -52,42 +51,35 @@ const nextDev: cliCommand = argv => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (!existsSync(join(dir, 'pages'))) {
-    if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit(
-        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
-      )
-    }
-
-    printAndExit(
-      "> Couldn't find a `pages` directory. Please create one under the project root"
-    )
-  }
-
   const port = args['--port'] || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
   startedDevelopmentServer(appUrl)
 
-  startServer({ dir, dev: true }, port, args['--hostname'])
-    .then(async app => {
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    port,
+    args['--hostname']
+  )
+    .then(async (app) => {
       await app.prepare()
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('find-up').sync('package.json', {
-          cwd: dir,
-        })
+        const pkgAppPath = require('next/dist/compiled/find-up').sync(
+          'package.json',
+          {
+            cwd: dir,
+          }
+        )
         const appPackage = require(pkgAppPath)
         if (appPackage.scripts) {
           const nextScript = Object.entries(appPackage.scripts).find(
-            scriptLine => scriptLine[1] === 'next'
+            (scriptLine) => scriptLine[1] === 'next'
           )
           if (nextScript) {
-            errorMessage += `\nUse \`npm run ${
-              nextScript[0]
-            } -- -p <some other port>\`.`
+            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
           }
         }
         // tslint:disable-next-line

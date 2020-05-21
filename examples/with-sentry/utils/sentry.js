@@ -9,24 +9,20 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
     dsn: process.env.SENTRY_DSN,
     release,
     maxBreadcrumbs: 50,
-    attachStacktrace: true
+    attachStacktrace: true,
   }
 
   // When we're developing locally
   if (process.env.NODE_ENV !== 'production') {
-    /* eslint-disable-next-line global-require */
-    const sentryTestkit = require('sentry-testkit')
-    const { sentryTransport } = sentryTestkit()
-
     // Don't actually send the errors to Sentry
-    sentryOptions.transport = sentryTransport
+    sentryOptions.beforeSend = () => null
 
     // Instead, dump the errors to the console
     sentryOptions.integrations = [
       new SentryIntegrations.Debug({
         // Trigger DevTools debugger instead of using console.log
-        debugger: false
-      })
+        debugger: false,
+      }),
     ]
   }
 
@@ -35,7 +31,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
   return {
     Sentry,
     captureException: (err, ctx) => {
-      Sentry.configureScope(scope => {
+      Sentry.configureScope((scope) => {
         if (err.message) {
           // De-duplication currently doesn't work correctly for SSR / browser errors
           // so we force deduplication by error message if it is present
@@ -78,7 +74,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
           }
 
           if (errorInfo) {
-            Object.keys(errorInfo).forEach(key =>
+            Object.keys(errorInfo).forEach((key) =>
               scope.setExtra(key, errorInfo[key])
             )
           }
@@ -86,6 +82,6 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
       })
 
       return Sentry.captureException(err)
-    }
+    },
   }
 }

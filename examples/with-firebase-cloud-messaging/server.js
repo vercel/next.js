@@ -16,12 +16,12 @@ app.prepare().then(() => {
   const serviceWorkers = [
     {
       filename: 'service-worker.js',
-      path: './.next/service-worker.js'
+      path: './.next/service-worker.js',
     },
     {
       filename: 'firebase-messaging-sw.js',
-      path: './static/firebase-messaging-sw.js'
-    }
+      path: './static/firebase-messaging-sw.js',
+    },
   ]
 
   serviceWorkers.forEach(({ filename, path }) => {
@@ -34,7 +34,7 @@ app.prepare().then(() => {
     return handle(req, res)
   })
 
-  server.listen(port, err => {
+  server.listen(port, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

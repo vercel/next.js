@@ -1,4 +1,4 @@
-export default function Foo () {
+export default function Foo() {
   return (
     <div>
       <div>Foo!</div>

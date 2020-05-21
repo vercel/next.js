@@ -9,11 +9,13 @@ if (typeof window !== 'undefined') {
   cxs.rehydrate(serverCss)
 }
 
-export default () => (
-  <div className={cx.root}>
-    <h1 className={cx.title}>My page</h1>
-  </div>
-)
+export default function Home() {
+  return (
+    <div className={cx.root}>
+      <h1 className={cx.title}>My page</h1>
+    </div>
+  )
+}
 
 const cx = {
   root: cxs({
@@ -21,8 +23,8 @@ const cx = {
     height: 60,
     background: 'white',
     ':hover': {
-      background: 'black'
-    }
+      background: 'black',
+    },
   }),
 
   title: cxs({
@@ -30,7 +32,7 @@ const cx = {
     color: 'black',
     fontSize: 22,
     ':hover': {
-      color: 'white'
-    }
-  })
+      color: 'white',
+    },
+  }),
 }

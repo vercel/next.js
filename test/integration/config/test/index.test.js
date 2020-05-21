@@ -1,21 +1,21 @@
 /* eslint-env jest */
-/* global jasmine */
-import { join } from 'path'
-import {
-  renderViaHTTP,
-  fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp
-} from 'next-test-utils'
-import fetch from 'node-fetch'
 
-// test suits
-import rendering from './rendering'
-import client from './client'
+import cheerio from 'cheerio'
+import { readFileSync, writeFileSync } from 'fs'
+import {
+  check,
+  File,
+  findPort,
+  killApp,
+  launchApp,
+  renderViaHTTP,
+} from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import fetch from 'node-fetch'
+import { join } from 'path'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Configuration', () => {
   beforeAll(async () => {
@@ -27,9 +27,18 @@ describe('Configuration', () => {
       renderViaHTTP(context.appPort, '/next-config'),
       renderViaHTTP(context.appPort, '/build-id'),
       renderViaHTTP(context.appPort, '/webpack-css'),
-      renderViaHTTP(context.appPort, '/module-only-component')
+      renderViaHTTP(context.appPort, '/module-only-component'),
     ])
   })
+
+  afterAll(() => {
+    killApp(context.server)
+  })
+
+  async function get$(path, query) {
+    const html = await renderViaHTTP(context.appPort, path, query)
+    return cheerio.load(html)
+  }
 
   it('should disable X-Powered-By header support', async () => {
     const url = `http://localhost:${context.appPort}/`
@@ -37,15 +46,188 @@ describe('Configuration', () => {
     expect(header).not.toBe('Next.js')
   })
 
-  afterAll(() => {
-    killApp(context.server)
+  test('renders css imports', async () => {
+    let browser
+    try {
+      browser = await webdriver(context.appPort, '/webpack-css')
+
+      await check(
+        () => browser.elementByCss('.hello-world').getComputedCss('font-size'),
+        {
+          test(content) {
+            return content === '100px'
+          },
+        }
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
   })
 
-  rendering(
-    context,
-    'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
-  )
-  client(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  test('renders non-js imports from node_modules', async () => {
+    let browser
+    try {
+      browser = await webdriver(context.appPort, '/webpack-css')
+      await check(
+        () =>
+          browser
+            .elementByCss('.hello-world')
+            .getComputedCss('background-color'),
+        {
+          test(content) {
+            return content === 'rgba(0, 0, 255, 1)'
+          },
+        }
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  test('renders server config on the server only', async () => {
+    const $ = await get$('/next-config')
+    expect($('#server-only').text()).toBe('secret')
+  })
+
+  test('renders public config on the server only', async () => {
+    const $ = await get$('/next-config')
+    expect($('#server-and-client').text()).toBe('/static')
+  })
+
+  test('renders the build id in development mode', async () => {
+    const $ = await get$('/build-id')
+    expect($('#buildId').text()).toBe('development')
+  })
+
+  test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
+    const $ = await get$('/module-only-content')
+    expect($('#messageInAPackage').text()).toBe('OK')
+  })
+
+  it('should have config available on the client', async () => {
+    const browser = await webdriver(context.appPort, '/next-config')
+
+    const serverText = await browser.elementByCss('#server-only').text()
+    const serverClientText = await browser
+      .elementByCss('#server-and-client')
+      .text()
+    const envValue = await browser.elementByCss('#env').text()
+
+    expect(serverText).toBe('')
+    expect(serverClientText).toBe('/static')
+    expect(envValue).toBe('hello')
+    await browser.close()
+  })
+
+  it('should update css styles using hmr', async () => {
+    let browser
+    try {
+      browser = await webdriver(context.appPort, '/webpack-css')
+
+      await check(
+        async () => {
+          const pTag = await browser.elementByCss('.hello-world')
+          const initialFontSize = await pTag.getComputedCss('font-size')
+          return initialFontSize
+        },
+        {
+          test(content) {
+            return content === '100px'
+          },
+        }
+      )
+
+      const pagePath = join(
+        __dirname,
+        '../',
+        'components',
+        'hello-webpack-css.css'
+      )
+
+      const originalContent = readFileSync(pagePath, 'utf8')
+      const editedContent = originalContent.replace('100px', '200px')
+
+      // Change the page
+      writeFileSync(pagePath, editedContent, 'utf8')
+
+      try {
+        // Check whether the this page has reloaded or not.
+        await check(
+          () =>
+            browser.elementByCss('.hello-world').getComputedCss('font-size'),
+          {
+            test(content) {
+              return content === '200px'
+            },
+          }
+        )
+      } finally {
+        // Finally is used so that we revert the content back to the original regardless of the test outcome
+        // restore the about page content.
+        writeFileSync(pagePath, originalContent, 'utf8')
+        // This also make sure that the change is reverted when the test ends
+        await check(
+          () =>
+            browser.elementByCss('.hello-world').getComputedCss('font-size'),
+          {
+            test(content) {
+              return content === '100px'
+            },
+          }
+        )
+      }
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should update sass styles using hmr', async () => {
+    const file = new File(
+      join(__dirname, '../', 'components', 'hello-webpack-sass.scss')
+    )
+    let browser
+    try {
+      browser = await webdriver(context.appPort, '/webpack-css')
+      await check(
+        () => browser.elementByCss('.hello-world').getComputedCss('color'),
+        {
+          test(content) {
+            return content === 'rgba(255, 255, 0, 1)'
+          },
+        }
+      )
+
+      try {
+        file.replace('yellow', 'red')
+        await check(
+          () => browser.elementByCss('.hello-world').getComputedCss('color'),
+          {
+            test(content) {
+              return content === 'rgba(255, 0, 0, 1)'
+            },
+          }
+        )
+      } finally {
+        file.restore()
+        await check(
+          () => browser.elementByCss('.hello-world').getComputedCss('color'),
+          {
+            test(content) {
+              return content === 'rgba(255, 255, 0, 1)'
+            },
+          }
+        )
+      }
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 })

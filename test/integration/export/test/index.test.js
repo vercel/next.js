@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   nextBuild,
@@ -10,23 +10,22 @@ import {
   killApp,
   findPort,
   renderViaHTTP,
-  File
+  File,
 } from 'next-test-utils'
 
 import ssr from './ssr'
 import browser from './browser'
 import dev from './dev'
-import { promisify } from 'util'
-import fs from 'fs'
+import { promises } from 'fs'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
-const writeFile = promisify(fs.writeFile)
-const mkdir = promisify(fs.mkdir)
-const access = promisify(fs.access)
+const { access, mkdir, writeFile } = promises
 const appDir = join(__dirname, '../')
+const outdir = join(appDir, 'out')
+const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
 const context = {}
 context.appDir = appDir
 const devContext = {}
@@ -34,10 +33,9 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 
 describe('Static Export', () => {
   it('should delete existing exported files', async () => {
-    const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
 
-    await mkdir(outdir).catch(e => {
+    await mkdir(outdir).catch((e) => {
       if (e.code !== 'EEXIST') throw e
     })
     await writeFile(tempfile, 'Hello there')
@@ -46,15 +44,12 @@ describe('Static Export', () => {
     await nextExport(appDir, { outdir })
 
     let doesNotExist = false
-    await access(tempfile).catch(e => {
+    await access(tempfile).catch((e) => {
       if (e.code === 'ENOENT') doesNotExist = true
     })
     expect(doesNotExist).toBe(true)
   })
   beforeAll(async () => {
-    const outdir = join(appDir, 'out')
-    const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
-
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
@@ -82,15 +77,44 @@ describe('Static Export', () => {
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(devContext.port, '/'),
-      renderViaHTTP(devContext.port, '/dynamic/one')
+      renderViaHTTP(devContext.port, '/dynamic/one'),
     ])
   })
   afterAll(async () => {
     await Promise.all([
       stopApp(context.server),
       killApp(devContext.server),
-      stopApp(context.serverNoTrailSlash)
+      stopApp(context.serverNoTrailSlash),
     ])
+  })
+
+  it('should honor exportTrailingSlash for 404 page', async () => {
+    expect(
+      await access(join(outdir, '404/index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+
+    // we still output 404.html for backwards compat
+    expect(
+      await access(join(outdir, '404.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+  })
+
+  it('should only output 404.html without exportTrailingSlash', async () => {
+    expect(
+      await access(join(outNoTrailSlash, '404/index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(false)
+
+    expect(
+      await access(join(outNoTrailSlash, '404.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
   })
 
   ssr(context)

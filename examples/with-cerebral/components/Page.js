@@ -9,17 +9,17 @@ export default connect(
     lastUpdate: state`clock.lastUpdate`,
     light: state`clock.light`,
     mounted: signal`clock.mounted`,
-    unMounted: signal`clock.unMounted`
+    unMounted: signal`clock.unMounted`,
   },
   class Page extends React.Component {
-    componentDidMount () {
+    componentDidMount() {
       this.props.mounted()
     }
 
-    componentWillUnmount () {
+    componentWillUnmount() {
       this.props.unMounted()
     }
-    render () {
+    render() {
       return (
         <div>
           <h1>{this.props.title}</h1>

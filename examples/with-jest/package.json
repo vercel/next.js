@@ -1,24 +1,24 @@
 {
   "name": "with-jest",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest --watch",
+    "test:ci": "jest --ci"
+  },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "16.12.0",
+    "react-dom": "16.12.0"
   },
   "devDependencies": {
-    "@babel/core": "7.3.4",
-    "babel-jest": "24.1.0",
-    "enzyme": "3.4.3",
-    "enzyme-adapter-react-16": "1.2.0",
-    "jest": "24.1.0",
-    "react-addons-test-utils": "15.6.2",
-    "react-test-renderer": "16.4.2"
-  },
-  "scripts": {
-    "test": "jest",
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
+    "@testing-library/jest-dom": "^5.1.0",
+    "@testing-library/react": "^9.4.0",
+    "babel-jest": "^25.1.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^25.1.0",
+    "react-test-renderer": "^16.12.0"
   }
 }

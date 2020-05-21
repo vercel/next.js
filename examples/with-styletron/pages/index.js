@@ -5,16 +5,16 @@ import { styled, useStyletron } from 'styletron-react'
 // statically styled component
 const Title = styled('h1', {
   color: 'red',
-  fontSize: '82px'
+  fontSize: '82px',
 })
 
 // dynamically styled component
 const SubTitle = styled('h2', ({ $size }) => ({
   color: 'blue',
-  fontSize: `${$size}px`
+  fontSize: `${$size}px`,
 }))
 
-export default () => {
+export default function Home() {
   // an alternative hook based API
   const [css] = useStyletron()
   return (

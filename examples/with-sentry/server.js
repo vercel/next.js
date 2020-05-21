@@ -7,7 +7,7 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handler = app.getRequestHandler()
 
-function sessionCookie (req, res, next) {
+function sessionCookie(req, res, next) {
   const htmlPage =
     !req.path.match(/^\/(_next|static)/) &&
     !req.path.match(/\.(js|map)$/) &&
@@ -26,7 +26,7 @@ function sessionCookie (req, res, next) {
   next()
 }
 
-const sourcemapsForSentryOnly = token => (req, res, next) => {
+const sourcemapsForSentryOnly = (token) => (req, res, next) => {
   // In production we only want to serve source maps for Sentry
   if (!dev && !!token && req.headers['x-sentry-token'] !== token) {
     res
@@ -51,7 +51,7 @@ app.prepare().then(() => {
     .use(handler)
     // This handles errors if they are thrown before reaching the app
     .use(Sentry.Handlers.errorHandler())
-    .listen(port, err => {
+    .listen(port, (err) => {
       if (err) {
         throw err
       }

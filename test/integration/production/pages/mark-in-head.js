@@ -7,7 +7,7 @@ export default () => {
       <Head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `performance.mark('custom-mark')`
+            __html: `performance.mark('custom-mark')`,
           }}
         />
       </Head>

@@ -4,21 +4,21 @@ import Link from 'next/link'
 
 const pages = {
   '/a': 'Foo',
-  '/b': 'Bar'
+  '/b': 'Bar',
 }
 
 class HeaderNav extends React.Component {
-  constructor ({ router }) {
+  constructor({ router }) {
     super()
 
     this.state = {
       activeURL: router.asPath,
       activeURLTopLevelRouterDeprecatedBehavior: router.asPath,
-      activeURLTopLevelRouter: router.asPath
+      activeURLTopLevelRouter: router.asPath,
     }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     Router.onRouteChangeComplete = this.handleRouteChangeTopLevelRouterDeprecatedBehavior
     Router.events.on(
       'routeChangeComplete',
@@ -27,7 +27,7 @@ class HeaderNav extends React.Component {
     this.props.router.events.on('routeChangeComplete', this.handleRouteChange)
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     Router.onRouteChangeComplete = null
     Router.events.off(
       'routeChangeComplete',
@@ -36,28 +36,28 @@ class HeaderNav extends React.Component {
     this.props.router.events.off('routeChangeComplete', this.handleRouteChange)
   }
 
-  handleRouteChange = url => {
+  handleRouteChange = (url) => {
     this.setState({
-      activeURL: url
+      activeURL: url,
     })
   }
 
-  handleRouteChangeTopLevelRouter = url => {
+  handleRouteChangeTopLevelRouter = (url) => {
     this.setState({
-      activeURLTopLevelRouter: url
+      activeURLTopLevelRouter: url,
     })
   }
 
-  handleRouteChangeTopLevelRouterDeprecatedBehavior = url => {
+  handleRouteChangeTopLevelRouterDeprecatedBehavior = (url) => {
     this.setState({
-      activeURLTopLevelRouterDeprecatedBehavior: url
+      activeURLTopLevelRouterDeprecatedBehavior: url,
     })
   }
 
-  render () {
+  render() {
     return (
       <nav>
-        {Object.keys(pages).map(url => (
+        {Object.keys(pages).map((url) => (
           <Link href={url} key={url} prefetch>
             <a
               className={`${this.state.activeURL === url ? 'active' : ''} ${

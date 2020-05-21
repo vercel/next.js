@@ -1,0 +1,27 @@
+{
+  "name": "with-tailwindcss-emotion",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "build:base-css": "tailwindcss build ./styles/tailwind.base.css -o ./styles/base.css"
+  },
+  "dependencies": {
+    "@emotion/css": "^11.0.0-next.12",
+    "@emotion/react": "^11.0.0-next.12",
+    "@emotion/styled": "^11.0.0-next.12",
+    "next": "latest",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.9.0",
+    "@emotion/babel-plugin": "^11.0.0-next.12",
+    "@emotion/server": "^11.0.0-next.12",
+    "@tailwindcss/ui": "^0.2.2",
+    "@tailwindcssinjs/macro": "^0.3.1",
+    "babel-plugin-macros": "2.8.0",
+    "tailwindcss": "1.3.5"
+  }
+}

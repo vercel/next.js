@@ -1,10 +1,10 @@
-# Opt-out of Automatic Prerendering
+# Opt-out of Automatic Static Optimization
 
 #### Why This Warning Occurred
 
 You are using `getInitialProps` in your [Custom `<App>`](https://nextjs.org/docs#custom-app).
 
-This causes **all pages** to be executed on the server -- disabling [Automatic Prerendering](https://nextjs.org/docs#automatic-prerendering).
+This causes **all pages** to be executed on the server -- disabling [Automatic Static Optimization](https://nextjs.org/docs#automatic-static-optimization).
 
 #### Possible Ways to Fix It
 

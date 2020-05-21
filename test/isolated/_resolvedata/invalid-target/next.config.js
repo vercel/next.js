@@ -1,3 +1,3 @@
 module.exports = {
-  target: 'nonexistent'
+  target: 'nonexistent',
 }

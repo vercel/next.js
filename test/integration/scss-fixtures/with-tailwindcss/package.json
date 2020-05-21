@@ -1,0 +1,7 @@
+{
+  "postcss": {
+    "plugins": {
+      "tailwindcss": {}
+    }
+  }
+}

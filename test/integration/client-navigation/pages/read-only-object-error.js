@@ -1,6 +1,6 @@
 import test from '../lib/async-function'
 
-function ReadOnlyObjectError () {
+function ReadOnlyObjectError() {
   return 'this is just a placeholder component'
 }
 
