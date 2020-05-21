@@ -69,6 +69,7 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
+  getNamedExports,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
@@ -466,6 +467,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
 
   let customAppGetInitialProps: boolean | undefined
+  let namedExports: Array<string> | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -528,6 +530,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomGetInitialProps(
+          isLikeServerless
+            ? serverBundle
+            : path.join(
+                distDir,
+                SERVER_DIRECTORY,
+                `/static/${buildId}/pages/_app.js`
+              ),
+          runtimeEnvConfig
+        )
+
+        namedExports = getNamedExports(
           isLikeServerless
             ? serverBundle
             : path.join(
@@ -921,6 +934,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         pagePaths.length -
         (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
+      hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
     })
   )
 

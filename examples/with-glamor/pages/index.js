@@ -1,4 +1,3 @@
-import React from 'react'
 import { rehydrate } from 'glamor'
 
 // Adds server generated styles to glamor cache.
