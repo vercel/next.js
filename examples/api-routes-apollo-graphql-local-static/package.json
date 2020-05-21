@@ -1,5 +1,5 @@
 {
-  "name": "static-export-local-apollo-graphql",
+  "name": "api-routes-apollo-graphql-local-static",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
