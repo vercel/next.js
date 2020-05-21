@@ -35,7 +35,6 @@ export async function getStaticPaths() {
     paths: users.map(({ username }) => ({
       params: { username },
     })),
-    // Docs about `fallback`: https://nextjs.org/docs/basic-features/data-fetching#the-fallback-key-required
     fallback: true,
   };
 }
