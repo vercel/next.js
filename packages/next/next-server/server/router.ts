@@ -200,7 +200,7 @@ export default class Router {
                 if (!pathname) {
                   return { finished: false }
                 }
-                if (await this.pageChecker(pathname)) {
+                if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(req, res, params, parsedUrl)
                 }
                 return { finished: false }
