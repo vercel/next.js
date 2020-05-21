@@ -5,11 +5,11 @@ import { findUserById } from 'src/mock/users'
 import Avatar from 'src/components/Avatar'
 
 type Props = {
-  data: UserModel;
-  error?: string;
+  data: UserModel
+  error?: string
 }
 
-export default (props: Props) => {
+const UserDetail = (props: Props) => {
   const title: string = 'Users'
 
   return (
@@ -23,7 +23,7 @@ export default (props: Props) => {
         ) : (
           <>
             <h1>{props.data.id}</h1>
-            <Avatar data={props.data} size={'big'} disabled={true}/>
+            <Avatar data={props.data} size={'big'} disabled={true} />
           </>
         )}
       </div>
@@ -31,21 +31,27 @@ export default (props: Props) => {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async (context: GetServerSidePropsContext) => {
-  const userId: string = Array.isArray(context.query.id) ? context.query.id[0] : (context.query.id || '')
+export const getServerSideProps: GetServerSideProps = async (
+  context: GetServerSidePropsContext
+) => {
+  const userId: string = Array.isArray(context.query.id)
+    ? context.query.id[0]
+    : context.query.id || ''
   const user: UserModel | undefined = findUserById(userId)
 
   if (!user) {
     return {
       props: {
-        error: 'INVALID USER ID'
-      }
+        error: 'INVALID USER ID',
+      },
     }
   }
 
   return {
     props: {
-      data: user
-    }
+      data: user,
+    },
   }
 }
+
+export default UserDetail

@@ -6,7 +6,7 @@ import Avatar from 'src/components/Avatar'
 
 type ApiResponse = { data: any; error: string } | undefined
 
-export default () => {
+const Example = () => {
   const title: string = 'Example'
   const [apiResponse, setApiResponse] = React.useState<ApiResponse>(undefined)
   const [isFetching, setIsFetching] = React.useState<boolean>(false)
@@ -44,3 +44,5 @@ export default () => {
     </>
   )
 }
+
+export default Example

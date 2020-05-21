@@ -1,5 +1,5 @@
 service: nextjs-with-aws-serverless
-frameworkVersion: ">=1.71.1"
+frameworkVersion: '>=1.71.1'
 
 myNextApp:
   component: serverless-next.js

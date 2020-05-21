@@ -2,13 +2,13 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { Users } from 'src/mock/users'
 
 const getData = (): Promise<Array<UserModel>> =>
-  new Promise(resolve => {
+  new Promise((resolve) => {
     setTimeout(() => {
       resolve(Users)
     }, 500)
   })
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+const users = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method!.toLowerCase() !== 'get') {
     res.status(405).send({ error: 'Method Not Allowed' })
   } else {
@@ -16,3 +16,5 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     res.send({ data, error: '' })
   }
 }
+
+export default users

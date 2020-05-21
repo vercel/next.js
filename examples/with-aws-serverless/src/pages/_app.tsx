@@ -12,10 +12,6 @@ type AppProps = {
 }
 
 export class CustomApp extends App<AppProps> {
-  constructor(props: AppProps) {
-    super(props)
-  }
-
   render() {
     const { Component, pageProps } = this.props
 
