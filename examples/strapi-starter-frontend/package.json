@@ -1,0 +1,19 @@
+{
+  "name": "strapi-starter-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "moment": "^2.24.0",
+    "next": "9.3.7-canary.19",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-markdown": "^4.2.2",
+    "react-moment": "^0.9.6"
+  },
+  "license": "MIT"
+}
