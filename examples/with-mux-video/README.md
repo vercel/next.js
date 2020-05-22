@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-This example uses Mux Video, an API-first platform for video hosting, streaming, and more. The example features video uploading and streaming in a Next.js application.
+This example uses Mux Video, an API-first platform for video. The example features video uploading and playback in a Next.js application.
 
 ## Deploy your own
 
