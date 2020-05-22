@@ -61,7 +61,7 @@ export default function Playback({ playbackId, src, poster }) {
         <p>
           This video was uploaded and processed by <a href={MUX_HOME_PAGE_URL}
           target='_blank' rel="noopener noreferrer">Mux</a>.  This page was
-          server-side rendered with <a href='https://nextjs.org/' target='_blank'
+          pre-rendered with <a href='https://nextjs.org/' target='_blank'
           rel="noopener noreferrer">NextJS</a> using <Code>`getStaticPaths`
           </Code> and <Code>`getStaticProps`</Code>.
         </p>
