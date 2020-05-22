@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   findPort,
   getBrowserBodyText,
+  getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
@@ -19,7 +20,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let app
@@ -47,24 +48,36 @@ const expectedManifestRoutes = () => [
     page: '/blog',
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/blog/(?<post>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]',
+    routeKeys: ['post'],
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
       )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]/[comment]',
+    routeKeys: ['post', 'comment'],
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/catchall/(?<path>.+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
     ),
     page: '/catchall/[...path]',
+    routeKeys: ['path'],
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -103,12 +116,16 @@ const expectedManifestRoutes = () => [
     page: '/something',
   },
   {
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/user/(?<user>[^/]+?)/profile\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
       )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
     ),
     page: '/user/[user]/profile',
+    routeKeys: ['user'],
   },
 ]
 
@@ -123,7 +140,7 @@ const navigateTest = (dev = false) => {
       '/blog/post-1/comment-1',
     ]
 
-    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+    await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -370,8 +387,13 @@ const runTests = (dev = false) => {
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+    expect(
+      await check(() => browser.eval('window.beforeClick'), {
+        test(v) {
+          return v !== 'abc'
+        },
+      })
+    ).toBe(true)
   })
 
   it('should always call getServerSideProps without caching', async () => {
@@ -455,7 +477,7 @@ const runTests = (dev = false) => {
       await browser.elementByCss('#non-json').click()
 
       await check(
-        () => getBrowserBodyText(browser),
+        () => getRedboxHeader(browser),
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })

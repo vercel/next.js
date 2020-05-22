@@ -1,6 +1,6 @@
 import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 
-export default function({
+export default function ({
   types: t,
 }: {
   types: typeof BabelTypes
@@ -11,7 +11,7 @@ export default function({
         const source = path.node.source.value
         if (source !== 'next/data') return
 
-        const createHookSpecifier = path.get('specifiers').find(specifier => {
+        const createHookSpecifier = path.get('specifiers').find((specifier) => {
           return (
             specifier.isImportSpecifier() &&
             specifier.node.imported.name === 'createHook'
@@ -27,7 +27,7 @@ export default function({
           return
         }
 
-        binding.referencePaths.forEach(refPath => {
+        binding.referencePaths.forEach((refPath) => {
           let callExpression = refPath.parentPath
 
           if (!callExpression.isCallExpression()) return

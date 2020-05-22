@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
@@ -15,7 +15,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const fixturesDir = join(__dirname, '../../css-fixtures')
 
@@ -48,7 +48,7 @@ describe('Basic CSS Module Support', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -104,7 +104,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -257,7 +257,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 })
 
-describe('Invalid CSS Module Usage in node_modules', () => {
+describe('Invalid Global CSS Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-global-module')
 
   beforeAll(async () => {
@@ -320,7 +320,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -373,7 +373,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -406,7 +406,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -439,7 +439,7 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -487,7 +487,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -524,24 +524,26 @@ describe('Catch-all Route CSS Module Usage', () => {
   it('should apply styles correctly', async () => {
     const browser = await webdriver(appPort, '/post-1')
 
-    const background = await browser
+    const bg = await browser
       .elementByCss('#my-div')
       .getComputedCss('background-color')
+    expect(bg).toMatch(/rgb(a|)\(255, 0, 0/)
 
-    expect(background).toMatch(/rgb(a|)\(255, 0, 0/)
+    const fg = await browser.elementByCss('#my-div').getComputedCss('color')
+    expect(fg).toMatch(/rgb(a|)\(0, 128, 0/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__38gR-{background:red}"`
+      `".___post__home__38gR-{background:red}.__55css_home__qxXcH{color:green}"`
     )
   })
 })

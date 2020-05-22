@@ -5,6 +5,7 @@ import { basename, extname } from 'path'
 
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
+import * as Log from '../../build/output/log'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -35,13 +36,13 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   exportTrailingSlash: false,
+  sassOptions: {},
   experimental: {
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    documentMiddleware: false,
     granularChunks: true,
     modern: false,
     plugins: false,
@@ -50,10 +51,9 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    sassOptions: {},
     pageEnv: false,
-    measureFid: false,
-    reactRefresh: false,
+    productionBrowserSourceMaps: false,
+    optionalCatchAll: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -64,11 +64,8 @@ const defaultConfig: { [key: string]: any } = {
 }
 
 const experimentalWarning = execOnce(() => {
-  console.warn(
-    chalk.yellow.bold('Warning: ') +
-      chalk.bold('You have enabled experimental feature(s).')
-  )
-  console.warn(
+  Log.warn(chalk.bold('You have enabled experimental feature(s).'))
+  Log.warn(
     `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
       `Use them at your own risk.`
   )
@@ -127,7 +124,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
 
-      pageExtensions.forEach(ext => {
+      pageExtensions.forEach((ext) => {
         if (typeof ext !== 'string') {
           throw new Error(
             `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`

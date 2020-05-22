@@ -1,10 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -399,7 +399,7 @@ describe('Errors on invalid custom routes', () => {
       getStderr = async () => {
         let stderr = ''
         await launchApp(appDir, await findPort(), {
-          onStderr: msg => {
+          onStderr: (msg) => {
             stderr += msg
           },
         })
