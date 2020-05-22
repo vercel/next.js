@@ -1,4 +1,3 @@
-import React from 'react'
 import Cat from '../svgs/cat.svg'
 
 export default function Home() {
