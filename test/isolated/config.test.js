@@ -100,4 +100,26 @@ describe('config', () => {
     )
     expect(config.__test__ext).toBe('js')
   })
+
+  it('Should ignore configs set to `undefined`', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      target: undefined,
+      devIndicators: {
+        autoPrerender: undefined,
+      },
+    })
+    expect(config.target).toBe('server')
+    expect(config.devIndicators.autoPrerender).toBe(true)
+  })
+
+  it('Should ignore configs set to `null`', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      target: null,
+      devIndicators: {
+        autoPrerender: null,
+      },
+    })
+    expect(config.target).toBe('server')
+    expect(config.devIndicators.autoPrerender).toBe(true)
+  })
 })

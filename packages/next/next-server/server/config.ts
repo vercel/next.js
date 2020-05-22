@@ -73,76 +73,85 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
-  Object.keys(userConfig).forEach((key: string) => {
-    if (
-      key === 'experimental' &&
-      userConfig[key] &&
-      userConfig[key] !== defaultConfig[key]
-    ) {
-      experimentalWarning()
-    }
+  const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
+    (config, key) => {
+      const value = userConfig[key]
 
-    if (key === 'distDir') {
-      if (typeof userConfig[key] !== 'string') {
-        userConfig[key] = defaultConfig.distDir
-      }
-      const userDistDir = userConfig[key].trim()
-
-      // don't allow public as the distDir as this is a reserved folder for
-      // public files
-      if (userDistDir === 'public') {
-        throw new Error(
-          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
-        )
-      }
-      // make sure distDir isn't an empty string as it can result in the provided
-      // directory being deleted in development mode
-      if (userDistDir.length === 0) {
-        throw new Error(
-          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
-        )
-      }
-    }
-
-    if (key === 'pageExtensions') {
-      const pageExtensions = userConfig[key]
-
-      if (pageExtensions === undefined) {
-        delete userConfig[key]
-        return
+      if (value === undefined || value === null) {
+        return config
       }
 
-      if (!Array.isArray(pageExtensions)) {
-        throw new Error(
-          `Specified pageExtensions is not an array of strings, found "${pageExtensions}". Please update this config or remove it.`
-        )
+      if (key === 'experimental' && value && value !== defaultConfig[key]) {
+        experimentalWarning()
       }
 
-      if (!pageExtensions.length) {
-        throw new Error(
-          `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
-        )
-      }
-
-      pageExtensions.forEach((ext) => {
-        if (typeof ext !== 'string') {
+      if (key === 'distDir') {
+        if (typeof value !== 'string') {
           throw new Error(
-            `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+            `Specified distDir is not a string, found type "${typeof value}"`
           )
         }
-      })
-    }
+        const userDistDir = value.trim()
 
-    const maybeObject = userConfig[key]
-    if (!!maybeObject && maybeObject.constructor === Object) {
-      userConfig[key] = {
-        ...(defaultConfig[key] || {}),
-        ...userConfig[key],
+        // don't allow public as the distDir as this is a reserved folder for
+        // public files
+        if (userDistDir === 'public') {
+          throw new Error(
+            `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+          )
+        }
+        // make sure distDir isn't an empty string as it can result in the provided
+        // directory being deleted in development mode
+        if (userDistDir.length === 0) {
+          throw new Error(
+            `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+          )
+        }
       }
-    }
-  })
 
-  const result = { ...defaultConfig, ...userConfig }
+      if (key === 'pageExtensions') {
+        if (!Array.isArray(value)) {
+          throw new Error(
+            `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
+          )
+        }
+
+        if (!value.length) {
+          throw new Error(
+            `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
+          )
+        }
+
+        value.forEach((ext) => {
+          if (typeof ext !== 'string') {
+            throw new Error(
+              `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+            )
+          }
+        })
+      }
+
+      if (!!value && value.constructor === Object) {
+        config[key] = {
+          ...defaultConfig[key],
+          ...Object.keys(value).reduce<any>((c, k) => {
+            const v = value[k]
+            if (v !== undefined && v !== null) {
+              c[k] = v
+            }
+            return c
+          }, {}),
+        }
+      } else {
+        config[key] = value
+      }
+
+      return config
+    },
+    {}
+  )
+
+  const result = { ...defaultConfig, ...config }
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
