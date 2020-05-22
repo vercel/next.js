@@ -1,5 +1,5 @@
 import React from 'react'
-import { css, withStyles } from '../withStyles'
+import { css, withStyles } from 'react-with-styles'
 
 function Home({ styles }) {
   return (
