@@ -44,7 +44,7 @@ export default function Playback({ playbackId, src, poster }) {
 
   return (
     <Layout
-      metaTitle="View this video created with Mux + NextJS"
+      metaTitle="View this video created with Mux + Next.js"
       image={poster}
       loadTwitterWidget
     >
@@ -62,7 +62,7 @@ export default function Playback({ playbackId, src, poster }) {
           This video was uploaded and processed by <a href={MUX_HOME_PAGE_URL}
           target='_blank' rel="noopener noreferrer">Mux</a>.  This page was
           pre-rendered with <a href='https://nextjs.org/' target='_blank'
-          rel="noopener noreferrer">NextJS</a> using <Code>`getStaticPaths`
+          rel="noopener noreferrer">Next.js</a> using <Code>`getStaticPaths`
           </Code> and <Code>`getStaticProps`</Code>.
         </p>
         <p>
