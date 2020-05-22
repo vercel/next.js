@@ -59,7 +59,7 @@ export default function Layout({
         }
 
         main {
-          padding: 5rem 0;
+          padding: 1rem 0 5rem 0;
           flex: 1;
           display: flex;
           flex-direction: column;

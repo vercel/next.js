@@ -33,6 +33,7 @@ const Code = ({ children }) => (
 
 export default function Playback({ playbackId, src, poster }) {
   const router = useRouter()
+
   if (router.isFallback) {
     return (
       <Layout>
@@ -43,12 +44,19 @@ export default function Playback({ playbackId, src, poster }) {
 
   return (
     <Layout
-      title="View your video"
-      description="Your video is ready for playback"
       metaTitle="View this video created with Mux + NextJS"
       image={poster}
       loadTwitterWidget
     >
+      <div className='flash-message'>This video is ready for playback</div>
+      <VideoPlayer src={src} poster={poster} />
+      <p>
+        Go{' '}
+        <Link href="/">
+          <a>back home</a>
+        </Link>{' '}
+        to upload another video.
+      </p>
       <div className='about-playback'>
         <p>
           This video was uploaded and processed by <a href={MUX_HOME_PAGE_URL}
@@ -66,15 +74,15 @@ export default function Playback({ playbackId, src, poster }) {
          <a className="twitter-share-button" data-size="large" target="_blank" rel="noopener noreferrer" href={`https://twitter.com/intent/tweet?text=Check%20out%20the%20video%20I%20uploaded%20with%20@Vercel%20%2B%20@muxhq%20`}>Tweet this</a>
         </div>
       </div>
-      <VideoPlayer src={src} poster={poster} />
-      <p>
-        Go{' '}
-        <Link href="/">
-          <a>back home</a>
-        </Link>{' '}
-        to upload another video.
-      </p>
       <style jsx>{`
+        .flash-message {
+          position: absolute;
+          top: 0;
+          background-color: #c1dcc1;
+          width: 100%;
+          text-align: center;
+          padding: 20px 0;
+        }
         .share-button {
           display: flex;
           align-items: center;
