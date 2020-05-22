@@ -5,11 +5,11 @@ import DropdownMenuComponent from '../components/DropdownMenuComponent'
 
 export default function Home() {
   return (
-    <React.Fragment>
+    <>
       <ButtonComponent />
       <CheckboxComponent />
       <DateTimePickerComponent />
       <DropdownMenuComponent />
-    </React.Fragment>
+    </>
   )
 }

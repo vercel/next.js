@@ -1,6 +1,7 @@
+import { Component } from 'react'
 import Link from 'next/link'
 
-class Index extends React.Component {
+class Index extends Component {
   static getInitialProps({ query, req }) {
     if (query.raiseError) {
       throw new Error('Error in getInitialProps')

@@ -240,7 +240,7 @@ const styleMap = {
   },
 }
 
-class ToolbarButton extends React.Component {
+class ToolbarButton extends Component {
   constructor() {
     super()
     this.onToggle = (e) => {
