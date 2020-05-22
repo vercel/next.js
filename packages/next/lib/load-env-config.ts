@@ -48,7 +48,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       result = dotenvExpand(result)
 
       if (result.parsed) {
-        log.info(`Loaded env from ${envFile}`)
+        log.info(`Loaded env from ${dotEnvPath}`)
       }
 
       Object.assign(combinedEnv, result.parsed)
