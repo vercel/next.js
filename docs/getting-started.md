@@ -104,3 +104,10 @@ For more information on what to do next, we recommend the following sections:
     <small>Learn more about the Next.js CLI.</small>
   </a>
 </div>
+
+<div class="card">
+  <a href="/docs/deployment.md">
+    <b>Deployment:</b>
+    <small>Deploy your Next.js app to production.</small>
+  </a>
+</div>
