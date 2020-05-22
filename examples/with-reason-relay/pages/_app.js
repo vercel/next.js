@@ -1,7 +1,7 @@
 import React from 'react'
 import App from 'next/app'
 
-const isStatusCodeOk = res => {
+const isStatusCodeOk = (res) => {
   try {
     return `${res.statusCode}`.startsWith('2')
   } catch (e) {
