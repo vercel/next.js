@@ -266,13 +266,13 @@ Router.reload()
 
 You can listen to different events happening inside the Router. Here's a list of supported events:
 
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
+- `routeChangeStart(url, shallow)` - Fires when a route starts to change
+- `routeChangeComplete(url, shallow)` - Fires when a route changed completely
+- `routeChangeError(err, url, shallow)` - Fires when there's an error when changing routes, or a route load is cancelled
   - `err.cancelled` - Indicates if the navigation was cancelled
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `hashChangeStart(url)` - Fires when the hash will change but not the page
-- `hashChangeComplete(url)` - Fires when the hash has changed but not the page
+- `beforeHistoryChange(url, shallow)` - Fires just before changing the browser's history
+- `hashChangeStart(url, shallow)` - Fires when the hash will change but not the page
+- `hashChangeComplete(url, shallow)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
@@ -281,8 +281,10 @@ For example, to listen to the router event `routeChangeStart`, do the following:
 ```jsx
 import Router from 'next/router'
 
-const handleRouteChange = (url) => {
-  console.log('App is changing to: ', url)
+const handleRouteChange = (url, shallow) => {
+  console.log(
+    `App is changing to ${url} ${shallow ? 'with' : 'without'} shallow routing`
+  )
 }
 
 Router.events.on('routeChangeStart', handleRouteChange)

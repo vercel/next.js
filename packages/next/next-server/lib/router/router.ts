@@ -393,7 +393,9 @@ export default class Router implements BaseRouter {
         }
       }
 
-      this.abortComponentLoad(as)
+      const { shallow = false } = options
+
+      this.abortComponentLoad(as, shallow)
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
@@ -431,7 +433,6 @@ export default class Router implements BaseRouter {
       }
 
       const route = toRoute(pathname)
-      const { shallow = false } = options
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
@@ -465,7 +466,7 @@ export default class Router implements BaseRouter {
         }
       }
 
-      Router.events.emit('routeChangeStart', as)
+      Router.events.emit('routeChangeStart', as, shallow)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
       this.getRouteInfo(route, pathname, query, as, shallow).then(
@@ -476,7 +477,7 @@ export default class Router implements BaseRouter {
             return resolve(false)
           }
 
-          Router.events.emit('beforeHistoryChange', as)
+          Router.events.emit('beforeHistoryChange', as, shallow)
           this.changeState(method, url, as, options)
 
           if (process.env.NODE_ENV !== 'production') {
@@ -489,11 +490,11 @@ export default class Router implements BaseRouter {
           this.set(route, pathname, query, as, routeInfo)
 
           if (error) {
-            Router.events.emit('routeChangeError', error, as)
+            Router.events.emit('routeChangeError', error, as, shallow)
             throw error
           }
 
-          Router.events.emit('routeChangeComplete', as)
+          Router.events.emit('routeChangeComplete', as, shallow)
           return resolve(true)
         },
         reject
@@ -845,11 +846,11 @@ export default class Router implements BaseRouter {
     })
   }
 
-  abortComponentLoad(as: string): void {
+  abortComponentLoad(as: string, shallow: boolean): void {
     if (this.clc) {
       const e = new Error('Route Cancelled')
       ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, as)
+      Router.events.emit('routeChangeError', e, as, shallow)
       this.clc()
       this.clc = null
     }
