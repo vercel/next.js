@@ -94,7 +94,7 @@ export function createEntrypoints(
     previewProps: JSON.stringify(previewMode),
   }
 
-  Object.keys(pages).forEach(page => {
+  Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
@@ -133,12 +133,6 @@ export function createEntrypoints(
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-        hotRouterUpdates:
-          // Hot router updates only apply in development mode
-          dev &&
-          // However, React Refresh has its own hot module runtime, so we can't
-          // let them collide.
-          config.experimental.reactRefresh !== true,
       }
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts

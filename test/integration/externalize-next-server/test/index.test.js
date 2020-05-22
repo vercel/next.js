@@ -1,11 +1,11 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = path.join(__dirname, '../app')
 let buildId

@@ -1,5 +1,5 @@
 import React from 'react'
-import Layout from '../components/layout'
+import Layout from '../components/Layout'
 import withSession from '../lib/session'
 import PropTypes from 'prop-types'
 
@@ -32,14 +32,14 @@ const SsrProfile = ({ user }) => {
   )
 }
 
-export const getServerSideProps = withSession(async function({ req, res }) {
+export const getServerSideProps = withSession(async function ({ req, res }) {
   const user = req.session.get('user')
 
   if (user === undefined) {
     res.setHeader('location', '/login')
     res.statusCode = 302
     res.end()
-    return
+    return { props: {} }
   }
 
   return {

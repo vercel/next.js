@@ -7,7 +7,7 @@ import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 
-const nextBuild: cliCommand = argv => {
+const nextBuild: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -43,7 +43,7 @@ const nextBuild: cliCommand = argv => {
 
   build(dir)
     .then(() => process.exit(0))
-    .catch(err => {
+    .catch((err) => {
       console.error('')
       console.error('> Build error occurred')
       printAndExit(err)

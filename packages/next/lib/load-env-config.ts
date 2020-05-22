@@ -1,57 +1,17 @@
 import fs from 'fs'
 import path from 'path'
 import * as log from '../build/output/log'
-import findUp from 'next/dist/compiled/find-up'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
 
 export type Env = { [key: string]: string }
 
-const packageJsonHasDep = (packageJsonPath: string, dep: string): boolean => {
-  const { dependencies, devDependencies } = require(packageJsonPath)
-  const allPackages = Object.keys({
-    ...dependencies,
-    ...devDependencies,
-  })
-
-  return allPackages.some(pkg => pkg === dep)
-}
-
 let combinedEnv: Env | undefined = undefined
 
 export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
+  // don't reload env if we already have since this breaks escaped
+  // environment values e.g. \$ENV_FILE_KEY
   if (combinedEnv) return combinedEnv
-
-  const packageJson = findUp.sync('package.json', { cwd: dir })
-
-  // only do new env loading if dotenv isn't installed since we
-  // can't check for an experimental flag in next.config.js
-  // since we want to load the env before loading next.config.js
-  if (packageJson) {
-    // check main `package.json` first
-    if (packageJsonHasDep(packageJson, 'dotenv')) {
-      return false
-    }
-    // check for a yarn.lock or lerna.json file in case it's a monorepo
-    const monorepoFile = findUp.sync(
-      ['yarn.lock', 'lerna.json', 'package-lock.json'],
-      { cwd: dir }
-    )
-
-    if (monorepoFile) {
-      const monorepoRoot = path.dirname(monorepoFile)
-      const monorepoPackageJson = path.join(monorepoRoot, 'package.json')
-
-      try {
-        if (packageJsonHasDep(monorepoPackageJson, 'dotenv')) {
-          return false
-        }
-      } catch (_) {}
-    }
-  } else {
-    // we should always have a package.json but disable in case we don't
-    return false
-  }
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -88,7 +48,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       result = dotenvExpand(result)
 
       if (result.parsed) {
-        log.info(`Loaded env from ${envFile}`)
+        log.info(`Loaded env from ${dotEnvPath}`)
       }
 
       Object.assign(combinedEnv, result.parsed)

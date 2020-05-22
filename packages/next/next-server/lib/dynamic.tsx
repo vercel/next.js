@@ -138,7 +138,7 @@ export default function dynamic<P = {}>(
       loadableFn = Loadable.Map
       const loadModules: LoaderMap = {}
       const modules = dynamicOptions.modules()
-      Object.keys(modules).forEach(key => {
+      Object.keys(modules).forEach((key) => {
         const value: any = modules[key]
         if (typeof value.then === 'function') {
           loadModules[key] = () => value.then((mod: any) => mod.default || mod)
