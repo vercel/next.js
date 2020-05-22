@@ -4,21 +4,11 @@ import * as UpChunk from '@mux/upchunk'
 import useSwr from 'swr'
 import Button from './button'
 import Spinner from './spinner'
+import ErrorMessage from './error-message'
 
 const fetcher = (url) => {
   return fetch(url).then((res) => res.json())
 }
-
-const ErrorMessage = ({ message }) => (
-  <>
-    <div className="message">{message || 'Unknown error'}</div>
-    <style jsx>{`
-      .message {
-        color: #d61313;
-      }
-    `}</style>
-  </>
-)
 
 const UploadForm = () => {
   const [isUploading, setIsUploading] = useState(false)
@@ -38,7 +28,10 @@ const UploadForm = () => {
 
   useEffect(() => {
     if (asset && asset.id) {
-      Router.push(`/asset/${asset.id}`)
+      Router.push({
+        pathname: `/asset/${asset.id}`,
+        scroll: false
+      })
     }
   }, [asset])
 
@@ -72,8 +65,7 @@ const UploadForm = () => {
       setErrorMessage(err.detail)
     })
 
-    upload.on('progress', (progress) => {
-      setProgress(progress.detail)
+    upload.on('progress', (progress) => { setProgress(progress.detail)
     })
 
     upload.on('success', () => {
@@ -89,9 +81,9 @@ const UploadForm = () => {
         {isUploading ? (
           <>
             {isPreparing ? (
-              <p>Preparing..</p>
+              <div>Preparing..</div>
             ) : (
-              <p>Uploading...{progress ? `${progress}%` : ''}</p>
+              <div>Uploading...{progress ? `${progress}%` : ''}</div>
             )}
             <Spinner />
           </>
@@ -105,9 +97,6 @@ const UploadForm = () => {
         )}
       </div>
       <style jsx>{`
-        .container {
-          min-height: 220px;
-        }
         input {
           display: none;
         }

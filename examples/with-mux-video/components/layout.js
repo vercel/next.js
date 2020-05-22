@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import { MUX_HOME_PAGE_URL } from '../constants'
 
 export default function Layout({
   title,
@@ -7,6 +8,7 @@ export default function Layout({
   metaDescription,
   image,
   children,
+  loadTwitterWidget
 }) {
   return (
     <div className="container">
@@ -26,6 +28,7 @@ export default function Layout({
           <meta property="twitter:card" content="summary_large_image" />
         )}
         {image && <meta property="twitter:image" content={image} />}
+        {loadTwitterWidget && <script type="text/javascript" async src="https://platform.twitter.com/widgets.js"></script>}
       </Head>
 
       <main>
@@ -36,7 +39,7 @@ export default function Layout({
 
       <footer>
         <a
-          href="https://mux.com?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app"
+          href={MUX_HOME_PAGE_URL}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -47,6 +50,7 @@ export default function Layout({
       <style jsx>{`
         .container {
           min-height: 100vh;
+          min-height: -webkit-fill-available;
           padding: 0 0.5rem;
           display: flex;
           flex-direction: column;
@@ -160,6 +164,14 @@ export default function Layout({
           font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
             Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
             sans-serif;
+        }
+
+        a {
+          color: #FF2B61;
+        }
+
+        p {
+          line-height: 1.4rem;
         }
 
         * {
