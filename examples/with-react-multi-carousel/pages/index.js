@@ -1,4 +1,4 @@
-import React from 'react'
+import { Component } from 'react'
 import { withStyles } from '@material-ui/core/styles'
 import Carousel from 'react-multi-carousel'
 
@@ -15,7 +15,7 @@ const styles = (theme) => ({
   },
 })
 
-class Index extends React.Component {
+class Index extends Component {
   render() {
     const { classes } = this.props
     const images = [
