@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getPokemons } from '../graphql/getPokemons'
 
-export default ({ pokemons }) => {
+export default function Home({ pokemons }) {
   return (
     <ul>
       {pokemons.map(pokemon => (
