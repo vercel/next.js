@@ -8,7 +8,7 @@ const pokemonQuery = `
   }
 `
 
-export const getPokemon = async name => {
+export const getPokemon = async (name) => {
   const {
     data: { pokemon },
   } = await client.query(pokemonQuery, { name }).toPromise()

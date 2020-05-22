@@ -4,7 +4,7 @@ import { getPokemons } from '../graphql/getPokemons'
 export default function Home({ pokemons }) {
   return (
     <ul>
-      {pokemons.map(pokemon => (
+      {pokemons.map((pokemon) => (
         <li key={pokemon.name}>
           <Link as={`/pokemon/${pokemon.name}`} href="/pokemon/[name]">
             <a>
