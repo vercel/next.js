@@ -801,3 +801,50 @@ test('css syntax errors', async () => {
 
   await cleanup()
 })
+
+test('scss syntax errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.write('index.module.scss', `.button { font-size: 5px; }`)
+  await session.patch(
+    'index.js',
+    `
+      import './index.module.scss';
+      export default () => {
+        return (
+          <div>
+            <p>lol</p>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+
+  // Syntax error
+  await session.patch('index.module.scss', `.button { font-size: :5px; }`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.module.scss:1:20
+    Syntax error: Invalid CSS after \\"...on { font-size:\\": expected expression (e.g. 1px, bold), was \\":5px; }\\"
+
+    > 1 | .button { font-size: :5px; }
+        |                    ^"
+  `)
+
+  // Not local error
+  await session.patch('index.module.scss', `button { font-size: 5px; }`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source2 = await session.getRedboxSource()
+  expect(source2).toMatchInlineSnapshot(`
+    "./index.module.scss:1:1
+    Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+
+    > 1 | button { font-size: 5px; }
+        |                          ^"
+  `)
+
+  await cleanup()
+})

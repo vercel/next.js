@@ -1,24 +1,43 @@
+import { readFileSync } from 'fs'
 import * as path from 'path'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { compilation } from 'webpack'
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
+import { getScssError } from './parseScss'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-function getFilename(compilation: compilation.Compilation, m: any): string {
+function getFileData(
+  compilation: compilation.Compilation,
+  m: any
+): [string, string | null] {
+  let resolved: string
   let ctx: string | null =
     compilation.compiler?.context ?? compilation.context ?? null
   if (ctx !== null && typeof m.resource === 'string') {
     const res = path.relative(ctx, m.resource).replace(/\\/g, path.posix.sep)
-    return res.startsWith('.') ? res : `.${path.posix.sep}${res}`
+    resolved = res.startsWith('.') ? res : `.${path.posix.sep}${res}`
+  } else {
+    const requestShortener = compilation.requestShortener
+    if (typeof m?.readableIdentifier === 'function') {
+      resolved = m.readableIdentifier(requestShortener)
+    } else {
+      resolved = m.request ?? m.userRequest
+    }
   }
 
-  const requestShortener = compilation.requestShortener
-  if (typeof m?.readableIdentifier === 'function') {
-    return m.readableIdentifier(requestShortener)
+  if (resolved) {
+    let content: string | null = null
+    try {
+      content = readFileSync(
+        ctx ? path.resolve(ctx, resolved) : resolved,
+        'utf8'
+      )
+    } catch {}
+    return [resolved, content]
   }
 
-  return m.request ?? m.userRequest ?? '<unknown>'
+  return ['<unknown>', null]
 }
 
 export function getModuleBuildError(
@@ -37,7 +56,7 @@ export function getModuleBuildError(
   }
 
   const err: Error = input.error
-  const sourceFilename = getFilename(compilation, input.module)
+  const [sourceFilename, sourceContent] = getFileData(compilation, input.module)
 
   const babel = getBabelError(sourceFilename, err)
   if (babel !== false) {
@@ -47,6 +66,11 @@ export function getModuleBuildError(
   const css = getCssError(sourceFilename, err)
   if (css !== false) {
     return css
+  }
+
+  const scss = getScssError(sourceFilename, sourceContent, err)
+  if (scss !== false) {
+    return scss
   }
 
   return false
