@@ -98,6 +98,10 @@ export default async function (
   }
 
   dir = resolve(dir)
+
+  // attempt to load global env values so they are available in next.config.js
+  loadEnvConfig(dir)
+
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
@@ -225,8 +229,6 @@ export default async function (
       return defaultMap
     }
   }
-
-  loadEnvConfig(dir)
 
   // Start the rendering process
   const renderOpts = {
