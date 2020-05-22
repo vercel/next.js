@@ -86,11 +86,22 @@ export default function Playback({ playbackId, src, poster }) {
             data-size="large"
             target="_blank"
             rel="noopener noreferrer"
-            href={`https://twitter.com/intent/tweet?text=Check%20out%20the%20video%20I%20uploaded%20with%20@Vercel%20%2B%20@muxhq%20`}
+            href={`https://twitter.com/intent/tweet?text=Check%20out%20the%20video%20I%20uploaded%20with%20Next.js%2C%20%40Vercel%2C%20and%20%40muxhq%20`}
           >
             Tweet this
           </a>
         </div>
+        <p>
+          To learn more,{' '}
+          <a
+            href="https://github.com/zeit/next.js/tree/canary/examples/with-mux-video"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            check out the source code on GitHub
+          </a>
+          .
+        </p>
       </div>
       <style jsx>{`
         .flash-message {
@@ -105,6 +116,7 @@ export default function Playback({ playbackId, src, poster }) {
           display: flex;
           align-items: center;
           justify-content: center;
+          margin: 40px 0;
         }
       `}</style>
     </Layout>

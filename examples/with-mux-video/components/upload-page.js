@@ -36,6 +36,17 @@ export default function UploadPage({ children }) {
             . When the upload is complete your video will be processed by Mux
             and available for playback on a sharable URL.
           </p>
+          <p>
+            To learn more,{' '}
+            <a
+              href="https://github.com/zeit/next.js/tree/canary/examples/with-mux-video"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              check out the source code on GitHub
+            </a>
+            .
+          </p>
         </div>
         <div className="children">{children}</div>
       </div>
