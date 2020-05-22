@@ -1,12 +1,11 @@
 import React from 'react'
-import WithStylesContext from 'react-with-styles/lib/WithStylesContext'
-import AphroditeInterface from 'react-with-styles-interface-aphrodite'
 import { DIRECTIONS } from 'react-with-direction'
-
+import AphroditeInterface from 'react-with-styles-interface-aphrodite'
+import WithStylesContext from 'react-with-styles/lib/WithStylesContext'
 import defaultTheme from '../defaultTheme'
 
 function MyApp(props) {
-  const { Component, pageProps } = props;
+  const { Component, pageProps } = props
 
   return (
     <WithStylesContext.Provider
@@ -18,8 +17,7 @@ function MyApp(props) {
     >
       <Component {...pageProps} />
     </WithStylesContext.Provider>
-  );
+  )
 }
-
 
 export default MyApp
