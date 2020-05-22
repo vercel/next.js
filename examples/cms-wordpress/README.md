@@ -87,10 +87,10 @@ From the dropdown next to the project name, click **API Keys**.
 
 Create a new API Key with the **Read** permission.
 
-Copy the `.env.example` file in this directory to `.env.local` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env.local
+cp .env.local.example .env.local
 ```
 
 Then open `.env.local` and set `NEXT_EXAMPLE_CMS_WORDPRESS_API_URL` to be the URL to your GraphQL endpoint in WordPress. For example: `https://myapp.wpengine.com/graphql`.
@@ -195,7 +195,7 @@ You should now be able to see this post. To exit Preview Mode, you can click on 
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
 
 Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace the values with the corresponding strings in `.env.local`:
 
