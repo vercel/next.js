@@ -24,7 +24,13 @@ yarn create next-app --example with-mux-video with-mux-video-app
 
 ## Note
 
-When creating uploads, this demo sets `cors_origin: "*"` in the [`pages/api/upload.js`](pages/api/upload.js) file. For extra security, you should update this value to be something like `cors_origin: 'https://your-app.com'`, to restrict uploads to only be allowed from your application.
+**Important:** When creating uploads, this demo sets `cors_origin: "*"` in the [`pages/api/upload.js`](pages/api/upload.js) file. For extra security, you should update this value to be something like `cors_origin: 'https://your-app.com'`, to restrict uploads to only be allowed from your application.
+
+This example uses:
+
+- [SWR](https://swr.now.sh/) — dynamically changing the `refreshInterval` depending on if the client should be polling for updates or not
+- [`/pages/api`](pages/api) routes — a couple endpoints for making authenticated requests to the Mux API.
+- Dynamic routes using [`getStaticPaths` and `fallback: true`](https://nextjs.org/docs/basic-features/data-fetching#getstaticpaths-static-generation), as well as dynamic API routes.
 
 ## Configuration
 
