@@ -61,7 +61,7 @@ const Pet = ({ pet }) => {
 }
 
 Pet.getInitialProps = async ({ query: { id } }) => {
-  const res = await fetch(`${process.env.ROOT_URL}/api/pets/${id}`)
+  const res = await fetch(`${process.env.VERCEL_URL}/api/pets/${id}`)
   const { data } = await res.json()
 
   return { pet: data }

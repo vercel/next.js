@@ -32,11 +32,29 @@ Based on the types of data needed for your application, you will modify the type
 
 ### Step 3. Import sample seed data to your MongoDB
 
-Please see the [steps](./data_import.md) on importing sample seed data into your MongoDB
+Please see the [steps](./data_import.md) on importing sample seed data into your MongoDB.
 
 ### Step 4. Set up environment variables
 
-Set `ROOT_URL` in [next.config.js](./next.config.js) to `http://localhost:3000` for quick testing locally, or set up your own development environment variables and use `process.env.ROOT_URL`. See the next.js [environement variable](https://nextjs.org/docs/api-reference/next.config.js/environment-variables) docs for more info.
+Copy the `.env.local.example` file in this directory to `.env` (which will be ignored by Git):
+
+```bash
+cp .env.example .env
+```
+
+Be sure to update the file with your own MongoDB URI connection string (from step 1) and development url:
+
+Then set each variable on `.env`:
+
+- `MONGO_DBURI` should be your MongoDB URI from [step 1](./link-step.md) connection string for your database.
+- `VERCEL_URL` should be your development url (for local development) or your production url (see deploy section for more details).
+
+Your `.env` file should look like this:
+
+```bash
+MONGO_DBURI=...
+VERCEL_URL=...
+```
 
 ## Install and run:
 
@@ -52,13 +70,8 @@ yarn dev
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable in `<>` with your the corresponding `MONGO_URI` and `ROOT_URL`
-
-```bash
-now secrets add mongo_uri <MONGO_DBURI>
-now secrets add root_url <ROOT_URL>
-```
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI and follow this guide to set up [environment variables](https://vercel.com/blog/environment-variables-ui) in your project.
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

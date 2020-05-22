@@ -50,7 +50,7 @@ const Index = ({ pets }) => {
 
 /* Retrieves pet(s) data from mongodb database */
 Index.getInitialProps = async () => {
-  const res = await fetch(process.env.ROOT_URL + '/api/pets')
+  const res = await fetch(`${process.env.VERCEL_URL}/api/pets`)
   const { data } = await res.json()
 
   return { pets: data }

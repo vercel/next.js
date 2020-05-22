@@ -12,7 +12,7 @@
 1. Click on "Clusters"
 1. Click on "CONNECT"
 1. Click on "Connect your application"
-1. Copy the Connection String and paste it in next.config.js
+1. Copy the Connection String and paste it in your `.env` file (see step 4 in the README for setting up your `.env` file).
 
 ### Set your password for database
 

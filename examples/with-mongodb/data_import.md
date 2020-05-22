@@ -12,7 +12,6 @@
 1. Open Mongo Compass
 1. Copy the connection string on the webpage below the installation guide in "Connect to Cluster"
 1. Paste the connection string in MongoDB
-1. replace `<password>` with your own password
 1. Click on "Connect" in Mongo Compass
 
 ### Import sample data
