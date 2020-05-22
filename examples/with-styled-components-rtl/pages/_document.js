@@ -1,4 +1,3 @@
-import React from 'react'
 import Document, { Head, Main, NextScript } from 'next/document'
 import { ServerStyleSheet, StyleSheetManager } from 'styled-components'
 import stylisRTLPlugin from 'stylis-plugin-rtl'

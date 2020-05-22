@@ -1,6 +1,5 @@
 import { createCss } from '@stitches/css'
 import App from 'next/app'
-import React from 'react'
 import { config, Provider } from '../css'
 
 /*

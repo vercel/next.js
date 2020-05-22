@@ -1,5 +1,4 @@
 // import App from 'next/app'
-import * as React from 'react'
 import { CacheProvider } from '@emotion/react'
 import { cache } from '@emotion/css'
 import { globalStyles } from '../shared/styles'

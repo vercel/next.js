@@ -1,4 +1,3 @@
-import React from 'react'
 import withStyles from 'react-jss'
 
 const styles = {

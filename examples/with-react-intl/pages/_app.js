@@ -1,5 +1,4 @@
 import App from 'next/app'
-import React from 'react'
 import { createIntl, createIntlCache, RawIntlProvider } from 'react-intl'
 
 // This is optional but highly recommended

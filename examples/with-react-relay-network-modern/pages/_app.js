@@ -1,4 +1,3 @@
-import React from 'react'
 import { QueryRenderer, fetchQuery } from 'react-relay'
 import NextApp from 'next/app'
 

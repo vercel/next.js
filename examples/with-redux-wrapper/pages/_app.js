@@ -1,5 +1,4 @@
 import App from 'next/app'
-import React from 'react'
 import { wrapper } from '../store/store'
 
 class WrappedApp extends App {

@@ -1,8 +1,6 @@
 /*
 This is copy paste from the with-material-ui example.
 */
-
-import React from 'react'
 import App from 'next/app'
 import Head from 'next/head'
 import { MuiThemeProvider } from '@material-ui/core/styles'

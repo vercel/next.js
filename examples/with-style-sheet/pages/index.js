@@ -1,4 +1,3 @@
-import React from 'react'
 import { StyleSheet, StyleResolver } from 'style-sheet'
 const cls = StyleResolver.resolve
 

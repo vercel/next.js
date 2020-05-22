@@ -1,4 +1,3 @@
-import React from 'react'
 import cxs from 'cxs/lite'
 
 // Using cxs/lite on both the server and client,

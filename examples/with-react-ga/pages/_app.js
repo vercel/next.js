@@ -1,4 +1,3 @@
-import React from 'react'
 import App from 'next/app'
 import Router from 'next/router'
 import { initGA, logPageView } from '../utils/analytics'

@@ -1,4 +1,3 @@
-import React from 'react'
 import Document, { Main, NextScript } from 'next/document'
 import { useAmp } from 'next/amp'
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import withData from '../lib/withData'
 import BlogPosts from '../components/BlogPosts'
 import indexPageQuery from '../queries/indexPage'

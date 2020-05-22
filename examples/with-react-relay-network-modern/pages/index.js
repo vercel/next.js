@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import { Component } from 'react'
 import { graphql } from 'react-relay'
 import BlogPosts from '../components/BlogPosts'
 

@@ -1,5 +1,5 @@
 import { Head, App, findResultsState } from '../components'
-import React from 'react'
+import { Component } from 'react'
 import PropTypes from 'prop-types'
 import Router from 'next/router'
 import qs from 'qs'
@@ -9,7 +9,7 @@ const updateAfter = 700
 const searchStateToUrl = (searchState) =>
   searchState ? `${window.location.pathname}?${qs.stringify(searchState)}` : ''
 
-export default class Home extends React.Component {
+export default class Home extends Component {
   static propTypes = {
     resultsState: PropTypes.object,
     searchState: PropTypes.object,

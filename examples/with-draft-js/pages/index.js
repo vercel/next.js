@@ -1,4 +1,4 @@
-import React from 'react'
+import { Component } from 'react'
 import {
   Editor,
   EditorState,
@@ -7,7 +7,7 @@ import {
   convertFromRaw,
 } from 'draft-js'
 
-export default class App extends React.Component {
+export default class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -240,7 +240,7 @@ const styleMap = {
   },
 }
 
-class ToolbarButton extends React.Component {
+class ToolbarButton extends Component {
   constructor() {
     super()
     this.onToggle = (e) => {
