@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import url from 'url'
@@ -26,7 +26,7 @@ import fs, {
 } from 'fs-extra'
 import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 
@@ -48,6 +48,28 @@ const runTests = (context, dev = false) => {
     } finally {
       await browser.close()
     }
+  })
+
+  it('should fetch data for getStaticProps without reloading', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = true')
+    await browser.elementByCss('#gsp-link').click()
+    await browser.waitForElementByCss('#gsp')
+    expect(await browser.eval('window.beforeNavigate')).toBe(true)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.hello).toBe('world')
+  })
+
+  it('should fetch data for getServerSideProps without reloading', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = true')
+    await browser.elementByCss('#gsp-link').click()
+    await browser.waitForElementByCss('#gsp')
+    expect(await browser.eval('window.beforeNavigate')).toBe(true)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.hello).toBe('world')
   })
 
   it('should have correct href for a link', async () => {

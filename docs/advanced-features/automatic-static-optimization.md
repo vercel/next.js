@@ -14,11 +14,11 @@ One of the main benefits of this feature is that optimized pages require no serv
 
 ## How it works
 
-If `getServerSideProps` or `getInitialProps` is present in a page, Next.js will use its default behavior and render the page on-demand, per-request (meaning [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering)).
+If `getServerSideProps` or `getInitialProps` is present in a page, Next.js will switch to render the page on-demand, per-request (meaning [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering)).
 
 If the above is not the case, Next.js will **statically optimize** your page automatically by prerendering the page to static HTML.
 
-During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client-side after hydration.
+During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 
 > **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will always be available inside the `query` object.
 
@@ -38,5 +38,5 @@ In development you'll know if `pages/about.js` is optimized or not thanks to the
 
 ## Caveats
 
-- If you have a [custom `App`](/docs/advanced-features/custom-app.md) with `getInitialProps` then this optimization will be disabled for all pages.
+- If you have a [custom `App`](/docs/advanced-features/custom-app.md) with `getInitialProps` then this optimization will be turned off in pages without [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).
 - If you have a [custom `Document`](/docs/advanced-features/custom-document.md) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered. `ctx.req` will be `undefined` for pages that are prerendered.

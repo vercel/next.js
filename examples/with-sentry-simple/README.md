@@ -2,6 +2,12 @@
 
 # Sentry (Simple Example)
 
+This is a simple example showing how to use [Sentry](https://sentry.io) to catch & report errors on both client + server side.
+
+- `_app.js` renders on both the server and client. It initializes Sentry to catch any unhandled exceptions
+- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
+- `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
+
 ## How To Use
 
 ### Using `create-next-app`
@@ -25,67 +31,42 @@ cd with-sentry-simple
 
 Install it and run:
 
-**NPM**
-
 ```bash
 npm install
 npm run dev
-```
-
-**Yarn**
-
-```bash
+# or
 yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-## About Example
+## Notes
 
-This is a simple example showing how to use [Sentry](https://sentry.io) to catch & report errors on both client + server side.
+- By default, neither sourcemaps nor error tracking is enabled in development mode (see Configuration).
+- When enabled in development mode, error handling [works differently than in production](https://nextjs.org/docs#custom-error-handling) as `_error.js` is never actually called.
+- The build output will contain warning about unhandled Promise rejections. This caused by the test pages, and is expected.
+- The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
+- Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) is because if used with SSR, these plugins are used during production for generating the source-maps and sending them to sentry.
 
-- `_app.js` renders on both the server and client. It initializes Sentry to catch any unhandled exceptions
-- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
-- `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
+## Configuration
 
-**Note**: Source maps will not be sent to Sentry when running locally (unless Sentry configuration environment variables are correctly defined during the build step)
+### Error tracking
 
-**Note**: Error handling [works differently in production](https://nextjs.org/docs#custom-error-handling). Some exceptions will not be sent to Sentry in development mode (i.e. `npm run dev`).
+1. Copy your Sentry DSN. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN (Public)**.
+2. Put the DSN inside the `SENTRY_DSN` environment variable inside a new environment file called `.env.local`
 
-**Note**: The build output will contain warning about unhandled Promise rejections. This caused by the test pages, and is expected.
+> **Note:** Error tracking is disabled in development mode using the `NODE_ENV` environment variable. To change this behaviour, remove the `enabled` property from the `Sentry.init()` call inside your `_app.js` file.
 
-**Note**: The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
+### Automatic sourcemap upload (optional)
 
-**Note**: Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) is because if used with SSR (ex. heroku), these plugins are used during production for generating the source-maps and sending them to sentry.
+1. Set up the `SENTRY_DSN` environment variable as described above.
+2. Save your Sentry Organization slug inside the `SENTRY_ORG` and your project slug inside the `SENTRY_PROJECT` environment variables.
+3. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into Settings > Developer Settings > New internal integration. After the integration is created, copy the Token.
+4. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable.
 
-### Configuration
+> **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behaviour, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
 
-You will need a _Sentry DSN_ for your project. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN (Public)**.
+### Other configuration options
 
-The Sentry DSN should then be updated in `_app.js`.
-
-```js
-Sentry.init({
-  dsn: 'PUT_YOUR_SENTRY_DSN_HERE',
-})
-```
-
-More configurations available for [Sentry webpack plugin](https://github.com/getsentry/sentry-webpack-plugin) and using [Sentry Configuration variables](https://docs.sentry.io/cli/configuration/) for defining the releases/verbosity/etc.
-
-### Disabling Sentry during development
-
-An easy way to disable Sentry while developing is to set its `enabled` flag based off of the `NODE_ENV` environment variable, which is [properly configured by the `next` subcommands](https://nextjs.org/docs#production-deployment).
-
-```js
-Sentry.init({
-  dsn: 'PUT_YOUR_SENTRY_DSN_HERE',
-  enabled: process.env.NODE_ENV === 'production',
-})
-```
-
-### Disabling Sentry uploading during local builds
-
-Unless the `SENTRY_DNS`, `SENTRY_ORG` and `SENTRY_PROJECT` environment variables passed to the build command, Sentry webpack plugin won't be added and the source maps won't be uploaded to sentry.
-
-Check [with-dotenv](https://github.com/zeit/next.js/tree/v9.3.4/examples/with-dotenv) example for integrating `.env` file env variables
+More configurations are available for the [Sentry webpack plugin](https://github.com/getsentry/sentry-webpack-plugin) using [Sentry Configuration variables](https://docs.sentry.io/cli/configuration/) for defining the releases/verbosity/etc.

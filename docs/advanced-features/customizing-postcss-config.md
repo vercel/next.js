@@ -24,13 +24,14 @@ Out of the box, with no configuration, Next.js compiles CSS with the following t
    - [Break Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/break-after)
    - [`font-variant` Property](https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant)
    - [Gap Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/gap)
-   - [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid)
    - [Media Query Ranges](https://developer.mozilla.org/en-US/docs/Web/CSS/Media_Queries/Using_media_queries#Syntax_improvements_in_Level_4)
 
 By default, [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
 
 CSS variables are not compiled because it is [not possible to safely do so](https://github.com/MadLittleMods/postcss-css-variables#caveats).
 If you must use variables, consider using something like [Sass variables](https://sass-lang.com/documentation/variables) which are compiled away by [Sass](https://sass-lang.com/).
+
+> **Note**: To support [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid), you need to enable `grid: "autoplace"` for Autoprefixer. See ["Customizing Plugins"](#customizing-plugins) below.
 
 ## Customizing Target Browsers
 
@@ -56,6 +57,7 @@ You can learn more about [Next.js' CSS Module support here](/docs/basic-features
 
 > **Warning**: When you define a custom PostCSS configuration file, Next.js **completely disables** the [default behavior](#default-behavior).
 > Be sure to manually configure all the features you need compiled, including [Autoprefixer](https://github.com/postcss/autoprefixer).
+> You also need to install any plugins included in your custom configuration manually, i.e. `npm install postcss-flexbugs-fixes`.
 
 To customize the PostCSS configuration, create a `postcss.config.json` file in the root of your project.
 

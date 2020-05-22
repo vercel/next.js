@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -14,20 +14,16 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
 let buildId
 const appDir = join(__dirname, '../app')
 
-const getEnvFromHtml = async path => {
+const getEnvFromHtml = async (path) => {
   const html = await renderViaHTTP(appPort, path)
-  return JSON.parse(
-    cheerio
-      .load(html)('p')
-      .text()
-  )
+  return JSON.parse(cheerio.load(html)('p').text())
 }
 
 const runTests = (mode = 'dev') => {
@@ -35,7 +31,7 @@ const runTests = (mode = 'dev') => {
   const isTestEnv = mode === 'test'
   const isDev = isDevOnly || isTestEnv
 
-  const checkEnvData = data => {
+  const checkEnvData = (data) => {
     expect(data.ENV_FILE_KEY).toBe('env')
     expect(data.LOCAL_ENV_FILE_KEY).toBe(!isTestEnv ? 'localenv' : undefined)
     expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
@@ -52,6 +48,9 @@ const runTests = (mode = 'dev') => {
     expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
       isDev ? undefined : 'localproduction'
     )
+    expect(data.ENV_FILE_EXPANDED).toBe('env')
+    expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
+    expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
   }
 
   it('should have process environment override .env', async () => {

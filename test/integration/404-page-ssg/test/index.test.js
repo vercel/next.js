@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -12,7 +12,7 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -25,7 +25,7 @@ let buildId
 let appPort
 let app
 
-const runTests = isDev => {
+const runTests = (isDev) => {
   it('should respond to 404 correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/404')
     expect(res.status).toBe(404)

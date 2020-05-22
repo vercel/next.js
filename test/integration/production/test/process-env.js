@@ -1,14 +1,12 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { readFile } from 'fs'
-import { promisify } from 'util'
+import { promises } from 'fs'
 import { join } from 'path'
 
-const readFileAsync = promisify(readFile)
-const readNextBuildFile = relativePath =>
-  readFileAsync(join(__dirname, '../.next', relativePath), 'utf8')
+const readNextBuildFile = (relativePath) =>
+  promises.readFile(join(__dirname, '../.next', relativePath), 'utf8')
 
-export default context => {
+export default (context) => {
   describe('process.env', () => {
     it('should set process.env.NODE_ENV in production', async () => {
       const browser = await webdriver(context.appPort, '/process-env')

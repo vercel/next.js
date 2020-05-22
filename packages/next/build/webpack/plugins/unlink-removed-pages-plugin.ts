@@ -1,10 +1,7 @@
 import { join } from 'path'
-import { promisify } from 'util'
-import fs from 'fs'
+import { promises } from 'fs'
 import { IS_BUNDLED_PAGE_REGEX } from '../../../next-server/lib/constants'
 import { Compiler } from 'webpack'
-
-const unlink = promisify(fs.unlink)
 
 // Makes sure removed pages are removed from `.next` in development
 export class UnlinkRemovedPagesPlugin {
@@ -18,16 +15,16 @@ export class UnlinkRemovedPagesPlugin {
       'NextJsUnlinkRemovedPages',
       (compilation, callback) => {
         const removed = Object.keys(this.prevAssets).filter(
-          a => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a]
+          (a) => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a]
         )
 
         this.prevAssets = compilation.assets
 
         Promise.all(
-          removed.map(async f => {
+          removed.map(async (f) => {
             const path = join((compiler as any).outputPath, f)
             try {
-              await unlink(path)
+              await promises.unlink(path)
             } catch (err) {
               if (err.code === 'ENOENT') return
               throw err

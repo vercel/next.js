@@ -4,6 +4,13 @@ description: You can add the dynamic routes used for pages to API Routes too. Le
 
 # Dynamic API Routes
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes">Basic API Routes</a></li>
+  </ul>
+</details>
+
 API routes support [dynamic routes](/docs/routing/dynamic-routes.md), and follow the same file naming rules used for `pages`.
 
 For example, the API route `pages/api/post/[pid].js` has the following code:
@@ -73,9 +80,34 @@ export default (req, res) => {
 
 Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
+### Optional catch all API routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
+
+For example, `pages/api/post/[[...slug]].js` will match `/api/post`, `/api/post/a`, `/api/post/a/b`, and so on.
+
+The `query` objects are as follows:
+
+```json
+{ } // GET `/api/post` (empty object)
+{ "slug": ["a"] } // `GET /api/post/a` (single-element array)
+{ "slug": ["a", "b"] } // `GET /api/post/a/b` (multi-element array)
+```
+
 ## Caveats
 
 - Predefined API routes take precedence over dynamic API routes, and dynamic API routes over catch all API routes. Take a look at the following examples:
   - `pages/api/post/create.js` - Will match `/api/post/create`
   - `pages/api/post/[pid].js` - Will match `/api/post/1`, `/api/post/abc`, etc. But not `/api/post/create`
   - `pages/api/post/[...slug].js` - Will match `/api/post/1/2`, `/api/post/a/b/c`, etc. But not `/api/post/create`, `/api/post/abc`
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/routing/dynamic-routes.md">
+    <b>Dynamic Routes:</b>
+    <small>Learn more about the built-in dynamic routes.</small>
+  </a>
+</div>
