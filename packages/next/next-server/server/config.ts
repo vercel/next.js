@@ -122,7 +122,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           )
         }
 
-        value.forEach(ext => {
+        value.forEach((ext) => {
           if (typeof ext !== 'string') {
             throw new Error(
               `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
