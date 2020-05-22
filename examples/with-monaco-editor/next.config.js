@@ -11,14 +11,15 @@ module.exports = withCSS({
           limit: 100000,
         },
       },
-    }),
-      config.plugins.push(
-        new MonacoWebpackPlugin({
-          // Add languages as needed...
-          languages: ['javascript', 'typescript'],
-          filename: 'static/[name].worker.js',
-        })
-      )
+    })
+
+    config.plugins.push(
+      new MonacoWebpackPlugin({
+        // Add languages as needed...
+        languages: ['javascript', 'typescript'],
+        filename: 'static/[name].worker.js',
+      })
+    )
 
     return config
   },
