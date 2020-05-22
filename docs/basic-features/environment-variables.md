@@ -68,8 +68,8 @@ If the same environment variable is defined multiple times, the priority of whic
 
 - Already defined environment variables have the higher priority. For example: `MY_KEY=value next dev`
 - `.env.[environment].local`
-- `.env.[environment]`
 - `.env.local`
+- `.env.[environment]`
 - `.env`
 
 For example, consider the file `.env.local` with the following content:
