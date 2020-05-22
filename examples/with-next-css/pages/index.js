@@ -1,7 +1,9 @@
 import HelloWorld from '../component/hello-world'
 
-export default () => (
-  <div className="example">
-    <HelloWorld />
-  </div>
-)
+export default function Home() {
+  return (
+    <div className="example">
+      <HelloWorld />
+    </div>
+  )
+}

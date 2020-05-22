@@ -2,9 +2,9 @@ import babelLoader from 'next/dist/compiled/babel-loader'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
 
-// increment 'k' to invalidate cache
+// increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'k' + '-'
+const cacheKey = 'babel-cache-' + 'm' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -32,10 +32,10 @@ const getModernOptions = (babelOptions = {}) => {
   }
 }
 
-const nextBabelPresetModern = presetOptions => context =>
+const nextBabelPresetModern = (presetOptions) => (context) =>
   nextBabelPreset(context, getModernOptions(presetOptions))
 
-module.exports = babelLoader.custom(babel => {
+module.exports = babelLoader.custom((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -141,7 +141,7 @@ module.exports = babelLoader.custom(babel => {
 
       if (hasReactRefresh) {
         const reactRefreshPlugin = babel.createConfigItem(
-          [require('react-refresh/babel')],
+          [require('react-refresh/babel'), { skipEnvCheck: true }],
           { type: 'plugin' }
         )
         options.plugins.unshift(reactRefreshPlugin)
@@ -168,11 +168,11 @@ module.exports = babelLoader.custom(babel => {
 
       if (isModern) {
         const nextPreset = options.presets.find(
-          preset => preset && preset.value === nextBabelPreset
+          (preset) => preset && preset.value === nextBabelPreset
         ) || { options: {} }
 
         const additionalPresets = options.presets.filter(
-          preset => preset !== nextPreset
+          (preset) => preset !== nextPreset
         )
 
         const presetItemModern = babel.createConfigItem(

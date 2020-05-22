@@ -1,1 +1,3 @@
-export default () => <div>About 2</div>
+export default function About2() {
+  return <div>About 2</div>
+}
