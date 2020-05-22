@@ -1,7 +1,7 @@
 import { getPokemon } from '../../graphql/getPokemon'
 import { getPokemons } from '../../graphql/getPokemons'
 
-export default ({ pokemon }) => {
+export default function Pokemon({ pokemon }) {
   return (
     <div>
       <h1>{pokemon.name}</h1>
