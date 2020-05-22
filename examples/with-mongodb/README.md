@@ -62,5 +62,3 @@ now secrets add root_url <ROOT_URL>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
-
-© 2020 GitHub, Inc.
