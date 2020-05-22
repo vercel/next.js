@@ -17,11 +17,11 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
   const dotenvFiles = [
     `.env.${mode}.local`,
-    `.env.${mode}`,
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
     // results for everyone
     mode !== 'test' && `.env.local`,
+    `.env.${mode}`,
     '.env',
   ].filter(Boolean) as string[]
 
@@ -48,7 +48,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       result = dotenvExpand(result)
 
       if (result.parsed) {
-        log.info(`Loaded env from ${envFile}`)
+        log.info(`Loaded env from ${dotEnvPath}`)
       }
 
       Object.assign(combinedEnv, result.parsed)
