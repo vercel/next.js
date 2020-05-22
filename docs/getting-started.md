@@ -22,7 +22,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
 
 ```bash
-npm init next-app
+npx create-next-app
 # or
 yarn create next-app
 ```
@@ -76,9 +76,11 @@ Visit `http://localhost:3000` to view your application.
 So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
-- Hot code reloading
-- Static generation and server-side rendering of [`./pages/`](/docs/basic-features/pages.md)
+- [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
+- [Static generation and server-side rendering](/docs/basic-features/data-fetching.md) of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
+
+In addition, any Next.js application is ready for production from the start, read more in our [Deployment documentation](/docs/deployment.md).
 
 ## Related
 
@@ -102,12 +104,5 @@ For more information on what to do next, we recommend the following sections:
   <a href="/docs/api-reference/cli.md">
     <b>CLI:</b>
     <small>Learn more about the Next.js CLI.</small>
-  </a>
-</div>
-
-<div class="card">
-  <a href="/docs/deployment.md">
-    <b>Deployment:</b>
-    <small>Deploy your Next.js app to production.</small>
   </a>
 </div>
