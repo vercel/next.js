@@ -11,7 +11,7 @@ const handle = app.getRequestHandler()
 const ssrCache = cacheableResponse({
   ttl: 1000 * 60 * 60, // 1hour
   get: async ({ req, res }) => {
-    const data = await app.renderToHTML(req, res, req.path, req.param)
+    const data = await app.renderToHTML(req, res, req.path, {...req.query, ...req.params})
 
     // Add here custom logic for when you do not want to cache the page, for
     // example when the page returns a 404 status code:
