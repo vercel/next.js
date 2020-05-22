@@ -12,6 +12,7 @@ export default async function uploadHandler(req, res) {
           asset: {
             id: asset.id,
             status: asset.status,
+            errors: asset.errors,
             playback_id: asset.playback_ids[0].id,
           },
         })

@@ -8,19 +8,12 @@ export default async function uploadHandler(req, res) {
     case 'GET':
       try {
         const upload = await Video.Uploads.get(req.query.id)
-        let asset
-        if (upload.status === 'asset_created') {
-          asset = await Video.Assets.get(upload.asset_id)
-        }
         res.json({
-          upload: { status: upload.status, url: upload.url },
-          asset: asset
-            ? {
-                id: asset.id,
-                status: asset.status,
-                playback_id: asset.playback_ids[0].id,
-              }
-            : null,
+          upload: {
+            status: upload.status,
+            url: upload.url,
+            asset_id: upload.asset_id,
+          },
         })
       } catch (e) {
         res.statusCode = 500

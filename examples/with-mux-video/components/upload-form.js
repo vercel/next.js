@@ -24,16 +24,16 @@ const UploadForm = () => {
     { refreshInterval: 5000 }
   )
 
-  const asset = data && data.asset
+  const upload = data && data.upload
 
   useEffect(() => {
-    if (asset && asset.id) {
+    if (upload && upload.asset_id) {
       Router.push({
-        pathname: `/asset/${asset.id}`,
-        scroll: false
+        pathname: `/asset/${upload.asset_id}`,
+        scroll: false,
       })
     }
-  }, [asset])
+  }, [upload])
 
   if (error) return <ErrorMessage message="Error fetching api" />
   if (data && data.error) return <ErrorMessage message={data.error} />
@@ -65,7 +65,8 @@ const UploadForm = () => {
       setErrorMessage(err.detail)
     })
 
-    upload.on('progress', (progress) => { setProgress(progress.detail)
+    upload.on('progress', (progress) => {
+      setProgress(progress.detail)
     })
 
     upload.on('success', () => {

@@ -8,7 +8,7 @@ export default function Layout({
   metaDescription,
   image,
   children,
-  loadTwitterWidget
+  loadTwitterWidget,
 }) {
   return (
     <div className="container">
@@ -28,7 +28,13 @@ export default function Layout({
           <meta property="twitter:card" content="summary_large_image" />
         )}
         {image && <meta property="twitter:image" content={image} />}
-        {loadTwitterWidget && <script type="text/javascript" async src="https://platform.twitter.com/widgets.js"></script>}
+        {loadTwitterWidget && (
+          <script
+            type="text/javascript"
+            async
+            src="https://platform.twitter.com/widgets.js"
+          ></script>
+        )}
       </Head>
 
       <main>
@@ -38,11 +44,7 @@ export default function Layout({
       </main>
 
       <footer>
-        <a
-          href={MUX_HOME_PAGE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={MUX_HOME_PAGE_URL} target="_blank" rel="noopener noreferrer">
           Powered by <img src="/mux.svg" alt="Mux Logo" className="logo" />
         </a>
       </footer>
@@ -167,7 +169,7 @@ export default function Layout({
         }
 
         a {
-          color: #FF2B61;
+          color: #ff2b61;
         }
 
         p {

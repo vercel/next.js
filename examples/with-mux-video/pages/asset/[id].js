@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import Router, { useRouter } from 'next/router'
+import Link from 'next/link'
 import useSwr from 'swr'
 import Spinner from '../../components/spinner'
 import ErrorMessage from '../../components/error-message'
@@ -8,7 +9,6 @@ import UploadPage from '../../components/upload-page'
 const fetcher = (url) => {
   return fetch(url).then((res) => res.json())
 }
-
 
 export default function Asset() {
   const router = useRouter()
@@ -27,14 +27,40 @@ export default function Asset() {
     }
   }, [asset])
 
-  if (error) return <ErrorMessage message="Error fetching api" />
-  if (data && data.error) return <ErrorMessage message={data.error} />
+  let errorMessage
 
+  if (error) {
+    errorMessage = 'Error fetching api'
+  }
+
+  if (data && data.error) {
+    errorMessage = data.error
+  }
+
+  if (asset && asset.status === 'errored') {
+    const message = asset.errors && asset.errors.messages[0]
+    errorMessage = `Error creating this asset: ${message}`
+  }
 
   return (
     <UploadPage>
-      <div>Preparing...</div>
-      <Spinner />
+      {errorMessage ? (
+        <>
+          <ErrorMessage message={errorMessage} />
+          <p>
+            Go{' '}
+            <Link href="/">
+              <a>back home</a>
+            </Link>{' '}
+            to upload another video.
+          </p>
+        </>
+      ) : (
+        <>
+          <div>Preparing...</div>
+          <Spinner />
+        </>
+      )}
     </UploadPage>
   )
 }
