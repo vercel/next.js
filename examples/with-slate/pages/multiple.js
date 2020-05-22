@@ -1,10 +1,11 @@
+import { Component } from 'react'
 import Link from 'next/link'
 import Editor from '../components/NextEditor'
 
-class MultipleEditors extends React.Component {
+class MultipleEditors extends Component {
   render() {
     return (
-      <React.Fragment>
+      <>
         <Link href="/">
           <a>Go to Home</a>
         </Link>
@@ -12,7 +13,7 @@ class MultipleEditors extends React.Component {
         <Editor slateKey="foo" defaultValue="Foo" />
         <hr />
         <Editor slateKey="bar" defaultValue="Bar" />
-      </React.Fragment>
+      </>
     )
   }
 }
