@@ -6,7 +6,7 @@ import startServer from '../server/lib/start-server'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 
-const nextStart: cliCommand = argv => {
+const nextStart: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -46,14 +46,14 @@ const nextStart: cliCommand = argv => {
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
   startServer({ dir }, port, args['--hostname'])
-    .then(async app => {
+    .then(async (app) => {
       // tslint:disable-next-line
       Log.ready(
         `started server on http://${args['--hostname'] || 'localhost'}:${port}`
       )
       await app.prepare()
     })
-    .catch(err => {
+    .catch((err) => {
       // tslint:disable-next-line
       console.error(err)
       process.exit(1)

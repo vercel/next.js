@@ -72,7 +72,7 @@ export default function onDemandEntryHandler(
       (compilation: webpack.compilation.Compilation) => {
         invalidator.startBuilding()
 
-        const allEntries = Object.keys(entries).map(async page => {
+        const allEntries = Object.keys(entries).map(async (page) => {
           if (compiler.name === 'client' && page.match(API_ROUTE)) {
             return
           }
@@ -96,14 +96,14 @@ export default function onDemandEntryHandler(
           ])
         })
 
-        return Promise.all(allEntries).catch(err => console.error(err))
+        return Promise.all(allEntries).catch((err) => console.error(err))
       }
     )
   }
 
   function findHardFailedPages(errors: any[]) {
     return errors
-      .filter(e => {
+      .filter((e) => {
         // Make sure to only pick errors which marked with missing modules
         const hasNoModuleFoundError =
           /ENOENT/.test(e.message) || /Module not found/.test(e.message)
@@ -116,7 +116,7 @@ export default function onDemandEntryHandler(
         // So this is a failed page.
         return e.module.dependencies.length === 0
       })
-      .map(e => e.module.chunks)
+      .map((e) => e.module.chunks)
       .reduce((a, b) => [...a, ...b], [])
       .map((c: any) => {
         const pageName = ROUTE_NAME_REGEX.exec(c.name)![1]
@@ -144,7 +144,7 @@ export default function onDemandEntryHandler(
     return pagePaths
   }
 
-  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', multiStats => {
+  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats] = multiStats.stats
     const hardFailedPages = [
       ...new Set([
@@ -198,7 +198,7 @@ export default function onDemandEntryHandler(
     }
   })
 
-  const disposeHandler = setInterval(function() {
+  const disposeHandler = setInterval(function () {
     if (stopped) return
     disposeInactiveEntries(
       devMiddleware,
@@ -254,8 +254,8 @@ export default function onDemandEntryHandler(
   return {
     waitUntilReloaded() {
       if (!reloading) return Promise.resolve(true)
-      return new Promise(resolve => {
-        reloadCallbacks!.once('done', function() {
+      return new Promise((resolve) => {
+        reloadCallbacks!.once('done', function () {
           resolve()
         })
       })
@@ -382,7 +382,7 @@ function disposeInactiveEntries(
 ) {
   const disposingPages: any = []
 
-  Object.keys(entries).forEach(page => {
+  Object.keys(entries).forEach((page) => {
     const { lastActiveTime, status } = entries[page]
 
     // This means this entry is currently building or just added

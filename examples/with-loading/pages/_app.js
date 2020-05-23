@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Head from 'next/head'
 import NProgress from 'nprogress'
 
-Router.events.on('routeChangeStart', url => {
+Router.events.on('routeChangeStart', (url) => {
   console.log(`Loading: ${url}`)
   NProgress.start()
 })

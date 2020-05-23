@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -11,7 +11,7 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const page404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
@@ -28,7 +28,7 @@ const runTests = () => {
 const customErrNo404Match = /You have added a custom \/_error page without a custom \/404 page/
 
 describe('Custom _error', () => {
-  describe('dev mode', () => {
+  describe('dev mode 1', () => {
     let stderr = ''
 
     beforeAll(async () => {
@@ -39,7 +39,7 @@ describe('Custom _error', () => {
         },
       })
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404 when rendering error first', async () => {
       stderr = ''
@@ -51,7 +51,7 @@ describe('Custom _error', () => {
     })
   })
 
-  describe('dev mode', () => {
+  describe('dev mode 2', () => {
     let stderr = ''
 
     beforeAll(async () => {
@@ -62,7 +62,7 @@ describe('Custom _error', () => {
         },
       })
     })
-    afterAll(() => killApp())
+    afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404', async () => {
       stderr = ''

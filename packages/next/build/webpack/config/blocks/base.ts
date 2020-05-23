@@ -12,10 +12,10 @@ export const base = curry(function base(
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {
-    if (ctx.isServer || process.platform === 'win32') {
+    if (process.platform === 'win32') {
       // Non-eval based source maps are slow to rebuild, so we only enable
-      // them for the server and Windows. Unfortunately, eval source maps
-      // are not supported by Node.js, and are slow on Windows.
+      // them for Windows. Unfortunately, eval source maps are flagged as
+      // suspicious by Windows Defender and block HMR.
       config.devtool = 'inline-source-map'
     } else {
       // `eval-source-map` provides full-fidelity source maps for the
@@ -25,7 +25,12 @@ export const base = curry(function base(
       config.devtool = 'eval-source-map'
     }
   } else {
-    config.devtool = false
+    // Enable browser sourcemaps
+    if (ctx.productionBrowserSourceMaps) {
+      config.devtool = 'source-map'
+    } else {
+      config.devtool = false
+    }
   }
 
   if (!config.module) {

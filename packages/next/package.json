@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.4.1-canary.7",
+  "version": "9.4.2",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@ampproject/toolbox-optimizer": "2.3.1",
+    "@babel/code-frame": "7.8.3",
     "@babel/core": "7.7.7",
     "@babel/plugin-proposal-class-properties": "7.8.3",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.8.3",
@@ -75,8 +76,8 @@
     "@babel/preset-typescript": "7.9.0",
     "@babel/runtime": "7.9.6",
     "@babel/types": "7.9.6",
-    "@next/react-dev-overlay": "9.4.1-canary.7",
-    "@next/react-refresh-utils": "9.4.1-canary.7",
+    "@next/react-dev-overlay": "9.4.2",
+    "@next/react-refresh-utils": "9.4.2",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
@@ -114,11 +115,12 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.4.1-canary.7",
+    "@next/polyfill-nomodule": "9.4.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
+    "@types/babel__code-frame": "7.0.1",
     "@types/babel__core": "7.1.7",
     "@types/babel__generator": "7.6.1",
     "@types/babel__template": "7.0.2",

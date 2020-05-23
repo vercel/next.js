@@ -1,4 +1,3 @@
-import React from 'react'
 import Layout from '../components/Layout'
 import AmpState from '../components/amp/AmpState'
 import AmpScript from '../components/amp/AmpScript'
@@ -9,7 +8,7 @@ import {
 
 export const config = { amp: true }
 
-const Home = props => (
+const Home = (props) => (
   <>
     <Layout
       title="Welcome to AMP"
