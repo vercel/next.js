@@ -969,70 +969,6 @@ export default class Server {
       isPreviewMode = previewData !== false
     }
 
-    // non-spr requests should render like normal
-    if (!isSSG) {
-      // handle serverless
-      if (isLikeServerless) {
-        if (isDataReq) {
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            'passthrough'
-          )
-
-          sendPayload(
-            res,
-            JSON.stringify(renderResult?.renderOpts?.pageData),
-            'json',
-            !this.renderOpts.dev
-              ? {
-                  private: isPreviewMode,
-                  stateful: true, // non-SSG data request
-                }
-              : undefined
-          )
-          return null
-        }
-        prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
-      }
-
-      if (isDataReq && isServerProps) {
-        const props = await renderToHTML(req, res, pathname, query, {
-          ...components,
-          ...opts,
-          isDataReq,
-        })
-        sendPayload(
-          res,
-          JSON.stringify(props),
-          'json',
-          !this.renderOpts.dev
-            ? {
-                private: isPreviewMode,
-                stateful: true, // GSSP data request
-              }
-            : undefined
-        )
-        return null
-      }
-
-      const html = await renderToHTML(req, res, pathname, query, {
-        ...components,
-        ...opts,
-      })
-
-      if (html && isServerProps) {
-        sendPayload(res, html, 'html', {
-          private: isPreviewMode,
-          stateful: true, // GSSP request
-        })
-        return null
-      }
-
-      return html
-    }
-
     // Compute the iSSG cache key
     let urlPathname = `${parseUrl(req.url || '').pathname!}`
 
@@ -1044,9 +980,10 @@ export default class Server {
         .replace(/\/index$/, '/')
     }
 
-    const ssgCacheKey = isPreviewMode
-      ? undefined // Preview mode bypasses the cache
-      : `${urlPathname}${query.amp ? '.amp' : ''}`
+    const ssgCacheKey =
+      isPreviewMode || !isSSG
+        ? undefined // Preview mode bypasses the cache
+        : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
@@ -1148,6 +1085,7 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      ssgCacheKey &&
       !didRespond &&
       !isDataReq &&
       !isPreviewMode &&
@@ -1177,18 +1115,9 @@ export default class Server {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
           prepareServerlessUrl(req, query)
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            'passthrough'
-          )
-          html = renderResult.html
-        } else {
-          html = (await renderToHTML(req, res, pathname, query, {
-            ...components,
-            ...opts,
-          })) as string
         }
+        const { value: renderResult } = await doRender()
+        html = renderResult.html
       }
 
       sendPayload(res, html, 'html')
@@ -1198,19 +1127,21 @@ export default class Server {
       isOrigin,
       value: { html, pageData, sprRevalidate },
     } = await doRender()
-    if (!isResSent(res)) {
+    let resHtml = html
+    if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        !this.renderOpts.dev
+        !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
-              stateful: false, // GSP response
+              stateful: !isSSG,
               revalidate: sprRevalidate,
             }
           : undefined
       )
+      resHtml = null
     }
 
     // Update the SPR cache if the head request and cacheable
@@ -1218,7 +1149,7 @@ export default class Server {
       await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
     }
 
-    return null
+    return resHtml
   }
 
   public async renderToHTML(
