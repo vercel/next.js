@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
 
 import { getTodo } from '../../src/graphql/queries'

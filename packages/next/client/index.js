@@ -65,7 +65,6 @@ let lastAppProps
 let lastRenderReject
 let webpackHMR
 export let router
-let ErrorComponent
 let Component
 let App, onPerfEntry
 
@@ -488,25 +487,6 @@ const wrapApp = (App) => (props) => {
 }
 
 async function doRender({ App, Component, props, err }) {
-  // Usual getInitialProps fetching is handled in next/router
-  // this is for when ErrorComponent gets replaced by Component by HMR
-  if (
-    !props &&
-    Component &&
-    Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent
-  ) {
-    const { pathname, query, asPath } = router
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      router,
-      AppTree,
-      Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath, AppTree },
-    }
-    props = await loadGetInitialProps(App, appCtx)
-  }
-
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
