@@ -37,6 +37,7 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
+    const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
@@ -52,9 +53,9 @@ export async function apiResolver(
       )
     }
 
-    apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
-    apiRes.send = data => sendData(apiRes, data)
-    apiRes.json = data => sendJson(apiRes, data)
+    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
+    apiRes.send = (data) => sendData(apiRes, data)
+    apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
@@ -70,7 +71,12 @@ export async function apiResolver(
     // Call API route method
     await resolver(req, res)
 
-    if (process.env.NODE_ENV !== 'production' && !isResSent(res) && !wasPiped) {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      !externalResolver &&
+      !isResSent(res) &&
+      !wasPiped
+    ) {
       console.warn(
         `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
       )
@@ -298,12 +304,14 @@ export function tryGetPreviewData(
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
   const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
-  let encryptedPreviewData: string
+  let encryptedPreviewData: {
+    data: string
+  }
   try {
     encryptedPreviewData = jsonwebtoken.verify(
       tokenPreviewData,
       options.previewModeSigningKey
-    ) as string
+    ) as typeof encryptedPreviewData
   } catch {
     // TODO: warn
     clearPreviewData(res as NextApiResponse)
@@ -312,7 +320,7 @@ export function tryGetPreviewData(
 
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
-    encryptedPreviewData
+    encryptedPreviewData.data
   )
 
   try {
@@ -358,10 +366,12 @@ function setPreviewData<T>(
   const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
-    encryptWithSecret(
-      Buffer.from(options.previewModeEncryptionKey),
-      JSON.stringify(data)
-    ),
+    {
+      data: encryptWithSecret(
+        Buffer.from(options.previewModeEncryptionKey),
+        JSON.stringify(data)
+      ),
+    },
     options.previewModeSigningKey,
     {
       algorithm: 'HS256',
@@ -391,7 +401,8 @@ function setPreviewData<T>(
       : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -399,7 +410,8 @@ function setPreviewData<T>(
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -430,7 +442,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, '', {
@@ -439,7 +452,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
     }),
   ])
@@ -509,7 +523,7 @@ export function setLazyProp<T>(
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value
     },
-    set: value => {
+    set: (value) => {
       Object.defineProperty(req, prop, { ...optsReset, value })
     },
   })

@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useUser } from '../context/userContext'
 import firebase from '../firebase/clientApp'
 
-export default () => {
+export default function Home() {
   // Our custom hook to get context values
   const { loadingUser, user } = useUser()
 
@@ -27,16 +27,6 @@ export default () => {
         <h1 className="title">Next.js w/ Firebase Client-Side</h1>
         <p className="description">Fill in your credentials to get started</p>
       </main>
-
-      <footer>
-        <a
-          href="https://zeit.co?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by <img src="/zeit.svg" alt="ZEIT Logo" />
-        </a>
-      </footer>
 
       <style jsx>{`
         .container {

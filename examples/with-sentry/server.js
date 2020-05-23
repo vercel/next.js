@@ -26,7 +26,7 @@ function sessionCookie(req, res, next) {
   next()
 }
 
-const sourcemapsForSentryOnly = token => (req, res, next) => {
+const sourcemapsForSentryOnly = (token) => (req, res, next) => {
   // In production we only want to serve source maps for Sentry
   if (!dev && !!token && req.headers['x-sentry-token'] !== token) {
     res
@@ -51,7 +51,7 @@ app.prepare().then(() => {
     .use(handler)
     // This handles errors if they are thrown before reaching the app
     .use(Sentry.Handlers.errorHandler())
-    .listen(port, err => {
+    .listen(port, (err) => {
       if (err) {
         throw err
       }

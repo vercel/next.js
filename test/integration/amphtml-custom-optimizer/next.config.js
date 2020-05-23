@@ -3,7 +3,7 @@ module.exports = {
     amp: {
       optimizer: {
         ampRuntimeVersion: '001515617716922',
-        ampUrlPrefix: '/amp',
+        rtv: true,
         verbose: true,
       },
       skipValidation: true,

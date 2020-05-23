@@ -9,6 +9,7 @@ import { createApp } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { shouldUseYarn } from './helpers/should-use-yarn'
+import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -16,12 +17,12 @@ const program = new Commander.Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
   .usage(`${chalk.green('<project-directory>')} [options]`)
-  .action(name => {
+  .action((name) => {
     projectPath = name
   })
   .option('--use-npm')
   .option(
-    '-e, --example <name>|<github-url>',
+    '-e, --example [name]|[github-url]',
     `
 
   An example to bootstrap the app with. You can use an example name
@@ -42,7 +43,7 @@ const program = new Commander.Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
-async function run() {
+async function run(): Promise<void> {
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
@@ -53,7 +54,7 @@ async function run() {
       name: 'path',
       message: 'What is your project named?',
       initial: 'my-app',
-      validate: name => {
+      validate: (name) => {
         const validation = validateNpmName(path.basename(path.resolve(name)))
         if (validation.valid) {
           return true
@@ -94,8 +95,74 @@ async function run() {
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach(p => console.error(`    ${chalk.red.bold('*')} ${p}`))
+    problems!.forEach((p) => console.error(`    ${chalk.red.bold('*')} ${p}`))
     process.exit(1)
+  }
+
+  if (!program.example) {
+    const template = await prompts({
+      type: 'select',
+      name: 'value',
+      message: 'Pick a template',
+      choices: [
+        { title: 'Default starter app', value: 'default' },
+        { title: 'Example from the Next.js repo', value: 'example' },
+      ],
+    })
+
+    if (!template.value) {
+      console.log()
+      console.log('Please specify the template')
+      process.exit(1)
+    }
+
+    if (template.value === 'example') {
+      let examplesJSON: any
+
+      try {
+        examplesJSON = await listExamples()
+      } catch (error) {
+        console.log()
+        console.log(
+          'Failed to fetch the list of examples with the following error:'
+        )
+        console.error(error)
+        console.log()
+        console.log('Switching to the default starter app')
+        console.log()
+      }
+
+      if (examplesJSON) {
+        const choices = examplesJSON.map((example: any) => ({
+          title: example.name,
+          value: example.name,
+        }))
+        // The search function built into `prompts` isn’t very helpful:
+        // someone searching for `styled-components` would get no results since
+        // the example is called `with-styled-components`, and `prompts` searches
+        // the beginnings of titles.
+        const nameRes = await prompts({
+          type: 'autocomplete',
+          name: 'exampleName',
+          message: 'Pick an example',
+          choices,
+          suggest: (input: any, choices: any) => {
+            const regex = new RegExp(input, 'i')
+            return choices.filter((choice: any) => regex.test(choice.title))
+          },
+        })
+
+        if (!nameRes.exampleName) {
+          console.log()
+          console.log(
+            'Please specify an example or use the default starter app.'
+          )
+          process.exit(1)
+        }
+
+        program.example = nameRes.exampleName
+      }
+    }
   }
 
   await createApp({
@@ -110,7 +177,7 @@ async function run() {
 
 const update = checkForUpdate(packageJson).catch(() => null)
 
-async function notifyUpdate() {
+async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {
@@ -130,6 +197,7 @@ async function notifyUpdate() {
       )
       console.log()
     }
+    process.exit()
   } catch {
     // ignore error
   }
@@ -137,7 +205,7 @@ async function notifyUpdate() {
 
 run()
   .then(notifyUpdate)
-  .catch(async reason => {
+  .catch(async (reason) => {
     console.log()
     console.log('Aborting installation.')
     if (reason.command) {

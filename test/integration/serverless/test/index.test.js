@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -24,14 +24,14 @@ const buildIdFile = join(appDir, '.next/BUILD_ID')
 let stderr = ''
 let appPort
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Serverless', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort, {
-      onStderr: msg => {
+      onStderr: (msg) => {
         stderr += msg || ''
       },
     })
@@ -259,7 +259,7 @@ describe('Serverless', () => {
           1: encodeURIComponent(paramRaw),
         }),
       },
-    }).then(res => res.text())
+    }).then((res) => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())
 
@@ -272,10 +272,10 @@ describe('Serverless', () => {
     const html = await fetchViaHTTP(appPort, `/catchall/[...slug]`, '', {
       headers: {
         'x-now-route-matches': qs.stringify({
-          1: paramRaw.map(e => encodeURIComponent(e)).join('/'),
+          1: paramRaw.map((e) => encodeURIComponent(e)).join('/'),
         }),
       },
-    }).then(res => res.text())
+    }).then((res) => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())
 

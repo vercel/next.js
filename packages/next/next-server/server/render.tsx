@@ -8,6 +8,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  GSSP_COMPONENT_MEMBER_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
 import { isInAmpMode } from '../lib/amp'
@@ -53,6 +54,7 @@ class ServerRouter implements NextRouter {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
   events: any
   isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
@@ -62,14 +64,15 @@ class ServerRouter implements NextRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    { isFallback }: { isFallback: boolean }
+    { isFallback }: { isFallback: boolean },
+    basePath: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
-
     this.isFallback = isFallback
+    this.basePath = basePath
   }
   push(): any {
     noRouter()
@@ -138,7 +141,6 @@ export type RenderOptsPartial = {
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
-  hasCssMode: boolean
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
@@ -151,10 +153,11 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  basePath: string
+  unstable_runtimeJS?: false
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -175,7 +178,6 @@ function renderDocument(
     isFallback,
     dynamicImportsIds,
     dangerousAsPath,
-    hasCssMode,
     err,
     dev,
     ampPath,
@@ -194,6 +196,9 @@ function renderDocument(
     gsp,
     gssp,
     customServer,
+    gip,
+    appGip,
+    unstable_runtimeJS,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -217,6 +222,8 @@ function renderDocument(
     gsp?: boolean
     gssp?: boolean
     customServer?: boolean
+    gip?: boolean
+    appGip?: boolean
   }
 ): string {
   return (
@@ -240,13 +247,14 @@ function renderDocument(
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
             customServer, // whether the user is using a custom server
+            gip, // whether the page has getInitialProps
+            appGip, // whether the _app has getInitialProps
           },
           dangerousAsPath,
           canonicalBase,
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
-          hasCssMode,
           hybridAmp,
           staticMarkup,
           devFiles,
@@ -258,6 +266,7 @@ function renderDocument(
           htmlProps,
           bodyTags,
           headTags,
+          unstable_runtimeJS,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -285,13 +294,11 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    documentMiddlewareEnabled = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
     pageConfig = {},
-    DocumentMiddleware,
     Component,
     buildManifest,
     reactLoadableManifest,
@@ -302,6 +309,7 @@ export async function renderToHTML(
     isDataReq,
     params,
     previewProps,
+    basePath,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -348,6 +356,18 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  for (const methodName of [
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    if ((Component as any)[methodName]) {
+      throw new Error(
+        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
+      )
+    }
+  }
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -433,10 +453,16 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath = req.url as string
-  const router = new ServerRouter(pathname, query, asPath, {
-    isFallback: isFallback,
-  })
+  const asPath: string = req.url as string
+  const router = new ServerRouter(
+    pathname,
+    query,
+    asPath,
+    {
+      isFallback: isFallback,
+    },
+    basePath
+  )
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -454,10 +480,6 @@ export async function renderToHTML(
   }
   let props: any
 
-  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
-    await DocumentMiddleware(ctx)
-  }
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -470,7 +492,7 @@ export async function renderToHTML(
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <LoadableContext.Provider
-          value={moduleName => reactLoadableModules.push(moduleName)}
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           {children}
         </LoadableContext.Provider>
@@ -519,7 +541,7 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'unstable_revalidate' && key !== 'props'
       )
 
       if (invalidKeys.includes('revalidate')) {
@@ -571,7 +593,7 @@ export async function renderToHTML(
         data.unstable_revalidate = false
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.unstable_revalidate
@@ -604,7 +626,7 @@ export async function renderToHTML(
         throw err
       }
 
-      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -620,7 +642,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = data.props
+      props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
@@ -726,7 +748,7 @@ export async function renderToHTML(
     const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach(item => {
+      manifestItem.forEach((item) => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })
@@ -743,6 +765,11 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    // Only enabled in production as development mode has features relying on HMR (style injection for example)
+    unstable_runtimeJS:
+      process.env.NODE_ENV === 'production'
+        ? pageConfig.unstable_runtimeJS
+        : undefined,
     dangerousAsPath: router.asPath,
     ampState,
     props,
@@ -764,6 +791,8 @@ export async function renderToHTML(
     polyfillFiles,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
+    gip: hasPageGetInitialProps ? true : undefined,
+    appGip: !defaultAppGetInitialProps ? true : undefined,
   })
 
   if (inAmpMode && html) {
