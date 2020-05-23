@@ -1,9 +1,23 @@
-import fetch from 'isomorphic-unfetch'
 import { useRouter } from 'next/router'
+import { useState } from 'react'
 
-const Form = (formId, forNewPet = true) => {
+const Form = (formId, editForm = null, forNewPet = true) => {
   const router = useRouter()
   const contentType = 'application/json'
+  const [errors, setErrors] = useState({})
+  const [message, setMessage] = useState('')
+
+  const [form, setForm] = useState({
+    name: editForm.name || '',
+    owner_name: editForm.owner_name || '',
+    species: editForm.species || '',
+    age: editForm.age || 0,
+    poddy_trained: editForm.poddy_trained || false,
+    diet: editForm.diet || [],
+    image_url: editForm.image_url || '',
+    likes: editForm.likes || [],
+    dislikes: editForm.dislikes || [],
+  })
 
   /* The PUT method edits an existing entry in the mongodb database. */
   const putData = async form => {
@@ -18,7 +32,7 @@ const Form = (formId, forNewPet = true) => {
       })
       router.push('/')
     } catch (error) {
-      console.log(error)
+      setMessage('Failed to update pet')
     }
   }
 
@@ -35,63 +49,135 @@ const Form = (formId, forNewPet = true) => {
       })
       router.push('/')
     } catch (error) {
-      console.log(error)
+      setMessage('Failed to add pet')
     }
+  }
+
+  const handleChange = e => {
+    const target = e.target
+    const value =
+      target.name === 'poddy_trained' ? target.checked : target.value
+    const name = target.name
+
+    setForm({
+      ...form,
+      [name]: value,
+    })
   }
 
   const handleSubmit = e => {
     e.preventDefault()
-    let form = {}
+    const errs = formValidate()
+    if (Object.keys(errs).length === 0) {
+      forNewPet ? postData(form) : putData(form)
+    } else {
+      setErrors({ errs })
+    }
+  }
 
-    // For each field in the pet form, add the value to the form object
-    document
-      .querySelectorAll(`#${formId} input, #${formId} textarea`)
-      .forEach(element => {
-        if (element.name === 'age') form[element.name] = parseInt(element.value)
-        else if (element.name === 'likes' || element.name === 'dislikes')
-          form[element.name] = [element.value]
-        else if (element.name === 'poddy_trained') {
-          form[element.name] = element.checked
-        } else form[element.name] = element.value
-      })
-
-    if (forNewPet) postData(form)
-    else putData(form)
+  /* Makes sure pet info is filled for pet name, owner name, species, and image url*/
+  const formValidate = () => {
+    let err = {}
+    if (!form.name) err.name = 'Name is required'
+    if (!form.owner_name) err.owner_name = 'Owner is required'
+    if (!form.species) err.species = 'Species is required'
+    if (!form.image_url) err.image_url = 'Image URL is required'
+    return err
   }
 
   return (
-    <form action="POST" id={formId} onSubmit={handleSubmit}>
-      <label htmlFor="name">Name</label>
-      <input type="text" maxLength="20" name="name" required />
+    <div>
+      <form id={formId} onSubmit={handleSubmit}>
+        <label htmlFor="name">Name</label>
+        <input
+          type="text"
+          maxLength="20"
+          name="name"
+          value={form.name}
+          onChange={handleChange}
+          required
+        />
 
-      <label htmlFor="owner_name">Owner</label>
-      <input type="text" maxLength="20" name="owner_name" required />
+        <label htmlFor="owner_name">Owner</label>
+        <input
+          type="text"
+          maxLength="20"
+          name="owner_name"
+          value={form.owner_name}
+          onChange={handleChange}
+          required
+        />
 
-      <label htmlFor="species">Species</label>
-      <input type="text" maxLength="30" name="species" required />
+        <label htmlFor="species">Species</label>
+        <input
+          type="text"
+          maxLength="30"
+          name="species"
+          value={form.species}
+          onChange={handleChange}
+          required
+        />
 
-      <label htmlFor="age">Age</label>
-      <input type="number" name="age" />
+        <label htmlFor="age">Age</label>
+        <input
+          type="number"
+          name="age"
+          value={form.age}
+          onChange={handleChange}
+        />
 
-      <label htmlFor="poddy_trained">Potty Trained</label>
-      <input type="checkbox" name="poddy_trained" />
+        <label htmlFor="poddy_trained">Potty Trained</label>
+        <input
+          type="checkbox"
+          name="poddy_trained"
+          checked={form.poddy_trained}
+          onChange={handleChange}
+        />
 
-      <label htmlFor="diet">Diet</label>
-      <textarea name="diet"></textarea>
+        <label htmlFor="diet">Diet</label>
+        <textarea
+          name="diet"
+          maxLength="60"
+          value={form.diet}
+          onChange={handleChange}
+        />
 
-      <label htmlFor="image_url">Image URL</label>
-      <input type="url" name="image_url" required />
+        <label htmlFor="image_url">Image URL</label>
+        <input
+          type="url"
+          name="image_url"
+          value={form.image_url}
+          onChange={handleChange}
+          required
+        />
 
-      <label htmlFor="likes">Likes</label>
-      <textarea name="likes" maxLength="60"></textarea>
+        <label htmlFor="likes">Likes</label>
+        <textarea
+          name="likes"
+          maxLength="60"
+          value={form.likes}
+          onChange={handleChange}
+        />
 
-      <label htmlFor="dislikes">Dislikes</label>
-      <textarea name="dislikes" maxLength="60"></textarea>
+        <label htmlFor="dislikes">Dislikes</label>
+        <textarea
+          name="dislikes"
+          maxLength="60"
+          value={form.dislikes}
+          onChange={handleChange}
+        />
 
-      <button type="submit" className="btn">
-        Submit
-      </button>
-    </form>
+        <button type="submit" className="btn">
+          Submit
+        </button>
+      </form>
+      <p>{message}</p>
+      <div>
+        {Object.keys(errors).map((err, index) => (
+          <li key={index}>e</li>
+        ))}
+      </div>
+    </div>
   )
 }
 
