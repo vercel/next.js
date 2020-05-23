@@ -86,6 +86,7 @@ function formatMessage(message) {
       lines[1]
         .replace('Error: ', '')
         .replace('Module not found: Cannot find file:', 'Cannot find file:'),
+      ...lines.slice(2).filter((line) => line.indexOf(' @ ') !== 0),
     ]
   }
 
