@@ -40,7 +40,7 @@ ready - started server on http://localhost:3000
 
 ### Using the Chrome DevTools
 
-Oncee you open a new tab in Google Chrome and go to `chrome://inspect`, you should see your Next.js application inside the "Remote Target" section. Now click "inspect" to open a screen that will be your debugging environement from now on.
+Once you open a new tab in Google Chrome and go to `chrome://inspect`, you should see your Next.js application inside the "Remote Target" section. Now click "inspect" to open a screen that will be your debugging environement from now on.
 
 ### Using the Visual Studio Code debug panel
 
