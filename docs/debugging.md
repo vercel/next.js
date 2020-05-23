@@ -4,7 +4,7 @@ description: Debug your Next.js app.
 
 # Debugging
 
-This documentation explains how you can debug your Next.js frontend and backend code with full source maps support using either the [Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools) or the [VSCode debug panel](https://code.visualstudio.com/docs/editor/debugging).
+This documentation explains how you can debug your Next.js frontend and backend code with full source maps support using either the [Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools) or the [VSCode debugger](https://code.visualstudio.com/docs/editor/debugging).
 
 It requires you to first launch your Next.js application in debug mode in one terminal and then connect an inspector (Chrome DevTools or VS Code) to it.
 
@@ -63,7 +63,7 @@ Create a file named `.vscode/launch.json` at the root of your project with this 
 }
 ```
 
-Now hit <kdb>F5</kbd> or go to the VS Code debug panel and click on "Launch program" (which just attaches VS Code to the running debugger) and you can start your debugging session.
+Now hit <kdb>F5</kbd> or select **Debug: Start Debugging** from the Command Palette and you can start your debugging session.
 
 ## Step 3: Put breakpoints and see what happens
 
