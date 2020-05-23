@@ -12,8 +12,10 @@ module.exports = function (task) {
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
       minify: true,
+      sourceMap: true,
+      sourceMapRegister: false,
       ...options,
-    }).then(({ code, assets }) => {
+    }).then(({ code, map, assets }) => {
       Object.keys(assets).forEach((key) => {
         let data = assets[key].source
 
@@ -38,6 +40,12 @@ module.exports = function (task) {
       if (options && options.packageName) {
         writePackageManifest.call(this, options.packageName, file.base)
       }
+
+      this._.files.push({
+        data: map,
+        base: `${file.base}.map`,
+        dir: file.dir,
+      })
 
       file.data = Buffer.from(code, 'utf8')
     })
