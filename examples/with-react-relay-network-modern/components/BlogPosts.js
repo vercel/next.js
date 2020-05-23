@@ -2,13 +2,14 @@ import React from 'react'
 import { createFragmentContainer, graphql } from 'react-relay'
 import BlogPostPreview from './BlogPostPreview'
 
-const BlogPosts = props => {
+const BlogPosts = (props) => {
   return (
     <div>
       <h1>Blog posts</h1>
-      {props.viewer.allBlogPosts.edges.map(({ node }) => (
-        <BlogPostPreview key={node.id} post={node} />
-      ))}
+      {props.viewer.allBlogPosts &&
+        props.viewer.allBlogPosts.edges.map(({ node }) => (
+          <BlogPostPreview key={node.id} post={node} />
+        ))}
     </div>
   )
 }

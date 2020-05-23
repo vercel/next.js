@@ -1,15 +1,13 @@
-import fs from 'fs'
-import LRUCache from 'lru-cache'
-import mkdirpOrig from 'mkdirp'
+import { promises, readFileSync } from 'fs'
+import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
-import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
-const mkdirp = promisify(mkdirpOrig)
-const readFile = promisify(fs.readFile)
-const writeFile = promisify(fs.writeFile)
+function toRoute(pathname: string): string {
+  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+}
 
 type SprCacheValue = {
   html: string
@@ -34,6 +32,8 @@ const getSeedPath = (pathname: string, ext: string): string => {
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
+  pathname = toRoute(pathname)
+
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
@@ -81,7 +81,7 @@ export function initializeSprCache({
     }
   } else {
     prerenderManifest = JSON.parse(
-      fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
+      readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
     )
   }
 
@@ -97,7 +97,7 @@ export function initializeSprCache({
 
 export async function getFallback(page: string): Promise<string> {
   page = normalizePagePath(page)
-  return readFile(getSeedPath(page, 'html'), 'utf8')
+  return promises.readFile(getSeedPath(page, 'html'), 'utf8')
 }
 
 // get data from SPR cache if available
@@ -112,9 +112,12 @@ export async function getSprCache(
   // let's check the disk for seed data
   if (!data) {
     try {
-      const html = await readFile(getSeedPath(pathname, 'html'), 'utf8')
+      const html = await promises.readFile(
+        getSeedPath(pathname, 'html'),
+        'utf8'
+      )
       const pageData = JSON.parse(
-        await readFile(getSeedPath(pathname, 'json'), 'utf8')
+        await promises.readFile(getSeedPath(pathname, 'json'), 'utf8')
       )
 
       data = {
@@ -177,9 +180,9 @@ export async function setSprCache(
   if (sprOptions.flushToDisk) {
     try {
       const seedPath = getSeedPath(pathname, 'html')
-      await mkdirp(path.dirname(seedPath))
-      await writeFile(seedPath, data.html, 'utf8')
-      await writeFile(
+      await promises.mkdir(path.dirname(seedPath), { recursive: true })
+      await promises.writeFile(seedPath, data.html, 'utf8')
+      await promises.writeFile(
         getSeedPath(pathname, 'json'),
         JSON.stringify(data.pageData),
         'utf8'

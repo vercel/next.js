@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 
 import { cliCommand } from '../bin/next'
 import { Telemetry } from '../telemetry/storage'
 
-const nextTelemetry: cliCommand = argv => {
+const nextTelemetry: cliCommand = (argv) => {
   const args = arg(
     {
       // Types

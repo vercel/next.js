@@ -1,3 +1,9 @@
-import '../styles/style.scss'
+import HelloWorld from '../components/hello-world'
 
-export default () => <div className="example">Hello World!</div>
+export default function Home() {
+  return (
+    <div className="app">
+      <HelloWorld />
+    </div>
+  )
+}

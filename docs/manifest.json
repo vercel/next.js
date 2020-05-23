@@ -28,6 +28,10 @@
             {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
+            },
+            {
+              "title": "Environment Variables",
+              "path": "/docs/basic-features/environment-variables.md"
             }
           ]
         },
@@ -81,6 +85,10 @@
           "title": "Advanced Features",
           "routes": [
             {
+              "title": "Preview Mode",
+              "path": "/docs/advanced-features/preview-mode.md"
+            },
+            {
               "title": "Dynamic Import",
               "path": "/docs/advanced-features/dynamic-import.md"
             },
@@ -91,6 +99,10 @@
             {
               "title": "Static HTML Export",
               "path": "/docs/advanced-features/static-html-export.md"
+            },
+            {
+              "title": "Absolute Imports and Module Path Aliases",
+              "path": "/docs/advanced-features/module-path-aliases.md"
             },
             {
               "title": "AMP Support",
@@ -144,6 +156,18 @@
             {
               "title": "`src` Directory",
               "path": "/docs/advanced-features/src-directory.md"
+            },
+            {
+              "title": "Multi Zones",
+              "path": "/docs/advanced-features/multi-zones.md"
+            },
+            {
+              "title": "Measuring performance",
+              "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Debugging",
+              "path": "/docs/advanced-features/debugging.md"
             }
           ]
         },

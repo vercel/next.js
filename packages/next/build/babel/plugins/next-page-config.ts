@@ -1,11 +1,10 @@
-import { NodePath, PluginObj } from '@babel/core'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 import { PageConfig } from 'next/types'
 
 const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 
 // replace program path with just a variable with the drop identifier
-function replaceBundle(path: any, t: typeof BabelTypes) {
+function replaceBundle(path: any, t: typeof BabelTypes): void {
   path.parentPath.replaceWith(
     t.program(
       [
@@ -25,7 +24,7 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
   )
 }
 
-function errorMessage(state: any, details: string) {
+function errorMessage(state: any, details: string): string {
   const pageName =
     (state.filename || '').split(state.cwd || '').pop() || 'unknown'
   return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`

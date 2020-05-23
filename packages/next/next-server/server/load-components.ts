@@ -3,8 +3,6 @@ import {
   CLIENT_STATIC_FILES_PATH,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
-  STATIC_PROPS_ID,
-  SERVER_PROPS_ID,
 } from '../lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -12,7 +10,6 @@ import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
 import {
   PageConfig,
-  NextPageContext,
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
@@ -20,20 +17,6 @@ import {
 
 export function interopDefault(mod: any) {
   return mod.default || mod
-}
-
-function addComponentPropsId(
-  Component: any,
-  getStaticProps: any,
-  getServerSideProps: any
-) {
-  // Mark the component with the SSG or SSP id here since we don't run
-  // the SSG babel transform for server mode
-  if (getStaticProps) {
-    Component[STATIC_PROPS_ID] = true
-  } else if (getServerSideProps) {
-    Component[SERVER_PROPS_ID] = true
-  }
 }
 
 export type ManifestItem = {
@@ -51,7 +34,6 @@ export type LoadComponentsReturnType = {
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Document: DocumentType
-  DocumentMiddleware?: (ctx: NextPageContext) => void
   App: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
@@ -67,8 +49,6 @@ export async function loadComponents(
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
     const { getStaticProps, getStaticPaths, getServerSideProps } = Component
-
-    addComponentPropsId(Component, getStaticProps, getServerSideProps)
 
     return {
       Component,
@@ -96,7 +76,6 @@ export async function loadComponents(
   )
 
   const DocumentMod = require(documentPath)
-  const { middleware: DocumentMiddleware } = DocumentMod
 
   const AppMod = require(appPath)
 
@@ -118,14 +97,11 @@ export async function loadComponents(
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  addComponentPropsId(Component, getStaticProps, getServerSideProps)
-
   return {
     App,
     Document,
     Component,
     buildManifest,
-    DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     getServerSideProps,

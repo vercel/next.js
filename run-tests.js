@@ -1,5 +1,6 @@
 const path = require('path')
 const _glob = require('glob')
+const fs = require('fs').promises
 const fetch = require('node-fetch')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
@@ -8,9 +9,11 @@ const { spawn, exec: execOrig } = require('child_process')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+const timings = []
 const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
-const timings = []
+const RESULTS_EXT = `.results.json`
+const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
 ;(async () => {
@@ -19,11 +22,12 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
 
   const outputTimings = process.argv.indexOf('--timings') !== -1
+  const isAzure = process.argv.indexOf('--azure') !== -1
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
   console.log('Running tests with concurrency:', concurrency)
-  let tests = process.argv.filter(arg => arg.endsWith('.test.js'))
+  let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
   let prevTimings
 
   if (tests.length === 0) {
@@ -35,7 +39,9 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     if (outputTimings && groupArg) {
       console.log('Fetching previous timings data')
       try {
-        const timingsRes = await fetch(TIMINGS_API)
+        const timingsRes = await fetch(
+          `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
+        )
 
         if (!timingsRes.ok) {
           throw new Error(`request status: ${timingsRes.status}`)
@@ -50,7 +56,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
   let testNames = [
     ...new Set(
-      tests.map(f => {
+      tests.map((f) => {
         let name = `${f.replace(/\\/g, '/').replace(/\/test$/, '')}`
         if (!name.startsWith('test/')) name = `test/${name}`
         return name
@@ -103,7 +109,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
       testNames = testNames.splice(offset, numPerGroup)
     }
   }
-  console.log('Running tests:', '\n', ...testNames.map(name => `${name}\n`))
+  console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
@@ -117,15 +123,30 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
       const start = new Date().getTime()
       const child = spawn(
         'node',
-        [jestPath, '--runInBand', '--forceExit', '--verbose', test],
+        [
+          jestPath,
+          '--runInBand',
+          '--forceExit',
+          '--verbose',
+          ...(isTestJob
+            ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
+            : []),
+          test,
+        ],
         {
           stdio: 'inherit',
           env: {
+            JEST_RETRY_TIMES: 3,
             ...process.env,
+            ...(isAzure
+              ? {
+                  HEADLESS: 'true',
+                }
+              : {}),
             ...(usePolling
               ? {
-                  // Events can be finicky in CI. This switches to a more reliable
-                  // polling method.
+                  // Events can be finicky in CI. This switches to a more
+                  // reliable polling method.
                   CHOKIDAR_USEPOLLING: 'true',
                   CHOKIDAR_INTERVAL: 500,
                 }
@@ -134,7 +155,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
         }
       )
       children.add(child)
-      child.on('exit', code => {
+      child.on('exit', (code) => {
         children.delete(child)
         if (code) reject(new Error(`failed with code: ${code}`))
         resolve(new Date().getTime() - start)
@@ -142,7 +163,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     })
 
   await Promise.all(
-    testNames.map(async test => {
+    testNames.map(async (test) => {
       await sema.acquire()
       let passed = false
 
@@ -168,7 +189,23 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
       }
       if (!passed) {
         console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
-        children.forEach(child => child.kill())
+        children.forEach((child) => child.kill())
+
+        if (isTestJob) {
+          try {
+            const testsOutput = await fs.readFile(
+              `${test}${RESULTS_EXT}`,
+              'utf8'
+            )
+            console.log(
+              `--test output start--`,
+              testsOutput,
+              `--test output end--`
+            )
+          } catch (err) {
+            console.log(`Failed to load test output`, err)
+          }
+        }
         process.exit(1)
       }
       sema.release()
@@ -209,7 +246,10 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
           headers: {
             'content-type': 'application/json',
           },
-          body: JSON.stringify({ timings: curTimings }),
+          body: JSON.stringify({
+            timings: curTimings,
+            which: isAzure ? 'azure' : 'actions',
+          }),
         })
 
         if (!timingsRes.ok) {

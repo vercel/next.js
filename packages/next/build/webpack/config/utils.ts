@@ -11,6 +11,9 @@ export type ConfigurationContext = {
   isClient: boolean
 
   assetPrefix: string
+
+  sassOptions: any
+  productionBrowserSourceMaps: boolean
 }
 
 export type ConfigurationFn = (

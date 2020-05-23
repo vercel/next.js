@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 import {
   exists,
@@ -12,7 +12,7 @@ import {
 
 import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Fork ts checker plugin', () => {
   const appDir = path.join(__dirname, '../')
@@ -46,17 +46,17 @@ describe('Fork ts checker plugin', () => {
     await killApp(app)
 
     await remove(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     expect(await exists(tsConfig)).toBe(false)
 
     await createFile(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     expect(await readFile(tsConfig, 'utf8')).toBe('')
 
     await killApp(app)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     appPort = await findPort()
     app = await launchApp(appDir, appPort)

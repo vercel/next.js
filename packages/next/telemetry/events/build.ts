@@ -22,11 +22,12 @@ export function eventBuildCompleted(
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some(path =>
+      hasDunderPages: pagePaths.some((path) =>
         REGEXP_DIRECTORY_DUNDER.test(path)
       ),
       hasTestPages: pagePaths.some(
-        path => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+        (path) =>
+          REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
     },
   }
@@ -37,10 +38,13 @@ type EventBuildOptimized = {
   durationInSeconds: number
   totalPageCount: number
   staticPageCount: number
+  staticPropsPageCount: number
+  serverPropsPageCount: number
   ssrPageCount: number
   hasDunderPages: boolean
   hasTestPages: boolean
   hasStatic404: boolean
+  hasReportWebVitals: boolean
 }
 
 export function eventBuildOptimize(
@@ -55,11 +59,12 @@ export function eventBuildOptimize(
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some(path =>
+      hasDunderPages: pagePaths.some((path) =>
         REGEXP_DIRECTORY_DUNDER.test(path)
       ),
       hasTestPages: pagePaths.some(
-        path => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+        (path) =>
+          REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
     },
   }

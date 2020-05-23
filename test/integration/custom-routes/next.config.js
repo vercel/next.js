@@ -68,8 +68,8 @@ module.exports = {
           destination: '/api/hello',
         },
         {
-          source: '/api-hello-regex/(.*)',
-          destination: '/api/hello?name=:1',
+          source: '/api-hello-regex/:first(.*)',
+          destination: '/api/hello?name=:first*',
         },
         {
           source: '/api-hello-param/:name',
@@ -82,6 +82,18 @@ module.exports = {
         {
           source: '/:path/post-321',
           destination: '/with-params',
+        },
+        {
+          source: '/unnamed-params/nested/(.*)/:test/(.*)',
+          destination: '/with-params',
+        },
+        {
+          source: '/catchall-rewrite/:path*',
+          destination: '/with-params',
+        },
+        {
+          source: '/catchall-query/:path*',
+          destination: '/with-params?another=:path*',
         },
       ]
     },
@@ -159,7 +171,7 @@ module.exports = {
         },
         {
           source: '/unnamed/(first|second)/(.*)',
-          destination: '/:1/:2',
+          destination: '/got-unnamed',
           permanent: false,
         },
         {
@@ -170,6 +182,16 @@ module.exports = {
         {
           source: '/redirect-override',
           destination: '/thank-you-next',
+          permanent: false,
+        },
+        {
+          source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
+          destination: '/:first/:second',
+          permanent: false,
+        },
+        {
+          source: '/catchall-redirect/:path*',
+          destination: '/somewhere',
           permanent: false,
         },
       ]
@@ -204,11 +226,73 @@ module.exports = {
           ],
         },
         {
+          source: '/my-other-header/:path',
+          headers: [
+            {
+              key: 'x-path',
+              value: ':path',
+            },
+            {
+              key: 'some:path',
+              value: 'hi',
+            },
+          ],
+        },
+        {
+          source: '/without-params/url',
+          headers: [
+            {
+              key: 'x-origin',
+              value: 'https://example.com',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com/:path*',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url2/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com:8080?hello=:path*',
+            },
+          ],
+        },
+        {
           source: '/:path*',
           headers: [
             {
               key: 'x-something',
               value: 'applied-everywhere',
+            },
+          ],
+        },
+        {
+          source: '/named-pattern/:path(.*)',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'value=:path',
+            },
+            {
+              key: 'path-:path',
+              value: 'end',
+            },
+          ],
+        },
+        {
+          source: '/catchall-header/:path*',
+          headers: [
+            {
+              key: 'x-value',
+              value: ':path*',
             },
           ],
         },

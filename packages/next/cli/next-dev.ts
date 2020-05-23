@@ -7,7 +7,7 @@ import { printAndExit } from '../server/lib/utils'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
-const nextDev: cliCommand = argv => {
+const nextDev: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -33,9 +33,8 @@ const nextDev: cliCommand = argv => {
       Usage
         $ next dev <dir> -p <port number>
 
-      <dir> represents where the compiled folder should go.
-      If no directory is provided, the folder will be created in the current directory.
-      You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         --port, -p      A port number on which to start the application
@@ -62,19 +61,22 @@ const nextDev: cliCommand = argv => {
     port,
     args['--hostname']
   )
-    .then(async app => {
+    .then(async (app) => {
       await app.prepare()
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('find-up').sync('package.json', {
-          cwd: dir,
-        })
+        const pkgAppPath = require('next/dist/compiled/find-up').sync(
+          'package.json',
+          {
+            cwd: dir,
+          }
+        )
         const appPackage = require(pkgAppPath)
         if (appPackage.scripts) {
           const nextScript = Object.entries(appPackage.scripts).find(
-            scriptLine => scriptLine[1] === 'next'
+            (scriptLine) => scriptLine[1] === 'next'
           )
           if (nextScript) {
             errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`

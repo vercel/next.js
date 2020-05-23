@@ -2,3 +2,10 @@ node_modules
 **/.next/**
 **/_next/**
 **/dist/**
+packages/next/compiled/**
+packages/react-refresh-utils/**/*.js
+packages/react-refresh-utils/**/*.d.ts
+packages/react-dev-overlay/lib/**
+**/__tmp__/**
+lerna.json
+.github/actions/next-stats-action/.work
