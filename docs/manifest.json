@@ -164,6 +164,10 @@
             {
               "title": "Measuring performance",
               "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Debugging",
+              "path": "/docs/advanced-features/debugging.md"
             }
           ]
         },
@@ -171,11 +175,7 @@
           "title": "Upgrade Guide",
           "path": "/docs/upgrading.md"
         },
-        { "title": "FAQ", "path": "/docs/faq.md" },
-        {
-          "title": "Debugging",
-          "path": "/docs/debugging.md"
-        }
+        { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },
     {
