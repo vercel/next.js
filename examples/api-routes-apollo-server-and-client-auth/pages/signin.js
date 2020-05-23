@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { withApollo } from '../apollo/client'
 import gql from 'graphql-tag'
@@ -21,7 +21,7 @@ const SignInMutation = gql`
 function SignIn() {
   const client = useApolloClient()
   const [signIn] = useMutation(SignInMutation)
-  const [errorMsg, setErrorMsg] = React.useState()
+  const [errorMsg, setErrorMsg] = useState()
   const router = useRouter()
 
   async function handleSubmit(event) {

@@ -1,17 +1,15 @@
 {
-  "name": "with-strict-csp",
+  "name": "with-strict-csp-hash",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "express": "^4.14.0",
-    "helmet": "3.13.0",
     "next": "latest",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "uuid": "3.3.2"
-  }
+    "react-dom": "^16.7.0"
+  },
+  "license": "ISC"
 }

@@ -49,7 +49,10 @@ import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
+  GranularChunksConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
+import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { codeFrameColumns } from '@babel/code-frame'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -63,8 +66,23 @@ const escapePathVariables = (value: any) => {
 
 function parseJsonFile(path: string) {
   const JSON5 = require('next/dist/compiled/json5')
-  const contents = readFileSync(path)
-  return JSON5.parse(contents)
+  const contents = readFileSync(path, 'utf8')
+
+  // Special case an empty file
+  if (contents.trim() === '') {
+    return {}
+  }
+
+  try {
+    return JSON5.parse(contents)
+  } catch (err) {
+    const codeFrame = codeFrameColumns(
+      String(contents),
+      { start: { line: err.lineNumber, column: err.columnNumber } },
+      { message: err.message, highlightCode: true }
+    )
+    throw new Error(`Failed to parse "${path}":\n${codeFrame}`)
+  }
 }
 
 function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
@@ -135,6 +153,8 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  const productionBrowserSourceMaps =
+    config.experimental.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -152,8 +172,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const isReactRefreshEnabled = config.experimental.reactRefresh === true
-  const hasReactRefresh = dev && !isServer && isReactRefreshEnabled
+  const hasReactRefresh = dev && !isServer
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -183,14 +202,14 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
     ...(config.experimental.plugins
-      ? VALID_MIDDLEWARE.map(name => new RegExp(`src(\\\\|/)${name}`))
+      ? VALID_MIDDLEWARE.map((name) => new RegExp(`src(\\\\|/)${name}`))
       : []),
   ]
 
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
-    .filter(p => !!p)
+    .filter((p) => !!p)
 
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
@@ -228,9 +247,8 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors = dev
-    ? config.typescript?.ignoreDevErrors
-    : config.typescript?.ignoreBuildErrors
+  const ignoreTypeScriptErrors =
+    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -473,6 +491,9 @@ export default async function getBaseWebpackConfig(
             ?.BlockedAPIToBePolyfilled || []
         ),
       },
+      GranularChunksConformanceCheck: {
+        enabled: true,
+      },
     },
     config.conformance
   )
@@ -640,6 +661,7 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
+          extractComments: false,
           cache: path.join(distDir, 'cache', 'next-minifier'),
           parallel: config.experimental.cpus || true,
           terserOptions,
@@ -738,7 +760,7 @@ export default async function getBaseWebpackConfig(
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
           exclude: (path: string) => {
-            if (babelIncludeRegexes.some(r => r.test(path))) {
+            if (babelIncludeRegexes.some((r) => r.test(path))) {
               return false
             }
             return /node_modules/.test(path)
@@ -764,15 +786,15 @@ export default async function getBaseWebpackConfig(
                     workerParallelJobs: Infinity,
                   },
                 },
-                defaultLoaders.babel,
                 hasReactRefresh
                   ? require.resolve('@next/react-refresh-utils/loader')
                   : '',
+                defaultLoaders.babel,
               ].filter(Boolean)
             : hasReactRefresh
             ? [
-                defaultLoaders.babel,
                 require.resolve('@next/react-refresh-utils/loader'),
+                defaultLoaders.babel,
               ]
             : defaultLoaders.babel,
         },
@@ -843,10 +865,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
         ),
-        'process.env.__NEXT_FID_POLYFILL': JSON.stringify(
-          config.experimental.measureFid
-        ),
-        'process.env.__NEXT_FAST_REFRESH': JSON.stringify(hasReactRefresh),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -949,13 +967,14 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !isServer &&
+      !dev &&
+        !isServer &&
         useTypeScript &&
         !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
-            async: dev,
+            async: false,
             useTypescriptIncrementalApi: true,
             checkSyntacticErrors: true,
             tsconfig: tsConfigPath,
@@ -1004,8 +1023,15 @@ export default async function getBaseWebpackConfig(
                   conformanceConfig.DuplicatePolyfillsConformanceCheck
                     .BlockedAPIToBePolyfilled,
               }),
+            !isServer &&
+              config.experimental.granularChunks &&
+              conformanceConfig.GranularChunksConformanceCheck.enabled &&
+              new GranularChunksConformanceCheck(
+                splitChunksConfigs.prodGranular
+              ),
           ].filter(Boolean),
         }),
+      new WellKnownErrorsPlugin(),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -1032,9 +1058,9 @@ export default async function getBaseWebpackConfig(
     customAppFile,
     isDevelopment: dev,
     isServer,
-    isReactRefreshEnabled,
     assetPrefix: config.assetPrefix || '',
-    sassOptions: config.experimental.sassOptions,
+    sassOptions: config.sassOptions,
+    productionBrowserSourceMaps,
   })
 
   if (typeof config.webpack === 'function') {
@@ -1069,13 +1095,13 @@ export default async function getBaseWebpackConfig(
       '/tmp/test.styl',
     ]
 
-    if (rule instanceof RegExp && fileNames.some(input => rule.test(input))) {
+    if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {
       return true
     }
 
     if (typeof rule === 'function') {
       if (
-        fileNames.some(input => {
+        fileNames.some((input) => {
           try {
             if (rule(input)) {
               return true
@@ -1097,7 +1123,7 @@ export default async function getBaseWebpackConfig(
 
   const hasUserCssConfig =
     webpackConfig.module?.rules.some(
-      rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+      (rule) => canMatchCss(rule.test) || canMatchCss(rule.include)
     ) ?? false
 
   if (hasUserCssConfig) {
@@ -1115,7 +1141,7 @@ export default async function getBaseWebpackConfig(
     if (webpackConfig.module?.rules.length) {
       // Remove default CSS Loader
       webpackConfig.module.rules = webpackConfig.module.rules.filter(
-        r =>
+        (r) =>
           !(
             typeof r.oneOf?.[0]?.options === 'object' &&
             r.oneOf[0].options.__next_css_remove === true
@@ -1125,13 +1151,13 @@ export default async function getBaseWebpackConfig(
     if (webpackConfig.plugins?.length) {
       // Disable CSS Extraction Plugin
       webpackConfig.plugins = webpackConfig.plugins.filter(
-        p => (p as any).__next_css_remove !== true
+        (p) => (p as any).__next_css_remove !== true
       )
     }
     if (webpackConfig.optimization?.minimizer?.length) {
       // Disable CSS Minifier
       webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
-        e => (e as any).__next_css_remove !== true
+        (e) => (e as any).__next_css_remove !== true
       )
     }
   } else {
@@ -1167,7 +1193,7 @@ export default async function getBaseWebpackConfig(
 
   // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
-    ;[].forEach.call(webpackConfig.module.rules, function(
+    ;[].forEach.call(webpackConfig.module.rules, function (
       rule: webpack.RuleSetRule
     ) {
       if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
@@ -1185,7 +1211,7 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      ;[].forEach.call(rule.use, function(use: webpack.RuleSetUseItem) {
+      ;[].forEach.call(rule.use, function (use: webpack.RuleSetUseItem) {
         if (
           !(
             use &&

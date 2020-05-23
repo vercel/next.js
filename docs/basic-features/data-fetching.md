@@ -52,14 +52,11 @@ The `context` parameter is an object containing the following keys:
 Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
-// You can use any data fetching library
-import fetch from 'node-fetch'
-
 // posts will be populated at build time by getStaticProps()
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>{post.title}</li>
       ))}
     </ul>
@@ -71,6 +68,7 @@ function Blog({ posts }) {
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
   // Call an external API endpoint to get posts.
+  // You can use any data fetching library
   const res = await fetch('https://.../posts')
   const posts = await res.json()
 
@@ -102,7 +100,7 @@ For TypeScript, you can use the `GetStaticProps` type from `next`:
 ```ts
 import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async context => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
 ```
@@ -125,7 +123,7 @@ import path from 'path'
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>
           <h3>{post.filename}</h3>
           <p>{post.content}</p>
@@ -142,7 +140,7 @@ export async function getStaticProps() {
   const postsDirectory = path.join(process.cwd(), 'posts')
   const filenames = fs.readdirSync(postsDirectory)
 
-  const posts = filenames.map(filename => {
+  const posts = filenames.map((filename) => {
     const filePath = path.join(postsDirectory, filename)
     const fileContents = fs.readFileSync(filePath, 'utf8')
 
@@ -250,7 +248,6 @@ Here’s an example which pre-renders one blog post per page called `pages/posts
 
 ```jsx
 // pages/posts/[id].js
-import fetch from 'node-fetch'
 
 function Post({ post }) {
   // Render post...
@@ -263,7 +260,7 @@ export async function getStaticPaths() {
   const posts = await res.json()
 
   // Get the paths we want to pre-render based on posts
-  const paths = posts.map(post => ({
+  const paths = posts.map((post) => ({
     params: { id: post.id },
   }))
 
@@ -308,7 +305,6 @@ Here’s an example that uses `isFallback`:
 ```jsx
 // pages/posts/[id].js
 import { useRouter } from 'next/router'
-import fetch from 'node-fetch'
 
 function Post({ post }) {
   const router = useRouter()
@@ -449,7 +445,7 @@ For TypeScript, you can use the `GetServerSideProps` type from `next`:
 ```ts
 import { GetServerSideProps } from 'next'
 
-export const getServerSideProps: GetServerSideProps = async context => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
   // ...
 }
 ```

@@ -3,7 +3,7 @@ function Page1() {
 }
 
 Page1.getInitialProps = async function getInitialProps() {
-  await new Promise(resolve => setTimeout(resolve, 5000))
+  await new Promise((resolve) => setTimeout(resolve, 5000))
   return {}
 }
 

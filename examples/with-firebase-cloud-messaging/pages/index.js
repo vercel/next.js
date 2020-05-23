@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import { Component } from 'react'
 import { firebaseCloudMessaging } from '../utils/webPush'
 
 class Index extends Component {

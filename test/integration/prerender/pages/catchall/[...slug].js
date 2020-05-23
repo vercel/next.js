@@ -2,7 +2,7 @@ import { useRouter } from 'next/router'
 
 export async function getStaticProps({ params: { slug } }) {
   if (slug[0] === 'delayby3s') {
-    await new Promise(resolve => setTimeout(resolve, 3000))
+    await new Promise((resolve) => setTimeout(resolve, 3000))
   }
 
   return {
