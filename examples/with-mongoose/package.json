@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "bootstrap": "^4.5.0",
+    "mongoose": "^5.9.15",
     "next": "latest",
     "react": "^16.13.0",
     "react-dom": "^16.13.0"

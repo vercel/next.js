@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  mongodb:
+    image: mongo:4
+    ports:
+      - '27017:27017'
+  mongodb_web:
+    image: mongo-express
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    ports:
+      - '8091:8081'
