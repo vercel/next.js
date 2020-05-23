@@ -91,7 +91,7 @@ describe('SSG Prerender No Revalidate', () => {
       appPort = await findPort()
       stderr = ''
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -113,7 +113,7 @@ describe('SSG Prerender No Revalidate', () => {
       appPort = await findPort()
       stderr = ''
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

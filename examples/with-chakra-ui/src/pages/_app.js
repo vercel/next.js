@@ -1,4 +1,3 @@
-import React from 'react'
 import NextApp from 'next/app'
 import { ThemeProvider, CSSReset, ColorModeProvider } from '@chakra-ui/core'
 
@@ -9,8 +8,8 @@ class App extends NextApp {
     const { Component } = this.props
     return (
       <ThemeProvider theme={theme}>
-        <CSSReset />
         <ColorModeProvider>
+          <CSSReset />
           <Component />
         </ColorModeProvider>
       </ThemeProvider>

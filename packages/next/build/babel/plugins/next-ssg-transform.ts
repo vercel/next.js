@@ -33,7 +33,7 @@ function decorateSsgExport(
   t: typeof BabelTypes,
   path: NodePath<BabelTypes.Program>,
   state: PluginState
-) {
+): void {
   const gsspName = state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID
   const gsspId = t.identifier(gsspName)
 
@@ -41,7 +41,7 @@ function decorateSsgExport(
     path: NodePath<
       BabelTypes.ExportDefaultDeclaration | BabelTypes.ExportNamedDeclaration
     >
-  ) => {
+  ): void => {
     if (state.done) {
       return
     }
@@ -141,7 +141,7 @@ export default function nextTransformSsg({
         return !b.constantViolations
           .concat(b.referencePaths)
           // Check that every reference is contained within the function:
-          .every(ref => ref.findParent(p => p === b.path))
+          .every((ref) => ref.findParent((p) => p === b.path))
       }
 
       return true
@@ -156,7 +156,7 @@ export default function nextTransformSsg({
       | BabelTypes.ArrowFunctionExpression
     >,
     state: PluginState
-  ) {
+  ): void {
     const ident = getIdentifier(path)
     if (ident?.node && isIdentifierReferenced(ident)) {
       state.refs.add(ident)
@@ -170,7 +170,7 @@ export default function nextTransformSsg({
       | BabelTypes.ImportNamespaceSpecifier
     >,
     state: PluginState
-  ) {
+  ): void {
     const local = path.get('local')
     if (isIdentifierReferenced(local)) {
       state.refs.add(local)
@@ -189,13 +189,55 @@ export default function nextTransformSsg({
           path.traverse(
             {
               VariableDeclarator(path, state) {
-                if (path.node.id.type !== 'Identifier') {
-                  return
-                }
+                if (path.node.id.type === 'Identifier') {
+                  const local = path.get('id') as NodePath<
+                    BabelTypes.Identifier
+                  >
+                  if (isIdentifierReferenced(local)) {
+                    state.refs.add(local)
+                  }
+                } else if (path.node.id.type === 'ObjectPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ObjectPattern
+                  >
 
-                const local = path.get('id') as NodePath<BabelTypes.Identifier>
-                if (isIdentifierReferenced(local)) {
-                  state.refs.add(local)
+                  const properties = pattern.get('properties')
+                  properties.forEach((p) => {
+                    const local = p.get(
+                      p.node.type === 'ObjectProperty'
+                        ? 'value'
+                        : p.node.type === 'RestElement'
+                        ? 'argument'
+                        : (function () {
+                            throw new Error('invariant')
+                          })()
+                    ) as NodePath<BabelTypes.Identifier>
+                    if (isIdentifierReferenced(local)) {
+                      state.refs.add(local)
+                    }
+                  })
+                } else if (path.node.id.type === 'ArrayPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ArrayPattern
+                  >
+
+                  const elements = pattern.get('elements')
+                  elements.forEach((e) => {
+                    let local: NodePath<BabelTypes.Identifier>
+                    if (e.node?.type === 'Identifier') {
+                      local = e as NodePath<BabelTypes.Identifier>
+                    } else if (e.node?.type === 'RestElement') {
+                      local = e.get('argument') as NodePath<
+                        BabelTypes.Identifier
+                      >
+                    } else {
+                      return
+                    }
+
+                    if (isIdentifierReferenced(local)) {
+                      state.refs.add(local)
+                    }
+                  })
                 }
               },
               FunctionDeclaration: markFunction,
@@ -207,7 +249,7 @@ export default function nextTransformSsg({
               ExportNamedDeclaration(path, state) {
                 const specifiers = path.get('specifiers')
                 if (specifiers.length) {
-                  specifiers.forEach(s => {
+                  specifiers.forEach((s) => {
                     if (isDataIdentifier(s.node.exported.name, state)) {
                       s.remove()
                     }
@@ -239,7 +281,7 @@ export default function nextTransformSsg({
                     const inner = decl.get('declarations') as NodePath<
                       BabelTypes.VariableDeclarator
                     >[]
-                    inner.forEach(d => {
+                    inner.forEach((d) => {
                       if (d.node.id.type !== 'Identifier') {
                         return
                       }
@@ -272,7 +314,7 @@ export default function nextTransformSsg({
               | BabelTypes.FunctionExpression
               | BabelTypes.ArrowFunctionExpression
             >
-          ) {
+          ): void {
             const ident = getIdentifier(path)
             if (
               ident?.node &&
@@ -298,7 +340,7 @@ export default function nextTransformSsg({
               | BabelTypes.ImportDefaultSpecifier
               | BabelTypes.ImportNamespaceSpecifier
             >
-          ) {
+          ): void {
             const local = path.get('local')
             if (refs.has(local) && !isIdentifierReferenced(local)) {
               ++count
@@ -319,14 +361,75 @@ export default function nextTransformSsg({
             path.traverse({
               // eslint-disable-next-line no-loop-func
               VariableDeclarator(path) {
-                if (path.node.id.type !== 'Identifier') {
-                  return
-                }
+                if (path.node.id.type === 'Identifier') {
+                  const local = path.get('id') as NodePath<
+                    BabelTypes.Identifier
+                  >
+                  if (refs.has(local) && !isIdentifierReferenced(local)) {
+                    ++count
+                    path.remove()
+                  }
+                } else if (path.node.id.type === 'ObjectPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ObjectPattern
+                  >
 
-                const local = path.get('id') as NodePath<BabelTypes.Identifier>
-                if (refs.has(local) && !isIdentifierReferenced(local)) {
-                  ++count
-                  path.remove()
+                  const beforeCount = count
+                  const properties = pattern.get('properties')
+                  properties.forEach((p) => {
+                    const local = p.get(
+                      p.node.type === 'ObjectProperty'
+                        ? 'value'
+                        : p.node.type === 'RestElement'
+                        ? 'argument'
+                        : (function () {
+                            throw new Error('invariant')
+                          })()
+                    ) as NodePath<BabelTypes.Identifier>
+
+                    if (refs.has(local) && !isIdentifierReferenced(local)) {
+                      ++count
+                      p.remove()
+                    }
+                  })
+
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('properties').length < 1
+                  ) {
+                    path.remove()
+                  }
+                } else if (path.node.id.type === 'ArrayPattern') {
+                  const pattern = path.get('id') as NodePath<
+                    BabelTypes.ArrayPattern
+                  >
+
+                  const beforeCount = count
+                  const elements = pattern.get('elements')
+                  elements.forEach((e) => {
+                    let local: NodePath<BabelTypes.Identifier>
+                    if (e.node?.type === 'Identifier') {
+                      local = e as NodePath<BabelTypes.Identifier>
+                    } else if (e.node?.type === 'RestElement') {
+                      local = e.get('argument') as NodePath<
+                        BabelTypes.Identifier
+                      >
+                    } else {
+                      return
+                    }
+
+                    if (refs.has(local) && !isIdentifierReferenced(local)) {
+                      ++count
+                      e.remove()
+                    }
+                  })
+
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('elements').length < 1
+                  ) {
+                    path.remove()
+                  }
                 }
               },
               FunctionDeclaration: sweepFunction,

@@ -25,7 +25,7 @@ let buildId
 let appPort
 let app
 
-const runTests = isDev => {
+const runTests = (isDev) => {
   it('should respond to 404 correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/404')
     expect(res.status).toBe(404)

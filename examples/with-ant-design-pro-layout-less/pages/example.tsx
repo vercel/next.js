@@ -1,3 +1,5 @@
 import MainLayout from '../layouts/main'
 
-export default () => <MainLayout>Example page</MainLayout>
+export default function Example() {
+  return <MainLayout>Example page</MainLayout>
+}
