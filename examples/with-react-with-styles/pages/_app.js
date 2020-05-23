@@ -7,7 +7,7 @@ import defaultTheme from '../defaultTheme'
 
 function MyApp(props) {
   const { Component, pageProps } = props
-  
+
   ThemedStyleSheet.registerInterface(AphroditeInterface)
 
   return (
