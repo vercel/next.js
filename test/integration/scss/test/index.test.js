@@ -125,7 +125,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
