@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import AbortController from 'abort-controller'
@@ -11,10 +11,11 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 import json from '../big.json'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -43,9 +44,23 @@ function runTests(dev = false) {
     expect(res.status).not.toEqual(404)
   })
 
+  it('should set cors headers when adding cors middleware', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/cors', null, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'example.com',
+      },
+    })
+
+    expect(res.status).toEqual(204)
+    expect(res.headers.get('access-control-allow-methods')).toEqual(
+      'GET,POST,OPTIONS'
+    )
+  })
+
   it('should work with index api', async () => {
     const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
-      res => res.ok && res.text()
+      (res) => res.ok && res.text()
     )
     expect(text).toEqual('Index should work')
   })
@@ -79,7 +94,7 @@ function runTests(dev = false) {
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify([{ title: 'Nextjs' }]),
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
   })
@@ -90,7 +105,7 @@ function runTests(dev = false) {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
       },
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
 
     expect(data).toEqual({})
   })
@@ -165,7 +180,7 @@ function runTests(dev = false) {
     }
 
     const formBody = Object.keys(body)
-      .map(key => {
+      .map((key) => {
         return `${encodeURIComponent(key)}=${encodeURIComponent(body[key])}`
       })
       .join('&')
@@ -176,7 +191,7 @@ function runTests(dev = false) {
         'Content-Type': 'application/x-www-Form-urlencoded',
       },
       body: formBody,
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
 
     expect(data).toEqual({
       title: 'Nextjs',
@@ -191,7 +206,7 @@ function runTests(dev = false) {
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify([{ title: 'Nextjs' }]),
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
   })
@@ -203,14 +218,14 @@ function runTests(dev = false) {
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify([{ title: 'Nextjs' }]),
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
 
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
   it('should return empty query object', async () => {
     const data = await fetchViaHTTP(appPort, '/api/query', null, {}).then(
-      res => res.ok && res.json()
+      (res) => res.ok && res.json()
     )
     expect(data).toEqual({})
   })
@@ -221,13 +236,13 @@ function runTests(dev = false) {
       '/api/query?a=1&b=2&a=3',
       null,
       {}
-    ).then(res => res.ok && res.json())
+    ).then((res) => res.ok && res.json())
     expect(data).toEqual({ a: ['1', '3'], b: '2' })
   })
 
   it('should return empty cookies object', async () => {
     const data = await fetchViaHTTP(appPort, '/api/cookies', null, {}).then(
-      res => res.ok && res.json()
+      (res) => res.ok && res.json()
     )
     expect(data).toEqual({})
   })
@@ -237,7 +252,7 @@ function runTests(dev = false) {
       headers: {
         Cookie: 'nextjs=cool;',
       },
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
     expect(data).toEqual({ nextjs: 'cool' })
   })
 
@@ -252,14 +267,14 @@ function runTests(dev = false) {
   it('should return JSON on post on API', async () => {
     const data = await fetchViaHTTP(appPort, '/api/blog?title=Nextjs', null, {
       method: 'POST',
-    }).then(res => res.ok && res.json())
+    }).then((res) => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
   })
 
   it('should return data on dynamic route', async () => {
     const data = await fetchViaHTTP(appPort, '/api/post-1', null, {}).then(
-      res => res.ok && res.json()
+      (res) => res.ok && res.json()
     )
 
     expect(data).toEqual({ post: 'post-1' })
@@ -271,7 +286,7 @@ function runTests(dev = false) {
       '/api/post-1?val=1',
       null,
       {}
-    ).then(res => res.ok && res.json())
+    ).then((res) => res.ok && res.json())
 
     expect(data).toEqual({ val: '1', post: 'post-1' })
   })
@@ -289,7 +304,7 @@ function runTests(dev = false) {
       '/api/post-1/comments',
       null,
       {}
-    ).then(res => res.ok && res.json())
+    ).then((res) => res.ok && res.json())
 
     expect(data).toEqual([{ message: 'Prioritize a non-dynamic api page' }])
   })
@@ -300,7 +315,7 @@ function runTests(dev = false) {
       '/api/post-1/comment-1',
       null,
       {}
-    ).then(res => res.ok && res.json())
+    ).then((res) => res.ok && res.json())
 
     expect(data).toEqual({ post: 'post-1', comment: 'comment-1' })
   })
@@ -317,7 +332,7 @@ function runTests(dev = false) {
       '/api/blog/post-1/comment/1',
       null,
       {}
-    ).then(res => res.ok && res.json())
+    ).then((res) => res.ok && res.json())
 
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
@@ -376,7 +391,37 @@ function runTests(dev = false) {
         `API resolved without sending a response for /api/test-res-pipe`
       )
     })
+
+    it('should show false positive warning if not using externalResolver flag', async () => {
+      const apiURL = '/api/external-resolver-false-positive'
+      const req = await fetchViaHTTP(appPort, apiURL)
+      expect(stderr).toContain(
+        `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
+      )
+      expect(await req.text()).toBe('hello world')
+    })
+
+    it('should not show warning if using externalResolver flag', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      const apiURL = '/api/external-resolver'
+      const req = await fetchViaHTTP(appPort, apiURL)
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for ${apiURL}`
+      )
+      expect(await req.text()).toBe('hello world')
+    })
   } else {
+    it('should show warning with next export', async () => {
+      const { stdout } = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        { stdout: true }
+      )
+      expect(stdout).toContain(
+        'https://err.sh/zeit/next.js/api-routes-static-export'
+      )
+    })
+
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
         await fs.readFile(
@@ -407,7 +452,7 @@ describe('API routes', () => {
       stderr = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

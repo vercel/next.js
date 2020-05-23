@@ -3,7 +3,7 @@ type CoalescedInvoke<T> = {
   value: T
 }
 
-type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
 
 const globalInvokeCache = new Map<string, Promise<CoalescedInvoke<unknown>>>()
 
@@ -13,10 +13,10 @@ export function withCoalescedInvoke<F extends (...args: any) => any>(
   key: string,
   args: Parameters<F>
 ) => Promise<CoalescedInvoke<UnwrapPromise<ReturnType<F>>>> {
-  return async function(key: string, args: Parameters<F>) {
+  return async function (key: string, args: Parameters<F>) {
     const entry = globalInvokeCache.get(key)
     if (entry) {
-      return entry.then(res => ({
+      return entry.then((res) => ({
         isOrigin: false,
         value: res.value as UnwrapPromise<ReturnType<F>>,
       }))
@@ -27,11 +27,11 @@ export function withCoalescedInvoke<F extends (...args: any) => any>(
     }
 
     const future = __wrapper()
-      .then(res => {
+      .then((res) => {
         globalInvokeCache.delete(key)
         return { isOrigin: true, value: res as UnwrapPromise<ReturnType<F>> }
       })
-      .catch(err => {
+      .catch((err) => {
         globalInvokeCache.delete(key)
         return Promise.reject(err)
       })

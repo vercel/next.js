@@ -1,4 +1,4 @@
-import devalue from 'devalue'
+import devalue from 'next/dist/compiled/devalue'
 import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {
@@ -6,6 +6,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
@@ -25,7 +26,7 @@ const generateClientManifest = (
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
     const filteredDeps = dependencies.filter(
-      dep =>
+      (dep) =>
         !appDependencies.has(dep) &&
         (!dep.endsWith('.js') || dep.endsWith('.module.js') === isModern)
     )
@@ -67,7 +68,7 @@ export default class BuildManifestPlugin {
         }
 
         const mainJsChunk = chunks.find(
-          c => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
+          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
         )
         const mainJsFiles: string[] =
           mainJsChunk && mainJsChunk.files.length > 0
@@ -75,9 +76,14 @@ export default class BuildManifestPlugin {
             : []
 
         const polyfillChunk = chunks.find(
-          c => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
         const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
+
+        const reactRefreshChunk = chunks.find(
+          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+        )
+        assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
 
         for (const filePath of Object.keys(compilation.assets)) {
           const path = filePath.replace(/\\/g, '/')

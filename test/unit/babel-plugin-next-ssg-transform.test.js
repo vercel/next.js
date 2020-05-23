@@ -1,11 +1,7 @@
 /* eslint-env jest */
 import { transform } from '@babel/core'
 
-const trim = s =>
-  s
-    .join('\n')
-    .trim()
-    .replace(/^\s+/gm, '')
+const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 // avoid generating __source annotations in JSX during testing:
 const NODE_ENV = process.env.NODE_ENV
@@ -437,6 +433,69 @@ describe('babel plugin (next-ssg-transform)', () => {
 
       expect(output).toMatchInlineSnapshot(
         `"export var __N_SSG=true;export{default}from'a';"`
+      )
+    })
+
+    it('should support babel-style memoized function', () => {
+      const output = babel(trim`
+        function fn() {
+          fn = function () {};
+          return fn.apply(this, arguments);
+        }
+        export function getStaticProps() {
+          fn;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+      )
+    })
+
+    it('destructuring assignment (object)', () => {
+      const output = babel(trim`
+        import fs from 'fs';
+        import other from 'other';
+
+        const {readFile, readdir, access: foo} = fs.promises;
+        const {a,b, cat: bar,...rem} = other;
+
+        export async function getStaticProps() {
+          readFile;
+          readdir;
+          foo;
+          b;
+          cat;
+          rem;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"import other from'other';const{a,cat:bar}=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+      )
+    })
+
+    it('destructuring assignment (array)', () => {
+      const output = babel(trim`
+        import fs from 'fs';
+        import other from 'other';
+
+        const [a, b, ...rest]= fs.promises;
+        const [foo, bar] = other;
+
+        export async function getStaticProps() {
+          a;
+          b;
+          rest;
+          bar;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"import other from'other';const[foo]=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
       )
     })
   })

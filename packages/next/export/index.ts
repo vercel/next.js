@@ -1,19 +1,19 @@
-import chalk from 'chalk'
-import findUp from 'find-up'
+import chalk from 'next/dist/compiled/chalk'
+import findUp from 'next/dist/compiled/find-up'
 import {
-  copyFile as copyFileOrig,
+  promises,
   existsSync,
+  exists as existsOrig,
   readFileSync,
   writeFileSync,
 } from 'fs'
 import Worker from 'jest-worker'
-import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
-import { API_ROUTE } from '../lib/constants'
+import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
@@ -34,9 +34,10 @@ import loadConfig, {
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { loadEnvConfig } from '../lib/load-env-config'
+import { PrerenderManifest } from '../build'
 
-const mkdirp = promisify(mkdirpModule)
-const copyFile = promisify(copyFileOrig)
+const exists = promisify(existsOrig)
 
 const createProgress = (total: number, label = 'Exporting') => {
   let curProgress = 0
@@ -84,7 +85,7 @@ type ExportPathMap = {
   [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
-export default async function(
+export default async function (
   dir: string,
   options: any,
   configuration?: any
@@ -97,6 +98,10 @@ export default async function(
   }
 
   dir = resolve(dir)
+
+  // attempt to load global env values so they are available in next.config.js
+  loadEnvConfig(dir)
+
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
@@ -134,7 +139,7 @@ export default async function(
       PAGES_MANIFEST
     ))
 
-  let prerenderManifest
+  let prerenderManifest: PrerenderManifest | undefined = undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
@@ -147,19 +152,22 @@ export default async function(
     'pages'
   )
 
+  const excludedPrerenderRoutes = new Set<string>()
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
+  let hasApiRoutes = false
 
   for (const page of pages) {
     // _document and _app are not real pages
     // _error is exported as 404.html later on
     // API Routes are Node.js functions
-    if (
-      page === '/_document' ||
-      page === '/_app' ||
-      page === '/_error' ||
-      page.match(API_ROUTE)
-    ) {
+
+    if (page.match(API_ROUTE)) {
+      hasApiRoutes = true
+      continue
+    }
+
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
@@ -168,6 +176,7 @@ export default async function(
     // could run `getStaticProps`. If users make their page work lazily, they
     // can manually add it to the `exportPathMap`.
     if (prerenderManifest?.dynamicRoutes[page]) {
+      excludedPrerenderRoutes.add(page)
       continue
     }
 
@@ -184,7 +193,7 @@ export default async function(
   }
 
   await recursiveDelete(join(outDir))
-  await mkdirp(join(outDir, '_next', buildId))
+  await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
   writeFileSync(
     join(distDir, EXPORT_DETAIL),
@@ -231,9 +240,12 @@ export default async function(
     dev: false,
     staticMarkup: false,
     hotReloader: null,
+    basePath: nextConfig.experimental.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
+    ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
+    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -273,17 +285,55 @@ export default async function(
 
   const filteredPaths = exportPaths.filter(
     // Remove API routes
-    route => !exportPathMap[route].page.match(API_ROUTE)
+    (route) => !exportPathMap[route].page.match(API_ROUTE)
   )
 
-  const hasApiRoutes = exportPaths.length !== filteredPaths.length
+  if (filteredPaths.length !== exportPaths.length) {
+    hasApiRoutes = true
+  }
+
+  if (prerenderManifest && !options.buildExport) {
+    const fallbackTruePages = new Set()
+
+    for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
+      // only error if page is included in path map
+      if (!exportPathMap[key] && !excludedPrerenderRoutes.has(key)) {
+        continue
+      }
+
+      if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
+        fallbackTruePages.add(key)
+      }
+    }
+
+    if (fallbackTruePages.size) {
+      throw new Error(
+        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
+          '\n'
+        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+      )
+    }
+  }
 
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.yellow(
-        '  API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
-      )
+      chalk.bold.red(`Attention`) +
+        ': ' +
+        chalk.yellow(
+          `Statically exporting a Next.js application via \`next export\` disables API routes.`
+        ) +
+        `\n` +
+        chalk.yellow(
+          `This command is meant for static-only hosts, and is` +
+            ' ' +
+            chalk.bold(`not necessary to make your application static.`)
+        ) +
+        `\n` +
+        chalk.yellow(
+          `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+        ) +
+        `\nLearn more: https://err.sh/zeit/next.js/api-routes-static-export`
     )
   }
 
@@ -323,7 +373,7 @@ export default async function(
   let renderError = false
 
   await Promise.all(
-    filteredPaths.map(async path => {
+    filteredPaths.map(async (path) => {
       const result = await worker.default({
         path,
         pathMap: exportPathMap[path],
@@ -363,7 +413,7 @@ export default async function(
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
-      Object.keys(prerenderManifest.routes).map(async route => {
+      Object.keys(prerenderManifest.routes).map(async (route) => {
         route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
         const htmlDest = join(
@@ -372,12 +422,21 @@ export default async function(
             subFolders && route !== '/index' ? `${sep}index` : ''
           }.html`
         )
+        const ampHtmlDest = join(
+          outDir,
+          `${route}.amp${subFolders ? `${sep}index` : ''}.html`
+        )
         const jsonDest = join(pagesDataDir, `${route}.json`)
 
-        await mkdirp(dirname(htmlDest))
-        await mkdirp(dirname(jsonDest))
-        await copyFile(`${orig}.html`, htmlDest)
-        await copyFile(`${orig}.json`, jsonDest)
+        await promises.mkdir(dirname(htmlDest), { recursive: true })
+        await promises.mkdir(dirname(jsonDest), { recursive: true })
+        await promises.copyFile(`${orig}.html`, htmlDest)
+        await promises.copyFile(`${orig}.json`, jsonDest)
+
+        if (await exists(`${orig}.amp.html`)) {
+          await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
+          await promises.copyFile(`${orig}.amp.html`, ampHtmlDest)
+        }
       })
     )
   }

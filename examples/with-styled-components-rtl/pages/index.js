@@ -1,4 +1,3 @@
-import React from 'react'
 import styled from 'styled-components'
 
 const Title = styled.h1`
@@ -7,4 +6,6 @@ const Title = styled.h1`
   text-align: left;
 `
 
-export default () => <Title>My page</Title>
+export default function Home() {
+  return <Title>My page</Title>
+}

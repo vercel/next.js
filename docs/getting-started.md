@@ -10,9 +10,11 @@ If you're new to Next.js we recommend that you start with the [learn course](htt
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
+If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/zeit/next.js/discussions).
+
 #### System Requirements
 
-- [Node.js 10](https://nodejs.org/) or later
+- [Node.js 10.13](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
@@ -20,7 +22,7 @@ The interactive course with quizzes will guide you through everything you need t
 We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
 
 ```bash
-npm init next-app
+npx create-next-app
 # or
 yarn create next-app
 ```
@@ -74,9 +76,11 @@ Visit `http://localhost:3000` to view your application.
 So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
-- Hot code reloading
-- Static generation and server-side rendering of [`./pages/`](/docs/basic-features/pages.md)
+- [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
+- [Static generation and server-side rendering](/docs/basic-features/data-fetching.md) of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
+
+In addition, any Next.js application is ready for production from the start, read more in our [Deployment documentation](/docs/deployment.md).
 
 ## Related
 
@@ -93,5 +97,12 @@ For more information on what to do next, we recommend the following sections:
   <a href="/docs/basic-features/built-in-css-support.md">
     <b>CSS Support:</b>
     <small>Use the built-in CSS support to add custom styles to your app.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/api-reference/cli.md">
+    <b>CLI:</b>
+    <small>Learn more about the Next.js CLI.</small>
   </a>
 </div>

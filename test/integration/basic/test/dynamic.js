@@ -61,7 +61,7 @@ export default (context, render) => {
           if (global.browserName === 'chrome') {
             const logs = await browser.log('browser')
 
-            logs.forEach(logItem => {
+            logs.forEach((logItem) => {
               expect(logItem.message).not.toMatch(
                 /Expected server HTML to contain/
               )
@@ -268,7 +268,7 @@ export default (context, render) => {
 
         while (true) {
           const bodyText = await browser.elementByCss('body').text()
-          if (/ZEIT Rocks/.test(bodyText)) break
+          if (/Vercel Rocks/.test(bodyText)) break
           await waitFor(1000)
         }
 

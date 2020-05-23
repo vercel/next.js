@@ -113,7 +113,7 @@ function unique() {
 
 /**
  *
- * @param headElement List of multiple <Head> instances
+ * @param headElements List of multiple <Head> instances
  */
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
@@ -149,9 +149,9 @@ const Effect = withSideEffect()
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <AmpStateContext.Consumer>
-      {ampState => (
+      {(ampState) => (
         <HeadManagerContext.Consumer>
-          {updateHead => (
+          {(updateHead) => (
             <Effect
               reduceComponentsToState={reduceComponents}
               handleStateChange={updateHead}

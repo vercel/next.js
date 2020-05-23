@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 
 export async function getServerSideProps({ params }) {
   if (params.post === 'post-10') {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(() => resolve(), 1000)
     })
   }
@@ -22,13 +22,15 @@ export async function getServerSideProps({ params }) {
   }
 }
 
-export default ({ post, time, params }) => {
+export default ({ post, time, params, appProps }) => {
   return (
     <>
       <p>Post: {post}</p>
       <span>time: {time}</span>
       <div id="params">{JSON.stringify(params)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
+      <div id="app-query">{JSON.stringify(appProps.query)}</div>
+      <div id="app-url">{appProps.url}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>

@@ -1,4 +1,3 @@
-import React from 'react'
 import cxs from 'cxs/lite'
 
 // Using cxs/lite on both the server and client,
@@ -9,11 +8,13 @@ if (typeof window !== 'undefined') {
   cxs.rehydrate(serverCss)
 }
 
-export default () => (
-  <div className={cx.root}>
-    <h1 className={cx.title}>My page</h1>
-  </div>
-)
+export default function Home() {
+  return (
+    <div className={cx.root}>
+      <h1 className={cx.title}>My page</h1>
+    </div>
+  )
+}
 
 const cx = {
   root: cxs({

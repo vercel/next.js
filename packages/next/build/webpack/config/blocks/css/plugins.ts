@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
 import browserslist from 'browserslist'
@@ -84,9 +84,9 @@ function getDefaultPlugins(
   } catch {}
 
   return [
-    require.resolve('postcss-flexbugs-fixes'),
+    require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     [
-      require.resolve('postcss-preset-env'),
+      require.resolve('next/dist/compiled/postcss-preset-env'),
       {
         browsers: browsers ?? ['defaults'],
         autoprefixer: {
@@ -125,7 +125,7 @@ export async function getPostCssPlugins(
   }
 
   // Warn user about configuration keys which are not respected
-  const invalidKey = Object.keys(config).find(key => key !== 'plugins')
+  const invalidKey = Object.keys(config).find((key) => key !== 'plugins')
   if (invalidKey) {
     console.warn(
       `${chalk.yellow.bold(
@@ -160,7 +160,7 @@ export async function getPostCssPlugins(
   }
 
   const parsed: CssPluginShape[] = []
-  plugins.forEach(plugin => {
+  plugins.forEach((plugin) => {
     if (plugin == null) {
       console.warn(
         `${chalk.yellow.bold('Warning')}: A ${chalk.bold(
@@ -218,7 +218,7 @@ export async function getPostCssPlugins(
   })
 
   const resolved = await Promise.all(
-    parsed.map(p => loadPlugin(dir, p[0], p[1]))
+    parsed.map((p) => loadPlugin(dir, p[0], p[1]))
   )
   const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
     Boolean

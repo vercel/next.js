@@ -5,8 +5,6 @@ That's what this example demonstrate.
 
 This app uses Next's [custom server and routing](https://github.com/zeit/next.js#custom-server-and-routing) mode. It also uses [express](https://expressjs.com/) to handle routing and page serving.
 
-Alternatively, see [the example using React ESI](../with-react-esi/).
-
 ## How to use
 
 ### Using `create-next-app`
@@ -38,4 +36,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
