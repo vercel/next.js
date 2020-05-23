@@ -164,6 +164,10 @@
             {
               "title": "Measuring performance",
               "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Debugging",
+              "path": "/docs/advanced-features/debugging.md"
             }
           ]
         },
