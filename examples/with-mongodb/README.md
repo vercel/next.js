@@ -24,7 +24,7 @@ yarn create next-app --example with-mongodb with-mongodb-app
 
 ### Step 1. Connect MongoDB to the application
 
-Please see the [steps](./link-step.md) on how to connect MongoDB to your application
+Please follow the [MongoDB Guides](https://docs.mongodb.com/guides/server/drivers/) on how to connect to MongoDB. 
 
 ### Step 2. Set up schema models for the application
 
@@ -32,7 +32,7 @@ Based on the types of data needed for your application, you will modify the type
 
 ### Step 3. Import sample seed data to your MongoDB
 
-Please see the [steps](./data_import.md) on importing sample seed data into your MongoDB.
+Please follow the [Mongodb Guides](https://docs.mongodb.com/guides/server/insert/) on how to insert data to into MongoDB.
 
 ### Step 4. Set up environment variables
 
@@ -46,7 +46,7 @@ Be sure to update the file with your own MongoDB URI connection string (from ste
 
 Then set each variable on `.env`:
 
-- `MONGO_DBURI` should be your MongoDB URI from [step 1](./link-step.md) connection string for your database.
+- `MONGO_DBURI` should be your MongoDB URI. Check [here](https://docs.mongodb.com/guides/server/drivers/#obtain-your-mongodb-connection-string) on how to obtain your MongoDB connection string.
 - `VERCEL_URL` should be your development url (for local development) or your production url (see deploy section for more details).
 
 Your `.env` file should look like this:
