@@ -352,6 +352,17 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
+  it('should load a fast refresh page', async () => {
+    const browser = await webdriver(appPort, '/refresh')
+    expect(
+      await check(
+        () => browser.elementByCss('p').text(),
+        /client loaded/,
+        false
+      )
+    ).toBe(true)
+  })
+
   it('should provide correct query value for dynamic page', async () => {
     const html = await renderViaHTTP(
       appPort,
