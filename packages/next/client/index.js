@@ -64,6 +64,7 @@ const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
+let lastRenderReject
 let webpackHMR
 export let router
 let Component
@@ -266,9 +267,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback,
-    subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err })
-    },
+    subscription: ({ Component, props, err }, App) =>
+      render({ App, Component, props, err }),
   })
 
   // call init-client middleware
@@ -496,10 +496,27 @@ async function doRender({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
+  let resolvePromise
+  const renderPromise = new Promise((resolve, reject) => {
+    if (lastRenderReject) {
+      lastRenderReject()
+    }
+    resolvePromise = () => {
+      lastRenderReject = null
+      resolve()
+    }
+    lastRenderReject = () => {
+      lastRenderReject = null
+      reject()
+    }
+  })
+
   const elem = (
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>
+    <Root callback={resolvePromise}>
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    </Root>
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
@@ -511,4 +528,13 @@ async function doRender({ App, Component, props, err }) {
     ),
     appElement
   )
+
+  await renderPromise
+}
+
+function Root({ callback, children }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return children
 }

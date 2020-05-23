@@ -73,7 +73,7 @@ type RouteInfo = {
   error?: any
 }
 
-type Subscription = (data: RouteInfo, App?: ComponentType) => void
+type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
 
 type BeforePopStateCallback = (state: any) => boolean
 
@@ -486,15 +486,15 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname, query, as, routeInfo)
+          this.set(route, pathname, query, as, routeInfo).then(() => {
+            if (error) {
+              Router.events.emit('routeChangeError', error, as)
+              throw error
+            }
 
-          if (error) {
-            Router.events.emit('routeChangeError', error, as)
-            throw error
-          }
-
-          Router.events.emit('routeChangeComplete', as)
-          return resolve(true)
+            Router.events.emit('routeChangeComplete', as)
+            return resolve(true)
+          })
         },
         reject
       )
@@ -665,14 +665,14 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     data: RouteInfo
-  ): void {
+  ): Promise<void> {
     this.isFallback = false
 
     this.route = route
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.notify(data)
+    return this.notify(data)
   }
 
   /**
@@ -855,7 +855,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: RouteInfo): void {
-    this.sub(data, this.components['/_app'].Component)
+  notify(data: RouteInfo): Promise<void> {
+    return this.sub(data, this.components['/_app'].Component)
   }
 }
