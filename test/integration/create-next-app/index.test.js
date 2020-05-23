@@ -230,4 +230,23 @@ describe('create next app', () => {
       })
     })
   }
+
+  it('should allow an example named default', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'default-example'
+      const res = await run(cwd, projectName, '--example', 'default')
+      expect(res.exitCode).toBe(0)
+
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+      ).toBeTruthy()
+      // check we copied default `.gitignore`
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+    })
+  })
 })
