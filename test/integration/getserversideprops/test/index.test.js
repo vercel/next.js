@@ -111,6 +111,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
+    ),
+    page: '/refresh',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
     ),
     page: '/something',
@@ -350,6 +356,17 @@ const runTests = (dev = false) => {
     await browser.waitForElementByCss('#normal-text')
     text = await browser.elementByCss('#normal-text').text()
     expect(text).toMatch(/a normal page/)
+  })
+
+  it('should load a fast refresh page', async () => {
+    const browser = await webdriver(appPort, '/refresh')
+    expect(
+      await check(
+        () => browser.elementByCss('p').text(),
+        /client loaded/,
+        false
+      )
+    ).toBe(true)
   })
 
   it('should provide correct query value for dynamic page', async () => {
