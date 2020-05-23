@@ -524,19 +524,15 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
-export async function precompile(task, options) {
-  await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
-    options
-  )
+export async function precompile(task) {
+  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_ncced(task, options) {
-  const src = options.release ? 'compiled/**/*[!.map]' : 'compiled/**/*'
+export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
-  await task.source(src).target('dist/compiled')
+  await task.source('compiled/**/*').target('dist/compiled')
 }
 
 export async function ncc(task) {
@@ -696,8 +692,8 @@ export async function telemetry(task, opts) {
   notify('Compiled telemetry files')
 }
 
-export async function build(task, options) {
-  await task.serial(['precompile', 'compile'], options)
+export async function build(task) {
+  await task.serial(['precompile', 'compile'])
 }
 
 export default async function (task) {
@@ -737,7 +733,7 @@ export async function nextserverbuild(task) {
 }
 
 export async function release(task) {
-  await task.clear('dist').start('build', { release: true })
+  await task.clear('dist').start('build')
   await task.clear('dist/next-server').start('nextserverbuild')
 }
 
