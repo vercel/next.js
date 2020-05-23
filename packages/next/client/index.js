@@ -55,7 +55,7 @@ const register = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
   // latency in hydrating the page, but reduce the total blocking time.
-  window.__NEXT_P.map(p => setTimeout(() => register(p), 0))
+  window.__NEXT_P.map((p) => setTimeout(() => register(p), 0))
 }
 window.__NEXT_P = []
 window.__NEXT_P.push = register
