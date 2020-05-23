@@ -19,11 +19,11 @@
     "build": "tsc -d -w -p tsconfig.json"
   },
   "peerDependencies": {
-    "react-refresh": "0.8.2",
+    "react-refresh": "0.8.3",
     "webpack": "^4"
   },
   "devDependencies": {
-    "react-refresh": "0.8.2",
+    "react-refresh": "0.8.3",
     "webpack": "^4.42.1"
   }
 }
