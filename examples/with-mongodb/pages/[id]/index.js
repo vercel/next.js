@@ -1,23 +1,18 @@
-import fetch from 'isomorphic-unfetch'
-import { useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/router'
 
 /* Allows you to view pet card info and delete pet card*/
-
 const Pet = ({ pet }) => {
   const router = useRouter()
+  const [confirm, setConfirm] = useState(false)
+  const [message, setMessage] = useState('')
 
-  useEffect(() => {
-    document.querySelector('#delete-btn').addEventListener('click', () => {
-      document.querySelector('.confirmation-box').classList.add('show')
-    })
-    document.querySelector('#yes-delete-btn').addEventListener('click', () => {
-      deletePet()
-    })
-    document.querySelector('#no-delete-btn').addEventListener('click', () => {
-      document.querySelector('.confirmation-box').classList.remove('show')
-    })
-  })
+  const open = () => {
+    setConfirm(true)
+  }
+  const close = () => {
+    setConfirm(false)
+  }
 
   const deletePet = async () => {
     const petID = router.query.id
@@ -27,8 +22,13 @@ const Pet = ({ pet }) => {
       })
       router.push('/')
     } catch (error) {
-      console.log(error)
+      setMessage('Failed to delete pet.')
     }
+  }
+
+  const handleDelete = async () => {
+    deletePet()
+    close()
   }
 
   return (
@@ -43,28 +43,48 @@ const Pet = ({ pet }) => {
         <p>{pet.image_url}</p>
         <p>{pet.likes}</p>
         <p>{pet.dislikes}</p>
-        <button className="btn delete" id="delete-btn" color="red">
+        <button
+          className="btn delete"
+          id="delete-btn"
+          color="red"
+          onClick={open}
+        >
           Delete
         </button>
+        <p>{message}</p>
       </>
 
-      <div className="confirmation-box">
-        <button className="btn" id="yes-delete-btn">
-          Yes
-        </button>
-        <button className="btn" id="no-delete-btn">
-          No
-        </button>
-      </div>
+      {confirm && (
+        <div className="confirmation-box">
+          <button className="btn" id="yes-delete-btn" onClick={handleDelete}>
+            Yes
+          </button>
+          <button className="btn" id="no-delete-btn" onClick={close}>
+            No
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-Pet.getInitialProps = async ({ query: { id } }) => {
-  const res = await fetch(`${process.env.VERCEL_URL}/api/pets/${id}`)
+export async function getStaticPaths() {
+  const res = await fetch(`${process.env.VERCEL_URL}/api/pets`)
   const { data } = await res.json()
 
-  return { pet: data }
+  const paths = data.map(pet => `/${pet._id}`)
+  return { paths, fallback: false }
+}
+
+export async function getStaticProps({ params }) {
+  const res = await fetch(`${process.env.VERCEL_URL}/api/pets/${params.id}`)
+  const { data } = await res.json()
+
+  return {
+    props: {
+      pet: data,
+    },
+  }
 }
 
 export default Pet

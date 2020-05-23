@@ -1,26 +1,37 @@
-import { useEffect } from 'react'
-import fetch from 'isomorphic-unfetch'
 import Form from '../../components/Form'
 
 const EditPet = ({ pet }) => {
-  useEffect(() => {
-    document
-      .querySelectorAll('#edit-pet-form input, #edit-pet-form textarea')
-      .forEach(element => {
-        if (element.name === 'poddy_trained')
-          element.checked = pet[element.name]
-        else element.value = pet[element.name]
-      })
-  })
-
-  return Form('edit-pet-form', false)
+  const form = {
+    name: pet.name,
+    owner_name: pet.owner_name,
+    species: pet.species,
+    age: pet.age,
+    poddy_trained: pet.poddy_trained,
+    diet: pet.diet,
+    image_url: pet.image_url,
+    likes: pet.likes,
+    dislikes: pet.dislikes,
+  }
+  return Form('edit-pet-form', form, false)
 }
 
-EditPet.getInitialProps = async ({ query: { id } }) => {
-  const res = await fetch(`${process.env.VERCEL_URL}/api/pets/${id}`)
+export async function getStaticPaths() {
+  const res = await fetch(`${process.env.VERCEL_URL}/api/pets`)
   const { data } = await res.json()
 
-  return { pet: data }
+  const paths = data.map(pet => `/${pet._id}/edit`)
+  return { paths, fallback: false }
+}
+
+export async function getStaticProps({ params }) {
+  const res = await fetch(`${process.env.VERCEL_URL}/api/pets/${params.id}`)
+  const { data } = await res.json()
+
+  return {
+    props: {
+      pet: data,
+    },
+  }
 }
 
 export default EditPet

@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import fetch from 'isomorphic-unfetch'
 
 const Index = ({ pets }) => {
   return (
@@ -49,11 +48,15 @@ const Index = ({ pets }) => {
 }
 
 /* Retrieves pet(s) data from mongodb database */
-Index.getInitialProps = async () => {
+export async function getStaticProps() {
   const res = await fetch(`${process.env.VERCEL_URL}/api/pets`)
   const { data } = await res.json()
 
-  return { pets: data }
+  return {
+    props: {
+      pets: data,
+    },
+  }
 }
 
 export default Index
