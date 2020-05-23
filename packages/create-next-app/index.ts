@@ -165,12 +165,11 @@ async function run(): Promise<void> {
     }
   }
 
+  const example = typeof program.example === 'string' && program.example.trim()
   await createApp({
     appPath: resolvedProjectPath,
     useNpm: !!program.useNpm,
-    example:
-      (typeof program.example === 'string' && program.example.trim()) ||
-      undefined,
+    example: example && example !== 'default' ? example : undefined,
     examplePath: program.examplePath,
   })
 }
