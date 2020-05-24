@@ -2,12 +2,12 @@ import passport from 'passport'
 import LocalStrategy from 'passport-local'
 import { findUserByUsername } from './db'
 
-passport.serializeUser(function(user, done) {
+passport.serializeUser(function (user, done) {
   // serialize the username into session
   done(null, user.username)
 })
 
-passport.deserializeUser(function(req, id, done) {
+passport.deserializeUser(function (req, id, done) {
   // deserialize the username back into user object
   const user = findUserByUsername(req, id)
   done(null, user)

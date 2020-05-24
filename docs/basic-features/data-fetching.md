@@ -56,7 +56,7 @@ Here’s an example which uses `getStaticProps` to fetch a list of blog posts fr
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>{post.title}</li>
       ))}
     </ul>
@@ -100,7 +100,7 @@ For TypeScript, you can use the `GetStaticProps` type from `next`:
 ```ts
 import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async context => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
 ```
@@ -123,7 +123,7 @@ import path from 'path'
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>
           <h3>{post.filename}</h3>
           <p>{post.content}</p>
@@ -140,7 +140,7 @@ export async function getStaticProps() {
   const postsDirectory = path.join(process.cwd(), 'posts')
   const filenames = fs.readdirSync(postsDirectory)
 
-  const posts = filenames.map(filename => {
+  const posts = filenames.map((filename) => {
     const filePath = path.join(postsDirectory, filename)
     const fileContents = fs.readFileSync(filePath, 'utf8')
 
@@ -260,7 +260,7 @@ export async function getStaticPaths() {
   const posts = await res.json()
 
   // Get the paths we want to pre-render based on posts
-  const paths = posts.map(post => ({
+  const paths = posts.map((post) => ({
     params: { id: post.id },
   }))
 
@@ -445,7 +445,7 @@ For TypeScript, you can use the `GetServerSideProps` type from `next`:
 ```ts
 import { GetServerSideProps } from 'next'
 
-export const getServerSideProps: GetServerSideProps = async context => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
   // ...
 }
 ```

@@ -4,7 +4,7 @@ import { getSourceMapUrl } from './getSourceMapUrl'
 
 export function getRawSourceMap(fileContents: string): RawSourceMap | null {
   const sourceUrl = getSourceMapUrl(fileContents)
-  if (sourceUrl == null) {
+  if (!sourceUrl?.startsWith('data:')) {
     return null
   }
 

@@ -13,7 +13,7 @@ export type RepoInfo = {
 }
 
 export async function isUrlOk(url: string): Promise<boolean> {
-  const res = await got(url).catch(e => e)
+  const res = await got(url).catch((e) => e)
   return res.statusCode === 200
 }
 
@@ -29,7 +29,7 @@ export async function getRepoInfo(
   if (t === undefined) {
     const infoResponse = await got(
       `https://api.github.com/repos/${username}/${name}`
-    ).catch(e => e)
+    ).catch((e) => e)
     if (infoResponse.statusCode !== 200) {
       return
     }
@@ -82,14 +82,28 @@ export function downloadAndExtractRepo(
   )
 }
 
-export function downloadAndExtractExample(
+export async function downloadAndExtractExample(
   root: string,
   name: string
 ): Promise<void> {
-  return pipeline(
-    got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),
-    tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
-  )
+  try {
+    return await pipeline(
+      got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),
+      tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
+    )
+  } catch (err) {
+    // TODO: remove after this change has been landed
+    if (err?.response?.statusCode === 404) {
+      return pipeline(
+        got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
+        tar.extract({ cwd: root, strip: 3 }, [
+          `next.js-canary/examples/${name}`,
+        ])
+      )
+    } else {
+      throw err
+    }
+  }
 }
 
 export async function listExamples(): Promise<any> {

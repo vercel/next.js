@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import {
   findPort,
@@ -11,7 +11,7 @@ import {
 } from 'next-test-utils'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let app
@@ -91,7 +91,7 @@ describe('SSG Prerender No Revalidate', () => {
       appPort = await findPort()
       stderr = ''
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -113,7 +113,7 @@ describe('SSG Prerender No Revalidate', () => {
       appPort = await findPort()
       stderr = ''
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

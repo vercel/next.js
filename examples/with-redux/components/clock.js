@@ -11,7 +11,7 @@ const useClock = () => {
   )
 }
 
-const formatTime = time => {
+const formatTime = (time) => {
   // cut off except hh:mm:ss
   return new Date(time).toJSON().slice(11, 19)
 }

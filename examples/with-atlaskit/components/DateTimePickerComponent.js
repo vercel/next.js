@@ -6,7 +6,7 @@ import {
 } from '@atlaskit/datetime-picker'
 import { Label } from '@atlaskit/field-base'
 
-export default () => {
+export default function DateTimePickerComponent() {
   return (
     <React.Fragment>
       <Label label="TimePicker - timeFormat (h:mm a)" />

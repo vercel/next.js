@@ -58,8 +58,11 @@ export const prepareDestination = (
   for (const [key, strOrArray] of Object.entries(destQuery)) {
     let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
     if (value) {
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      value = `/${value}`
       const queryCompiler = compilePathToRegex(value, { validate: false })
-      value = queryCompiler(params)
+      value = queryCompiler(params).substr(1)
     }
     destQuery[key] = value
   }
@@ -69,7 +72,7 @@ export const prepareDestination = (
   if (appendParamsToQuery) {
     for (const [name, value] of Object.entries(params)) {
       if (!(name in destQuery)) {
-        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+        destQuery[name] = value
       }
     }
   }
@@ -159,12 +162,12 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
-    const pageChecks: { [name: string]: boolean } = {}
+    const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       if (pageChecks[p]) {
         return pageChecks[p]
       }
-      const result = await this.pageChecker(p)
+      const result = this.pageChecker(p)
       pageChecks[p] = result
       return result
     }
@@ -197,7 +200,7 @@ export default class Router {
                 if (!pathname) {
                   return { finished: false }
                 }
-                if (await this.pageChecker(pathname)) {
+                if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(req, res, params, parsedUrl)
                 }
                 return { finished: false }

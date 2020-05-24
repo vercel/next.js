@@ -30,15 +30,22 @@ export type OriginalStackFrame =
       originalCodeFrame: null
     }
 
-export function getOriginalStackFrames(frames: StackFrame[]) {
-  return Promise.all(frames.map(frame => getOriginalStackFrame(frame)))
+export function getOriginalStackFrames(
+  isServerSide: boolean,
+  frames: StackFrame[]
+) {
+  return Promise.all(
+    frames.map((frame) => getOriginalStackFrame(isServerSide, frame))
+  )
 }
 
 export function getOriginalStackFrame(
+  isServerSide: boolean,
   source: StackFrame
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
     const params = new URLSearchParams()
+    params.append('isServerSide', String(isServerSide))
     for (const key in source) {
       params.append(key, (source[key] ?? '').toString())
     }
@@ -52,7 +59,7 @@ export function getOriginalStackFrame(
       .finally(() => {
         clearTimeout(tm)
       })
-    if (!res.ok) {
+    if (!res.ok || res.status === 204) {
       return Promise.reject(new Error(await res.text()))
     }
 
