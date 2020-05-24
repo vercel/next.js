@@ -36,7 +36,7 @@ Please follow the [Mongodb Guides](https://docs.mongodb.com/guides/server/insert
 
 ### Step 4. Set up environment variables
 
-Copy the `.env.local.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
 cp .env.example .env
