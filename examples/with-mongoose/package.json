@@ -9,11 +9,13 @@
   },
   "dependencies": {
     "bootstrap": "^4.5.0",
+    "http-status-codes": "^1.4.0",
     "mongoose": "^5.9.15",
     "mongoose-id-validator": "^0.6.0",
     "mongoose-slug-updater": "^3.2.1",
     "mongoose-unique-validator": "^2.0.3",
     "next": "latest",
+    "next-connect": "^0.6.6",
     "react": "^16.13.0",
     "react-dom": "^16.13.0"
   },
