@@ -40,15 +40,18 @@ const PetSchema = new mongoose.Schema({
   },
   image_url: {
     /* Url to pet image */
+
     required: [true, 'Please provide an image url for this pet.'],
     type: String,
   },
   likes: {
     /* List of things your pet likes to do */
+
     type: Array,
   },
   dislikes: {
     /* List of things your pet does not like to do */
+
     type: Array,
   },
 })
