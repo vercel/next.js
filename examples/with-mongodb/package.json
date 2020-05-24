@@ -15,10 +15,5 @@
     "react-dom": "^16.13.1"
   },
   "description": "Next.js + MongoDB Example",
-  "main": "next.config.js",
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "dotenv": "^8.2.0"
-  }
+  "license": "ISC"
 }
