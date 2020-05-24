@@ -14,7 +14,7 @@ const { description } = defineMessages({
   },
 })
 
-export default () => {
+export default function Home() {
   const intl = useIntl()
 
   return (

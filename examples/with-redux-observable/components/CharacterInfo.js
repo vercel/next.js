@@ -1,4 +1,3 @@
-import React from 'react'
 import { connect } from 'react-redux'
 
 const CharacterInfo = ({
@@ -38,7 +37,7 @@ const CharacterInfo = ({
   </div>
 )
 
-export default connect(state => ({
+export default connect((state) => ({
   character: state.character,
   error: state.error,
   isFetchedOnServer: state.isFetchedOnServer,

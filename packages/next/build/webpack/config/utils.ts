@@ -13,6 +13,7 @@ export type ConfigurationContext = {
   assetPrefix: string
 
   sassOptions: any
+  productionBrowserSourceMaps: boolean
 }
 
 export type ConfigurationFn = (

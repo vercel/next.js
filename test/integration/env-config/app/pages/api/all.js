@@ -15,11 +15,14 @@ const variables = [
   'LOCAL_TEST_ENV_FILE_KEY',
   'ENV_FILE_TEST_OVERRIDE_TEST',
   'ENV_FILE_TEST_LOCAL_OVERRIDEOVERRIDE_TEST',
+  'ENV_FILE_EXPANDED',
+  'ENV_FILE_EXPANDED_CONCAT',
+  'ENV_FILE_EXPANDED_ESCAPED',
 ]
 
 const items = {}
 
-variables.forEach(variable => {
+variables.forEach((variable) => {
   items[variable] = process.env[variable]
 })
 

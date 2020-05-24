@@ -1,4 +1,3 @@
-import React from 'react'
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 import * as snippet from '@segment/snippet'
 
@@ -8,7 +7,7 @@ const {
   NODE_ENV = 'development',
 } = process.env
 
-export default class extends Document {
+export default class MyDocument extends Document {
   renderSnippet() {
     const opts = {
       apiKey: ANALYTICS_WRITE_KEY,

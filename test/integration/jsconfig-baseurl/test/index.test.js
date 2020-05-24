@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -8,10 +8,10 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
+  check,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let appPort
@@ -54,11 +54,13 @@ describe('TypeScript Features', () => {
       )
       await renderViaHTTP(appPort, '/hello')
 
-      await waitFor(2 * 1000)
-      await fs.writeFile(basicPage, contents)
-      expect(output).toContain(
-        `Module not found: Can't resolve 'components/worldd' in`
+      const found = await check(
+        () => output,
+        /Module not found: Can't resolve 'components\/worldd' in/,
+        false
       )
+      await fs.writeFile(basicPage, contents)
+      expect(found).toBe(true)
     })
   })
 })
