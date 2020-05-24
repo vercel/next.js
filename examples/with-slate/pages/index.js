@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import NextEditor from '../components/NextEditor'
 
-const IndexPage = (props) => {
+const IndexPage = props => {
   return (
     <>
       <Link href="/multiple">

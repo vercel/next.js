@@ -25,7 +25,7 @@ function isSymlink(source) {
 function getUrlFromPagesDirectory(urlPrefix, directory) {
   return parseUrlForPages(urlPrefix, directory).map(
     // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-    (url) => new RegExp(`^${normalizeURL(url)}$`)
+    url => new RegExp(`^${normalizeURL(url)}$`)
   )
 }
 
@@ -37,7 +37,7 @@ function getUrlFromPagesDirectory(urlPrefix, directory) {
 function parseUrlForPages(urlprefix, directory) {
   const files = fs.readdirSync(directory)
   const res = []
-  files.forEach((fname) => {
+  files.forEach(fname => {
     if (/(\.(j|t)sx?)$/.test(fname)) {
       fname = fname.replace(/\[.*\]/g, '.*')
       if (/^index(\.(j|t)sx?)$/.test(fname)) {

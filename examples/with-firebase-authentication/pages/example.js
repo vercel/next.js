@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-const Example = (props) => {
+const Example = props => {
   return (
     <div>
       <p>

@@ -6,11 +6,11 @@ import * as gtag from '../lib/gtag'
 export default class Contact extends Component {
   state = { message: '' }
 
-  handleInput = (e) => {
+  handleInput = e => {
     this.setState({ message: e.target.value })
   }
 
-  handleSubmit = (e) => {
+  handleSubmit = e => {
     e.preventDefault()
 
     gtag.event({

@@ -20,18 +20,18 @@ module.exports = async function collectDiffs(
     const toRemove = await glob('!(.git)', { cwd: diffingDir, dot: true })
 
     await Promise.all(
-      toRemove.map((file) => fs.remove(path.join(diffingDir, file)))
+      toRemove.map(file => fs.remove(path.join(diffingDir, file)))
     )
   }
   const diffs = {}
 
   await Promise.all(
-    filesToTrack.map(async (fileGroup) => {
+    filesToTrack.map(async fileGroup => {
       const { globs } = fileGroup
       const curFiles = []
 
       await Promise.all(
-        globs.map(async (pattern) => {
+        globs.map(async pattern => {
           curFiles.push(...(await glob(pattern, { cwd: statsAppDir })))
         })
       )
@@ -47,7 +47,7 @@ module.exports = async function collectDiffs(
         await exec(
           `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
             `yarn prettier --write ${curFiles
-              .map((f) => path.join(diffingDir, f))
+              .map(f => path.join(diffingDir, f))
               .join(' ')}`
         )
       }
@@ -65,7 +65,7 @@ module.exports = async function collectDiffs(
     renamedFiles = renamedFiles
       .trim()
       .split('\n')
-      .filter((line) => line.startsWith('R'))
+      .filter(line => line.startsWith('R'))
 
     diffs._renames = []
 

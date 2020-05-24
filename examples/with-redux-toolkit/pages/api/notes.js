@@ -1,9 +1,13 @@
 import { nSQL } from '@nano-sql/core'
 
-const connectMiddleware = (handler) => async (req, res) => {
+const connectMiddleware = handler => async (req, res) => {
   const dbName = 'with-redux-toolkit'
 
-  if (!nSQL().listDatabases().includes(dbName)) {
+  if (
+    !nSQL()
+      .listDatabases()
+      .includes(dbName)
+  ) {
     await nSQL().createDatabase({
       id: dbName,
       mode: 'PERM',
@@ -40,12 +44,16 @@ const saveNote = async (req, res) => {
       errors,
     })
 
-  const [note] = await nSQL('notes').query('upsert', { title, content }).exec()
+  const [note] = await nSQL('notes')
+    .query('upsert', { title, content })
+    .exec()
 
   res.status(201).json(note)
 }
 const listNotes = async (_, res) => {
-  const notes = await nSQL('notes').query('select').exec()
+  const notes = await nSQL('notes')
+    .query('select')
+    .exec()
 
   res.json(notes)
 }
@@ -86,7 +94,11 @@ const removeNote = async (req, res) => {
       message: 'Not Found',
     })
 
-  await nSQL('notes').query('delete').where(['id', '=', noteId]).limit(1).exec()
+  await nSQL('notes')
+    .query('delete')
+    .where(['id', '=', noteId])
+    .limit(1)
+    .exec()
 
   res.status(204).send(null)
 }

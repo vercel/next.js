@@ -87,9 +87,8 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
   try {
     if (handleUrl) {
       const parsedDestination = parseUrl(route, true)
-      routePath = `${parsedDestination.pathname!}${
-        parsedDestination.hash || ''
-      }`
+      routePath = `${parsedDestination.pathname!}${parsedDestination.hash ||
+        ''}`
     }
 
     // Make sure we can parse the source properly
@@ -163,7 +162,7 @@ export default function checkCustomRoutes(
     }
 
     const keys = Object.keys(route)
-    const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
+    const invalidKeys = keys.filter(key => !allowedKeys.has(key))
     const invalidParts: string[] = []
 
     if (!route.source) {
@@ -246,7 +245,7 @@ export default function checkCustomRoutes(
           } else {
             const sourceSegments = new Set(
               sourceTokens
-                .map((item) => typeof item === 'object' && item.name)
+                .map(item => typeof item === 'object' && item.name)
                 .filter(Boolean)
             )
             const invalidDestSegments = new Set()

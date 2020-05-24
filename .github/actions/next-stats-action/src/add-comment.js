@@ -18,7 +18,7 @@ const round = (num, places) => {
   return Math.round(num * placesFactor) / placesFactor
 }
 
-const shortenLabel = (itemKey) =>
+const shortenLabel = itemKey =>
   itemKey.length > 24
     ? `${itemKey.substr(0, 12)}..${itemKey.substr(itemKey.length - 12, 12)}`
     : itemKey
@@ -36,9 +36,11 @@ module.exports = async function addComment(
       : statsConfig.commentHeading || 'Stats from current PR'
   }\n\n`
 
-  const tableHead = `|  | ${statsConfig.mainRepo} ${statsConfig.mainBranch} ${
-    actionInfo.lastStableTag || ''
-  } | ${actionInfo.prRepo} ${actionInfo.prRef} | Change |\n| - | - | - | - |\n`
+  const tableHead = `|  | ${statsConfig.mainRepo} ${
+    statsConfig.mainBranch
+  } ${actionInfo.lastStableTag || ''} | ${actionInfo.prRepo} ${
+    actionInfo.prRef
+  } | Change |\n| - | - | - | - |\n`
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
@@ -47,7 +49,7 @@ module.exports = async function addComment(
     let resultHasDecrease = false
     let resultContent = ''
 
-    Object.keys(result.mainRepoStats).forEach((groupKey) => {
+    Object.keys(result.mainRepoStats).forEach(groupKey => {
       const isBenchmark = groupKey === benchTitle
       const mainRepoGroup = result.mainRepoStats[groupKey]
       const diffRepoGroup = result.diffRepoStats[groupKey]
@@ -60,7 +62,7 @@ module.exports = async function addComment(
       let diffRepoTotal = 0
       let totalChange = 0
 
-      itemKeys.forEach((itemKey) => {
+      itemKeys.forEach(itemKey => {
         const prettyType = itemKey.match(/(length|duration)/i) ? 'ms' : 'bytes'
         const isGzipItem = itemKey.endsWith('gzip')
         const mainItemVal = mainRepoGroup[itemKey]
@@ -164,7 +166,7 @@ module.exports = async function addComment(
       const diffHeading = '#### Diffs\n'
       let diffContent = diffHeading
 
-      Object.keys(result.diffs).forEach((itemKey) => {
+      Object.keys(result.diffs).forEach(itemKey => {
         const curDiff = result.diffs[itemKey]
         diffContent += `<details>\n`
         diffContent += `<summary>Diff for <strong>${shortenLabel(

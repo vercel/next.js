@@ -8,7 +8,7 @@ import {
 
 export const config = { amp: true }
 
-const Home = (props) => (
+const Home = props => (
   <>
     <Layout
       title="Welcome to AMP"

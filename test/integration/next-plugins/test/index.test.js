@@ -37,7 +37,7 @@ function runTests() {
   it('should apply headTags from plugin correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
-    const found = Array.from($('head').children()).find((el) => {
+    const found = Array.from($('head').children()).find(el => {
       return (el.attribs.src || '').match(/googletagmanager.*?my-tracking-id/)
     })
     expect(found).toBeTruthy()
@@ -47,7 +47,7 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     const found = Array.from($('body').children()).find(
-      (el) =>
+      el =>
         el.type === 'script' &&
         el.children[0] &&
         el.children[0].data.includes('console.log')

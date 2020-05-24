@@ -83,8 +83,8 @@ async function runConfigs(
       const applyRenames = (renames, stats) => {
         if (renames) {
           for (const rename of renames) {
-            Object.keys(stats).forEach((group) => {
-              Object.keys(stats[group]).forEach((item) => {
+            Object.keys(stats).forEach(group => {
+              Object.keys(stats[group]).forEach(item => {
                 let { cur, prev } = rename
                 cur = path.basename(cur)
                 prev = path.basename(prev)

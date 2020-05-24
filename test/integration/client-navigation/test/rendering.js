@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 
-export default function (render, fetch) {
+export default function(render, fetch) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -206,7 +206,9 @@ export default function (render, fetch) {
       const expectedErrorMessage =
         'Circular structure in \\"getInitialProps\\" result of page \\"/circular-json-error\\".'
       expect(
-        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
+        $('#__NEXT_DATA__')
+          .text()
+          .includes(expectedErrorMessage)
       ).toBeTruthy()
     })
 
@@ -215,7 +217,9 @@ export default function (render, fetch) {
       const expectedErrorMessage =
         '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
       expect(
-        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
+        $('#__NEXT_DATA__')
+          .text()
+          .includes(expectedErrorMessage)
       ).toBeTruthy()
     })
 
@@ -224,7 +228,9 @@ export default function (render, fetch) {
       const expectedErrorMessage =
         '\\"EmptyInitialPropsPage.getInitialProps()\\" should resolve to an object. But found \\"null\\" instead.'
       expect(
-        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
+        $('#__NEXT_DATA__')
+          .text()
+          .includes(expectedErrorMessage)
       ).toBeTruthy()
     })
 
@@ -324,10 +330,10 @@ export default function (render, fetch) {
       }
 
       const responses = await Promise.all(
-        resources.map((resource) => fetch(resource))
+        resources.map(resource => fetch(resource))
       )
 
-      responses.forEach((res) => {
+      responses.forEach(res => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'no-store, must-revalidate'

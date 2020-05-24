@@ -79,7 +79,7 @@ const notesSlice = createSlice({
   },
   reducers: {},
   extraReducers: {
-    [addNote.pending]: (state) => {
+    [addNote.pending]: state => {
       delete state.error
     },
     [addNote.fulfilled]: (state, action) => {
@@ -88,7 +88,7 @@ const notesSlice = createSlice({
     [addNote.rejected]: (state, action) => {
       state.error = action.payload.error
     },
-    [loadNotes.pending]: (state) => {
+    [loadNotes.pending]: state => {
       state.notes = []
       state.loading = 'loading'
     },
@@ -101,35 +101,35 @@ const notesSlice = createSlice({
       state.error = action.payload.error
     },
     [editNote.pending]: (state, action) => {
-      const note = state.notes.find((note) => note.id === action.meta.arg.id)
+      const note = state.notes.find(note => note.id === action.meta.arg.id)
       state.tempNote = Object.assign({}, note)
       note.title = action.meta.arg.title || note.title
       note.content = action.meta.arg.content || note.content
     },
     [editNote.fulfilled]: (state, action) => {
-      const note = state.notes.find((note) => note.id === action.payload.id)
+      const note = state.notes.find(note => note.id === action.payload.id)
       delete state.tempNote
       Object.assign(note, action.payload)
     },
     [editNote.rejected]: (state, action) => {
-      const note = state.notes.find((note) => note.id === action.meta.arg.id)
+      const note = state.notes.find(note => note.id === action.meta.arg.id)
       state.error = action.payload.error || action.error.message
       Object.assign(note, state.tempNote)
       delete state.tempNote
     },
     [deleteNote.pending]: (state, action) => {
       const position = state.notes.findIndex(
-        (note) => note.id === action.meta.arg
+        note => note.id === action.meta.arg
       )
       state.backupNote = Object.assign({}, state.notes[position])
       state.backupPosition = position
       state.notes.splice(position, 1)
     },
-    [deleteNote.fulfilled]: (state) => {
+    [deleteNote.fulfilled]: state => {
       delete state.backupNote
       delete state.backupPosition
     },
-    [deleteNote.rejected]: (state) => {
+    [deleteNote.rejected]: state => {
       state.notes.splice(state.backupPosition, 0, state.backupNote)
       delete state.backupPosition
       delete state.backupNote
@@ -138,11 +138,11 @@ const notesSlice = createSlice({
 })
 
 export const selectNotes = createSelector(
-  (state) => ({
+  state => ({
     notes: state.notes.notes,
     error: state.notes.error,
   }),
-  (state) => state
+  state => state
 )
 
 export default notesSlice.reducer

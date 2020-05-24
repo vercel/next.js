@@ -2,7 +2,7 @@ const withCSS = require('@zeit/next-css')
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin')
 
 module.exports = withCSS({
-  webpack: (config) => {
+  webpack: config => {
     config.module.rules.push({
       test: /\.(png|jpg|gif|svg|eot|ttf|woff|woff2)$/,
       use: {

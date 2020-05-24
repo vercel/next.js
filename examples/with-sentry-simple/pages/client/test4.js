@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 const Test4 = () => {
-  useEffect(function () {
+  useEffect(function() {
     async function doTest() {
       const doAsyncWork = () => Promise.reject(new Error('Client Test 4'))
       await doAsyncWork()

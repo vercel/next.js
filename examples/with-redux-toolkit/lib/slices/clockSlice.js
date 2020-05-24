@@ -14,7 +14,7 @@ const clockSlice = createSlice({
   },
 })
 
-export const selectClock = (state) => state.clock
+export const selectClock = state => state.clock
 
 export const { tick } = clockSlice.actions
 

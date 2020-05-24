@@ -141,7 +141,7 @@ export default function nextTransformSsg({
         return !b.constantViolations
           .concat(b.referencePaths)
           // Check that every reference is contained within the function:
-          .every((ref) => ref.findParent((p) => p === b.path))
+          .every(ref => ref.findParent(p => p === b.path))
       }
 
       return true
@@ -202,13 +202,13 @@ export default function nextTransformSsg({
                   >
 
                   const properties = pattern.get('properties')
-                  properties.forEach((p) => {
+                  properties.forEach(p => {
                     const local = p.get(
                       p.node.type === 'ObjectProperty'
                         ? 'value'
                         : p.node.type === 'RestElement'
                         ? 'argument'
-                        : (function () {
+                        : (function() {
                             throw new Error('invariant')
                           })()
                     ) as NodePath<BabelTypes.Identifier>
@@ -222,7 +222,7 @@ export default function nextTransformSsg({
                   >
 
                   const elements = pattern.get('elements')
-                  elements.forEach((e) => {
+                  elements.forEach(e => {
                     let local: NodePath<BabelTypes.Identifier>
                     if (e.node?.type === 'Identifier') {
                       local = e as NodePath<BabelTypes.Identifier>
@@ -249,7 +249,7 @@ export default function nextTransformSsg({
               ExportNamedDeclaration(path, state) {
                 const specifiers = path.get('specifiers')
                 if (specifiers.length) {
-                  specifiers.forEach((s) => {
+                  specifiers.forEach(s => {
                     if (isDataIdentifier(s.node.exported.name, state)) {
                       s.remove()
                     }
@@ -281,7 +281,7 @@ export default function nextTransformSsg({
                     const inner = decl.get('declarations') as NodePath<
                       BabelTypes.VariableDeclarator
                     >[]
-                    inner.forEach((d) => {
+                    inner.forEach(d => {
                       if (d.node.id.type !== 'Identifier') {
                         return
                       }
@@ -376,13 +376,13 @@ export default function nextTransformSsg({
 
                   const beforeCount = count
                   const properties = pattern.get('properties')
-                  properties.forEach((p) => {
+                  properties.forEach(p => {
                     const local = p.get(
                       p.node.type === 'ObjectProperty'
                         ? 'value'
                         : p.node.type === 'RestElement'
                         ? 'argument'
-                        : (function () {
+                        : (function() {
                             throw new Error('invariant')
                           })()
                     ) as NodePath<BabelTypes.Identifier>
@@ -406,7 +406,7 @@ export default function nextTransformSsg({
 
                   const beforeCount = count
                   const elements = pattern.get('elements')
-                  elements.forEach((e) => {
+                  elements.forEach(e => {
                     let local: NodePath<BabelTypes.Identifier>
                     if (e.node?.type === 'Identifier') {
                       local = e as NodePath<BabelTypes.Identifier>

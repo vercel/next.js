@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const foo = (query) => query
+const foo = query => query
 
 export const FOO = foo('query')
 

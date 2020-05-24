@@ -43,14 +43,14 @@ export default function Hero(props) {
     }
     setSubmitting(true)
     createGuestbookEntry(twitterHandle, story)
-      .then((data) => {
+      .then(data => {
         entries.unshift(data.data.createGuestbookEntry)
         setTwitterHandle('')
         setStory('')
         setEntries(entries)
         setSubmitting(false)
       })
-      .catch((error) => {
+      .catch(error => {
         console.log(`boo :( ${error}`)
         alert('🤷‍♀️')
         setSubmitting(false)

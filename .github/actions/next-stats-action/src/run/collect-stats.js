@@ -44,14 +44,14 @@ module.exports = async function collectStats(
     })
     let exitCode = null
     let logStderr = true
-    child.stdout.on('data', (data) => process.stdout.write(data))
-    child.stderr.on('data', (data) => logStderr && process.stderr.write(data))
+    child.stdout.on('data', data => process.stdout.write(data))
+    child.stderr.on('data', data => logStderr && process.stderr.write(data))
 
-    child.on('exit', (code) => {
+    child.on('exit', code => {
       exitCode = code
     })
     // give app a second to start up
-    await new Promise((resolve) => setTimeout(() => resolve(), 1500))
+    await new Promise(resolve => setTimeout(() => resolve(), 1500))
 
     if (exitCode !== null) {
       throw new Error(
@@ -120,7 +120,7 @@ module.exports = async function collectStats(
 
     for (const pattern of globs) {
       const results = await glob(pattern, { cwd: curDir, nodir: true })
-      results.forEach((result) => curFiles.add(result))
+      results.forEach(result => curFiles.add(result))
     }
 
     for (const file of curFiles) {

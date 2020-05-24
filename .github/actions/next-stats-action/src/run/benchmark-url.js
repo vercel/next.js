@@ -1,7 +1,13 @@
 const exec = require('../util/exec')
 
 const parseField = (stdout = '', field = '') => {
-  return stdout.split(field).pop().trim().split(/\s/).shift().trim()
+  return stdout
+    .split(field)
+    .pop()
+    .trim()
+    .split(/\s/)
+    .shift()
+    .trim()
 }
 
 // benchmark a url

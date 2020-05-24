@@ -68,7 +68,7 @@ describe('Nullish configs in next.config.js', () => {
       getStdout = async () => {
         let stdout = ''
         await launchApp(appDir, await findPort(), {
-          onStdout: (msg) => {
+          onStdout: msg => {
             stdout += msg
           },
         })

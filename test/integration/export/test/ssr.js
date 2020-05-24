@@ -2,7 +2,7 @@
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-export default function (context) {
+export default function(context) {
   describe('Render via SSR', () => {
     it('should render the home page', async () => {
       const html = await renderViaHTTP(context.port, '/')

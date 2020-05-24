@@ -21,7 +21,7 @@ export const getStaticPaths = async () => {
   }
 }
 
-export const getStaticProps = async (context) => {
+export const getStaticProps = async context => {
   const { name } = context.params
   const pokemon = await getPokemon(name)
 

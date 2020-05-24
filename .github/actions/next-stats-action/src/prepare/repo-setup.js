@@ -4,7 +4,7 @@ const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 
-module.exports = (actionInfo) => {
+module.exports = actionInfo => {
   return {
     async cloneRepo(repoPath = '', dest = '') {
       await remove(dest)

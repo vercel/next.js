@@ -6,8 +6,8 @@ import Button from './button'
 import Spinner from './spinner'
 import ErrorMessage from './error-message'
 
-const fetcher = (url) => {
-  return fetch(url).then((res) => res.json())
+const fetcher = url => {
+  return fetch(url).then(res => res.json())
 }
 
 const UploadForm = () => {
@@ -43,7 +43,7 @@ const UploadForm = () => {
       return fetch('/api/upload', {
         method: 'POST',
       })
-        .then((res) => res.json())
+        .then(res => res.json())
         .then(({ id, url }) => {
           setUploadId(id)
           return url
@@ -54,18 +54,18 @@ const UploadForm = () => {
     }
   }
 
-  const startUpload = (evt) => {
+  const startUpload = evt => {
     setIsUploading(true)
     const upload = UpChunk.createUpload({
       endpoint: createUpload,
       file: inputRef.current.files[0],
     })
 
-    upload.on('error', (err) => {
+    upload.on('error', err => {
       setErrorMessage(err.detail)
     })
 
-    upload.on('progress', (progress) => {
+    upload.on('progress', progress => {
       setProgress(progress.detail)
     })
 

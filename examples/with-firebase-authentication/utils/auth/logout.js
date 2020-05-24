@@ -20,7 +20,7 @@ export default async function logout() {
       }
       return true
     })
-    .catch((e) => {
+    .catch(e => {
       console.error(e)
       return false
     })

@@ -13,7 +13,7 @@ export const getPokemons = async () => {
     data: { pokemons },
   } = await client.query(firstTwentyPokemonsQuery).toPromise()
 
-  return pokemons.map((pokemon) => ({
+  return pokemons.map(pokemon => ({
     ...pokemon,
     name: pokemon.name.toLowerCase(),
   }))

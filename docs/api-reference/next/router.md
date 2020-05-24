@@ -20,7 +20,7 @@ function ActiveLink({ children, href }) {
     color: router.pathname === href ? 'red' : 'black',
   }
 
-  const handleClick = (e) => {
+  const handleClick = e => {
     e.preventDefault()
     router.push(href)
   }
@@ -176,7 +176,7 @@ import { useCallback, useEffect } from 'react'
 import Router from 'next/router'
 
 export default function Login() {
-  const handleSubmit = useCallback((e) => {
+  const handleSubmit = useCallback(e => {
     e.preventDefault()
 
     fetch('/api/login', {
@@ -185,7 +185,7 @@ export default function Login() {
       body: JSON.stringify({
         /* Form data */
       }),
-    }).then((res) => {
+    }).then(res => {
       // Do a fast client-side transition to the already prefetched dashboard page
       if (res.ok) Router.push('/dashboard')
     })
@@ -281,7 +281,7 @@ For example, to listen to the router event `routeChangeStart`, do the following:
 ```jsx
 import Router from 'next/router'
 
-const handleRouteChange = (url) => {
+const handleRouteChange = url => {
   console.log('App is changing to: ', url)
 }
 
@@ -314,7 +314,7 @@ Router events should be registered when a component mounts ([useEffect](https://
 import Router from 'next/router'
 
 useEffect(() => {
-  const handleRouteChange = (url) => {
+  const handleRouteChange = url => {
     console.log('App is changing to: ', url)
   }
 

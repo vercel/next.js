@@ -44,6 +44,6 @@ initNext({ webpackHMR })
       render(renderCtx)
     })
   })
-  .catch((err) => {
+  .catch(err => {
     console.error('Error was not caught', err)
   })

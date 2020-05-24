@@ -34,7 +34,7 @@ export default class App extends Component {
     }
 
     this.focus = () => this.editor.focus()
-    this.onChange = (editorState) => this.setState({ editorState })
+    this.onChange = editorState => this.setState({ editorState })
   }
 
   onClickEditor = () => {
@@ -60,7 +60,10 @@ export default class App extends Component {
 
   // 2- Identify the selection coordinates
   setSelectionXY = () => {
-    var r = window.getSelection().getRangeAt(0).getBoundingClientRect()
+    var r = window
+      .getSelection()
+      .getRangeAt(0)
+      .getBoundingClientRect()
     var relative = document.body.parentNode.getBoundingClientRect()
     // 2-a Set the selection coordinates in the state
     this.setState(
@@ -146,7 +149,7 @@ export default class App extends Component {
     })
   }
 
-  handleKeyCommand = (command) => {
+  handleKeyCommand = command => {
     const { editorState } = this.state
     const newState = RichUtils.handleKeyCommand(editorState, command)
     if (newState) {
@@ -156,7 +159,7 @@ export default class App extends Component {
     return false
   }
 
-  toggleToolbar = (inlineStyle) => {
+  toggleToolbar = inlineStyle => {
     this.onChange(
       RichUtils.toggleInlineStyle(this.state.editorState, inlineStyle)
     )
@@ -184,7 +187,7 @@ export default class App extends Component {
     return (
       <div>
         <div
-          ref={(elem) => {
+          ref={elem => {
             this.elemWidth = elem ? elem.clientWidth : 0
             this.elemHeight = elem ? elem.clientHeight : 0
           }}
@@ -201,7 +204,7 @@ export default class App extends Component {
             placeholder="Tell a story..."
             editorKey="foobar"
             spellCheck={false}
-            ref={(element) => {
+            ref={element => {
               this.editor = element
             }}
           />
@@ -243,7 +246,7 @@ const styleMap = {
 class ToolbarButton extends Component {
   constructor() {
     super()
-    this.onToggle = (e) => {
+    this.onToggle = e => {
       e.preventDefault()
       this.props.onToggle(this.props.style)
     }
@@ -269,11 +272,11 @@ var toolbarItems = [
   { label: 'Surprise', style: 'ANYCUSTOMSTYLE' },
 ]
 
-const ToolBar = (props) => {
+const ToolBar = props => {
   var currentStyle = props.editorState.getCurrentInlineStyle()
   return (
     <div>
-      {toolbarItems.map((toolbarItem) => (
+      {toolbarItems.map(toolbarItem => (
         <ToolbarButton
           key={toolbarItem.label}
           active={currentStyle.has(toolbarItem.style)}

@@ -6,8 +6,8 @@ import Spinner from '../../components/spinner'
 import ErrorMessage from '../../components/error-message'
 import UploadPage from '../../components/upload-page'
 
-const fetcher = (url) => {
-  return fetch(url).then((res) => res.json())
+const fetcher = url => {
+  return fetch(url).then(res => res.json())
 }
 
 export default function Asset() {

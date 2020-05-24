@@ -35,7 +35,7 @@ export function getOriginalStackFrames(
   frames: StackFrame[]
 ) {
   return Promise.all(
-    frames.map((frame) => getOriginalStackFrame(isServerSide, frame))
+    frames.map(frame => getOriginalStackFrame(isServerSide, frame))
   )
 }
 

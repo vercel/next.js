@@ -6,7 +6,7 @@ import { addCount } from '../store/count/action'
 import { wrapper } from '../store/store'
 import { serverRenderClock, startClock } from '../store/tick/action'
 
-const Index = (props) => {
+const Index = props => {
   useEffect(() => {
     const timer = props.startClock()
 
@@ -23,7 +23,7 @@ export const getStaticProps = wrapper.getStaticProps(async ({ store }) => {
   store.dispatch(addCount())
 })
 
-const mapDispatchToProps = (dispatch) => {
+const mapDispatchToProps = dispatch => {
   return {
     addCount: bindActionCreators(addCount, dispatch),
     startClock: bindActionCreators(startClock, dispatch),

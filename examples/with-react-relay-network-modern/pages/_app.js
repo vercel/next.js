@@ -15,7 +15,10 @@ export default class App extends NextApp {
 
         await fetchQuery(environment, Component.query, variables)
 
-        const records = environment.getStore().getSource().toJSON()
+        const records = environment
+          .getStore()
+          .getSource()
+          .toJSON()
 
         return {
           variables,
