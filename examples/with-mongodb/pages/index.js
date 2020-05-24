@@ -4,7 +4,7 @@ const Index = ({ pets }) => {
   return (
     <>
       {/* Create a card for each pet */}
-      {pets.map(pet => (
+      {pets.map((pet) => (
         <div key={pet._id}>
           <div className="card">
             <img src={pet.image_url} />
@@ -32,10 +32,10 @@ const Index = ({ pets }) => {
               </div>
               {/* Buttons */}
               <div className="btn-container">
-                <Link href={`/[id]/edit`} as={`/${pet._id}/edit`}>
+                <Link href="/[id]/edit" as={`/${pet._id}/edit`}>
                   <button className="btn edit">Edit</button>
                 </Link>
-                <Link href={`/[id]`} as={`/${pet._id}`}>
+                <Link href="/[id]" as={`/${pet._id}`}>
                   <button className="btn delete">Delete</button>
                 </Link>
               </div>
