@@ -1,6 +1,6 @@
 {
   "name": "@next/react-refresh-utils",
-  "version": "9.4.2",
+  "version": "9.4.3-canary.0",
   "description": "An experimental package providing utilities for React Refresh.",
   "repository": {
     "url": "zeit/next.js",
