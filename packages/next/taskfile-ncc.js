@@ -25,7 +25,7 @@ module.exports = function (task) {
     }
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
-      minify: true,
+      minify: false,
       sourceMap: true,
       sourceMapRegister: false,
       sourceMapBasePrefix: '',
