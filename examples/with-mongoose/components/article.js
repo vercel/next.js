@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import PropTypes from 'prop-types'
 
-import { categoryShape } from './header'
+import { categoryShape } from 'libs/prop-types'
 
 const dateFormat = new Intl.DateTimeFormat('en', {
   year: 'numeric',

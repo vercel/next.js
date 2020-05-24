@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import PropTypes from 'prop-types'
 
+import { categoryShape } from 'libs/prop-types'
+
 const Header = ({ categories }) => {
   const router = useRouter()
   const getClassName = (slug) =>
@@ -32,12 +34,6 @@ const Header = ({ categories }) => {
     </>
   )
 }
-
-export const categoryShape = PropTypes.shape({
-  id: PropTypes.string.isRequired,
-  name: PropTypes.string.isRequired,
-  slug: PropTypes.string.isRequired,
-})
 
 Header.propTypes = {
   categories: PropTypes.arrayOf(categoryShape),

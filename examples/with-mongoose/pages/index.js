@@ -4,6 +4,8 @@ import ArticleFeatured from 'components/article-featured'
 import Layout from 'components/layout'
 import Pagination from 'components/pagination'
 import SideBar from 'components/sidebar'
+import { connect } from 'libs/db'
+import Category from 'models/category'
 
 const IndexPage = ({ categories, featured, articles }) => (
   <Layout categories={categories} title="Home">
@@ -32,70 +34,12 @@ const IndexPage = ({ categories, featured, articles }) => (
 )
 
 export async function getServerSideProps(context) {
+  await connect()
+  const categories = await Category.find()
+
   return {
     props: {
-      categories: [
-        {
-          id: 'e0edde4d-3a46-48e1-840d-23695fabbc08',
-          name: 'World',
-          slug: 'world',
-        },
-        {
-          id: '098bd7b9-80d8-4b1a-87b7-898e50201747',
-          name: 'U.S.',
-          slug: 'u-s',
-        },
-        {
-          id: '27881b6e-53fa-47f1-8968-277bc102d852',
-          name: 'Technology',
-          slug: 'technology',
-        },
-        {
-          id: 'f0eb2cea-8476-407e-b521-069626bebe74',
-          name: 'Design',
-          slug: 'design',
-        },
-        {
-          id: '864d3e00-7b26-449d-b8b4-8112e5ec1299',
-          name: 'Culture',
-          slug: 'culture',
-        },
-        {
-          id: 'fc144c69-baad-4d2e-99f3-1531ed78d947',
-          name: 'Business',
-          slug: 'business',
-        },
-        {
-          id: 'd42dc9b8-238f-4fd8-a472-84b6be7d9325',
-          name: 'Politics',
-          slug: 'politics',
-        },
-        {
-          id: '0460c10d-4ebc-47de-acbb-623849785a1c',
-          name: 'Opinion',
-          slug: 'opinion',
-        },
-        {
-          id: '7770b8dd-a3d1-4789-862a-48b579382842',
-          name: 'Science',
-          slug: 'science',
-        },
-        {
-          id: '9a4d2e4c-3052-490e-8dfc-4d451363d4c7',
-          name: 'Health',
-          slug: 'health',
-        },
-        {
-          id: '351075b5-2368-471c-ad91-85b4a81143e6',
-          name: 'Style',
-          slug: 'style',
-        },
-        {
-          id: '1c523b13-ec25-445a-9d75-b635b5d5e886',
-          name: 'Travel',
-          slug: 'travel',
-        },
-      ],
+      categories: categories.map((category) => category.toJSON()),
       articles: [
         {
           id: 'f3ab77d6-b8a9-47f1-a954-76a877698d1b',

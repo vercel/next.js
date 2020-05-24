@@ -4,7 +4,8 @@ import PropTypes from 'prop-types'
 import { useEffect } from 'react'
 
 import Footer from 'components/footer'
-import Header, { categoryShape } from 'components/header'
+import Header from 'components/header'
+import { categoryShape } from 'libs/prop-types'
 
 function scrollToTop() {
   try {
