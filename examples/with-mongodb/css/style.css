@@ -14,16 +14,11 @@
   text-align: right;
 }
 #title {
-  background-image: linear-gradient(rgb(240, 167, 240), rgb(194, 82, 101));
-  background-clip: text;
-  color: transparent;
-  text-transform: uppercase;
-  letter-spacing: 5px;
-  font-size: 200%;
   position: absolute;
   left: 20px;
   top: 0;
   display: inline-block;
+  height: 100%;
 }
 .nav {
   height: 100%;
@@ -178,9 +173,7 @@ li {
 .pet-container {
   width: 100%;
 }
-.confirmation-box {
-  display: none;
-}
+
 .confirmation-box.show {
   display: block;
 }
