@@ -44,7 +44,7 @@ cp .env.local.example .env.local
 
 Be sure to update the file with your own MongoDB URI connection string (from step 1) and development url:
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
 - `MONGO_DBURI` should be your MongoDB URI. Check [here](https://docs.mongodb.com/guides/server/drivers/#obtain-your-mongodb-connection-string) on how to obtain your MongoDB connection string.
 - `VERCEL_URL` should be your development url (for local development) or your production url (see deploy section for more details).
