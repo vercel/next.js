@@ -355,10 +355,7 @@ describe('Production Usage', () => {
 
   it('should set focus back to body after navigating', async () => {
     const browser = await webdriver(context.appPort, '/')
-    await browser
-      .elementByCss('a')
-      .click()
-      .waitForElementByCss('.about-page')
+    await browser.elementByCss('a').click().waitForElementByCss('.about-page')
 
     const result = await browser.eval(
       `document.activeElement === document.body`
