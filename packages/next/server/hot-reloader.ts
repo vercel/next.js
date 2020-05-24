@@ -185,7 +185,7 @@ export default class HotReloader {
     const handlePageBundleRequest = async (
       res: ServerResponse,
       parsedUrl: UrlObject
-    ) => {
+    ): Promise<{ finished?: true }> => {
       const { pathname } = parsedUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
@@ -193,7 +193,7 @@ export default class HotReloader {
       }
 
       if (params.buildId !== this.buildId) {
-        return
+        return {}
       }
 
       const page = `/${params.path.join('/')}`
@@ -232,7 +232,7 @@ export default class HotReloader {
       return {}
     }
 
-    const { finished } = (await handlePageBundleRequest(res, parsedUrl)) as any
+    const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
