@@ -72,7 +72,7 @@ export async function getStaticPaths() {
   const res = await fetch(`${process.env.VERCEL_URL}/api/pets`)
   const { data } = await res.json()
 
-  const paths = data.map(pet => `/${pet._id}`)
+  const paths = data.map(pet => ({ params: { id: pet._id } }))
   return { paths, fallback: false }
 }
 

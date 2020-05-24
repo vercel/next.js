@@ -86,7 +86,7 @@ const Form = (formId, editForm = null, forNewPet = true) => {
   }
 
   return (
-    <div>
+    <>
       <form id={formId} onSubmit={handleSubmit}>
         <label htmlFor="name">Name</label>
         <input
@@ -174,10 +174,10 @@ const Form = (formId, editForm = null, forNewPet = true) => {
       <p>{message}</p>
       <div>
         {Object.keys(errors).map((err, index) => (
-          <li key={index}>e</li>
+          <li key={index}>{err}</li>
         ))}
       </div>
-    </div>
+    </>
   )
 }
 
