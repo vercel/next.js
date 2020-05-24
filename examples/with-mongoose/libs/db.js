@@ -1,5 +1,10 @@
 import mongoose, { STATES } from 'mongoose'
 
+// Register models
+import 'models/category'
+import 'models/article'
+import 'models/comment'
+
 /**
  * Connect to MongoDB.
  * Connection URI is set with environment variable `MONGODB_URL`.
