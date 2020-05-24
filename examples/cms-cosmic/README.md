@@ -40,11 +40,9 @@ cd cms-cosmic
 
 First, [create an account on Cosmic](https://cosmicjs.com).
 
-After creating an account, create a **new bucket** from the dashboard. You can select a **Start from scratch**.
-
 ### Step 2. Install the Next.js Static Blog
 
-Next, install the [Next.js Static Blog](https://www.cosmicjs.com/apps/nextjs-static-blog) from the Cosmic Apps Marketplace.
+After creating an account, install the [Next.js Static Blog](https://www.cosmicjs.com/apps/nextjs-static-blog) from the Cosmic App Marketplace.
 
 ### Step 3. Set up environment variables
 
