@@ -23,7 +23,7 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
   const url = `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`
   evtSource = getEventSourceWrapper({ path: url, timeout: 5000, ondemand: 1 })
 
-  evtSource.addMessageListener(event => {
+  evtSource.addMessageListener((event) => {
     if (event.data.indexOf('{') === -1) return
     try {
       const payload = JSON.parse(event.data)
@@ -32,7 +32,7 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
         // So, we need to make sure it exists before reloading.
         fetch(location.href, {
           credentials: 'same-origin',
-        }).then(pageRes => {
+        }).then((pageRes) => {
           if (pageRes.status === 200) {
             location.reload()
           }

@@ -50,7 +50,7 @@ const runTests = (serverless = false) => {
     )
   })
 
-  it('should error when legacy unstable_getServerProps', async () => {
+  it('should error when legacy unstable_getStaticPaths', async () => {
     await fs.writeFile(
       indexPage,
       origIndexPage.replace('getStaticProps', 'getStaticPaths')

@@ -16,7 +16,7 @@ export async function recursiveCopy(
     overwrite?: boolean
     filter?(path: string): boolean
   } = {}
-) {
+): Promise<void> {
   const cwdPath = process.cwd()
   const from = path.resolve(cwdPath, source)
   const to = path.resolve(cwdPath, dest)
@@ -40,7 +40,7 @@ export async function recursiveCopy(
       }
       sema.release()
       const files = await promises.readdir(item)
-      await Promise.all(files.map(file => _copy(path.join(item, file))))
+      await Promise.all(files.map((file) => _copy(path.join(item, file))))
     } else if (
       stats.isFile() &&
       // before we send the path to filter

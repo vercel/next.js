@@ -28,6 +28,8 @@ export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: Configuration
 ) {
+  const { prependData: sassPrependData, ...sassOptions } = ctx.sassOptions
+
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
@@ -37,7 +39,8 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions: ctx.sassOptions,
+        sassOptions,
+        prependData: sassPrependData,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead

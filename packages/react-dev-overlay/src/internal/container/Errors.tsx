@@ -64,7 +64,10 @@ async function getErrorByType(
         id,
         runtime: true,
         error: event.reason,
-        frames: await getOriginalStackFrames(event.frames),
+        frames: await getOriginalStackFrames(
+          isNodeError(event.reason),
+          event.frames
+        ),
       }
     }
     default: {
@@ -120,11 +123,11 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
       return
     }
     getErrorByType(nextError).then(
-      resolved => {
+      (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
-        setLookups(m => ({ ...m, [resolved.id]: resolved }))
+        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
       },
       () => {
         // TODO: handle this, though an edge case
@@ -136,12 +139,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   const [activeIdx, setActiveIndex] = React.useState<number>(0)
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()
-    setActiveIndex(v => Math.max(0, v - 1))
+    setActiveIndex((v) => Math.max(0, v - 1))
   }, [])
   const next = React.useCallback(
     (e?: MouseEvent | TouchEvent) => {
       e?.preventDefault()
-      setActiveIndex(v => Math.max(0, Math.min(readyErrors.length - 1, v + 1)))
+      setActiveIndex((v) =>
+        Math.max(0, Math.min(readyErrors.length - 1, v + 1))
+      )
     },
     [readyErrors.length]
   )
@@ -246,9 +251,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
                   logs will be displayed in the terminal window.
                 </small>
               </div>
-            ) : (
-              undefined
-            )}
+            ) : undefined}
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             <RuntimeError key={activeError.id.toString()} error={activeError} />
