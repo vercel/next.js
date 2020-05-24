@@ -353,6 +353,20 @@ describe('Production Usage', () => {
     expect(newText).toBe('server')
   })
 
+  it('should set focus back to body after navigating', async () => {
+    const browser = await webdriver(context.appPort, '/')
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('.about-page')
+
+    const result = await browser.eval(
+      `document.activeElement === document.body`
+    )
+
+    expect(result).toBe(true)
+  })
+
   it('should change query correctly', async () => {
     const browser = await webdriver(appPort, '/query?id=0')
     let id = await browser.elementByCss('#q0').text()
