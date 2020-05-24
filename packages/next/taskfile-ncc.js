@@ -4,6 +4,18 @@ const { basename, dirname, extname, join, resolve } = require('path')
 
 const BASE_DIR = resolve(__dirname, '../..')
 
+function remap(mapContent) {
+  const { sources, ...rest } = JSON.parse(mapContent)
+  return JSON.stringify({
+    // make the sourcemap sources relative.
+    // this should be relative to ./dist/compiled, not ./compiled
+    sources: sources.map((source) =>
+      source.replace(BASE_DIR, '../../../../..')
+    ),
+    ...rest,
+  })
+}
+
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
   task.plugin('ncc', {}, function* (file, options) {
@@ -45,9 +57,7 @@ module.exports = function (task) {
       }
 
       this._.files.push({
-        // make the sourcemap paths relative.
-        // this should be relative to ./dist/compiled, not ./compiled
-        data: map.split(BASE_DIR).join('../../../../..'),
+        data: remap(map),
         base: `${file.base}.map`,
         dir: file.dir,
       })
