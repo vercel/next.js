@@ -39,7 +39,7 @@ Please follow the [Mongodb Guides](https://docs.mongodb.com/guides/server/insert
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
 Be sure to update the file with your own MongoDB URI connection string (from step 1) and development url:
