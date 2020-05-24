@@ -1,6 +1,8 @@
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
-const { basename, dirname, extname, join } = require('path')
+const { basename, dirname, extname, join, resolve } = require('path')
+
+const BASE_DIR = resolve(__dirname, '../..')
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
@@ -14,6 +16,7 @@ module.exports = function (task) {
       minify: true,
       sourceMap: true,
       sourceMapRegister: false,
+      sourceMapBasePrefix: '',
       ...options,
     }).then(({ code, map, assets }) => {
       Object.keys(assets).forEach((key) => {
@@ -42,7 +45,9 @@ module.exports = function (task) {
       }
 
       this._.files.push({
-        data: map,
+        // make the sourcemap paths relative.
+        // this should be relative to ./dist/compiled, not ./compiled
+        data: map.split(BASE_DIR).join('../../../../..'),
         base: `${file.base}.map`,
         dir: file.dir,
       })
