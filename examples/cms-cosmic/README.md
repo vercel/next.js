@@ -101,15 +101,9 @@ On Cosmic, go to one of the posts you've created and:
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - Click **Save Draft**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to the post page directly on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
-To enable the Preview Mode, go to this URL:
-
-```
-http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
-```
-
-You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+Next, click the Preview Link button on the Post to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
 ### Step 6. Deploy on Vercel
 
