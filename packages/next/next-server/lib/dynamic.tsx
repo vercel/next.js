@@ -52,7 +52,7 @@ export type LoadableComponent<P = {}> = React.ComponentType<P>
 export function noSSR<P = {}>(
   LoadableInitializer: LoadableFn<P>,
   loadableOptions: LoadableOptions<P>
-) {
+): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules

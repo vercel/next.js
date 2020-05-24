@@ -347,7 +347,7 @@ export const urlObjectKeys = [
 export function formatWithValidation(
   url: UrlObject,
   options?: URLFormatOptions
-) {
+): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {

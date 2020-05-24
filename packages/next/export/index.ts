@@ -90,7 +90,7 @@ export default async function (
   options: any,
   configuration?: any
 ): Promise<void> {
-  function log(message: string) {
+  function log(message: string): void {
     if (options.silent) {
       return
     }

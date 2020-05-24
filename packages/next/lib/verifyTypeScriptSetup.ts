@@ -30,7 +30,7 @@ async function checkDependencies({
 }: {
   dir: string
   isYarn: boolean
-}) {
+}): Promise<string> {
   const requiredPackages = [
     { file: 'typescript', pkg: 'typescript' },
     { file: '@types/react/index.d.ts', pkg: '@types/react' },

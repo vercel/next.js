@@ -23,7 +23,7 @@ export async function recursiveCopy(
 
   const sema = new Sema(concurrency)
 
-  async function _copy(item: string) {
+  async function _copy(item: string): Promise<void> {
     const target = item.replace(from, to)
     const stats = await promises.stat(item)
 
