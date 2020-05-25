@@ -600,7 +600,7 @@ export default class Server {
           throw new Error('pathname is undefined')
         }
 
-        pathname = pathname.replace(/\/$/, '')
+        pathname = pathname.replace(/(?!^)\/$/, '')
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
