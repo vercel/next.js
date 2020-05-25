@@ -48,30 +48,3 @@ yarn dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-### Configuration
-
-After bootstrapping your next.js app, there are several steps to enable Husky (for pre-commit and push linting) and Eslint's Prettier config. These steps must be performed manually due to conflicts with the linting and CI configuration of the next.js monorepo.
-
-**Eslint + Prettier**
-
-1. Install `eslint-config-prettier`: `yarn add -D eslint-config-prettier`
-2. Uncomment the `"prettier"` value from the `extends` key in `.eslintrc.json`
-
-**Husky**
-Opt into husky commit hooks by adding the following values to your `package.json` (or tweak your own, or remove `husky` and `lint-staged` from your project `devDependencies`):
-
-```json
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "pre-push": "yarn run type-check"
-    }
-  },
-  "lint-staged": {
-    "*.@(ts|tsx)": [
-      "yarn lint",
-      "yarn format"
-    ]
-  }
-```
