@@ -2,10 +2,6 @@
 
 This example shows how you can use a MongoDB database to support your Next.js application.
 
-## Demo
-
-### [https://with-mongodb-navy.now.sh/](https://with-mongodb-navy.now.sh/)
-
 **Pets** is an application that allows users to add their pets' information (e.g., name, owner's name, diet, age, dislikes, likes, and photo). They can also delete it or edit it anytime.
 
 ## How to use
@@ -49,11 +45,20 @@ Then set each variable on `.env.local`:
 - `MONGO_DBURI` should be your MongoDB URI. Check [here](https://docs.mongodb.com/guides/server/drivers/#obtain-your-mongodb-connection-string) on how to obtain your MongoDB connection string.
 - `VERCEL_URL` should be your development url (for local development) or your production url (see deploy section for more details).
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
 MONGO_DBURI=...
 VERCEL_URL=...
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mongodb
+cd with-mongodb
 ```
 
 ## Install and run:
@@ -68,10 +73,4 @@ yarn dev
 
 ## Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-To deploy on Vercel, you need to set the environment variables using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
-
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI and follow this guide to set up [environment variables](https://vercel.com/blog/environment-variables-ui) in your project.
-
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

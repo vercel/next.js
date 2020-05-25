@@ -1,13 +1,13 @@
 import dbConnect from '../../../utils/dbConnect'
 import Pet from '../../../models/Pet'
 
-dbConnect()
-
 export default async (req, res) => {
   const {
     query: { id },
     method,
   } = req
+
+  await dbConnect()
 
   switch (method) {
     case 'GET' /* Get a model by its ID */:

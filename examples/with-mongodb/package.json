@@ -15,6 +15,5 @@
     "react-dom": "^16.13.1"
   },
   "description": "Next.js + MongoDB Example",
-  "author": "",
   "license": "ISC"
 }
