@@ -33,7 +33,7 @@ const DataList = () => {
         dispatch(loadingExampleDataFailure())
         setIsLoading(false)
       })
-  }, [])
+  }, [dispatch])
 
   return (
     <div>
