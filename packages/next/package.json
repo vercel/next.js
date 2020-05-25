@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.4.2",
+  "version": "9.4.3-canary.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -58,7 +58,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.3.1",
+    "@ampproject/toolbox-optimizer": "2.4.0",
     "@babel/code-frame": "7.8.3",
     "@babel/core": "7.7.7",
     "@babel/plugin-proposal-class-properties": "7.8.3",
@@ -76,8 +76,8 @@
     "@babel/preset-typescript": "7.9.0",
     "@babel/runtime": "7.9.6",
     "@babel/types": "7.9.6",
-    "@next/react-dev-overlay": "9.4.2",
-    "@next/react-refresh-utils": "9.4.2",
+    "@next/react-dev-overlay": "9.4.3-canary.0",
+    "@next/react-refresh-utils": "9.4.3-canary.0",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
@@ -98,7 +98,7 @@
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
     "react-is": "16.13.1",
-    "react-refresh": "0.8.2",
+    "react-refresh": "0.8.3",
     "resolve-url-loader": "3.1.1",
     "sass-loader": "8.0.2",
     "schema-utils": "2.6.6",
@@ -115,7 +115,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.4.2",
+    "@next/polyfill-nomodule": "9.4.3-canary.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
