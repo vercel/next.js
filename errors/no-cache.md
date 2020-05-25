@@ -15,7 +15,7 @@ Configure Next.js' cache to be persisted across builds. Next.js stores its cache
 
 Storing this folder across builds varies by CI provider. We've provided a list of a few common providers below.
 
-#### ZEIT Now
+#### Vercel
 
 Next.js caching is automatically configured for you. There's no action required on your part.
 
@@ -60,9 +60,7 @@ cache:
 
 #### Netlify CI
 
-It is **not possible** to cache custom build files on Netlify. Please contact their support and request they support this behavior.
-
-You can investigate using a 3rd party solution (e.g. [`cache-me-outside`](https://github.com/DavidWells/cache-me-outside)) to manually cache the Next.js output.
+Use [Netlify Plugins (beta)](https://www.netlify.com/build/plugins-beta/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
 
 #### AWS CodeBuild
 
@@ -104,4 +102,12 @@ Then reference it in the `caches` section of your pipeline's `step`:
     caches:
       - node
       - nextcache
+```
+
+#### Heroku
+
+Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-support#custom-caching), add a `cacheDirectories` array in your top-level package.json:
+
+```javascript
+"cacheDirectories": [".next/cache"]
 ```

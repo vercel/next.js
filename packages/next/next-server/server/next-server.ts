@@ -3,7 +3,6 @@ import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
@@ -63,7 +62,9 @@ import {
 } from './spr-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
+import './node-polyfill-fetch'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -117,12 +118,11 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    documentMiddlewareEnabled: boolean
-    hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
+    basePath: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -170,15 +170,13 @@ export default class Server {
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      documentMiddlewareEnabled: this.nextConfig.experimental
-        .documentMiddleware,
-      hasCssMode: this.nextConfig.experimental.css,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
+      basePath: this.nextConfig.experimental.basePath,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -265,14 +263,15 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    if (parsedUrl.pathname!.startsWith(this.nextConfig.experimental.basePath)) {
+    const { basePath } = this.nextConfig.experimental
+
+    // if basePath is set require it be present
+    if (basePath && !req.url!.startsWith(basePath)) {
+      return this.render404(req, res, parsedUrl)
+    } else {
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname =
-        parsedUrl.pathname!.replace(
-          this.nextConfig.experimental.basePath,
-          ''
-        ) || '/'
-      req.url = req.url!.replace(this.nextConfig.experimental.basePath, '')
+      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
+      req.url = req.url!.replace(basePath, '')
     }
 
     res.statusCode = 200
@@ -473,23 +472,49 @@ export default class Server {
           fn: async (req, res, params, parsedUrl) => ({ finished: false }),
         } as Route & Rewrite & Header)
 
+      const updateHeaderValue = (value: string, params: Params): string => {
+        if (!value.includes(':')) {
+          return value
+        }
+        const { parsedDestination } = prepareDestination(value, params, {})
+
+        if (
+          !parsedDestination.pathname ||
+          !parsedDestination.pathname.startsWith('/')
+        ) {
+          // the value needs to start with a forward-slash to be compiled
+          // correctly
+          return compilePathToRegex(`/${value}`, { validate: false })(
+            params
+          ).substr(1)
+        }
+        return formatUrl(parsedDestination)
+      }
+
       // Headers come very first
-      headers = this.customRoutes.headers.map(r => {
+      headers = this.customRoutes.headers.map((r) => {
         const route = getCustomRoute(r, 'header')
         return {
           match: route.match,
           type: route.type,
           name: `${route.type} ${route.source} header route`,
-          fn: async (_req, res, _params, _parsedUrl) => {
+          fn: async (_req, res, params, _parsedUrl) => {
+            const hasParams = Object.keys(params).length > 0
+
             for (const header of (route as Header).headers) {
-              res.setHeader(header.key, header.value)
+              let { key, value } = header
+              if (hasParams) {
+                key = updateHeaderValue(key, params)
+                value = updateHeaderValue(value, params)
+              }
+              res.setHeader(key, value)
             }
             return { finished: false }
           },
         } as Route
       })
 
-      redirects = this.customRoutes.redirects.map(redirect => {
+      redirects = this.customRoutes.redirects.map((redirect) => {
         const route = getCustomRoute(redirect, 'redirect')
         return {
           type: route.type,
@@ -500,8 +525,7 @@ export default class Server {
             const { parsedDestination } = prepareDestination(
               route.destination,
               params,
-              parsedUrl.query,
-              true
+              parsedUrl.query
             )
             const updatedDestination = formatUrl(parsedDestination)
 
@@ -522,7 +546,7 @@ export default class Server {
         } as Route
       })
 
-      rewrites = this.customRoutes.rewrites.map(rewrite => {
+      rewrites = this.customRoutes.rewrites.map((rewrite) => {
         const route = getCustomRoute(rewrite, 'rewrite')
         return {
           check: true,
@@ -533,7 +557,8 @@ export default class Server {
             const { newUrl, parsedDestination } = prepareDestination(
               route.destination,
               params,
-              parsedUrl.query
+              parsedUrl.query,
+              true
             )
 
             // external rewrite, proxy it
@@ -579,7 +604,7 @@ export default class Server {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
-            pathname!,
+            pathname,
             query
           )
           if (handled) {
@@ -676,7 +701,16 @@ export default class Server {
     // or else it won't be in the manifest yet
     await this.ensureApiPage(page)
 
-    const builtPagePath = await this.getPagePath(page)
+    let builtPagePath
+    try {
+      builtPagePath = await this.getPagePath(page)
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return false
+      }
+      throw err
+    }
+
     const pageModule = require(builtPagePath)
     query = { ...query, ...params }
 
@@ -701,7 +735,7 @@ export default class Server {
 
   protected generatePublicRoutes(): Route[] {
     const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map(p => p.replace(/\\/g, '/'))
+      recursiveReadDirSync(this.publicDir).map((p) => p.replace(/\\/g, '/'))
     )
 
     return [
@@ -733,13 +767,12 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
-      isDynamicRoute
-    )
-    return getSortedRoutes(dynamicRoutedPages).map(page => ({
-      page,
-      match: getRouteMatcher(getRouteRegex(page)),
-    }))
+    return getSortedRoutes(Object.keys(this.pagesManifest!))
+      .filter(isDynamicRoute)
+      .map((page) => ({
+        page,
+        match: getRouteMatcher(getRouteRegex(page)),
+      }))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse) {
@@ -920,10 +953,6 @@ export default class Server {
     const isServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
 
-    if (isSSG && query.amp) {
-      pathname += `.amp`
-    }
-
     if (!query.amp) {
       delete query.amp
     }
@@ -940,74 +969,8 @@ export default class Server {
       isPreviewMode = previewData !== false
     }
 
-    // non-spr requests should render like normal
-    if (!isSSG) {
-      // handle serverless
-      if (isLikeServerless) {
-        if (isDataReq) {
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            'passthrough'
-          )
-
-          sendPayload(
-            res,
-            JSON.stringify(renderResult?.renderOpts?.pageData),
-            'json',
-            !this.renderOpts.dev
-              ? {
-                  private: isPreviewMode,
-                  stateful: true, // non-SSG data request
-                }
-              : undefined
-          )
-          return null
-        }
-        prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
-      }
-
-      if (isDataReq && isServerProps) {
-        const props = await renderToHTML(req, res, pathname, query, {
-          ...components,
-          ...opts,
-          isDataReq,
-        })
-        sendPayload(
-          res,
-          JSON.stringify(props),
-          'json',
-          !this.renderOpts.dev
-            ? {
-                private: isPreviewMode,
-                stateful: true, // GSSP data request
-              }
-            : undefined
-        )
-        return null
-      }
-
-      const html = await renderToHTML(req, res, pathname, query, {
-        ...components,
-        ...opts,
-      })
-
-      if (html && isServerProps) {
-        sendPayload(res, html, 'html', {
-          private: isPreviewMode,
-          stateful: true, // GSSP request
-        })
-        return null
-      }
-
-      return html
-    }
-
     // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}${
-      query.amp ? '.amp' : ''
-    }`
+    let urlPathname = `${parseUrl(req.url || '').pathname!}`
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
@@ -1017,15 +980,14 @@ export default class Server {
         .replace(/\/index$/, '/')
     }
 
-    const ssgCacheKey = isPreviewMode
-      ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
-      : urlPathname
+    const ssgCacheKey =
+      isPreviewMode || !isSSG
+        ? undefined // Preview mode bypasses the cache
+        : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
-    const cachedData = isPreviewMode
-      ? // Preview data bypasses the cache
-        undefined
-      : await getSprCache(ssgCacheKey)
+    const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
@@ -1054,8 +1016,14 @@ export default class Server {
     }
 
     // If we're here, that means data is missing or it's stale.
+    const maybeCoalesceInvoke = ssgCacheKey
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      : (fn: any) => async () => {
+          const value = await fn()
+          return { isOrigin: true, value }
+        }
 
-    const doRender = withCoalescedInvoke(async function(): Promise<{
+    const doRender = maybeCoalesceInvoke(async function (): Promise<{
       html: string | null
       pageData: any
       sprRevalidate: number | false
@@ -1117,6 +1085,7 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      ssgCacheKey &&
       !didRespond &&
       !isDataReq &&
       !isPreviewMode &&
@@ -1146,18 +1115,9 @@ export default class Server {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
           prepareServerlessUrl(req, query)
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            'passthrough'
-          )
-          html = renderResult.html
-        } else {
-          html = (await renderToHTML(req, res, pathname, query, {
-            ...components,
-            ...opts,
-          })) as string
         }
+        const { value: renderResult } = await doRender()
+        html = renderResult.html
       }
 
       sendPayload(res, html, 'html')
@@ -1166,31 +1126,30 @@ export default class Server {
     const {
       isOrigin,
       value: { html, pageData, sprRevalidate },
-    } = await doRender(ssgCacheKey, [])
-    if (!isResSent(res)) {
+    } = await doRender()
+    let resHtml = html
+    if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        !this.renderOpts.dev
+        !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
-              stateful: false, // GSP response
+              stateful: !isSSG,
               revalidate: sprRevalidate,
             }
           : undefined
       )
+      resHtml = null
     }
 
-    // Update the SPR cache if the head request
-    if (isOrigin) {
-      // Preview mode should not be stored in cache
-      if (!isPreviewMode) {
-        await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
-      }
+    // Update the SPR cache if the head request and cacheable
+    if (isOrigin && ssgCacheKey) {
+      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
     }
 
-    return null
+    return resHtml
   }
 
   public async renderToHTML(
@@ -1308,7 +1267,8 @@ export default class Server {
     if (
       process.env.NODE_ENV !== 'production' &&
       !using404Page &&
-      (await this.hasPage('/_error'))
+      (await this.hasPage('/_error')) &&
+      !(await this.hasPage('/404'))
     ) {
       this.customErrorNo404Warn()
     }
@@ -1390,14 +1350,14 @@ export default class Server {
     const pathUserFilesStatic = join(this.dir, 'static')
     let userFilesStatic: string[] = []
     if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
-      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map(f =>
+      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map((f) =>
         join('.', 'static', f)
       )
     }
 
     let userFilesPublic: string[] = []
     if (this.publicDir && fs.existsSync(this.publicDir)) {
-      userFilesPublic = recursiveReadDirSync(this.publicDir).map(f =>
+      userFilesPublic = recursiveReadDirSync(this.publicDir).map((f) =>
         join('.', 'public', f)
       )
     }
@@ -1405,7 +1365,7 @@ export default class Server {
     let nextFilesStatic: string[] = []
     nextFilesStatic = recursiveReadDirSync(
       join(this.distDir, 'static')
-    ).map(f => join('.', relative(this.dir, this.distDir), 'static', f))
+    ).map((f) => join('.', relative(this.dir, this.distDir), 'static', f))
 
     return (this._validFilesystemPathSet = new Set<string>([
       ...nextFilesStatic,

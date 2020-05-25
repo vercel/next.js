@@ -1,0 +1,5 @@
+__generated__/
+schema/schema.graphql
+lib/
+.merlin
+*.bs.js

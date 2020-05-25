@@ -1,11 +1,12 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '../')
 
@@ -22,5 +23,34 @@ describe('Legacy Sass Support Should Disable New CSS', () => {
     )
 
     expect(cssFiles.length).toBe(1)
+  })
+})
+
+describe('Legacy Sass Support should work in development', () => {
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  let appPort
+  let app
+  beforeAll(async () => {
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+  })
+
+  it('should render the page', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      const exampleElText = await browser.elementByCss('.example').text()
+      expect(exampleElText).toBe('Hello World!')
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
   })
 })

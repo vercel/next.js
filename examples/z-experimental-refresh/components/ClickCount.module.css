@@ -1,0 +1,32 @@
+button.btn {
+  margin: 0;
+  border: 1px solid #d1d1d1;
+  border-radius: 5px;
+  padding: 0.5em;
+  vertical-align: middle;
+  white-space: normal;
+  background: none;
+  line-height: 1;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+button.btn {
+  padding: 0.65em 1em;
+  background: #0076ff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button.btn:focus {
+  outline: 0;
+  border-color: #0076ff;
+}
+button.btn:hover {
+  background: rgba(0, 118, 255, 0.8);
+}
+button.btn:focus {
+  box-shadow: 0 0 0 2px rgba(0, 118, 255, 0.5);
+}
