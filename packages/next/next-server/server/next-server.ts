@@ -595,10 +595,12 @@ export default class Server {
       type: 'route',
       name: 'Catchall render',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
+
+        pathname = pathname.replace(/\/$/, '')
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(

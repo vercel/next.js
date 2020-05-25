@@ -6,6 +6,7 @@ import cheerio from 'cheerio'
 import fs from 'fs-extra'
 import {
   fetchViaHTTP,
+  renderViaHTTP,
   findPort,
   killApp,
   launchApp,
@@ -89,6 +90,12 @@ function runTests() {
         if (browser) await browser.close()
       }
     })
+  })
+
+  it('includes the bundle correctly', async () => {
+    const content = await renderViaHTTP(appPort, '/about/')
+    expect(content).not.toMatch('/about/.js')
+    expect(content).toMatch('/about.js')
   })
 }
 
