@@ -990,6 +990,13 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should not 404 for <page>/', async () => {
+      const browser = await webdriver(context.appPort, '/nav/about/')
+      const text = await browser.elementByCss('p').text()
+      expect(text).toBe('This is the about page.')
+      await browser.close()
+    })
+
     it('should should not contain a page script in a 404 page', async () => {
       const browser = await webdriver(context.appPort, '/non-existent')
       const scripts = await browser.elementsByCss('script[src]')

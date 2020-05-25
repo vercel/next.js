@@ -367,6 +367,11 @@ export default function (render, fetch) {
         expect($('h2').text()).toBe('This page could not be found.')
       })
 
+      it('should not 404 for <page>/', async () => {
+        const $ = await get$('/nav/about/')
+        expect($('.nav-about p').text()).toBe('This is the about page.')
+      })
+
       it('should should not contain a page script in a 404 page', async () => {
         const $ = await get$('/non-existent')
         $('script[src]').each((index, element) => {
