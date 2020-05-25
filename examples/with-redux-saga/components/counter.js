@@ -1,4 +1,4 @@
-import { useDispatch, useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 
 import { increment, decrement, reset } from '../actions'
 
@@ -16,9 +16,9 @@ const Counter = () => {
       <h1>
         Count: <span>{count}</span>
       </h1>
-      <button onClick={dispatch(increment())}>+1</button>
-      <button onClick={dispatch(decrement())}>-1</button>
-      <button onClick={dispatch(reset())}>Reset</button>
+      <button onClick={() => dispatch(increment())}>+1</button>
+      <button onClick={() => dispatch(decrement())}>-1</button>
+      <button onClick={() => dispatch(reset())}>Reset</button>
     </div>
   )
 }
