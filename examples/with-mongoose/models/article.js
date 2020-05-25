@@ -2,6 +2,7 @@ import mongoose, { Schema, Types } from 'mongoose'
 import mongooseIdValidator from 'mongoose-id-validator'
 import mongooseSlugUpdater from 'mongoose-slug-updater'
 import mongooseUniqueValidator from 'mongoose-unique-validator'
+import mongoosePaginate from 'mongoose-paginate-v2'
 
 const ArticleSchema = new Schema(
   {
@@ -55,6 +56,8 @@ ArticleSchema.plugin(mongooseUniqueValidator, {
 })
 ArticleSchema.plugin(mongooseIdValidator, { message: 'Category not found' })
 ArticleSchema.plugin(mongooseSlugUpdater)
+ArticleSchema.plugin(mongoosePaginate)
+
 ArticleSchema.methods.toJSON = function () {
   const article = this.toObject()
 

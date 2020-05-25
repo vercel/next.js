@@ -12,6 +12,7 @@
     "http-status-codes": "^1.4.0",
     "mongoose": "^5.9.15",
     "mongoose-id-validator": "^0.6.0",
+    "mongoose-paginate-v2": "^1.3.9",
     "mongoose-slug-updater": "^3.2.1",
     "mongoose-unique-validator": "^2.0.3",
     "next": "latest",
