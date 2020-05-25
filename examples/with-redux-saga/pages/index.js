@@ -18,7 +18,7 @@ const Index = () => {
   )
 }
 
-export const getStaticProps = wrapper.getServerSideProps(async ({ store }) => {
+export const getStaticProps = wrapper.getStaticProps(async ({ store }) => {
   store.dispatch(tickClock(false))
 
   if (!store.getState().placeholderData) {
