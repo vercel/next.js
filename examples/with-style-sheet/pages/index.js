@@ -1,9 +1,21 @@
+import React from 'react'
 import { StyleSheet, StyleResolver } from 'style-sheet'
 const cls = StyleResolver.resolve
 
 export default function Home() {
+  const [color, setColor] = React.useState('#111')
+  React.useEffect(() => {
+    setTimeout(() => {
+      setColor('#00f')
+    }, 2000)
+  })
   return (
-    <div className={cls([styles.root, styles.color])}>
+    <div
+      className={cls([styles.root, styles.another])}
+      css={{
+        color,
+      }}
+    >
       <div>
         Hello from <span className={cls(styles.brand)}>Next.js</span>
       </div>
@@ -13,7 +25,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   root: {
-    fontSize: 30,
+    fontSize: 16,
     fontFamily: 'sans-serif',
     display: 'flex',
     alignItems: 'center',
@@ -23,9 +35,8 @@ const styles = StyleSheet.create({
       'radial-gradient(circle, #D7D7D7, #D7D7D7 1px, #FFF 1px, #FFF)',
     backgroundSize: '1em 1em',
   },
-  color: {
-    // showcasing dynamic styles
-    color: Math.random() > 0.5 ? '#111' : '#222',
+  another: {
+    fontSize: 30,
   },
   brand: {
     fontWeight: 'bold',

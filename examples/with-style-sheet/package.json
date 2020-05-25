@@ -12,7 +12,7 @@
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "style-sheet": "^3.0.1"
+    "style-sheet": "^4.0.4"
   },
   "author": "Giuseppe Gurgone",
   "license": "ISC"
