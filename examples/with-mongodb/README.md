@@ -45,11 +45,20 @@ Then set each variable on `.env.local`:
 - `MONGO_DBURI` should be your MongoDB URI. Check [here](https://docs.mongodb.com/guides/server/drivers/#obtain-your-mongodb-connection-string) on how to obtain your MongoDB connection string.
 - `VERCEL_URL` should be your development url (for local development) or your production url (see deploy section for more details).
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
 MONGO_DBURI=...
 VERCEL_URL=...
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mongodb
+cd with-mongodb
 ```
 
 ## Install and run:
@@ -64,8 +73,4 @@ yarn dev
 
 ## Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-To deploy on Vercel, you need to set the environment variables using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
-
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
