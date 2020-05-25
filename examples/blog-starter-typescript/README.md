@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Markdown and TypeScript
 
-This is the existing [blog-starter-typescript](https://github.com/zeit/next.js/tree/canary/examples/blog-starter-typescript) plus TypeScript.
+This is the existing [blog-starter](https://github.com/zeit/next.js/tree/canary/examples/blog-starter) plus TypeScript.
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using markdown files as the data source.
 
