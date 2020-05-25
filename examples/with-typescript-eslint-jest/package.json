@@ -7,12 +7,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "dev:debug": "NODE_OPTIONS='--inspect' next dev",
     "type-check": "tsc --pretty --noEmit",
     "format": "prettier --write **/*.{js,ts,tsx}",
+    "lint": "eslint . --ext ts --ext tsx --ext js",
     "test": "jest",
-    "ci": "yarn test && yarn type-check && yarn lint",
-    "lint": "eslint . --ext ts --ext tsx --ext js"
+    "test-all": "yarn lint && yarn type-check && yarn test"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "yarn run type-check"
+    }
+  },
+  "lint-staged": {
+    "*.@(ts|tsx)": [
+      "yarn lint",
+      "yarn format"
+    ]
   },
   "dependencies": {
     "next": "latest",
