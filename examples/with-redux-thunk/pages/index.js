@@ -9,7 +9,7 @@ const Index = () => {
   const dispatch = useDispatch()
   useEffect(() => {
     dispatch(startClock())
-  }, [])
+  }, [dispatch])
 
   return (
     <>
