@@ -1,10 +1,10 @@
 import * as types from './types'
 
 // INITIALIZES CLOCK ON SERVER
-export const serverRenderClock = (isServer) => (dispatch) =>
+export const serverRenderClock = () => (dispatch) =>
   dispatch({
     type: types.TICK,
-    payload: { light: !isServer, ts: Date.now() },
+    payload: { light: false, ts: Date.now() },
   })
 
 // INITIALIZES CLOCK ON CLIENT
