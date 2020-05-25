@@ -174,7 +174,7 @@ export type DocumentProps = DocumentInitialProps & {
 /**
  * Next `API` route request
  */
-export type NextApiRequest = IncomingMessage & {
+export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
@@ -347,10 +347,10 @@ export const urlObjectKeys = [
 export function formatWithValidation(
   url: UrlObject,
   options?: URLFormatOptions
-) {
+): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
-      Object.keys(url).forEach(key => {
+      Object.keys(url).forEach((key) => {
         if (urlObjectKeys.indexOf(key) === -1) {
           console.warn(
             `Unknown key passed via urlObject into url.format: ${key}`

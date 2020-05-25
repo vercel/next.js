@@ -17,7 +17,7 @@ export default () => {
   const mountedInstances: Set<any> = new Set()
   let state: State
 
-  function emitChange(component: React.Component<SideEffectProps>) {
+  function emitChange(component: React.Component<SideEffectProps>): void {
     state = component.props.reduceComponentsToState(
       [...mountedInstances],
       component.props

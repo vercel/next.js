@@ -22,7 +22,7 @@ function hasStoreChanged(nextStore: OutputState) {
   if (
     ([
       ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-    ] as Array<keyof OutputState>).every(key =>
+    ] as Array<keyof OutputState>).every((key) =>
       Object.is(lastStore[key], nextStore[key])
     )
   ) {
@@ -33,21 +33,20 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
-store.subscribe(state => {
+store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
   }
 
   if (state.bootstrap) {
-    Log.wait('starting the development server ...')
     if (state.appUrl) {
-      Log.info(`waiting on ${state.appUrl} ...`)
+      Log.ready(`started server on ${state.appUrl}`)
     }
     return
   }
 
   if (state.loading) {
-    Log.wait('compiling ...')
+    Log.wait('compiling...')
     return
   }
 
@@ -84,8 +83,5 @@ store.subscribe(state => {
     return
   }
 
-  Log.ready(
-    'compiled successfully' +
-      (state.appUrl ? ` - ready on ${state.appUrl}` : '')
-  )
+  Log.event('compiled successfully')
 })

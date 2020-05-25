@@ -43,9 +43,9 @@ Then set each variable on `.env`:
 - `MAGIC_PUBLISHABLE_KEY` should look like `pk_test_abc` or `pk_live_ABC`
 - `MAGIC_SECRET_KEY` should look like `sk_test_ABC` or `sk_live_ABC`
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Now CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<MAGIC_PUBLISHABLE_KEY>` and `<MAGIC_SECRET_KEY>` with the corresponding strings in `.env`:
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<MAGIC_PUBLISHABLE_KEY>` and `<MAGIC_SECRET_KEY>` with the corresponding strings in `.env`:
 
 ```bash
 now secrets add next_example_magic_publishable_key <MAGIC_PUBLISHABLE_KEY>

@@ -1,6 +1,6 @@
 # Contributing to Next.js
 
-Our Commitment to Open Source can be found [here](https://vercel.com/blog/oss)
+Our Commitment to Open Source can be found [here](https://vercel.com/oss).
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
 2. Create a new branch `git checkout -b MY_BRANCH_NAME`
@@ -143,7 +143,7 @@ Deploy the example using [Vercel](https://vercel.com/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
+npm init next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 # or
 yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 ```

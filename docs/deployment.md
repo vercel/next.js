@@ -15,7 +15,7 @@ If you haven’t already done so, push your Next.js app to a Git provider of you
 Then, follow these steps:
 
 1. [Sign up to Vercel](https://vercel.com/signup) (no credit card is required).
-2. After signing up, you’ll arrive on the [“Import Project”](https://vercel.com/import) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://vercel.com/docs/v2/git-integrations/zeit-now-for-github) / [GitLab](https://vercel.com/docs/v2/git-integrations/zeit-now-for-gitlab) / [BitBucket](https://vercel.com/docs/v2/git-integrations/zeit-now-for-bitbucket)).
+2. After signing up, you’ll arrive on the [“Import Project”](https://vercel.com/import) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://vercel.com/docs/v2/git-integrations/vercel-for-github) / [GitLab](https://vercel.com/docs/v2/git-integrations/vercel-for-gitlab) / [BitBucket](https://vercel.com/docs/v2/git-integrations/vercel-for-bitbucket)).
 3. Once that’s set up, click “Import Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything should work just fine!
 4. After importing, it’ll deploy your Next.js app and provide you with a deployment URL. Click “Visit” to see your app in production.
 
@@ -27,7 +27,7 @@ Congratulations! You’ve just deployed your Next.js app! If you have questions,
 
 Let’s talk about the workflow we recommend using. [Vercel](https://vercel.com) supports what we call the **DPS** workflow: **D**evelop, **P**review, and **S**hip:
 
-- **Develop:** Write code in Next.js. Keep the development server running and take advantage of its hot code reloading feature.
+- **Develop:** Write code in Next.js. Keep the development server running and take advantage of [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 - **Preview:** Every time you push changes to a branch on GitHub / GitLab / BitBucket, Vercel automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request, or under “Preview Deployments” on your project page on Vercel. [Learn more about it here](https://vercel.com/features/deployment-previews).
 - **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `master`). Vercel will automatically create a production deployment.
 
