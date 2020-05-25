@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -11,7 +11,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
+jest.setTimeout(1000 * 60)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -20,7 +20,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let app
@@ -111,6 +111,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
+    ),
+    page: '/refresh',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
     ),
     page: '/something',
@@ -140,7 +146,7 @@ const navigateTest = (dev = false) => {
       '/blog/post-1/comment-1',
     ]
 
-    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+    await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -352,6 +358,17 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
+  it('should load a fast refresh page', async () => {
+    const browser = await webdriver(appPort, '/refresh')
+    expect(
+      await check(
+        () => browser.elementByCss('p').text(),
+        /client loaded/,
+        false
+      )
+    ).toBe(true)
+  })
+
   it('should provide correct query value for dynamic page', async () => {
     const html = await renderViaHTTP(
       appPort,
@@ -387,8 +404,13 @@ const runTests = (dev = false) => {
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+    expect(
+      await check(() => browser.eval('window.beforeClick'), {
+        test(v) {
+          return v !== 'abc'
+        },
+      })
+    ).toBe(true)
   })
 
   it('should always call getServerSideProps without caching', async () => {

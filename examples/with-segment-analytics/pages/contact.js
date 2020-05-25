@@ -1,6 +1,6 @@
-import React, { Component } from 'react'
+import { Component } from 'react'
 
-export default class extends Component {
+export default class Contact extends Component {
   state = { message: '' }
 
   render() {
@@ -35,11 +35,11 @@ export default class extends Component {
     )
   }
 
-  handleInput = e => {
+  handleInput = (e) => {
     this.setState({ message: e.target.value })
   }
 
-  handleSubmit = e => {
+  handleSubmit = (e) => {
     e.preventDefault()
     global.analytics.track('Form Submitted', {
       message: this.state.message,

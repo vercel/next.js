@@ -21,7 +21,7 @@ const Box = styled.div`
   }
 `
 
-export default () => {
+export default function Home() {
   return (
     <React.Fragment>
       <Head>

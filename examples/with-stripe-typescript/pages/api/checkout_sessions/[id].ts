@@ -6,7 +6,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2019-12-03',
 })
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const id: string = req.query.id as string
   try {
     if (!id.startsWith('cs_')) {

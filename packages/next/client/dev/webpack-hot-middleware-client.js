@@ -7,7 +7,7 @@ export default ({ assetPrefix }) => {
 
   const devClient = connect(options)
 
-  devClient.subscribeToHmrEvent(obj => {
+  devClient.subscribeToHmrEvent((obj) => {
     if (obj.action === 'reloadPage') {
       return window.location.reload()
     }
