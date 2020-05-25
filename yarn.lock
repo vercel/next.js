@@ -3308,6 +3308,7 @@ amphtml-validator@1.0.30:
 amphtml-validator@1.0.31:
   version "1.0.31"
   resolved "https://registry.yarnpkg.com/amphtml-validator/-/amphtml-validator-1.0.31.tgz#cf926ad4bbefd720b4cbeef6221f794f35849ac6"
+  integrity sha512-GEVZeUJqm2ssLLrERi3Zeyk6TEQlvMGRxKqkgQMt2IvyYiGEWLbwp5K6UfX6cD9aCc1xqbk9n+rDBi4HZv3uOQ==
   dependencies:
     colors "1.2.5"
     commander "2.15.1"

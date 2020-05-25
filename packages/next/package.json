@@ -78,6 +78,7 @@
     "@babel/types": "7.9.6",
     "@next/react-dev-overlay": "9.4.3-canary.0",
     "@next/react-refresh-utils": "9.4.3-canary.0",
+    "amphtml-validator": "1.0.31",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
