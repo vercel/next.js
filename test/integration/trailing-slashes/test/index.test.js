@@ -29,6 +29,8 @@ function runTests() {
     ['/about/', '/about.js'],
     ['/user/', '/user/index.js'],
     ['/project/', '/project/index.js'],
+    ['/catch-all/hello/', '/catch-all/[...slug].js'],
+    ['/catch-all/hello/world/', '/catch-all/[...slug].js'],
     // TODO: /index handling doesn't work properly in dev
     // ['/project/index/', '/project/index/index.js'],
   ])('route %s should resolve to page %s', (route, expectedPage) => {
@@ -70,6 +72,7 @@ function runTests() {
   describe.each([
     // non-resolving page route
     ['/non-existing/'],
+    ['/catch-all/'],
     // TODO: /index handling doesn't work yet
     // ['/index/'],
     // ['/user/index/'],
