@@ -2,19 +2,19 @@
 
 Bootstrap a developer-friendly NextJS app configured with:
 
-- Typescript support
+- Typescript
 - Linting with ESLint
 - Formatting with Prettier
 - Linting, typechecking and formatting on by default using [`husky`](https://github.com/typicode/husky) for commit hooks
-- Testing with jest and [`react-testing-library`](https://testing-library.com/docs/react-testing-library/intro)
+- Testing with Jest and [`react-testing-library`](https://testing-library.com/docs/react-testing-library/intro)
 - Debug task (`yarn dev:debug`) with node auto-attachment
   _See [setup](#setup) for detailed eslint, prettier + husky configuration_
 
 ## Deploy your own
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-typescript-eslint-jest)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-typescript-eslint-jest)
 
 ## How to use
 
@@ -47,15 +47,9 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-### Notes
-
-#### NodeJS Version
-
-This package has an .nvmrc version pinning NodeJS to 12.14.1. Feel free to remove or change it.
-
-#### Setup
+### Configuration
 
 After bootstrapping your next.js app, there are several steps to enable Husky (for pre-commit and push linting) and Eslint's Prettier config. These steps must be performed manually due to conflicts with the linting and CI configuration of the next.js monorepo.
 
@@ -81,11 +75,3 @@ Opt into husky commit hooks by adding the following values to your `package.json
     ]
   }
 ```
-
-#### Bypassing git hooks
-
-This app uses git hooks (via `husky`) on commit and push. You can temporarily bypass them (to ignore a typechecking error, for example) using the `--no-verify` flag, for example `git commit -am 'WIP: show user data on profile page' --no-verify`.
-
-#### IDE Debugger integration (VS Code and other supporting editors)
-
-This project has a special `dev:debug` task which enables certain code editors to attach to the NextJS node process. To accomplish this in VS Code, toggle on the "Debug: Auto Attach" option and run the `yarn dev:debug` task _from the vscode integrated console_. The footer of the editor window will change color, a small panel of debugger (play/pause/step) buttons will appear in the corner and a new debug panel will open in the sidebar. Now when your application hits a breakpoint (server or client) you can debug in your editor window!

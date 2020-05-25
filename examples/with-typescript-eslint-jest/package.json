@@ -1,16 +1,13 @@
 {
-  "name": "next.js-ts-eslint-jest-boilerplate",
-  "authors": [
-    "@erikdstock"
-  ],
+  "name": "with-typescript-eslint-jest",
+  "author": "@erikdstock",
   "license": "MIT",
   "version": "1.0.0",
-  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "dev:debug": "node --inspect-brk --no-lazy node_modules/.bin/next dev",
+    "dev:debug": "NODE_OPTIONS='--inspect' next dev",
     "type-check": "tsc --pretty --noEmit",
     "format": "prettier --write **/*.{js,ts,tsx}",
     "test": "jest",
@@ -18,9 +15,9 @@
     "lint": "eslint . --ext ts --ext tsx --ext js"
   },
   "dependencies": {
-    "next": "^9.3.0",
-    "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "devDependencies": {
     "@testing-library/react": "^10.0.1",

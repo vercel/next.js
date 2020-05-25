@@ -2,25 +2,12 @@
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],
   "extends": [
-    /* Uncomment this to enable eslint-config-prettier */
-    // "prettier",
     "eslint:recommended",
     "plugin:react/recommended",
-    "plugin:@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended",
+    "prettier/@typescript-eslint"
   ],
-  "parserOptions": {
-    "ecmaFeatures": {
-      "jsx": true
-    },
-    "ecmaVersion": 6,
-    "project": "./tsconfig.json",
-    "sourceType": "module"
-  },
-  "settings": {
-    "react": {
-      "version": "detect"
-    }
-  },
   "env": {
     "es6": true,
     "browser": true,
@@ -28,22 +15,22 @@
     "node": true
   },
   "rules": {
-    "react/react-in-jsx-scope": "warn",
-    "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/explicit-member-accessibility": "off",
-    "@typescript-eslint/indent": "off",
-    "@typescript-eslint/member-delimiter-style": "off",
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-var-requires": "off",
-    "@typescript-eslint/no-use-before-define": "off",
+    "react/react-in-jsx-scope": 1,
+    "@typescript-eslint/explicit-function-return-type": 0,
+    "@typescript-eslint/explicit-member-accessibility": 0,
+    "@typescript-eslint/indent": 0,
+    "@typescript-eslint/member-delimiter-style": 0,
+    "@typescript-eslint/no-explicit-any": 0,
+    "@typescript-eslint/no-var-requires": 0,
+    "@typescript-eslint/no-use-before-define": 0,
     "@typescript-eslint/no-unused-vars": [
-      "error",
+      2,
       {
         "argsIgnorePattern": "^_"
       }
     ],
     "no-console": [
-      "error",
+      2,
       {
         "allow": ["warn", "error"]
       }
