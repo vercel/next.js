@@ -73,6 +73,8 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import { BuildManifest } from '../next-server/server/get-page-files'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -461,10 +463,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(
     await promises.readFile(manifestPath, 'utf8')
-  )
+  ) as PagesManifest
   const buildManifest = JSON.parse(
     await promises.readFile(buildManifestPath, 'utf8')
-  )
+  ) as BuildManifest
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined

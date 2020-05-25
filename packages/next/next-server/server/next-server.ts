@@ -65,6 +65,7 @@ import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
+import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -108,7 +109,7 @@ export default class Server {
   publicDir: string
   hasStaticDir: boolean
   serverBuildDir: string
-  pagesManifest?: { [name: string]: string }
+  pagesManifest?: PagesManifest
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
