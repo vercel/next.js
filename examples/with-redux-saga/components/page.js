@@ -1,18 +1,11 @@
 import Link from 'next/link'
-import { connect } from 'react-redux'
+import { connect, useSelector } from 'react-redux'
 
 import Counter from './counter'
 import Clock from './clock'
 
-function Page({
-  error,
-  lastUpdate,
-  light,
-  linkTo,
-  NavigateTo,
-  placeholderData,
-  title,
-}) {
+function Page({ error, lastUpdate, light, linkTo, NavigateTo, title }) {
+  const placeholderData = useSelector((state) => state.placeholderData)
   return (
     <div>
       <h1>{title}</h1>
