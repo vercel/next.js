@@ -29,6 +29,7 @@ function runTests() {
     ['/about/', '/about.js'],
     ['/user/', '/user/index.js'],
     ['/project/', '/project/index.js'],
+    ['/project/my-project/', '/project/my-project.js'],
     ['/catch-all/hello/', '/catch-all/[...slug].js'],
     ['/catch-all/hello/world/', '/catch-all/[...slug].js'],
     // TODO: /index handling doesn't work properly in dev
