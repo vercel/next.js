@@ -36,13 +36,20 @@ module.exports = {
           return
         }
 
-        const href = node.attributes.find((attr) => attr.name.name === 'href')
+        const href = node.attributes.find(
+          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
+        )
 
         if (!href || href.value.type !== 'Literal') {
           return
         }
 
         const hrefPath = normalizeURL(href.value.value)
+        // Outgoing links are ignored
+        if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
+          return
+        }
+
         urls.forEach((url) => {
           if (url.test(normalizeURL(hrefPath))) {
             context.report({

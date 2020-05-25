@@ -1,13 +1,13 @@
-import chalk from 'chalk'
-import {
-  IWebpackConformanceTest,
-  IConformanceTestResult,
-  IConformanceTestStatus,
-} from '../TestInterface'
+import chalk from 'next/dist/compiled/chalk'
 import {
   CONFORMANCE_ERROR_PREFIX,
   CONFORMANCE_WARNING_PREFIX,
 } from '../constants'
+import {
+  IConformanceTestResult,
+  IConformanceTestStatus,
+  IWebpackConformanceTest,
+} from '../TestInterface'
 import { deepEqual } from '../utils/utils'
 
 export interface GranularChunksConformanceCheck

@@ -23,18 +23,6 @@ describe('Page Extensions', () => {
     expect(stdout).toContain('Compiled successfully')
   })
 
-  it('should throw if pageExtensions is not an array', async () => {
-    await fs.writeFile(nextConfig, `module.exports = { pageExtensions: null }`)
-
-    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
-
-    await fs.remove(nextConfig)
-
-    expect(stderr).toContain(
-      'Specified pageExtensions is not an array of strings, found "null". Please update this config or remove it'
-    )
-  })
-
   it('should throw if pageExtensions is an empty array', async () => {
     await fs.writeFile(nextConfig, `module.exports = { pageExtensions: [] }`)
 
