@@ -1,8 +1,6 @@
-import React from "react"
-import Head from "next/head"
-import { NextPage } from "next"
+import Head from 'next/head'
 
-export const Home: NextPage = () => (
+export const Home = (): JSX.Element => (
   <div className="container">
     <Head>
       <title>Create Next App</title>
@@ -20,7 +18,7 @@ export const Home: NextPage = () => (
 
       <button
         onClick={() => {
-          window.alert("With typescript and Jest")
+          window.alert('With typescript and Jest')
         }}
       >
         Test Button
