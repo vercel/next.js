@@ -8,6 +8,10 @@ export function normalizePagePath(page: string): string {
   if (!page.startsWith('/')) {
     page = `/${page}`
   }
+  // eliminate trailing slash
+  if (page.endsWith('/')) {
+    page = page.slice(0, -1)
+  }
   // Throw when using ../ etc in the pathname
   const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {

@@ -828,6 +828,9 @@ function getAmpPath(ampPath: string, asPath: string): string {
 }
 
 function getPageFile(page: string, buildId?: string): string {
+  // TODO: strip trailing slash here fixes dev errors client side
+  // but we probably want to strip it before it enters __NEXT_DATA__
+  // First add a test that catches these errors
   const startingUrl = page === '/' ? '/index' : page
   return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }
