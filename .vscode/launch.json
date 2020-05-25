@@ -11,6 +11,7 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "dev", "test/integration/basic"],
+      "skipFiles": ["<node_internals>/**"],
       "port": 9229
     },
     {
@@ -20,6 +21,7 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "build", "test/integration/basic"],
+      "skipFiles": ["<node_internals>/**"],
       "port": 9229
     },
     {
@@ -29,6 +31,7 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "start", "test/integration/basic"],
+      "skipFiles": ["<node_internals>/**"],
       "port": 9229
     },
     {
