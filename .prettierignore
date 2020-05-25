@@ -9,4 +9,3 @@ packages/react-dev-overlay/lib/**
 **/__tmp__/**
 lerna.json
 .github/actions/next-stats-action/.work
-examples/with-typescript-eslint-jest/**
