@@ -25,14 +25,10 @@ function runTests() {
   describe.each([
     // page route => page file
     ['/', '/index.js'],
-    ['/about', '/about.js'],
     ['/about/', '/about.js'],
-    ['/user', '/user/index.js'],
     ['/user/', '/user/index.js'],
-    ['/project', '/project/index.js'],
     ['/project/', '/project/index.js'],
     // TODO: /index handling doesn't work properly in dev
-    // ['/project/index', '/project/index/index.js'],
     // ['/project/index/', '/project/index/index.js'],
   ])('route %s should resolve to page %s', (route, expectedPage) => {
     it('handles serverside render correctly', async () => {
@@ -72,12 +68,9 @@ function runTests() {
 
   describe.each([
     // non-resolving page route
-    ['/non-existing'],
     ['/non-existing/'],
     // TODO: /index handling doesn't work yet
-    // ['/index'],
     // ['/index/'],
-    // ['/user/index'],
     // ['/user/index/'],
   ])('route %s should not resolve', (route) => {
     it('returns 404 when navigated directly', async () => {
@@ -99,7 +92,7 @@ function runTests() {
   })
 }
 
-describe('Path resolve', () => {
+describe('Trailing slashes', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
