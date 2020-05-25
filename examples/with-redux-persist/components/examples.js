@@ -1,9 +1,11 @@
-import { connect } from 'react-redux'
+import { useSelector } from 'react-redux'
 import Clock from './clock'
 import Counter from './counter'
 import DataList from './data-list'
 
-function Examples({ lastUpdate, light }) {
+const Examples = () => {
+  const lastUpdate = useSelector((state) => state.lastUpdate)
+  const light = useSelector((state) => state.light)
   return (
     <div>
       <Clock lastUpdate={lastUpdate} light={light} />
@@ -13,9 +15,4 @@ function Examples({ lastUpdate, light }) {
   )
 }
 
-function mapStateToProps(state) {
-  const { lastUpdate, light } = state
-  return { lastUpdate, light }
-}
-
-export default connect(mapStateToProps)(Examples)
+export default Examples

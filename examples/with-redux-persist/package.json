@@ -10,10 +10,10 @@
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "react-redux": "^5.0.1",
-    "redux": "^3.6.0",
+    "react-redux": "7.2.0",
+    "redux": "4.0.5",
     "redux-devtools-extension": "^2.13.2",
-    "redux-persist": "^5.10.0"
+    "redux-persist": "6.0.0"
   },
   "license": "ISC"
 }

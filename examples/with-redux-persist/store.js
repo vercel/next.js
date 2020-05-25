@@ -90,9 +90,11 @@ const persistConfig = {
 const persistedReducer = persistReducer(persistConfig, reducer)
 
 export function initializeStore(initialState = exampleInitialState) {
-  return createStore(
+  const store = createStore(
     persistedReducer,
     initialState,
     composeWithDevTools(applyMiddleware())
   )
+
+  return store
 }
