@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { connect, useSelector } from 'react-redux'
+import { useSelector } from 'react-redux'
 
 import Counter from './counter'
 import Clock from './clock'

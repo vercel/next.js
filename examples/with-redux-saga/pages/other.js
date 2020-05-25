@@ -1,4 +1,4 @@
-import { Component, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import { wrapper } from '../store'
 import { startClock, tickClock } from '../actions'
