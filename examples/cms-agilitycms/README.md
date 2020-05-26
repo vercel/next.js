@@ -72,10 +72,11 @@ When you are done, click **Save & Close** to save your `Author` content definiti
 
 ### Step 3. Create a `List` based on your `Author` Content Definition
 
-From within the Agility CMS Content Manager, navigate to **Shared Content** and click the **+ (New)** button to create a new `Content List`.
+From within the Agility CMS Content Manager, navigate to **Shared Content** and click the **+ (New)** button, then fill the form like so:
 
-- The _Content Definition_ should be set to **Author**.
-- the _Display Name_ should be set to **Authors**. This will also pre-populate your _Reference Name_ for you.
+- **Type** should be `Content List`
+- **Content Definition** should be **Author**
+- **Display Name** should be set to **Authors**. This will also pre-populate **Reference Name** for you.
 
 ### Step 4. Create a `Post` Content Definiton
 
@@ -112,13 +113,15 @@ From within the Agility CMS Content Manager, navigate to **Shared Content** and 
 
 ### Step 6. Populate Content
 
-From with **Shared Content** select the **Authors** list and create a new content item.
+Go to **Shared Content**, select the **Authors** list and click the **+ New** button to create a new content item:
 
 - You just need **1 Author content item**.
 - Use dummy data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
-Next, select the **Posts** list and create a new content item.
+Click on **Save** and **Publish** once you're done.
+
+Next, select the **Posts** list and click the **+ New** button to create a new content item:
 
 - We recommend creating at least **2 Post content items**.
 - Use dummy data for the text.
@@ -126,7 +129,7 @@ Next, select the **Posts** list and create a new content item.
 - For the images, you can download ones from [Unsplash](https://unsplash.com/).
 - Pick the **Author** you created earlier.
 
-**Important:** For each post content item, you need to click `Publish` after saving. If not, the post will be in the `Staging` state.
+For each post content item, you need to click `Publish` after saving. If not, the post will be in the `Staging` state.
 
 ### Step 7. Define your `Intro` Module
 
