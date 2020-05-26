@@ -36,6 +36,8 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
+import type exportPage from './worker'
+import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 const exists = promisify(existsOrig)
 
@@ -85,9 +87,17 @@ type ExportPathMap = {
   [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
-export default async function (
+interface ExportOptions {
+  outdir: string
+  silent?: boolean
+  threads?: number
+  pages?: string[]
+  buildExport?: boolean
+}
+
+export default async function exportApp(
   dir: string,
-  options: any,
+  options: ExportOptions,
   configuration?: any
 ): Promise<void> {
   function log(message: string): void {
@@ -133,11 +143,11 @@ export default async function (
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages &&
-    require(join(
+    (require(join(
       distDir,
       isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
       PAGES_MANIFEST
-    ))
+    )) as PagesManifest)
 
   let prerenderManifest: PrerenderManifest | undefined = undefined
   try {
@@ -347,15 +357,12 @@ export default async function (
     })
   }
 
-  const worker: Worker & { default: Function } = new Worker(
-    require.resolve('./worker'),
-    {
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }
-  ) as any
+  const worker = new Worker(require.resolve('./worker'), {
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: nextConfig.experimental.workerThreads,
+    exposedMethods: ['default'],
+  }) as Worker & { default: typeof exportPage }
 
   worker.getStdout().pipe(process.stdout)
   worker.getStderr().pipe(process.stderr)
