@@ -39,7 +39,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     // load stats config from allowed locations
     const { statsConfig, relativeStatsAppDir } = loadStatsConfig()
 
-    if (actionInfo.prRef === statsConfig.mainBranch) {
+    if (actionInfo.isLocal && actionInfo.prRef === statsConfig.mainBranch) {
       throw new Error(
         `'GITHUB_REF' can not be the same as mainBranch in 'stats-config.js'.\n` +
           `This will result in comparing against the same branch`

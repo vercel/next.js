@@ -53,6 +53,7 @@ module.exports = function actionInfo() {
     gitRoot: GIT_ROOT_DIR || 'https://github.com/',
     prRepo: GITHUB_REPOSITORY,
     prRef: GITHUB_REF,
+    isLocal: LOCAL_STATS,
     commitId: null,
     issueId: ISSUE_ID,
     isRelease: releaseTypes.has(GITHUB_ACTION),
