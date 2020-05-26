@@ -94,7 +94,7 @@ export type StaticProps<
 > = T extends (
   context?: GetStaticPropsContext<Q>
 ) => Promise<GetStaticPropsResult<infer P>>
-  ? GetStaticPropsResult<P>['props']
+  ? P
   : never
 
 export type GetStaticPaths<
@@ -132,7 +132,7 @@ export type ServerSideProps<
 > = T extends (
   context?: GetServerSidePropsContext<Q>
 ) => Promise<GetServerSidePropsResult<infer P>>
-  ? GetServerSidePropsResult<P>['props']
+  ? P
   : never
 
 export default next
