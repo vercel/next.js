@@ -1,12 +1,12 @@
 /* eslint-env jest */
-import path from 'path'
-import fs from 'fs-extra'
 import execa from 'execa'
+import fs from 'fs-extra'
 import os from 'os'
+import path from 'path'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
-jest.setTimeout(1000 * 60 * 2)
+jest.setTimeout(1000 * 60 * 5)
 
 const run = (cwd, ...args) => execa('node', [cli, ...args], { cwd })
 const runStarter = (cwd, ...args) => {
@@ -227,6 +227,36 @@ describe('create next app', () => {
 
         expect(res.exitCode).toBe(0)
         expect(res.stdout).toMatch(/Downloading files for example hello-world/)
+      })
+    })
+
+    it('should fall back to default template', async () => {
+      await usingTempDir(async (cwd) => {
+        const runExample = (...args) => {
+          const res = run(cwd, ...args)
+
+          function fallbackToTemplate(data) {
+            if (
+              /Do you want to use the default template instead/.test(
+                data.toString()
+              )
+            ) {
+              res.stdout.removeListener('data', fallbackToTemplate)
+              res.stdin.write('\n')
+            }
+          }
+
+          res.stdout.on('data', fallbackToTemplate)
+
+          return res
+        }
+
+        const res = await runExample(
+          'fail-example',
+          '--example',
+          '__internal-testing-retry'
+        )
+        expect(res.exitCode).toBe(0)
       })
     })
   }
