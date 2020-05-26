@@ -1,9 +1,9 @@
-import React from 'react'
 import { useDispatch } from 'react-redux'
 import { withRedux } from '../lib/redux'
 import useInterval from '../lib/useInterval'
 import Clock from '../components/clock'
 import Counter from '../components/counter'
+import Nav from '../components/nav'
 
 const IndexPage = () => {
   // Tick the time every second
@@ -17,23 +17,12 @@ const IndexPage = () => {
   }, 1000)
   return (
     <>
+      <Nav />
       <Clock />
       <Counter />
     </>
   )
 }
 
-IndexPage.getInitialProps = ({ reduxStore }) => {
-  // Tick the time once, so we'll have a
-  // valid time before first render
-  const { dispatch } = reduxStore
-  dispatch({
-    type: 'TICK',
-    light: typeof window === 'object',
-    lastUpdate: Date.now(),
-  })
-
-  return {}
-}
-
+// The initial time returned here will be 00:00:00.
 export default withRedux(IndexPage)
