@@ -14,7 +14,7 @@ const About = (props) => {
     return () => {
       clearTimeout(timeoutId)
     }
-  }, [])
+  }, [pageTransitionReadyToEnter])
 
   if (!loaded) return null
 
