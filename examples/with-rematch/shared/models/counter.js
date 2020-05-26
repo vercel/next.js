@@ -1,8 +1,11 @@
-const counter = {
+import { createModel } from '@rematch/core'
+
+const counter = createModel({
   state: 0, // initial state
   reducers: {
     // handle state changes with pure functions
-    increment(state, payload) {
+    increment: (state, payload) => {
+      if (typeof payload === 'object') return state + 1
       return state + payload
     },
   },
@@ -14,6 +17,6 @@ const counter = {
       this.increment(payload)
     },
   },
-}
+})
 
 export default counter
