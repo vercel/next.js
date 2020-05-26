@@ -1,7 +1,5 @@
-import React from 'react'
 import { useSetRecoilState } from 'recoil'
-import { timeState } from '../recoilAtoms'
-
+import { timeState } from '../lib/recoil-atoms'
 import useInterval from '../lib/useInterval'
 import Clock from '../components/clock'
 import Counter from '../components/counter'

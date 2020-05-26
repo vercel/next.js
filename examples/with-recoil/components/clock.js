@@ -1,6 +1,5 @@
-import React from 'react'
 import { useRecoilValue } from 'recoil'
-import { timeState } from '../recoilAtoms'
+import { timeState } from '../lib/recoil-atoms'
 
 const useClock = () => {
   const time = useRecoilValue(timeState)
