@@ -190,6 +190,8 @@ export interface NextApiRequest extends IncomingMessage {
 
   body: any
 
+  rawBody: Buffer
+
   env: Env
 }
 

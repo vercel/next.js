@@ -45,12 +45,14 @@ export async function apiResolver(
     setLazyProp({ req: apiReq, params }, 'query', getQueryParser(req))
     // // Parsing of body
     if (bodyParser) {
-      apiReq.body = await parseBody(
+      const { body, rawBody } = await parseBody(
         apiReq,
         config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
           ? config.api.bodyParser.sizeLimit
           : '1mb'
       )
+      apiReq.body = body
+      apiReq.rawBody = rawBody
     }
 
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
@@ -116,12 +118,12 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
   const body = buffer.toString()
 
   if (type === 'application/json' || type === 'application/ld+json') {
-    return parseJson(body)
+    return { body: parseJson(body), rawBody: buffer }
   } else if (type === 'application/x-www-form-urlencoded') {
     const qs = require('querystring')
-    return qs.decode(body)
+    return { body: qs.decode(body), rawBody: buffer }
   } else {
-    return body
+    return { body, rawBody: buffer }
   }
 }
 
