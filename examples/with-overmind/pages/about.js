@@ -13,7 +13,7 @@ export async function getStaticProps() {
   overmind.state.page = 'About'
 
   return {
-    mutations: overmind.hydrate(),
+    props: { mutations: overmind.hydrate() },
   }
 }
 
