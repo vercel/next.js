@@ -1,10 +1,10 @@
-import React from 'react'
+import { useEffect } from 'react'
 import { StyleSheet, StyleResolver } from 'style-sheet'
 const cls = StyleResolver.resolve
 
 export default function Home() {
   const [color, setColor] = React.useState('#111')
-  React.useEffect(() => {
+  useEffect(() => {
     setTimeout(() => {
       setColor('#00f')
     }, 2000)
