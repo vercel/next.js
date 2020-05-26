@@ -86,6 +86,10 @@ export async function downloadAndExtractExample(
   root: string,
   name: string
 ): Promise<void> {
+  if (name === '__internal-testing-retry') {
+    throw new Error('This is an internal example for testing the CLI.')
+  }
+
   try {
     return await pipeline(
       got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),

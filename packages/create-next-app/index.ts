@@ -4,12 +4,11 @@ import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
-
-import { createApp } from './create-app'
+import { createApp, DownloadError } from './create-app'
+import { listExamples } from './helpers/examples'
+import { shouldUseYarn } from './helpers/should-use-yarn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
-import { shouldUseYarn } from './helpers/should-use-yarn'
-import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -166,12 +165,32 @@ async function run(): Promise<void> {
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
-  await createApp({
-    appPath: resolvedProjectPath,
-    useNpm: !!program.useNpm,
-    example: example && example !== 'default' ? example : undefined,
-    examplePath: program.examplePath,
-  })
+  try {
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      example: example && example !== 'default' ? example : undefined,
+      examplePath: program.examplePath,
+    })
+  } catch (reason) {
+    if (!(reason instanceof DownloadError)) {
+      throw reason
+    }
+
+    const res = await prompts({
+      type: 'confirm',
+      name: 'builtin',
+      message:
+        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+        `Do you want to use the default template instead?`,
+      initial: true,
+    })
+    if (!res.builtin) {
+      throw reason
+    }
+
+    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+  }
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)
