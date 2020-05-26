@@ -1,6 +1,5 @@
 import { useSelector } from 'react-redux'
 import { useRematchDispatch } from '../shared/utils'
-
 import { initializeStore } from '../shared/store'
 import CounterDisplay from '../shared/components/counter-display'
 import Header from '../shared/components/header'
