@@ -43,6 +43,15 @@ export async function apiResolver(
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
     // Parsing query string
     setLazyProp({ req: apiReq, params }, 'query', getQueryParser(req))
+    // Parsing preview data
+    setLazyProp(
+      { req: apiReq },
+      'previewData',
+      getPreviewDataParser(apiReq, apiRes, apiContext)
+    )
+    // Parsing preview
+    setLazyProp({ req: apiReq }, 'preview', () => !!apiReq.previewData)
+
     // // Parsing of body
     if (bodyParser) {
       apiReq.body = await parseBody(
@@ -281,6 +290,27 @@ export function tryGetPreviewData(
     return false
   }
 
+  return tryGetPreviewDataFromCookies(req, res, options, cookies)
+}
+
+function getPreviewDataParser(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  opts: __ApiPreviewProps
+): () => object | string | false {
+  // Same use as tryGetPreviewData except gets cookies straight off the req object
+  return function () {
+    const cookies = req.cookies
+    return tryGetPreviewDataFromCookies(req, res, opts, cookies)
+  }
+}
+
+function tryGetPreviewDataFromCookies(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: __ApiPreviewProps,
+  cookies: NextApiRequestCookies
+): object | string | false {
   const hasBypass = COOKIE_NAME_PRERENDER_BYPASS in cookies
   const hasData = COOKIE_NAME_PRERENDER_DATA in cookies
 
