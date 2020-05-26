@@ -192,11 +192,11 @@ export interface NextApiRequest extends IncomingMessage {
 
   env: Env
 
-  preview: boolean
+  preview: true | undefined
   /**
    * Preview data set on the request, if any
    * */
-  previewData: any
+  previewData?: object | string
 }
 
 /**
