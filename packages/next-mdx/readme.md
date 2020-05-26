@@ -24,14 +24,14 @@ const withMDX = require('@next/mdx')()
 module.exports = withMDX()
 ```
 
-Optionally you can provide [MDX options](https://github.com/mdx-js/mdx#options):
+Optionally you can provide [MDX plugins](https://mdxjs.com/advanced/plugins#plugins):
 
 ```js
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
-    mdPlugins: [],
-    hastPlugins: [],
+    remarkPlugins: [],
+    rehypePlugins: [],
   },
 })
 module.exports = withMDX()

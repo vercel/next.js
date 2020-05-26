@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
@@ -6,7 +6,9 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { isTargetLikeServerless } from '../next-server/server/config'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
+import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { LoadedEnvFiles } from '../lib/load-env-config'
 
 type PagesMapping = {
   [page: string]: string
@@ -60,11 +62,13 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
+  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: any
+  config: any,
+  loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
@@ -90,9 +94,10 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
+    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
   }
 
-  Object.keys(pages).forEach(page => {
+  Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
@@ -128,10 +133,13 @@ export function createEntrypoints(
     }
 
     if (!isApiRoute) {
-      const pageLoader = `next-client-pages-loader?${stringify({
+      const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-      })}!`
+      }
+      const pageLoader = `next-client-pages-loader?${stringify(
+        pageLoaderOpts
+      )}!`
 
       // Make sure next/router is a dependency of _app or else granularChunks
       // might cause the router to not be able to load causing hydration

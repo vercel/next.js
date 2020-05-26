@@ -1,15 +1,15 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
-const writeConfig = async (routes = [], type = 'redirects') => {
+const writeConfig = async (routes, type = 'redirects') => {
   await fs.writeFile(
     nextConfigPath,
     `
@@ -59,6 +59,12 @@ const runTests = () => {
           destination: '/another',
           permanent: 'yes',
         },
+        {
+          // unnamed in destination
+          source: '/hello/world/(.*)',
+          destination: '/:0',
+          permanent: true,
+        },
         // invalid objects
         null,
         'string',
@@ -97,6 +103,10 @@ const runTests = () => {
 
     expect(stderr).toContain(
       `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
+    )
+
+    expect(stderr).toContain(
+      `\`destination\` has unnamed params :0 for route {"source":"/hello/world/(.*)","destination":"/:0","permanent":true}`
     )
 
     expect(stderr).toContain(
@@ -142,6 +152,11 @@ const runTests = () => {
           source: '/feedback/(?!general)',
           destination: '/feedback/general',
         },
+        {
+          // unnamed in destination
+          source: '/hello/world/(.*)',
+          destination: '/:0',
+        },
         // invalid objects
         null,
         'string',
@@ -172,6 +187,10 @@ const runTests = () => {
 
     expect(stderr).toContain(
       `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+    )
+
+    expect(stderr).toContain(
+      `\`destination\` has unnamed params :0 for route {"source":"/hello/world/(.*)","destination":"/:0"}`
     )
 
     expect(stderr).toContain(
@@ -322,6 +341,54 @@ const runTests = () => {
     expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
     expect(stderr).toContain(`/learning/?`)
   })
+
+  it('should show valid error when non-array is returned from rewrites', async () => {
+    await writeConfig(
+      {
+        source: '/feedback/(?!general)',
+        destination: '/feedback/general',
+      },
+      'rewrites'
+    )
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(`rewrites must return an array, received object`)
+  })
+
+  it('should show valid error when non-array is returned from redirects', async () => {
+    await writeConfig(false, 'redirects')
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(`redirects must return an array, received boolean`)
+  })
+
+  it('should show valid error when non-array is returned from headers', async () => {
+    await writeConfig(undefined, 'headers')
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(`headers must return an array, received undefined`)
+  })
+
+  it('should show valid error when segments not in source are used in destination', async () => {
+    await writeConfig(
+      [
+        {
+          source: '/feedback/:type',
+          destination: '/feedback/:id',
+        },
+      ],
+      'rewrites'
+    )
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      `\`destination\` has segments not in \`source\` (id) for route {"source":"/feedback/:type","destination":"/feedback/:id"}`
+    )
+  })
 }
 
 describe('Errors on invalid custom routes', () => {
@@ -332,7 +399,7 @@ describe('Errors on invalid custom routes', () => {
       getStderr = async () => {
         let stderr = ''
         await launchApp(appDir, await findPort(), {
-          onStderr: msg => {
+          onStderr: (msg) => {
             stderr += msg
           },
         })

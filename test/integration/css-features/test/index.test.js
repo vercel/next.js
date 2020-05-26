@@ -1,10 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const fixturesDir = join(__dirname, '../fixtures')
 
@@ -29,7 +29,7 @@ describe('Browserslist: Old', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -61,7 +61,7 @@ describe('Browserslist: New', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -93,7 +93,7 @@ describe('Custom Properties: Pass-Through IE11', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -125,7 +125,7 @@ describe('Custom Properties: Pass-Through Modern', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -150,7 +150,7 @@ describe('Custom Properties: Fail for :root {} in CSS Modules', () => {
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
-    expect(stderr).toContain('CssSyntax error: Selector ":root" is not pure')
+    expect(stderr).toContain('Selector ":root" is not pure')
   })
 })
 
@@ -168,7 +168,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
-    expect(stderr).toContain('CssSyntax error: Selector "h1" is not pure')
+    expect(stderr).toContain('Selector "h1" is not pure')
   })
 })
 
@@ -193,7 +193,7 @@ describe('CSS Modules: Import Global CSS', () => {
     const cssFolder = join(appDir, '.next/static/css')
 
     const files = await readdir(cssFolder)
-    const cssFiles = files.filter(f => /\.css$/.test(f))
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
 
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -218,6 +218,6 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
-    expect(stderr).toContain('CssSyntax error: Selector "a" is not pure')
+    expect(stderr).toContain('Selector "a" is not pure')
   })
 })

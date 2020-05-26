@@ -4,9 +4,9 @@ Usually splitting your app state into `pages` feels natural but sometimes you'll
 
 ## Deploy your own
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-redux-wrapper)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-redux-wrapper)
 
 ## How to use
 
@@ -39,7 +39,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## Notes
 
@@ -51,7 +51,7 @@ Our page is located at `pages/index.js` so it will map the route `/`. To get the
 
 For safety it is recommended to wrap all pages, no matter if they use Redux or not, so that you should not care about it anymore in all child components.
 
-`withRedux` function accepts `makeStore` as first argument, all other arguments are internally passed to `react-redux connect()` function. `makeStore` function will receive initialState as one argument and should return a new instance of redux store each time when called, no memoization needed here. See the [full example](https://github.com/kirill-konshin/next-redux-wrapper#usage) in the Next Redux Wrapper repository. And there's another package [next-connect-redux](https://github.com/huzidaha/next-connect-redux) available with similar features.
+This example wraps pages individually using `getStaticProps` and `getServerSideProps`. See the [full example](https://github.com/kirill-konshin/next-redux-wrapper#usage) in the Next Redux Wrapper repository, you can also opt-in to use `App.getInitialProps` and `Page.getInitialProps` as before.
 
 To pass the initial state from the server to the client we pass it as a prop called `initialState` so then it's available when the client takes over.
 

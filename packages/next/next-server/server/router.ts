@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { compile as compilePathToRegex } from 'path-to-regexp'
-import { stringify as stringifyQs } from 'querystring'
+import { ParsedUrlQuery } from 'querystring'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
@@ -34,32 +34,57 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 
-export const prepareDestination = (destination: string, params: Params) => {
+export const prepareDestination = (
+  destination: string,
+  params: Params,
+  query: ParsedUrlQuery,
+  appendParamsToQuery?: boolean
+) => {
   const parsedDestination = parseUrl(destination, true)
   const destQuery = parsedDestination.query
   let destinationCompiler = compilePathToRegex(
-    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
+    // we don't validate while compiling the destination since we should
+    // have already validated before we got to this point and validating
+    // breaks compiling destinations with named pattern params from the source
+    // e.g. /something:hello(.*) -> /another/:hello is broken with validation
+    // since compile validation is meant for reversing and not for inserting
+    // params from a separate path-regex into another
+    { validate: false }
   )
   let newUrl
 
-  Object.keys(destQuery).forEach(key => {
-    const val = destQuery[key]
-    if (
-      typeof val === 'string' &&
-      val.startsWith(':') &&
-      params[val.substr(1)]
-    ) {
-      destQuery[key] = params[val.substr(1)]
+  // update any params in query values
+  for (const [key, strOrArray] of Object.entries(destQuery)) {
+    let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
+    if (value) {
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      value = `/${value}`
+      const queryCompiler = compilePathToRegex(value, { validate: false })
+      value = queryCompiler(params).substr(1)
     }
-  })
+    destQuery[key] = value
+  }
+
+  // add path params to query if it's not a redirect and not
+  // already defined in destination query
+  if (appendParamsToQuery) {
+    for (const [name, value] of Object.entries(params)) {
+      if (!(name in destQuery)) {
+        destQuery[name] = value
+      }
+    }
+  }
 
   try {
-    newUrl = destinationCompiler(params)
+    newUrl = encodeURI(destinationCompiler(params))
+
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    parsedDestination.search = stringifyQs(parsedDestination.query)
     parsedDestination.path = `${pathname}${parsedDestination.search}`
+    delete parsedDestination.search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
@@ -68,6 +93,16 @@ export const prepareDestination = (destination: string, params: Params) => {
     }
     throw err
   }
+
+  // Query merge order lowest priority to highest
+  // 1. initial URL query values
+  // 2. path segment values
+  // 3. destination specified query values
+  parsedDestination.query = {
+    ...query,
+    ...parsedDestination.query,
+  }
+
   return {
     newUrl,
     parsedDestination,
@@ -127,12 +162,12 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
-    const pageChecks: { [name: string]: boolean } = {}
+    const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       if (pageChecks[p]) {
         return pageChecks[p]
       }
-      const result = await this.pageChecker(p)
+      const result = this.pageChecker(p)
       pageChecks[p] = result
       return result
     }
@@ -165,7 +200,7 @@ export default class Router {
                 if (!pathname) {
                   return { finished: false }
                 }
-                if (await this.pageChecker(pathname)) {
+                if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(req, res, params, parsedUrl)
                 }
                 return { finished: false }
@@ -184,11 +219,6 @@ export default class Router {
 
       // Check if the match function matched
       if (newParams) {
-        // Combine parameters and querystring
-        if (route.type === 'rewrite' || route.type === 'redirect') {
-          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
-        }
-
         const result = await route.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled

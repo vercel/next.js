@@ -41,57 +41,33 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 
 > A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
 
-> Next.js `strict` mode is disabled by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
+> Next.js `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
 
 By default, Next.js reports TypeScript errors during development for pages you are actively working on. TypeScript errors for inactive pages **do not** block the development process.
 
 If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).
 
-## Pages
+## Static Generation and Server-side Rendering
 
-For function components the `NextPage` type is exported, here's how to use it:
+For `getStaticProps`, `getStaticPaths`, and `getServerSideProps`, you can use the `GetStaticProps`, `GetStaticPaths`, and `GetServerSideProps` types respectively:
 
-```jsx
-import { NextPage } from 'next'
+```ts
+import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
-interface Props {
-  userAgent?: string;
+export const getStaticProps: GetStaticProps = async (context) => {
+  // ...
 }
 
-const Page: NextPage<Props> = ({ userAgent }) => (
-  <main>Your user agent: {userAgent}</main>
-)
-
-Page.getInitialProps = async ({ req }) => {
-  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
-  return { userAgent }
+export const getStaticPaths: GetStaticPaths = async () => {
+  // ...
 }
 
-export default Page
-```
-
-And for `React.Component` you can use `NextPageContext`:
-
-```jsx
-import React from 'react'
-import { NextPageContext } from 'next'
-
-interface Props {
-  userAgent?: string;
-}
-
-export default class Page extends React.Component<Props> {
-  static async getInitialProps({ req }: NextPageContext) {
-    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
-    return { userAgent }
-  }
-
-  render() {
-    const { userAgent } = this.props
-    return <main>Your user agent: {userAgent}</main>
-  }
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  // ...
 }
 ```
+
+> If you're using `getInitialProps`, you can [follow the directions on this page](/docs/api-reference/data-fetching/getInitialProps.md#typescript).
 
 ## API Routes
 
@@ -121,7 +97,7 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 
 ## Custom `App`
 
-If you have a [custom `App` ](/docs/advanced-features/custom-app), you can use the built-in type `AppProps`, like so:
+If you have a [custom `App` ](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
 import { AppProps } from 'next/app'
@@ -132,3 +108,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 
 export default MyApp
 ```
+
+## Path aliases and baseUrl
+
+Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
+
+You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).

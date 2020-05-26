@@ -43,17 +43,18 @@ type NextBabelPresetOptions = {
   'transform-runtime'?: any
   'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
+  'preset-typescript'?: any
 }
 
 type BabelPreset = {
   presets?: PluginItem[] | null
   plugins?: PluginItem[] | null
   sourceType?: 'script' | 'module' | 'unambiguous'
-  overrides?: any[]
+  overrides?: Array<{ test: RegExp } & Omit<BabelPreset, 'overrides'>>
 }
 
 // Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
-function supportsStaticESM(caller: any) {
+function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
@@ -64,9 +65,7 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
-  const isPolyfillsOptimization = api.caller(
-    (caller: any) => !!caller && caller.polyfillsOptimization
-  )
+
   const isLaxModern =
     isModern ||
     (options['preset-env']?.targets &&
@@ -97,7 +96,7 @@ module.exports = (
     }
   }
 
-  // specify a preset to use instead of @babel/preset-env:
+  // specify a preset to use instead of @babel/preset-env
   const customModernPreset =
     isLaxModern && options['experimental-modern-preset']
 
@@ -118,7 +117,10 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      [require('@babel/preset-typescript'), { allowNamespaces: true }],
+      [
+        require('@babel/preset-typescript'),
+        { allowNamespaces: true, ...options['preset-typescript'] },
+      ],
     ],
     plugins: [
       [
@@ -155,13 +157,11 @@ module.exports = (
       !isServer && [
         require('@babel/plugin-transform-runtime'),
         {
-          corejs: isPolyfillsOptimization ? false : 2,
+          corejs: false,
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: (process.versions as any).pnp
-            ? __dirname
-            : undefined,
+          absoluteRuntime: process.versions.pnp ? __dirname : undefined,
           ...options['transform-runtime'],
         },
       ],
@@ -181,6 +181,13 @@ module.exports = (
       require('@babel/plugin-proposal-optional-chaining'),
       require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
+      [require('@babel/plugin-proposal-numeric-separator').default, false],
     ].filter(Boolean),
+    overrides: [
+      {
+        test: /\.tsx?$/,
+        plugins: [require('@babel/plugin-proposal-numeric-separator').default],
+      },
+    ],
   }
 }

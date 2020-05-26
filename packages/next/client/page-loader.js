@@ -1,4 +1,9 @@
+import { parse } from 'url'
 import mitt from '../next-server/lib/mitt'
+import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
+import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
+import { delBasePath } from './../next-server/lib/router/router'
 
 function hasRel(rel, link) {
   try {
@@ -18,6 +23,7 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
+/** @param {string} route */
 function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
@@ -52,7 +58,7 @@ export default class PageLoader {
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
-      this.promisedBuildManifest = new Promise(resolve => {
+      this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
         } else {
@@ -62,22 +68,117 @@ export default class PageLoader {
         }
       })
     }
+    /** @type {Promise<Set<string>>} */
+    this.promisedSsgManifest = new Promise((resolve) => {
+      if (window.__SSG_MANIFEST) {
+        resolve(window.__SSG_MANIFEST)
+      } else {
+        window.__SSG_MANIFEST_CB = () => {
+          resolve(window.__SSG_MANIFEST)
+        }
+      }
+    })
   }
 
   // Returns a promise for the dependencies for a particular route
   getDependencies(route) {
     return this.promisedBuildManifest.then(
-      man =>
+      (man) =>
         (man[route] &&
           man[route].map(
-            url => `${this.assetPrefix}/_next/${encodeURI(url)}`
+            (url) => `${this.assetPrefix}/_next/${encodeURI(url)}`
           )) ||
         []
     )
   }
 
+  /**
+   * @param {string} href the route href (file-system path)
+   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
+   */
+  getDataHref(href, asPath) {
+    const getHrefForSlug = (/** @type string */ path) => {
+      path = delBasePath(path)
+      return `${this.assetPrefix}/_next/data/${this.buildId}${
+        path === '/' ? '/index' : path
+      }.json`
+    }
+
+    const { pathname: hrefPathname, query } = parse(href, true)
+    const { pathname: asPathname } = parse(asPath)
+
+    const route = normalizeRoute(hrefPathname)
+
+    let isDynamic = isDynamicRoute(route),
+      interpolatedRoute
+    if (isDynamic) {
+      const dynamicRegex = getRouteRegex(route)
+      const dynamicGroups = dynamicRegex.groups
+      const dynamicMatches =
+        // Try to match the dynamic route against the asPath
+        getRouteMatcher(dynamicRegex)(asPathname) ||
+        // Fall back to reading the values from the href
+        // TODO: should this take priority; also need to change in the router.
+        query
+
+      interpolatedRoute = route
+      if (
+        !Object.keys(dynamicGroups).every((param) => {
+          let value = dynamicMatches[param]
+          const repeat = dynamicGroups[param].repeat
+
+          // support single-level catch-all
+          // TODO: more robust handling for user-error (passing `/`)
+          if (repeat && !Array.isArray(value)) value = [value]
+
+          return (
+            param in dynamicMatches &&
+            // Interpolate group into data URL if present
+            (interpolatedRoute = interpolatedRoute.replace(
+              `[${repeat ? '...' : ''}${param}]`,
+              repeat
+                ? value.map(encodeURIComponent).join('/')
+                : encodeURIComponent(value)
+            ))
+          )
+        })
+      ) {
+        interpolatedRoute = '' // did not satisfy all requirements
+
+        // n.b. We ignore this error because we handle warning for this case in
+        // development in the `<Link>` component directly.
+      }
+    }
+
+    return isDynamic
+      ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
+      : getHrefForSlug(route)
+  }
+
+  /**
+   * @param {string} href the route href (file-system path)
+   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
+   */
+  prefetchData(href, asPath) {
+    const { pathname: hrefPathname } = parse(href, true)
+    const route = normalizeRoute(hrefPathname)
+    return this.promisedSsgManifest.then(
+      (s, _dataHref) =>
+        // Check if the route requires a data file
+        s.has(route) &&
+        // Try to generate data href, noop when falsy
+        (_dataHref = this.getDataHref(href, asPath)) &&
+        // noop when data has already been prefetched (dedupe)
+        !document.querySelector(
+          `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
+        ) &&
+        // Inject the `<link rel=prefetch>` tag for above computed `href`.
+        appendLink(_dataHref, relPrefetch, 'fetch')
+    )
+  }
+
   loadPage(route) {
-    return this.loadPageScript(route).then(v => v.page)
+    return this.loadPageScript(route)
   }
 
   loadPageScript(route) {
@@ -115,8 +216,8 @@ export default class PageLoader {
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
-          this.getDependencies(route).then(deps => {
-            deps.forEach(d => {
+          this.getDependencies(route).then((deps) => {
+            deps.forEach((d) => {
               if (
                 /\.js$/.test(d) &&
                 !document.querySelector(`script[src^="${d}"]`)
@@ -192,7 +293,7 @@ export default class PageLoader {
           `Waiting for webpack to become "idle" to initialize the page: "${route}"`
         )
 
-        const check = status => {
+        const check = (status) => {
           if (status === 'idle') {
             module.hot.removeStatusHandler(check)
             register()
@@ -206,6 +307,10 @@ export default class PageLoader {
     register()
   }
 
+  /**
+   * @param {string} route
+   * @param {boolean} [isDependency]
+   */
   prefetch(route, isDependency) {
     // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
     // License: Apache 2.0
@@ -215,6 +320,7 @@ export default class PageLoader {
       if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
+    /** @type {string} */
     let url
     if (isDependency) {
       url = route
@@ -244,8 +350,8 @@ export default class PageLoader {
             ),
             process.env.__NEXT_GRANULAR_CHUNKS &&
               !isDependency &&
-              this.getDependencies(route).then(urls =>
-                Promise.all(urls.map(url => this.prefetch(url, true)))
+              this.getDependencies(route).then((urls) =>
+                Promise.all(urls.map((url) => this.prefetch(url, true)))
               ),
           ]
     ).then(

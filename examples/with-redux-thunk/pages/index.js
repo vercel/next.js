@@ -1,28 +1,33 @@
-import React from 'react'
-import { connect } from 'react-redux'
-import { startClock, serverRenderClock } from '../store'
+import { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
+import Link from 'next/link'
+import getStore from '../store'
+import { startClock, serverRenderClock } from '../actions'
 import Examples from '../components/examples'
 
-class Index extends React.Component {
-  static getInitialProps({ reduxStore, req }) {
-    const isServer = !!req
-    reduxStore.dispatch(serverRenderClock(isServer))
+const Index = () => {
+  const dispatch = useDispatch()
+  useEffect(() => {
+    dispatch(startClock())
+  }, [dispatch])
 
-    return {}
-  }
+  return (
+    <>
+      <Examples />
+      <Link href="/show-redux-state">
+        <a>Click to see current Redux State</a>
+      </Link>
+    </>
+  )
+}
 
-  componentDidMount() {
-    const { dispatch } = this.props
-    this.timer = startClock(dispatch)
-  }
+export async function getStaticProps() {
+  const store = getStore()
+  store.dispatch(serverRenderClock())
 
-  componentWillUnmount() {
-    clearInterval(this.timer)
-  }
-
-  render() {
-    return <Examples />
+  return {
+    props: {},
   }
 }
 
-export default connect()(Index)
+export default Index

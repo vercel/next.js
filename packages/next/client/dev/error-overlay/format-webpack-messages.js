@@ -31,17 +31,16 @@ function isLikelyASyntaxError(message) {
 }
 
 // Cleans up webpack error messages.
-// eslint-disable-next-line no-unused-vars
-function formatMessage(message, isError) {
+function formatMessage(message) {
   let lines = message.split('\n')
 
   // Strip Webpack-added headers off errors/warnings
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
-  lines = lines.filter(line => !/Module [A-z ]+\(from/.test(line))
+  lines = lines.filter((line) => !/Module [A-z ]+\(from/.test(line))
 
   // Transform parsing error into syntax error
   // TODO: move this to our ESLint formatter?
-  lines = lines.map(line => {
+  lines = lines.map((line) => {
     const parsingError = /Line (\d+):(?:(\d+):)?\s*Parsing error: (.+)$/.exec(
       line
     )
@@ -58,9 +57,6 @@ function formatMessage(message, isError) {
     /SyntaxError\s+\((\d+):(\d+)\)\s*(.+?)\n/g,
     `${friendlySyntaxErrorLabel} $3 ($1:$2)\n`
   )
-  // Remove columns from ESLint formatter output (we added these for more
-  // accurate syntax errors)
-  message = message.replace(/Line (\d+):\d+:/g, 'Line $1:')
   // Clean up export errors
   message = message.replace(
     /^.*export '(.+?)' was not found in '(.+?)'.*$/gm,
@@ -90,7 +86,19 @@ function formatMessage(message, isError) {
       lines[1]
         .replace('Error: ', '')
         .replace('Module not found: Cannot find file:', 'Cannot find file:'),
+      ...lines.slice(2).filter((line) => line.indexOf(' @ ') !== 0),
     ]
+  }
+
+  // Add helpful message for users trying to use Sass for the first time
+  if (lines[1] && lines[1].match(/Cannot find module.+node-sass/)) {
+    // ./file.module.scss (<<loader info>>) => ./file.module.scss
+    lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1')
+
+    lines[1] =
+      "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
+    lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
+    lines[1] += '\nLearn more: https://err.sh/next.js/install-sass'
   }
 
   message = lines.join('\n')
@@ -117,10 +125,10 @@ function formatMessage(message, isError) {
 }
 
 function formatWebpackMessages(json) {
-  const formattedErrors = json.errors.map(function(message) {
+  const formattedErrors = json.errors.map(function (message) {
     return formatMessage(message, true)
   })
-  const formattedWarnings = json.warnings.map(function(message) {
+  const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, false)
   })
   const result = { errors: formattedErrors, warnings: formattedWarnings }

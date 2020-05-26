@@ -1,12 +1,12 @@
-import fetch from 'isomorphic-unfetch'
+import useSWR from 'swr'
 
-const Index = ({ cookie }) => <div>{`Cookie from response: ${cookie}`}</div>
+const fetcher = (url) => fetch(url).then((res) => res.text())
 
-Index.getInitialProps = async () => {
-  const response = await fetch('http://localhost:3000/api/cookies')
-  const cookie = response.headers.get('set-cookie')
+export default function Index() {
+  const { data, error } = useSWR('/api/cookies', fetcher)
 
-  return { cookie }
+  if (error) return <div>Failed to load</div>
+  if (!data) return <div>Loading...</div>
+
+  return <div>{`Cookie from response: "${data}"`}</div>
 }
-
-export default Index

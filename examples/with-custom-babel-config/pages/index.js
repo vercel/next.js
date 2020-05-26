@@ -1,6 +1,5 @@
-import React from 'react'
-
-export default class MyLuckNo extends React.Component {
+import { Component } from 'react'
+export default class MyLuckNo extends Component {
   constructor(...args) {
     super(...args)
     this.state = { randomNo: null }

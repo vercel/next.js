@@ -34,7 +34,7 @@ The `next/babel` presets includes:
 - plugin-transform-runtime
 - styled-jsx
 
-These presets/plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset, like so:
+To configure these presets/plugins, **do not** add them to `presets` or `plugins` in your custom `.babelrc`. Instead, configure them on the `next/babel` preset, like so:
 
 ```json
 {
@@ -57,4 +57,4 @@ To learn more about the available options for each config, visit their documenta
 
 > Next.js uses the **current** Node.js version for server-side compilations.
 
-> The `modules` option on `"preset-env"` should be kept to `false`, otherwise webpack code splitting is disabled.
+> The `modules` option on `"preset-env"` should be kept to `false`, otherwise webpack code splitting is turned off.

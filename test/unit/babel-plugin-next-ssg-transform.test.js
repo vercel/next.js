@@ -1,11 +1,7 @@
 /* eslint-env jest */
 import { transform } from '@babel/core'
 
-const trim = s =>
-  s
-    .join('\n')
-    .trim()
-    .replace(/^\s+/gm, '')
+const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 // avoid generating __source annotations in JSX during testing:
 const NODE_ENV = process.env.NODE_ENV
@@ -32,51 +28,51 @@ describe('babel plugin (next-ssg-transform)', () => {
   describe('getStaticProps support', () => {
     it('should remove separate named export specifiers', () => {
       const output = babel(trim`
-        export { unstable_getStaticPaths } from '.'
-        export { a as unstable_getStaticProps } from '.'
+        export { getStaticPaths } from '.'
+        export { a as getStaticProps } from '.'
 
         export default function Test() {
           return <div />
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove combined named export specifiers', () => {
       const output = babel(trim`
-        export { unstable_getStaticPaths, a as unstable_getStaticProps } from '.'
+        export { getStaticPaths, a as getStaticProps } from '.'
 
         export default function Test() {
           return <div />
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should retain extra named export specifiers', () => {
       const output = babel(trim`
-        export { unstable_getStaticPaths, a as unstable_getStaticProps, foo, bar as baz } from '.'
+        export { getStaticPaths, a as getStaticProps, foo, bar as baz } from '.'
 
         export default function Test() {
           return <div />
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"export{foo,bar as baz}from'.';const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export{foo,bar as baz}from'.';export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove named export function declarations', () => {
       const output = babel(trim`
-        export function unstable_getStaticPaths() {
+        export function getStaticPaths() {
           return []
         }
 
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -86,17 +82,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove named export function declarations (async)', () => {
       const output = babel(trim`
-        export async function unstable_getStaticPaths() {
+        export async function getStaticPaths() {
           return []
         }
 
-        export async function unstable_getStaticProps() {
+        export async function getStaticProps() {
           return { props: {} }
         }
 
@@ -106,13 +102,13 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should not remove extra named export function declarations', () => {
       const output = babel(trim`
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -124,17 +120,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export function Noop(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export function Noop(){}export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove named export variable declarations', () => {
       const output = babel(trim`
-        export const unstable_getStaticPaths = () => {
+        export const getStaticPaths = () => {
           return []
         }
 
-        export const unstable_getStaticProps = function() {
+        export const getStaticProps = function() {
           return { props: {} }
         }
 
@@ -144,17 +140,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove named export variable declarations (async)', () => {
       const output = babel(trim`
-        export const unstable_getStaticPaths = async () => {
+        export const getStaticPaths = async () => {
           return []
         }
 
-        export const unstable_getStaticProps = async function() {
+        export const getStaticProps = async function() {
           return { props: {} }
         }
 
@@ -164,17 +160,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should not remove extra named export variable declarations', () => {
       const output = babel(trim`
-        export const unstable_getStaticPaths = () => {
+        export const getStaticPaths = () => {
           return []
         }, foo = 2
 
-        export const unstable_getStaticProps = function() {
+        export const getStaticProps = function() {
           return { props: {} }
         }
 
@@ -184,17 +180,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export const foo=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export const foo=2;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove re-exported variable declarations', () => {
       const output = babel(trim`
-        const unstable_getStaticPaths = () => {
+        const getStaticPaths = () => {
           return []
         }
 
-        export { unstable_getStaticPaths }
+        export { getStaticPaths }
 
         export default function Test() {
           return <div />
@@ -202,17 +198,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove re-exported variable declarations (safe)', () => {
       const output = babel(trim`
-        const unstable_getStaticPaths = () => {
+        const getStaticPaths = () => {
           return []
         }, a = 2
 
-        export { unstable_getStaticPaths }
+        export { getStaticPaths }
 
         export default function Test() {
           return <div />
@@ -220,17 +216,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const a=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"const a=2;export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should remove re-exported function declarations', () => {
       const output = babel(trim`
-        function unstable_getStaticPaths() {
+        function getStaticPaths() {
           return []
         }
 
-        export { unstable_getStaticPaths }
+        export { getStaticPaths }
 
         export default function Test() {
           return <div />
@@ -238,17 +234,17 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
     it('should not crash for class declarations', () => {
       const output = babel(trim`
-        function unstable_getStaticPaths() {
+        function getStaticPaths() {
           return []
         }
 
-        export { unstable_getStaticPaths }
+        export { getStaticPaths }
 
         export class MyClass {}
 
@@ -258,7 +254,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export class MyClass{}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export class MyClass{}export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
@@ -288,7 +284,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         const b2 = function apples() {};
         const bla = () => {inception1};
 
-        function unstable_getStaticProps() {
+        function getStaticProps() {
           abc();
           drop_me;
           b;
@@ -297,7 +293,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           return { props: {var1} }
         }
 
-        export { unstable_getStaticProps }
+        export { getStaticProps }
 
         export default function Test() {
           return <div />
@@ -305,7 +301,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
       )
     })
 
@@ -324,7 +320,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           return { bug };
         }
 
-        export { unstable_getStaticProps } from 'a'
+        export { getStaticProps } from 'a'
       `)
 
       expect(output).toMatchInlineSnapshot(
@@ -334,7 +330,7 @@ describe('babel plugin (next-ssg-transform)', () => {
 
     it('should support class exports', () => {
       const output = babel(trim`
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -346,13 +342,13 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=class Test extends React.Component{render(){return __jsx(\\"div\\",null);}};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"export var __N_SSG=true;export default class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}"`
       )
     })
 
     it('should support class exports 2', () => {
       const output = babel(trim`
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -366,13 +362,13 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}const __NEXT_COMP=Test;__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}export var __N_SSG=true;export default Test;"`
       )
     })
 
     it('should support export { _ as default }', () => {
       const output = babel(trim`
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -384,13 +380,13 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"function El(){return __jsx(\\"div\\",null);}El.__N_SSG=true export{El as default};"`
+        `"function El(){return __jsx(\\"div\\",null);}export var __N_SSG=true;export{El as default};"`
       )
     })
 
     it('should support export { _ as default } with other specifiers', () => {
       const output = babel(trim`
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -404,13 +400,13 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"function El(){return __jsx(\\"div\\",null);}const a=5;El.__N_SSG=true export{El as default,a};"`
+        `"function El(){return __jsx(\\"div\\",null);}const a=5;export var __N_SSG=true;export{El as default,a};"`
       )
     })
 
     it('should support export { _ as default } with a class', () => {
       const output = babel(trim`
-        export function unstable_getStaticProps() {
+        export function getStaticProps() {
           return { props: {} }
         }
 
@@ -426,7 +422,80 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"class El extends React.Component{render(){return __jsx(\\"div\\",null);}}const a=5;El.__N_SSG=true export{El as default,a};"`
+        `"class El extends React.Component{render(){return __jsx(\\"div\\",null);}}const a=5;export var __N_SSG=true;export{El as default,a};"`
+      )
+    })
+
+    it('should support full re-export', () => {
+      const output = babel(trim`
+        export { getStaticProps, default } from 'a'
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export var __N_SSG=true;export{default}from'a';"`
+      )
+    })
+
+    it('should support babel-style memoized function', () => {
+      const output = babel(trim`
+        function fn() {
+          fn = function () {};
+          return fn.apply(this, arguments);
+        }
+        export function getStaticProps() {
+          fn;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+      )
+    })
+
+    it('destructuring assignment (object)', () => {
+      const output = babel(trim`
+        import fs from 'fs';
+        import other from 'other';
+
+        const {readFile, readdir, access: foo} = fs.promises;
+        const {a,b, cat: bar,...rem} = other;
+
+        export async function getStaticProps() {
+          readFile;
+          readdir;
+          foo;
+          b;
+          cat;
+          rem;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"import other from'other';const{a,cat:bar}=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+      )
+    })
+
+    it('destructuring assignment (array)', () => {
+      const output = babel(trim`
+        import fs from 'fs';
+        import other from 'other';
+
+        const [a, b, ...rest]= fs.promises;
+        const [foo, bar] = other;
+
+        export async function getStaticProps() {
+          a;
+          b;
+          rest;
+          bar;
+        }
+        export default function Home() { return <div />; }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"import other from'other';const[foo]=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
       )
     })
   })

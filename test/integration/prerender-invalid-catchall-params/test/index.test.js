@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 
 describe('Invalid Prerender Catchall Params', () => {
@@ -11,7 +11,7 @@ describe('Invalid Prerender Catchall Params', () => {
     const out = await nextBuild(appDir, [], { stderr: true })
     expect(out.stderr).toMatch(`Build error occurred`)
     expect(out.stderr).toMatch(
-      'A required parameter (slug) was not provided as an array in unstable_getStaticPaths for /[...slug]'
+      'A required parameter (slug) was not provided as an array in getStaticPaths for /[...slug]'
     )
   })
 })

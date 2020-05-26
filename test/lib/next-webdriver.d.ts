@@ -1,5 +1,5 @@
 interface Chain {
-  elementByCss: () => Chain
+  elementByCss: (selector: string) => Chain
   elementById: () => Chain
   getValue: () => Chain
   text: () => Chain
@@ -21,7 +21,7 @@ interface Chain {
   quit: () => Chain
 }
 
-export default function(
+export default function (
   appPort: number,
   path: string,
   waitHydration?: boolean

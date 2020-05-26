@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine, browserName */
+/* global browserName */
 import cheerio from 'cheerio'
 import { existsSync, readFileSync } from 'fs'
 import {
@@ -27,7 +27,7 @@ let serverDir
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -54,6 +54,24 @@ describe('Production Usage', () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
+
+    if (browserName === 'internet explorer') {
+      it('should handle bad Promise polyfill', async () => {
+        const browser = await webdriver(appPort, '/bad-promise')
+        expect(await browser.eval('window.didRender')).toBe(true)
+      })
+
+      it('should polyfill RegExp successfully', async () => {
+        const browser = await webdriver(appPort, '/regexp-polyfill')
+        expect(await browser.eval('window.didRender')).toBe(true)
+        // wait a second for the script to be loaded
+        await waitFor(1000)
+
+        expect(await browser.eval('window.isSticky')).toBe(true)
+        expect(await browser.eval('window.isMatch1')).toBe(true)
+        expect(await browser.eval('window.isMatch2')).toBe(false)
+      })
+    }
 
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
@@ -200,15 +218,15 @@ describe('Production Usage', () => {
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
-      ;[...cssStaticAssets, ...mediaStaticAssets].forEach(asset => {
+      ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
         resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
-        [...resources].map(resource => fetch(resource))
+        [...resources].map((resource) => fetch(resource))
       )
 
-      responses.forEach(res => {
+      responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'public, max-age=31536000, immutable'
@@ -238,6 +256,14 @@ describe('Production Usage', () => {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
       }
+    })
+
+    it('should not contain customServer in NEXT_DATA', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      expect('customServer' in JSON.parse($('#__NEXT_DATA__').text())).toBe(
+        false
+      )
     })
   })
 
@@ -310,23 +336,34 @@ describe('Production Usage', () => {
     expect(newText).toBe('server')
   })
 
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
   it('should change query correctly', async () => {
     const browser = await webdriver(appPort, '/query?id=0')
     let id = await browser.elementByCss('#q0').text()
     expect(id).toBe('0')
 
-    await browser
-      .elementByCss('#first')
-      .click()
-      .waitForElementByCss('#q1')
+    await browser.elementByCss('#first').click().waitForElementByCss('#q1')
 
     id = await browser.elementByCss('#q1').text()
     expect(id).toBe('1')
 
-    await browser
-      .elementByCss('#second')
-      .click()
-      .waitForElementByCss('#q2')
+    await browser.elementByCss('#second').click().waitForElementByCss('#q2')
 
     id = await browser.elementByCss('#q2').text()
     expect(id).toBe('2')
@@ -477,7 +514,7 @@ describe('Production Usage', () => {
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
         // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(13)
+        expect(elements.length).toBe(11)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
@@ -527,7 +564,7 @@ describe('Production Usage', () => {
         await waitFor(3000)
         const browserLogs = await browser.log('browser')
         let foundLog = false
-        browserLogs.forEach(log => {
+        browserLogs.forEach((log) => {
           if (
             log.message.match(/\/no-such-page\.js - Failed to load resource/)
           ) {
@@ -619,7 +656,7 @@ describe('Production Usage', () => {
       browser = await webdriver(appPort, '/development-logs')
       const browserLogs = await browser.log('browser')
       let found = false
-      browserLogs.forEach(log => {
+      browserLogs.forEach((log) => {
         if (log.message.includes('Next.js auto-prefetches automatically')) {
           found = true
         }
@@ -664,7 +701,7 @@ describe('Production Usage', () => {
         'routeChange',
       ]
 
-      allPerfMarks.forEach(name =>
+      allPerfMarks.forEach((name) =>
         expect(currentPerfMarks).not.toContainEqual(
           expect.objectContaining({ name })
         )

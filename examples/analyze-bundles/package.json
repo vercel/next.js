@@ -12,8 +12,8 @@
     "cross-env": "^6.0.3",
     "faker": "^4.1.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0"
   },
   "license": "ISC"
 }

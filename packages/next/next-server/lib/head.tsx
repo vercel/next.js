@@ -8,15 +8,10 @@ type WithInAmpMode = {
   inAmpMode?: boolean
 }
 
-export function defaultHead(inAmpMode = false) {
+export function defaultHead(inAmpMode = false): JSX.Element[] {
   const head = [<meta charSet="utf-8" />]
   if (!inAmpMode) {
-    head.push(
-      <meta
-        name="viewport"
-        content="width=device-width,minimum-scale=1,initial-scale=1"
-      />
-    )
+    head.push(<meta name="viewport" content="width=device-width" />)
   }
   return head
 }
@@ -118,7 +113,7 @@ function unique() {
 
 /**
  *
- * @param headElement List of multiple <Head> instances
+ * @param headElements List of multiple <Head> instances
  */
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
@@ -154,9 +149,9 @@ const Effect = withSideEffect()
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <AmpStateContext.Consumer>
-      {ampState => (
+      {(ampState) => (
         <HeadManagerContext.Consumer>
-          {updateHead => (
+          {(updateHead) => (
             <Effect
               reduceComponentsToState={reduceComponents}
               handleStateChange={updateHead}
