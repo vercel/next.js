@@ -50,7 +50,11 @@ export async function apiResolver(
       getPreviewDataParser(apiReq, apiRes, apiContext)
     )
     // Parsing preview
-    setLazyProp({ req: apiReq }, 'preview', () => !!apiReq.previewData)
+    setLazyProp(
+      { req: apiReq },
+      'preview',
+      () => !!apiReq.previewData || undefined
+    )
 
     // // Parsing of body
     if (bodyParser) {
@@ -297,11 +301,12 @@ function getPreviewDataParser(
   req: NextApiRequest,
   res: NextApiResponse,
   opts: __ApiPreviewProps
-): () => object | string | false {
-  // Same use as tryGetPreviewData except gets cookies straight off the req object
+): () => object | string | undefined {
+  // Similar to tryGetPreviewData, except assumes cookies have already been parsed, and
+  // returns undefined instead of false
   return function () {
     const cookies = req.cookies
-    return tryGetPreviewDataFromCookies(req, res, opts, cookies)
+    return tryGetPreviewDataFromCookies(req, res, opts, cookies) || undefined
   }
 }
 
