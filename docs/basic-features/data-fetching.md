@@ -108,7 +108,6 @@ export const getStaticProps: GetStaticProps = async (context) => {
 If you want to get inferred typings for your props, you can use `StaticProps<typeof getStaticProps>` like this:
 
 ```ts
-import fetch from 'node-fetch'
 import { GetStaticProps, StaticProps } from 'next'
 
 type Post = {
