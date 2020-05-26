@@ -53,7 +53,9 @@ const asPath = getURL()
 const pageLoader = new PageLoader(buildId, prefix)
 const register = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
-  window.__NEXT_P.map(register)
+  // Defer page registration for another tick. This will increase the overall
+  // latency in hydrating the page, but reduce the total blocking time.
+  window.__NEXT_P.map((p) => setTimeout(() => register(p), 0))
 }
 window.__NEXT_P = []
 window.__NEXT_P.push = register
@@ -62,9 +64,9 @@ const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
+let lastRenderReject
 let webpackHMR
 export let router
-let ErrorComponent
 let Component
 let App, onPerfEntry
 
@@ -265,9 +267,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback,
-    subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err })
-    },
+    subscription: ({ Component, props, err }, App) =>
+      render({ App, Component, props, err }),
   })
 
   // call init-client middleware
@@ -488,25 +489,6 @@ const wrapApp = (App) => (props) => {
 }
 
 async function doRender({ App, Component, props, err }) {
-  // Usual getInitialProps fetching is handled in next/router
-  // this is for when ErrorComponent gets replaced by Component by HMR
-  if (
-    !props &&
-    Component &&
-    Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent
-  ) {
-    const { pathname, query, asPath } = router
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      router,
-      AppTree,
-      Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath, AppTree },
-    }
-    props = await loadGetInitialProps(App, appCtx)
-  }
-
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -514,16 +496,27 @@ async function doRender({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitter.emit('before-reactdom-render', {
-    Component,
-    ErrorComponent,
-    appProps,
+  let resolvePromise
+  const renderPromise = new Promise((resolve, reject) => {
+    if (lastRenderReject) {
+      lastRenderReject()
+    }
+    resolvePromise = () => {
+      lastRenderReject = null
+      resolve()
+    }
+    lastRenderReject = () => {
+      lastRenderReject = null
+      reject()
+    }
   })
 
   const elem = (
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>
+    <Root callback={resolvePromise}>
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    </Root>
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
@@ -536,5 +529,12 @@ async function doRender({ App, Component, props, err }) {
     appElement
   )
 
-  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+  await renderPromise
+}
+
+function Root({ callback, children }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return children
 }

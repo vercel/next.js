@@ -1,11 +1,11 @@
-import React from 'react'
+import { Component } from 'react'
 import { Controller } from 'cerebral'
 import Devtools from 'cerebral/devtools'
 import { Container } from '@cerebral/react'
 import Page from '../components/Page'
 import clock from '../modules/clock'
 
-export default class Counter extends React.Component {
+export default class Counter extends Component {
   constructor(props) {
     super(props)
     // The controller will be instantiated for every page change and we only
