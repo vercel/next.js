@@ -106,7 +106,7 @@ export default async function exportPage({
 
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
-      params = getRouteMatcher(getRouteRegex(page))(path) || {}
+      params = getRouteMatcher(getRouteRegex(page))(path) || undefined
       if (params) {
         // we have to pass these separately for serverless
         if (!serverless) {
