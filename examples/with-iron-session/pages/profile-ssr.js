@@ -1,4 +1,3 @@
-import React from 'react'
 import Layout from '../components/Layout'
 import withSession from '../lib/session'
 import PropTypes from 'prop-types'
