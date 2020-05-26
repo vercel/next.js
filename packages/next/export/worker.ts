@@ -10,14 +10,65 @@ import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 import 'next/dist/next-server/server/node-polyfill-fetch'
+import { IncomingMessage, ServerResponse } from 'http'
+import { ComponentType } from 'react'
+import { GetStaticProps } from '../types'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
-global.__NEXT_DATA__ = {
+;(global as any).__NEXT_DATA__ = {
   nextExport: true,
 }
 
-export default async function ({
+interface AmpValidation {
+  page: string
+  result: {
+    errors: AmpHtmlValidator.ValidationError[]
+    warnings: AmpHtmlValidator.ValidationError[]
+  }
+}
+
+interface PathMap {
+  page: string
+  query?: { [key: string]: string | string[] }
+}
+
+interface ExortPageInput {
+  path: string
+  pathMap: PathMap
+  distDir: string
+  buildId: string
+  outDir: string
+  pagesDataDir: string
+  renderOpts: RenderOpts
+  buildExport?: boolean
+  serverRuntimeConfig: string
+  subFolders: string
+  serverless: boolean
+}
+
+interface ExportPageResults {
+  ampValidations: AmpValidation[]
+  fromBuildExportRevalidate?: number
+  error?: boolean
+}
+
+interface RenderOpts {
+  runtimeConfig?: { [key: string]: any }
+  params?: { [key: string]: string | string[] }
+  ampPath?: string
+  ampValidatorPath?: string
+  ampSkipValidation?: boolean
+  hybridAmp?: boolean
+  inAmpMode?: boolean
+}
+
+type ComponentModule = ComponentType<{}> & {
+  renderReqToHTML: typeof renderToHTML
+  getStaticProps?: GetStaticProps
+}
+
+export default async function exportPage({
   path,
   pathMap,
   distDir,
@@ -29,8 +80,8 @@ export default async function ({
   serverRuntimeConfig,
   subFolders,
   serverless,
-}) {
-  let results = {
+}: ExortPageInput): Promise<ExportPageResults> {
+  let results: ExportPageResults = {
     ampValidations: [],
   }
 
@@ -40,7 +91,7 @@ export default async function ({
     const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
     let query = { ...originalQuery }
-    let params
+    let params: { [key: string]: string | string[] } | undefined
 
     // We need to show a warning if they try to provide query values
     // for an auto-exported page since they won't be available
@@ -55,7 +106,7 @@ export default async function ({
 
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
-      params = getRouteMatcher(getRouteRegex(page))(path)
+      params = getRouteMatcher(getRouteRegex(page))(path) || undefined
       if (params) {
         // we have to pass these separately for serverless
         if (!serverless) {
@@ -80,13 +131,13 @@ export default async function ({
       getHeaderNames: () => [],
     }
 
-    const req = {
+    const req = ({
       url: path,
       ...headerMocks,
-    }
-    const res = {
+    } as unknown) as IncomingMessage
+    const res = ({
       ...headerMocks,
-    }
+    } as unknown) as ServerResponse
 
     envConfig.setConfig({
       serverRuntimeConfig,
@@ -112,15 +163,15 @@ export default async function ({
 
     await promises.mkdir(baseDir, { recursive: true })
     let html
-    let curRenderOpts = {}
+    let curRenderOpts: RenderOpts = {}
     let renderMethod = renderToHTML
 
-    const renderedDuringBuild = (getStaticProps) => {
+    const renderedDuringBuild = (getStaticProps: any) => {
       return !buildExport && getStaticProps && !isDynamicRoute(path)
     }
 
     if (serverless) {
-      const curUrl = url.parse(req.url, true)
+      const curUrl = url.parse(req.url!, true)
       req.url = url.format({
         ...curUrl,
         query: {
@@ -146,20 +197,25 @@ export default async function ({
       } else {
         // for non-dynamic SSG pages we should have already
         // prerendered the file
-        if (renderedDuringBuild(mod.getStaticProps)) return results
+        if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
+          return results
 
-        if (mod.getStaticProps && !htmlFilepath.endsWith('.html')) {
+        if (
+          (mod as ComponentModule).getStaticProps &&
+          !htmlFilepath.endsWith('.html')
+        ) {
           // make sure it ends with .html if the name contains a dot
           htmlFilename += '.html'
           htmlFilepath += '.html'
         }
 
-        renderMethod = mod.renderReqToHTML
+        renderMethod = (mod as ComponentModule).renderReqToHTML
         const result = await renderMethod(
           req,
           res,
           'export',
           { ampPath },
+          // @ts-ignore
           params
         )
         curRenderOpts = result.renderOpts || {}
@@ -199,11 +255,16 @@ export default async function ({
         queryWithAutoExportWarn()
       } else {
         curRenderOpts = { ...components, ...renderOpts, ampPath, params }
+        // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
 
-    const validateAmp = async (html, page, validatorPath) => {
+    const validateAmp = async (
+      html: string,
+      page: string,
+      validatorPath?: string
+    ) => {
       const validator = await AmpHtmlValidator.getInstance(validatorPath)
       const result = validator.validateString(html)
       const errors = result.errors.filter((e) => e.severity === 'ERROR')
@@ -237,13 +298,15 @@ export default async function ({
         // make sure it doesn't exist from manual mapping
         let ampHtml
         if (serverless) {
-          req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
+          req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
+          // @ts-ignore
           ampHtml = (await renderMethod(req, res, 'export')).html
         } else {
           ampHtml = await renderMethod(
             req,
             res,
             page,
+            // @ts-ignore
             { ...query, amp: 1 },
             curRenderOpts
           )
@@ -257,7 +320,7 @@ export default async function ({
       }
     }
 
-    if (curRenderOpts.pageData) {
+    if ((curRenderOpts as any).pageData) {
       const dataFile = join(
         pagesDataDir,
         htmlFilename.replace(/\.html$/, '.json')
@@ -266,19 +329,19 @@ export default async function ({
       await promises.mkdir(dirname(dataFile), { recursive: true })
       await promises.writeFile(
         dataFile,
-        JSON.stringify(curRenderOpts.pageData),
+        JSON.stringify((curRenderOpts as any).pageData),
         'utf8'
       )
 
       if (curRenderOpts.hybridAmp) {
         await promises.writeFile(
           dataFile.replace(/\.json$/, '.amp.json'),
-          JSON.stringify(curRenderOpts.pageData),
+          JSON.stringify((curRenderOpts as any).pageData),
           'utf8'
         )
       }
     }
-    results.fromBuildExportRevalidate = curRenderOpts.revalidate
+    results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
 
     await promises.writeFile(htmlFilepath, html, 'utf8')
     return results
