@@ -4,12 +4,11 @@ import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
-
 import { createApp, DownloadError } from './create-app'
+import { listExamples } from './helpers/examples'
+import { shouldUseYarn } from './helpers/should-use-yarn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
-import { shouldUseYarn } from './helpers/should-use-yarn'
-import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -43,63 +42,7 @@ const program = new Commander.Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
-async function tryCreateApp({
-  appPath,
-  useNpm,
-  example,
-  examplePath,
-  attempt = 1,
-}: {
-  appPath: string
-  useNpm: boolean
-  example?: string
-  examplePath?: string
-  attempt?: number
-}) {
-  console.log()
-  console.log(`Trying to create project (${attempt} attempt)........`)
-  try {
-    await createApp({
-      appPath: appPath,
-      useNpm: useNpm,
-      example: example,
-      examplePath: examplePath,
-    })
-  } catch (reason) {
-    if (reason.command) {
-      throw reason
-    } else {
-      if (attempt === 3 && reason instanceof DownloadError) {
-        const res = await prompts({
-          type: 'confirm',
-          name: 'tryDefault',
-          message: `Could not download example ${reason.example} because of a network error, do you want to use the default template instead?`,
-          initial: false,
-        })
-        if (res.tryDefault) {
-          await tryCreateApp({
-            appPath,
-            useNpm,
-          })
-        } else {
-          throw reason
-        }
-      } else if (reason instanceof DownloadError) {
-        await tryCreateApp({
-          appPath,
-          useNpm,
-          example,
-          examplePath,
-          attempt: ++attempt,
-        })
-      } else {
-        throw reason
-      }
-    }
-  }
-}
-
-async function run() {
+async function run(): Promise<void> {
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
@@ -222,12 +165,32 @@ async function run() {
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
-  await tryCreateApp({
-    appPath: resolvedProjectPath,
-    useNpm: !!program.useNpm,
-    example: example && example !== 'default' ? example : undefined,
-    examplePath: program.examplePath,
-  })
+  try {
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      example: example && example !== 'default' ? example : undefined,
+      examplePath: program.examplePath,
+    })
+  } catch (reason) {
+    if (!(reason instanceof DownloadError)) {
+      throw reason
+    }
+
+    const res = await prompts({
+      type: 'confirm',
+      name: 'builtin',
+      message:
+        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+        `Do you want to use the default template instead?`,
+      initial: true,
+    })
+    if (!res.builtin) {
+      throw reason
+    }
+
+    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+  }
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)
