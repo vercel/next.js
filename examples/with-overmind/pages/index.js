@@ -24,7 +24,7 @@ export async function getStaticProps() {
   ]
 
   return {
-    mutations: overmind.hydrate(),
+    props: { mutations: overmind.hydrate() },
   }
 }
 
