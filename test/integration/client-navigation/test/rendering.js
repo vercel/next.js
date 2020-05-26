@@ -367,6 +367,12 @@ export default function (render, fetch) {
         expect($('h2').text()).toBe('This page could not be found.')
       })
 
+      it('should 404 on wrong casing', async () => {
+        const $ = await get$('/NaV/aBoUt')
+        expect($('h1').text()).toBe('404')
+        expect($('h2').text()).toBe('This page could not be found.')
+      })
+
       it('should 404 for <page>/', async () => {
         const $ = await get$('/nav/about/')
         expect($('h1').text()).toBe('404')
