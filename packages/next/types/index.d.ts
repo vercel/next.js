@@ -97,7 +97,9 @@ export type GetStaticPaths<
   fallback: boolean
 }>
 
-export type GetServerSidePropsContext<Q> = {
+export type GetServerSidePropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = {
   req: IncomingMessage
   res: ServerResponse
   params?: Q
