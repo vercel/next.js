@@ -1,4 +1,3 @@
-import React from 'react'
 import { QueryRenderer, fetchQuery } from 'react-relay'
 import NextApp from 'next/app'
 
@@ -16,10 +15,7 @@ export default class App extends NextApp {
 
         await fetchQuery(environment, Component.query, variables)
 
-        const records = environment
-          .getStore()
-          .getSource()
-          .toJSON()
+        const records = environment.getStore().getSource().toJSON()
 
         return {
           variables,

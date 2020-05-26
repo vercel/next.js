@@ -52,7 +52,7 @@ export async function recursiveDelete(
   await Promise.all(
     result.map(async (part: string) => {
       const absolutePath = join(dir, part)
-      const pathStat = await promises.stat(absolutePath).catch(e => {
+      const pathStat = await promises.stat(absolutePath).catch((e) => {
         if (e.code !== 'ENOENT') throw e
       })
       if (!pathStat) {

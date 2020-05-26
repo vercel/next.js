@@ -11,7 +11,7 @@ const previewClient = createClient({
   host: 'preview.contentful.com',
 })
 
-const getClient = preview => (preview ? previewClient : client)
+const getClient = (preview) => (preview ? previewClient : client)
 
 function parseAuthor({ fields }) {
   return {
@@ -50,7 +50,7 @@ export async function getAllPostsWithSlug() {
     content_type: 'post',
     select: 'fields.slug',
   })
-  return parsePostEntries(entries, post => post.fields)
+  return parsePostEntries(entries, (post) => post.fields)
 }
 
 export async function getAllPostsForHome(preview) {

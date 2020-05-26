@@ -82,15 +82,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     env:
-      NEXT_TELEMETRY_DISABLED: 1
       HEADLESS: true
+      BROWSERNAME: 'firefox'
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v1
         id: restore-build
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: yarn testfirefox --forceExit test/integration/production/
+      - run: node run-tests.js test/integration/production/test/index.test.js
 
   testSafari:
     name: Test Safari (production)
@@ -98,6 +99,7 @@ jobs:
     needs: build
     env:
       BROWSERSTACK: true
+      BROWSERNAME: 'safari'
       NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
@@ -108,7 +110,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production/'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/test/index.test.js'
 
   testSafariOld:
     name: Test Safari 10.1 (nav)
@@ -117,6 +119,7 @@ jobs:
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
+      BROWSERNAME: 'safari'
       NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
@@ -127,7 +130,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production-nav/'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
 
   publishRelease:
     name: Potentially publish release

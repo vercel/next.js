@@ -8,7 +8,7 @@ type WithInAmpMode = {
   inAmpMode?: boolean
 }
 
-export function defaultHead(inAmpMode = false) {
+export function defaultHead(inAmpMode = false): JSX.Element[] {
   const head = [<meta charSet="utf-8" />]
   if (!inAmpMode) {
     head.push(<meta name="viewport" content="width=device-width" />)
@@ -149,9 +149,9 @@ const Effect = withSideEffect()
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <AmpStateContext.Consumer>
-      {ampState => (
+      {(ampState) => (
         <HeadManagerContext.Consumer>
-          {updateHead => (
+          {(updateHead) => (
             <Effect
               reduceComponentsToState={reduceComponents}
               handleStateChange={updateHead}

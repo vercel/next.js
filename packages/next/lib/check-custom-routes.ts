@@ -22,14 +22,16 @@ export type Header = {
 
 const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
-export function getRedirectStatus(route: Redirect) {
+export function getRedirectStatus(route: Redirect): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
   )
 }
 
-function checkRedirect(route: Redirect) {
+function checkRedirect(
+  route: Redirect
+): { invalidParts: string[]; hadInvalidStatus: boolean } {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
 
@@ -47,7 +49,7 @@ function checkRedirect(route: Redirect) {
   }
 }
 
-function checkHeader(route: Header) {
+function checkHeader(route: Header): string[] {
   const invalidParts: string[] = []
 
   if (!Array.isArray(route.headers)) {
@@ -85,8 +87,9 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
   try {
     if (handleUrl) {
       const parsedDestination = parseUrl(route, true)
-      routePath = `${parsedDestination.pathname!}${parsedDestination.hash ||
-        ''}`
+      routePath = `${parsedDestination.pathname!}${
+        parsedDestination.hash || ''
+      }`
     }
 
     // Make sure we can parse the source properly
@@ -160,7 +163,7 @@ export default function checkCustomRoutes(
     }
 
     const keys = Object.keys(route)
-    const invalidKeys = keys.filter(key => !allowedKeys.has(key))
+    const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
 
     if (!route.source) {
@@ -243,7 +246,7 @@ export default function checkCustomRoutes(
           } else {
             const sourceSegments = new Set(
               sourceTokens
-                .map(item => typeof item === 'object' && item.name)
+                .map((item) => typeof item === 'object' && item.name)
                 .filter(Boolean)
             )
             const invalidDestSegments = new Set()

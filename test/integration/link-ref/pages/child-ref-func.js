@@ -13,7 +13,7 @@ export default () => {
   return (
     <Link href="/">
       <a
-        ref={el => {
+        ref={(el) => {
           myRef.current = el
         }}
       >
