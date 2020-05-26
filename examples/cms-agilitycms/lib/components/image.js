@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { useInView } from "react-intersection-observer";
+import React, { useCallback, useState } from 'react'
+import { useInView } from 'react-intersection-observer'
 //  type ResponsiveImageType = {
 //   aspectRatio: number;
 //   base64?: string | null;
@@ -40,45 +40,45 @@ const imageAddStrategy = ({
   isSsr,
   isIntersectionObserverAvailable,
   inView,
-  loaded
+  loaded,
 }) => {
   if (!lazyLoad) {
-    return true;
+    return true
   }
 
   if (isSsr) {
-    return false;
+    return false
   }
 
   if (isIntersectionObserverAvailable) {
-    return inView || loaded;
+    return inView || loaded
   }
 
-  return true;
-};
+  return true
+}
 
 const imageShowStrategy = ({
   lazyLoad,
   isSsr,
   isIntersectionObserverAvailable,
-  loaded
+  loaded,
 }) => {
   if (!lazyLoad) {
-    return true;
+    return true
   }
 
   if (isSsr) {
-    return false;
+    return false
   }
 
   if (isIntersectionObserverAvailable) {
-    return loaded;
+    return loaded
   }
 
-  return true;
-};
+  return true
+}
 
-const Image = function({
+const Image = function ({
   className,
   fadeInDuration,
   intersectionTreshold,
@@ -88,99 +88,99 @@ const Image = function({
   style,
   pictureStyle,
   explicitWidth,
-  data
+  data,
 }) {
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(false)
 
   const handleLoad = useCallback(() => {
-    setLoaded(true);
-  }, []);
+    setLoaded(true)
+  }, [])
 
-  const [ref, inView, _entry] = useInView({
+  const [ref, inView] = useInView({
     threshold: intersectionTreshold || 0,
-    rootMargin: intersectionMargin || "0px 0px 0px 0px",
-    triggerOnce: true
-  });
+    rootMargin: intersectionMargin || '0px 0px 0px 0px',
+    triggerOnce: true,
+  })
 
-  const isSsr = typeof window === "undefined";
+  const isSsr = typeof window === 'undefined'
 
   const isIntersectionObserverAvailable = isSsr
     ? false
-    : !!(window).IntersectionObserver;
+    : !!window.IntersectionObserver
 
   const absolutePositioning = {
-    position: "absolute",
+    position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    right: 0
-  };
+    right: 0,
+  }
 
   const addImage = imageAddStrategy({
     lazyLoad,
     isSsr,
     isIntersectionObserverAvailable,
     inView,
-    loaded
-  });
+    loaded,
+  })
   const showImage = imageShowStrategy({
     lazyLoad,
     isSsr,
     isIntersectionObserverAvailable,
     inView,
-    loaded
-  });
+    loaded,
+  })
 
   const webpSource = data.webpSrcSet && (
     <source srcSet={data.webpSrcSet} sizes={data.sizes} type="image/webp" />
-  );
+  )
 
   const regularSource = data.srcSet && (
     <source srcSet={data.srcSet} sizes={data.sizes} />
-  );
+  )
 
   const placeholder = (
     <div
       style={{
         backgroundImage: data.base64 ? `url(${data.base64})` : null,
         backgroundColor: data.bgColor,
-        backgroundSize: "cover",
+        backgroundSize: 'cover',
         opacity: showImage ? 0 : 1,
         transition:
           !fadeInDuration || fadeInDuration > 0
             ? `opacity ${fadeInDuration || 500}ms ${fadeInDuration || 500}ms`
             : null,
-        ...absolutePositioning
+        ...absolutePositioning,
       }}
     />
-  );
+  )
 
-  const { width, aspectRatio } = data;
-  const height = data.height || width / aspectRatio;
+  const { width, aspectRatio } = data
+  const height = data.height || width / aspectRatio
 
   const sizer = (
     <svg
       className={pictureClassName}
       style={{
-        width: explicitWidth ? `${width}px` : "100%",
-        height: "auto",
-        display: "block",
-        ...pictureStyle
+        width: explicitWidth ? `${width}px` : '100%',
+        height: 'auto',
+        display: 'block',
+        ...pictureStyle,
       }}
       height={height}
       width={width}
     />
-  );
+  )
 
   return (
     <div
       ref={ref}
       className={className}
       style={{
-        display: "inline-block",
-        overflow: "hidden",
+        display: 'inline-block',
+        overflow: 'hidden',
         ...style,
-        position: "relative"
+        position: 'relative',
       }}
     >
       {sizer}
@@ -193,7 +193,7 @@ const Image = function({
             transition:
               !fadeInDuration || fadeInDuration > 0
                 ? `opacity ${fadeInDuration || 500}ms`
-                : null
+                : null,
           }}
         >
           {webpSource}
@@ -204,7 +204,7 @@ const Image = function({
               alt={data.alt}
               title={data.title}
               onLoad={handleLoad}
-              style={{ width: "100%" }}
+              style={{ width: '100%' }}
             />
           )}
         </picture>
@@ -217,7 +217,7 @@ const Image = function({
         </picture>
       </noscript>
     </div>
-  );
-};
+  )
+}
 
 export default Image

@@ -4,12 +4,19 @@ import Container from '../components/container'
 import Layout from '../components/layout'
 import Head from 'next/head'
 import { getAgilityPaths, getAgilityPageProps } from '../lib/api'
-import CMS_PageTemplate from '../lib/components/page-template'
+import CMSPageTemplate from '../lib/components/page-template'
 import { CMS_NAME } from '../lib/constants'
 import { handlePreviewRedirect } from '../lib/preview'
 
-export default function Index({ sitemapNode, page, pageTemplateName, languageCode, channelName, preview }) {
-  handlePreviewRedirect();
+export default function Index({
+  sitemapNode,
+  page,
+  pageTemplateName,
+  languageCode,
+  channelName,
+  preview,
+}) {
+  handlePreviewRedirect()
 
   const router = useRouter()
   if (!router.isFallback && !page) {
@@ -26,13 +33,13 @@ export default function Index({ sitemapNode, page, pageTemplateName, languageCod
           {router.isFallback ? (
             <h1>Loading...</h1>
           ) : (
-            <CMS_PageTemplate 
-                sitemapNode={sitemapNode}
-                page={page}
-                pageTemplateName={pageTemplateName}
-                languageCode={languageCode}
-                channelName={channelName}
-                preview={preview}
+            <CMSPageTemplate
+              sitemapNode={sitemapNode}
+              page={page}
+              pageTemplateName={pageTemplateName}
+              languageCode={languageCode}
+              channelName={channelName}
+              preview={preview}
             />
           )}
         </Container>
@@ -41,31 +48,29 @@ export default function Index({ sitemapNode, page, pageTemplateName, languageCod
   )
 }
 
+export async function getStaticProps({ params, preview }) {
+  const props = await getAgilityPageProps({ params, preview })
 
-export async function getStaticProps ({ params, preview}) {
-  const props = await getAgilityPageProps({ params, preview });
-
-  if(!props) {
+  if (!props) {
     return { props: {} }
   }
 
   return {
-      props: {
-        sitemapNode: props.sitemapNode,
-        page: props.page,
-        pageTemplateName: props.pageTemplateName,
-        languageCode: props.languageCode,
-        channelName: props.channelName,
-        preview: (preview??false)
-      }
+    props: {
+      sitemapNode: props.sitemapNode,
+      page: props.page,
+      pageTemplateName: props.pageTemplateName,
+      languageCode: props.languageCode,
+      channelName: props.channelName,
+      preview: preview ?? false,
+    },
   }
-  
 }
 
-export async function getStaticPaths() {  
-  const paths = await getAgilityPaths();
+export async function getStaticPaths() {
+  const paths = await getAgilityPaths()
   return {
     paths: paths,
-    fallback: true
+    fallback: true,
   }
 }

@@ -14,7 +14,6 @@ export function normalizePosts(postsFromAgility) {
   */
 
   const posts = postsFromAgility.map((p) => {
-
     let normalizedPost = {
       title: p.fields.title,
       slug: p.fields.slug,
@@ -22,7 +21,7 @@ export function normalizePosts(postsFromAgility) {
       date: p.fields.date,
       content: p.fields.content,
       ogImage: {
-        url: `${p.fields.coverImage.url}?w=2000&h=1000&q=70`
+        url: `${p.fields.coverImage.url}?w=2000&h=1000&q=70`,
       },
       coverImage: {
         responsiveImage: {
@@ -36,22 +35,22 @@ export function normalizePosts(postsFromAgility) {
           base64: null,
           alt: p.fields.coverImage.label,
           title: null,
-          bgColor: null          
-        }
-      }
-    };
+          bgColor: null,
+        },
+      },
+    }
 
-    if(p.fields.author) {
+    if (p.fields.author) {
       normalizedPost.author = {
         name: p.fields.author.fields.name,
         picture: {
-          url: `${p.fields.author.fields.picture.url}?w=100&h=100`
-        }
+          url: `${p.fields.author.fields.picture.url}?w=100&h=100`,
+        },
       }
     }
-    
-    return normalizedPost
-  });
 
-  return posts;
+    return normalizedPost
+  })
+
+  return posts
 }

@@ -7,7 +7,7 @@ export default function CoverImage({ title, responsiveImage, slug }) {
   const image = (
     <Image
       data={{
-        ...responsiveImage
+        ...responsiveImage,
       }}
       className={cn('shadow-small', {
         'hover:shadow-medium transition-shadow duration-200': slug,

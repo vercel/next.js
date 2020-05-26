@@ -1,24 +1,22 @@
 import { requireComponentDependancyByName } from '../dependancies'
 
 export default function ContentZone(props) {
-    function RenderModules() {
-        let modulesToRender = [];
-        let modules = props.page.zones[props.name];
+  function RenderModules() {
+    let modulesToRender = []
+    let modules = props.page.zones[props.name]
 
-        modules.forEach(m => {
+    modules.forEach((m) => {
+      const AgilityModule = requireComponentDependancyByName(m.moduleName)
 
-            const AgilityModule = requireComponentDependancyByName(m.moduleName);
+      modulesToRender.push(<AgilityModule key={m.item.contentID} {...m.item} />)
+    })
 
-            modulesToRender.push(<AgilityModule key={m.item.contentID} {...m.item} />);
-        })
+    return modulesToRender
+  }
 
-        return modulesToRender;
-    }
-
-
-    return (
-        <div>
-            <RenderModules />
-        </div>
-    )
+  return (
+    <div>
+      <RenderModules />
+    </div>
+  )
 }

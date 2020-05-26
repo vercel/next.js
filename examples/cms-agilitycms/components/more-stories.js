@@ -8,7 +8,7 @@ export default function MoreStories({ title, posts }) {
         {title}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 md:col-gap-16 lg:col-gap-32 row-gap-20 md:row-gap-32 mb-32">
-        {posts.map(post => (
+        {posts.map((post) => (
           <PostPreview
             key={post.slug}
             title={post.title}
@@ -25,11 +25,18 @@ export default function MoreStories({ title, posts }) {
 }
 
 //What is returned here, will be past as `props` to the component
-MoreStories.getCustomInitialProps = async function({ preview, item, pageInSitemap }) { 
-    const postToExcludeContentID = pageInSitemap.contentID?? -1;
-    const posts = await getPostsForMoreStories({ preview, postToExcludeContentID })
-    return {
-      title: item.fields.title,
-      posts
-    };
+MoreStories.getCustomInitialProps = async function ({
+  preview,
+  item,
+  pageInSitemap,
+}) {
+  const postToExcludeContentID = pageInSitemap.contentID ?? -1
+  const posts = await getPostsForMoreStories({
+    preview,
+    postToExcludeContentID,
+  })
+  return {
+    title: item.fields.title,
+    posts,
+  }
 }

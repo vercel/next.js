@@ -32,20 +32,19 @@ export default function HeroPost({
             <Date dateString={date} />
           </div>
         </div>
-        {author && 
-        <div>
-          <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
-          <Avatar name={author.name} picture={author.picture} />
-        </div>
-        }
+        {author && (
+          <div>
+            <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
+            <Avatar name={author.name} picture={author.picture} />
+          </div>
+        )}
       </div>
     </section>
   )
 }
 
 //What is returned here, will be past as `props` to the component
-HeroPost.getCustomInitialProps = async function({ preview }) { 
+HeroPost.getCustomInitialProps = async function ({ preview }) {
   const post = await getLatestPost({ preview })
-  return post;
+  return post
 }
-
