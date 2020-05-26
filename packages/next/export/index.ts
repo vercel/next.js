@@ -394,7 +394,7 @@ export default async function exportApp(
           (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
-      if (!!result.error) errorPaths.push(result.path)
+      if (!!result.error) errorPaths.push(path)
 
       if (
         options.buildExport &&

@@ -350,6 +350,6 @@ export default async function exportPage({
       `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
         error
     )
-    return { ...results, error: true, path }
+    return { ...results, error: true }
   }
 }
