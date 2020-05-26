@@ -18,7 +18,7 @@ export const getServerSideProps = async () => {
 function Blog({ posts }: ServerSideProps<typeof getServerSideProps>) {
   return (
     <>
-      {posts.map(post => (
+      {posts.map((post) => (
         <div key={post.author}>{post.author}</div>
       ))}
     </>

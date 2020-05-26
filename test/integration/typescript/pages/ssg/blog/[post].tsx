@@ -30,7 +30,7 @@ export const getStaticProps = async () => {
 function Blog({ posts }: StaticProps<typeof getStaticProps>) {
   return (
     <>
-      {posts.map(post => (
+      {posts.map((post) => (
         <div key={post.author}>{post.author}</div>
       ))}
     </>
