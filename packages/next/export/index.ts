@@ -36,6 +36,7 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
+import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 const exists = promisify(existsOrig)
@@ -361,7 +362,7 @@ export default async function exportApp(
     numWorkers: threads,
     enableWorkerThreads: nextConfig.experimental.workerThreads,
     exposedMethods: ['default'],
-  }) as Worker & { default: Function }
+  }) as Worker & { default: typeof exportPage }
 
   worker.getStdout().pipe(process.stdout)
   worker.getStderr().pipe(process.stderr)
