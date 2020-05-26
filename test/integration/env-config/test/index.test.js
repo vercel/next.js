@@ -169,7 +169,28 @@ describe('Env Config', () => {
   })
 
   describe('serverless mode', () => {
+    let nextConfigContent = ''
+    const nextConfigPath = join(appDir, 'next.config.js')
+    const envFiles = [
+      '.env',
+      '.env.development',
+      '.env.development.local',
+      '.env.local',
+      '.env.production',
+      '.env.production.local',
+      '.env.test',
+      '.env.test.local',
+    ].map((file) => join(appDir, file))
+
     beforeAll(async () => {
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace(
+          '// update me',
+          `target: 'experimental-serverless-trace',`
+        )
+      )
       const { code } = await nextBuild(appDir, [], {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
@@ -179,10 +200,22 @@ describe('Env Config', () => {
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
 
+      // rename the files so they aren't loaded by `next start`
+      // to test that they were bundled into the serverless files
+      for (const file of envFiles) {
+        await fs.rename(file, `${file}.bak`)
+      }
+
       app = await nextStart(appDir, appPort)
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      for (const file of envFiles) {
+        await fs.rename(`${file}.bak`, file)
+      }
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await killApp(app)
+    })
 
     runTests('serverless')
   })
