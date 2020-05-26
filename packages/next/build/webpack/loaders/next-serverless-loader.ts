@@ -299,7 +299,8 @@ const nextServerlessLoader: loader.Loader = function () {
           {
             Component,
             pageConfig: config,
-            nextExport: fromExport
+            nextExport: fromExport,
+            isDataReq: _nextData,
           },
           options,
         )
