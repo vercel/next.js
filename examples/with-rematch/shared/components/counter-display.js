@@ -15,7 +15,7 @@ const CounterDisplay = () => {
         which are not pages can be connected using the useSelector hook just
         like redux components.
       </p>
-      <p>Current value {counter} gosho</p>
+      <p>Current value {counter}</p>
       <p>
         <button onClick={() => increment(3)}>Increment by 3</button>
       </p>

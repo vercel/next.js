@@ -34,12 +34,10 @@ class Github extends Component {
         </p>
         {userList.map((user) => (
           <div key={user.login}>
-            <Link href={user.html_url} passHref>
-              <a>
-                <img height="45" width="45" src={user.avatar_url} />
-                <span> Username - {user.login}</span>
-              </a>
-            </Link>
+            <a href={user.html_url}>
+              <img height="45" width="45" src={user.avatar_url} />
+              <span> Username - {user.login}</span>
+            </a>
             <br />
           </div>
         ))}
