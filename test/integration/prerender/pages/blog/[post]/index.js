@@ -21,7 +21,7 @@ let counter = 0
 
 export async function getStaticProps({ params }) {
   if (params.post === 'post-10') {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(() => resolve(), 1000)
     })
   }
@@ -42,7 +42,7 @@ export async function getStaticProps({ params }) {
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
-    revalidate: 10,
+    unstable_revalidate: 10,
   }
 }
 

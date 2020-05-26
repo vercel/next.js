@@ -20,5 +20,18 @@
   "license": "ISC",
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.1.0"
+  },
+  "babel": {
+    "presets": [
+      "next/babel"
+    ],
+    "plugins": [
+      [
+        "@babel/plugin-proposal-decorators",
+        {
+          "legacy": true
+        }
+      ]
+    ]
   }
 }

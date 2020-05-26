@@ -2,11 +2,11 @@ const path = require('path')
 const http = require('http')
 
 const server = http.createServer((req, res) => {
-  const pagePath = page => path.join('.next/serverless/pages/', page)
-  const render = page => {
+  const pagePath = (page) => path.join('.next/serverless/pages/', page)
+  const render = (page) => {
     require(`./${pagePath(page)}`).render(req, res)
   }
-  const apiCall = page => {
+  const apiCall = (page) => {
     require(`./${pagePath(page)}`).default(req, res)
   }
 

@@ -29,7 +29,7 @@ export async function createApp({
   useNpm: boolean
   example?: string
   examplePath?: string
-}) {
+}): Promise<void> {
   let repoInfo: RepoInfo | undefined
 
   if (example) {
@@ -54,7 +54,7 @@ export async function createApp({
         process.exit(1)
       }
 
-      repoInfo = getRepoInfo(repoUrl, examplePath)
+      repoInfo = await getRepoInfo(repoUrl, examplePath)
 
       if (!repoInfo) {
         console.error(
@@ -166,7 +166,7 @@ export async function createApp({
     await cpy('**', root, {
       parents: true,
       cwd: path.join(__dirname, 'templates', 'default'),
-      rename: name => {
+      rename: (name) => {
         switch (name) {
           case 'gitignore': {
             return '.'.concat(name)

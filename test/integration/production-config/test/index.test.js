@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
@@ -10,7 +10,7 @@ import {
   runNextCommand,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const appDir = join(__dirname, '../')
 
@@ -36,6 +36,18 @@ describe('Production Config Usage', () => {
       await testBrowser()
       await testBrowser()
       await testBrowser()
+    })
+  })
+
+  describe('with generateBuildId', () => {
+    it('should add the custom buildid', async () => {
+      const browser = await webdriver(appPort, '/')
+      const text = await browser.elementByCss('#mounted').text()
+      expect(text).toMatch(/ComponentDidMount executed on client\./)
+
+      const html = await browser.elementByCss('html').getAttribute('innerHTML')
+      expect(html).toMatch('custom-buildid')
+      await browser.close()
     })
   })
 
@@ -68,18 +80,6 @@ describe('Production Config Usage', () => {
       })
 
       expect(result.stderr).not.toMatch(/The key "SOME__ENV__VAR" under/)
-    })
-  })
-
-  describe('with generateBuildId', () => {
-    it('should add the custom buildid', async () => {
-      const browser = await webdriver(appPort, '/')
-      const text = await browser.elementByCss('#mounted').text()
-      expect(text).toMatch(/ComponentDidMount executed on client\./)
-
-      const html = await browser.elementByCss('html').getAttribute('innerHTML')
-      expect(html).toMatch('custom-buildid')
-      await browser.close()
     })
   })
 })

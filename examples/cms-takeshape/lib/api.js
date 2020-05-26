@@ -1,5 +1,3 @@
-import fetch from 'isomorphic-unfetch'
-
 const API_URL = `https://api.takeshape.io/project/${process.env.NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID}/graphql`
 const API_KEY = process.env.NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY
 

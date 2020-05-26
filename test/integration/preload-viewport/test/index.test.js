@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import {
   nextServer,
   runNextCommand,
@@ -12,7 +12,7 @@ import { join } from 'path'
 import { readFile } from 'fs-extra'
 import { parse } from 'url'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -212,7 +212,7 @@ describe('Prefetching Links in viewport', () => {
     expect(hrefs).toEqual([...new Set(hrefs)])
 
     // Verify encoding
-    expect(hrefs.some(e => e.includes(`%5Bhello%5D.js`))).toBe(true)
+    expect(hrefs.some((e) => e.includes(`%5Bhello%5D.js`))).toBe(true)
   })
 
   it('should not add an another observer for a prefetched page', async () => {
@@ -279,7 +279,7 @@ describe('Prefetching Links in viewport', () => {
     }
     hrefs.sort()
 
-    expect(hrefs.map(href => parse(href).pathname)).toMatchInlineSnapshot(`
+    expect(hrefs.map((href) => parse(href).pathname)).toMatchInlineSnapshot(`
       Array [
         "/_next/data/test-build/ssg/basic.json",
         "/_next/data/test-build/ssg/catch-all/foo.json",
@@ -307,7 +307,7 @@ describe('Prefetching Links in viewport', () => {
     }
     hrefs.sort()
 
-    expect(hrefs.map(href => parse(href).pathname)).toMatchInlineSnapshot(`
+    expect(hrefs.map((href) => parse(href).pathname)).toMatchInlineSnapshot(`
       Array [
         "/_next/data/test-build/ssg/catch-all/foo.json",
         "/_next/data/test-build/ssg/catch-all/foo/bar.json",

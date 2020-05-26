@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { remove } from 'fs-extra'
 import {
@@ -12,7 +12,7 @@ import {
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const fixturesDir = join(__dirname, '../../css-fixtures')
 
@@ -96,11 +96,11 @@ describe('CSS Module client-side navigation in Production', () => {
       const cssPreloads = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads.every(e => e === 'style')).toBe(true)
+      expect(cssPreloads.every((e) => e === 'style')).toBe(true)
       const cssPreloads2 = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads2.every(e => e === 'style')).toBe(true)
+      expect(cssPreloads2.every((e) => e === 'style')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 
@@ -252,11 +252,11 @@ describe('CSS Module client-side navigation in Production (Modern)', () => {
       const cssPreloads = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads.every(e => e === 'style')).toBe(true)
+      expect(cssPreloads.every((e) => e === 'style')).toBe(true)
       const cssPreloads2 = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads2.every(e => e === 'style')).toBe(true)
+      expect(cssPreloads2.every((e) => e === 'style')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 

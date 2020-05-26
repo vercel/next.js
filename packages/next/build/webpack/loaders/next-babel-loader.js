@@ -1,10 +1,10 @@
-import babelLoader from 'babel-loader'
+import babelLoader from 'next/dist/compiled/babel-loader'
+import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
-import hash from 'string-hash'
 
-// increment 'j' to invalidate cache
+// increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'j' + '-'
+const cacheKey = 'babel-cache-' + 'm' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -32,10 +32,10 @@ const getModernOptions = (babelOptions = {}) => {
   }
 }
 
-const nextBabelPresetModern = presetOptions => context =>
+const nextBabelPresetModern = (presetOptions) => (context) =>
   nextBabelPreset(context, getModernOptions(presetOptions))
 
-module.exports = babelLoader.custom(babel => {
+module.exports = babelLoader.custom((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -59,6 +59,7 @@ module.exports = babelLoader.custom(babel => {
         hasModern: opts.hasModern,
         babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
+        hasReactRefresh: opts.hasReactRefresh,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -73,6 +74,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.hasModern ? '-has-modern' : '') +
                 '-new-polyfills' +
                 (opts.development ? '-development' : '-production') +
+                (opts.hasReactRefresh ? '-react-refresh' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -95,6 +97,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.pagesDir
       delete loader.babelPresetPlugins
       delete loader.development
+      delete loader.hasReactRefresh
       return { loader, custom }
     },
     config(
@@ -108,6 +111,7 @@ module.exports = babelLoader.custom(babel => {
           pagesDir,
           babelPresetPlugins,
           development,
+          hasReactRefresh,
         },
       }
     ) {
@@ -135,6 +139,14 @@ module.exports = babelLoader.custom(babel => {
 
       options.plugins = options.plugins || []
 
+      if (hasReactRefresh) {
+        const reactRefreshPlugin = babel.createConfigItem(
+          [require('react-refresh/babel'), { skipEnvCheck: true }],
+          { type: 'plugin' }
+        )
+        options.plugins.unshift(reactRefreshPlugin)
+      }
+
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
           [require('../../babel/plugins/next-page-config')],
@@ -156,11 +168,11 @@ module.exports = babelLoader.custom(babel => {
 
       if (isModern) {
         const nextPreset = options.presets.find(
-          preset => preset && preset.value === nextBabelPreset
+          (preset) => preset && preset.value === nextBabelPreset
         ) || { options: {} }
 
         const additionalPresets = options.presets.filter(
-          preset => preset !== nextPreset
+          (preset) => preset !== nextPreset
         )
 
         const presetItemModern = babel.createConfigItem(

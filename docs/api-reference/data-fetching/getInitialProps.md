@@ -22,16 +22,14 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 > `getInitialProps` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
-`getInitialProps` is an [`async`](https://zeit.co/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
+`getInitialProps` is an [`async`](https://vercel.com/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
 
 ```jsx
-import fetch from 'isomorphic-unfetch'
-
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
 
-Page.getInitialProps = async ctx => {
+Page.getInitialProps = async (ctx) => {
   const res = await fetch('https://api.github.com/repos/zeit/next.js')
   const json = await res.json()
   return { stars: json.stargazers_count }
@@ -44,7 +42,6 @@ Or using a class component:
 
 ```jsx
 import React from 'react'
-import fetch from 'isomorphic-unfetch'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
@@ -65,7 +62,7 @@ export default Page
 
 Data returned from `getInitialProps` is serialized when server rendering, similar to what [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) does. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using [`next/router`](/docs/api-reference/next/router.md).
+For the initial page load, `getInitialProps` will run on the server only. `getInitialProps` will then run on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using [`next/router`](/docs/api-reference/next/router.md).
 
 ## Context Object
 
@@ -85,7 +82,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ## TypeScript
 
-If you're using TypeScript, you can use the `NextPage` type for functional components:
+If you're using TypeScript, you can use the `NextPage` type for function components:
 
 ```jsx
 import { NextPage } from 'next'
@@ -134,6 +131,13 @@ export default class Page extends React.Component<Props> {
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
+  <a href="/docs/basic-features/data-fetching.md">
+    <b>Data Fetching:</b>
+    <small>Learn more about data fetching in Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
   <a href="/docs/basic-features/pages.md">
     <b>Pages:</b>
     <small>Learn more about what pages are in Next.js.</small>
@@ -141,8 +145,8 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching.md">
-    <b>Data Fetching:</b>
-    <small>Learn more about data fetching in Next.js.</small>
+  <a href="/docs/advanced-features/automatic-static-optimization.md">
+    <b>Automatic Static Optimization:</b>
+    <small>Learn about how Nextjs automatically optimizes your pages.</small>
   </a>
 </div>

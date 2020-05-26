@@ -1,4 +1,4 @@
-import { types } from 'recast'
+import { types } from 'next/dist/compiled/recast'
 import { namedTypes } from 'ast-types'
 
 export function isNodeCreatingScriptElement(node: namedTypes.CallExpression) {

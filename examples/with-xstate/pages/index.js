@@ -1,13 +1,12 @@
-import React from 'react'
 import { useMachine } from '@xstate/react'
 import { Counter, Toggle } from '../components'
 import { toggleMachine } from '../machines/toggleMachine'
 import { counterMachine } from '../machines/counterMachine'
 
-const IndexPage = ({ count }) => {
+const IndexPage = () => {
   const [toggleCurrent, toggleSend] = useMachine(toggleMachine)
   const [counterCurrent, counterSend] = useMachine(counterMachine, {
-    context: { count },
+    context: { count: 999 },
   })
 
   return (
@@ -27,10 +26,6 @@ const IndexPage = ({ count }) => {
       />
     </div>
   )
-}
-
-IndexPage.getInitialProps = async () => {
-  return { count: 999 }
 }
 
 export default IndexPage

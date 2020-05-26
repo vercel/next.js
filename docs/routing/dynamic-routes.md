@@ -11,7 +11,7 @@ description: Dynamic Routes are pages that allow you to add custom params to you
   </ul>
 </details>
 
-Defining routes by using predefined paths is not always enough for complex applications, in Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, and others).
+Defining routes by using predefined paths is not always enough for complex applications. In Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, and others).
 
 Consider the following page `pages/post/[pid].js`:
 
@@ -84,6 +84,20 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 ```
 
 > A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
+
+### Optional catch all routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
+
+For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
+
+The `query` objects are as follows:
+
+```json
+{ } // GET `/post` (empty object)
+{ "slug": ["a"] } // `GET /post/a` (single-element array)
+{ "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
+```
 
 ## Caveats
 

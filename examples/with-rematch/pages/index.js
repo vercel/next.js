@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import { Component } from 'react'
 import { connect } from 'react-redux'
 
 import Header from '../shared/components/header'
@@ -26,13 +26,13 @@ class Home extends Component {
   }
 }
 
-const mapState = state => ({
+const mapState = (state) => ({
   counter: state.counter,
 })
 
 const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   increment: () => increment(1),
-  incrementBy: amount => () => increment(amount),
+  incrementBy: (amount) => () => increment(amount),
   incrementAsync: () => incrementAsync(1),
 })
 

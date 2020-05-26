@@ -1,9 +1,10 @@
-import chalk from 'chalk'
-import gzipSize from 'gzip-size'
+import '../next-server/server/node-polyfill-fetch'
+import chalk from 'next/dist/compiled/chalk'
+import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -88,21 +89,19 @@ export async function printTreeView(
       .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
-      string,
-      string,
-      string
-    ],
+    ['Page', 'Size', 'First Load JS'].map((entry) =>
+      chalk.underline(entry)
+    ) as [string, string, string],
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
 
-  if (useStatic404) {
-    pageInfos.set('/404', {
-      ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-      static: true,
-    } as any)
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+    static: useStatic404,
+  } as any)
+
+  if (!list.includes('/404')) {
     list = [...list, '/404']
   }
 
@@ -117,11 +116,11 @@ export async function printTreeView(
   const pageList = list
     .slice()
     .filter(
-      e =>
+      (e) =>
         !(
           e === '/_document' ||
-          (!hasCustomApp && e === '/_app') ||
-          (!hasCustomError && e === '/_error')
+          e === '/_error' ||
+          (!hasCustomApp && e === '/_app')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -166,7 +165,7 @@ export async function printTreeView(
 
     const uniqueCssFiles =
       buildManifest.pages[item]?.filter(
-        file => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
+        (file) => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
       ) || []
 
     if (uniqueCssFiles.length > 0) {
@@ -203,21 +202,25 @@ export async function printTreeView(
   const sharedFilesSize = sizeData.sizeCommonFiles
   const sharedFiles = sizeData.sizeCommonFile
 
-  messages.push(['+ shared by all', getPrettySize(sharedFilesSize), ''])
+  messages.push([
+    '+ First Load JS shared by all',
+    getPrettySize(sharedFilesSize),
+    '',
+  ])
   const sharedFileKeys = Object.keys(sharedFiles)
   const sharedCssFiles: string[] = []
   ;[
     ...sharedFileKeys
-      .filter(file => {
+      .filter((file) => {
         if (file.endsWith('.css')) {
           sharedCssFiles.push(file)
           return false
         }
         return true
       })
-      .map(e => e.replace(buildId, '<buildId>'))
+      .map((e) => e.replace(buildId, '<buildId>'))
       .sort(),
-    ...sharedCssFiles.map(e => e.replace(buildId, '<buildId>')).sort(),
+    ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
   ].forEach((fileName, index, { length }) => {
     const innerSymbol = index === length - 1 ? '└' : '├'
 
@@ -234,7 +237,7 @@ export async function printTreeView(
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
-      stringLength: str => stripAnsi(str).length,
+      stringLength: (str) => stripAnsi(str).length,
     })
   )
 
@@ -264,7 +267,7 @@ export async function printTreeView(
       ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
-        stringLength: str => stripAnsi(str).length,
+        stringLength: (str) => stripAnsi(str).length,
       }
     )
   )
@@ -376,7 +379,7 @@ async function computeFromManifest(
 
   let expected = 0
   const files = new Map<string, number>()
-  Object.keys(manifest.pages).forEach(key => {
+  Object.keys(manifest.pages).forEach((key) => {
     // prevent duplicate '/' and '/index'
     if (key === '/index') return
 
@@ -394,7 +397,7 @@ async function computeFromManifest(
     }
 
     ++expected
-    manifest.pages[key].forEach(file => {
+    manifest.pages[key].forEach((file) => {
       if (
         // Select Modern or Legacy scripts
         file.endsWith('.module.js') !== isModern
@@ -432,7 +435,7 @@ async function computeFromManifest(
   try {
     stats = await Promise.all(
       commonFiles.map(
-        async f =>
+        async (f) =>
           [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
       )
     )
@@ -444,7 +447,7 @@ async function computeFromManifest(
   try {
     uniqueStats = await Promise.all(
       uniqueFiles.map(
-        async f =>
+        async (f) =>
           [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
       )
     )
@@ -463,7 +466,10 @@ async function computeFromManifest(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
+    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
+      if (f.endsWith('.css')) return size
+      return size + stat
+    }, 0),
   }
 
   cachedBuildManifest = manifest
@@ -475,20 +481,20 @@ async function computeFromManifest(
 function difference<T>(main: T[], sub: T[]): T[] {
   const a = new Set(main)
   const b = new Set(sub)
-  return [...a].filter(x => !b.has(x))
+  return [...a].filter((x) => !b.has(x))
 }
 
 function intersect<T>(main: T[], sub: T[]): T[] {
   const a = new Set(main)
   const b = new Set(sub)
-  return [...new Set([...a].filter(x => b.has(x)))]
+  return [...new Set([...a].filter((x) => b.has(x)))]
 }
 
 function sum(a: number[]): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-export async function getPageSizeInKb(
+export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
@@ -503,8 +509,7 @@ export async function getPageSizeInKb(
   )
 
   const fnFilterModern = (entry: string) =>
-    (entry.endsWith('.js') && entry.endsWith('.module.js') === isModern) ||
-    entry.endsWith('.css')
+    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
 
   const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
   const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
@@ -573,7 +578,7 @@ export async function buildStaticPaths(
   }
 
   const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
-    key => !(key === 'paths' || key === 'fallback')
+    (key) => !(key === 'paths' || key === 'fallback')
   )
 
   if (invalidStaticPathKeys.length > 0) {
@@ -600,7 +605,7 @@ export async function buildStaticPaths(
     )
   }
 
-  toPrerender.forEach(entry => {
+  toPrerender.forEach((entry) => {
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
@@ -616,13 +621,13 @@ export async function buildStaticPaths(
     // For the object-provided path, we must make sure it specifies all
     // required keys.
     else {
-      const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+      const invalidKeys = Object.keys(entry).filter((key) => key !== 'params')
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
             `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
             `\n\n\treturn { params: { ${_validParamKeys
-              .map(k => `${k}: ...`)
+              .map((k) => `${k}: ...`)
               .join(', ')} } }` +
             `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
         )
@@ -630,7 +635,7 @@ export async function buildStaticPaths(
 
       const { params = {} } = entry
       let builtPage = page
-      _validParamKeys.forEach(validParamKey => {
+      _validParamKeys.forEach((validParamKey) => {
         const { repeat } = _routeRegex.groups[validParamKey]
         const paramValue = params[validParamKey]
         if (
@@ -665,6 +670,7 @@ export async function isPageStatic(
   runtimeEnvConfig: any
 ): Promise<{
   isStatic?: boolean
+  isAmpOnly?: boolean
   isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
@@ -756,6 +762,7 @@ export async function isPageStatic(
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
+      isAmpOnly: config.amp === true,
       prerenderRoutes,
       prerenderFallback,
       hasStaticProps,
@@ -781,4 +788,12 @@ export function hasCustomGetInitialProps(
     mod = mod._app
   }
   return mod.getInitialProps !== mod.origGetInitialProps
+}
+
+export function getNamedExports(
+  bundle: string,
+  runtimeEnvConfig: any
+): Array<string> {
+  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  return Object.keys(require(bundle))
 }

@@ -43,6 +43,7 @@ type NextBabelPresetOptions = {
   'transform-runtime'?: any
   'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
+  'preset-typescript'?: any
 }
 
 type BabelPreset = {
@@ -53,7 +54,7 @@ type BabelPreset = {
 }
 
 // Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
-function supportsStaticESM(caller: any) {
+function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
@@ -95,7 +96,7 @@ module.exports = (
     }
   }
 
-  // specify a preset to use instead of @babel/preset-env:
+  // specify a preset to use instead of @babel/preset-env
   const customModernPreset =
     isLaxModern && options['experimental-modern-preset']
 
@@ -116,7 +117,10 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      [require('@babel/preset-typescript'), { allowNamespaces: true }],
+      [
+        require('@babel/preset-typescript'),
+        { allowNamespaces: true, ...options['preset-typescript'] },
+      ],
     ],
     plugins: [
       [

@@ -1,3 +1,4 @@
+/* This is a single line comment to check if that works */
 {
   "compilerOptions": {
     "baseUrl": ".",
@@ -10,6 +11,7 @@
         "components/alias-to-d-ts.d.ts",
         "components/alias-to-d-ts.tsx"
       ]
+      // This is a single line comment to check if that works
     },
     "esModuleInterop": true,
     "module": "esnext",

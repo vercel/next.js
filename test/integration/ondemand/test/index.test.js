@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
@@ -17,7 +17,7 @@ import {
 
 const context = {}
 
-const doPing = page => {
+const doPing = (page) => {
   const controller = new AbortController()
   const signal = controller.signal
   return fetchViaHTTP(
@@ -25,8 +25,8 @@ const doPing = page => {
     '/_next/webpack-hmr',
     { page },
     { signal }
-  ).then(res => {
-    res.body.on('data', chunk => {
+  ).then((res) => {
+    res.body.on('data', (chunk) => {
       try {
         const payload = JSON.parse(chunk.toString().split('data:')[1])
         if (payload.success || payload.invalid) {
@@ -37,7 +37,7 @@ const doPing = page => {
   })
 }
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('On Demand Entries', () => {
   it('should pass', () => {})
@@ -87,7 +87,7 @@ describe('On Demand Entries', () => {
       '../.next/static/development/pages/third.js'
     )
 
-    // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
+    // Wait maximum of jest.setTimeout checking
     // for disposing /about
     while (true) {
       await waitFor(1000 * 1)

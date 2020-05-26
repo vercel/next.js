@@ -9,7 +9,7 @@ import {
   CONFORMANCE_ERROR_PREFIX,
   CONFORMANCE_WARNING_PREFIX,
 } from '../constants'
-import { types } from 'recast'
+import { types } from 'next/dist/compiled/recast'
 import { NodePath } from 'ast-types/lib/node-path'
 import { namedTypes } from 'ast-types'
 import { getLocalFileName } from '../utils/file-utils'
@@ -205,6 +205,6 @@ function doesScriptLoadBannedAPIfromPolyfillIO(
   const url = new URL(source)
   if (url.hostname === 'polyfill.io' && url.searchParams.has('features')) {
     const requestedAPIs = (url.searchParams.get('features') || '').split(',')
-    return blockedAPIs.find(api => requestedAPIs.includes(api))
+    return blockedAPIs.find((api) => requestedAPIs.includes(api))
   }
 }

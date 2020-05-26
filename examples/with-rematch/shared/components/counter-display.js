@@ -22,7 +22,7 @@ class CounterDisplay extends Component {
   }
 }
 
-const mapState = state => ({
+const mapState = (state) => ({
   counter: state.counter,
 })
 
