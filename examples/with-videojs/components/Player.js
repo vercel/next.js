@@ -11,7 +11,7 @@ const Player = (props) => {
     return () => {
       player.dispose()
     }
-  }, [player])
+  }, [playerRef])
 
   return (
     <div data-vjs-player>
