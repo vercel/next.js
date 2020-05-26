@@ -105,10 +105,9 @@ export const getStaticProps: GetStaticProps = async (context) => {
 }
 ```
 
-If you want to get inferred typings for your props, you can use `StaticProps<typeof getStaticProps>` like this:
+If you want to get inferred typings for your props, you can use `StaticProps<typeof getStaticProps>`, like this:
 
-```ts
-import fetch from 'node-fetch'
+```tsx
 import { GetStaticProps, StaticProps } from 'next'
 
 type Post = {
@@ -117,7 +116,7 @@ type Post = {
 }
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const res = await fetch(`https://.../posts/`)
+  const res = await fetch('https://.../posts')
   const posts: Post[] = await res.json()
 
   return {
@@ -479,31 +478,29 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 }
 ```
 
-If you want to get inferred typings for your props, you can use `ServerSideProps<typeof getServerSideProps>` like this:
+If you want to get inferred typings for your props, you can use `ServerSideProps<typeof getServerSideProps>`, like this:
 
-```ts
-import fetch from 'node-fetch'
+```tsx
 import { GetServerSideProps, ServerSideProps } from 'next'
 
-type Post = {
-  author: string
-  content: string
-}
+type Data = { ... }
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  const res = await fetch(`https://.../posts/`)
-  const posts: Post[] = await res.json()
+  const res = await fetch('https://.../data')
+  const data: Data = await res.json()
 
   return {
     props: {
-      posts,
+      data,
     },
   }
 }
 
-function Blog({ posts }: ServerSideProps<typeof getServerSideProps>) {
-  // will resolve posts to type Post[]
+function Page({ data }: ServerSideProps<typeof getServerSideProps>) {
+  // will resolve posts to type Data
 }
+
+export default Page
 ```
 
 ### Technical details
