@@ -1,4 +1,4 @@
-import * as React from 'react'
+import React from 'react'
 import { DocumentProps } from './utils'
 
 type DocumentContext = {
@@ -7,3 +7,7 @@ type DocumentContext = {
 }
 
 export const DocumentContext = React.createContext<DocumentContext>(null as any)
+
+if (process.env.NODE_ENV !== 'production') {
+  DocumentContext.displayName = 'DocumentContext'
+}

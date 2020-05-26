@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { nextBuild, File } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
+jest.setTimeout(1000 * 30)
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
 
@@ -20,8 +20,8 @@ describe('Promise in next config', () => {
       }
     `)
 
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch(/experimental feature/)
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).not.toMatch(/experimental feature/)
   })
 
   it('should not show warning with config from object', async () => {
@@ -30,8 +30,8 @@ describe('Promise in next config', () => {
         target: 'server'
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch(/experimental feature/)
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).not.toMatch(/experimental feature/)
   })
 
   it('should show warning with config from object with experimental', async () => {
@@ -43,8 +43,8 @@ describe('Promise in next config', () => {
         }
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(/experimental feature/)
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).toMatch(/experimental feature/)
   })
 
   it('should show warning with config from function with experimental', async () => {
@@ -56,7 +56,7 @@ describe('Promise in next config', () => {
         }
       })
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(/experimental feature/)
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).toMatch(/experimental feature/)
   })
 })

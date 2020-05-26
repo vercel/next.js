@@ -12,6 +12,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
+- [Contentful](/examples/cms-contentful)
 
 ## How to use
 
@@ -53,6 +54,8 @@ Next, add these fields (you don't have to modify the settings):
 - `name` - **Key Text** field
 - `picture` - **Image** field
 
+Alternatively, you can copy the JSON in [`types/author.json`](types/author.json), then click on **JSON editor** and paste it there.
+
 Save the type and continue.
 
 ### Step 3. Create a `post` type
@@ -70,6 +73,8 @@ Next, add these fields (you don't have to modify the settings unless specified):
 - `date` - **Date** field
 - `author` - **Content relationship** field, you may also add `author` to the **Constraint to custom type** option to only accept documents from the `author` type.
 - `slug` - **UID** field.
+
+Alternatively, you can copy the JSON in [`types/post.json`](types/post.json), then click on **JSON editor** and paste it there.
 
 Save the type and continue.
 
@@ -105,13 +110,17 @@ Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
 - `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
+- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 
 Your `.env` file should look like this:
 
 ```bash
 NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
+NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
+
+Make sure the locale matches your settings in the Prismic dashboard.
 
 ### Step 6. Run Next.js in development mode
 
@@ -141,19 +150,19 @@ Once saved, go to one of the posts you've created and:
 - Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in draft state.
 - Right next to the **Publish** button you should see the **Preview** button, displayed with an eye icon. Click on it!
 
-You should now be able to see the updated title. To exit the preview mode, you can click on **Click here to exit preview mode** at the top of the page.
+You should now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
-### Step 8. Deploy on ZEIT Now
+### Step 8. Deploy on Vercel
 
-You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
 
 ```bash
 now secrets add next_example_cms_prismic_api_token <NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>
 now secrets add next_example_cms_prismic_repository_name <NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>
 ```
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

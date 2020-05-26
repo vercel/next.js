@@ -73,7 +73,7 @@ export const resetCount = () => {
   return { type: actionTypes.RESET }
 }
 
-export const loadExampleData = data => {
+export const loadExampleData = (data) => {
   return { type: actionTypes.LOAD_EXAMPLE_DATA, data }
 }
 
@@ -90,9 +90,11 @@ const persistConfig = {
 const persistedReducer = persistReducer(persistConfig, reducer)
 
 export function initializeStore(initialState = exampleInitialState) {
-  return createStore(
+  const store = createStore(
     persistedReducer,
     initialState,
     composeWithDevTools(applyMiddleware())
   )
+
+  return store
 }

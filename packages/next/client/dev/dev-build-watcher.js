@@ -40,7 +40,7 @@ export default function initializeBuildWatcher() {
 
   // Handle events
   const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
-  evtSource.addMessageListener(event => {
+  evtSource.addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -63,6 +63,7 @@ export default function initializeBuildWatcher() {
         updateContainer()
         break
       case 'built':
+      case 'sync':
         isBuilding = false
         // Wait for the fade out transtion to complete
         timeoutId = setTimeout(() => {

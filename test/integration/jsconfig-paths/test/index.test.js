@@ -1,10 +1,17 @@
 /* eslint-env jest */
-/* global jasmine */
+
+import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  check,
+} from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let appPort
@@ -17,9 +24,18 @@ async function get$(path, query) {
 
 describe('TypeScript Features', () => {
   describe('default behavior', () => {
+    let output = ''
+
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort, {})
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          output += msg || ''
+        },
+        onStdout(msg) {
+          output += msg || ''
+        },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -33,7 +49,7 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Hello from a/)
     })
 
-    it('should resolve the first item in the array first', async () => {
+    it('should resolve the second item as fallback', async () => {
       const $ = await get$('/resolve-fallback')
       expect($('body').text()).toMatch(/Hello from only b/)
     })
@@ -41,6 +57,27 @@ describe('TypeScript Features', () => {
     it('should resolve a single matching alias', async () => {
       const $ = await get$('/single-alias')
       expect($('body').text()).toMatch(/Hello/)
+    })
+
+    it('should resolve a wildcard alias', async () => {
+      const $ = await get$('/wildcard-alias')
+      expect($('body').text()).toMatch(/world/)
+    })
+
+    it('should have correct module not found error', async () => {
+      const basicPage = join(appDir, 'pages/basic-alias.js')
+      const contents = await fs.readFile(basicPage, 'utf8')
+
+      await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
+      await renderViaHTTP(appPort, '/basic-alias')
+
+      const found = await check(
+        () => output,
+        /Module not found: Can't resolve '@c\/worldd' in/,
+        false
+      )
+      await fs.writeFile(basicPage, contents)
+      expect(found).toBe(true)
     })
   })
 })

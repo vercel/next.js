@@ -11,7 +11,7 @@ const { actionCreator, getState: getAboutState } = namespaceConfig(
   DEFAULT_STATE
 )
 
-const bumpVersion = actionCreator('bumpVersion', function(state, increment) {
+const bumpVersion = actionCreator('bumpVersion', function (state, increment) {
   return { ...state, version: state.version + increment }
 })
 
@@ -20,7 +20,7 @@ const About = ({ version, bumpVersion }) => (
     <h1>About us</h1>
     <h3>Current version: {version}</h3>
     <p>
-      <button onClick={e => bumpVersion(1)}>Bump version!</button>
+      <button onClick={(e) => bumpVersion(1)}>Bump version!</button>
     </p>
     <Link href="/">
       <a>Homepage</a>
