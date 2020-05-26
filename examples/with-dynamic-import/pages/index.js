@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, noSuchField } from 'react'
 import Header from '../components/Header'
 import dynamic from 'next/dynamic'
 
@@ -40,7 +40,7 @@ const IndexPage = () => {
       <DynamicComponent3WithNoSSR />
 
       {/* This component will never be loaded */}
-      {React.noSuchField && <DynamicComponent4 />}
+      {noSuchField && <DynamicComponent4 />}
 
       {/* Load on demand */}
       {showMore && <DynamicComponent5 />}
