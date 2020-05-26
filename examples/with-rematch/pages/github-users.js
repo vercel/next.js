@@ -53,7 +53,6 @@ const Github = (props) => {
 export async function getStaticProps() {
   const store = initializeStore()
   const usersList = await store.dispatch.github.fetchUsers()
-  console.log(usersList)
 
   return {
     props: {
