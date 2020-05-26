@@ -106,7 +106,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  const { loadedEnvFiles } = loadEnvConfig(dir)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -217,7 +217,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     target,
     buildId,
     previewProps,
-    config
+    config,
+    loadedEnvFiles
   )
   const pageKeys = Object.keys(mappedPages)
   const conflictingPublicFiles: string[] = []

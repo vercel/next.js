@@ -1049,6 +1049,7 @@ export default class Server {
         const renderOpts: RenderOpts = {
           ...components,
           ...opts,
+          isDataReq,
         }
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
