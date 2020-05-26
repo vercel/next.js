@@ -1,0 +1,26 @@
+import Link from 'next/link'
+
+export const data = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+export default function PostCardGrid() {
+  return (
+    <div className="postCardGridWrapper">
+      <h2>With QueryString Routing</h2>
+      <div className="postCardGrid">
+        {data.map((id, index) => (
+          <Link key={index} href={`/?postId=${id}`} as={`/post/${id}`}>
+            <a className="postCard">{id}</a>
+          </Link>
+        ))}
+      </div>
+      <h2>With Dynamic Routing</h2>
+      <div className="postCardGrid">
+        {data.map((id, index) => (
+          <Link key={index} href={`/article/[articleId]`} as={`/article/${id}`}>
+            <a className="postCard">{id}</a>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}

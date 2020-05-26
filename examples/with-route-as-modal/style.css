@@ -9,6 +9,11 @@ body {
   height: 100vh;
 }
 
+.postCardGridWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
 .postCardGrid {
   display: inline-grid;
   grid-template-columns: repeat(3, 1fr);
