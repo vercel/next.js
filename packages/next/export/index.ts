@@ -288,7 +288,7 @@ export default async function exportApp(
   const exportPaths = [
     ...new Set(
       Object.keys(exportPathMap).map(
-        path => normalizePagePath(path).replace(/\/index$/, '') || '/'
+        (path) => normalizePagePath(path).replace(/^\/index$/, '') || '/'
       )
     ),
   ]
