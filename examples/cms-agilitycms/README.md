@@ -135,8 +135,8 @@ For each post content item, you need to click `Publish` after saving. If not, th
 
 Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
 
-- The _Title_ should be `Intro`
-- The *Description*should be `Displays an intro message.`
+- Set **Title** to `Intro`
+- Set **Description** to `Displays an intro message.`
 
 In this case, we are not adding any fields to control the output or behaviour, since the content is actually hard-coded in the template.
 
@@ -146,8 +146,8 @@ Click **Save & Close** to save the definition.
 
 Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
 
-- The _Title_ should be `Hero Post`
-- The *Description*should be `Displays the latest Post.`
+- Set **Title** to `Hero Post`
+- Set **Description** to `Displays the latest Post.`
 
 In this case, we are not adding any fields to control the output or behaviour, since the latest post will be used by default and all of the data is associated to the post itself.
 
@@ -157,12 +157,12 @@ Click **Save & Close** to save the definition.
 
 Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
 
-- The _Title_ should be `More Stories`
-- The *Description*should be `Displays a listing of Posts.`
+- Set **Title** to `More Stories`
+- Set **Description** to `Displays a listing of Posts.`
 
 Next, add the following field:
 
-- `Title` - **Text** field
+- `Title` - Set **Field Type** to `Text`
 
 Click **Save & Close** to save the definition.
 
@@ -170,8 +170,8 @@ Click **Save & Close** to save the definition.
 
 Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
 
-- The _Title_ should be `Post Details`
-- The *Description*should be `Displays the details of a Post.`
+- Set **Title** to `Post Details`
+- Set **Description** to `Displays the details of a Post.`
 
 In this case, we are not adding any fields to control the output or behaviour, since the data is associated to the post itself.
 
@@ -181,45 +181,44 @@ Click **Save & Close** to save the definition.
 
 Navigate to **Settings** > **Page Templates** and click **New** to create a new **Page Template**.
 
-- The _Name_ should be `One Column Template`
-- The _Digital Channel Type_ should be `Website`
-- Under _Module Zones_ click `New (+)`
-  - The _Display Name_ should be `Main Content Zone`
-  - The _Reference Name_ should be `MainContentZone` (auto-populated)
+- **Name** should be `One Column Template`
+- **Digital Channel Type** should be `Website`
+- Under **Module Zones** click `+ (New)`
+  - Set **Display Name** to `Main Content Zone`, it will populate **Reference Name** for you
   - Click `Save` to apply the `Main Content Zone`
 
 Click **Save & Close** to save the page template.
 
 ### Step 12. Add a new Page called `home`
 
-Navigate to **Pages** and click the **New (+)** button in the page tree to create a new **Page**.
+Navigate to **Pages** and click the **+ (New)** button in the page tree to create a new **Page**.
 
-- The _Type_ should be `Page`
-- The _Page Template_ should be `One Column Template`
-- The _Menu Text_ should be `Home` - the _Page Title_ and _Page Name_ fields will be auto-populated and you can leave these values as is.
+- Set **Type** to `Page`
+- Set **Page Template** to `One Column Template`
+- Set **Menu Text** to `Home` - **Page Title** and **Page Name** fields will be auto-populated.
 
 Click **Save** to create the `/home` page.
 
-Next, add the `Hero Post` and `More Stories` modules to the `Main Content Zone` of the `home` page.
+Next, let's add the `Hero Post` and `More Stories` modules to the `Main Content Zone` of the `home` page:
 
-- Click the **New (+)** button on the `Main Content Zone` and select `Intro` to add the module to the page
+- Click the **+ (New)** button on `Main Content Zone` and select `Intro` to add the module to the page
 - Click **Save & Close** on the module to return back to the page
 
-- Click the **New (+)** button on the `Main Content Zone` and select `Hero Post` to add the module to the page
+- Click the **+ (New)** button on `Main Content Zone` and select `Hero Post` to add the module to the page
 - Click **Save & Close** on the module to return back to the page
 
-- Click the **New (+)** button on the `Main Content Zone` and select `More Stories` to add the module to the page
-  - The _Title_ field should be set to `More Stories`
+- Click the **+ (New)** button on `Main Content Zone` and select `More Stories` to add the module to the page
+  - Set **Title** to `More Stories`
 - Click **Save & Close** on the module to return back to the page
 
-**Important:** Click **Publish** on the page in order to publish the page and all of its modules.
+Then click **Publish** on the page in order to publish the page and all of its modules.
 
 ### Step 13. Add a new Folder called `posts`
 
-Navigate to **Pages** and click the `Website` channel, then click **New (+)** button in the page tree to create a new **Folder** in the root of the site.
+Navigate to **Pages** and click the `Website` channel, then click the **+ (New)** button in the page tree to create a new **Folder** in the root of the site:
 
-- The _Type_ should be `Folder`
-- The _Menu Text_ should be `Posts` - the _Folder Name_ field will be auto-populated to `posts`
+- Set **Type** to `Folder`
+- Set **Menu Text** to `Posts`, **Folder Name** will be auto-populated to `posts`
 
 Click **Save** to create the `/posts` folder.
 
