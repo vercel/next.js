@@ -10,7 +10,58 @@ import * as Log from '../../build/output/log'
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
-type Config = { [key: string]: any }
+interface Config {
+  env: any[]
+  webpack: any | null
+  webpackDevMiddleware: any | null
+  distDir: string
+  assetPrefix: string
+  configOrigin: string
+  useFileSystemPublicRoutes: boolean
+  generateBuildId: () => null
+  generateEtags: boolean
+  pageExtensions: string[]
+  target: 'server' | 'serverless' | 'experimental-serverless-trace'
+  poweredByHeader: boolean
+  compress: boolean
+  devIndicators: {
+    buildActivity: boolean
+    autoPrerender: boolean
+  }
+  onDemandEntries: {
+    maxInactiveAge: number
+    pagesBufferLength: number
+  }
+  amp: {
+    canonicalBase: string
+  }
+  exportTrailingSlash: boolean
+  sassOptions: object
+  experimental: {
+    cpus: number
+    granularChunks: boolean
+    modern: boolean
+    plugins: boolean
+    profiling: boolean
+    sprFlushToDisk: boolean
+    reactMode: string
+    workerThreads: boolean
+    basePath: string
+    pageEnv: boolean
+    productionBrowserSourceMaps: boolean
+    optionalCatchAll: boolean
+    redirects?: any
+    rewrites?: any
+    headers?: any
+  }
+  future: {
+    excludeDefaultMomentLocales: boolean
+  }
+  serverRuntimeConfig: object
+  publicRuntimeConfig: object
+  reactStrictMode: boolean
+  exportPathMap?: any
+}
 
 const defaultConfig: Config = {
   env: [],
@@ -75,8 +126,10 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: Config): Config {
-  const config = Object.keys(userConfig).reduce<Config>((config, key) => {
-    const value = userConfig[key]
+  const config = Object.keys(userConfig).reduce<{
+    [key: string]: Partial<Config>
+  }>((config, key) => {
+    const value = userConfig[key as keyof Config]
 
     if (value === undefined || value === null) {
       return config
@@ -134,7 +187,7 @@ function assignDefaults(userConfig: Config): Config {
 
     if (!!value && value.constructor === Object) {
       config[key] = {
-        ...defaultConfig[key],
+        ...defaultConfig[key as keyof Config],
         ...Object.keys(value).reduce<any>((c, k) => {
           const v = value[k]
           if (v !== undefined && v !== null) {
@@ -194,7 +247,7 @@ function assignDefaults(userConfig: Config): Config {
   return result
 }
 
-export function normalizeConfig(phase: string, config: Config): Config {
+export function normalizeConfig(phase: string, config: Config | any): Config {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 
