@@ -14,5 +14,11 @@ describe('Handles Errors During Export', () => {
     })
 
     expect(stdout + stderr).not.toMatch(/ERR_IPC_CHANNEL_CLOSED/)
+    expect(stderr).toContain('Export encountered errors on following paths')
+    expect(stderr).toContain('/page')
+    expect(stderr).toContain('/page-1')
+    expect(stderr).toContain('/page-2')
+    expect(stderr).toContain('/page-3')
+    expect(stderr).toContain('/page-13')
   })
 })

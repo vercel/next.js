@@ -1,4 +1,4 @@
-import Error from 'next/error'
+import NextErrorComponent from 'next/error'
 import * as Sentry from '@sentry/node'
 
 const MyError = ({ statusCode, hasGetInitialPropsRun, err }) => {
@@ -9,11 +9,14 @@ const MyError = ({ statusCode, hasGetInitialPropsRun, err }) => {
     Sentry.captureException(err)
   }
 
-  return <Error statusCode={statusCode} />
+  return <NextErrorComponent statusCode={statusCode} />
 }
 
 MyError.getInitialProps = async ({ res, err, asPath }) => {
-  const errorInitialProps = await Error.getInitialProps({ res, err })
+  const errorInitialProps = await NextErrorComponent.getInitialProps({
+    res,
+    err,
+  })
 
   // Workaround for https://github.com/zeit/next.js/issues/8592, mark when
   // getInitialProps has run

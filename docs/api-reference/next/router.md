@@ -42,12 +42,10 @@ export default ActiveLink
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
 - `pathname`: `String` - Current route. That is the path of the page in `/pages`
-- `query`: `Object` - The query string parsed to an object. Defaults to `{}`
+- `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - Actual path (including the query) shown in the browser
 
 Additionally, the [`Router API`](#router-api) is also included inside the object.
-
-> The `query` object will be empty during prerendering if the page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
 
 ## withRouter
 
