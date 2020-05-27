@@ -1,5 +1,0 @@
-dist/
-node_modules/
-
-# Firebase cache
-.firebase/

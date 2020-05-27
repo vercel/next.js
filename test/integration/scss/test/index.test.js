@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
@@ -17,7 +17,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { quote as shellQuote } from 'shell-quote'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
@@ -69,7 +69,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
@@ -97,7 +97,35 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
+  })
+
+  describe('Basic Module Prepend Data Support', () => {
+    const appDir = join(fixturesDir, 'basic-module-prepend-data')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
@@ -125,7 +153,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
@@ -153,7 +181,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -182,7 +210,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -213,7 +241,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -231,7 +259,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
       const cssMapContent = (
@@ -281,7 +309,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -607,7 +635,7 @@ describe('SCSS Support', () => {
       const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -619,11 +647,8 @@ describe('SCSS Support', () => {
       expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
-          .map(fileName =>
-            /^(.+?)\..{32}\.(.+?)$/
-              .exec(fileName)
-              .slice(1)
-              .join('.')
+          .map((fileName) =>
+            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -656,7 +681,7 @@ describe('SCSS Support', () => {
       const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -668,11 +693,8 @@ describe('SCSS Support', () => {
       expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
-          .map(fileName =>
-            /^(.+?)\..{32}\.(.+?)$/
-              .exec(fileName)
-              .slice(1)
-              .join('.')
+          .map((fileName) =>
+            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -705,7 +727,7 @@ describe('SCSS Support', () => {
       const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -717,11 +739,8 @@ describe('SCSS Support', () => {
       expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
-          .map(fileName =>
-            /^(.+?)\..{32}\.(.+?)$/
-              .exec(fileName)
-              .slice(1)
-              .join('.')
+          .map((fileName) =>
+            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -753,7 +772,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -780,7 +799,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -898,7 +917,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -914,7 +933,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
     })
@@ -939,7 +958,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -956,7 +975,7 @@ describe('SCSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
     })

@@ -1,31 +1,32 @@
-import React from 'react'
 import { useState } from 'react'
-import useUser from '../lib/hooks/useUser'
-import Layout from '../components/layout'
-import Form from '../components/form'
-import fetch from '../lib/fetch'
-import { mutate } from 'swr'
+import useUser from '../lib/useUser'
+import Layout from '../components/Layout'
+import Form from '../components/Form'
+import fetchJson from '../lib/fetchJson'
 
 const Login = () => {
-  useUser({ redirectTo: '/profile-sg', redirectIfFound: true })
+  const { mutateUser } = useUser({
+    redirectTo: '/profile-sg',
+    redirectIfFound: true,
+  })
 
   const [errorMsg, setErrorMsg] = useState('')
 
   async function handleSubmit(e) {
-    event.preventDefault()
+    e.preventDefault()
 
     const body = {
       username: e.currentTarget.username.value,
     }
 
     try {
-      const user = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-
-      mutate('/api/user', user)
+      await mutateUser(
+        fetchJson('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      )
     } catch (error) {
       console.error('An unexpected error happened:', error)
       setErrorMsg(error.data.message)

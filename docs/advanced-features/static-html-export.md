@@ -21,7 +21,7 @@ The exported app supports almost every feature of Next.js, including dynamic rou
 
 ## How to use it
 
-Simply develop your app as you normally do with Next.js. Then run:
+Develop your app as you normally do with Next.js. Then run:
 
 ```bash
 next build && next export
@@ -59,3 +59,4 @@ You can read about deploying your Next.js application in the [deployment section
 - The `fallback: true` mode of `getStaticPaths` is not supported when using `next export`. Fallback mode only works in serverless configurations or when using `next start` or a custom server; for `next export`, the `fallback` parameter will be treated as if it were `false` and any routes not defined by `getStaticPaths` will return a 404, since we can't generate a page on the fly without some kind of backend process.
 - You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. Your application can be a hybrid of [Static Generation](/docs/basic-features/pages.md#static-generation) and [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) when you don't use `next export`. You can learn more about it in the [pages section](/docs/basic-features/pages.md).
 - [API Routes](/docs/api-routes/introduction.md) are not supported by this method because they can't be prerendered to HTML.
+- [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) cannot be used within pages because the method requires a server. Consider using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) instead.

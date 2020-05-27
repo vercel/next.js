@@ -33,7 +33,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## How it works
 
@@ -41,5 +41,4 @@ Sites take its content from markdown files in `/content`. Two of pages (`home` a
 
 Blog component loads all posts (during build!) and lists them out [How to load multiple md files](https://medium.com/@shawnstern/importing-multiple-markdown-files-into-a-react-component-with-webpack-7548559fce6f)
 
-Posts are separate static sites thanks to dynamically created export map. I took inspiration on how to do it from
-[here](https://medium.com/@joranquinten/for-my-own-website-i-used-next-js-725678e65b09)
+Updated to take advantange of the new `getStaticPaths` and `getStaticProps` data-fetching functions.

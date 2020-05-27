@@ -87,6 +87,14 @@ module.exports = {
           source: '/unnamed-params/nested/(.*)/:test/(.*)',
           destination: '/with-params',
         },
+        {
+          source: '/catchall-rewrite/:path*',
+          destination: '/with-params',
+        },
+        {
+          source: '/catchall-query/:path*',
+          destination: '/with-params?another=:path*',
+        },
       ]
     },
     async redirects() {
@@ -218,11 +226,73 @@ module.exports = {
           ],
         },
         {
+          source: '/my-other-header/:path',
+          headers: [
+            {
+              key: 'x-path',
+              value: ':path',
+            },
+            {
+              key: 'some:path',
+              value: 'hi',
+            },
+          ],
+        },
+        {
+          source: '/without-params/url',
+          headers: [
+            {
+              key: 'x-origin',
+              value: 'https://example.com',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com/:path*',
+            },
+          ],
+        },
+        {
+          source: '/with-params/url2/:path*',
+          headers: [
+            {
+              key: 'x-url',
+              value: 'https://example.com:8080?hello=:path*',
+            },
+          ],
+        },
+        {
           source: '/:path*',
           headers: [
             {
               key: 'x-something',
               value: 'applied-everywhere',
+            },
+          ],
+        },
+        {
+          source: '/named-pattern/:path(.*)',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'value=:path',
+            },
+            {
+              key: 'path-:path',
+              value: 'end',
+            },
+          ],
+        },
+        {
+          source: '/catchall-header/:path*',
+          headers: [
+            {
+              key: 'x-value',
+              value: ':path*',
             },
           ],
         },
