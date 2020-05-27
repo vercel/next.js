@@ -13,3 +13,25 @@
 /* Stop purging. */
 
 /* Your own custom utilities */
+
+.alignfull {
+  @apply w-screen relative;
+
+  left: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  max-width: 100vw;
+  right: 50%;
+}
+
+.has-text-align-left {
+  @apply text-left;
+}
+
+.has-text-align-center {
+  @apply text-center;
+}
+
+.has-text-align-right {
+  @apply text-right;
+}
