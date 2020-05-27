@@ -26,6 +26,10 @@
   @apply text-right;
 }
 
+.has-large-font-size {
+  @apply text-4xl;
+}
+
 .alignfull {
   @apply w-screen relative;
 
@@ -83,4 +87,10 @@
 
 .wp-block-file a:first-of-type {
   @apply mr-4;
+}
+
+.wp-block-cover {
+  @apply flex flex-wrap justify-center items-center bg-cover bg-center overflow-hidden;
+
+  min-height: 430px;
 }
