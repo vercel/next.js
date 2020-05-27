@@ -73,6 +73,8 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import { BuildManifest } from '../next-server/server/get-page-files'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -104,7 +106,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  const { loadedEnvFiles } = loadEnvConfig(dir)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -215,7 +217,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     target,
     buildId,
     previewProps,
-    config
+    config,
+    loadedEnvFiles
   )
   const pageKeys = Object.keys(mappedPages)
   const conflictingPublicFiles: string[] = []
@@ -254,6 +257,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
       } found. https://err.sh/zeit/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
         '\n'
       )}`
+    )
+  }
+
+  const nestedReservedPages = pageKeys.filter((page) => {
+    return (
+      page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
+    )
+  })
+
+  if (nestedReservedPages.length) {
+    console.warn(
+      '\n' +
+        chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
+        ) +
+        nestedReservedPages.join('\n') +
+        chalk.bold(
+          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+        )
     )
   }
 
@@ -461,10 +484,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(
     await promises.readFile(manifestPath, 'utf8')
-  )
+  ) as PagesManifest
   const buildManifest = JSON.parse(
     await promises.readFile(buildManifestPath, 'utf8')
-  )
+  ) as BuildManifest
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
@@ -494,7 +517,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           : ['server', 'static', buildId, 'pages']),
         '_error.js'
       ),
-      runtimeEnvConfig
+      runtimeEnvConfig,
+      false
     ))
 
   const analysisBegin = process.hrtime()
@@ -537,7 +561,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
-          runtimeEnvConfig
+          runtimeEnvConfig,
+          true
         )
 
         namedExports = getNamedExports(
