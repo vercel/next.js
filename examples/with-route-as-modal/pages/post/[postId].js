@@ -5,7 +5,7 @@ const PostPage = () => {
   const router = useRouter()
   const { postId } = router.query
 
-  return <Post id={postId} />
+  return <Post id={postId} pathname={router.pathname} />
 }
 
 export default PostPage

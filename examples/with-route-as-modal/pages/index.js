@@ -1,11 +1,9 @@
 import { useRouter } from 'next/router'
 import Modal from 'react-modal'
 import Post from '../components/Post'
-import PostCard from '../components/PostCard'
+import Grid from '../components/Grid'
 
 Modal.setAppElement('#__next')
-
-const posts = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 const Index = () => {
   const router = useRouter()
@@ -17,13 +15,9 @@ const Index = () => {
         onRequestClose={() => router.push('/')}
         contentLabel="Post modal"
       >
-        <Post id={router.query.postId} />
+        <Post id={router.query.postId} pathname={router.pathname} />
       </Modal>
-      <div className="postCardGrid">
-        {posts.map((id, index) => (
-          <PostCard key={index} id={id} />
-        ))}
-      </div>
+      <Grid />
     </>
   )
 }
