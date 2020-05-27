@@ -968,8 +968,7 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
-        !isServer &&
+      !isServer &&
         useTypeScript &&
         !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
