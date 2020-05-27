@@ -1,11 +1,13 @@
-import { ServerSideProps } from 'next'
+import { ServerSideProps, GetServerSidePropsContext } from 'next'
 
 type Post = {
   author: string
   content: string
 }
 
-export const getServerSideProps = async () => {
+export const getServerSideProps = async (
+  ctx: GetServerSidePropsContext<{ post: string }>
+) => {
   const res = await fetch(`https://.../posts/`)
   const posts: Post[] = await res.json()
   return {

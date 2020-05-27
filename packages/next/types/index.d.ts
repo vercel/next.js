@@ -88,12 +88,11 @@ export type GetStaticProps<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (context: GetStaticPropsContext<Q>) => Promise<GetStaticPropsResult<P>>
 
-export type StaticProps<
-  T,
-  Q extends ParsedUrlQuery = ParsedUrlQuery
-> = T extends (
-  context?: GetStaticPropsContext<Q>
-) => Promise<GetStaticPropsResult<infer P>>
+export type StaticProps<T> = T extends GetStaticProps<infer P, any>
+  ? P
+  : T extends (
+      context?: GetStaticPropsContext<any>
+    ) => Promise<GetStaticPropsResult<infer P>>
   ? P
   : never
 
@@ -126,12 +125,11 @@ export type GetServerSideProps<
   context: GetServerSidePropsContext<Q>
 ) => Promise<GetServerSidePropsResult<P>>
 
-export type ServerSideProps<
-  T,
-  Q extends ParsedUrlQuery = ParsedUrlQuery
-> = T extends (
-  context?: GetServerSidePropsContext<Q>
-) => Promise<GetServerSidePropsResult<infer P>>
+export type ServerSideProps<T> = T extends GetServerSideProps<infer P, any>
+  ? P
+  : T extends (
+      context?: GetServerSidePropsContext<any>
+    ) => Promise<GetServerSidePropsResult<infer P>>
   ? P
   : never
 
