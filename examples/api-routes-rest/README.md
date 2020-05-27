@@ -6,7 +6,7 @@ Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes), whi
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-rest)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/api-routes-rest)
 
 ## How to use
 

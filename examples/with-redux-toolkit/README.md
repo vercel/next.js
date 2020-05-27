@@ -8,7 +8,7 @@ The **Redux Toolkit** is intended to be the standard way to write Redux logic (c
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-redux-toolkit)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-redux-toolkit)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-redux-toolkit with-redux-toolkit-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-toolkit
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-toolkit
 cd with-redux-toolkit
 ```
 

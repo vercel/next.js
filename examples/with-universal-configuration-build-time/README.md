@@ -8,7 +8,7 @@ When you build your application the environment variable is transformed into a p
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-universal-configuration-build-time)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-universal-configuration-build-time)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-universal-configuration-build-time with-univ
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-universal-configuration-build-time
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-universal-configuration-build-time
 cd with-universal-configuration-build-time
 ```
 

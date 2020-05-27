@@ -21,7 +21,7 @@ yarn create next-app --example with-universal-configuration-runtime with-univers
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-universal-configuration-runtime
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-universal-configuration-runtime
 cd with-universal-configuration-runtime
 ```
 
