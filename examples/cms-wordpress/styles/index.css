@@ -98,3 +98,7 @@
 .wp-block-verse {
   @apply font-sans;
 }
+
+.wp-block-media-text {
+  @apply grid grid-cols-2 gap-4;
+}
