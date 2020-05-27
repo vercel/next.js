@@ -803,7 +803,7 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
-            )}\\/catchall\\/(.+?)(?:\\/)?\\.json$`
+            )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
           routeKeys: ['slug'],
@@ -815,7 +815,7 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
-            )}\\/catchall\\-explicit\\/(.+?)(?:\\/)?\\.json$`
+            )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
           routeKeys: ['slug'],
