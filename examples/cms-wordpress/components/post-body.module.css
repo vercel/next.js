@@ -54,3 +54,7 @@
 .content figcaption {
   @apply text-center text-sm;
 }
+
+.content blockquote {
+  @apply border-l-4 border-gray-500 bg-gray-200 italic ml-0 pl-4;
+}
