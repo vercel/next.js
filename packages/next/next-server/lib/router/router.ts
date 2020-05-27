@@ -476,6 +476,10 @@ export default class Router implements BaseRouter {
             return resolve(false)
           }
 
+          if (routeInfo?.props?.redirect) {
+            return resolve(this.push(routeInfo.props.redirect))
+          }
+
           Router.events.emit('beforeHistoryChange', as)
           this.changeState(method, url, as, options)
 
