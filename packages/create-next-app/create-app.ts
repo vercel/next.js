@@ -1,16 +1,16 @@
+import retry from 'async-retry'
 import chalk from 'chalk'
 import cpy from 'cpy'
 import fs from 'fs'
 import makeDir from 'make-dir'
 import os from 'os'
 import path from 'path'
-
 import {
-  hasExample,
-  hasRepo,
-  getRepoInfo,
   downloadAndExtractExample,
   downloadAndExtractRepo,
+  getRepoInfo,
+  hasExample,
+  hasRepo,
   RepoInfo,
 } from './helpers/examples'
 import { tryGitInit } from './helpers/git'
@@ -18,6 +18,8 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
+
+export class DownloadError extends Error {}
 
 export async function createApp({
   appPath,
@@ -75,7 +77,7 @@ export async function createApp({
         )
         process.exit(1)
       }
-    } else {
+    } else if (example !== '__internal-testing-retry') {
       const found = await hasExample(example)
 
       if (!found) {
@@ -109,24 +111,32 @@ export async function createApp({
   process.chdir(root)
 
   if (example) {
-    if (repoInfo) {
-      console.log(
-        `Downloading files from repo ${chalk.cyan(
-          example
-        )}. This might take a moment.`
-      )
-      console.log()
-      await downloadAndExtractRepo(root, repoInfo)
-    } else {
-      console.log(
-        `Downloading files for example ${chalk.cyan(
-          example
-        )}. This might take a moment.`
-      )
-      console.log()
-      await downloadAndExtractExample(root, example)
+    try {
+      if (repoInfo) {
+        const repoInfo2 = repoInfo
+        console.log(
+          `Downloading files from repo ${chalk.cyan(
+            example
+          )}. This might take a moment.`
+        )
+        console.log()
+        await retry(() => downloadAndExtractRepo(root, repoInfo2), {
+          retries: 3,
+        })
+      } else {
+        console.log(
+          `Downloading files for example ${chalk.cyan(
+            example
+          )}. This might take a moment.`
+        )
+        console.log()
+        await retry(() => downloadAndExtractExample(root, example), {
+          retries: 3,
+        })
+      }
+    } catch (reason) {
+      throw new DownloadError(reason)
     }
-
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
     if (!fs.existsSync(ignorePath)) {
