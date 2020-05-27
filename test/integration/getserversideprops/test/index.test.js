@@ -74,9 +74,7 @@ const expectedManifestRoutes = () => [
       buildId
     )}/catchall/(?<path>.+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/catchall\\/(.+?)(?:\\/)?\\.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
     ),
     page: '/catchall/[...path]',
     routeKeys: ['path'],
