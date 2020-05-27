@@ -13,6 +13,23 @@
   @apply underline;
 }
 
+.content ul {
+  @apply list-disc;
+}
+
+.content ol {
+  @apply list-decimal;
+}
+
+.content ul > li > ul,
+.content ol > li > ol {
+  @apply my-0 ml-4;
+}
+
+.content ul > li > ul {
+  list-style: circle;
+}
+
 .content h2 {
   @apply text-3xl mt-12 mb-4 leading-snug;
 }
