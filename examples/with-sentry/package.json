@@ -2,7 +2,7 @@
   "name": "with-sentry",
   "version": "1.1.0",
   "scripts": {
-    "dev": "SENTRY_DSN=abc123",
+    "dev": "SENTRY_DSN=abc123 node server.js",
     "build": "SENTRY_DSN=abc123 next build",
     "start": "SENTRY_DSN=abc123 NODE_ENV=production node server.js"
   },
