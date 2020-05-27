@@ -3,7 +3,7 @@
   "version": "9.4.3-canary.2",
   "description": "An experimental package providing utilities for React Refresh.",
   "repository": {
-    "url": "zeit/next.js",
+    "url": "vercel/next.js",
     "directory": "packages/react-refresh-utils"
   },
   "files": [
