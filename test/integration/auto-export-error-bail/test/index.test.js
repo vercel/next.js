@@ -15,6 +15,10 @@ const runTests = () => {
       stderr: true,
     })
 
+    if (output.code) {
+      console.log(output)
+    }
+
     expect(output.code).toBe(0)
     expect(output.stderr + output.stdout).not.toContain(
       'You have opted-out of Automatic Static Optimization due to'
