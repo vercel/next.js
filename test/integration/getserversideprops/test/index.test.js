@@ -111,6 +111,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/redirect.json$`
+    ),
+    page: '/redirect',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
     page: '/refresh',
@@ -444,6 +450,27 @@ const runTests = (dev = false) => {
 
     const curRandom = await browser.elementByCss('#random').text()
     expect(curRandom).toBe(initialRandom + '')
+  })
+
+  it('should handle server-side redirect', async () => {
+    const browser = await webdriver(appPort, '/redirect')
+    const text = await browser.elementByCss('#normal-text').text()
+    expect(text).toMatch(/a normal page/)
+  })
+
+  it('should pass redirect to client', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/redirect.json`)
+    )
+    expect(data.redirect).toBe('/normal')
+  })
+
+  it('should handle client-side redirect', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#redirect').click()
+    await browser.waitForElementByCss('#normal-text')
+    const text = await browser.elementByCss('#normal-text').text()
+    expect(text).toMatch(/a normal page/)
   })
 
   if (dev) {

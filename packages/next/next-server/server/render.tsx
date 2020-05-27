@@ -681,7 +681,7 @@ export async function renderToHTML(
 
   // Handle optional redirect for page requests
   if (props.redirect) {
-    res.writeHead(302, { Location: '/' })
+    res.writeHead(302, { Location: props.redirect })
     res.end()
   }
 

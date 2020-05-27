@@ -37,6 +37,10 @@ const Page = ({ world, time, url }) => {
         <a id="normal">to normal</a>
       </Link>
       <br />
+      <Link href="/redirect">
+        <a id="redirect">to redirect</a>
+      </Link>
+      <br />
       <Link href="/blog/[post]" as="/blog/post-1">
         <a id="post-1">to dynamic</a>
       </Link>
