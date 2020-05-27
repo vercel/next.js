@@ -13,7 +13,7 @@ export default function Index({ stars }) {
 }
 
 export async function getStaticProps() {
-  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const json = await res.json() // better use it inside try .. catch
   return {
     props: { stars: json.stargazers_count },

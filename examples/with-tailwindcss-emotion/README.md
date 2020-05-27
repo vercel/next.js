@@ -1,6 +1,6 @@
 # Tailwind CSS with Emotion.js example
 
-This is an example of how you can add [tailwind CSS](https://tailwindcss.com/) with [Emotion.js](https://emotion.sh/docs/introduction) in your web app. It takes inspiration from [examples/with-tailwindcss](https://github.com/zeit/next.js/blob/canary/examples/with-tailwindcss/README.md).
+This is an example of how you can add [tailwind CSS](https://tailwindcss.com/) with [Emotion.js](https://emotion.sh/docs/introduction) in your web app. It takes inspiration from [examples/with-tailwindcss](https://github.com/vercel/next.js/blob/canary/examples/with-tailwindcss/README.md).
 
 `@tailwindcssinjs/macro` is used to add tailwind classes inside Emotion by injecting the tailwind CSS into the styled component. No need to use CSS files, autoprefix, minifier, etc. You will get the full benefits of Emotion.
 
@@ -14,7 +14,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-tailwindcss-emotion with-tailwindcss-emotion-app

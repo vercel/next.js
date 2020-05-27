@@ -3,7 +3,7 @@ import { sandbox } from './helpers'
 
 jest.setTimeout(1000 * 60 * 5)
 
-// https://github.com/zeit/next.js/issues/12422
+// https://github.com/vercel/next.js/issues/12422
 test('styled-components hydration mismatch', async () => {
   const files = new Map()
   files.set(

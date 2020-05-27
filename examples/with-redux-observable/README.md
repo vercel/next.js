@@ -18,7 +18,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-redux-observable with-redux-observable-app
@@ -92,5 +92,5 @@ The layout of the redux related functionality is split between:
 and organized in `redux/index.js`.
 
 Excepting in those manners discussed above, the configuration is similar the
-configuration found in [with-redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux)
+configuration found in [with-redux example](https://github.com/vercel/next.js/tree/canary/examples/with-redux)
 and [redux-observable docs](https://redux-observable.js.org/).

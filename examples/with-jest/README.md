@@ -6,7 +6,7 @@ This includes Next.js' built-in support for Global CSS, CSS Modules, and TypeScr
 
 ## How to Use
 
-Quickly get started using [Create Next App](https://github.com/zeit/next.js/tree/canary/packages/create-next-app#readme)!
+Quickly get started using [Create Next App](https://github.com/vercel/next.js/tree/canary/packages/create-next-app#readme)!
 
 In your terminal, run the following command:
 

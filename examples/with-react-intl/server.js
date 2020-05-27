@@ -24,7 +24,7 @@ if (global.Intl) {
   global.Intl = require('intl')
 }
 
-// Fix: https://github.com/zeit/next.js/issues/11777
+// Fix: https://github.com/vercel/next.js/issues/11777
 // See related issue: https://github.com/andyearnshaw/Intl.js/issues/308
 if (Intl.__disableRegExpRestore) {
   Intl.__disableRegExpRestore()
@@ -32,7 +32,7 @@ if (Intl.__disableRegExpRestore) {
 
 // Polyfill DOMParser for **pre-v4** react-intl used by formatjs.
 // Only needed when using FormattedHTMLMessage. Make sure to install `xmldom`.
-// See: https://github.com/zeit/next.js/issues/10533
+// See: https://github.com/vercel/next.js/issues/10533
 // const { DOMParser } = require('xmldom')
 // global.DOMParser = DOMParser
 

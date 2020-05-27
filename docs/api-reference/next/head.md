@@ -7,8 +7,8 @@ description: Add custom elements to the `head` of your page with the built-in He
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/head-elements">Head Elements</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/layout-component">Layout Component</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/head-elements">Head Elements</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/layout-component">Layout Component</a></li>
   </ul>
 </details>
 

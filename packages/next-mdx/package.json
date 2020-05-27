@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "repository": {
-    "url": "zeit/next.js",
+    "url": "vercel/next.js",
     "directory": "packages/next-mdx"
   },
   "peerDependencies": {

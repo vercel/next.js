@@ -14,7 +14,7 @@ _Live Example: https://react-multi-carousel.now.sh_
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-react-multi-carousel with-react-multi-carousel-app
@@ -48,6 +48,6 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 - On the server-side, we detect the user's device to decide how many items we are showing and then using flex-basis to assign \* width to the carousel item.
 - On the client-side, old fashion getting width of the container and assign the average of it to each carousel item.
 
-The UI part of this example is copy paste from for the sake of simplicity. [with-material-ui](https://github.com/zeit/next.js/tree/canary/examples/with-material-ui)
+The UI part of this example is copy paste from for the sake of simplicity. [with-material-ui](https://github.com/vercel/next.js/tree/canary/examples/with-material-ui)
 
 Source code is hosted on the [react-multi-carorusel](https://github.com/YIZHUANG/react-multi-carousel/tree/master/examples/ssr) repository.

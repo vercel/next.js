@@ -21,7 +21,7 @@ describe('Empty configuration', () => {
     })
     expect(stdout).toMatch(/Compiled successfully./)
     expect(stderr).toMatch(
-      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/zeit\/next.js\/empty-configuration/
+      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/vercel\/next.js\/empty-configuration/
     )
   })
 
@@ -38,7 +38,7 @@ describe('Empty configuration', () => {
     await killApp(app)
 
     expect(stderr).toMatch(
-      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/zeit\/next.js\/empty-configuration/
+      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/vercel\/next.js\/empty-configuration/
     )
   })
 })

@@ -9,7 +9,7 @@
   "description": "Create Next.js-powered React apps with one command",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zeit/next.js",
+    "url": "https://github.com/vercel/next.js",
     "directory": "packages/create-next-app"
   },
   "author": "Next.js Team <support@vercel.com>",

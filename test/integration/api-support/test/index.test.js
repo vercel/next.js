@@ -418,7 +418,7 @@ function runTests(dev = false) {
         { stdout: true }
       )
       expect(stdout).toContain(
-        'https://err.sh/zeit/next.js/api-routes-static-export'
+        'https://err.sh/vercel/next.js/api-routes-static-export'
       )
     })
 

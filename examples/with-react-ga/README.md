@@ -1,6 +1,6 @@
 # React-GA example
 
-This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app)
+This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/vercel/next.js#custom-app)
 component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.
 
 ## Deploy your own
@@ -13,7 +13,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-react-ga with-react-ga-app

@@ -213,7 +213,7 @@ export default function (render, fetch) {
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage =
-        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
       expect(
         $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
       ).toBeTruthy()

@@ -3,7 +3,7 @@
   "version": "9.4.3-canary.2",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
-    "url": "zeit/next.js",
+    "url": "vercel/next.js",
     "directory": "packages/react-dev-overlay"
   },
   "files": [

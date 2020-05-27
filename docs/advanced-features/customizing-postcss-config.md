@@ -7,7 +7,7 @@ description: Extend the PostCSS config and plugins added by Next.js with your ow
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-tailwindcss">Tailwind CSS Example</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss">Tailwind CSS Example</a></li>
   </ul>
 </details>
 

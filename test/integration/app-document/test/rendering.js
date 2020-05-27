@@ -81,7 +81,7 @@ export default function ({ app }, suiteName, render, fetch) {
         )
       })
 
-      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
       // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
       test('It adds a timestamp to link tags with preload attribute to invalidate the cache (DEV only)', async () => {
         const $ = await get$('/')

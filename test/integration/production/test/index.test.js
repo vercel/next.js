@@ -421,7 +421,7 @@ describe('Production Usage', () => {
 
     it('should allow to access /static/ and /_next/', async () => {
       // This is a test case which prevent the following issue happening again.
-      // See: https://github.com/zeit/next.js/issues/2617
+      // See: https://github.com/vercel/next.js/issues/2617
       await renderViaHTTP(appPort, '/_next/')
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
@@ -529,7 +529,7 @@ describe('Production Usage', () => {
       await browser.close()
     })
 
-    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
     // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
     it('It does not add a timestamp to link tags with prefetch attribute', async () => {
       const browser = await webdriver(appPort, '/prefetch')
@@ -612,7 +612,7 @@ describe('Production Usage', () => {
 
   it('should not put backslashes in pages-manifest.json', () => {
     // Whatever platform you build on, pages-manifest.json should use forward slash (/)
-    // See: https://github.com/zeit/next.js/issues/4920
+    // See: https://github.com/vercel/next.js/issues/4920
     const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
 
     for (let key of Object.keys(pagesManifest)) {

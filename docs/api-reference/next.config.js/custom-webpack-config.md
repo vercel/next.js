@@ -10,8 +10,8 @@ Some commonly asked for features are available as plugins:
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- [@next/mdx](https://github.com/zeit/next.js/tree/canary/packages/next-mdx)
-- [@next/bundle-analyzer](https://github.com/zeit/next.js/tree/canary/packages/next-bundle-analyzer)
+- [@next/mdx](https://github.com/vercel/next.js/tree/canary/packages/next-mdx)
+- [@next/bundle-analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer)
 
 In order to extend our usage of `webpack`, you can define a function that extends its config inside `next.config.js`, like so:
 
@@ -47,7 +47,7 @@ Example usage of `defaultLoaders.babel`:
 ```js
 // Example config for adding a loader that depends on babel-loader
 // This source was taken from the @next/mdx plugin source:
-// https://github.com/zeit/next.js/tree/canary/packages/next-mdx
+// https://github.com/vercel/next.js/tree/canary/packages/next-mdx
 module.exports = {
   webpack: (config, options) => {
     config.module.rules.push({

@@ -1,5 +1,5 @@
 // From:
-// https://github.com/zeit/next.js/blob/canary/examples/with-firebase-authentication/pages/index.js
+// https://github.com/vercel/next.js/blob/canary/examples/with-firebase-authentication/pages/index.js
 
 export const setSession = (user) => {
   // Log in.

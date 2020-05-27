@@ -19,7 +19,7 @@ export const CTA = () => (
 
     <ChakraLink
       isExternal
-      href="https://github.com/zeit/next.js/blob/canary/examples/with-chakra-ui"
+      href="https://github.com/vercel/next.js/blob/canary/examples/with-chakra-ui"
       flexGrow={3}
       mx={2}
     >

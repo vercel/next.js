@@ -11,4 +11,4 @@ The only known cause of this issue is manually manipulating `window.history` ins
 
 ### Useful Links
 
-- [The issue this was reported in: #4994](https://github.com/zeit/next.js/issues/4994)
+- [The issue this was reported in: #4994](https://github.com/vercel/next.js/issues/4994)

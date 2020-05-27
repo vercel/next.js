@@ -6,7 +6,7 @@ This example app shows how to integrate [React Intl][] with Next.
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-react-intl with-react-intl-app
@@ -39,7 +39,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 - Server-side language negotiation
 - React Intl locale data loading via `pages/_document.js` customization
-- React Intl integration with [custom App](https://github.com/zeit/next.js#custom-app) component
+- React Intl integration with [custom App](https://github.com/vercel/next.js#custom-app) component
 - `<IntlProvider>` creation with `locale`, `messages` props
 - Default message extraction via `babel-plugin-react-intl` integration
 - Translation management via build script and customized Next server
@@ -65,7 +65,7 @@ If you still want to enable this feature, you should install a `DOMParser` imple
 
 ```js
 // Polyfill Node with `DOMParser` required by formatjs.
-// See: https://github.com/zeit/next.js/issues/10533
+// See: https://github.com/vercel/next.js/issues/10533
 const { DOMParser } = require('xmldom')
 global.DOMParser = DOMParser
 ```

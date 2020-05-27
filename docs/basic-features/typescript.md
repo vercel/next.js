@@ -7,7 +7,7 @@ description: Next.js supports TypeScript by default and has built-in types for p
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
   </ul>
 </details>
 

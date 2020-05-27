@@ -42,4 +42,4 @@ export default class MyApp extends App {
 
 ### Useful Links
 
-- [The issue this was reported in: #4596](https://github.com/zeit/next.js/issues/4596)
+- [The issue this was reported in: #4596](https://github.com/vercel/next.js/issues/4596)
