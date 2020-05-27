@@ -277,12 +277,22 @@ export default async function exportApp(
     distDir,
     buildId,
   })
+
   if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
     exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
-  const exportPaths = Object.keys(exportPathMap)
+
+  // make sure to prevent duplicates
+  const exportPaths = [
+    ...new Set(
+      Object.keys(exportPathMap).map(
+        (path) => normalizePagePath(path).replace(/^\/index$/, '') || '/'
+      )
+    ),
+  ]
+
   const filteredPaths = exportPaths.filter(
     // Remove API routes
     (route) => !exportPathMap[route].page.match(API_ROUTE)
