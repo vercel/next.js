@@ -1,12 +1,18 @@
+import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Modal from 'react-modal'
 import Article from '../../components/Article'
-import Grid, { data } from '../../components/Grid'
+import { data } from '../../components/Grid'
 
 Modal.setAppElement('#__next')
 
 const ArticlePage = ({ articleId }) => {
   const router = useRouter()
+
+  useEffect(() => {
+    router.prefetch('/')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <>
@@ -17,7 +23,6 @@ const ArticlePage = ({ articleId }) => {
       >
         <Article id={articleId} pathname={router.pathname} />
       </Modal>
-      <Grid />
     </>
   )
 }
