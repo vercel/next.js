@@ -19,10 +19,16 @@ const runTests = () => {
       console.log(output)
     }
 
+    const combinedOutput = output.stderr + output.stdout
+
     expect(output.code).toBe(0)
-    expect(output.stderr + output.stdout).not.toContain(
+    expect(combinedOutput).not.toContain(
       'You have opted-out of Automatic Static Optimization due to'
     )
+    expect(combinedOutput).toContain(
+      'The following reserved Next.js pages were detected not directly under the pages directory'
+    )
+    expect(combinedOutput).toContain('/app/_error')
   })
 }
 
