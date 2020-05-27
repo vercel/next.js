@@ -36,6 +36,8 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
+import type exportPage from './worker'
+import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 const exists = promisify(existsOrig)
 
@@ -85,9 +87,17 @@ type ExportPathMap = {
   [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
-export default async function (
+interface ExportOptions {
+  outdir: string
+  silent?: boolean
+  threads?: number
+  pages?: string[]
+  buildExport?: boolean
+}
+
+export default async function exportApp(
   dir: string,
-  options: any,
+  options: ExportOptions,
   configuration?: any
 ): Promise<void> {
   function log(message: string): void {
@@ -133,11 +143,11 @@ export default async function (
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages &&
-    require(join(
+    (require(join(
       distDir,
       isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
       PAGES_MANIFEST
-    ))
+    )) as PagesManifest)
 
   let prerenderManifest: PrerenderManifest | undefined = undefined
   try {
@@ -267,12 +277,22 @@ export default async function (
     distDir,
     buildId,
   })
+
   if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
     exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
-  const exportPaths = Object.keys(exportPathMap)
+
+  // make sure to prevent duplicates
+  const exportPaths = [
+    ...new Set(
+      Object.keys(exportPathMap).map(
+        (path) => normalizePagePath(path).replace(/^\/index$/, '') || '/'
+      )
+    ),
+  ]
+
   const filteredPaths = exportPaths.filter(
     // Remove API routes
     (route) => !exportPathMap[route].page.match(API_ROUTE)
@@ -347,20 +367,18 @@ export default async function (
     })
   }
 
-  const worker: Worker & { default: Function } = new Worker(
-    require.resolve('./worker'),
-    {
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }
-  ) as any
+  const worker = new Worker(require.resolve('./worker'), {
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: nextConfig.experimental.workerThreads,
+    exposedMethods: ['default'],
+  }) as Worker & { default: typeof exportPage }
 
   worker.getStdout().pipe(process.stdout)
   worker.getStderr().pipe(process.stderr)
 
   let renderError = false
+  const errorPaths: string[] = []
 
   await Promise.all(
     filteredPaths.map(async (path) => {
@@ -386,6 +404,7 @@ export default async function (
           (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
+      if (!!result.error) errorPaths.push(path)
 
       if (
         options.buildExport &&
@@ -441,7 +460,11 @@ export default async function (
   }
 
   if (renderError) {
-    throw new Error(`Export encountered errors`)
+    throw new Error(
+      `Export encountered errors on following paths:\n\t${errorPaths
+        .sort()
+        .join('\n\t')}`
+    )
   }
   // Add an empty line to the console for the better readability.
   log('')

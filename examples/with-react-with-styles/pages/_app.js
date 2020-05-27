@@ -1,4 +1,3 @@
-import React from 'react'
 import { DIRECTIONS } from 'react-with-direction'
 import AphroditeInterface from 'react-with-styles-interface-aphrodite'
 import WithStylesContext from 'react-with-styles/lib/WithStylesContext'
