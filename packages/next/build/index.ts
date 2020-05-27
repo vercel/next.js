@@ -497,7 +497,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           : ['server', 'static', buildId, 'pages']),
         '_error.js'
       ),
-      runtimeEnvConfig
+      runtimeEnvConfig,
+      false
     ))
 
   const analysisBegin = process.hrtime()
@@ -540,7 +541,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
-          runtimeEnvConfig
+          runtimeEnvConfig,
+          true
         )
 
         namedExports = getNamedExports(

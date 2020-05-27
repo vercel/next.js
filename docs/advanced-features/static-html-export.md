@@ -15,9 +15,13 @@ description: Export your Next.js app to static HTML, and run it standalone witho
 
 The exported app supports almost every feature of Next.js, including dynamic routes, prefetching, preloading and dynamic imports.
 
-The way `next export` works is by prerendering all pages to HTML; it does so based on a mapping called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) which offers a way to pre-define paths you will render as html.
+`next export` works by prerendering all pages to HTML. For [dynamic routes](/docs/routing/dynamic-routes.md), your page can export a [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation) function to let the exporter know which HTML pages to generate for that route.
 
-> If your pages don't have `getInitialProps` you may not need `next export` at all; `next build` is already enough thanks to [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+> `next export` is intended for scenarios where **none** of your pages have server-side or incremental data requirements (though statically-rendered pages can still [fetch data on the client side](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side) just fine).
+>
+> If you're looking to make a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically for you! Read up on [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) for details.
+>
+> `next export` also causes features like Incremental Static Generation and Regeneration to be disabled, as they require `next start` or a serverless deployment to function.
 
 ## How to use it
 
@@ -35,7 +39,7 @@ For that you may want to update the scripts in your `package.json` like this:
 }
 ```
 
-And run it at once with:
+And run it with:
 
 ```bash
 npm run build
@@ -43,9 +47,9 @@ npm run build
 
 Then you'll have a static version of your app in the `out` directory.
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` with routes for the pages inside the `pages` directory.
-
-> To learn more about `exportPathMap` please visit the [documentation for the `exportPathMap` API](/docs/api-reference/next.config.js/exportPathMap.md).
+By default `next export` doesn't require any configuration.
+It will output a static HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md), where it will call [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation) and generate pages based on the result).
+For more advanced scenarios, you can define a parameter called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to configure exactly which pages will be generated.
 
 ## Deployment
 
@@ -53,7 +57,16 @@ You can read about deploying your Next.js application in the [deployment section
 
 ## Caveats
 
-- With `next export`, we build an HTML version of your app. At export time we will run the [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) in your pages. The `req` and `res` fields of the [`context`](/docs/api-reference/data-fetching/getInitialProps.md#context-object) object will be empty objects during export as there is no server running.
-- You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. Your application can be a hybrid of [Static Generation](/docs/basic-features/pages.md#static-generation) and [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) when you don't use `next export`. You can learn more about it in the [pages section](/docs/basic-features/pages.md).
+- With `next export`, we build an HTML version of your app. At export time, we call [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) for each page that exports it, and pass the result to the page's component. It's also possible to use the older [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) API instead of `getStaticProps`, but it comes with a few caveats:
+
+  - `getInitialProps` cannot be used alongside `getStaticProps` or `getStaticPaths` on any given page. If you have dynamic routes, instead of using `getStaticPaths` you'll need to configure the [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) parameter in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to let the exporter know which HTML files it should output.
+  - When `getInitialProps` is called during export, the `req` and `res` fields of its [`context`](/docs/api-reference/data-fetching/getInitialProps.md#context-object) parameter will be empty objects, since during export there is no server running.
+  - `getInitialProps` **will be called on every client-side navigation**, if you'd like to only fetch data at build-time, switch to `getStaticProps`.
+  - `getInitialProps` cannot use Node.js-specific libraries or the file system like `getStaticProps` can. `getInitialProps` must fetch from an API.
+
+  For static export, the `getStaticProps` API is always preferred over `getInitialProps`: it's recommended you convert your pages to use the `getStaticProps` if possible.
+
+- The `fallback: true` mode of `getStaticPaths` is not supported when using `next export`.
+- You won't be able to render HTML dynamically when static exporting, as the HTML files are pre-build. Your application can be a hybrid of [Static Generation](/docs/basic-features/pages.md#static-generation) and [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) when you don't use `next export`. You can learn more about it in the [pages section](/docs/basic-features/pages.md).
 - [API Routes](/docs/api-routes/introduction.md) are not supported by this method because they can't be prerendered to HTML.
 - [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) cannot be used within pages because the method requires a server. Consider using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) instead.
