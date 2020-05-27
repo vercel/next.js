@@ -1,14 +1,14 @@
+import { promises as fsPromises } from 'fs'
+import { writeFile } from 'fs-extra'
 import chalk from 'next/dist/compiled/chalk'
-import fs from 'fs'
 import os from 'os'
 import path from 'path'
-
 import { fileExists } from './file-exists'
 import { recursiveReadDir } from './recursive-readdir'
 import { resolveRequest } from './resolve-request'
 
 function writeJson(fileName: string, object: object): Promise<void> {
-  return fs.promises.writeFile(
+  return fsPromises.writeFile(
     fileName,
     JSON.stringify(object, null, 2).replace(/\n/g, os.EOL) + os.EOL
   )
@@ -105,7 +105,7 @@ export async function verifyTypeScriptSetup(
 
   let firstTimeSetup = false
   if (hasTsConfig) {
-    const tsConfig = await fs.promises
+    const tsConfig = await fsPromises
       .readFile(tsConfigPath, 'utf8')
       .then((val) => val.trim())
     firstTimeSetup = tsConfig === '' || tsConfig === '{}'
@@ -176,7 +176,7 @@ export async function verifyTypeScriptSetup(
     )
     console.log()
 
-    await writeJson(tsConfigPath, {})
+    await writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
   const messages = []
@@ -304,8 +304,9 @@ export async function verifyTypeScriptSetup(
 
   // Reference `next` types
   const appTypeDeclarations = path.join(dir, 'next-env.d.ts')
-  if (!fs.existsSync(appTypeDeclarations)) {
-    fs.writeFileSync(
+  const hasAppTypeDeclarations = await fileExists(appTypeDeclarations)
+  if (!hasAppTypeDeclarations) {
+    await fsPromises.writeFile(
       appTypeDeclarations,
       '/// <reference types="next" />' +
         os.EOL +
