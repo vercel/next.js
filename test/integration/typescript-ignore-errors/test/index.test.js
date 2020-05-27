@@ -23,9 +23,10 @@ describe('TypeScript with error handling options', () => {
       describe(`ignoreDevErrors: ${ignoreDevErrors}, ignoreBuildErrors: ${ignoreBuildErrors}`, () => {
         beforeAll(() => {
           const nextConfig = {
+            experimental: { modern: true },
             typescript: { ignoreDevErrors, ignoreBuildErrors },
           }
-          nextConfigFile.replace('{}', JSON.stringify(nextConfig))
+          nextConfigFile.write('module.exports = ' + JSON.stringify(nextConfig))
         })
         afterAll(() => {
           nextConfigFile.restore()

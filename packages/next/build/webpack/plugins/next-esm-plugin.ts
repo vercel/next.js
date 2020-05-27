@@ -74,10 +74,7 @@ export default class NextEsmPlugin implements Plugin {
     additionalPlugins?: any
   }) {
     this.options = Object.assign(
-      {
-        excludedPlugins: [PLUGIN_NAME],
-        additionalPlugins: [],
-      },
+      { excludedPlugins: [], additionalPlugins: [] },
       options
     )
   }
@@ -284,7 +281,11 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     let plugins = (compiler.options.plugins || []).filter(
-      (c) => !this.options.excludedPlugins.includes(c.constructor.name)
+      (c) =>
+        !(
+          this.options.excludedPlugins.includes(c.constructor.name) ||
+          c.constructor.name === PLUGIN_NAME
+        )
     )
 
     // Add the additionalPlugins
