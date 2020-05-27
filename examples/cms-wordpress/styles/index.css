@@ -71,10 +71,16 @@
   @apply m-auto;
 }
 
-.wp-block-button a {
+.wp-block-button a,
+.wp-block-file a.wp-block-file__button {
   @apply bg-blue-500 text-white no-underline py-2 px-4;
 }
 
-.wp-block-button a:hover {
+.wp-block-button a:hover,
+.wp-block-file a.wp-block-file__button:hover {
   @apply bg-blue-400 cursor-pointer;
+}
+
+.wp-block-file a:first-of-type {
+  @apply mr-4;
 }
