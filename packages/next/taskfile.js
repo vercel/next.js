@@ -517,6 +517,14 @@ export async function ncc_terser_webpack_plugin(task, opts) {
     .target('compiled/terser-webpack-plugin')
 }
 
+externals['comment-json'] = 'next/dist/compiled/comment-json'
+export async function ncc_comment_json(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('comment-json')))
+    .ncc({ packageName: 'comment-json', externals })
+    .target('compiled/comment-json')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -592,6 +600,7 @@ export async function ncc(task) {
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
+      'ncc_comment_json',
     ])
 }
 
