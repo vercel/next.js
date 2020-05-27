@@ -1,4 +1,4 @@
-import Error from 'next/Error'
+import Error from 'next/error'
 
 function MyError(props) {
   return <Error {...props} />
