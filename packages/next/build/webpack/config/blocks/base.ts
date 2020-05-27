@@ -11,10 +11,10 @@ export const base = curry(function base(
   config.target = ctx.isServer ? 'node' : 'web'
 
   // https://webpack.js.org/configuration/devtool/#development
-  if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
-    config.devtool = false
-  } else if (ctx.isDevelopment) {
-    if (process.platform === 'win32') {
+  if (ctx.isDevelopment) {
+    if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
+      config.devtool = false
+    } else if (process.platform === 'win32') {
       // Non-eval based source maps are slow to rebuild, so we only enable
       // them for Windows. Unfortunately, eval source maps are flagged as
       // suspicious by Windows Defender and block HMR.
