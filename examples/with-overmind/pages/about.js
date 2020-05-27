@@ -1,4 +1,3 @@
-import React from 'react'
 import Header from '../components/Header'
 import { createOvermindSSR } from 'overmind'
 import { config } from '../overmind'
