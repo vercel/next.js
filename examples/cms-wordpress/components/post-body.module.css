@@ -13,6 +13,11 @@
   @apply underline;
 }
 
+.content ul,
+.content ol {
+  @apply pl-4;
+}
+
 .content ul {
   @apply list-disc;
 }
