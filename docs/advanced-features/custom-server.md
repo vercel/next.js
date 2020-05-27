@@ -39,13 +39,13 @@ app.prepare().then(() => {
     const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
-      app.render(req, res, '/b', query)
-    } else if (pathname === '/b') {
       app.render(req, res, '/a', query)
+    } else if (pathname === '/b') {
+      app.render(req, res, '/b', query)
     } else {
       handle(req, res, parsedUrl)
     }
-  }).listen(3000, err => {
+  }).listen(3000, (err) => {
     if (err) throw err
     console.log('> Ready on http://localhost:3000')
   })
@@ -94,6 +94,6 @@ module.exports = {
 }
 ```
 
-> Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
+> Note that `useFileSystemPublicRoutes` disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
 
 > You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; for that refer to [`Router.beforePopState`](/docs/api-reference/next/router.md#router.beforePopState).

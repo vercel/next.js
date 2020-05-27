@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 import fs from 'fs-extra'
 import {
@@ -11,7 +11,7 @@ import {
   nextBuild,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = path.join(__dirname, '..')
 
@@ -340,7 +340,7 @@ describe('Telemetry CLI', () => {
     let port = await findPort()
     let stderr = ''
 
-    const handleStderr = msg => {
+    const handleStderr = (msg) => {
       stderr += msg
     }
     let app = await launchApp(appDir, port, {
@@ -368,5 +368,56 @@ describe('Telemetry CLI', () => {
     await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr).toMatch(/isSrcDir.*?true/)
+  })
+
+  it('detect reportWebVitals correctly for `next build`', async () => {
+    // Case 1: When _app.js does not exist.
+    let build = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    let event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+      .exec(build.stderr)
+      .pop()
+    expect(event1).toMatch(/hasReportWebVitals.*?false/)
+
+    // Case 2: When _app.js exist with reportWebVitals function.
+    await fs.rename(
+      path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
+      path.join(appDir, 'pages', '_app.js')
+    )
+
+    build = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'pages', '_app.js'),
+      path.join(appDir, 'pages', '_app_withreportwebvitals.empty')
+    )
+
+    event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(build.stderr).pop()
+    expect(event1).toMatch(/hasReportWebVitals.*?true/)
+
+    // Case 3: When _app.js exist without reportWebVitals function.
+    await fs.rename(
+      path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
+      path.join(appDir, 'pages', '_app.js')
+    )
+
+    build = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'pages', '_app.js'),
+      path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty')
+    )
+
+    event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(build.stderr).pop()
+    expect(event1).toMatch(/hasReportWebVitals.*?false/)
   })
 })

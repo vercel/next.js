@@ -1,14 +1,12 @@
 /* eslint-env jest */
-/* global jasmine */
-import fs from 'fs'
+
+import { promises } from 'fs'
 import { join } from 'path'
-import { promisify } from 'util'
 import { validateAMP } from 'amp-test-utils'
 import { File, nextBuild, nextExport, runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-const access = promisify(fs.access)
-const readFile = promisify(fs.readFile)
+jest.setTimeout(1000 * 60 * 2)
+const { access, readFile } = promises
 const appDir = join(__dirname, '../')
 const outDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
@@ -37,7 +35,7 @@ describe('AMP Validation on Export', () => {
   it('should export AMP pages', async () => {
     const toCheck = ['first', 'second', 'third.amp']
     await Promise.all(
-      toCheck.map(async page => {
+      toCheck.map(async (page) => {
         const content = await readFile(join(outDir, `${page}.html`))
         await validateAMP(content.toString())
       })

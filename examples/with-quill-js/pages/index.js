@@ -1,4 +1,3 @@
-import React from 'react'
 import dynamic from 'next/dynamic'
 
 const QuillNoSSRWrapper = dynamic(import('react-quill'), {
@@ -46,6 +45,6 @@ const formats = [
   'video',
 ]
 
-export default () => (
-  <QuillNoSSRWrapper modules={modules} formats={formats} theme="snow" />
-)
+export default function Home() {
+  return <QuillNoSSRWrapper modules={modules} formats={formats} theme="snow" />
+}

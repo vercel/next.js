@@ -5,8 +5,8 @@ import { kea } from 'kea'
 const logic = kea({
   path: () => ['kea'],
   actions: () => ({
-    increment: amount => ({ amount }),
-    decrement: amount => ({ amount }),
+    increment: (amount) => ({ amount }),
+    decrement: (amount) => ({ amount }),
   }),
   reducers: ({ actions }) => ({
     counter: [
@@ -21,19 +21,14 @@ const logic = kea({
   selectors: ({ selectors }) => ({
     doubleCounter: [
       () => [selectors.counter],
-      counter => counter * 2,
+      (counter) => counter * 2,
       PropTypes.number,
     ],
   }),
 })
 
 @logic
-export default class App extends React.Component {
-  static getInitialProps({ store }) {
-    // Start with counter === 10
-    store.dispatch(logic.actions.increment(10))
-  }
-
+class Index extends React.Component {
   render() {
     return (
       <div>
@@ -48,3 +43,5 @@ export default class App extends React.Component {
     )
   }
 }
+
+export default Index

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -11,12 +11,12 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 let app
 let appPort
 const appDir = join(__dirname, '..')
 
-const noError = async pathname => {
+const noError = async (pathname) => {
   const browser = await webdriver(appPort, '/')
   await browser.eval(`(function() {
     window.caughtErrors = []
@@ -33,7 +33,7 @@ const noError = async pathname => {
   await browser.close()
 }
 
-const didPrefetch = async pathname => {
+const didPrefetch = async (pathname) => {
   const browser = await webdriver(appPort, pathname)
   const links = await browser.elementsByCss('link[rel=prefetch]')
   let found = false
@@ -57,8 +57,8 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp(app))
 
-    it('should not show error for functional component with forwardRef', async () => {
-      await noError('/functional')
+    it('should not show error for function component with forwardRef', async () => {
+      await noError('/function')
     })
 
     it('should not show error for class component as child of next/link', async () => {
@@ -83,7 +83,7 @@ describe('Invalid hrefs', () => {
     afterAll(() => killApp(app))
 
     it('should preload with forwardRef', async () => {
-      await didPrefetch('/functional')
+      await didPrefetch('/function')
     })
 
     it('should preload with child ref with React.createRef', async () => {

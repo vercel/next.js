@@ -1,0 +1,7 @@
+{
+  "build": {
+    "env": {
+      "USERBASE_APP_ID": "@userbase-app-id"
+    }
+  }
+}

@@ -1,69 +1,77 @@
 import fs from 'fs'
 import path from 'path'
-import chalk from 'next/dist/compiled/chalk'
-import findUp from 'next/dist/compiled/find-up'
+import * as log from '../build/output/log'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
 
 export type Env = { [key: string]: string }
+export type LoadedEnvFiles = Array<{
+  path: string
+  contents: string
+}>
 
-const packageJsonHasDep = (packageJsonPath: string, dep: string): boolean => {
-  const { dependencies, devDependencies } = require(packageJsonPath)
-  const allPackages = Object.keys({
-    ...dependencies,
-    ...devDependencies,
-  })
+let combinedEnv: Env | undefined = undefined
+let loadedEnvFiles: LoadedEnvFiles = []
 
-  return allPackages.some(pkg => pkg === dep)
+export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
+  // don't reload env if we already have since this breaks escaped
+  // environment values e.g. \$ENV_FILE_KEY
+  if (
+    combinedEnv ||
+    process.env.__NEXT_PROCESSED_ENV ||
+    !loadedEnvFiles.length
+  ) {
+    return process.env as Env
+  }
+  // flag that we processed the environment values in case a serverless
+  // function is re-used or we are running in `next start` mode
+  process.env.__NEXT_PROCESSED_ENV = 'true'
+
+  for (const envFile of loadedEnvFiles) {
+    try {
+      let result: DotenvConfigOutput = {}
+      result.parsed = dotenv.parse(envFile.contents)
+
+      result = dotenvExpand(result)
+
+      if (result.parsed) {
+        log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
+      }
+
+      Object.assign(process.env, result.parsed)
+    } catch (err) {
+      log.error(
+        `Failed to load env from ${path.join(dir || '', envFile.path)}`,
+        err
+      )
+    }
+  }
+
+  return process.env as Env
 }
 
-export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
-  const packageJson = findUp.sync('package.json', { cwd: dir })
-
-  // only do new env loading if dotenv isn't installed since we
-  // can't check for an experimental flag in next.config.js
-  // since we want to load the env before loading next.config.js
-  if (packageJson) {
-    // check main `package.json` first
-    if (packageJsonHasDep(packageJson, 'dotenv')) {
-      return false
-    }
-    // check for a yarn.lock or lerna.json file in case it's a monorepo
-    const monorepoFile = findUp.sync(
-      ['yarn.lock', 'lerna.json', 'package-lock.json'],
-      { cwd: dir }
-    )
-
-    if (monorepoFile) {
-      const monorepoRoot = path.dirname(monorepoFile)
-      const monorepoPackageJson = path.join(monorepoRoot, 'package.json')
-
-      try {
-        if (packageJsonHasDep(monorepoPackageJson, 'dotenv')) {
-          return false
-        }
-      } catch (_) {}
-    }
-  } else {
-    // we should always have a package.json but disable in case we don't
-    return false
-  }
+export function loadEnvConfig(
+  dir: string,
+  dev?: boolean
+): {
+  combinedEnv: Env
+  loadedEnvFiles: LoadedEnvFiles
+} {
+  // don't reload env if we already have since this breaks escaped
+  // environment values e.g. \$ENV_FILE_KEY
+  if (combinedEnv) return { combinedEnv, loadedEnvFiles }
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
   const dotenvFiles = [
     `.env.${mode}.local`,
-    `.env.${mode}`,
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
     // results for everyone
     mode !== 'test' && `.env.local`,
+    `.env.${mode}`,
     '.env',
   ].filter(Boolean) as string[]
-
-  const combinedEnv: Env = {
-    ...(process.env as any),
-  }
 
   for (const envFile of dotenvFiles) {
     // only load .env if the user provided has an env config file
@@ -78,35 +86,16 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      let result: DotenvConfigOutput = {}
-      result.parsed = dotenv.parse(contents)
-
-      result = dotenvExpand(result)
-
-      if (result.parsed) {
-        console.log(`> ${chalk.cyan.bold('Info:')} Loaded env from ${envFile}`)
-      }
-
-      Object.assign(combinedEnv, result.parsed)
+      loadedEnvFiles.push({
+        path: envFile,
+        contents,
+      })
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        console.error(
-          `> ${chalk.cyan.bold('Error: ')} Failed to load env from ${envFile}`,
-          err
-        )
+        log.error(`Failed to load env from ${envFile}`, err)
       }
     }
   }
-
-  // load global env values prefixed with `NEXT_PUBLIC_` to process.env
-  for (const key of Object.keys(combinedEnv)) {
-    if (
-      key.startsWith('NEXT_PUBLIC_') &&
-      typeof process.env[key] === 'undefined'
-    ) {
-      process.env[key] = combinedEnv[key]
-    }
-  }
-
-  return combinedEnv
+  combinedEnv = processEnv(loadedEnvFiles, dir)
+  return { combinedEnv, loadedEnvFiles }
 }

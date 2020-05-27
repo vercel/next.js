@@ -15,12 +15,15 @@ const variables = [
   'LOCAL_TEST_ENV_FILE_KEY',
   'ENV_FILE_TEST_OVERRIDE_TEST',
   'ENV_FILE_TEST_LOCAL_OVERRIDEOVERRIDE_TEST',
+  'ENV_FILE_EXPANDED',
+  'ENV_FILE_EXPANDED_CONCAT',
+  'ENV_FILE_EXPANDED_ESCAPED',
 ]
 
 export async function getStaticProps() {
   const items = {}
 
-  variables.forEach(variable => {
+  variables.forEach((variable) => {
     if (process.env[variable]) {
       items[variable] = process.env[variable]
     }
@@ -30,7 +33,7 @@ export async function getStaticProps() {
     // Do not pass any sensitive values here as they will
     // be made PUBLICLY available in `pageProps`
     props: { env: items },
-    revalidate: 1,
+    unstable_revalidate: 1,
   }
 }
 

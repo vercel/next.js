@@ -4,6 +4,14 @@ description: API Routes provide built-in middlewares that parse the incoming r
 
 # API Middlewares
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
+  </ul>
+</details>
+
 API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
 
 - `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
@@ -48,6 +56,16 @@ export const config = {
 }
 ```
 
+`externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
+
+```js
+export const config = {
+  api: {
+    externalResolver: true,
+  },
+}
+```
+
 ## Connect/Express middleware support
 
 You can also use [Connect](https://github.com/senchalabs/connect) compatible middleware.
@@ -76,7 +94,7 @@ const cors = Cors({
 // And to throw an error when an error happens in a middleware
 function runMiddleware(req, res, fn) {
   return new Promise((resolve, reject) => {
-    fn(req, res, result => {
+    fn(req, res, (result) => {
       if (result instanceof Error) {
         return reject(result)
       }
@@ -96,3 +114,5 @@ async function handler(req, res) {
 
 export default handler
 ```
+
+> Go to the [API Routes with CORS](https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors) example to see the finished app

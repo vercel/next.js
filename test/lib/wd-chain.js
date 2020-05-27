@@ -10,19 +10,19 @@ export default class Chain {
       this.promise = Promise.resolve()
     }
     this.promise = this.promise.then(nextCall)
-    this.then = cb => this.promise.then(cb)
-    this.catch = cb => this.promise.catch(cb)
-    this.finally = cb => this.promise.finally(cb)
+    this.then = (cb) => this.promise.then(cb)
+    this.catch = (cb) => this.promise.catch(cb)
+    this.finally = (cb) => this.promise.finally(cb)
     return this
   }
 
   elementByCss(sel) {
     return this.updateChain(() =>
-      this.browser.findElement(By.css(sel)).then(el => {
+      this.browser.findElement(By.css(sel)).then((el) => {
         el.sel = sel
         el.text = () => el.getText()
-        el.getComputedCss = prop => el.getCssValue(prop)
-        el.type = text => el.sendKeys(text)
+        el.getComputedCss = (prop) => el.getCssValue(prop)
+        el.type = (text) => el.sendKeys(text)
         el.getValue = () =>
           this.browser.executeScript(
             `return document.querySelector('${sel}').value`
@@ -37,7 +37,7 @@ export default class Chain {
   }
 
   getValue() {
-    return this.updateChain(el =>
+    return this.updateChain((el) =>
       this.browser.executeScript(
         `return document.querySelector('${el.sel}').value`
       )
@@ -45,15 +45,15 @@ export default class Chain {
   }
 
   text() {
-    return this.updateChain(el => el.getText())
+    return this.updateChain((el) => el.getText())
   }
 
   type(text) {
-    return this.updateChain(el => el.sendKeys(text))
+    return this.updateChain((el) => el.sendKeys(text))
   }
 
   moveTo() {
-    return this.updateChain(el => {
+    return this.updateChain((el) => {
       return this.browser
         .actions()
         .move({ origin: el })
@@ -63,13 +63,13 @@ export default class Chain {
   }
 
   getComputedCss(prop) {
-    return this.updateChain(el => {
+    return this.updateChain((el) => {
       return el.getCssValue(prop)
     })
   }
 
   getAttribute(attr) {
-    return this.updateChain(el => el.getAttribute(attr))
+    return this.updateChain((el) => el.getAttribute(attr))
   }
 
   hasElementByCssSelector(sel) {
@@ -77,7 +77,7 @@ export default class Chain {
   }
 
   click() {
-    return this.updateChain(el => {
+    return this.updateChain((el) => {
       return el.click().then(() => el)
     })
   }
@@ -100,12 +100,7 @@ export default class Chain {
   }
 
   log(type) {
-    return this.updateChain(() =>
-      this.browser
-        .manage()
-        .logs()
-        .get(type)
-    )
+    return this.updateChain(() => this.browser.manage().logs().get(type))
   }
 
   url() {

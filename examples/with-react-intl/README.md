@@ -33,7 +33,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ### Features of this example app
 
@@ -57,4 +57,21 @@ $ npm start
 
 You can then switch your browser's language preferences to French and refresh the page to see the UI update accordingly.
 
+### FormattedHTMLMessage support (react-intl pre-v4)
+
+Out of the box, this example does not support the use of the `FormattedHTMLMessage` component on the server due to `DOMParser` not being present in a Node environment.
+This functionality is deprecated and has been removed as of react-intl 4.0
+If you still want to enable this feature, you should install a `DOMParser` implementation (e.g. `xmldom` or `jsdom`) and enable the polyfill in `server.js`:
+
+```js
+// Polyfill Node with `DOMParser` required by formatjs.
+// See: https://github.com/zeit/next.js/issues/10533
+const { DOMParser } = require('xmldom')
+global.DOMParser = DOMParser
+```
+
 [react intl]: https://github.com/yahoo/react-intl
+
+### Transpile react-intl
+
+According to [react-intl docs](https://github.com/formatjs/react-intl/blob/53f2c826c7b1e50ad37215ce46b5e1c6f5d142cc/docs/Getting-Started.md#esm-build), react-intl and its underlying libraries must be transpiled to support older browsers (eg IE11). This is done by [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules) in next.config.js.

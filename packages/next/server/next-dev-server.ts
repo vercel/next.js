@@ -1,13 +1,13 @@
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
-import findUp from 'next/dist/compiled/find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Worker from 'jest-worker'
+import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import findUp from 'next/dist/compiled/find-up'
 import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
-import { promisify } from 'util'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
@@ -28,17 +28,15 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
+import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
     `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
   )
 }
-
-const fsStat = promisify(fs.stat)
 
 export default class DevServer extends Server {
   private devReady: Promise<void>
@@ -50,8 +48,8 @@ export default class DevServer extends Server {
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    ;(this.renderOpts as any).ErrorDebug = ErrorDebug
-    this.devReady = new Promise(resolve => {
+    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
+    this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
     })
     ;(this.renderOpts as any).ampSkipValidation =
@@ -64,14 +62,14 @@ export default class DevServer extends Server {
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
-      return AmpHtmlValidator.getInstance(validatorPath).then(validator => {
+      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(
           pathname,
           result.errors
-            .filter(e => e.severity === 'ERROR')
-            .filter(e => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter(e => e.severity !== 'ERROR')
+            .filter((e) => e.severity === 'ERROR')
+            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+          result.errors.filter((e) => e.severity !== 'ERROR')
         )
       })
     }
@@ -87,6 +85,16 @@ export default class DevServer extends Server {
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
+        forkOptions: {
+          env: {
+            ...process.env,
+            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+            // is the main Next.js one
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          },
+        },
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -96,11 +104,11 @@ export default class DevServer extends Server {
     this.staticPathsWorker.getStderr().pipe(process.stderr)
   }
 
-  protected currentPhase() {
+  protected currentPhase(): string {
     return PHASE_DEVELOPMENT_SERVER
   }
 
-  protected readBuildId() {
+  protected readBuildId(): string {
     return 'development'
   }
 
@@ -131,8 +139,8 @@ export default class DevServer extends Server {
             const { query: urlQuery } = parsedUrl
 
             Object.keys(urlQuery)
-              .filter(key => query[key] === undefined)
-              .forEach(key =>
+              .filter((key) => query[key] === undefined)
+              .forEach((key) =>
                 console.warn(
                   `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
@@ -150,7 +158,7 @@ export default class DevServer extends Server {
     }
   }
 
-  async startWatcher() {
+  async startWatcher(): Promise<void> {
     if (this.webpackWatcher) {
       return
     }
@@ -160,7 +168,7 @@ export default class DevServer extends Server {
     )
 
     let resolved = false
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
@@ -179,7 +187,7 @@ export default class DevServer extends Server {
       wp.watch([], [pagesDir!], 0)
 
       wp.on('aggregated', () => {
-        const dynamicRoutedPages = []
+        const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -191,28 +199,50 @@ export default class DevServer extends Server {
           pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
-          if (!isDynamicRoute(pageName)) {
-            continue
+          routedPages.push(pageName)
+        }
+        try {
+          this.dynamicRoutes = getSortedRoutes(routedPages)
+            .filter(isDynamicRoute)
+            .map((page) => ({
+              page,
+              match: getRouteMatcher(getRouteRegex(page, false)),
+            }))
+
+          const firstOptionalCatchAllPage =
+            this.dynamicRoutes.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
+              ?.page ?? null
+          if (
+            this.nextConfig.experimental?.optionalCatchAll !== true &&
+            firstOptionalCatchAllPage
+          ) {
+            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
+            if (resolved) {
+              console.warn(msg)
+            } else {
+              throw new Error(msg)
+            }
           }
 
-          dynamicRoutedPages.push(pageName)
-        }
+          this.router.setDynamicRoutes(this.dynamicRoutes)
 
-        this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
-          page,
-          match: getRouteMatcher(getRouteRegex(page, false)),
-        }))
-        this.router.setDynamicRoutes(this.dynamicRoutes)
-
-        if (!resolved) {
-          resolve()
-          resolved = true
+          if (!resolved) {
+            resolve()
+            resolved = true
+          }
+        } catch (e) {
+          if (!resolved) {
+            reject(e)
+            resolved = true
+          } else {
+            console.warn('Failed to reload dynamic routes:', e)
+          }
         }
       })
     })
   }
 
-  async stopWatcher() {
+  async stopWatcher(): Promise<void> {
     if (!this.webpackWatcher) {
       return
     }
@@ -221,14 +251,14 @@ export default class DevServer extends Server {
     this.webpackWatcher = null
   }
 
-  async prepare() {
+  async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
     await this.loadCustomRoutes()
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
-      if (redirects.length || rewrites.length) {
+      if (redirects.length || rewrites.length || headers.length) {
         this.router = new Router(this.generateRoutes())
       }
     }
@@ -256,7 +286,7 @@ export default class DevServer extends Server {
     )
   }
 
-  protected async close() {
+  protected async close(): Promise<void> {
     await this.stopWatcher()
     if (this.hotReloader) {
       await this.hotReloader.stop()
@@ -264,9 +294,21 @@ export default class DevServer extends Server {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
+    let normalizedPath: string
+
+    try {
+      normalizedPath = normalizePagePath(pathname)
+    } catch (err) {
+      console.error(err)
+      // if normalizing the page fails it means it isn't valid
+      // so it doesn't exist so don't throw and return false
+      // to ensure we return 404 instead of 500
+      return false
+    }
+
     const pageFile = await findPageFile(
       this.pagesDir!,
-      normalizePagePath(pathname),
+      normalizedPath,
       this.nextConfig.pageExtensions
     )
     return !!pageFile
@@ -277,7 +319,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     params: Params,
     parsedUrl: UrlWithParsedQuery
-  ) {
+  ): Promise<boolean> {
     const { pathname } = parsedUrl
     const pathParts = params.path || []
     const path = `/${pathParts.join('/')}`
@@ -303,13 +345,13 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
-  ) {
+  ): Promise<void> {
     await this.devReady
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
       try {
-        await fsStat(join(this.publicDir, '_next'))
+        await fs.promises.stat(join(this.publicDir, '_next'))
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
       } catch (err) {}
     }
@@ -341,7 +383,7 @@ export default class DevServer extends Server {
     })
   }
 
-  private async loadCustomRoutes() {
+  private async loadCustomRoutes(): Promise<void> {
     const result = {
       redirects: [],
       rewrites: [],
@@ -410,19 +452,19 @@ export default class DevServer extends Server {
   }
 
   // In development public files are not added to the router but handled as a fallback instead
-  protected generatePublicRoutes() {
+  protected generatePublicRoutes(): never[] {
     return []
   }
 
   // In development dynamic routes cannot be known ahead of time
-  protected getDynamicRoutes() {
+  protected getDynamicRoutes(): never[] {
     return []
   }
 
   _filterAmpDevelopmentScript(
     html: string,
     event: { line: number; col: number; code: string }
-  ) {
+  ): boolean {
     if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
       return true
     }
@@ -452,7 +494,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathname: string,
     query: { [key: string]: string }
-  ) {
+  ): Promise<string | null> {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -501,8 +543,12 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathname: string,
     query: { [key: string]: string }
-  ) {
-    await this.hotReloader!.ensurePage('/_error')
+  ): Promise<string | null> {
+    if (res.statusCode === 404 && (await this.hasPage('/404'))) {
+      await this.hotReloader!.ensurePage('/404')
+    } else {
+      await this.hotReloader!.ensurePage('/_error')
+    }
 
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -527,13 +573,17 @@ export default class DevServer extends Server {
     }
   }
 
-  sendHTML(req: IncomingMessage, res: ServerResponse, html: string) {
+  sendHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    html: string
+  ): Promise<void> {
     // In dev, we should not cache pages for any reason.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
     return super.sendHTML(req, res, html)
   }
 
-  protected setImmutableAssetCacheControl(res: ServerResponse) {
+  protected setImmutableAssetCacheControl(res: ServerResponse): void {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
@@ -541,21 +591,21 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathParts: string[]
-  ) {
+  ): Promise<void> {
     const p = join(this.publicDir, ...pathParts.map(encodeURIComponent))
     return this.serveStatic(req, res, p)
   }
 
-  async hasPublicFile(path: string) {
+  async hasPublicFile(path: string): Promise<boolean> {
     try {
-      const info = await fsStat(join(this.publicDir, path))
+      const info = await fs.promises.stat(join(this.publicDir, path))
       return info.isFile()
     } catch (_) {
       return false
     }
   }
 
-  async getCompilationError(page: string) {
+  async getCompilationError(page: string): Promise<any> {
     const errors = await this.hotReloader!.getCompilationErrors(page)
     if (errors.length === 0) return
 

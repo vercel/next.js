@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { ParsedUrlQuery } from 'querystring'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import pathMatch from './lib/path-match'
 
@@ -36,7 +37,8 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 export const prepareDestination = (
   destination: string,
   params: Params,
-  isRedirect?: boolean
+  query: ParsedUrlQuery,
+  appendParamsToQuery?: boolean
 ) => {
   const parsedDestination = parseUrl(destination, true)
   const destQuery = parsedDestination.query
@@ -56,17 +58,21 @@ export const prepareDestination = (
   for (const [key, strOrArray] of Object.entries(destQuery)) {
     let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
     if (value) {
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      value = `/${value}`
       const queryCompiler = compilePathToRegex(value, { validate: false })
-      value = queryCompiler(params)
+      value = queryCompiler(params).substr(1)
     }
     destQuery[key] = value
   }
 
-  // add params to query if it's not a redirect
-  if (!isRedirect) {
+  // add path params to query if it's not a redirect and not
+  // already defined in destination query
+  if (appendParamsToQuery) {
     for (const [name, value] of Object.entries(params)) {
       if (!(name in destQuery)) {
-        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+        destQuery[name] = value
       }
     }
   }
@@ -87,6 +93,16 @@ export const prepareDestination = (
     }
     throw err
   }
+
+  // Query merge order lowest priority to highest
+  // 1. initial URL query values
+  // 2. path segment values
+  // 3. destination specified query values
+  parsedDestination.query = {
+    ...query,
+    ...parsedDestination.query,
+  }
+
   return {
     newUrl,
     parsedDestination,
@@ -146,12 +162,12 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
-    const pageChecks: { [name: string]: boolean } = {}
+    const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       if (pageChecks[p]) {
         return pageChecks[p]
       }
-      const result = await this.pageChecker(p)
+      const result = this.pageChecker(p)
       pageChecks[p] = result
       return result
     }
@@ -184,7 +200,7 @@ export default class Router {
                 if (!pathname) {
                   return { finished: false }
                 }
-                if (await this.pageChecker(pathname)) {
+                if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(req, res, params, parsedUrl)
                 }
                 return { finished: false }
@@ -203,11 +219,6 @@ export default class Router {
 
       // Check if the match function matched
       if (newParams) {
-        // Combine parameters and querystring
-        if (route.type === 'rewrite' || route.type === 'redirect') {
-          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
-        }
-
         const result = await route.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled

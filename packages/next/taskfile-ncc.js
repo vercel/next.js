@@ -2,9 +2,9 @@ const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join } = require('path')
 
-module.exports = function(task) {
+module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('ncc', {}, function*(file, options) {
+  task.plugin('ncc', {}, function* (file, options) {
     if (options.externals && options.packageName) {
       options.externals = { ...options.externals }
       delete options.externals[options.packageName]
@@ -14,13 +14,26 @@ module.exports = function(task) {
       minify: true,
       ...options,
     }).then(({ code, assets }) => {
-      Object.keys(assets).forEach(key =>
+      Object.keys(assets).forEach((key) => {
+        let data = assets[key].source
+
+        if (join(file.dir, key).endsWith('terser-webpack-plugin/worker.js')) {
+          data = Buffer.from(
+            data
+              .toString()
+              .replace(
+                `require('terser')`,
+                `require("${options.externals['terser']}")`
+              )
+          )
+        }
+
         this._.files.push({
-          dir: join(file.dir, dirname(key)),
+          data,
           base: basename(key),
-          data: assets[key].source,
+          dir: join(file.dir, dirname(key)),
         })
-      )
+      })
 
       if (options && options.packageName) {
         writePackageManifest.call(this, options.packageName, file.base)
@@ -38,7 +51,7 @@ function writePackageManifest(packageName, main) {
   const packagePath = require.resolve(packageName + '/package.json')
   let { name, author, license } = require(packagePath)
 
-  const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
+  const compiledPackagePath = join(__dirname, `compiled/${packageName}`)
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
   if (existsSync(potentialLicensePath)) {
@@ -47,6 +60,17 @@ function writePackageManifest(packageName, main) {
       base: 'LICENSE',
       data: readFileSync(potentialLicensePath, 'utf8'),
     })
+  } else {
+    // license might be lower case and not able to be found on case-sensitive
+    // file systems (ubuntu)
+    const otherPotentialLicensePath = join(dirname(packagePath), './license')
+    if (existsSync(otherPotentialLicensePath)) {
+      this._.files.push({
+        dir: compiledPackagePath,
+        base: 'LICENSE',
+        data: readFileSync(otherPotentialLicensePath, 'utf8'),
+      })
+    }
   }
 
   this._.files.push({

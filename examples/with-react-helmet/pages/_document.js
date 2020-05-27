@@ -1,7 +1,7 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import Helmet from 'react-helmet'
+import { Helmet } from 'react-helmet'
 
-export default class extends Document {
+export default class MyDocument extends Document {
   static async getInitialProps(...args) {
     const documentProps = await super.getInitialProps(...args)
     // see https://github.com/nfl/react-helmet#server-usage for more information
@@ -22,8 +22,8 @@ export default class extends Document {
   // should render on <head>
   get helmetHeadComponents() {
     return Object.keys(this.props.helmet)
-      .filter(el => el !== 'htmlAttributes' && el !== 'bodyAttributes')
-      .map(el => this.props.helmet[el].toComponent())
+      .filter((el) => el !== 'htmlAttributes' && el !== 'bodyAttributes')
+      .map((el) => this.props.helmet[el].toComponent())
   }
 
   render() {

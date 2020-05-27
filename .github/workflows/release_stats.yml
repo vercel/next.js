@@ -7,6 +7,7 @@ jobs:
     name: Release Stats
     runs-on: ubuntu-latest
     steps:
-      - uses: zeit/next-stats-action@master
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/next-stats-action
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}

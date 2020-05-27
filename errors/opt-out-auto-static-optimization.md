@@ -4,12 +4,14 @@
 
 You are using `getInitialProps` in your [Custom `<App>`](https://nextjs.org/docs#custom-app).
 
-This causes **all pages** to be executed on the server -- disabling [Automatic Static Optimization](https://nextjs.org/docs#automatic-static-optimization).
+This causes **all non-getStaticProps pages** to be executed on the server -- disabling [Automatic Static Optimization](https://nextjs.org/docs#automatic-static-optimization).
 
 #### Possible Ways to Fix It
 
 Be sure you meant to use `getInitialProps` in `pages/_app`!
 There are some valid use cases for this, but it is often better to handle `getInitialProps` on a _per-page_ basis.
+
+Check for any [higher-order components](https://reactjs.org/docs/higher-order-components.html) that may have added `getInitialProps` to your [Custom `<App>`](https://nextjs.org/docs#custom-app).
 
 If you previously copied the [Custom `<App>`](https://nextjs.org/docs#custom-app) example, you may be able to remove your `getInitialProps`.
 

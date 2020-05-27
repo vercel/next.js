@@ -1,4 +1,3 @@
-import React from 'react'
 import Document from 'next/document'
 import { SheetsRegistry, JssProvider, createGenerateId } from 'react-jss'
 
@@ -9,7 +8,7 @@ export default class JssDocument extends Document {
     const originalRenderPage = ctx.renderPage
     ctx.renderPage = () =>
       originalRenderPage({
-        enhanceApp: App => props => (
+        enhanceApp: (App) => (props) => (
           <JssProvider registry={registry} generateId={generateId}>
             <App {...props} />
           </JssProvider>
