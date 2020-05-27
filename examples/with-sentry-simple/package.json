@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "license": "ISC",
   "scripts": {
-    "dev": "next node server.js",
+    "dev": "next",
     "build": "next build",
     "start": "next start"
   },
