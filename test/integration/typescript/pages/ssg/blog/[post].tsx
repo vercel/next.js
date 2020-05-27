@@ -1,4 +1,8 @@
-import { StaticProps, GetStaticPaths, GetStaticPropsContext } from 'next'
+import {
+  InferGetStaticPropsType,
+  GetStaticPaths,
+  GetStaticPropsContext,
+} from 'next'
 
 type Post = {
   author: string
@@ -29,7 +33,7 @@ export const getStaticProps = async (
   }
 }
 
-function Blog({ posts }: StaticProps<typeof getStaticProps>) {
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
   return (
     <>
       {posts.map((post) => (

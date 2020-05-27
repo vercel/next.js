@@ -105,10 +105,10 @@ export const getStaticProps: GetStaticProps = async (context) => {
 }
 ```
 
-If you want to get inferred typings for your props, you can use `StaticProps<typeof getStaticProps>`, like this:
+If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`, like this:
 
 ```tsx
-import { StaticProps } from 'next'
+import { InferGetStaticPropsType } from 'next'
 
 type Post = {
   author: string
@@ -126,7 +126,7 @@ export const getStaticProps = async () => {
   }
 }
 
-function Blog({ posts }: StaticProps<typeof getStaticProps>) {
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
   // will resolve posts to type Post[]
 }
 
@@ -478,10 +478,10 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 }
 ```
 
-If you want to get inferred typings for your props, you can use `ServerSideProps<typeof getServerSideProps>`, like this:
+If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`, like this:
 
 ```tsx
-import { ServerSideProps } from 'next'
+import { InferGetServerSidePropsType } from 'next'
 
 type Data = { ... }
 
@@ -496,7 +496,7 @@ export const getServerSideProps = async () => {
   }
 }
 
-function Page({ data }: ServerSideProps<typeof getServerSideProps>) {
+function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // will resolve posts to type Data
 }
 

@@ -1,4 +1,4 @@
-import { ServerSideProps, GetServerSidePropsContext } from 'next'
+import { InferGetServerSidePropsType, GetServerSidePropsContext } from 'next'
 
 type Post = {
   author: string
@@ -17,7 +17,9 @@ export const getServerSideProps = async (
   }
 }
 
-function Blog({ posts }: ServerSideProps<typeof getServerSideProps>) {
+function Blog({
+  posts,
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
   return (
     <>
       {posts.map((post) => (
