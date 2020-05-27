@@ -23,7 +23,7 @@ yarn create next-app --example custom-server-koa custom-server-koa-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-koa
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-koa
 cd custom-server-koa
 ```
 

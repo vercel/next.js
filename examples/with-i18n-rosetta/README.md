@@ -8,7 +8,7 @@ In `next.config.js` you can configure the fallback language.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-i18n-rosetta)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-rosetta)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-i18n-rosetta with-i18n-rosetta
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-i18n-rosetta
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-i18n-rosetta
 cd with-i18n-rosetta
 ```
 

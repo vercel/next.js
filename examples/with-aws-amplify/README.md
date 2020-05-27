@@ -26,7 +26,7 @@ yarn create next-app --example with-aws-amplify nextjs-aws-amplify-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-aws-amplify
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-aws-amplify
 cd with-aws-amplify
 ```
 
