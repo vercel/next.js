@@ -111,7 +111,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         value={{
           _documentProps: props,
           // In dev we invalidate the cache by appending a timestamp to the resource URL.
-          // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+          // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
           // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
           _devOnlyInvalidateCacheQueryString:
             process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
@@ -635,7 +635,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/zeit/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/vercel/next.js/circular-structure`
         )
       }
       throw err
