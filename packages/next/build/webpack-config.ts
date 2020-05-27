@@ -865,6 +865,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
           config.experimental.basePath
         ),
+        'process.env.__NEXT_ROUTER_ASSETPREFIX': JSON.stringify(
+          config.assetPrefix
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

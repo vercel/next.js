@@ -15,8 +15,14 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { pipe } from './utils/pipe'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+const assestPrefix = (process.env.__NEXT_ROUTER_ASSETPREFIX as string) || ''
+
+export function addAssetPrefix(path: string): string {
+  return path.indexOf(assestPrefix) !== 0 ? assestPrefix + path : path
+}
 
 export function addBasePath(path: string): string {
   return path.indexOf(basePath) !== 0 ? basePath + path : path
@@ -91,7 +97,10 @@ function fetchNextData(
   function getResponse(): Promise<any> {
     return fetch(
       formatWithValidation({
-        pathname: addBasePath(
+        pathname: pipe(
+          addAssetPrefix,
+          addBasePath
+        )(
           // @ts-ignore __NEXT_DATA__
           `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
         ),
