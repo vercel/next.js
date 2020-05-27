@@ -94,3 +94,7 @@
 
   min-height: 430px;
 }
+
+.wp-block-verse {
+  @apply font-sans;
+}
