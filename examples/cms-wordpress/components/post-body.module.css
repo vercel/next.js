@@ -37,3 +37,11 @@
 .content h3 {
   @apply text-2xl mt-8 mb-4 leading-snug;
 }
+
+.content pre {
+  @apply whitespace-pre overflow-x-auto p-4 leading-tight border border-gray-400 bg-gray-100;
+}
+
+.content code {
+  @apply text-sm;
+}
