@@ -43,6 +43,10 @@
   @apply text-2xl mt-8 mb-4 leading-snug;
 }
 
+.content h4 {
+  @apply text-xl mt-6 mb-4 leading-snug;
+}
+
 .content pre {
   @apply whitespace-pre overflow-x-auto p-4 text-sm leading-tight border border-gray-400 bg-gray-100;
 }
@@ -56,7 +60,15 @@
 }
 
 .content blockquote {
-  @apply border-l-4 border-gray-500 bg-gray-200 italic ml-0 pl-4;
+  @apply border-l-4 border-gray-500 bg-gray-200 italic ml-0 py-4 px-6;
+}
+
+.content blockquote p {
+  @apply mt-0;
+}
+
+.content blockquote cite {
+  @apply not-italic;
 }
 
 .content audio {
