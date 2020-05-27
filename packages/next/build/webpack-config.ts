@@ -988,6 +988,7 @@ export default async function getBaseWebpackConfig(
         !isServer &&
         !dev &&
         new NextEsmPlugin({
+          excludedPlugins: ['ForkTsCheckerWebpackPlugin'],
           filename: (getFileName: Function | string) => (...args: any[]) => {
             const name =
               typeof getFileName === 'function'
