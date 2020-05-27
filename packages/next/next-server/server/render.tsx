@@ -679,14 +679,14 @@ export async function renderToHTML(
     props.pageProps = {}
   }
 
-  // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSSG) return null
-
-  // Handle optional redirect
+  // Handle optional redirect for page requests
   if (props.redirect) {
     res.writeHead(302, { Location: '/' })
     res.end()
   }
+
+  // the response might be finished on the getInitialProps call
+  if (isResSent(res) && !isSSG) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
