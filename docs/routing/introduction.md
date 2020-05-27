@@ -107,7 +107,7 @@ function Home({ posts }) {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
 

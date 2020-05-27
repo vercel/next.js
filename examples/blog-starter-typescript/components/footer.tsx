@@ -18,7 +18,7 @@ const Footer: React.FC = () => {
               Read Documentation
             </a>
             <a
-              href={`https://github.com/zeit/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
+              href={`https://github.com/vercel/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
               className="mx-3 font-bold hover:underline"
             >
               View on GitHub

@@ -9,8 +9,8 @@ description: Learn to add and access environment variables in your Next.js appli
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-env-from-next-config-js">With env</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-now-env">With Now env</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-env-from-next-config-js">With env</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-now-env">With Now env</a></li>
   </ul>
 </details>
 

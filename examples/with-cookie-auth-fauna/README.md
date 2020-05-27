@@ -4,7 +4,7 @@ In this example, we authenticate users and store a token in a secure (non-JS) co
 
 This example uses [Fauna](https://fauna.com/) as the auth service and DB.
 
-The repo includes a minimal auth backend built with the new [API Routes support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro), [Fauna for Auth](https://app.fauna.com/tutorials/authentication) and [dotenv](https://github.com/zeit/next.js/tree/canary/examples/with-dotenv) for environment variables. The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
+The repo includes a minimal auth backend built with the new [API Routes support](https://github.com/vercel/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro), [Fauna for Auth](https://app.fauna.com/tutorials/authentication) and [dotenv](https://github.com/vercel/next.js/tree/canary/examples/with-dotenv) for environment variables. The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
 
 Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
 
@@ -14,7 +14,7 @@ The helper function `auth` helps to retrieve the token across pages and redirect
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
@@ -24,7 +24,7 @@ yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example [or clone the repo](https://github.com/vercel/next.js):
 
 ```bash
 curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-cookie-auth-fauna

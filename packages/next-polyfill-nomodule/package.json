@@ -5,7 +5,7 @@
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
   "repository": {
-    "url": "zeit/next.js",
+    "url": "vercel/next.js",
     "directory": "packages/next-polyfill-nomodule"
   },
   "scripts": {

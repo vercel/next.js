@@ -12,7 +12,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-typescript-styled-components with-typescript-app
@@ -45,5 +45,5 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 This is an amalgamation of the 2 existing examples:
 
-- [with-typescript](https://github.com/zeit/next.js/tree/canary/examples/with-typescript)
-- [with-styled-components](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)
+- [with-typescript](https://github.com/vercel/next.js/tree/canary/examples/with-typescript)
+- [with-styled-components](https://github.com/vercel/next.js/tree/canary/examples/with-styled-components)

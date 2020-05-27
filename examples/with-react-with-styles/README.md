@@ -6,7 +6,7 @@ In this case we are using [react-with-styles](https://github.com/airbnb/react-wi
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/zeit/next.js/tree/master/examples/with-aphrodite).
+We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/vercel/next.js/tree/master/examples/with-aphrodite).
 
 ## Deploy your own
 
@@ -18,7 +18,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-react-with-styles with-react-with-styles-app
