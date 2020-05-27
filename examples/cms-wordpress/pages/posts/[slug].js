@@ -11,6 +11,7 @@ import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
+import Tags from '../../components/tags'
 
 export default function Post({ post, posts, preview }) {
   const router = useRouter()
@@ -45,7 +46,11 @@ export default function Post({ post, posts, preview }) {
                 author={post.author}
               />
               <PostBody content={post.content} />
+              <footer>
+                {post.tags.edges.length > 0 && <Tags tags={post.tags} />}
+              </footer>
             </article>
+
             <SectionSeparator />
             {morePosts.length > 0 && <MoreStories posts={morePosts} />}
           </>

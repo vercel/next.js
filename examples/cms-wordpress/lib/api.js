@@ -126,6 +126,13 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
       author {
         ...AuthorFields
       }
+      tags {
+        edges {
+          node {
+            name
+          }
+        }
+      }
     }
     query PostBySlug($id: ID!, $idType: PostIdType!) {
       post(id: $id, idType: $idType) {
