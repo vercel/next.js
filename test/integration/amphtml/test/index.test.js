@@ -1,29 +1,29 @@
 /* eslint-env jest */
 
-import { join } from 'path'
-import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { validateAMP } from 'amp-test-utils'
+import cheerio from 'cheerio'
 import {
   accessSync,
-  readFileSync,
-  writeFileSync,
-  writeFile,
   readFile,
+  readFileSync,
+  writeFile,
+  writeFileSync,
 } from 'fs-extra'
 import {
-  waitFor,
-  nextServer,
+  check,
+  findPort,
+  getBrowserBodyText,
+  killApp,
+  launchApp,
   nextBuild,
+  nextServer,
+  renderViaHTTP,
   startApp,
   stopApp,
-  renderViaHTTP,
-  check,
-  getBrowserBodyText,
-  findPort,
-  launchApp,
-  killApp,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -451,8 +451,7 @@ describe('AMP Usage', () => {
 
     it('should detect changes to component and refresh an AMP page', async () => {
       const browser = await webdriver(dynamicAppPort, '/hmr/comp')
-      const text = await browser.elementByCss('#hello-comp').text()
-      expect(text).toBe('hello')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
 
       const testComp = join(__dirname, '../components/hello.js')
 
@@ -472,10 +471,9 @@ describe('AMP Usage', () => {
         await renderViaHTTP(dynamicAppPort, '/hmr/test')
 
         browser = await webdriver(dynamicAppPort, '/hmr/amp')
-        const text = await browser.elementByCss('p').text()
-        const origDate = await browser.elementByCss('span').text()
-        expect(text).toBe(`I'm an AMP page!`)
+        await check(() => browser.elementByCss('p').text(), /I'm an AMP page!/)
 
+        const origDate = await browser.elementByCss('span').text()
         const hmrTestPagePath = join(
           __dirname,
           '../',

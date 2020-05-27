@@ -359,17 +359,31 @@ test('module init error not shown', async () => {
   )
 
   expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-    "index.js (4:12) @ Module../index.js
+  if (process.platform === 'win32') {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ Module../index.js
 
-      2 | // top offset for snapshot
-      3 | import * as React from 'react';
-    > 4 | throw new Error('no')
-        |      ^
-      5 | class ClassDefault extends React.Component {
-      6 |   render() {
-      7 |     return <h1>Default Export</h1>;"
-  `)
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  } else {
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "index.js (4:12) @ eval
+
+        2 | // top offset for snapshot
+        3 | import * as React from 'react';
+      > 4 | throw new Error('no')
+          |      ^
+        5 | class ClassDefault extends React.Component {
+        6 |   render() {
+        7 |     return <h1>Default Export</h1>;"
+    `)
+  }
 
   await cleanup()
 })
@@ -783,6 +797,53 @@ test('css syntax errors', async () => {
 
     > 1 | button {}
         | ^"
+  `)
+
+  await cleanup()
+})
+
+test('scss syntax errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.write('index.module.scss', `.button { font-size: 5px; }`)
+  await session.patch(
+    'index.js',
+    `
+      import './index.module.scss';
+      export default () => {
+        return (
+          <div>
+            <p>lol</p>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+
+  // Syntax error
+  await session.patch('index.module.scss', `.button { font-size: :5px; }`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.module.scss:1:20
+    Syntax error: Invalid CSS after \\"...on { font-size:\\": expected expression (e.g. 1px, bold), was \\":5px; }\\"
+
+    > 1 | .button { font-size: :5px; }
+        |                    ^"
+  `)
+
+  // Not local error
+  await session.patch('index.module.scss', `button { font-size: 5px; }`)
+  expect(await session.hasRedbox(true)).toBe(true)
+  const source2 = await session.getRedboxSource()
+  expect(source2).toMatchInlineSnapshot(`
+    "./index.module.scss:1:1
+    Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+
+    > 1 | button { font-size: 5px; }
+        |                          ^"
   `)
 
   await cleanup()
