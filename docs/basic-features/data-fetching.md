@@ -108,14 +108,14 @@ export const getStaticProps: GetStaticProps = async (context) => {
 If you want to get inferred typings for your props, you can use `StaticProps<typeof getStaticProps>`, like this:
 
 ```tsx
-import { GetStaticProps, StaticProps } from 'next'
+import { StaticProps } from 'next'
 
 type Post = {
   author: string
   content: string
 }
 
-export const getStaticProps: GetStaticProps = async (context) => {
+export const getStaticProps = async () => {
   const res = await fetch('https://.../posts')
   const posts: Post[] = await res.json()
 
@@ -481,11 +481,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 If you want to get inferred typings for your props, you can use `ServerSideProps<typeof getServerSideProps>`, like this:
 
 ```tsx
-import { GetServerSideProps, ServerSideProps } from 'next'
+import { ServerSideProps } from 'next'
 
 type Data = { ... }
 
-export const getServerSideProps: GetServerSideProps = async () => {
+export const getServerSideProps = async () => {
   const res = await fetch('https://.../data')
   const data: Data = await res.json()
 
