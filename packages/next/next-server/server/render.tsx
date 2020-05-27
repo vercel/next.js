@@ -626,7 +626,9 @@ export async function renderToHTML(
         throw err
       }
 
-      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
+      const invalidKeys = Object.keys(data).filter(
+        (key) => key !== 'props' && key !== 'redirect'
+      )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -643,6 +645,9 @@ export async function renderToHTML(
       }
 
       props.pageProps = Object.assign({}, props.pageProps, data.props)
+      if (data.redirect) {
+        props.redirect = data.redirect
+      }
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
@@ -676,6 +681,12 @@ export async function renderToHTML(
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
+
+  // Handle optional redirect
+  if (props.redirect) {
+    res.writeHead(302, { Location: '/' })
+    res.end()
+  }
 
   const devFiles = buildManifest.devFiles
   const files = [

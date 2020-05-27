@@ -109,6 +109,8 @@ export type GetServerSidePropsContext<
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
   Q extends ParsedUrlQuery = ParsedUrlQuery
-> = (context: GetServerSidePropsContext<Q>) => Promise<{ props: P }>
+> = (
+  context: GetServerSidePropsContext<Q>
+) => Promise<{ props: P; redirect: string }>
 
 export default next
