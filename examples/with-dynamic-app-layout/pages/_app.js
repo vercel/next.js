@@ -1,4 +1,3 @@
-import React from 'react'
 import App from 'next/app'
 
 const Noop = ({ children }) => children
