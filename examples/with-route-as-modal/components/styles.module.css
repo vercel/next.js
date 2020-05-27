@@ -1,14 +1,3 @@
-body {
-  margin: 0;
-}
-
-#__next {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
 .postCardGridWrapper {
   display: flex;
   flex-direction: column;

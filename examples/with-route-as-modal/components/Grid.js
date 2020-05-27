@@ -1,23 +1,25 @@
 import Link from 'next/link'
+import styles from './styles.module.css'
 
 export const data = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 export default function PostCardGrid() {
   return (
-    <div className="postCardGridWrapper">
+    <div className={styles.postCardGridWrapper}>
       <h2>With QueryString Routing</h2>
-      <div className="postCardGrid">
+      <div className={styles.postCardGrid}>
         {data.map((id, index) => (
           <Link key={index} href={`/?postId=${id}`} as={`/post/${id}`}>
-            <a className="postCard">{id}</a>
+            <a className={styles.postCard}>{id}</a>
           </Link>
         ))}
       </div>
+
       <h2>With Dynamic Routing</h2>
-      <div className="postCardGrid">
+      <div className={styles.postCardGrid}>
         {data.map((id, index) => (
-          <Link key={index} href={`/article/[articleId]`} as={`/article/${id}`}>
-            <a className="postCard">{id}</a>
+          <Link key={index} href="/article/[articleId]" as={`/article/${id}`}>
+            <a className={styles.postCard}>{id}</a>
           </Link>
         ))}
       </div>
