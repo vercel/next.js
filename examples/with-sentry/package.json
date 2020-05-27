@@ -8,15 +8,15 @@
   },
   "dependencies": {
     "@sentry/browser": "^5.0.3",
-    "@sentry/node": "^5.0.3",
     "@sentry/integrations": "^5.0.3",
+    "@sentry/node": "^5.0.3",
     "@zeit/next-source-maps": "0.0.4-canary.1",
     "cookie-parser": "1.4.4",
     "express": "^4.16.4",
     "js-cookie": "2.2.0",
     "next": "latest",
-    "react": "^16.8.0",
-    "react-dom": "^16.8.0",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
     "sentry-testkit": "^2.1.0",
     "uuid": "^3.3.2"
   },
