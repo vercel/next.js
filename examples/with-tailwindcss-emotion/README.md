@@ -8,7 +8,7 @@ This is an example of how you can add [tailwind CSS](https://tailwindcss.com/) w
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-tailwindcss-emotion)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-tailwindcss-emotion with-tailwindcss-emotion
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-tailwindcss-emotion
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-tailwindcss-emotion
 cd with-tailwindcss-emotion
 ```
 

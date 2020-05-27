@@ -10,7 +10,7 @@ This fork comes from [styled-components-example](https://github.com/zeit/next.js
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-orbit-components)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-orbit-components)
 
 ## How to use
 
@@ -29,7 +29,7 @@ yarn create next-app --example with-orbit-components with-orbit-components-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-orbit-components
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-orbit-components
 cd with-orbit-components
 ```
 

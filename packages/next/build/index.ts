@@ -260,6 +260,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  const nestedReservedPages = pageKeys.filter((page) => {
+    return (
+      page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
+    )
+  })
+
+  if (nestedReservedPages.length) {
+    console.warn(
+      '\n' +
+        chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
+        ) +
+        nestedReservedPages.join('\n') +
+        chalk.bold(
+          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+        )
+    )
+  }
+
   const buildCustomRoute = (
     r: {
       source: string
@@ -497,7 +517,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           : ['server', 'static', buildId, 'pages']),
         '_error.js'
       ),
-      runtimeEnvConfig
+      runtimeEnvConfig,
+      false
     ))
 
   const analysisBegin = process.hrtime()
@@ -540,7 +561,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
-          runtimeEnvConfig
+          runtimeEnvConfig,
+          true
         )
 
         namedExports = getNamedExports(

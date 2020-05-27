@@ -29,7 +29,7 @@ yarn create next-app --example with-electron-typescript with-electron-typescript
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-electron-typescript
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-electron-typescript
 cd with-electron-typescript
 ```
 

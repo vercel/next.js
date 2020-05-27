@@ -6,7 +6,7 @@ Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes), whi
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-graphql)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql)
 
 ## How to use
 
@@ -25,7 +25,7 @@ yarn create next-app --example api-routes-graphql api-routes-graphql-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/api-routes-graphql
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/api-routes-graphql
 cd api-routes-graphql
 ```
 
