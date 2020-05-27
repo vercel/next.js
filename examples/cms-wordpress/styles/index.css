@@ -70,3 +70,11 @@
 .wp-block-image .aligncenter {
   @apply m-auto;
 }
+
+.wp-block-button a {
+  @apply bg-blue-500 text-white no-underline py-2 px-4;
+}
+
+.wp-block-button a:hover {
+  @apply bg-blue-400 cursor-pointer;
+}
