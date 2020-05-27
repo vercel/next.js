@@ -1,18 +1,12 @@
+import { promises as fsPromises } from 'fs'
+import { writeFile } from 'fs-extra'
 import chalk from 'next/dist/compiled/chalk'
-import fs from 'fs'
+import * as CommentJson from 'next/dist/compiled/comment-json'
 import os from 'os'
 import path from 'path'
-
 import { fileExists } from './file-exists'
 import { recursiveReadDir } from './recursive-readdir'
 import { resolveRequest } from './resolve-request'
-
-function writeJson(fileName: string, object: object): Promise<void> {
-  return fs.promises.writeFile(
-    fileName,
-    JSON.stringify(object, null, 2).replace(/\n/g, os.EOL) + os.EOL
-  )
-}
 
 async function hasTypeScript(dir: string): Promise<boolean> {
   const typescriptFiles = await recursiveReadDir(
@@ -105,7 +99,7 @@ export async function verifyTypeScriptSetup(
 
   let firstTimeSetup = false
   if (hasTsConfig) {
-    const tsConfig = await fs.promises
+    const tsConfig = await fsPromises
       .readFile(tsConfigPath, 'utf8')
       .then((val) => val.trim())
     firstTimeSetup = tsConfig === '' || tsConfig === '{}'
@@ -176,13 +170,11 @@ export async function verifyTypeScriptSetup(
     )
     console.log()
 
-    await writeJson(tsConfigPath, {})
+    await writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
-  const messages = []
-  let appTsConfig
-  let parsedTsConfig
-  let parsedCompilerOptions
+  let resolvedTsConfig
+  let resolvedCompilerOptions
   try {
     const { config: readTsConfig, error } = ts.readConfigFile(
       tsConfigPath,
@@ -193,14 +185,14 @@ export async function verifyTypeScriptSetup(
       throw new Error(ts.formatDiagnostic(error, formatDiagnosticHost))
     }
 
-    appTsConfig = readTsConfig
+    resolvedTsConfig = readTsConfig
 
     // Get TS to parse and resolve any "extends"
     // Calling this function also mutates the tsconfig, adding in "include" and
     // "exclude", but the compilerOptions remain untouched
-    parsedTsConfig = JSON.parse(JSON.stringify(readTsConfig))
+    const throwAwayConfig = JSON.parse(JSON.stringify(readTsConfig))
     const result = ts.parseJsonConfigFileContent(
-      parsedTsConfig,
+      throwAwayConfig,
       ts.sys,
       path.dirname(tsConfigPath)
     )
@@ -219,7 +211,7 @@ export async function verifyTypeScriptSetup(
       )
     }
 
-    parsedCompilerOptions = result.options
+    resolvedCompilerOptions = result.options
   } catch (e) {
     if (e && e.name === 'SyntaxError') {
       console.error(
@@ -236,11 +228,16 @@ export async function verifyTypeScriptSetup(
     return
   }
 
-  if (appTsConfig.compilerOptions == null) {
-    appTsConfig.compilerOptions = {}
+  const userTsConfigContent = await fsPromises.readFile(tsConfigPath, {
+    encoding: 'utf8',
+  })
+  const userTsConfig = CommentJson.parse(userTsConfigContent)
+  if (userTsConfig.compilerOptions == null) {
+    userTsConfig.compilerOptions = {}
     firstTimeSetup = true
   }
 
+  const messages = []
   for (const option of Object.keys(compilerOptions)) {
     const { parsedValue, value, suggested, reason } = compilerOptions[option]
 
@@ -248,16 +245,16 @@ export async function verifyTypeScriptSetup(
     const coloredOption = chalk.cyan('compilerOptions.' + option)
 
     if (suggested != null) {
-      if (parsedCompilerOptions[option] === undefined) {
-        appTsConfig.compilerOptions[option] = suggested
+      if (resolvedCompilerOptions[option] === undefined) {
+        userTsConfig.compilerOptions[option] = suggested
         messages.push(
           `${coloredOption} to be ${chalk.bold(
             'suggested'
           )} value: ${chalk.cyan.bold(suggested)} (this can be changed)`
         )
       }
-    } else if (parsedCompilerOptions[option] !== valueToCheck) {
-      appTsConfig.compilerOptions[option] = value
+    } else if (resolvedCompilerOptions[option] !== valueToCheck) {
+      userTsConfig.compilerOptions[option] = value
       messages.push(
         `${coloredOption} ${chalk.bold(
           valueToCheck == null ? 'must not' : 'must'
@@ -268,12 +265,12 @@ export async function verifyTypeScriptSetup(
   }
 
   // tsconfig will have the merged "include" and "exclude" by this point
-  if (parsedTsConfig.exclude == null) {
-    appTsConfig.exclude = ['node_modules']
+  if (resolvedTsConfig.exclude == null) {
+    userTsConfig.exclude = ['node_modules']
   }
 
-  if (parsedTsConfig.include == null) {
-    appTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+  if (resolvedTsConfig.include == null) {
+    userTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
   }
 
   if (messages.length > 0) {
@@ -299,13 +296,17 @@ export async function verifyTypeScriptSetup(
       })
       console.warn()
     }
-    await writeJson(tsConfigPath, appTsConfig)
+    await fsPromises.writeFile(
+      tsConfigPath,
+      CommentJson.stringify(userTsConfig, null, 2) + os.EOL
+    )
   }
 
   // Reference `next` types
   const appTypeDeclarations = path.join(dir, 'next-env.d.ts')
-  if (!fs.existsSync(appTypeDeclarations)) {
-    fs.writeFileSync(
+  const hasAppTypeDeclarations = await fileExists(appTypeDeclarations)
+  if (!hasAppTypeDeclarations) {
+    await fsPromises.writeFile(
       appTypeDeclarations,
       '/// <reference types="next" />' +
         os.EOL +

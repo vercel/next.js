@@ -19,7 +19,7 @@ yarn create next-app --example with-storybook with-storybook-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook
 cd with-storybook
 ```
 

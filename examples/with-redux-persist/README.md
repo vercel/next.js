@@ -8,7 +8,7 @@ With the advantage of having a global state for your app using `redux`. You'll a
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-redux-persist)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-redux-persist)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-redux-persist with-redux-persist-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-persist
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-persist
 cd with-redux-persist
 ```
 

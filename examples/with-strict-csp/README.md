@@ -28,8 +28,8 @@ yarn create next-app --example with-strict-csp-hash with-strict-csp-hash-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-strict-csp-hash
-cd with-strict-csp-hash
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-strict-csp
+cd with-strict-csp
 ```
 
 Install it and run:
