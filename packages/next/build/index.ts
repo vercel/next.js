@@ -685,9 +685,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         routeKeys,
         namedDataRouteRegex,
         dataRouteRegex: isDynamicRoute(page)
-          ? getRouteRegex(
-              dataRoute.replace(/\.json$/, '')
-            ).re.source.replace(
+          ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
               /\(\?:\\\/\)\?\$$/,
               '\\.json$'
             )
