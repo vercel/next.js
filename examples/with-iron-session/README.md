@@ -27,7 +27,7 @@ It uses current best practices for authentication in the Next.js ecosystem.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-iron-session)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session)
 
 ## How to use
 
@@ -46,7 +46,7 @@ yarn create next-app --example with-iron-session with-iron-session-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-iron-session
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-iron-session
 cd with-iron-session
 ```
 

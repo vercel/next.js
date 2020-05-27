@@ -19,7 +19,7 @@ yarn create next-app --example with-webpack-bundle-size-analyzer with-webpack-bu
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-webpack-bundle-size-analyzer
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-webpack-bundle-size-analyzer
 cd with-webpack-bundle-size-analyzer
 ```
 

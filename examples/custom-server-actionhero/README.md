@@ -22,7 +22,7 @@ yarn create next-app --example custom-server-actionhero custom-server-actionhero
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-actionhero
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-actionhero
 cd custom-server-actionhero
 ```
 
