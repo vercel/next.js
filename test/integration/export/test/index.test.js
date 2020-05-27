@@ -117,6 +117,20 @@ describe('Static Export', () => {
     ).toBe(true)
   })
 
+  it('should not duplicate /index with exportTrailingSlash', async () => {
+    expect(
+      await access(join(outdir, 'index/index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(false)
+
+    expect(
+      await access(join(outdir, 'index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+  })
+
   ssr(context)
   browser(context)
   dev(devContext)
