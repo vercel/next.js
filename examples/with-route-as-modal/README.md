@@ -8,7 +8,7 @@ This example show how to conditionally display a modal based on a route.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-route-as-modal)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-route-as-modal)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-route-as-modal with-route-as-modal-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-route-as-modal
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-route-as-modal
 cd with-route-as-modal
 ```
 

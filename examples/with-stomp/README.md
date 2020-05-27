@@ -23,7 +23,7 @@ yarn create next-app --example with-stomp with-stomp-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-stomp
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-stomp
 cd with-stomp
 ```
 

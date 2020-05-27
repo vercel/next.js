@@ -12,7 +12,7 @@ This example is a mobx-react-lite port of the [with-mobx](https://github.com/zei
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-mobx-react-lite)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-react-lite)
 
 ## How to use
 
@@ -31,7 +31,7 @@ yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx-react-lite
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx-react-lite
 cd with-mobx-react-lite
 ```
 

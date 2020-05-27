@@ -8,7 +8,7 @@ Deployed Demo: [https://next-userbase.now.sh](https://next-userbase.now.sh)
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-userbase)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-userbase)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-userbase next-userbase-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-userbase
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-userbase
 cd with-userbase
 ```
 

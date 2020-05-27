@@ -14,7 +14,7 @@ You can use `next/link` as displayed in this example to route to these pages cli
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing)
 
 ## How to use
 
@@ -33,7 +33,7 @@ yarn create next-app --example dynamic-routing dynamic-routing-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/dynamic-routing
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/dynamic-routing
 cd dynamic-routing
 ```
 

@@ -8,7 +8,7 @@ This example includes two pages with links between them. The "About" page demons
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-next-page-transitions)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-next-page-transitions)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-next-page-transitions with-next-page-transit
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-next-page-transitions
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-next-page-transitions
 cd with-next-page-transitions
 ```
 

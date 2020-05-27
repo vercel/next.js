@@ -6,7 +6,7 @@ Extract and inline critical css with [@emotion/react](https://www.npmjs.com/pack
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-emotion-11)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-emotion-11)
 
 ## How to use
 

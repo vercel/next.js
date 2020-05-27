@@ -6,7 +6,7 @@ This example features how to configure and use [`babel-macros`](https://github.c
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-babel-macros)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-babel-macros)
 
 ## How to use
 
@@ -25,7 +25,7 @@ yarn create next-app --example with-babel-macros with-babel-macros-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-babel-macros
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-babel-macros
 cd with-babel-macros
 ```
 

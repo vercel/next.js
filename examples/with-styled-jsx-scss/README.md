@@ -12,7 +12,7 @@ More details about how plugins work can be found in the [styled-jsx readme](http
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-styled-jsx-scss)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx-scss)
 
 ## How to use
 
@@ -31,7 +31,7 @@ yarn create next-app --example with-styled-jsx-scss with-styled-jsx-scss-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-styled-jsx-scss
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-styled-jsx-scss
 cd with-styled-jsx-scss
 ```
 

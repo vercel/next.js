@@ -6,7 +6,7 @@
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-react-multi-carousel)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-multi-carousel)
 
 _Live Example: https://react-multi-carousel.now.sh_
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-react-multi-carousel with-react-multi-carous
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-multi-carousel
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-multi-carousel
 cd with-react-multi-carousel
 ```
 

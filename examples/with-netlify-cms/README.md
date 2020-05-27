@@ -19,7 +19,7 @@ yarn create next-app --example with-netlify-cms with-netlify-cms-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-netlify-cms
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-netlify-cms
 cd with-netlify-cms
 ```
 

@@ -8,7 +8,7 @@ We are connecting the Next.js `_app.js` with `chakra-ui`'s Theme and ColorMode c
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-chakra-ui)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-chakra-ui)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-chakra-ui with-chakra-ui-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-chakra-ui
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-chakra-ui
 cd with-chakra-ui
 ```
 

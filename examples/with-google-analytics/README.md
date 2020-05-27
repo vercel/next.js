@@ -6,7 +6,7 @@ This example shows how to use [Next.js](https://github.com/zeit/next.js) along w
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-google-analytics)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-google-analytics)
 
 ## How to use
 
@@ -25,7 +25,7 @@ yarn create next-app --example with-google-analytics with-google-analytics-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-google-analytics
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-google-analytics
 cd with-google-analytics
 ```
 

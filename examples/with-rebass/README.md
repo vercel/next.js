@@ -8,7 +8,7 @@ This example features how you use [Rebass](http://jxnblk.com/rebass/) functional
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-rebass)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-rebass)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-rebass with-rebass-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-rebass
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-rebass
 cd with-rebass
 ```
 

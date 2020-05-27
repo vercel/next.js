@@ -10,7 +10,7 @@ This example features how to use [react-native-web](https://github.com/necolas/r
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-react-native-web)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-native-web)
 
 ## How to use
 
@@ -29,7 +29,7 @@ yarn create next-app --example with-react-native-web with-react-native-web-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-native-web
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-native-web
 cd with-react-native-web
 ```
 

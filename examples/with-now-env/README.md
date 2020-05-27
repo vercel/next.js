@@ -19,7 +19,7 @@ yarn create next-app --example with-now-env with-now-env-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-now-env
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-now-env
 cd with-now-env
 ```
 

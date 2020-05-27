@@ -27,7 +27,7 @@ yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-cookie-auth-fauna
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-cookie-auth-fauna
 cd with-cookie-auth-fauna
 ```
 

@@ -10,7 +10,7 @@ and [@emotion/styled](https://github.com/emotion-js/emotion/tree/master/packages
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-emotion-10)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-emotion-10)
 
 ## How to use
 

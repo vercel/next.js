@@ -12,7 +12,7 @@ In production, you must use a password hashing library, such as [argon2](https:/
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-passport-and-next-connect)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-passport-and-next-connect)
 
 ## How to use
 

@@ -16,7 +16,7 @@ View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.c
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-env-from-next-config-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-env-from-next-config-js)
 
 ## How to use
 
@@ -35,7 +35,7 @@ yarn create next-app --example with-env-from-next-config-js
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-env-from-next-config-js
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-env-from-next-config-js
 cd with-env-from-next-config-js
 ```
 

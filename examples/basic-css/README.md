@@ -6,7 +6,7 @@ Next.js ships with [styled-jsx](https://github.com/zeit/styled-jsx) allowing you
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/basic-css)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/basic-css)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example basic-css basic-css-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/basic-css
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/basic-css
 cd basic-css
 ```
 

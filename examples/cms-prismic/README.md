@@ -31,7 +31,7 @@ yarn create next-app --example cms-prismic cms-prismic-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-prismic
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-prismic
 cd cms-prismic
 ```
 

@@ -8,7 +8,7 @@ When using Next's `<Link>` component, you will likely want to [disable the defau
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-framer-motion)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-framer-motion)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example with-framer-motion with-framer-motion
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-framer-motion
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-framer-motion
 cd with-framer-motion
 ```
 

@@ -15,7 +15,7 @@ https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-apollo)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-apollo)
 
 _Live Example: https://next-with-apollo.now.sh_
 
@@ -36,7 +36,7 @@ yarn create next-app --example with-apollo with-apollo-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-apollo
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-apollo
 cd with-apollo
 ```
 

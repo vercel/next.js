@@ -8,7 +8,7 @@ This example shows in `pages/index.js` how to add a title and a couple of meta t
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/head-elements)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/head-elements)
 
 ## How to use
 
@@ -27,7 +27,7 @@ yarn create next-app --example head-elements head-elements-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/head-elements
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/head-elements
 cd head-elements
 ```
 
