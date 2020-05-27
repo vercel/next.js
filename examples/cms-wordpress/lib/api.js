@@ -126,6 +126,13 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
       author {
         ...AuthorFields
       }
+      categories {
+        edges {
+          node {
+            name
+          }
+        }
+      }
       tags {
         edges {
           node {
