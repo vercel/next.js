@@ -20,7 +20,7 @@ export default function (context) {
       ).catch((err) => err)
 
       expect(stderr).toContain(
-        'https://err.sh/zeit/next.js/export-path-mismatch'
+        'https://err.sh/vercel/next.js/export-path-mismatch'
       )
     })
   })

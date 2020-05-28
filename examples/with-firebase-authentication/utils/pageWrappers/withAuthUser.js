@@ -47,7 +47,7 @@ export default function withAuthUser(ComposedComponent) {
     } else {
       // If client-side, get AuthUserInfo from stored data. We store it
       // in _document.js. See:
-      // https://github.com/zeit/next.js/issues/2252#issuecomment-353992669
+      // https://github.com/vercel/next.js/issues/2252#issuecomment-353992669
       try {
         const jsonData = JSON.parse(
           window.document.getElementById('__MY_AUTH_USER_INFO').textContent

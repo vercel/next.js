@@ -6,15 +6,15 @@ Next.js ships with [styled-jsx](https://github.com/zeit/styled-jsx) allowing you
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/basic-css)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/basic-css)
 
 ## How to use
 
-[Try it on CodeSandbox](https://codesandbox.io/s/github/zeit/next.js/tree/canary/examples/basic-css)
+[Try it on CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/basic-css)
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example basic-css basic-css-app
@@ -27,7 +27,7 @@ yarn create next-app --example basic-css basic-css-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/basic-css
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/basic-css
 cd basic-css
 ```
 

@@ -287,7 +287,7 @@ export default class PageLoader {
 
     if (process.env.NODE_ENV !== 'production') {
       // Wait for webpack to become idle if it's not.
-      // More info: https://github.com/zeit/next.js/pull/1511
+      // More info: https://github.com/vercel/next.js/pull/1511
       if (module.hot && module.hot.status() !== 'idle') {
         console.log(
           `Waiting for webpack to become "idle" to initialize the page: "${route}"`
