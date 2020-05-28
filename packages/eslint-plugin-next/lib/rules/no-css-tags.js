@@ -11,11 +11,15 @@ module.exports = function (context) {
       if (
         node.attributes.find(
           (attr) =>
-            attr.name.name === 'rel' && attr.value.value === 'stylesheet'
+            attr.type === 'JSXAttribute' &&
+            attr.name.name === 'rel' &&
+            attr.value.value === 'stylesheet'
         ) &&
         node.attributes.find(
           (attr) =>
-            attr.name.name === 'href' && !/^https?/.test(attr.value.value)
+            attr.type === 'JSXAttribute' &&
+            attr.name.name === 'href' &&
+            !/^https?/.test(attr.value.value)
         )
       ) {
         context.report({
