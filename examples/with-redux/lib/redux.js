@@ -2,7 +2,7 @@ import { Provider } from 'react-redux'
 import { initializeStore } from '../store'
 import App from 'next/app'
 
-export const withRedux = PageComponent => {
+export const withRedux = (PageComponent) => {
   const WithRedux = ({ initialReduxState, ...props }) => {
     const store = initializeClientSideStore(initialReduxState)
     return (
@@ -33,13 +33,13 @@ export const withRedux = PageComponent => {
 
 let reduxStore
 
-export const initializeServerSideStore = initialState => {
+export const initializeServerSideStore = (initialState) => {
   // Always make a new store if server ('getStaticProps' or 'getServerSideProps'), to avoid sharing the state between requests.
   // Check ssg.js and ssr.js pages for usage
   return initializeStore(initialState)
 }
 
-export const initializeClientSideStore = initialState => {
+export const initializeClientSideStore = (initialState) => {
   // Create store if unavailable on the client and set it on the window object
   if (!reduxStore) {
     reduxStore = initializeStore(initialState)
