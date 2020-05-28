@@ -8,18 +8,17 @@ module.exports = function (context) {
         return
       }
 
+      const attributes = node.attributes.filter(
+        (attr) => attr.type === 'JSXAttribute'
+      )
       if (
-        node.attributes.find(
+        attributes.find(
           (attr) =>
-            attr.type === 'JSXAttribute' &&
-            attr.name.name === 'rel' &&
-            attr.value.value === 'stylesheet'
+            attr.name.name === 'rel' && attr.value.value === 'stylesheet'
         ) &&
-        node.attributes.find(
+        attributes.find(
           (attr) =>
-            attr.type === 'JSXAttribute' &&
-            attr.name.name === 'href' &&
-            !/^https?/.test(attr.value.value)
+            attr.name.name === 'href' && !/^https?/.test(attr.value.value)
         )
       ) {
         context.report({
