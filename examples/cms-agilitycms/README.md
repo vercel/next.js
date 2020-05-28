@@ -226,24 +226,23 @@ Click **Save** to create the `/posts` folder.
 
 ### Step 14. Add a new Dynamic Page called `posts-dynamic`
 
-Navigate to **Pages** and select the existing `/posts` folder. Click the **New (+)** button in the page tree to create a new **Dynamic Page** underneath the `posts` page.
+Navigate to **Pages** and select the existing `/posts` folder. Click the **+ (New)** button in the page tree to create a new **Dynamic Page** underneath the `posts` page.
 
-- The _Type_ should be `Dynamic Page`
-- The _Page Template_ should be `One Column Template`
-- The _Build Pages From_ should be `
-- The _Sitemap Label_ should be `posts-dynamic`
-- The _Page Path Formula_ should be `##Slug##`
-- The _Page Title Formula_ shoul be `##Title##`
-- The _Menu Text Formula_ should be `##Title##`
+- Set **Type** to `Dynamic Page`
+- Set **Page Template** to `One Column Template`
+- Set **Build Pages From** to `Posts`
+- Set **Sitemap Label** to `posts-dynamic`
+- Set **Page Path Formula** to `##Slug##`
+- Set **Page Title Formula** and **Menu Text Formula** to `##Title##`
 
-Click **Save** to create the `/posts/posts-dynamic`dynamic page.
+Click **Save** to create the `/posts/posts-dynamic` dynamic page.
 
-Next, add the `Post Details` module to the `Main Content Zone` of the `posts-dynamic` page.
+Next, let's add the `Post Details` module to the `Main Content Zone` of the `posts-dynamic` page:
 
-- Click the **New (+)** button on the `Main Content Zone` and select `Post Details` to add the module to the page
-- Click **Save & Close** on the module to return back to the page
+- Click the **+ (New)** button on `Main Content Zone` and select `Post Details` to add the module to the page
+- Click **Save & Close** on the module to return back to the `posts-dynamic` page
 
-**Important:** Click **Publish** on the page in order to publish the page and all of its modules.
+Then click **Publish** on the page in order to publish the page and all of its modules.
 
 ### Step 15. Set up environment variables
 
