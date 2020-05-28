@@ -106,6 +106,7 @@ On Cosmic, go to one of the posts you've created and:
 Now, if you go to the post page directly on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 Next, click the Preview Link button on the Post to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top. (Screenshot below)
+
 <img src="https://cdn.cosmicjs.com/80f42680-a07a-11ea-829b-5b458b05d525-preview-button.png" width="300" />
 
 ### Step 6. Deploy on Vercel
