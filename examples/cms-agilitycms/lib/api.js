@@ -5,25 +5,24 @@ export { validatePreview } from './preview'
 import { normalizePosts } from './normalize'
 import { requireComponentDependancyByName } from './dependancies'
 
-//Our LIVE API client
-export function agilityContentFetch() {
-  return agility.getApi({
-    guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
-    apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY,
-  })
-}
+// ifOur LIVE API client
+const liveClient = agility.getApi({
+  guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
+  apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY,
+})
 
-//Our PREVIEW API client
-export function agilityContentPreview() {
-  return agility.getApi({
-    guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
-    apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY,
-    isPreview: true,
-  })
-}
+// Our PREVIEW API client
+const previewClient = agility.getApi({
+  guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
+  apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY,
+  isPreview: true,
+})
+
+export const getClient = (preview = false) =>
+  preview ? previewClient : liveClient
 
 export async function getLatestPost({ preview }) {
-  const client = preview ? agilityContentPreview() : agilityContentFetch()
+  const client = getClient(preview)
   const data = await getAllPosts(client, 1)
   const normalizedPosts = normalizePosts(data)
   return normalizedPosts[0] || null
@@ -33,7 +32,7 @@ export async function getPostsForMoreStories({
   preview,
   postToExcludeContentID,
 }) {
-  const client = preview ? agilityContentPreview() : agilityContentFetch()
+  const client = getClient(preview)
 
   let allPosts = await getAllPosts(client, 5)
 
@@ -51,8 +50,7 @@ export async function getPostsForMoreStories({
 }
 
 export async function getPostDetails({ contentID, preview }) {
-  const client = preview ? agilityContentPreview() : agilityContentFetch()
-
+  const client = getClient(preview)
   const post = await client.getContentItem({
     contentID,
     languageCode: CMS_LANG,
@@ -79,9 +77,7 @@ async function getAllPosts(client, take) {
 export async function getAgilityPaths() {
   console.log(`Agility CMS => Fetching sitemap for getAgilityPaths...`)
 
-  //determine if we are in preview mode
-
-  const sitemapFlat = await agilityContentFetch().getSitemapFlat({
+  const sitemapFlat = await getClient().getSitemapFlat({
     channelName: CMS_CHANNEL,
     languageCode: CMS_LANG,
   })
@@ -99,7 +95,7 @@ export async function getAgilityPaths() {
 
 export async function getAgilityPageProps({ params, preview }) {
   //determine if we are in preview mode
-  const client = preview ? agilityContentPreview() : agilityContentFetch()
+  const client = getClient(preview)
 
   let path = '/'
   if (params) {
@@ -174,7 +170,7 @@ export async function getAgilityPageProps({ params, preview }) {
             languageCode: CMS_LANG,
             channelName: CMS_CHANNEL,
             pageInSitemap: pageInSitemap,
-            preview: preview,
+            preview,
           })
         }
 

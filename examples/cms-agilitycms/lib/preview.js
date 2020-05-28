@@ -1,4 +1,4 @@
-import { agilityContentPreview } from './api'
+import { getClient } from './api'
 import { getParameterByName } from './utils'
 import { CMS_LANG, CMS_CHANNEL } from './constants'
 import crypto from 'crypto'
@@ -89,8 +89,7 @@ export async function validateSlugForPreview({ slug, contentID }) {
     }
   }
 
-  const client = agilityContentPreview()
-
+  const client = getClient(true)
   //this is a standard page
   const sitemapFlat = await client.getSitemapFlat({
     channelName: CMS_CHANNEL,
