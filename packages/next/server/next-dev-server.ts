@@ -31,6 +31,7 @@ import { Telemetry } from '../telemetry/storage'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
+import { fileExists } from '../lib/file-exists'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -350,10 +351,9 @@ export default class DevServer extends Server {
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
-      try {
-        await fs.promises.stat(join(this.publicDir, '_next'))
+      if (await fileExists(join(this.publicDir, '_next'))) {
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-      } catch (err) {}
+      }
     }
 
     const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
