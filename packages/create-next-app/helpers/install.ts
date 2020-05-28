@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import spawn from 'cross-spawn'
 

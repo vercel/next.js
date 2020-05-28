@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import Commander from 'commander'
 import path from 'path'

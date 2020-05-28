@@ -9,7 +9,9 @@ import {
   CONFORMANCE_ERROR_PREFIX,
   CONFORMANCE_WARNING_PREFIX,
 } from '../constants'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { namedTypes } from 'ast-types/'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 import { getLocalFileName } from '../utils/file-utils'
 import { isNodeCreatingScriptElement } from '../utils/ast-utils'
