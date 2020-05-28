@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-material-ui",
-  "version": "9.4.3",
+  "version": "9.4.4-canary.0",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-plugin-material-ui"
