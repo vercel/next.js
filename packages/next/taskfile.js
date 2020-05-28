@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
