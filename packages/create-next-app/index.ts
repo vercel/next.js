@@ -1,15 +1,15 @@
 #!/usr/bin/env node
+/* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
-
-import { createApp } from './create-app'
+import { createApp, DownloadError } from './create-app'
+import { listExamples } from './helpers/examples'
+import { shouldUseYarn } from './helpers/should-use-yarn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
-import { shouldUseYarn } from './helpers/should-use-yarn'
-import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -17,7 +17,7 @@ const program = new Commander.Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
   .usage(`${chalk.green('<project-directory>')} [options]`)
-  .action(name => {
+  .action((name) => {
     projectPath = name
   })
   .option('--use-npm')
@@ -54,7 +54,7 @@ async function run(): Promise<void> {
       name: 'path',
       message: 'What is your project named?',
       initial: 'my-app',
-      validate: name => {
+      validate: (name) => {
         const validation = validateNpmName(path.basename(path.resolve(name)))
         if (validation.valid) {
           return true
@@ -95,7 +95,7 @@ async function run(): Promise<void> {
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach(p => console.error(`    ${chalk.red.bold('*')} ${p}`))
+    problems!.forEach((p) => console.error(`    ${chalk.red.bold('*')} ${p}`))
     process.exit(1)
   }
 
@@ -165,14 +165,33 @@ async function run(): Promise<void> {
     }
   }
 
-  await createApp({
-    appPath: resolvedProjectPath,
-    useNpm: !!program.useNpm,
-    example:
-      (typeof program.example === 'string' && program.example.trim()) ||
-      undefined,
-    examplePath: program.examplePath,
-  })
+  const example = typeof program.example === 'string' && program.example.trim()
+  try {
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      example: example && example !== 'default' ? example : undefined,
+      examplePath: program.examplePath,
+    })
+  } catch (reason) {
+    if (!(reason instanceof DownloadError)) {
+      throw reason
+    }
+
+    const res = await prompts({
+      type: 'confirm',
+      name: 'builtin',
+      message:
+        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+        `Do you want to use the default template instead?`,
+      initial: true,
+    })
+    if (!res.builtin) {
+      throw reason
+    }
+
+    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+  }
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)
@@ -205,7 +224,7 @@ async function notifyUpdate(): Promise<void> {
 
 run()
   .then(notifyUpdate)
-  .catch(async reason => {
+  .catch(async (reason) => {
     console.log()
     console.log('Aborting installation.')
     if (reason.command) {

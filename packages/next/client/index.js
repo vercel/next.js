@@ -53,7 +53,9 @@ const asPath = getURL()
 const pageLoader = new PageLoader(buildId, prefix)
 const register = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
-  window.__NEXT_P.map(register)
+  // Defer page registration for another tick. This will increase the overall
+  // latency in hydrating the page, but reduce the total blocking time.
+  window.__NEXT_P.map((p) => setTimeout(() => register(p), 0))
 }
 window.__NEXT_P = []
 window.__NEXT_P.push = register
@@ -62,9 +64,9 @@ const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
+let lastRenderReject
 let webpackHMR
 export let router
-let ErrorComponent
 let Component
 let App, onPerfEntry
 
@@ -79,10 +81,10 @@ class Container extends React.Component {
     if (process.env.__NEXT_PLUGINS) {
       // eslint-disable-next-line
       import('next-plugin-loader?middleware=unstable-post-hydration!')
-        .then(mod => {
+        .then((mod) => {
           return mod.default()
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Error calling post-hydration for plugins', err)
         })
     }
@@ -152,13 +154,8 @@ class Container extends React.Component {
       return this.props.children
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (process.env.__NEXT_FAST_REFRESH) {
-        const {
-          ReactDevOverlay,
-        } = require('@next/react-dev-overlay/lib/client')
-        return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
-      }
-      return this.props.children
+      const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
+      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
 }
@@ -184,8 +181,9 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       entries,
     }) => {
       // Combines timestamp with random number for unique ID
-      const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) +
-        1e12}`
+      const uniqueID = `${Date.now()}-${
+        Math.floor(Math.random() * (9e12 - 1)) + 1e12
+      }`
       let perfStartEntry
 
       if (entries && entries.length) {
@@ -223,6 +221,40 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     initialErr = error
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    // Server-side runtime errors need to be re-thrown on the client-side so
+    // that the overlay is rendered.
+    if (initialErr) {
+      if (initialErr === err) {
+        setTimeout(() => {
+          let error
+          try {
+            // Generate a new error object. We `throw` it because some browsers
+            // will set the `stack` when thrown, and we want to ensure ours is
+            // not overridden when we re-throw it below.
+            throw new Error(initialErr.message)
+          } catch (e) {
+            error = e
+          }
+
+          error.name = initialErr.name
+          error.stack = initialErr.stack
+
+          const node = getNodeError(error)
+          throw node
+        })
+      }
+      // We replaced the server-side error with a client-side error, and should
+      // no longer rewrite the stack trace to a Node error.
+      else {
+        setTimeout(() => {
+          throw initialErr
+        })
+      }
+    }
+  }
+
   if (window.__NEXT_PRELOADREADY) {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
@@ -235,19 +267,18 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback,
-    subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err })
-    },
+    subscription: ({ Component, props, err }, App) =>
+      render({ App, Component, props, err }),
   })
 
   // call init-client middleware
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-init-client!')
-      .then(mod => {
+      .then((mod) => {
         return mod.default({ router })
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Error calling client-init for plugins', err)
       })
   }
@@ -273,6 +304,12 @@ export async function render(props) {
   try {
     await doRender(props)
   } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      // Ensure this error is displayed in the overlay in development
+      setTimeout(() => {
+        throw err
+      })
+    }
     await renderError({ ...props, err })
   }
 }
@@ -283,59 +320,29 @@ export async function render(props) {
 export function renderError(props) {
   const { App, err } = props
 
-  // In development runtime errors are caught by react-error-overlay
+  // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
-    if (process.env.__NEXT_FAST_REFRESH) {
-      // A Next.js rendering runtime error is always unrecoverable
-      // FIXME: let's make this recoverable (error in GIP client-transition)
-      webpackHMR.onUnrecoverableError()
+    // A Next.js rendering runtime error is always unrecoverable
+    // FIXME: let's make this recoverable (error in GIP client-transition)
+    webpackHMR.onUnrecoverableError()
 
-      const { getNodeError } = require('@next/react-dev-overlay/lib/client')
-      // Server-side runtime errors need to be re-thrown on the client-side so
-      // that the overlay is rendered.
-      if (isInitialRender) {
-        setTimeout(() => {
-          let error
-          try {
-            // Generate a new error object. We `throw` it because some browsers
-            // will set the `stack` when thrown, and we want to ensure ours is
-            // not overridden when we re-throw it below.
-            throw new Error(err.message)
-          } catch (e) {
-            error = e
-          }
-
-          error.name = err.name
-          error.stack = err.stack
-
-          const node = getNodeError(error)
-          throw node
-        })
-      }
-
-      // We need to render an empty <App> so that the `<ReactDevOverlay>` can
-      // render itself.
-      return doRender({
-        App: () => null,
-        props: {},
-        Component: () => null,
-        err: null,
-      })
-    }
-
-    // Legacy behavior:
-    return Promise.resolve(
-      webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
-    )
+    // We need to render an empty <App> so that the `<ReactDevOverlay>` can
+    // render itself.
+    return doRender({
+      App: () => null,
+      props: {},
+      Component: () => null,
+      err: null,
+    })
   }
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-error-client!')
-      .then(mod => {
+      .then((mod) => {
         return mod.default({ err })
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('error calling on-error-client for plugins', err)
       })
   }
@@ -355,7 +362,7 @@ export function renderError(props) {
     }
     return Promise.resolve(
       props.props ? props.props : loadGetInitialProps(App, appCtx)
-    ).then(initProps =>
+    ).then((initProps) =>
       doRender({
         ...props,
         err,
@@ -440,7 +447,7 @@ function markRenderComplete() {
       .forEach(onPerfEntry)
   }
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach(measure =>
+  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
     performance.clearMeasures(measure)
   )
 }
@@ -451,14 +458,14 @@ function clearMarks() {
     'afterHydrate',
     'afterRender',
     'routeChange',
-  ].forEach(mark => performance.clearMarks(mark))
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function AppContainer({ children }) {
   return (
     <Container
-      fn={error =>
-        renderError({ App, err: error }).catch(err =>
+      fn={(error) =>
+        renderError({ App, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
       }
@@ -472,7 +479,7 @@ function AppContainer({ children }) {
   )
 }
 
-const wrapApp = App => props => {
+const wrapApp = (App) => (props) => {
   const appProps = { ...props, Component, err, router }
   return (
     <AppContainer>
@@ -482,25 +489,6 @@ const wrapApp = App => props => {
 }
 
 async function doRender({ App, Component, props, err }) {
-  // Usual getInitialProps fetching is handled in next/router
-  // this is for when ErrorComponent gets replaced by Component by HMR
-  if (
-    !props &&
-    Component &&
-    Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent
-  ) {
-    const { pathname, query, asPath } = router
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      router,
-      AppTree,
-      Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath, AppTree },
-    }
-    props = await loadGetInitialProps(App, appCtx)
-  }
-
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -508,16 +496,27 @@ async function doRender({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitter.emit('before-reactdom-render', {
-    Component,
-    ErrorComponent,
-    appProps,
+  let resolvePromise
+  const renderPromise = new Promise((resolve, reject) => {
+    if (lastRenderReject) {
+      lastRenderReject()
+    }
+    resolvePromise = () => {
+      lastRenderReject = null
+      resolve()
+    }
+    lastRenderReject = () => {
+      lastRenderReject = null
+      reject()
+    }
   })
 
   const elem = (
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>
+    <Root callback={resolvePromise}>
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    </Root>
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
@@ -530,5 +529,12 @@ async function doRender({ App, Component, props, err }) {
     appElement
   )
 
-  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+  await renderPromise
+}
+
+function Root({ callback, children }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return children
 }

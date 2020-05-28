@@ -7,7 +7,7 @@ description: Dynamically import JavaScript modules and React Components and spli
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-dynamic-import">Dynamic Import</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import">Dynamic Import</a></li>
   </ul>
 </details>
 
@@ -55,7 +55,7 @@ To dynamically import the `Hello` component, you can return it from the [Promise
 import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() =>
-  import('../components/hello').then(mod => mod.Hello)
+  import('../components/hello').then((mod) => mod.Hello)
 )
 
 function Home() {

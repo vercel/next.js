@@ -8,8 +8,8 @@ class CustomDocument extends Document {
   render() {
     // Store initial props from request data that we need to use again on
     // the client. See:
-    // https://github.com/zeit/next.js/issues/3043#issuecomment-334521241
-    // https://github.com/zeit/next.js/issues/2252#issuecomment-353992669
+    // https://github.com/vercel/next.js/issues/3043#issuecomment-334521241
+    // https://github.com/vercel/next.js/issues/2252#issuecomment-353992669
     // Alternatively, you could use a store, like Redux.
     const { AuthUserInfo } = this.props
     return (
@@ -32,7 +32,7 @@ class CustomDocument extends Document {
   }
 }
 
-CustomDocument.getInitialProps = async ctx => {
+CustomDocument.getInitialProps = async (ctx) => {
   // Get the AuthUserInfo object. This is set if the server-rendered page
   // is wrapped in the `withAuthUser` higher-order component.
   const AuthUserInfo = get(ctx, 'myCustomData.AuthUserInfo', null)

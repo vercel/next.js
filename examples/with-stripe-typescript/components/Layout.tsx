@@ -60,7 +60,7 @@ const Layout: React.FunctionComponent<Props> = ({
         </a>
         .{' View code on '}
         <a
-          href="https://github.com/zeit/next.js/tree/canary/examples/with-stripe-typescript"
+          href="https://github.com/vercel/next.js/tree/canary/examples/with-stripe-typescript"
           target="_blank"
           rel="noopener noreferrer"
         >

@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 declare module '@babel/plugin-transform-modules-commonjs'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
@@ -218,6 +219,10 @@ declare module 'next/dist/compiled/webpack-hot-middleware' {
 }
 declare module 'next/dist/compiled/terser-webpack-plugin' {
   import m from 'terser-webpack-plugin'
+  export = m
+}
+declare module 'next/dist/compiled/comment-json' {
+  import m from 'comment-json'
   export = m
 }
 

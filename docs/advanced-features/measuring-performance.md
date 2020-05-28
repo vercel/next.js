@@ -144,8 +144,11 @@ export function reportWebVitals(metric) {
   const url = 'https://example.com/analytics'
 
   // Use `navigator.sendBeacon()` if available, falling back to `fetch()`.
-  ;(navigator.sendBeacon && navigator.sendBeacon(url, body)) ||
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(url, body)
+  } else {
     fetch(url, { body, method: 'POST', keepalive: true })
+  }
 }
 ```
 
@@ -155,13 +158,14 @@ export function reportWebVitals(metric) {
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
->  ga('send', 'event', {
->    eventCategory: `Next.js ${ label } metric`,
->    eventAction: name,
->    eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
->    eventLabel: id, // id unique to current page load
->    nonInteraction: true, // avoids affecting bounce rate.
->    },
+>   ga('send', 'event', {
+>     eventCategory:
+>       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
+>     eventAction: name,
+>     eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
+>     eventLabel: id, // id unique to current page load
+>     nonInteraction: true, // avoids affecting bounce rate.
+>   })
 > }
 > ```
 >
