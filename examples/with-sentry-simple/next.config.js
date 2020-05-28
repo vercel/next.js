@@ -51,6 +51,7 @@ module.exports = withSourceMaps({
           include: '.next',
           ignore: ['node_modules'],
           urlPrefix: '~/_next',
+          release: options.buildId,
         })
       )
     }

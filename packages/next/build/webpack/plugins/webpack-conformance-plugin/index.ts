@@ -1,19 +1,20 @@
-import { Compiler, compilation } from 'webpack'
-import {
-  IConformanceTestResult,
-  IWebpackConformanceTest,
-  IConformanceAnomaly,
-  IGetAstNodeResult,
-  NodeInspector,
-  IConformanceTestStatus,
-} from './TestInterface'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'next/dist/compiled/recast'
+import { compilation, Compiler } from 'webpack'
+import {
+  IConformanceAnomaly,
+  IConformanceTestResult,
+  IConformanceTestStatus,
+  IGetAstNodeResult,
+  IWebpackConformanceTest,
+  NodeInspector,
+} from './TestInterface'
 
-export { MinificationConformanceCheck } from './checks/minification-conformance-check'
-export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
 export { DuplicatePolyfillsConformanceCheck } from './checks/duplicate-polyfills-conformance-check'
 export { GranularChunksConformanceCheck } from './checks/granular-chunks-conformance'
+export { MinificationConformanceCheck } from './checks/minification-conformance-check'
+export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
 
 export interface IWebpackConformancePluginOptions {
   tests: IWebpackConformanceTest[]
