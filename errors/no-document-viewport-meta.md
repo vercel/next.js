@@ -8,36 +8,35 @@ Adding `<meta name="viewport" ...>` in `pages/_document.js` will lead to unexpec
 
 Set your viewport `meta` tag in `pages/_app.js` instead:
 
-```js
+```jsx
 // pages/_app.js
-import App from 'next/app'
-import Head from 'next/head'
 import React from 'react'
+import Head from 'next/head'
 
-export default class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
-
-  render() {
-    const { Component, pageProps } = this.props
-
-    return (
-      <>
-        <Head>
-          <meta name="viewport" content="viewport-fit=cover" />
-        </Head>
-        <Component {...pageProps} />
-      </>
-    )
-  }
+function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <Head>
+        <meta name="viewport" content="viewport-fit=cover" />
+      </Head>
+      <Component {...pageProps} />
+    </>
+  )
 }
+
+// Only uncomment this method if you have blocking data requirements for
+// every single page in your application. This disables the ability to
+// perform automatic static optimization, causing every page in your app to
+// be server-side rendered.
+//
+// MyApp.getInitialProps = async (appContext) => {
+//   // calls page's `getInitialProps` and fills `appProps.pageProps`
+//   const appProps = await App.getInitialProps(appContext);
+//
+//   return { ...appProps }
+// }
+
+export default MyApp
 ```
 
 ### Useful Links
