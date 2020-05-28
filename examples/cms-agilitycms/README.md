@@ -199,7 +199,7 @@ Navigate to **Pages** and click the **+ (New)** button in the page tree to creat
 
 Click **Save** to create the `/home` page.
 
-Next, let's add the `Hero Post` and `More Stories` modules to the `Main Content Zone` of the `home` page:
+Next, let's add the `Intro`, `Hero Post` and `More Stories` modules to the `Main Content Zone` of the `home` page:
 
 - Click the **+ (New)** button on `Main Content Zone` and select `Intro` to add the module to the page
 - Click **Save & Close** on the module to return back to the page
@@ -237,9 +237,11 @@ Navigate to **Pages** and select the existing `/posts` folder. Click the **+ (Ne
 
 Click **Save** to create the `/posts/posts-dynamic` dynamic page.
 
-Next, let's add the `Post Details` module to the `Main Content Zone` of the `posts-dynamic` page:
+Next, let's add the `Post Details` and `More Stories` modules to the `Main Content Zone` of the `posts-dynamic` page:
 
 - Click the **+ (New)** button on `Main Content Zone` and select `Post Details` to add the module to the page
+- Click the **+ (New)** button on `Main Content Zone` and select `More Stories` to add the module to the page
+  - Set **Title** to `More Stories`
 - Click **Save & Close** on the module to return back to the `posts-dynamic` page
 
 Then click **Publish** on the page in order to publish the page and all of its modules.
@@ -252,7 +254,7 @@ Copy the `.env.local.example` file in this directory to `.env.local` (which will
 cp .env.local.example .env.local
 ```
 
-Go to the **Getting Started** section from the menu and click on **API Keys**. You should see a new modal called `Content API Details`, click in the `Show API Key(s)` button.
+Go to the **Getting Started** section from the menu and click on **API Keys**. You should see a new modal called `Content API Details`, then click in the **Show API Key(s)** button within it.
 
 Then set each variable on `.env.local`:
 
@@ -284,41 +286,41 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
-### Step 17. Deploy on ZEIT Now
+### Step 17. Deploy on Vercel
 
-You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://zeit.co/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_AGILITY_GUID>`, `<NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY>`, `<NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY>`, and `<NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY>` with the corresponding strings in `.env`.
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable with the corresponding strings in `.env.local`:
 
 ```
-now secrets add next_example_cms_agility_guid <NEXT_EXAMPLE_CMS_AGILITY_GUID>
-now secrets add next_example_cms_agility_api_fetch_key <NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY>
-now secrets add next_example_cms_agility_api_preview_key <NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY>
-now secrets add next_example_cms_agility_security_key <NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY>
+vercel secrets add next_example_cms_agility_guid <NEXT_EXAMPLE_CMS_AGILITY_GUID>
+vercel secrets add next_example_cms_agility_api_fetch_key <NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY>
+vercel secrets add next_example_cms_agility_api_preview_key <NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY>
+vercel secrets add next_example_cms_agility_security_key <NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY>
 ```
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
 
 ### Step 18. Try preview mode
 
 Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
-To enable the Preview Mode, you'll need to add your site `https://<your-zeit-now-domain>.now.sh` to your **Domain Configuration** in Agility CMS.
+To enable the Preview Mode, you'll need to add your site to **Domain Configuration** in Agility CMS:
 
 - Go to **Settings** > **Domain Configuration**
-- Click on the existing **Channel** called `Website`
-- Click on the **+ (New)** button to add a new domain
-- For _Name_ use `Production`
-- For _Domain URL_ use `https://<your-zeit-now-domain>.now.sh`
-- Check the _Preview Domain_ so that it is set to `true`
-- Click **Save** to save your settings
+- Click on the existing channel in the list called `Website`
+- Click on the **+ (New)** button to add a new domain:
+  - Set **Name** to `Production`
+  - Set **Domain URL** to the URL of your production deployment, it should look like `https://<your-vercel-domain>.now.sh`
+  - Enable **Preview Domain**
+  - Click **Save** to save your settings
 
-Go to one of your `Posts` and **Update the title**. For example, you can add `[Staging]` in front of the title. Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the staging state.
+Go to one of your `Posts` and update the title. For example, you can add `[Staging]` in front of the title. Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the staging state.
 
 To enter **Preview Mode**, click the `Preview` button on the details of your `Post`. This redirects you to the `/` page, however you will now be in **Preview Mode** so you can navigate to your `Post` you want to view on the website.
 
-> NOTE - To set up preview so you can click **Preview** from a `Post` and have it load that specific `Post` (as opposed to the `/` page), click on the **Settings** tab of the `Post` list in **Shared Content**. For **Item Preview Page** set it to `~/posts/posts-dynamic` and for **Item Preview Query String Parameter** set it to `contentid`.
-
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+
+> NOTE - To set up preview on a specific `Post` (as opposed to the `/` page), click on the **Settings** tab of the `Post` list in **Shared Content**. For **Item Preview Page** set it to `~/posts/posts-dynamic` and for **Item Preview Query String Parameter** set it to `contentid`.
