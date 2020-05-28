@@ -1,14 +1,15 @@
-import { useRouter } from 'next/router'
-import ErrorPage from 'next/error'
-import Container from '../components/container'
-import Layout from '../components/layout'
 import Head from 'next/head'
-import { getAgilityPaths, getAgilityPageProps } from '../lib/api'
-import CMSPageTemplate from '../lib/components/page-template'
+import ErrorPage from 'next/error'
+import { useRouter } from 'next/router'
+import Layout from '../components/layout'
+import Container from '../components/container'
 import { CMS_NAME } from '../lib/constants'
-import { handlePreviewRedirect } from '../lib/preview'
+import { getAgilityPaths, getAgilityPageProps } from '../lib/api'
+import usePreviewRedirect from '../lib/use-preview-redirect'
+import CMSPageTemplate from '../lib/components/page-template'
+// import MainPage from '../components/main-page'
 
-export default function Index({
+export default function Slug({
   sitemapNode,
   page,
   pageTemplateName,
@@ -16,7 +17,7 @@ export default function Index({
   channelName,
   preview,
 }) {
-  handlePreviewRedirect()
+  usePreviewRedirect()
 
   const router = useRouter()
   if (!router.isFallback && !page) {
@@ -48,7 +49,7 @@ export default function Index({
   )
 }
 
-export async function getStaticProps({ params, preview }) {
+export async function getStaticProps({ params, preview = false }) {
   const props = await getAgilityPageProps({ params, preview })
 
   if (!props) {
@@ -62,7 +63,7 @@ export async function getStaticProps({ params, preview }) {
       pageTemplateName: props.pageTemplateName,
       languageCode: props.languageCode,
       channelName: props.channelName,
-      preview: preview ?? false,
+      preview,
     },
   }
 }

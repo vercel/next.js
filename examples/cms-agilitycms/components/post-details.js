@@ -3,7 +3,6 @@ import PostHeader from './post-header'
 import PostBody from './post-body'
 import SectionSeparator from './section-separator'
 import Head from 'next/head'
-import { getPostDetails } from '../lib/api'
 import { CMS_NAME } from '../lib/constants'
 
 export default function PostDetails({ post }) {
@@ -30,12 +29,11 @@ export default function PostDetails({ post }) {
   )
 }
 
-PostDetails.getCustomInitialProps = async function ({
-  preview,
-  pageInSitemap,
-}) {
+// The data returned here will be send as `props` to the component
+PostDetails.getCustomInitialProps = async function ({ client, pageInSitemap }) {
   const contentID = pageInSitemap.contentID
-  const post = await getPostDetails({ contentID, preview })
+  const post = await client.getPostDetails({ contentID })
+
   return {
     post,
   }

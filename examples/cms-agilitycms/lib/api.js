@@ -5,7 +5,7 @@ export { validatePreview } from './preview'
 import { normalizePosts } from './normalize'
 import { requireComponentDependancyByName } from './dependancies'
 
-// ifOur LIVE API client
+// Our LIVE API client
 const liveClient = agility.getApi({
   guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
   apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY,
@@ -21,57 +21,57 @@ const previewClient = agility.getApi({
 export const getClient = (preview = false) =>
   preview ? previewClient : liveClient
 
-export async function getLatestPost({ preview }) {
-  const client = getClient(preview)
-  const data = await getAllPosts(client, 1)
-  const normalizedPosts = normalizePosts(data)
-  return normalizedPosts[0] || null
-}
-
-export async function getPostsForMoreStories({
-  preview,
-  postToExcludeContentID,
-}) {
-  const client = getClient(preview)
-
-  let allPosts = await getAllPosts(client, 5)
-
-  //if we don't have a post to exclude, assume we should exclude the latest one
-  if (postToExcludeContentID < 0) {
-    allPosts.shift()
+// This client is used by nested components to fetch additional data within `getStaticProps`
+export class APIClient {
+  constructor({ preview = false }) {
+    this.preview = preview
+    this.client = getClient(preview)
   }
 
-  const postsLessThisPost = allPosts.filter((p) => {
-    return p.contentID !== postToExcludeContentID
-  })
+  async getAllPosts(take) {
+    const data = await this.client.getContentList({
+      referenceName: `posts`,
+      languageCode: CMS_LANG,
+      contentLinkDepth: 1,
+      take: take, // TODO: Implement pagination
+    })
 
-  const normalizedMorePosts = normalizePosts(postsLessThisPost)
-  return normalizedMorePosts
-}
+    return data.items
+  }
 
-export async function getPostDetails({ contentID, preview }) {
-  const client = getClient(preview)
-  const post = await client.getContentItem({
-    contentID,
-    languageCode: CMS_LANG,
-    contentLinkDepth: 1,
-  })
+  async getLatestPost() {
+    const data = await this.getAllPosts(1)
+    const normalizedPosts = normalizePosts(data)
 
-  const normalizedPost = normalizePosts([post])[0]
+    return normalizedPosts[0] || null
+  }
 
-  return normalizedPost
-}
+  async getPostDetails({ contentID, preview }) {
+    const post = await this.client.getContentItem({
+      contentID,
+      languageCode: CMS_LANG,
+      contentLinkDepth: 1,
+    })
+    const normalizedPost = normalizePosts([post])[0]
 
-//Retrieves all Posts
-async function getAllPosts(client, take) {
-  const data = await client.getContentList({
-    referenceName: `posts`,
-    languageCode: CMS_LANG,
-    contentLinkDepth: 1,
-    take: take, //TODO: Implement paging...
-  })
+    return normalizedPost
+  }
 
-  return data.items
+  async getPostsForMoreStories({ postToExcludeContentID }) {
+    let allPosts = await this.getAllPosts(5)
+
+    //if we don't have a post to exclude, assume we should exclude the latest one
+    if (postToExcludeContentID < 0) {
+      allPosts.shift()
+    }
+
+    const postsLessThisPost = allPosts.filter((p) => {
+      return p.contentID !== postToExcludeContentID
+    })
+
+    const normalizedMorePosts = normalizePosts(postsLessThisPost)
+    return normalizedMorePosts
+  }
 }
 
 export async function getAgilityPaths() {
@@ -166,11 +166,11 @@ export async function getAgilityPageProps({ params, preview }) {
             `Agility CMS => Fetching additional data via getCustomInitialProps for ${moduleItem.module}...`
           )
           moduleData = await ModuleComponentToRender.getCustomInitialProps({
+            client: new APIClient({ preview }),
             item: moduleItem.item,
             languageCode: CMS_LANG,
             channelName: CMS_CHANNEL,
             pageInSitemap: pageInSitemap,
-            preview,
           })
         }
 

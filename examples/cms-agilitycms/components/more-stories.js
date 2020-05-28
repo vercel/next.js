@@ -1,5 +1,4 @@
 import PostPreview from '../components/post-preview'
-import { getPostsForMoreStories } from '../lib/api'
 
 export default function MoreStories({ title, posts }) {
   return (
@@ -24,17 +23,15 @@ export default function MoreStories({ title, posts }) {
   )
 }
 
-//What is returned here, will be past as `props` to the component
+// The data returned here will be send as `props` to the component
 MoreStories.getCustomInitialProps = async function ({
-  preview,
+  client,
   item,
   pageInSitemap,
 }) {
   const postToExcludeContentID = pageInSitemap.contentID ?? -1
-  const posts = await getPostsForMoreStories({
-    preview,
-    postToExcludeContentID,
-  })
+  const posts = await client.getPostsForMoreStories({ postToExcludeContentID })
+
   return {
     title: item.fields.title,
     posts,

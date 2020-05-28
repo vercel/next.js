@@ -1,8 +1,7 @@
+import Link from 'next/link'
 import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from '../components/cover-image'
-import Link from 'next/link'
-import { getLatestPost } from '../lib/api'
 
 export default function HeroPost({
   title,
@@ -43,8 +42,8 @@ export default function HeroPost({
   )
 }
 
-//What is returned here, will be past as `props` to the component
-HeroPost.getCustomInitialProps = async function ({ preview }) {
-  const post = await getLatestPost({ preview })
+// The data returned here will be send as `props` to the component
+HeroPost.getCustomInitialProps = async function ({ client }) {
+  const post = await client.getLatestPost()
   return post
 }
