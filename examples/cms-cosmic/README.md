@@ -85,7 +85,9 @@ yarn dev
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
 ### Step 5. Add preview link
-To add the ability to preview content from your Cosmic dashboard go to Posts > Edit Settings and scroll down to the "Preview Link" section.
+To add the ability to preview content from your Cosmic dashboard go to <i>Posts > Edit Settings</i> and scroll down to the "Preview Link" section. (Screenshot below)
+![Image](https://cdn.cosmicjs.com/80fcd910-a07a-11ea-829b-5b458b05d525-preview-link.png)
+
 
 Add your live URL or localhost development URL which includes your chosen preview secret and `[object_slug]` shortcode. It should look like the following:
 
@@ -103,7 +105,8 @@ On Cosmic, go to one of the posts you've created and:
 
 Now, if you go to the post page directly on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
-Next, click the Preview Link button on the Post to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+Next, click the Preview Link button on the Post to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top. (Screenshot below)
+<img src="https://cdn.cosmicjs.com/80f42680-a07a-11ea-829b-5b458b05d525-preview-button.png" width="300" />
 
 ### Step 6. Deploy on Vercel
 
