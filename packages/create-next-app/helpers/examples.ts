@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import got from 'got'
 import tar from 'tar'
 import { Stream } from 'stream'
