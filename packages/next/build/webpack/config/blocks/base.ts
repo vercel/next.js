@@ -10,6 +10,11 @@ export const base = curry(function base(
   config.name = ctx.isServer ? 'server' : 'client'
   config.target = ctx.isServer ? 'node' : 'web'
 
+  // Stop compilation early in a production build when an error is encountered.
+  // This behavior isn't desirable in development due to how the HMR system
+  // works, but is a good default for production.
+  config.bail = ctx.isProduction
+
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {
     if (process.platform === 'win32') {
