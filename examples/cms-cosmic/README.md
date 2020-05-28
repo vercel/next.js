@@ -86,7 +86,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 5. Add preview link
 To add the ability to preview content from your Cosmic dashboard go to <i>Posts > Edit Settings</i> and scroll down to the "Preview Link" section. (Screenshot below)
-![Image](https://cdn.cosmicjs.com/80fcd910-a07a-11ea-829b-5b458b05d525-preview-link.png)
+![Image](https://cdn.cosmicjs.com/14e6c0f0-a07b-11ea-829b-5b458b05d525-preview-link.png)
 
 
 Add your live URL or localhost development URL which includes your chosen preview secret and `[object_slug]` shortcode. It should look like the following:
