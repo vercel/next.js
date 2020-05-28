@@ -77,7 +77,7 @@
     "execa": "2.0.3",
     "express": "4.17.0",
     "faunadb": "2.6.1",
-    "firebase": "6.3.4",
+    "firebase": "7.14.5",
     "fs-extra": "9.0.0",
     "get-port": "5.1.1",
     "glob": "7.1.6",
