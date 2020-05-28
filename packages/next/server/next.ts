@@ -12,6 +12,11 @@ type NextServerConstructor = Omit<ServerConstructor, 'staticMarkup'> & {
 // This file is used for when users run `require('next')`
 function createServer(options: NextServerConstructor): Server {
   const standardEnv = ['production', 'development', 'test']
+  if (typeof options == 'undefined') {
+    throw new Error(
+      `It seems the next instance is being instantiated incorrectly. Please be sure you're passing a valid object.`
+    )
+  }
 
   if (
     !(options as any).isNextDevCommand &&
