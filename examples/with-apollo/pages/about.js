@@ -16,8 +16,8 @@ const AboutPage = () => (
       </p>
       <p>
         In this simple example, we integrate Apollo seamlessly with{' '}
-        <a href="https://github.com/zeit/next.js">Next</a> by wrapping our Page
-        component inside a{' '}
+        <a href="https://github.com/vercel/next.js">Next</a> by wrapping our
+        Page component inside a{' '}
         <a href="https://facebook.github.io/react/docs/higher-order-components.html">
           higher-order component (HOC)
         </a>

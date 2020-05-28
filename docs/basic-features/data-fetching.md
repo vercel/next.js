@@ -9,12 +9,12 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
     <li><a href="https://static-tweet.now.sh/">Static Tweet Demo</a></li>
   </ul>
 </details>
@@ -103,6 +103,34 @@ import { GetStaticProps } from 'next'
 export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
+```
+
+If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`, like this:
+
+```tsx
+import { InferGetStaticPropsType } from 'next'
+
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps = async () => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
+  // will resolve posts to type Post[]
+}
+
+export default Blog
 ```
 
 ### Reading files: Use `process.cwd()`
@@ -293,6 +321,8 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
+> `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
+
 #### Fallback pages
 
 In the “fallback” version of a page:
@@ -448,6 +478,31 @@ import { GetServerSideProps } from 'next'
 export const getServerSideProps: GetServerSideProps = async (context) => {
   // ...
 }
+```
+
+If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`, like this:
+
+```tsx
+import { InferGetServerSidePropsType } from 'next'
+
+type Data = { ... }
+
+export const getServerSideProps = async () => {
+  const res = await fetch('https://.../data')
+  const data: Data = await res.json()
+
+  return {
+    props: {
+      data,
+    },
+  }
+}
+
+function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  // will resolve posts to type Data
+}
+
+export default Page
 ```
 
 ### Technical details

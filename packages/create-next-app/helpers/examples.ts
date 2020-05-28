@@ -61,7 +61,7 @@ export function hasRepo({
 
 export function hasExample(name: string): Promise<boolean> {
   return isUrlOk(
-    `https://api.github.com/repos/zeit/next.js/contents/examples/${encodeURIComponent(
+    `https://api.github.com/repos/vercel/next.js/contents/examples/${encodeURIComponent(
       name
     )}/package.json`
   )
@@ -86,9 +86,13 @@ export async function downloadAndExtractExample(
   root: string,
   name: string
 ): Promise<void> {
+  if (name === '__internal-testing-retry') {
+    throw new Error('This is an internal example for testing the CLI.')
+  }
+
   try {
     return await pipeline(
-      got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),
+      got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
       tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
     )
   } catch (err) {

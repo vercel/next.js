@@ -60,7 +60,7 @@ cache:
 
 #### Netlify CI
 
-Use [Netlify Plugins (beta)](https://www.netlify.com/build/plugins-beta/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
+Use [Netlify Plugins](https://www.netlify.com/products/build/plugins/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
 
 #### AWS CodeBuild
 
