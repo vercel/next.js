@@ -1,5 +1,5 @@
-import path from 'path'
 import fs from 'fs'
+import path from 'path'
 
 let inspector
 try {
@@ -69,6 +69,7 @@ class Profiler {
   }
 }
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { Tracer } = require('chrome-trace-event')
 
 /**
