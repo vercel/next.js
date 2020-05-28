@@ -1,13 +1,13 @@
 import { useDispatch } from 'react-redux'
-import { withRedux, initializeServerSideStore } from '../lib/redux'
 import useInterval from '../lib/useInterval'
 import Clock from '../components/clock'
 import Counter from '../components/counter'
 import Nav from '../components/nav'
 
-const IndexPage = () => {
-  // Tick the time every second
+export default function IndexPage() {
   const dispatch = useDispatch()
+
+  // Tick the time every second
   useInterval(() => {
     dispatch({
       type: 'TICK',
@@ -15,6 +15,7 @@ const IndexPage = () => {
       lastUpdate: Date.now(),
     })
   }, 1000)
+
   return (
     <>
       <Nav />
@@ -23,24 +24,19 @@ const IndexPage = () => {
     </>
   )
 }
+
 // If you build and start the app, the date returned here will have the same
 // value for all requests, as this method gets executed at build time.
 export function getStaticProps() {
-  const reduxStore = initializeServerSideStore({
-    lastUpdate: Date.now(),
-    light: false,
-    count: 0,
-  })
-  // either pass your 'initialState' as an argument to 'initializeServerSideStore()' or dispatch an action
-
-  // const reduxStore = initializeServerSideStore()
-  // const { dispatch } = reduxStore
-  // dispatch({
-  // 	type: 'TICK',
-  // 	light: typeof window === 'object',
-  // 	lastUpdate: Date.now(),
-  // })
-  return { props: { initialReduxState: reduxStore.getState() } }
+  // Note that in this case we're returning the state directly, without
+  // creating the store first (like in /pages/ssr.js), that's just to demonstrate
+  // that it also works like this
+  return {
+    props: {
+      initialReduxState: {
+        lastUpdate: Date.now(),
+        light: false,
+      },
+    },
+  }
 }
-
-export default withRedux(IndexPage)

@@ -1,13 +1,14 @@
 import { useDispatch } from 'react-redux'
-import { withRedux, initializeServerSideStore } from '../lib/redux'
 import useInterval from '../lib/useInterval'
 import Clock from '../components/clock'
 import Counter from '../components/counter'
 import Nav from '../components/nav'
+import { initializeStore } from '../store'
 
-const IndexPage = () => {
-  // Tick the time every second
+export default function IndexPage() {
   const dispatch = useDispatch()
+
+  // Tick the time every second
   useInterval(() => {
     dispatch({
       type: 'TICK',
@@ -15,6 +16,7 @@ const IndexPage = () => {
       lastUpdate: Date.now(),
     })
   }, 1000)
+
   return (
     <>
       <Nav />
@@ -28,20 +30,14 @@ const IndexPage = () => {
 // that is because the page becomes a serverless function instead of being statically
 // exported when you use `getServerSideProps` or `getInitialProps`
 export function getServerSideProps() {
-  const reduxStore = initializeServerSideStore({
-    lastUpdate: Date.now(),
+  const reduxStore = initializeStore()
+  const { dispatch } = reduxStore
+
+  dispatch({
+    type: 'TICK',
     light: false,
-    count: 0,
+    lastUpdate: Date.now(),
   })
-  // either pass your 'initialState' as an argument to 'initializeServerSideStore()' or dispatch an action
-  // const reduxStore = initializeServerSideStore()
-  // const { dispatch } = reduxStore
-  // dispatch({
-  // 	type: 'TICK',
-  // 	light: typeof window === 'object',
-  // 	lastUpdate: Date.now(),
-  // })
+
   return { props: { initialReduxState: reduxStore.getState() } }
 }
-
-export default withRedux(IndexPage)

@@ -1,11 +1,17 @@
-// This is not client side routing and is done to demonstrate initial state in ssr/ssg.
-// Use 'Link' from 'next/link' in production apps.
+import Link from 'next/link'
+
 const Nav = () => {
   return (
     <nav>
-      <a href="/">Index</a>
-      <a href="/ssr">SSR</a>
-      <a href="/ssg">SSG</a>
+      <Link href="/">
+        <a>Index</a>
+      </Link>
+      <Link href="/ssg">
+        <a>SSG</a>
+      </Link>
+      <Link href="/ssr">
+        <a>SSR</a>
+      </Link>
       <style jsx>
         {`
           a {

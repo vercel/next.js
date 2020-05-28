@@ -1,13 +1,13 @@
 import { useDispatch } from 'react-redux'
-import { withRedux } from '../lib/redux'
 import useInterval from '../lib/useInterval'
 import Clock from '../components/clock'
 import Counter from '../components/counter'
 import Nav from '../components/nav'
 
-const IndexPage = () => {
-  // Tick the time every second
+export default function IndexPage() {
   const dispatch = useDispatch()
+
+  // Tick the time every second
   useInterval(() => {
     dispatch({
       type: 'TICK',
@@ -15,14 +15,13 @@ const IndexPage = () => {
       lastUpdate: Date.now(),
     })
   }, 1000)
+
   return (
     <>
       <Nav />
+      {/* The initial time returned here will be 00:00:00 */}
       <Clock />
       <Counter />
     </>
   )
 }
-
-// The initial time returned here will be 00:00:00.
-export default withRedux(IndexPage)
