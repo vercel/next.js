@@ -1,5 +1,4 @@
 import { promises as fsPromises } from 'fs'
-import { writeFile } from 'fs-extra'
 import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import os from 'os'
@@ -170,7 +169,7 @@ export async function verifyTypeScriptSetup(
     )
     console.log()
 
-    await writeFile(tsConfigPath, '{}' + os.EOL)
+    await fsPromises.writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
   let resolvedTsConfig
