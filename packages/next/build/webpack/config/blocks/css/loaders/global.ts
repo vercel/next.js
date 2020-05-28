@@ -24,7 +24,10 @@ export function getGlobalCssLoader(
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
     loader: require.resolve('css-loader'),
-    options: { importLoaders: 1 + preProcessors.length, sourceMap: true },
+    options: {
+      importLoaders: 1 + preProcessors.length,
+      sourceMap: ctx.isProduction ? ctx.productionBrowserSourceMaps : true,
+    },
   })
 
   // Compile CSS

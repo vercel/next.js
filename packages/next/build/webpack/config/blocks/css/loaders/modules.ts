@@ -27,7 +27,7 @@ export function getCssModuleLoader(
     loader: require.resolve('css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
-      sourceMap: true,
+      sourceMap: ctx.isProduction ? ctx.productionBrowserSourceMaps : true,
       onlyLocals: ctx.isServer,
       modules: {
         // Disallow global style exports so we can code-split CSS and
