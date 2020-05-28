@@ -28,6 +28,18 @@ ruleTester.run('sync-scripts', rule, {
           );
         }
     }`,
+    `import {Head} from 'next/document';
+
+      export class Blah extends Head {
+        render(props) {
+          return (
+            <div>
+              <h1>Hello title</h1>
+              <script {...props} ></script>
+            </div>
+          );
+        }
+    }`,
   ],
 
   invalid: [
@@ -41,6 +53,28 @@ ruleTester.run('sync-scripts', rule, {
               <div>
                 <h1>Hello title</h1>
                 <script src='https://blah.com'></script>
+              </div>
+            );
+          }
+      }`,
+      errors: [
+        {
+          message:
+            "A synchronous script tag can impact your webpage's performance",
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      import {Head} from 'next/document';
+
+        export class Blah extends Head {
+          render(props) {
+            return (
+              <div>
+                <h1>Hello title</h1>
+                <script src={props.src}></script>
               </div>
             );
           }
