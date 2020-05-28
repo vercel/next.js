@@ -213,7 +213,7 @@ export default function (render, fetch) {
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage =
-        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
       expect(
         $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
       ).toBeTruthy()
@@ -363,6 +363,12 @@ export default function (render, fetch) {
     describe('404', () => {
       it('should 404 on not existent page', async () => {
         const $ = await get$('/non-existent')
+        expect($('h1').text()).toBe('404')
+        expect($('h2').text()).toBe('This page could not be found.')
+      })
+
+      it('should 404 on wrong casing', async () => {
+        const $ = await get$('/NaV/aBoUt')
         expect($('h1').text()).toBe('404')
         expect($('h2').text()).toBe('This page could not be found.')
       })

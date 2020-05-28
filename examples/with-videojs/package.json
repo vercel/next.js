@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "next": "^9.1.8-canary.11",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
     "video.js": "^6.7.3",
     "videojs-youtube": "^2.4.1"
   },
