@@ -5,6 +5,19 @@ import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
 import { delBasePath } from './../next-server/lib/router/router'
 
+let trustedTypesPolicy = undefined
+if (window?.trustedTypes?.createPolicy) {
+  trustedTypesPolicy = window.trustedTypes.createPolicy('next-trusted-types', {
+    // Needs security review regarding DOM XSS
+    createHTML(dirty) {
+      return dirty.replace(/</g, '&lt;') // Escapes `<` characters to prevent the creation of new HTML elements
+    },
+    createScriptURL(dirty) {
+      return new URL(dirty.replace(/</g, '&lt;'), document.baseURI)
+    },
+  })
+}
+
 function hasRel(rel, link) {
   try {
     link = document.createElement('link')
@@ -262,7 +275,9 @@ export default class PageLoader {
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
-    script.src = url
+    script.src = trustedTypesPolicy
+      ? trustedTypesPolicy.createScriptURL(url)
+      : url
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
