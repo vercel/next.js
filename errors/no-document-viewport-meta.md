@@ -2,7 +2,8 @@
 
 #### Why This Error Occurred
 
-Adding `<meta name="viewport" ...>` in `pages/_document.js` will lead to unexpected results since the viewport is handled by `next/head`.
+Adding `<meta name="viewport" ...>` in `pages/_document.js` will lead to unexpected results since it cannot be deduped.
+The viewport tag should be handled by `next/head` in `pages/_app.js`.
 
 #### Possible Ways to Fix It
 
@@ -23,18 +24,6 @@ function MyApp({ Component, pageProps }) {
     </>
   )
 }
-
-// Only uncomment this method if you have blocking data requirements for
-// every single page in your application. This disables the ability to
-// perform automatic static optimization, causing every page in your app to
-// be server-side rendered.
-//
-// MyApp.getInitialProps = async (appContext) => {
-//   // calls page's `getInitialProps` and fills `appProps.pageProps`
-//   const appProps = await App.getInitialProps(appContext);
-//
-//   return { ...appProps }
-// }
 
 export default MyApp
 ```
