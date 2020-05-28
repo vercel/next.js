@@ -7,7 +7,6 @@ import { CMS_NAME } from '../lib/constants'
 import { getAgilityPaths, getAgilityPageProps } from '../lib/api'
 import usePreviewRedirect from '../lib/use-preview-redirect'
 import CMSPageTemplate from '../lib/components/page-template'
-// import MainPage from '../components/main-page'
 
 export default function Slug({
   sitemapNode,
