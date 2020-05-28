@@ -1,5 +1,6 @@
-import { types } from 'next/dist/compiled/recast'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { namedTypes } from 'ast-types'
+import { types } from 'next/dist/compiled/recast'
 
 export function isNodeCreatingScriptElement(node: namedTypes.CallExpression) {
   const callee = node.callee as namedTypes.Identifier
