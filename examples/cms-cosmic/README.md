@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://next-blog-cosmic.now.sh/](https://next-blog-cosmic.now.sh/)
+[https://cosmic-nextjs-blog.now.sh/](https://cosmic-nextjs-blog.now.sh/)
 
 ### Related examples
 
@@ -40,54 +40,11 @@ cd cms-cosmic
 
 First, [create an account on Cosmic](https://cosmicjs.com).
 
-After creating an account, create a **new bucket** from the dashboard. You can select a **Start from scratch**.
+### Step 2. Install the Next.js Static Blog
 
-### Step 2. Create an `Author` Object Type
+After creating an account, install the [Next.js Static Blog](https://www.cosmicjs.com/apps/nextjs-static-blog) from the Cosmic App Marketplace.
 
-From the bucket dashboard, create a new **Object Type**.
-
-- The name should be `Author`.
-
-Next, add these metafields (you don't have to modify the settings):
-
-- `Picture` - **Image/File** field
-
-Next, untoggle **Content Editor Text Area** from Object Options
-
-### Step 3. Create a `Post` Object Type
-
-From the bucket dashboard, create a new **Object Type**:
-
-- The name should be `Post`.
-
-Next, add these metafields (you don't have to modify the settings unless specified):
-
-- `Content` - **Markdown** field
-- `Excerpt` - **Plain Text Area** field
-- `Cover Image` - **Image/File** field
-- `Author` - **Single Object Relation** field , and from the "Setting" popup toggle "Limit Search by Object Type", select **Authors**.
-
-Next, untoggle **Content Editor Text Area** from Object Options
-
-### Step 4. Populate Content
-
-From the **Sidebar** menu, select **Authors** and create a new record.
-
-- You just need **1 Author record**.
-- Use dummy data for the Title.
-- For the image, you can download one from [Unsplash](https://unsplash.com/).
-
-Next, select **Posts** and create a new record.
-
-- We recommend creating at least **2 Post records**.
-- Use dummy data for the Title.
-- You can write markdown for the **Content** field.
-- For the images, you can download ones from [Unsplash](https://unsplash.com/).
-- Pick the **Author** you created earlier.
-
-**Important:** For each post record, you need to click **Publish** after saving. If not, the post will be in the draft state.
-
-### Step 5. Set up environment variables
+### Step 3. Set up environment variables
 
 Go to the **Settings** menu at the sidebar and click **Basic Settings**.
 
@@ -113,7 +70,7 @@ NEXT_EXAMPLE_CMS_COSMIC_READ_KEY=...
 NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET=...
 ```
 
-### Step 6. Run Next.js in development mode
+### Step 4. Run Next.js in development mode
 
 ```bash
 npm install
@@ -127,27 +84,28 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
-### Step 7. Try preview mode
+### Step 5. Add preview link
+To add the ability to preview content from your Cosmic dashboard go to Posts > Edit Settings and scroll down to the "Preview Link" section.
+
+Add your live URL or localhost development URL which includes your chosen preview secret and `[slug]` shortcode. It should look like the following:
+
+```
+http://localhost:3000/api/preview?secret=<secret>&slug=[slug]
+```
+
+- `<secret>` is the string you entered for `NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET`.
+- `[slug]` shortcode will automatically be converted to the post's `slug` attribute.
 
 On Cosmic, go to one of the posts you've created and:
 
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - Click **Save Draft**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to the post page directly on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
-To enable the Preview Mode, go to this URL:
+Next, click the Preview Link button on the Post to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-```
-http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
-```
-
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET`.
-- `<slug>` should be the post's `slug` attribute (you can check on Cosmic).
-
-You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
-
-### Step 8. Deploy on Vercel
+### Step 6. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
