@@ -246,28 +246,28 @@ Then click **Publish** on the page in order to publish the page and all of its m
 
 ### Step 15. Set up environment variables
 
-Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Go to the **Getting Started** section from the menu and select **API Keys**, then click the `Show API Key(s)`.
+Go to the **Getting Started** section from the menu and click on **API Keys**. You should see a new modal called `Content API Details`, click in the `Show API Key(s)` button.
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
-- `AGILITY_GUID` is be the **Instance GUID** provided.
-- `AGILITY_API_FETCH_KEY` is the **Live API Key**
-- `Agility_API_PREVIEW_KEY` is the **Preview API Key** - this is used when the site is in [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
-- `AGILITY_SECURITY_KEY` is **Security Key** and can be found in **Settings** > **Global Security** - this is used to communicate between the CMS your site to validate [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)
+- `NEXT_EXAMPLE_CMS_AGILITY_GUID` should be the **Instance GUID** field
+- `NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY` should be the **Live API Key** field
+- `NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY` should be the **Preview API Key** field - this is used when the site is in [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
+- `NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY` should be the **Security Key** field that can be found in **Settings** > **Global Security** - this is used to communicate between the CMS and your site to validate [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
-AGILITY_GUID=...
-AGILITY_API_FETCH_KEY=...
-AGILITY_API_PREVIEW_KEY=...
-AGILITY_SECURITY_KEY=...
+NEXT_EXAMPLE_CMS_AGILITY_GUID=...
+NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY=...
+NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY=...
+NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY=...
 ```
 
 ### Step 16. Run Next.js in development mode
@@ -303,7 +303,7 @@ Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https:
 
 ### Step 18. Try preview mode
 
-Now that you've deployed your app to ZEIT NOW, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, you'll need to add your site `https://<your-zeit-now-domain>.now.sh` to your **Domain Configuration** in Agility CMS.
 
