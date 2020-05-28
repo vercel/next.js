@@ -1,4 +1,4 @@
-# next-translate examplle
+# next-translate example
 
 This is an example of using [next-translate](https://github.com/vinissimus/next-translate) in a Next.js project.
 
