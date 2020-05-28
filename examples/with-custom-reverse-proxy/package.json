@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "cross-env": "^5.0.1",
-    "http-proxy-middleware": "^0.17.4"
+    "http-proxy-middleware": "^1.0.4"
   },
   "scripts": {
     "dev": "cross-env NODE_ENV=development PORT=3000 node server.js",
