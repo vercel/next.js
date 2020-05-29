@@ -17,6 +17,7 @@ const defaultConfig: { [key: string]: any } = {
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
+  customPagesPath: '',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
   generateEtags: true,
