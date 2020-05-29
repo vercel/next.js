@@ -1,6 +1,5 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
@@ -247,8 +246,6 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors =
-    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -319,7 +316,7 @@ export default async function getBaseWebpackConfig(
       warnings: false,
       // The following two options are known to break valid JavaScript code
       comparisons: false,
-      inline: 2, // https://github.com/zeit/next.js/issues/7178#issuecomment-493048965
+      inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
     },
     mangle: { safari10: true },
     output: {
@@ -331,7 +328,12 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool = dev ? 'cheap-module-source-map' : false
+  const devtool =
+    process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL
+      ? false
+      : dev
+      ? 'cheap-module-source-map'
+      : false
 
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
@@ -381,7 +383,7 @@ export default async function getBaseWebpackConfig(
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
-          // https://github.com/zeit/next.js/pull/9012
+          // https://github.com/vercel/next.js/pull/9012
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
           // Don't let webpack eliminate this chunk (prevents this chunk from
@@ -817,7 +819,7 @@ export default async function getBaseWebpackConfig(
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
+              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/vercel/next.js/env-key-not-allowed`
             )
           }
 
@@ -967,28 +969,10 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
-        !isServer &&
-        useTypeScript &&
-        !ignoreTypeScriptErrors &&
-        new ForkTsCheckerWebpackPlugin(
-          PnpWebpackPlugin.forkTsCheckerOptions({
-            typescript: typeScriptPath,
-            async: false,
-            useTypescriptIncrementalApi: true,
-            checkSyntacticErrors: true,
-            tsconfig: tsConfigPath,
-            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-            compilerOptions: { isolatedModules: true, noEmit: true },
-            silent: true,
-            formatter: 'codeframe',
-          })
-        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
         new NextEsmPlugin({
-          excludedPlugins: ['ForkTsCheckerWebpackPlugin'],
           filename: (getFileName: Function | string) => (...args: any[]) => {
             const name =
               typeof getFileName === 'function'
@@ -1078,7 +1062,7 @@ export default async function getBaseWebpackConfig(
 
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
       )
     }
   }

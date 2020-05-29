@@ -11,7 +11,7 @@ exports[`Home page clicking button triggers alert 1`] = `
       <h1
         class="jsx-2250570153 title"
       >
-        Welcome to 
+        Welcome to
         <a
           class="jsx-2250570153"
           href="https://nextjs.org"
@@ -22,7 +22,7 @@ exports[`Home page clicking button triggers alert 1`] = `
       <p
         class="jsx-2250570153 description"
       >
-        Get started by editing 
+        Get started by editing
         <code
           class="jsx-2250570153"
         >
@@ -69,7 +69,7 @@ exports[`Home page clicking button triggers alert 1`] = `
         </a>
         <a
           class="jsx-2250570153 card"
-          href="https://github.com/zeit/next.js/tree/master/examples"
+          href="https://github.com/vercel/next.js/tree/master/examples"
         >
           <h3
             class="jsx-2250570153"
@@ -108,7 +108,7 @@ exports[`Home page clicking button triggers alert 1`] = `
         rel="noopener noreferrer"
         target="_blank"
       >
-        Powered by 
+        Powered by
         <img
           alt="Vercel Logo"
           class="jsx-2250570153 logo"

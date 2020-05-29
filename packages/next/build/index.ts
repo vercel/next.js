@@ -47,6 +47,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { BuildManifest } from '../next-server/server/get-page-files'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -64,17 +65,16 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getJsPageSizeInKb,
+  getNamedExports,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNamedExports,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { writeBuildId } from './write-build-id'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import { BuildManifest } from '../next-server/server/get-page-files'
+import { writeBuildId } from './write-build-id'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -101,7 +101,7 @@ export type PrerenderManifest = {
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
-      '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
+      '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
     )
   }
 
@@ -174,7 +174,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   eventNextPlugins(path.resolve(dir)).then((events) => telemetry.record(events))
 
-  await verifyTypeScriptSetup(dir, pagesDir)
+  const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+  await verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
 
   try {
     await promises.stat(publicDir)
@@ -254,9 +255,29 @@ export default async function build(dir: string, conf = null): Promise<void> {
     throw new Error(
       `Conflicting public and page file${
         numConflicting === 1 ? ' was' : 's were'
-      } found. https://err.sh/zeit/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+      } found. https://err.sh/vercel/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
         '\n'
       )}`
+    )
+  }
+
+  const nestedReservedPages = pageKeys.filter((page) => {
+    return (
+      page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
+    )
+  })
+
+  if (nestedReservedPages.length) {
+    console.warn(
+      '\n' +
+        chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
+        ) +
+        nestedReservedPages.join('\n') +
+        chalk.bold(
+          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+        )
     )
   }
 
@@ -358,7 +379,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn(
       chalk.bold.yellow(`Warning: `) +
         chalk.bold(
-          `Production code optimization has been disabled in your project. Read more: https://err.sh/zeit/next.js/minification-disabled`
+          `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
         )
     )
   }
@@ -366,7 +387,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const webpackBuildStart = process.hrtime()
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
+  // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
   if (isLikeServerless) {
     const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
@@ -412,7 +433,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const parsed = page_name_regex.exec(error)
       const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(
-        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
+        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.`
       )
     }
 
@@ -424,7 +445,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('__next_polyfill__') > -1
     ) {
       throw new Error(
-        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
+        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/vercel/next.js/invalid-resolve-alias'
       )
     }
     throw new Error('> Build failed because of webpack errors')
@@ -720,7 +741,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         .map((pg) => `pages${pg}`)
         .join(
           '\n'
-        )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
+        )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
     )
   }
 
