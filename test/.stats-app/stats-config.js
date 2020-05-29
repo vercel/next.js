@@ -93,7 +93,7 @@ module.exports = {
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
-  mainRepo: 'zeit/next.js',
+  mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
   configs: [
