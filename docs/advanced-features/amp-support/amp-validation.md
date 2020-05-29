@@ -15,8 +15,8 @@ You can set up custom AMP validator in `next.config.js` as shown below:
 ```jsx
 module.exports = {
   amp: {
-    validator: "./custom_validator.js"
-  }
+    validator: './custom_validator.js',
+  },
 }
 ```
 
