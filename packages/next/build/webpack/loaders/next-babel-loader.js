@@ -1,6 +1,7 @@
 import babelLoader from 'next/dist/compiled/babel-loader'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
+import * as Log from '../../output/log'
 
 // increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
@@ -124,8 +125,7 @@ module.exports = babelLoader.custom((babel) => {
           // We only log for client compilation otherwise there will be double output
           if (file && !isServer && !configs.has(file)) {
             configs.add(file)
-            console.log(`> Using external babel configuration`)
-            console.log(`> Location: "${file}"`)
+            Log.info(`Using external babel configuration from ${file}`)
           }
         }
       } else {
