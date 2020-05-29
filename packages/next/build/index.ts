@@ -229,7 +229,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Check if pages conflict with files in `public`
   // Only a page of public file can be served, not both.
   for (const page in mappedPages) {
-    const hasPublicPageFile = await fileExists(path.join(publicDir, page))
+    const hasPublicPageFile = await fileExists(
+      path.join(publicDir, page === '/' ? '/index' : page)
+    )
     if (hasPublicPageFile) {
       conflictingPublicFiles.push(page)
     }
