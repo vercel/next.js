@@ -333,28 +333,6 @@ export default class HotReloader {
     }
   }
 
-  async reload(): Promise<void> {
-    this.stats = null
-    this.serverStats = null
-
-    await this.clean()
-
-    const configs = await this.getWebpackConfig()
-    const compiler = webpack(configs)
-
-    const buildTools = await this.prepareBuildTools(compiler)
-    // [Client, Server]
-    ;[
-      this.stats,
-      this.serverStats,
-    ] = ((await this.waitUntilValid()) as any).stats
-
-    const oldWebpackDevMiddleware = this.webpackDevMiddleware
-
-    this.assignBuildTools(buildTools)
-    await this.stop(oldWebpackDevMiddleware!)
-  }
-
   assignBuildTools({
     webpackDevMiddleware,
     webpackHotMiddleware,
@@ -509,7 +487,6 @@ export default class HotReloader {
       {
         buildId: this.buildId,
         pagesDir: this.pagesDir,
-        reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
@@ -536,8 +513,6 @@ export default class HotReloader {
 
   async getCompilationErrors(page: string) {
     const normalizedPage = normalizePage(page)
-    // When we are reloading, we need to wait until it's reloaded properly.
-    await this.onDemandEntries.waitUntilReloaded()
 
     if (this.stats.hasErrors()) {
       const { compilation } = this.stats
