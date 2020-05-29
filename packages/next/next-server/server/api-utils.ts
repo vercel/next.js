@@ -1,15 +1,15 @@
+import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import { IncomingMessage, ServerResponse } from 'http'
-import { PageConfig } from 'next/types'
+import generateETag from 'next/dist/compiled/etag'
+import fresh from 'next/dist/compiled/fresh'
 import getRawBody from 'next/dist/compiled/raw-body'
+import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
-import generateETag from 'next/dist/compiled/etag'
-import fresh from 'next/dist/compiled/fresh'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -55,9 +55,9 @@ export async function apiResolver(
       )
     }
 
-    apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
-    apiRes.send = data => sendData(apiReq, apiRes, data)
-    apiRes.json = data => sendJson(apiRes, data)
+    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
+    apiRes.send = (data) => sendData(apiReq, apiRes, data)
+    apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
@@ -205,28 +205,21 @@ export function sendStatusCode(
   return res
 }
 
-/**
- * Try to match ETag according to RFC7232
- * @implements https://tools.ietf.org/html/rfc7232#section-3.2
- * @param req request object
- * @param res response object
- * @param body of response
- */
-function matchETag(
+function sendEtagResponse(
   req: NextApiRequest,
   res: NextApiResponse,
   body: string | Buffer
-): 'matched' | 'not_matched' {
+): boolean {
   const etag = generateETag(body)
 
   if (fresh(req.headers, { etag })) {
     res.statusCode = 304
     res.end()
-    return 'matched'
-  } else {
-    res.setHeader('ETag', etag)
-    return 'not_matched'
+    return true
   }
+
+  res.setHeader('ETag', etag)
+  return false
 }
 
 /**
@@ -235,7 +228,11 @@ function matchETag(
  * @param res response object
  * @param body of response
  */
-export function sendData(req: NextApiRequest, res: NextApiResponse, body: any) {
+export function sendData(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  body: any
+): void {
   if (body === null) {
     res.end()
     return
@@ -254,8 +251,7 @@ export function sendData(req: NextApiRequest, res: NextApiResponse, body: any) {
   const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
 
-  const didMatch = matchETag(req, res, stringifiedBody)
-  if (didMatch === 'matched') {
+  if (sendEtagResponse(req, res, stringifiedBody)) {
     return
   }
 
