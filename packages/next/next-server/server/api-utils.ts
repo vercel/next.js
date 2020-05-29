@@ -8,7 +8,8 @@ import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
-import computeEtag from 'next/dist/compiled/etag'
+import generateETag from 'next/dist/compiled/etag'
+import fresh from 'next/dist/compiled/fresh'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -210,9 +211,9 @@ function matchETag(
   res: NextApiResponse,
   body: string | Buffer
 ): 'matched' | 'not_matched' {
-  const etag = computeEtag(body, { weak: true })
+  const etag = generateETag(body)
 
-  if (etag === req.headers['if-none-match']) {
+  if (fresh(req.headers, { etag })) {
     res.statusCode = 304
     res.end()
     return 'matched'
