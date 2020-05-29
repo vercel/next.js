@@ -564,6 +564,7 @@ describe('getServerSideProps', () => {
       stderr = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
         onStderr(msg) {
           stderr += msg
         },

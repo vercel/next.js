@@ -97,7 +97,9 @@ describe('withRouter SSR', () => {
 
   beforeAll(async () => {
     port = await findPort()
-    server = await launchApp(join(__dirname, '..'), port)
+    server = await launchApp(join(__dirname, '..'), port, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
   })
   afterAll(async () => {
     await killApp(server)
