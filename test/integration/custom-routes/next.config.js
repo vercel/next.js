@@ -87,6 +87,14 @@ module.exports = {
           source: '/unnamed-params/nested/(.*)/:test/(.*)',
           destination: '/with-params',
         },
+        {
+          source: '/catchall-rewrite/:path*',
+          destination: '/with-params',
+        },
+        {
+          source: '/catchall-query/:path*',
+          destination: '/with-params?another=:path*',
+        },
       ]
     },
     async redirects() {
@@ -276,6 +284,15 @@ module.exports = {
             {
               key: 'path-:path',
               value: 'end',
+            },
+          ],
+        },
+        {
+          source: '/catchall-header/:path*',
+          headers: [
+            {
+              key: 'x-value',
+              value: ':path*',
             },
           ],
         },

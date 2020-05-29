@@ -13,7 +13,7 @@ import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
-import { API_ROUTE } from '../lib/constants'
+import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
@@ -35,6 +35,9 @@ import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
+import { PrerenderManifest } from '../build'
+import type exportPage from './worker'
+import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 const exists = promisify(existsOrig)
 
@@ -84,12 +87,20 @@ type ExportPathMap = {
   [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
-export default async function(
+interface ExportOptions {
+  outdir: string
+  silent?: boolean
+  threads?: number
+  pages?: string[]
+  buildExport?: boolean
+}
+
+export default async function exportApp(
   dir: string,
-  options: any,
+  options: ExportOptions,
   configuration?: any
 ): Promise<void> {
-  function log(message: string) {
+  function log(message: string): void {
     if (options.silent) {
       return
     }
@@ -97,6 +108,10 @@ export default async function(
   }
 
   dir = resolve(dir)
+
+  // attempt to load global env values so they are available in next.config.js
+  loadEnvConfig(dir)
+
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
@@ -128,13 +143,13 @@ export default async function(
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages &&
-    require(join(
+    (require(join(
       distDir,
       isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
       PAGES_MANIFEST
-    ))
+    )) as PagesManifest)
 
-  let prerenderManifest
+  let prerenderManifest: PrerenderManifest | undefined = undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
@@ -147,6 +162,7 @@ export default async function(
     'pages'
   )
 
+  const excludedPrerenderRoutes = new Set<string>()
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
   let hasApiRoutes = false
@@ -170,6 +186,7 @@ export default async function(
     // could run `getStaticProps`. If users make their page work lazily, they
     // can manually add it to the `exportPathMap`.
     if (prerenderManifest?.dynamicRoutes[page]) {
+      excludedPrerenderRoutes.add(page)
       continue
     }
 
@@ -181,7 +198,7 @@ export default async function(
 
   if (outDir === join(dir, 'public')) {
     throw new Error(
-      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/zeit/next.js/can-not-output-to-public`
+      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-public`
     )
   }
 
@@ -223,8 +240,6 @@ export default async function(
     }
   }
 
-  loadEnvConfig(dir)
-
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -262,19 +277,52 @@ export default async function(
     distDir,
     buildId,
   })
+
   if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
     exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
-  const exportPaths = Object.keys(exportPathMap)
+
+  // make sure to prevent duplicates
+  const exportPaths = [
+    ...new Set(
+      Object.keys(exportPathMap).map(
+        (path) => normalizePagePath(path).replace(/^\/index$/, '') || '/'
+      )
+    ),
+  ]
+
   const filteredPaths = exportPaths.filter(
     // Remove API routes
-    route => !exportPathMap[route].page.match(API_ROUTE)
+    (route) => !exportPathMap[route].page.match(API_ROUTE)
   )
 
   if (filteredPaths.length !== exportPaths.length) {
     hasApiRoutes = true
+  }
+
+  if (prerenderManifest && !options.buildExport) {
+    const fallbackTruePages = new Set()
+
+    for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
+      // only error if page is included in path map
+      if (!exportPathMap[key] && !excludedPrerenderRoutes.has(key)) {
+        continue
+      }
+
+      if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
+        fallbackTruePages.add(key)
+      }
+    }
+
+    if (fallbackTruePages.size) {
+      throw new Error(
+        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
+          '\n'
+        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+      )
+    }
   }
 
   // Warn if the user defines a path for an API page
@@ -295,7 +343,7 @@ export default async function(
         chalk.yellow(
           `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
         ) +
-        `\nLearn more: https://err.sh/zeit/next.js/api-routes-static-export`
+        `\nLearn more: https://err.sh/vercel/next.js/api-routes-static-export`
     )
   }
 
@@ -319,23 +367,21 @@ export default async function(
     })
   }
 
-  const worker: Worker & { default: Function } = new Worker(
-    require.resolve('./worker'),
-    {
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }
-  ) as any
+  const worker = new Worker(require.resolve('./worker'), {
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: nextConfig.experimental.workerThreads,
+    exposedMethods: ['default'],
+  }) as Worker & { default: typeof exportPage }
 
   worker.getStdout().pipe(process.stdout)
   worker.getStderr().pipe(process.stderr)
 
   let renderError = false
+  const errorPaths: string[] = []
 
   await Promise.all(
-    filteredPaths.map(async path => {
+    filteredPaths.map(async (path) => {
       const result = await worker.default({
         path,
         pathMap: exportPathMap[path],
@@ -358,6 +404,7 @@ export default async function(
           (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
+      if (!!result.error) errorPaths.push(path)
 
       if (
         options.buildExport &&
@@ -375,7 +422,7 @@ export default async function(
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
-      Object.keys(prerenderManifest.routes).map(async route => {
+      Object.keys(prerenderManifest.routes).map(async (route) => {
         route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
         const htmlDest = join(
@@ -408,12 +455,16 @@ export default async function(
   }
   if (hadValidationError) {
     throw new Error(
-      `AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`
+      `AMP Validation caused the export to fail. https://err.sh/vercel/next.js/amp-export-validation`
     )
   }
 
   if (renderError) {
-    throw new Error(`Export encountered errors`)
+    throw new Error(
+      `Export encountered errors on following paths:\n\t${errorPaths
+        .sort()
+        .join('\n\t')}`
+    )
   }
   // Add an empty line to the console for the better readability.
   log('')

@@ -1,3 +1,4 @@
+import '../next-server/server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
 import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -88,11 +89,9 @@ export async function printTreeView(
       .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load JS'].map(entry => chalk.underline(entry)) as [
-      string,
-      string,
-      string
-    ],
+    ['Page', 'Size', 'First Load JS'].map((entry) =>
+      chalk.underline(entry)
+    ) as [string, string, string],
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
@@ -117,7 +116,7 @@ export async function printTreeView(
   const pageList = list
     .slice()
     .filter(
-      e =>
+      (e) =>
         !(
           e === '/_document' ||
           e === '/_error' ||
@@ -166,7 +165,7 @@ export async function printTreeView(
 
     const uniqueCssFiles =
       buildManifest.pages[item]?.filter(
-        file => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
+        (file) => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
       ) || []
 
     if (uniqueCssFiles.length > 0) {
@@ -212,16 +211,16 @@ export async function printTreeView(
   const sharedCssFiles: string[] = []
   ;[
     ...sharedFileKeys
-      .filter(file => {
+      .filter((file) => {
         if (file.endsWith('.css')) {
           sharedCssFiles.push(file)
           return false
         }
         return true
       })
-      .map(e => e.replace(buildId, '<buildId>'))
+      .map((e) => e.replace(buildId, '<buildId>'))
       .sort(),
-    ...sharedCssFiles.map(e => e.replace(buildId, '<buildId>')).sort(),
+    ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
   ].forEach((fileName, index, { length }) => {
     const innerSymbol = index === length - 1 ? '└' : '├'
 
@@ -238,7 +237,7 @@ export async function printTreeView(
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
-      stringLength: str => stripAnsi(str).length,
+      stringLength: (str) => stripAnsi(str).length,
     })
   )
 
@@ -268,7 +267,7 @@ export async function printTreeView(
       ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
-        stringLength: str => stripAnsi(str).length,
+        stringLength: (str) => stripAnsi(str).length,
       }
     )
   )
@@ -380,7 +379,7 @@ async function computeFromManifest(
 
   let expected = 0
   const files = new Map<string, number>()
-  Object.keys(manifest.pages).forEach(key => {
+  Object.keys(manifest.pages).forEach((key) => {
     // prevent duplicate '/' and '/index'
     if (key === '/index') return
 
@@ -398,7 +397,7 @@ async function computeFromManifest(
     }
 
     ++expected
-    manifest.pages[key].forEach(file => {
+    manifest.pages[key].forEach((file) => {
       if (
         // Select Modern or Legacy scripts
         file.endsWith('.module.js') !== isModern
@@ -436,7 +435,7 @@ async function computeFromManifest(
   try {
     stats = await Promise.all(
       commonFiles.map(
-        async f =>
+        async (f) =>
           [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
       )
     )
@@ -448,7 +447,7 @@ async function computeFromManifest(
   try {
     uniqueStats = await Promise.all(
       uniqueFiles.map(
-        async f =>
+        async (f) =>
           [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
       )
     )
@@ -482,13 +481,13 @@ async function computeFromManifest(
 function difference<T>(main: T[], sub: T[]): T[] {
   const a = new Set(main)
   const b = new Set(sub)
-  return [...a].filter(x => !b.has(x))
+  return [...a].filter((x) => !b.has(x))
 }
 
 function intersect<T>(main: T[], sub: T[]): T[] {
   const a = new Set(main)
   const b = new Set(sub)
-  return [...new Set([...a].filter(x => b.has(x)))]
+  return [...new Set([...a].filter((x) => b.has(x)))]
 }
 
 function sum(a: number[]): number {
@@ -566,7 +565,7 @@ export async function buildStaticPaths(
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
-    `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+    `See here for more info: https://err.sh/vercel/next.js/invalid-getstaticpaths-value`
 
   if (
     !staticPathsResult ||
@@ -579,7 +578,7 @@ export async function buildStaticPaths(
   }
 
   const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
-    key => !(key === 'paths' || key === 'fallback')
+    (key) => !(key === 'paths' || key === 'fallback')
   )
 
   if (invalidStaticPathKeys.length > 0) {
@@ -606,7 +605,7 @@ export async function buildStaticPaths(
     )
   }
 
-  toPrerender.forEach(entry => {
+  toPrerender.forEach((entry) => {
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
@@ -622,13 +621,13 @@ export async function buildStaticPaths(
     // For the object-provided path, we must make sure it specifies all
     // required keys.
     else {
-      const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+      const invalidKeys = Object.keys(entry).filter((key) => key !== 'params')
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
             `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
             `\n\n\treturn { params: { ${_validParamKeys
-              .map(k => `${k}: ...`)
+              .map((k) => `${k}: ...`)
               .join(', ')} } }` +
             `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
         )
@@ -636,7 +635,7 @@ export async function buildStaticPaths(
 
       const { params = {} } = entry
       let builtPage = page
-      _validParamKeys.forEach(validParamKey => {
+      _validParamKeys.forEach((validParamKey) => {
         const { repeat } = _routeRegex.groups[validParamKey]
         const paramValue = params[validParamKey]
         if (
@@ -777,16 +776,24 @@ export async function isPageStatic(
 
 export function hasCustomGetInitialProps(
   bundle: string,
-  runtimeEnvConfig: any
+  runtimeEnvConfig: any,
+  checkingApp: boolean
 ): boolean {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   let mod = require(bundle)
 
-  if (bundle.endsWith('_app.js') || bundle.endsWith('_error.js')) {
-    mod = mod.default || mod
+  if (checkingApp) {
+    mod = mod._app || mod.default || mod
   } else {
-    // since we don't output _app in serverless mode get it from a page
-    mod = mod._app
+    mod = mod.default || mod
   }
   return mod.getInitialProps !== mod.origGetInitialProps
+}
+
+export function getNamedExports(
+  bundle: string,
+  runtimeEnvConfig: any
+): Array<string> {
+  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  return Object.keys(require(bundle))
 }

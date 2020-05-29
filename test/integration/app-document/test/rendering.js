@@ -4,7 +4,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { check, File, waitFor } from 'next-test-utils'
 
-export default function({ app }, suiteName, render, fetch) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -14,26 +14,22 @@ export default function({ app }, suiteName, render, fetch) {
     describe('_document', () => {
       test('It has a custom html class', async () => {
         const $ = await get$('/')
-        expect($('html').hasClass('test-html-props'))
+        expect($('html').hasClass('test-html-props')).toBe(true)
       })
 
       test('It has a custom body class', async () => {
         const $ = await get$('/')
-        expect($('body').hasClass('custom_class'))
+        expect($('body').hasClass('custom_class')).toBe(true)
       })
 
       test('It injects custom head tags', async () => {
         const $ = await get$('/')
-        expect(
-          $('head')
-            .text()
-            .includes('body { margin: 0 }')
-        )
+        expect($('head').text()).toMatch('body { margin: 0 }')
       })
 
       test('It passes props from Document.getInitialProps to Document', async () => {
         const $ = await get$('/')
-        expect($('#custom-property').text() === 'Hello Document')
+        expect($('#custom-property').text()).toBe('Hello Document')
       })
 
       test('It adds nonces to all scripts and preload links', async () => {
@@ -57,49 +53,35 @@ export default function({ app }, suiteName, render, fetch) {
       test('It renders ctx.renderPage with enhancer correctly', async () => {
         const $ = await get$('/?withEnhancer=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-component')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+          true
+        )
       })
 
       test('It renders ctx.renderPage with enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-component')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+          true
+        )
       })
 
       test('It renders ctx.renderPage with enhanceApp correctly', async () => {
         const $ = await get$('/?withEnhanceApp=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-app')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
       })
 
       test('It renders ctx.renderPage with enhanceApp and enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true&withEnhanceApp=true')
         const nonce = 'RENDERED'
-        expect(
-          $('#render-page-enhance-app')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
-        expect(
-          $('#render-page-enhance-component')
-            .text()
-            .includes(nonce)
-        ).toBe(true)
+        expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
+        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+          true
+        )
       })
 
-      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
       // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
       test('It adds a timestamp to link tags with preload attribute to invalidate the cache (DEV only)', async () => {
         const $ = await get$('/')

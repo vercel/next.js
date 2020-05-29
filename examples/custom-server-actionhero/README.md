@@ -9,7 +9,7 @@ A more detailed example showcasing how to use fetch and web sockets to interact 
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example custom-server-actionhero custom-server-actionhero-app
@@ -22,7 +22,7 @@ yarn create next-app --example custom-server-actionhero custom-server-actionhero
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-actionhero
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-actionhero
 cd custom-server-actionhero
 ```
 
@@ -54,7 +54,7 @@ module.exports = class NextInitializer extends Initializer {
 
   async initialize() {
     api.next = {
-      render: async connection => {
+      render: async (connection) => {
         if (connection.type !== 'web') {
           throw new Error('Connections for NEXT apps must be of type "web"')
         }
@@ -111,7 +111,7 @@ Note that this is where the websocket server, if you enable it, will place the `
 // config/routes.js
 
 exports['default'] = {
-  routes: api => {
+  routes: (api) => {
     return {
       get: [
         { path: '/time', action: 'time' },

@@ -1,7 +1,7 @@
 {
   "root": true,
   "parser": "babel-eslint",
-  "plugins": ["react", "react-hooks"],
+  "plugins": ["react", "react-hooks", "jest", "import"],
   "env": {
     "browser": true,
     "commonjs": true,
@@ -18,9 +18,27 @@
   "settings": {
     "react": {
       "version": "detect"
-    }
+    },
+    "import/internal-regex": "^next/"
   },
   "overrides": [
+    {
+      "files": ["packages/**"],
+      "rules": {
+        "import/no-extraneous-dependencies": [
+          "error",
+          { "devDependencies": false }
+        ]
+      }
+    },
+    {
+      "files": ["test/**/*.test.js"],
+      "extends": ["plugin:jest/recommended"],
+      "rules": {
+        "jest/expect-expect": "off",
+        "jest/no-disabled-tests": "off"
+      }
+    },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
       "files": ["**/*.ts", "**/*.tsx"],
@@ -82,6 +100,26 @@
         "packages/create-next-app/templates/**/*"
       ],
       "rules": { "react/react-in-jsx-scope": "off" }
+    },
+    {
+      "files": ["examples/**/*"],
+      "rules": {
+        "import/no-anonymous-default-export": [
+          "error",
+          {
+            // React components:
+            "allowArrowFunction": false,
+            "allowAnonymousClass": false,
+            "allowAnonymousFunction": false,
+
+            // Non-React stuff:
+            "allowArray": true,
+            "allowCallExpression": true,
+            "allowLiteral": true,
+            "allowObject": true
+          }
+        ]
+      }
     }
   ],
   "rules": {

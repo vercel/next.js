@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import fetch from 'isomorphic-unfetch'
 
 import Post from '../components/post'
 
@@ -26,7 +25,7 @@ export default function IndexPage({ postList }) {
       <h1>List of posts</h1>
 
       <section>
-        {postList.map(post => (
+        {postList.map((post) => (
           <Post {...post} key={post.id} />
         ))}
       </section>

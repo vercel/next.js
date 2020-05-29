@@ -10,7 +10,6 @@
     "classnames": "2.2.6",
     "date-fns": "2.10.0",
     "gray-matter": "4.0.2",
-    "isomorphic-unfetch": "3.0.0",
     "next": "latest",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",

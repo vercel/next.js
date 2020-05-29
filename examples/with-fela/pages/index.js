@@ -33,9 +33,11 @@ function Title({ children, size = 24 }) {
   return <h1 className={css({ fontSize: size, color: '#555' })}>{children}</h1>
 }
 
-export default () => (
-  <Container>
-    <Title size={50}>My Title</Title>
-    <Text>Hi, I am Fela.</Text>
-  </Container>
-)
+export default function Home() {
+  return (
+    <Container>
+      <Title size={50}>My Title</Title>
+      <Text>Hi, I am Fela.</Text>
+    </Container>
+  )
+}
