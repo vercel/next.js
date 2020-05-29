@@ -2,6 +2,7 @@
 
 import fetch from 'next/dist/build/polyfills/unfetch'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
+import { delBasePath } from '../../next-server/lib/router/router'
 
 let evtSource
 export let currentPage
@@ -20,7 +21,9 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
   // close current EventSource connection
   closePing()
 
-  const url = `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`
+  const url = `${assetPrefix}/_next/webpack-hmr?page=${delBasePath(
+    currentPage
+  )}`
   evtSource = getEventSourceWrapper({ path: url, timeout: 5000, ondemand: 1 })
 
   evtSource.addMessageListener((event) => {
