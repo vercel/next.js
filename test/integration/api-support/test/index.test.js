@@ -177,8 +177,6 @@ function runTests(dev = false) {
     const response = await fetchViaHTTP(appPort, '/api/blog')
     const etag = response.headers.get('etag')
 
-    expect(etag).toMatch(/^W\/.*$/)
-
     const unmodifiedResponse = await fetchViaHTTP(appPort, '/api/blog', null, {
       headers: { 'If-None-Match': etag },
     })
