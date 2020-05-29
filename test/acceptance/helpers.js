@@ -26,7 +26,9 @@ export async function sandbox(id = nanoid(), initialFiles = new Map()) {
   }
 
   const appPort = await findPort()
-  const app = await launchApp(sandboxDirectory, appPort)
+  const app = await launchApp(sandboxDirectory, appPort, {
+    env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+  })
   const browser = await webdriver(appPort, '/')
 
   return [
