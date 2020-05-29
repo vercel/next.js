@@ -252,7 +252,7 @@ export default class DevServer extends Server {
   }
 
   async prepare(): Promise<void> {
-    await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
     await this.loadCustomRoutes()
 
     if (this.customRoutes) {

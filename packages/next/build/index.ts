@@ -47,6 +47,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { BuildManifest } from '../next-server/server/get-page-files'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -64,17 +65,16 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getJsPageSizeInKb,
+  getNamedExports,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNamedExports,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { writeBuildId } from './write-build-id'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import { BuildManifest } from '../next-server/server/get-page-files'
+import { writeBuildId } from './write-build-id'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -174,7 +174,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   eventNextPlugins(path.resolve(dir)).then((events) => telemetry.record(events))
 
-  await verifyTypeScriptSetup(dir, pagesDir)
+  const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+  await verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
 
   try {
     await promises.stat(publicDir)

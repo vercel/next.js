@@ -249,18 +249,8 @@ declare module 'autodll-webpack-plugin' {
 
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack'
-  import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 
-  class PnpWebpackPlugin extends webpack.Plugin {
-    static forkTsCheckerOptions: <
-      T extends Partial<ForkTsCheckerWebpackPlugin.Options>
-    >(
-      settings: T
-    ) => T & {
-      resolveModuleNameModule?: string
-      resolveTypeReferenceDirectiveModule?: string
-    }
-  }
+  class PnpWebpackPlugin extends webpack.Plugin {}
 
   export = PnpWebpackPlugin
 }

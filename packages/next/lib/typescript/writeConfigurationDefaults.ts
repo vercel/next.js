@@ -56,6 +56,23 @@ function getDesiredCompilerOptions(
   return o
 }
 
+export function getRequiredConfiguration(
+  ts: typeof import('typescript')
+): Partial<import('typescript').CompilerOptions> {
+  const res: Partial<import('typescript').CompilerOptions> = {}
+
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
+  for (const optionKey of Object.keys(desiredCompilerOptions)) {
+    const ev = desiredCompilerOptions[optionKey]
+    if (!('value' in ev)) {
+      continue
+    }
+    res[optionKey] = ev.parsedValue ?? ev.value
+  }
+
+  return res
+}
+
 export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
