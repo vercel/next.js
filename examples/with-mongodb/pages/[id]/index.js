@@ -43,12 +43,7 @@ const Pet = ({ pet }) => {
         <p>{pet.image_url}</p>
         <p>{pet.likes}</p>
         <p>{pet.dislikes}</p>
-        <button
-          className="btn delete"
-          id="delete-btn"
-          color="red"
-          onClick={open}
-        >
+        <button className="btn delete" id="delete-btn" onClick={open}>
           Delete
         </button>
         <p>{message}</p>
@@ -80,11 +75,7 @@ export async function getStaticProps({ params }) {
   const res = await fetch(`${process.env.VERCEL_URL}/api/pets/${params.id}`)
   const { data } = await res.json()
 
-  return {
-    props: {
-      pet: data,
-    },
-  }
+  return { props: { pet: data } }
 }
 
 export default Pet
