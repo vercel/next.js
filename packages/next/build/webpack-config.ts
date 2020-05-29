@@ -328,7 +328,12 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool = dev ? 'cheap-module-source-map' : false
+  const devtool =
+    process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL
+      ? false
+      : dev
+      ? 'cheap-module-source-map'
+      : false
 
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
