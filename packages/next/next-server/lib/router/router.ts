@@ -256,7 +256,7 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
-    if (!e.state) {
+    if (!e.state || !e.state.url) {
       // We get state as undefined for two reasons.
       //  1. With older safari (< 8) and older chrome (< 34)
       //  2. When the URL changed with #
