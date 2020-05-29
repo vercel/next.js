@@ -1,10 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import fs from 'fs-extra'
 import { runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
@@ -21,18 +21,6 @@ describe('Page Extensions', () => {
     await fs.remove(nextConfig)
 
     expect(stdout).toContain('Compiled successfully')
-  })
-
-  it('should throw if pageExtensions is not an array', async () => {
-    await fs.writeFile(nextConfig, `module.exports = { pageExtensions: null }`)
-
-    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
-
-    await fs.remove(nextConfig)
-
-    expect(stderr).toContain(
-      'Specified pageExtensions is not an array of strings, found "null". Please update this config or remove it'
-    )
   })
 
   it('should throw if pageExtensions is an empty array', async () => {

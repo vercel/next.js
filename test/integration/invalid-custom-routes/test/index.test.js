@@ -1,10 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -186,7 +186,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
     )
 
     expect(stderr).toContain(
@@ -330,13 +330,13 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
     expect(stderr).toContain(`/feedback/(?!general)`)
 
     expect(stderr).toContain(
-      `Error parsing \`/learning/?\` https://err.sh/zeit/next.js/invalid-route-source`
+      `Error parsing \`/learning/?\` https://err.sh/vercel/next.js/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
     expect(stderr).toContain(`/learning/?`)
@@ -399,7 +399,7 @@ describe('Errors on invalid custom routes', () => {
       getStderr = async () => {
         let stderr = ''
         await launchApp(appDir, await findPort(), {
-          onStderr: msg => {
+          onStderr: (msg) => {
             stderr += msg
           },
         })

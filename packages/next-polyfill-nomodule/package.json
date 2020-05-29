@@ -1,11 +1,11 @@
 {
   "name": "@next/polyfill-nomodule",
-  "version": "9.4.1-canary.0",
+  "version": "9.4.5-canary.2",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
   "repository": {
-    "url": "zeit/next.js",
+    "url": "vercel/next.js",
     "directory": "packages/next-polyfill-nomodule"
   },
   "scripts": {
@@ -16,7 +16,7 @@
     "core-js": "3.6.5",
     "microbundle": "0.11.0",
     "object-assign": "4.1.1",
-    "url-polyfill": "1.1.8",
+    "url-polyfill": "1.1.9",
     "whatwg-fetch": "3.0.0"
   }
 }

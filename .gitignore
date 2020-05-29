@@ -25,6 +25,8 @@ test/**/next-env.d.ts
 # Editors
 **/.idea
 
-# example output
+# examples
 examples/**/out
+examples/**/.env*.local
 
+pr-stats.md

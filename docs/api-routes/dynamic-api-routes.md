@@ -7,7 +7,7 @@ description: You can add the dynamic routes used for pages to API Routes too. Le
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes">Basic API Routes</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes">Basic API Routes</a></li>
   </ul>
 </details>
 
@@ -79,6 +79,20 @@ export default (req, res) => {
 ```
 
 Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
+
+### Optional catch all API routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
+
+For example, `pages/api/post/[[...slug]].js` will match `/api/post`, `/api/post/a`, `/api/post/a/b`, and so on.
+
+The `query` objects are as follows:
+
+```json
+{ } // GET `/api/post` (empty object)
+{ "slug": ["a"] } // `GET /api/post/a` (single-element array)
+{ "slug": ["a", "b"] } // `GET /api/post/a/b` (multi-element array)
+```
 
 ## Caveats
 

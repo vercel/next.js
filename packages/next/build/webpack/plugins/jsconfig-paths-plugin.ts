@@ -102,7 +102,7 @@ export function matchPatternOrExact(
     }
   }
 
-  return findBestPatternMatch(patterns, _ => _, candidate)
+  return findBestPatternMatch(patterns, (_) => _, candidate)
 }
 
 /**
@@ -212,7 +212,7 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
             }
 
             const candidate = path.join(baseDirectory, curPath)
-            const [err, result] = await new Promise(resolve => {
+            const [err, result] = await new Promise((resolve) => {
               const obj = Object.assign({}, request, {
                 request: candidate,
               })

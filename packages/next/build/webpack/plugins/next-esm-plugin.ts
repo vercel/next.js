@@ -74,10 +74,7 @@ export default class NextEsmPlugin implements Plugin {
     additionalPlugins?: any
   }) {
     this.options = Object.assign(
-      {
-        excludedPlugins: [PLUGIN_NAME],
-        additionalPlugins: [],
-      },
+      { excludedPlugins: [], additionalPlugins: [] },
       options
     )
   }
@@ -96,7 +93,7 @@ export default class NextEsmPlugin implements Plugin {
     for (let rule of rules) {
       if (Array.isArray(rule.use)) {
         const matches = (rule.use as RuleSetLoader[]).filter(
-          r => r.loader && predicate(r.loader)
+          (r) => r.loader && predicate(r.loader)
         )
         if (matches.length > 0) {
           results.push(...matches)
@@ -125,7 +122,7 @@ export default class NextEsmPlugin implements Plugin {
 
     let babelLoader = this.getLoaders(
       childCompiler.options.module.rules,
-      loader => loader.includes('next-babel-loader')
+      (loader) => loader.includes('next-babel-loader')
     )[0]
 
     if (!babelLoader) {
@@ -141,7 +138,7 @@ export default class NextEsmPlugin implements Plugin {
 
     const additionalBabelLoaders = this.getLoaders(
       childCompiler.options.module.rules,
-      loader => /(^|[\\/])babel-loader([\\/]|$)/.test(loader)
+      (loader) => /(^|[\\/])babel-loader([\\/]|$)/.test(loader)
     )
     for (const loader of additionalBabelLoaders) {
       // @TODO support string options?
@@ -183,7 +180,7 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     if (options.plugins) {
-      options.plugins = options.plugins.map(plugin => {
+      options.plugins = options.plugins.map((plugin) => {
         const name = Array.isArray(plugin) ? plugin[0] : plugin
         const opts = Object.assign(
           {},
@@ -284,7 +281,11 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     let plugins = (compiler.options.plugins || []).filter(
-      c => !this.options.excludedPlugins.includes(c.constructor.name)
+      (c) =>
+        !(
+          this.options.excludedPlugins.includes(c.constructor.name) ||
+          c.constructor.name === PLUGIN_NAME
+        )
     )
 
     // Add the additionalPlugins
@@ -322,7 +323,7 @@ export default class NextEsmPlugin implements Plugin {
       compilerEntries = { index: compilerEntries }
     }
 
-    Object.keys(compilerEntries).forEach(entry => {
+    Object.keys(compilerEntries).forEach((entry) => {
       const entryFiles = compilerEntries[entry]
       if (Array.isArray(entryFiles)) {
         new MultiEntryPlugin(compiler.context, entryFiles, entry).apply(

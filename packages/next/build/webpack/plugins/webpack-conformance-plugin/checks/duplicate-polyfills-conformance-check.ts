@@ -1,22 +1,24 @@
-import {
-  IWebpackConformanceTest,
-  IGetAstNodeResult,
-  IParsedModuleDetails,
-  IConformanceTestResult,
-  IConformanceTestStatus,
-} from '../TestInterface'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { namedTypes } from 'ast-types'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { NodePath } from 'ast-types/lib/node-path'
+import { types } from 'next/dist/compiled/recast'
 import {
   CONFORMANCE_ERROR_PREFIX,
   CONFORMANCE_WARNING_PREFIX,
 } from '../constants'
-import { types } from 'next/dist/compiled/recast'
-import { NodePath } from 'ast-types/lib/node-path'
-import { namedTypes } from 'ast-types'
-import { getLocalFileName } from '../utils/file-utils'
+import {
+  IConformanceTestResult,
+  IConformanceTestStatus,
+  IGetAstNodeResult,
+  IParsedModuleDetails,
+  IWebpackConformanceTest,
+} from '../TestInterface'
 import {
   isNodeCreatingScriptElement,
   reducePropsToObject,
 } from '../utils/ast-utils'
+import { getLocalFileName } from '../utils/file-utils'
 
 function getMessage(
   property: string,
@@ -205,6 +207,6 @@ function doesScriptLoadBannedAPIfromPolyfillIO(
   const url = new URL(source)
   if (url.hostname === 'polyfill.io' && url.searchParams.has('features')) {
     const requestedAPIs = (url.searchParams.get('features') || '').split(',')
-    return blockedAPIs.find(api => requestedAPIs.includes(api))
+    return blockedAPIs.find((api) => requestedAPIs.includes(api))
   }
 }

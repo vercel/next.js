@@ -2,7 +2,7 @@
 import { join } from 'path'
 import { File, runNextCommand } from 'next-test-utils'
 
-export default function(context) {
+export default function (context) {
   describe('API routes export', () => {
     const nextConfig = new File(join(context.appDir, 'next.config.js'))
 
@@ -21,7 +21,7 @@ export default function(context) {
       )
 
       expect(stdout).toContain(
-        'https://err.sh/zeit/next.js/api-routes-static-export'
+        'https://err.sh/vercel/next.js/api-routes-static-export'
       )
     })
   })

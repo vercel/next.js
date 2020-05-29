@@ -98,7 +98,10 @@ export async function apiResolver(
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
-export async function parseBody(req: NextApiRequest, limit: string | number) {
+export async function parseBody(
+  req: NextApiRequest,
+  limit: string | number
+): Promise<any> {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
@@ -131,7 +134,7 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
  * Parse `JSON` and handles invalid `JSON` strings
  * @param str `JSON` string
  */
-function parseJson(str: string) {
+function parseJson(str: string): object {
   if (str.length === 0) {
     // special-case empty json body, as it's a common client-side mistake
     return {}
@@ -194,7 +197,10 @@ export function getCookieParser(req: IncomingMessage) {
  * @param res response object
  * @param statusCode `HTTP` status code of response
  */
-export function sendStatusCode(res: NextApiResponse, statusCode: number) {
+export function sendStatusCode(
+  res: NextApiResponse,
+  statusCode: number
+): NextApiResponse<any> {
   res.statusCode = statusCode
   return res
 }
@@ -514,7 +520,7 @@ export function sendError(
   res: NextApiResponse,
   statusCode: number,
   message: string
-) {
+): void {
   res.statusCode = statusCode
   res.statusMessage = message
   res.end(message)
@@ -535,7 +541,7 @@ export function setLazyProp<T>(
   { req, params }: LazyProps,
   prop: string,
   getter: () => T
-) {
+): void {
   const opts = { configurable: true, enumerable: true }
   const optsReset = { ...opts, writable: true }
 
@@ -550,7 +556,7 @@ export function setLazyProp<T>(
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value
     },
-    set: value => {
+    set: (value) => {
       Object.defineProperty(req, prop, { ...optsReset, value })
     },
   })

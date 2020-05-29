@@ -1,6 +1,4 @@
-import React from 'react'
-
-export default function(props) {
+export default function Post(props) {
   return (
     <div>
       <h1>My {props.id} blog post</h1>

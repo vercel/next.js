@@ -12,4 +12,4 @@ export const initStore = (initialState = {}) => {
   )
 }
 
-export const reduxPage = comp => withRedux(initStore)(comp)
+export const reduxPage = (comp) => withRedux(initStore)(comp)

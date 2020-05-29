@@ -1,6 +1,6 @@
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
 
-module.exports = phase => {
+module.exports = (phase) => {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
     publicRuntimeConfig: {
@@ -10,9 +10,10 @@ module.exports = phase => {
       bar: 'bar',
     },
     exportTrailingSlash: true,
-    exportPathMap: function() {
+    exportPathMap: function () {
       return {
         '/': { page: '/' },
+        '/index': { page: '/index' },
         '/about': { page: '/about' },
         '/button-link': { page: '/button-link' },
         '/hash-link': { page: '/hash-link' },

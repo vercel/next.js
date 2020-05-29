@@ -9,7 +9,7 @@ description: Customize the pages that will be exported as HTML files when using 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
   </ul>
 </details>
 
@@ -23,7 +23,7 @@ Open `next.config.js` and add the following `exportPathMap` config:
 
 ```js
 module.exports = {
-  exportPathMap: async function(
+  exportPathMap: async function (
     defaultPathMap,
     { dev, dir, outDir, distDir, buildId }
   ) {

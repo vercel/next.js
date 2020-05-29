@@ -46,6 +46,7 @@ const styles = css`
   }
 
   [data-nextjs-dialog-banner]::after {
+    z-index: 2;
     content: '';
     position: absolute;
     top: 0;
@@ -61,6 +62,7 @@ const styles = css`
   }
 
   [data-nextjs-dialog-content] {
+    overflow-y: auto;
     border: none;
     margin: 0;
     /* calc(padding + banner width offset) */
@@ -77,7 +79,6 @@ const styles = css`
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
     position: relative;
     flex: 1 1 auto;
-    overflow-y: auto;
   }
 `
 
