@@ -6,22 +6,40 @@ import { basename, extname } from 'path'
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 import * as Log from '../../build/output/log'
+import webpack from 'webpack'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
+type ExportPathMap = {
+  [page: string]: { page: string; query?: { [key: string]: string } }
+}
+
+type Webpack = (
+  config: webpack.Configuration,
+  {
+    dir,
+    dev,
+    isServer,
+    buildId,
+  }: { dir: string; dev: boolean; isServer: boolean; buildId: boolean }
+) => webpack.Configuration | Promise<webpack.Configuration>
+type WebpackDevMiddleware = (
+  config: webpack.Configuration
+) => webpack.Configuration
+
 interface Config {
-  env: any[]
-  webpack: any | null
-  webpackDevMiddleware: any | null
+  env: { [key: string]: any }
+  webpack: Webpack | null
+  webpackDevMiddleware: WebpackDevMiddleware | null
   distDir: string
   assetPrefix: string
   configOrigin: string
   useFileSystemPublicRoutes: boolean
-  generateBuildId: () => null
+  generateBuildId: () => string | null | Promise<string>
   generateEtags: boolean
   pageExtensions: string[]
-  target: 'server' | 'serverless' | 'experimental-serverless-trace'
+  target: 'server' | 'serverless'
   poweredByHeader: boolean
   compress: boolean
   devIndicators: {
@@ -37,30 +55,17 @@ interface Config {
   }
   exportTrailingSlash: boolean
   sassOptions: object
-  experimental: {
-    cpus: number
-    granularChunks: boolean
-    modern: boolean
-    plugins: boolean
-    profiling: boolean
-    sprFlushToDisk: boolean
-    reactMode: string
-    workerThreads: boolean
-    basePath: string
-    pageEnv: boolean
-    productionBrowserSourceMaps: boolean
-    optionalCatchAll: boolean
-    redirects?: any
-    rewrites?: any
-    headers?: any
-  }
+  experimental: { [key: string]: any }
   future: {
     excludeDefaultMomentLocales: boolean
   }
   serverRuntimeConfig: object
   publicRuntimeConfig: object
   reactStrictMode: boolean
-  exportPathMap?: any
+  exportPathMap?: (defaultMap: ExportPathMap) => ExportPathMap
+  typescript?: {
+    ignoreBuildErrors: boolean
+  }
 }
 
 const defaultConfig: Config = {
@@ -126,82 +131,83 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: Config): Config {
-  const config = Object.keys(userConfig).reduce<{
-    [key: string]: Partial<Config>
-  }>((config, key) => {
-    const value = userConfig[key as keyof Config]
+  const config = Object.keys(userConfig).reduce<Config | object>(
+    (config, key) => {
+      const value = (userConfig as any)[key]
 
-    if (value === undefined || value === null) {
-      return config
-    }
-
-    if (key === 'experimental' && value && value !== defaultConfig[key]) {
-      experimentalWarning()
-    }
-
-    if (key === 'distDir') {
-      if (typeof value !== 'string') {
-        throw new Error(
-          `Specified distDir is not a string, found type "${typeof value}"`
-        )
-      }
-      const userDistDir = value.trim()
-
-      // don't allow public as the distDir as this is a reserved folder for
-      // public files
-      if (userDistDir === 'public') {
-        throw new Error(
-          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/vercel/next.js/can-not-output-to-public`
-        )
-      }
-      // make sure distDir isn't an empty string as it can result in the provided
-      // directory being deleted in development mode
-      if (userDistDir.length === 0) {
-        throw new Error(
-          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
-        )
-      }
-    }
-
-    if (key === 'pageExtensions') {
-      if (!Array.isArray(value)) {
-        throw new Error(
-          `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
-        )
+      if (value === undefined || value === null) {
+        return config
       }
 
-      if (!value.length) {
-        throw new Error(
-          `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
-        )
+      if (key === 'experimental' && value && value !== defaultConfig[key]) {
+        experimentalWarning()
       }
 
-      value.forEach((ext) => {
-        if (typeof ext !== 'string') {
+      if (key === 'distDir') {
+        if (typeof value !== 'string') {
           throw new Error(
-            `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+            `Specified distDir is not a string, found type "${typeof value}"`
           )
         }
-      })
-    }
+        const userDistDir = value.trim()
 
-    if (!!value && value.constructor === Object) {
-      config[key] = {
-        ...defaultConfig[key as keyof Config],
-        ...Object.keys(value).reduce<any>((c, k) => {
-          const v = value[k]
-          if (v !== undefined && v !== null) {
-            c[k] = v
-          }
-          return c
-        }, {}),
+        // don't allow public as the distDir as this is a reserved folder for
+        // public files
+        if (userDistDir === 'public') {
+          throw new Error(
+            `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/vercel/next.js/can-not-output-to-public`
+          )
+        }
+        // make sure distDir isn't an empty string as it can result in the provided
+        // directory being deleted in development mode
+        if (userDistDir.length === 0) {
+          throw new Error(
+            `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+          )
+        }
       }
-    } else {
-      config[key] = value
-    }
 
-    return config
-  }, {})
+      if (key === 'pageExtensions') {
+        if (!Array.isArray(value)) {
+          throw new Error(
+            `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
+          )
+        }
+
+        if (!value.length) {
+          throw new Error(
+            `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
+          )
+        }
+
+        value.forEach((ext) => {
+          if (typeof ext !== 'string') {
+            throw new Error(
+              `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+            )
+          }
+        })
+      }
+
+      if (!!value && value.constructor === Object) {
+        ;(config as any)[key] = {
+          ...(defaultConfig as any)[key],
+          ...Object.keys(value).reduce<any>((c, k) => {
+            const v = value[k]
+            if (v !== undefined && v !== null) {
+              c[k] = v
+            }
+            return c
+          }, {}),
+        }
+      } else {
+        ;(config as any)[key] = value
+      }
+
+      return config
+    },
+    {}
+  )
 
   const result = { ...defaultConfig, ...config }
 
