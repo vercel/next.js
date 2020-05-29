@@ -10,12 +10,13 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 
 - [Blog Starter](/examples/blog-starter)
 - [DatoCMS](/examples/cms-datocms)
+- [Prismic](/examples/cms-prismic)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example cms-contentful cms-contentful-app
@@ -181,7 +182,7 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 7. Try preview mode
 

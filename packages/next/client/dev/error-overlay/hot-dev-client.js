@@ -27,12 +27,9 @@
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
 import * as DevOverlay from '@next/react-dev-overlay/lib/client'
-import fetch from 'next/dist/build/polyfills/unfetch'
-import * as ErrorOverlay from 'next/dist/compiled/react-error-overlay'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
-import { rewriteStacktrace } from './source-map-support'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -46,50 +43,9 @@ import { rewriteStacktrace } from './source-map-support'
 let hadRuntimeError = false
 let customHmrEventHandler
 export default function connect(options) {
-  // Open stack traces in an editor.
-  ErrorOverlay.setEditorHandler(function editorHandler({
-    fileName,
-    lineNumber,
-    colNumber,
-  }) {
-    // Resolve invalid paths coming from react-error-overlay
-    const resolvedFilename = fileName.replace(/^webpack:\/\//, '')
-    fetch(
-      '/_next/development/open-stack-frame-in-editor' +
-        `?fileName=${window.encodeURIComponent(resolvedFilename)}` +
-        `&lineNumber=${lineNumber || 1}` +
-        `&colNumber=${colNumber || 1}`
-    )
-  })
+  DevOverlay.register()
 
-  if (process.env.__NEXT_FAST_REFRESH) {
-    DevOverlay.register()
-  }
-
-  // We need to keep track of if there has been a runtime error.
-  // Essentially, we cannot guarantee application state was not corrupted by the
-  // runtime error. To prevent confusing behavior, we forcibly reload the entire
-  // application. This is handled below when we are notified of a compile (code
-  // change).
-  // See https://github.com/facebook/create-react-app/issues/3096
-  ErrorOverlay.startReportingRuntimeErrors({
-    onError: function() {
-      if (process.env.__NEXT_FAST_REFRESH) {
-        return
-      }
-
-      hadRuntimeError = true
-    },
-  })
-
-  if (module.hot && typeof module.hot.dispose === 'function') {
-    module.hot.dispose(function() {
-      // TODO: why do we need this?
-      ErrorOverlay.stopReportingRuntimeErrors()
-    })
-  }
-
-  getEventSourceWrapper(options).addMessageListener(event => {
+  getEventSourceWrapper(options).addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -105,28 +61,8 @@ export default function connect(options) {
     subscribeToHmrEvent(handler) {
       customHmrEventHandler = handler
     },
-    reportRuntimeError(err) {
-      if (process.env.__NEXT_FAST_REFRESH) {
-        // FIXME: this code branch should be eliminated
-        setTimeout(() => {
-          // An unhandled rendering error occurred
-          throw err
-        })
-      } else {
-        ErrorOverlay.reportRuntimeError(err)
-      }
-    },
-    prepareError(err) {
-      // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
-      // Should be removed once the fix lands
+    onUnrecoverableError() {
       hadRuntimeError = true
-      // react-error-overlay expects a type of `Error`
-      const error = new Error(err.message)
-      error.name = err.name
-      error.stack = err.stack
-      // __NEXT_DIST_DIR is provided by webpack
-      rewriteStacktrace(error, process.env.__NEXT_DIST_DIR)
-      return error
     },
   }
 }
@@ -135,7 +71,6 @@ export default function connect(options) {
 var isFirstCompilation = true
 var mostRecentCompilationHash = null
 var hasCompileErrors = false
-var hmrEventCount = 0
 
 function clearOutdatedErrors() {
   // Clean up outdated compile errors, if any.
@@ -219,7 +154,7 @@ function handleErrors(errors) {
   })
 
   // Only show the first error.
-  ErrorOverlay.reportBuildError(formatted.errors[0])
+  DevOverlay.onBuildError(formatted.errors[0])
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -238,19 +173,13 @@ function handleErrors(errors) {
   }
 }
 
-function tryDismissErrorOverlay() {
-  if (!hasCompileErrors) {
-    ErrorOverlay.dismissBuildError()
-  }
-}
-
 function onFastRefresh(hasUpdates) {
-  tryDismissErrorOverlay()
+  DevOverlay.onBuildOk()
   if (hasUpdates) {
-    if (process.env.__NEXT_FAST_REFRESH) {
-      DevOverlay.onRefresh()
-    }
+    DevOverlay.onRefresh()
   }
+
+  console.log('[Fast Refresh] done')
 }
 
 // There is a newer version of the code available.
@@ -264,15 +193,11 @@ function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
-      ++hmrEventCount
-      console.log(
-        '[HMR] bundle ' + (obj.name ? "'" + obj.name + "' " : '') + 'rebuilding'
-      )
+      console.log('[Fast Refresh] rebuilding')
       break
     }
     case 'built':
     case 'sync': {
-      if (obj.action === 'built') ++hmrEventCount
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -289,44 +214,6 @@ function processMessage(e) {
       }
 
       return handleSuccess()
-    }
-    case 'typeChecked': {
-      const eventId = ++hmrEventCount
-
-      const [{ errors }] = obj.data
-      const hasErrors = Boolean(errors && errors.length)
-
-      // Disregard event if there are no errors to report.
-      if (!hasErrors) {
-        // We need to _try_ dismissing the error overlay, as code may not have
-        // changed, for example, when only types are updated.
-        // n.b. `handleSuccess` only dismisses the overlay if code was updated.
-        tryDismissErrorOverlay()
-        break
-      }
-
-      function display() {
-        // Another update has started, ignore type update:
-        if (!canApplyUpdates() || eventId !== hmrEventCount) {
-          return
-        }
-
-        // TypeScript errors to not take priority over compillation errors
-        if (hasCompileErrors) {
-          return
-        }
-
-        handleErrors(errors)
-      }
-
-      // We need to defer this until we're in an idle state.
-      if (canApplyUpdates()) {
-        display()
-      } else {
-        afterApplyUpdates(display)
-      }
-
-      break
     }
     default: {
       if (customHmrEventHandler) {
@@ -380,10 +267,18 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
-        console.warn('Error while applying updates, reloading page', err)
-      }
-      if (hadRuntimeError) {
-        console.warn('Had runtime error previously, reloading page')
+        console.warn(
+          '[Fast Refresh] performing full reload\n\n' +
+            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React tree.\n" +
+            'You might have a file which renders a React component but also exports a value that is imported by a non-React component.\n' +
+            'Consider migrating the non-React component export to a separate file and importing it into both files.\n\n' +
+            'It is also possible you are using class components at the top-level of your application, which disables Fast Refresh.\n' +
+            'Fast Refresh requires at least one function component in your React tree.'
+        )
+      } else if (hadRuntimeError) {
+        console.warn(
+          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
+        )
       }
       window.location.reload()
       return
@@ -412,10 +307,10 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
   // https://webpack.js.org/api/hot-module-replacement/#check
   module.hot.check(/* autoApply */ true).then(
-    updatedModules => {
+    (updatedModules) => {
       handleApplyUpdates(null, updatedModules)
     },
-    err => {
+    (err) => {
       handleApplyUpdates(err, null)
     }
   )

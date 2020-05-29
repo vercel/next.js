@@ -8,6 +8,7 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { LoadedEnvFiles } from '../lib/load-env-config'
 
 type PagesMapping = {
   [page: string]: string
@@ -66,7 +67,8 @@ export function createEntrypoints(
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: any
+  config: any,
+  loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
@@ -92,9 +94,10 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
+    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
   }
 
-  Object.keys(pages).forEach(page => {
+  Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
@@ -133,12 +136,6 @@ export function createEntrypoints(
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-        hotRouterUpdates:
-          // Hot router updates only apply in development mode
-          dev &&
-          // However, React Refresh has its own hot module runtime, so we can't
-          // let them collide.
-          config.experimental.reactRefresh !== true,
       }
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts

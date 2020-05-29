@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Invalid resolve alias', () => {
   it('should show relevant error when webpack resolve alias is wrong', async () => {

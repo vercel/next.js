@@ -1,16 +1,28 @@
-# Non-Standard Node_env
+# Non-Standard NODE_ENV
 
 #### Why This Error Occurred
 
-In your environment you set a non-standard value for `NODE_ENV`.
+Your environment has a non-standard `NODE_ENV` value configured.
 
-Next.js automatically sets this environment value for you and also forces the correct value during bundling to ensure the bundles are optimized and code can be tree-shaken correctly.
+This may be by accident, so if you're unaware where the value is coming from, check the following:
 
-When you set a non-standard environment value like `staging` this causes inconsistent behavior since we override the value to the standard one during bundling e.g. `production` or `development`.
+- The `.env*` files in your project, if present
+- Your `~/.bash_profile`, if present
+- Your `~/.zshrc`, if present
+
+The greater React ecosystem treats `NODE_ENV` as a convention, only permitting three (3) values:
+
+- `production`: When your application is built with `next build`
+- `development`: When your application is ran with `next dev`
+- `test`: When your application is being tested (e.g. `jest`)
+
+Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead code elimination**.
 
 #### Possible Ways to Fix It
 
-Remove any custom `NODE_ENV` environment variables and let Next.js automatically set the correct value for you.
+To fix this error, identify the source of the erroneous `NODE_ENV` value and get rid of it: Next.js automatically sets the correct value for you.
+
+If you need the concept of different environments in your application, e.g. `staging`, you should use a different environment variable name like `APP_ENV`.
 
 ### Useful Links
 

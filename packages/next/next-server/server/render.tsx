@@ -45,7 +45,7 @@ import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
-    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
+    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/vercel/next.js/no-router-instance'
   throw new Error(message)
 }
 
@@ -492,7 +492,7 @@ export async function renderToHTML(
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <LoadableContext.Provider
-          value={moduleName => reactLoadableModules.push(moduleName)}
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           {children}
         </LoadableContext.Provider>
@@ -541,7 +541,7 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'unstable_revalidate' && key !== 'props'
       )
 
       if (invalidKeys.includes('revalidate')) {
@@ -626,7 +626,7 @@ export async function renderToHTML(
         throw err
       }
 
-      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -660,13 +660,13 @@ export async function renderToHTML(
   ) {
     console.warn(
       `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
-        `See more info here: https://err.sh/zeit/next.js/reserved-page-prop`
+        `See more info here: https://err.sh/vercel/next.js/reserved-page-prop`
     )
   }
 
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq) return props
+  if (isDataReq && !isSSG) return props
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
@@ -702,7 +702,7 @@ export async function renderToHTML(
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
       )
     }
   }
@@ -748,7 +748,7 @@ export async function renderToHTML(
     const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach(item => {
+      manifestItem.forEach((item) => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })

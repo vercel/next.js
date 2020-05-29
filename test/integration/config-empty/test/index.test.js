@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   nextBuild,
@@ -9,7 +9,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 
@@ -21,7 +21,7 @@ describe('Empty configuration', () => {
     })
     expect(stdout).toMatch(/Compiled successfully./)
     expect(stderr).toMatch(
-      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/zeit\/next.js\/empty-configuration/
+      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/vercel\/next.js\/empty-configuration/
     )
   })
 
@@ -38,7 +38,7 @@ describe('Empty configuration', () => {
     await killApp(app)
 
     expect(stderr).toMatch(
-      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/zeit\/next.js\/empty-configuration/
+      /Warning: Detected next.config.js, no exported configuration found. https:\/\/err.sh\/vercel\/next.js\/empty-configuration/
     )
   })
 })

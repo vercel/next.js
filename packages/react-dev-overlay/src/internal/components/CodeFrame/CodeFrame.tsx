@@ -14,9 +14,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   const formattedFrame = React.useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
     const prefixLength = lines
-      .map(line => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
+      .map((line) => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
       .filter(Boolean)
-      .map(v => v.pop())
+      .map((v) => v.pop())
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
 
     if (prefixLength > 1) {
@@ -60,7 +60,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       <p
         role="link"
         onClick={open}
-        tabIndex={0}
+        tabIndex={1}
         title="Click to open in your editor"
       >
         <span>

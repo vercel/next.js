@@ -7,7 +7,7 @@ description: Next.js supports TypeScript by default and has built-in types for p
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
   </ul>
 </details>
 
@@ -54,7 +54,7 @@ For `getStaticProps`, `getStaticPaths`, and `getServerSideProps`, you can use th
 ```ts
 import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async context => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
 
@@ -62,7 +62,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
   // ...
 }
 
-export const getServerSideProps: GetServerSideProps = async context => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
   // ...
 }
 ```
@@ -108,3 +108,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 
 export default MyApp
 ```
+
+## Path aliases and baseUrl
+
+Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
+
+You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).

@@ -12,12 +12,13 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
+- [Contentful](/examples/cms-contentful)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example cms-prismic cms-prismic-app
@@ -30,7 +31,7 @@ yarn create next-app --example cms-prismic cms-prismic-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-prismic
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-prismic
 cd cms-prismic
 ```
 
@@ -109,13 +110,17 @@ Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
 - `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
+- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 
 Your `.env` file should look like this:
 
 ```bash
 NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
 NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
+NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
 ```
+
+Make sure the locale matches your settings in the Prismic dashboard.
 
 ### Step 6. Run Next.js in development mode
 
@@ -129,7 +134,7 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 7. Try preview mode
 

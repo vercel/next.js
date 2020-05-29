@@ -26,9 +26,10 @@ export type ServerlessLoaderQuery = {
   basePath: string
   runtimeConfig: string
   previewProps: string
+  loadedEnvFiles: string
 }
 
-const nextServerlessLoader: loader.Loader = function() {
+const nextServerlessLoader: loader.Loader = function () {
   const {
     distDir,
     absolutePagePath,
@@ -43,6 +44,7 @@ const nextServerlessLoader: loader.Loader = function() {
     basePath,
     runtimeConfig,
     previewProps,
+    loadedEnvFiles,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -59,6 +61,11 @@ const nextServerlessLoader: loader.Loader = function() {
   const encodedPreviewProps = devalue(
     JSON.parse(previewProps) as __ApiPreviewProps
   )
+
+  const envLoading = `
+    const { processEnv } = require('next/dist/lib/load-env-config')
+    processEnv(${loadedEnvFiles})
+  `
 
   const runtimeConfigImports = runtimeConfig
     ? `
@@ -139,11 +146,9 @@ const nextServerlessLoader: loader.Loader = function() {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
-      import fetch from 'next/dist/compiled/node-fetch'
-    
-      if(!global.fetch) {
-        global.fetch = fetch
-      }
+      import 'next/dist/next-server/server/node-polyfill-fetch'
+
+      ${envLoading}
       ${runtimeConfigImports}
       ${
         /*
@@ -208,11 +213,9 @@ const nextServerlessLoader: loader.Loader = function() {
     return `
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
-    import fetch from 'next/dist/compiled/node-fetch'
-    
-    if(!global.fetch) {
-      global.fetch = fetch
-    }
+    import 'next/dist/next-server/server/node-polyfill-fetch'
+
+    ${envLoading}
     ${runtimeConfigImports}
     ${
       // this needs to be called first so its available for any other imports
@@ -296,7 +299,8 @@ const nextServerlessLoader: loader.Loader = function() {
           {
             Component,
             pageConfig: config,
-            nextExport: fromExport
+            nextExport: fromExport,
+            isDataReq: _nextData,
           },
           options,
         )

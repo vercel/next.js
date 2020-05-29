@@ -37,6 +37,7 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
+    const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
@@ -52,9 +53,9 @@ export async function apiResolver(
       )
     }
 
-    apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
-    apiRes.send = data => sendData(apiRes, data)
-    apiRes.json = data => sendJson(apiRes, data)
+    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
+    apiRes.send = (data) => sendData(apiRes, data)
+    apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
@@ -70,7 +71,12 @@ export async function apiResolver(
     // Call API route method
     await resolver(req, res)
 
-    if (process.env.NODE_ENV !== 'production' && !isResSent(res) && !wasPiped) {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      !externalResolver &&
+      !isResSent(res) &&
+      !wasPiped
+    ) {
       console.warn(
         `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
       )
@@ -90,7 +96,10 @@ export async function apiResolver(
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
-export async function parseBody(req: NextApiRequest, limit: string | number) {
+export async function parseBody(
+  req: NextApiRequest,
+  limit: string | number
+): Promise<any> {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
@@ -123,7 +132,7 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
  * Parse `JSON` and handles invalid `JSON` strings
  * @param str `JSON` string
  */
-function parseJson(str: string) {
+function parseJson(str: string): object {
   if (str.length === 0) {
     // special-case empty json body, as it's a common client-side mistake
     return {}
@@ -186,7 +195,10 @@ export function getCookieParser(req: IncomingMessage) {
  * @param res response object
  * @param statusCode `HTTP` status code of response
  */
-export function sendStatusCode(res: NextApiResponse, statusCode: number) {
+export function sendStatusCode(
+  res: NextApiResponse,
+  statusCode: number
+): NextApiResponse<any> {
   res.statusCode = statusCode
   return res
 }
@@ -196,7 +208,7 @@ export function sendStatusCode(res: NextApiResponse, statusCode: number) {
  * @param res response object
  * @param body of response
  */
-export function sendData(res: NextApiResponse, body: any) {
+export function sendData(res: NextApiResponse, body: any): void {
   if (body === null) {
     res.end()
     return
@@ -481,7 +493,7 @@ export function sendError(
   res: NextApiResponse,
   statusCode: number,
   message: string
-) {
+): void {
   res.statusCode = statusCode
   res.statusMessage = message
   res.end(message)
@@ -502,7 +514,7 @@ export function setLazyProp<T>(
   { req, params }: LazyProps,
   prop: string,
   getter: () => T
-) {
+): void {
   const opts = { configurable: true, enumerable: true }
   const optsReset = { ...opts, writable: true }
 
@@ -517,7 +529,7 @@ export function setLazyProp<T>(
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value
     },
-    set: value => {
+    set: (value) => {
       Object.defineProperty(req, prop, { ...optsReset, value })
     },
   })

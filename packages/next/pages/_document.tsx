@@ -1,11 +1,11 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import flush from 'styled-jsx/server'
-
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   AMP_RENDER_TARGET,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
@@ -13,7 +13,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
 } from '../next-server/lib/utils'
-import fidPolyfill from '../next-server/lib/fid'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 
@@ -38,7 +37,7 @@ function dedupe(bundles: any[]): any[] {
   return kept
 }
 
-function getOptionalModernScriptVariant(path: string) {
+function getOptionalModernScriptVariant(path: string): string {
   if (process.env.__NEXT_MODERN_BUILD) {
     return path.replace(/\.js$/, '.module.js')
   }
@@ -80,7 +79,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
       ? await import(
           // @ts-ignore loader syntax
           'next-plugin-loader?middleware=unstable-enhance-app-server!'
-        ).then(mod => mod.default(ctx))
+        ).then((mod) => mod.default(ctx))
       : []
 
     const enhanceApp = (App: any) => {
@@ -97,7 +96,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         ? await import(
             // @ts-ignore loader syntax
             'next-plugin-loader?middleware=unstable-get-styles-server!'
-          ).then(mod => mod.default(ctx))
+          ).then((mod) => mod.default(ctx))
         : []),
     ]
     return { html, head, styles }
@@ -112,7 +111,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         value={{
           _documentProps: props,
           // In dev we invalidate the cache by appending a timestamp to the resource URL.
-          // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+          // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
           // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
           _devOnlyInvalidateCacheQueryString:
             process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
@@ -185,10 +184,10 @@ export class Head extends Component<
     const { assetPrefix, files } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const cssFiles =
-      files && files.length ? files.filter(f => /\.css$/.test(f)) : []
+      files && files.length ? files.filter((f) => /\.css$/.test(f)) : []
 
     const cssLinkElements: JSX.Element[] = []
-    cssFiles.forEach(file => {
+    cssFiles.forEach((file) => {
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -277,20 +276,6 @@ export class Head extends Component<
         ))
   }
 
-  getFidPolyfill(): JSX.Element | null {
-    if (!process.env.__NEXT_FID_POLYFILL) {
-      return null
-    }
-
-    return (
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
-        }}
-      />
-    )
-  }
-
   render() {
     const {
       styles,
@@ -331,7 +316,7 @@ export class Head extends Component<
     let hasCanonicalRel = false
 
     // show warning and remove conflicting amp head tags
-    head = React.Children.map(head || [], child => {
+    head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
 
@@ -353,7 +338,7 @@ export class Head extends Component<
               (!props.type || props.type === 'text/javascript'))
           ) {
             badProp = '<script'
-            Object.keys(props).forEach(prop => {
+            Object.keys(props).forEach((prop) => {
               badProp += ` ${prop}="${props[prop]}"`
             })
             badProp += '/>'
@@ -392,7 +377,7 @@ export class Head extends Component<
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props.children.forEach((child: React.ReactElement) => {
         if (Array.isArray(child)) {
-          child.forEach(el => hasStyles(el) && curStyles.push(el))
+          child.forEach((el) => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
           curStyles.push(child)
         }
@@ -452,7 +437,7 @@ export class Head extends Component<
                 amp-custom=""
                 dangerouslySetInnerHTML={{
                   __html: curStyles
-                    .map(style => style.props.dangerouslySetInnerHTML.__html)
+                    .map((style) => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
                     .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
@@ -528,7 +513,6 @@ export class Head extends Component<
             {styles || null}
           </>
         )}
-        {!disableRuntimeJS && this.getFidPolyfill()}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )
@@ -594,12 +578,12 @@ export class NextScript extends Component<OriginProps> {
     const { assetPrefix, files, lowPriorityFiles } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    const normalScripts = files?.filter(file => file.endsWith('.js'))
-    const lowPriorityScripts = lowPriorityFiles?.filter(file =>
+    const normalScripts = files?.filter((file) => file.endsWith('.js'))
+    const lowPriorityScripts = lowPriorityFiles?.filter((file) =>
       file.endsWith('.js')
     )
 
-    return [...normalScripts, ...lowPriorityScripts].map(file => {
+    return [...normalScripts, ...lowPriorityScripts].map((file) => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
         modernProps = file.endsWith('.module.js')
@@ -629,9 +613,10 @@ export class NextScript extends Component<OriginProps> {
 
     return polyfillFiles
       .filter(
-        polyfill => polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
+        (polyfill) =>
+          polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
       )
-      .map(polyfill => (
+      .map((polyfill) => (
         <script
           key={polyfill}
           nonce={this.props.nonce}
@@ -642,7 +627,7 @@ export class NextScript extends Component<OriginProps> {
       ))
   }
 
-  static getInlineScriptSource(documentProps: DocumentProps) {
+  static getInlineScriptSource(documentProps: DocumentProps): string {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
@@ -650,7 +635,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/zeit/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/vercel/next.js/circular-structure`
         )
       }
       throw err
@@ -677,6 +662,7 @@ export class NextScript extends Component<OriginProps> {
       }
 
       const devFiles = [
+        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
       ]
@@ -698,7 +684,7 @@ export class NextScript extends Component<OriginProps> {
             />
           )}
           {devFiles
-            ? devFiles.map(file => (
+            ? devFiles.map((file) => (
                 <script
                   key={file}
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
@@ -837,11 +823,11 @@ export class NextScript extends Component<OriginProps> {
   }
 }
 
-function getAmpPath(ampPath: string, asPath: string) {
+function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-function getPageFile(page: string, buildId?: string) {
+function getPageFile(page: string, buildId?: string): string {
   const startingUrl = page === '/' ? '/index' : page
   return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }
