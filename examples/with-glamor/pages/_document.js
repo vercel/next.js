@@ -4,27 +4,29 @@ import { renderStatic } from 'glamor/server'
 export default class MyDocument extends Document {
   static async getInitialProps({ renderPage }) {
     const page = renderPage()
-    const styles = renderStatic(() => page.html || page.errorHtml)
-    return { ...page, ...styles }
-  }
-
-  constructor(props) {
-    super(props)
-    const { __NEXT_DATA__, ids } = props
-    if (ids) {
-      __NEXT_DATA__.ids = this.props.ids
-    }
+    const { css, ids } = renderStatic(() => page.html || page.errorHtml)
+    return { ...page, css, ids }
   }
 
   render() {
+    const { ids, css } = this.props
     return (
       <html>
         <Head>
-          <style dangerouslySetInnerHTML={{ __html: this.props.css }} />
+          <style dangerouslySetInnerHTML={{ __html: css }} />
         </Head>
         <body>
           <Main />
           <NextScript />
+          {ids && (
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.__REHYDRATE_IDS = ${JSON.stringify(ids)}
+                `,
+              }}
+            />
+          )}
         </body>
       </html>
     )
