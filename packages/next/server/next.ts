@@ -28,7 +28,6 @@ function createServer(options: NextServerConstructor): Server {
   }
 
   if (options.dev) {
-    // This is optional and not related to the issue, but I believe this PR can introduce a handy warning if the variable is not boolean
     if (typeof options.dev !== 'boolean') {
       console.warn(
         "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://err.sh/next.js/invalid-server-options"
