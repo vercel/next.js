@@ -1,36 +1,21 @@
-// import { useEffect } from 'react'
-import { getParameterByName } from './utils'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 
 export default function usePreviewRedirect() {
-  if (!process.browser) {
-    //kickout if this is not being executed in the browser
-    return
-  }
+  const router = useRouter()
+  const { query, asPath } = router
+  const { agilityPreviewKey, contentid } = query
 
-  //check if we have an `agilitypreviewkey` in the query of this request
-  const agilityPreviewKey = getParameterByName(`agilitypreviewkey`)
+  useEffect(() => {
+    // kickout if we don't have an agilityPreviewKey
+    if (!agilityPreviewKey) return
 
-  if (!agilityPreviewKey) {
-    //kickout if we don't have a preview key
-    return
-  }
+    // redirect to our preview API route
+    let redirectLink = `/api/preview?slug=${asPath}&agilitypreviewkey=${agilityPreviewKey}`
 
-  //redirect this to our preview API route
-  const previewAPIRoute = `/api/preview`
-  const slug = window.location.pathname
+    // Check if we have a `contentid` in the query, if so this is a preview request for a Dynamic Page Item
+    if (contentid) redirectLink = `${redirectLink}&contentid=${contentid}`
 
-  //check if we have a `contentid` in the query, if so this is a preview request for a Dynamic Page Item
-  const contentID = getParameterByName(`contentid`)
-
-  //do the redirect
-  let redirectLink = `${previewAPIRoute}?slug=${slug}&agilitypreviewkey=${agilityPreviewKey}`
-
-  //add-in the contentid if we have it
-  if (contentID) {
-    redirectLink = `${redirectLink}&contentid=${contentID}`
-  }
-
-  window.location.href = redirectLink
-
-  return
+    window.location.href = redirectLink
+  }, [asPath, agilityPreviewKey, contentid])
 }
