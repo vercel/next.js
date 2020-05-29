@@ -1,7 +1,7 @@
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { renderStatic } from 'glamor/server'
 
-export default class MyDocument extends Document {
+class MyDocument extends Document {
   static async getInitialProps({ renderPage }) {
     const page = renderPage()
     const { css, ids } = renderStatic(() => page.html || page.errorHtml)
@@ -11,7 +11,7 @@ export default class MyDocument extends Document {
   render() {
     const { ids, css } = this.props
     return (
-      <html>
+      <Html>
         <Head>
           <style dangerouslySetInnerHTML={{ __html: css }} />
         </Head>
@@ -28,7 +28,9 @@ export default class MyDocument extends Document {
             />
           )}
         </body>
-      </html>
+      </Html>
     )
   }
 }
+
+export default MyDocument
