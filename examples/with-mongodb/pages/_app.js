@@ -24,8 +24,6 @@ function MyApp({ Component, pageProps }) {
           id="title"
           src="https://upload.wikimedia.org/wikipedia/commons/1/1f/Pet_logo_with_flowers.png"
           alt="pet care logo"
-          width="100"
-          height="100"
         ></img>
       </div>
       <div className="grid wrapper">

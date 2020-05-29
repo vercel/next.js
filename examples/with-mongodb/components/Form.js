@@ -1,22 +1,22 @@
 import { useRouter } from 'next/router'
 import { useState } from 'react'
 
-const Form = (formId, editForm = null, forNewPet = true) => {
+const Form = ({ formId, petForm, forNewPet = true }) => {
   const router = useRouter()
   const contentType = 'application/json'
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
 
   const [form, setForm] = useState({
-    name: editForm.name || '',
-    owner_name: editForm.owner_name || '',
-    species: editForm.species || '',
-    age: editForm.age || 0,
-    poddy_trained: editForm.poddy_trained || false,
-    diet: editForm.diet || [],
-    image_url: editForm.image_url || '',
-    likes: editForm.likes || [],
-    dislikes: editForm.dislikes || [],
+    name: petForm.name,
+    owner_name: petForm.owner_name,
+    species: petForm.species,
+    age: petForm.age,
+    poddy_trained: petForm.poddy_trained,
+    diet: petForm.diet,
+    image_url: petForm.image_url,
+    likes: petForm.likes,
+    dislikes: petForm.dislikes,
   })
 
   /* The PUT method edits an existing entry in the mongodb database. */

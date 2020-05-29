@@ -30,6 +30,7 @@ const Index = ({ pets }) => {
                   ))}
                 </ul>
               </div>
+
               {/* Buttons */}
               <div className="btn-container">
                 <Link href="/[id]/edit" as={`/${pet._id}/edit`}>
@@ -52,11 +53,7 @@ export async function getStaticProps() {
   const res = await fetch(`${process.env.VERCEL_URL}/api/pets`)
   const { data } = await res.json()
 
-  return {
-    props: {
-      pets: data,
-    },
-  }
+  return { props: { pets: data } }
 }
 
 export default Index
