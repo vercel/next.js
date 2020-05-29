@@ -64,6 +64,17 @@ ArticleSchema.methods.toJSON = function () {
   return JSON.parse(JSON.stringify(article))
 }
 
+ArticleSchema.statics.findOneFeatured = function (conditions) {
+  return this.findOne(conditions, {}, { sort: '-createdAt' }).populate(
+    'category'
+  )
+}
+ArticleSchema.statics.findLatest = function (conditions, limit = 2) {
+  return this.find(conditions, {}, { sort: '-createdAt' })
+    .populate('category')
+    .limit(limit)
+}
+
 if (
   process.env.NODE_ENV !== 'production' &&
   mongoose.modelNames().includes('Article')
