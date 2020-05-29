@@ -17,7 +17,9 @@ jest.setTimeout(1000 * 60 * 5)
 describe('Basic Features', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
 
     // pre-build all pages at the start
     await Promise.all([
