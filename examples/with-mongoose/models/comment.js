@@ -1,5 +1,6 @@
 import mongoose, { Schema, Types } from 'mongoose'
 import mongooseIdValidator from 'mongoose-id-validator'
+import mongoosePaginate from 'mongoose-paginate-v2'
 
 const CommentSchema = new Schema(
   {
@@ -24,6 +25,7 @@ const CommentSchema = new Schema(
 )
 
 CommentSchema.plugin(mongooseIdValidator, { message: 'Article not found' })
+CommentSchema.plugin(mongoosePaginate)
 
 CommentSchema.methods.toJSON = function () {
   const comment = this.toObject()
