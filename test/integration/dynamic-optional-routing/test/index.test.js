@@ -98,6 +98,30 @@ function runTests() {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({})
   })
+
+  it('should handle getStaticPaths no segments', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths')
+    const $ = cheerio.load(html)
+    expect($('#gsp-optional-route').text()).toBe('gsp route: undefined')
+  })
+
+  it('should handle getStaticPaths no segments and trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/')
+    const $ = cheerio.load(html)
+    expect($('#gsp-optional-route').text()).toBe('gsp route: undefined')
+  })
+
+  it('should handle getStaticPaths 1 segment', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p1')
+    const $ = cheerio.load(html)
+    expect($('#gsp-optional-route').text()).toBe('gsp route: [p1]')
+  })
+
+  it('should handle getStaticPaths 2 segments', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p2/p3')
+    const $ = cheerio.load(html)
+    expect($('#gsp-optional-route').text()).toBe('gsp route: [p2|p3]')
+  })
 }
 
 const nextConfig = join(appDir, 'next.config.js')

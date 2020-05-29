@@ -636,7 +636,7 @@ export async function buildStaticPaths(
       const { params = {} } = entry
       let builtPage = page
       _validParamKeys.forEach((validParamKey) => {
-        const { repeat } = _routeRegex.groups[validParamKey]
+        const { repeat, optional } = _routeRegex.groups[validParamKey]
         const paramValue = params[validParamKey]
         if (
           (repeat && !Array.isArray(paramValue)) ||
@@ -648,9 +648,12 @@ export async function buildStaticPaths(
             } in getStaticPaths for ${page}`
           )
         }
-
+        let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
+        if (optional) {
+          replaced = `[${replaced}]`
+        }
         builtPage = builtPage.replace(
-          `[${repeat ? '...' : ''}${validParamKey}]`,
+          replaced,
           repeat
             ? (paramValue as string[]).map(encodeURIComponent).join('/')
             : encodeURIComponent(paramValue as string)
