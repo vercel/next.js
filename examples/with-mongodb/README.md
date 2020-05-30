@@ -16,6 +16,25 @@ npm init next-app --example with-mongodb with-mongodb-app
 yarn create next-app --example with-mongodb with-mongodb-app
 ```
 
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mongodb
+cd with-mongodb
+```
+
+## Install and run:
+
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
+
 ## Configuration
 
 ### Step 1. Connect MongoDB to the application
@@ -52,22 +71,15 @@ MONGO_DBURI=...
 VERCEL_URL=...
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mongodb
-cd with-mongodb
-```
-
-## Install and run:
+### Step 5. Run Next.js in development mode
 
 ```bash
 npm install
 npm run dev
+
 # or
-yarn
+
+yarn install
 yarn dev
 ```
 
