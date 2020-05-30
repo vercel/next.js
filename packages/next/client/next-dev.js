@@ -19,6 +19,11 @@ if (!window.EventSource) {
   window.EventSource = EventSourcePolyfill
 }
 
+if (sessionStorage && sessionStorage.getItem('consoleWarnAfterReload')) {
+  console.warn(sessionStorage.getItem('consoleWarnAfterReload'))
+  sessionStorage.removeItem('consoleWarnAfterReload')
+}
+
 const {
   __NEXT_DATA__: { assetPrefix },
 } = window

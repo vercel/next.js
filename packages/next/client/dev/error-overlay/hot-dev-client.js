@@ -267,8 +267,8 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
-        console.warn(
-          '[Fast Refresh] performing full reload\n\n' +
+        consoleWarnAfterReload(
+          '[Fast Refresh] performed full reload\n\n' +
             "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React tree.\n" +
             'You might have a file which renders a React component but also exports a value that is imported by a non-React component.\n' +
             'Consider migrating the non-React component export to a separate file and importing it into both files.\n\n' +
@@ -276,8 +276,8 @@ function tryApplyUpdates(onHotUpdateSuccess) {
             'Fast Refresh requires at least one function component in your React tree.'
         )
       } else if (hadRuntimeError) {
-        console.warn(
-          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
+        consoleWarnAfterReload(
+          '[Fast Refresh] performed full reload because your application had an unrecoverable error'
         )
       }
       window.location.reload()
@@ -314,4 +314,42 @@ function tryApplyUpdates(onHotUpdateSuccess) {
       handleApplyUpdates(err, null)
     }
   )
+}
+
+function consoleWarnAfterReload(warning) {
+  if (storageAvailable('sessionStorage')) {
+    // client/index.js will console.warn after reload
+    sessionStorage.setItem('consoleWarnAfterReload', warning)
+  } else {
+    // user will just have to deal with a pre-reload warning
+    console.warn(warning)
+  }
+}
+
+// https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API#Feature-detecting_localStorage
+function storageAvailable(type) {
+  var storage
+  try {
+    storage = window[type]
+    var x = '__storage_test__'
+    storage.setItem(x, x)
+    storage.removeItem(x)
+    return true
+  } catch (e) {
+    return (
+      e instanceof DOMException &&
+      // everything except Firefox
+      (e.code === 22 ||
+        // Firefox
+        e.code === 1014 ||
+        // test name field too, because code might not be present
+        // everything except Firefox
+        e.name === 'QuotaExceededError' ||
+        // Firefox
+        e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
+      // acknowledge QuotaExceededError only if there's something already stored
+      storage &&
+      storage.length !== 0
+    )
+  }
 }
