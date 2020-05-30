@@ -169,6 +169,11 @@ li {
   margin-left: 10px;
 }
 
+.view.btn {
+  --accent: blue;
+  margin-left: 10px;
+}
+
 /* Delete Pet */
 .pet-container {
   width: 100%;

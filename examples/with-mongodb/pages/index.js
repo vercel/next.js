@@ -32,13 +32,12 @@ const Index = ({ pets }) => (
               </ul>
             </div>
 
-            {/* Buttons */}
             <div className="btn-container">
               <Link href="/[id]/edit" as={`/${pet._id}/edit`}>
                 <button className="btn edit">Edit</button>
               </Link>
               <Link href="/[id]" as={`/${pet._id}`}>
-                <button className="btn delete">Delete</button>
+                <button className="btn view">View</button>
               </Link>
             </div>
           </div>
