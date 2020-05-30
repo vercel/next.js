@@ -34,8 +34,6 @@ Read more about testing on Stripe at https://stripe.com/docs/testing.
 ### Included functionality
 
 - [Global CSS styles](https://nextjs.org/blog/next-9-2#built-in-css-support-for-global-stylesheets)
-- Making `.env` variables available to next: [next.config.js](next.config.js)
-  - **Note**: When deploying with Vercel you need to [add your secrets](https://vercel.com/docs/v2/serverless-functions/env-and-secrets) and specify a [vercel.json](/vercel.json) file.
 - Implementation of a Layout component that loads and sets up Stripe.js and Elements for usage with SSR via `loadStripe` helper: [components/Layout.tsx](components/Layout.tsx).
 - Stripe Checkout
   - Custom Amount Donation with redirect to Stripe Checkout:
@@ -78,13 +76,13 @@ cd with-stripe-typescript
 
 ### Required configuration
 
-Copy the `.env.example` file into a file named `.env` in the root directory of this project:
+Copy the `.env.local.example` file into a file named `.env.local` in the root directory of this project:
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-You will need a Stripe account ([register](https://dashboard.stripe.com/register)) to run this sample. Go to the Stripe [developer dashboard](https://stripe.com/docs/development#api-keys) to find your API keys and replace them in the `.env` file.
+You will need a Stripe account ([register](https://dashboard.stripe.com/register)) to run this sample. Go to the Stripe [developer dashboard](https://stripe.com/docs/development#api-keys) to find your API keys and replace them in the `.env.local` file.
 
 ```bash
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<replace-with-your-publishable-key>
@@ -111,7 +109,7 @@ Next, start the webhook forwarding:
 stripe listen --forward-to localhost:3000/api/webhooks
 ```
 
-The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECRET` to this value in your `.env` file.
+The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECRET` to this value in your `.env.local` file.
 
 ### Deploy
 
