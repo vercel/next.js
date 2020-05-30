@@ -24,7 +24,7 @@ const Header = ({ categories }) => {
       </header>
       <div className="nav-scroller py-1 mb-2">
         <nav className="nav d-flex justify-content-between">
-          {categories.map((category) => (
+          {categories?.map((category) => (
             <Link key={category._id} href={`/category/${category.slug}`}>
               <a className={getClassName(category.slug)}>{category.name}</a>
             </Link>

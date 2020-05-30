@@ -1,6 +1,9 @@
 import dynamic from 'next/dynamic'
+import ErrorPage from 'next/error'
+import { useRouter } from 'next/router'
 
 import ArticleComponent from 'components/article'
+import Giphy from 'components/giphy'
 import Layout from 'components/layout'
 import SideBar from 'components/sidebar'
 import { connect } from 'libs/db'
@@ -12,24 +15,42 @@ const Comments = dynamic(import('components/comments'), {
   loading: () => (
     <div className="row">
       <div className="col-12">
-        <h3 className="lead font-weight-bold mb-4">Loading comments...</h3>
+        <h3 className="lead font-weight-bold mb-4">Loading comment section</h3>
       </div>
     </div>
   ),
 })
-const ArticlePage = ({ article, categories }) => (
-  <Layout categories={categories} title={article.title}>
-    <main className="container">
-      <div className="row">
-        <div className="col-md-8 blog-main">
-          <ArticleComponent article={article} />
-          <Comments />
+const ArticlePage = (props) => {
+  const router = useRouter()
+
+  if (!router.isFallback && !props.article)
+    return <ErrorPage statusCode={404} />
+
+  return (
+    <Layout
+      categories={props.categories}
+      title={props.article?.title ?? 'Loading'}
+    >
+      <main className="container">
+        <div className="row">
+          {router.isFallback ? (
+            <Giphy
+              src="https://giphy.com/embed/ule4vhcY1xEKQ"
+              statusCode={206}
+              statusText={'Loading the article'}
+            />
+          ) : (
+            <div className="col-md-8 blog-main">
+              <ArticleComponent article={props.article} />
+              <Comments />
+            </div>
+          )}
+          <SideBar />
         </div>
-        <SideBar />
-      </div>
-    </main>
-  </Layout>
-)
+      </main>
+    </Layout>
+  )
+}
 
 export async function getStaticPaths() {
   await connect()
@@ -55,7 +76,7 @@ export async function getStaticProps(context) {
   return {
     props: {
       categories: categories.map((category) => category.toJSON()),
-      article: article.toJSON(),
+      article: article && article.toJSON(),
     },
   }
 }
