@@ -1,7 +1,7 @@
 import dbConnect from '../../../utils/dbConnect'
 import Pet from '../../../models/Pet'
 
-export default async (req, res) => {
+export default async function handler(req, res) {
   const {
     query: { id },
     method,
