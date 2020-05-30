@@ -35,7 +35,7 @@ Read more about testing on Stripe at https://stripe.com/docs/testing.
 
 - [Global CSS styles](https://nextjs.org/blog/next-9-2#built-in-css-support-for-global-stylesheets)
 - Making `.env` variables available to next: [next.config.js](next.config.js)
-  - **Note**: When deploying with Now you need to [add your secrets](https://vercel.com/docs/v2/serverless-functions/env-and-secrets) and specify a [now.json](/now.json) file.
+  - **Note**: When deploying with Vercel you need to [add your secrets](https://vercel.com/docs/v2/serverless-functions/env-and-secrets) and specify a [vercel.json](/vercel.json) file.
 - Implementation of a Layout component that loads and sets up Stripe.js and Elements for usage with SSR via `loadStripe` helper: [components/Layout.tsx](components/Layout.tsx).
 - Stripe Checkout
   - Custom Amount Donation with redirect to Stripe Checkout:
@@ -122,9 +122,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 **Note**: You must add your Stripe secrets using the Vercel CLI ([Download here](https://vercel.com/download)):
 
 ```bash
-now secrets add stripe_publishable_key pk_***
-now secrets add stripe_secret_key sk_***
-now secrets add stripe_webhook_secret whsec_***
+vercel secrets add stripe_publishable_key pk_***
+vercel secrets add stripe_secret_key sk_***
+vercel secrets add stripe_webhook_secret whsec_***
 ```
 
 After deploying, copy the deployment URL with the webhook path (`https://your-url.now.sh/api/webhooks`) and create a live webhook endpoint [in your Stripe dashboard](https://stripe.com/docs/webhooks/setup#configure-webhook-settings).
@@ -132,8 +132,8 @@ After deploying, copy the deployment URL with the webhook path (`https://your-ur
 **Note**: Your live webhook will have a different secret. To update it in your deployed application you will need to first remove the existing secret and then add the new secret:
 
 ```bash
-now secrets rm stripe_webhook_secret
-now secrets add stripe_webhook_secret whsec_***
+vercel secrets rm stripe_webhook_secret
+vercel secrets add stripe_webhook_secret whsec_***
 ```
 
 As the secrets are set as env vars in the project at deploy time, we will need to redeploy our app after we made changes to the secrets.

@@ -10,4 +10,5 @@ dist
 
 # Next.js
 .next
-.now
+.vercel
+.env*.local
