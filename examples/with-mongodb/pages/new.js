@@ -12,7 +12,8 @@ const NewPet = () => {
     likes: [],
     dislikes: [],
   }
-  return Form({ formId: 'add-pet-form', petForm, forNewPet: true })
+
+  return <Form formId="add-pet-form" petForm={petForm} />
 }
 
 export default NewPet
