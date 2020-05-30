@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import ReactMarkdown from 'react-markdown'
+
 import { commentShape } from 'libs/prop-types'
 import { formatRelativeTime } from 'libs/format-relative-time'
 
@@ -22,9 +24,7 @@ const Comment = ({ comment }) => {
           Commented <time dateTime={comment.createdAt}>{timeAgo}</time>
         </small>
         <section>
-          {comment.body.split('\n').map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
+          <ReactMarkdown source={comment.body} />
         </section>
       </div>
     </li>

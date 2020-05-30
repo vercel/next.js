@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import PropTypes from 'prop-types'
+import ReactMarkdown from 'react-markdown'
 
 import { articleShape } from 'libs/prop-types'
 
@@ -18,11 +19,7 @@ const Article = ({ article, preview }) => (
       </Link>
     </p>
     <section>
-      {preview
-        ? article.abstract
-        : article.body
-            .split('\n')
-            .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+      {preview ? article.abstract : <ReactMarkdown source={article.body} />}
     </section>
     {preview && (
       <p className="mt-2">
