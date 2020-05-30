@@ -18,7 +18,8 @@
     "next": "latest",
     "next-connect": "^0.6.6",
     "react": "^16.13.0",
-    "react-dom": "^16.13.0"
+    "react-dom": "^16.13.0",
+    "use-effect-reducer": "^0.6.0"
   },
   "license": "ISC"
 }

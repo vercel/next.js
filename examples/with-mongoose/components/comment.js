@@ -1,39 +1,35 @@
-import PropTypes from 'prop-types'
+import { useMemo } from 'react'
+import { commentShape } from 'libs/prop-types'
+import { formatRelativeTime } from 'libs/format-relative-time'
 
-const Comment = ({ comment }) => (
-  <li className="media">
-    <svg
-      className="bd-placeholder-img mr-3"
-      width="64"
-      height="64"
-      xmlns="http://www.w3.org/2000/svg"
-      preserveAspectRatio="xMidYMid slice"
-      focusable="false"
-      role="img"
-      aria-label="Placeholder: 64x64"
-    >
-      <title>Placeholder</title>
-      <rect width="100%" height="100%" fill="#868e96"></rect>
-      <text x="50%" y="50%" fill="#dee2e6" dy=".3em">
-        64x64
-      </text>
-    </svg>
-    <div className="media-body">
-      <h5 className="mt-0">{comment.nickname}</h5>
-      <p>
-        {comment.body.split('\n').map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
-      </p>
-    </div>
-  </li>
-)
+const Comment = ({ comment }) => {
+  const timeAgo = useMemo(() => formatRelativeTime(comment.createdAt), [
+    comment,
+  ])
 
-export const commentShape = PropTypes.shape({
-  id: PropTypes.string.isRequired,
-  nickname: PropTypes.string.isRequired,
-  body: PropTypes.string.isRequired,
-})
+  return (
+    <li className="media">
+      <img
+        className="mr-3"
+        src={`https://api.adorable.io/avatars/64/${encodeURIComponent(
+          comment.nickname
+        )}`}
+        alt={comment.nickname}
+      />
+      <div className="media-body">
+        <h5 className="mt-0">{comment.nickname}</h5>
+        <small className="text-mono">
+          Commented <time dateTime={comment.createdAt}>{timeAgo}</time>
+        </small>
+        <section>
+          {comment.body.split('\n').map((paragraph, index) => (
+            <p key={index}>{paragraph}</p>
+          ))}
+        </section>
+      </div>
+    </li>
+  )
+}
 
 Comment.propTypes = {
   comment: commentShape,
