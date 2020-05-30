@@ -2,7 +2,13 @@
 
 This example shows how you can use a MongoDB database to support your Next.js application.
 
-**Pets** is an application that allows users to add their pets' information (e.g., name, owner's name, diet, age, dislikes, likes, and photo). They can also delete it or edit it anytime.
+**Pet** is an application that allows users to add their pets' information (e.g., name, owner's name, diet, age, dislikes, likes, and photo). They can also delete it or edit it anytime.
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-mongodb)
 
 ## How to use
 
@@ -37,19 +43,17 @@ yarn dev
 
 ## Configuration
 
-### Step 1. Connect MongoDB to the application
+### Step 1. Get the connection string of your MongoDB server
 
-Please follow the [MongoDB Guides](https://docs.mongodb.com/guides/server/drivers/) on how to connect to MongoDB.
+In the case of MongoDB Atlas, it should be a string like this:
 
-### Step 2. Set up schema models for the application
+```
+mongodb+srv://<username>:<password>@my-project-abc123.mongodb.net/test?retryWrites=true&w=majority
+```
 
-Based on the types of data needed for your application, you will modify the type definitions in [Pet.js](./models/Pet.js) as well as the seed data in [Pet-sampleSeed.json](./seed/Pet-sampleSeed.json)
+For more details, follow this [MongoDB Guide](https://docs.mongodb.com/guides/server/drivers/) on how to connect to MongoDB.
 
-### Step 3. Import sample seed data to your MongoDB
-
-Please follow the [Mongodb Guides](https://docs.mongodb.com/guides/server/insert/) on how to insert data to into MongoDB.
-
-### Step 4. Set up environment variables
+### Step 2. Set up environment variables
 
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
@@ -57,19 +61,11 @@ Copy the `.env.local.example` file in this directory to `.env.local` (which will
 cp .env.local.example .env.local
 ```
 
-Be sure to update the file with your own MongoDB URI connection string (from step 1) and development url:
-
 Then set each variable on `.env.local`:
 
-- `MONGO_DBURI` should be your MongoDB URI. Check [here](https://docs.mongodb.com/guides/server/drivers/#obtain-your-mongodb-connection-string) on how to obtain your MongoDB connection string.
+- `MONGODB_URI` should be the MongoDB connection string you got from step 1.
 
-Your `.env.local` file should look like this:
-
-```bash
-MONGO_DBURI=...
-```
-
-### Step 5. Run Next.js in development mode
+### Step 3. Run Next.js in development mode
 
 ```bash
 npm install
