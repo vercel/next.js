@@ -166,6 +166,10 @@ button {
   display: block;
   width: 100%;
 }
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .elements-style {
   color: var(--elements-color);

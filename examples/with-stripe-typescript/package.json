@@ -9,15 +9,15 @@
   },
   "license": "ISC",
   "dependencies": {
-    "@stripe/react-stripe-js": "^1.0.0-beta.5",
-    "@stripe/stripe-js": "^1.0.0-beta.6",
+    "@stripe/react-stripe-js": "1.1.2",
+    "@stripe/stripe-js": "1.5.0",
     "dotenv": "latest",
     "micro": "^9.3.4",
     "micro-cors": "^0.1.1",
     "next": "latest",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
-    "stripe": "^8.15.0",
+    "stripe": "8.56.0",
     "swr": "^0.1.16"
   },
   "devDependencies": {
