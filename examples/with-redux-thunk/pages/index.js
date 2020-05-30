@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import Link from 'next/link'
-import getStore from '../store'
+import { initializeStore } from '../store'
 import { startClock, serverRenderClock } from '../actions'
 import Examples from '../components/examples'
 
@@ -22,9 +22,9 @@ const Index = () => {
 }
 
 export async function getStaticProps() {
-  const store = getStore()
-  store.dispatch(serverRenderClock())
-
+  const store = initializeStore()
+  const { dispatch } = store
+  dispatch(serverRenderClock())
   return {
     props: {},
   }
