@@ -62,13 +62,11 @@ Be sure to update the file with your own MongoDB URI connection string (from ste
 Then set each variable on `.env.local`:
 
 - `MONGO_DBURI` should be your MongoDB URI. Check [here](https://docs.mongodb.com/guides/server/drivers/#obtain-your-mongodb-connection-string) on how to obtain your MongoDB connection string.
-- `VERCEL_URL` should be your development url (for local development) or your production url (see deploy section for more details).
 
 Your `.env.local` file should look like this:
 
 ```bash
 MONGO_DBURI=...
-VERCEL_URL=...
 ```
 
 ### Step 5. Run Next.js in development mode
