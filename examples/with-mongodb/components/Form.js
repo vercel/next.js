@@ -1,5 +1,6 @@
-import { useRouter } from 'next/router'
 import { useState } from 'react'
+import { useRouter } from 'next/router'
+import { mutate } from 'swr'
 
 const Form = ({ formId, petForm, forNewPet = true }) => {
   const router = useRouter()
@@ -20,9 +21,11 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
   })
 
   /* The PUT method edits an existing entry in the mongodb database. */
-  const putData = async form => {
+  const putData = async (form) => {
+    const { id } = router.query
+
     try {
-      await fetch(`/api/pets/${router.query.id}`, {
+      const res = await fetch(`/api/pets/${id}`, {
         method: 'PUT',
         headers: {
           Accept: contentType,
@@ -30,6 +33,9 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         },
         body: JSON.stringify(form),
       })
+      const { data } = await res.json()
+
+      mutate(`/api/pets/${id}`, data, false) // Update the local data without a revalidation
       router.push('/')
     } catch (error) {
       setMessage('Failed to update pet')
@@ -37,7 +43,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
   }
 
   /* The POST method adds a new entry in the mongodb database. */
-  const postData = async form => {
+  const postData = async (form) => {
     try {
       await fetch('/api/pets', {
         method: 'POST',
@@ -53,7 +59,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
     }
   }
 
-  const handleChange = e => {
+  const handleChange = (e) => {
     const target = e.target
     const value =
       target.name === 'poddy_trained' ? target.checked : target.value
@@ -65,7 +71,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
     })
   }
 
-  const handleSubmit = e => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     const errs = formValidate()
     if (Object.keys(errs).length === 0) {
