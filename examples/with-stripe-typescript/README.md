@@ -87,7 +87,7 @@ cp .env.example .env
 You will need a Stripe account ([register](https://dashboard.stripe.com/register)) to run this sample. Go to the Stripe [developer dashboard](https://stripe.com/docs/development#api-keys) to find your API keys and replace them in the `.env` file.
 
 ```bash
-STRIPE_PUBLISHABLE_KEY=<replace-with-your-publishable-key>
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<replace-with-your-publishable-key>
 STRIPE_SECRET_KEY=<replace-with-your-secret-key>
 ```
 
