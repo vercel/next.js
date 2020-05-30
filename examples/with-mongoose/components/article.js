@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import PropTypes from 'prop-types'
 
-import { categoryShape } from 'libs/prop-types'
+import { articleShape } from 'libs/prop-types'
 
 const dateFormat = new Intl.DateTimeFormat('en', {
   year: 'numeric',
@@ -33,18 +33,6 @@ const Article = ({ article, preview }) => (
     )}
   </article>
 )
-export const articleShape = PropTypes.shape({
-  slug: PropTypes.string.isRequired,
-  title: PropTypes.string.isRequired,
-  abstract: PropTypes.string.isRequired,
-  body: PropTypes.string.isRequired,
-  category: categoryShape,
-  cover: PropTypes.shape({
-    url: PropTypes.string.isRequired,
-    alt: PropTypes.string,
-  }),
-  createdAt: PropTypes.string.isRequired,
-})
 
 Article.propTypes = {
   article: articleShape,

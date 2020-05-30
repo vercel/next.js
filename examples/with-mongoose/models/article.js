@@ -75,6 +75,10 @@ ArticleSchema.statics.findLatest = function (conditions, limit = 2) {
     .limit(limit)
 }
 
+ArticleSchema.query.bySlug = function (slug) {
+  return this.where({ slug })
+}
+
 if (
   process.env.NODE_ENV !== 'production' &&
   mongoose.modelNames().includes('Article')
