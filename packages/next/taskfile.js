@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
@@ -517,6 +518,14 @@ export async function ncc_terser_webpack_plugin(task, opts) {
     .target('compiled/terser-webpack-plugin')
 }
 
+externals['comment-json'] = 'next/dist/compiled/comment-json'
+export async function ncc_comment_json(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('comment-json')))
+    .ncc({ packageName: 'comment-json', externals })
+    .target('compiled/comment-json')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -592,6 +601,7 @@ export async function ncc(task) {
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
+      'ncc_comment_json',
     ])
 }
 
@@ -669,24 +679,15 @@ export async function nextbuildstatic(task, opts) {
 }
 
 export async function pages_app(task) {
-  await task
-    .source('pages/_app.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_app.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_error(task) {
-  await task
-    .source('pages/_error.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_error.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_document(task) {
-  await task
-    .source('pages/_document.tsx')
-    .babel('server')
-    .target('dist/pages')
+  await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
 export async function pages(task, opts) {
@@ -705,7 +706,7 @@ export async function build(task) {
   await task.serial(['precompile', 'compile'])
 }
 
-export default async function(task) {
+export default async function (task) {
   await task.clear('dist')
   await task.start('build')
   await task.watch('bin/*', 'bin')
@@ -724,7 +725,7 @@ export default async function(task) {
 export async function nextserverlib(task, opts) {
   await task
     .source(opts.src || 'next-server/lib/**/*.+(js|ts|tsx)')
-    .typescript({ module: 'commonjs' })
+    .babel('server')
     .target('dist/next-server/lib')
   notify('Compiled lib files')
 }
@@ -732,7 +733,7 @@ export async function nextserverlib(task, opts) {
 export async function nextserverserver(task, opts) {
   await task
     .source(opts.src || 'next-server/server/**/*.+(js|ts|tsx)')
-    .typescript({ module: 'commonjs' })
+    .babel('server')
     .target('dist/next-server/server')
   notify('Compiled server files')
 }

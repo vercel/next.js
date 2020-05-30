@@ -7,7 +7,7 @@ description: Enable AMP in a page, and control the way Next.js adds AMP to the p
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">AMP</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/amp">AMP</a></li>
   </ul>
 </details>
 

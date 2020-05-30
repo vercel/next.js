@@ -1,6 +1,5 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
@@ -49,8 +48,10 @@ import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
+  GranularChunksConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { codeFrameColumns } from '@babel/code-frame'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -64,8 +65,23 @@ const escapePathVariables = (value: any) => {
 
 function parseJsonFile(path: string) {
   const JSON5 = require('next/dist/compiled/json5')
-  const contents = readFileSync(path)
-  return JSON5.parse(contents)
+  const contents = readFileSync(path, 'utf8')
+
+  // Special case an empty file
+  if (contents.trim() === '') {
+    return {}
+  }
+
+  try {
+    return JSON5.parse(contents)
+  } catch (err) {
+    const codeFrame = codeFrameColumns(
+      String(contents),
+      { start: { line: err.lineNumber, column: err.columnNumber } },
+      { message: err.message, highlightCode: true }
+    )
+    throw new Error(`Failed to parse "${path}":\n${codeFrame}`)
+  }
 }
 
 function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
@@ -136,6 +152,8 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  const productionBrowserSourceMaps =
+    config.experimental.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -183,14 +201,14 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
     ...(config.experimental.plugins
-      ? VALID_MIDDLEWARE.map(name => new RegExp(`src(\\\\|/)${name}`))
+      ? VALID_MIDDLEWARE.map((name) => new RegExp(`src(\\\\|/)${name}`))
       : []),
   ]
 
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
-    .filter(p => !!p)
+    .filter((p) => !!p)
 
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
@@ -228,8 +246,6 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors =
-    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -300,7 +316,7 @@ export default async function getBaseWebpackConfig(
       warnings: false,
       // The following two options are known to break valid JavaScript code
       comparisons: false,
-      inline: 2, // https://github.com/zeit/next.js/issues/7178#issuecomment-493048965
+      inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
     },
     mangle: { safari10: true },
     output: {
@@ -312,7 +328,12 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool = dev ? 'cheap-module-source-map' : false
+  const devtool =
+    process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL
+      ? false
+      : dev
+      ? 'cheap-module-source-map'
+      : false
 
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
@@ -362,7 +383,7 @@ export default async function getBaseWebpackConfig(
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
-          // https://github.com/zeit/next.js/pull/9012
+          // https://github.com/vercel/next.js/pull/9012
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
           // Don't let webpack eliminate this chunk (prevents this chunk from
@@ -471,6 +492,9 @@ export default async function getBaseWebpackConfig(
           config.conformance?.DuplicatePolyfillsConformanceCheck
             ?.BlockedAPIToBePolyfilled || []
         ),
+      },
+      GranularChunksConformanceCheck: {
+        enabled: true,
       },
     },
     config.conformance
@@ -738,7 +762,7 @@ export default async function getBaseWebpackConfig(
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
           exclude: (path: string) => {
-            if (babelIncludeRegexes.some(r => r.test(path))) {
+            if (babelIncludeRegexes.some((r) => r.test(path))) {
               return false
             }
             return /node_modules/.test(path)
@@ -795,7 +819,7 @@ export default async function getBaseWebpackConfig(
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
+              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/vercel/next.js/env-key-not-allowed`
             )
           }
 
@@ -945,23 +969,6 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
-        !isServer &&
-        useTypeScript &&
-        !ignoreTypeScriptErrors &&
-        new ForkTsCheckerWebpackPlugin(
-          PnpWebpackPlugin.forkTsCheckerOptions({
-            typescript: typeScriptPath,
-            async: false,
-            useTypescriptIncrementalApi: true,
-            checkSyntacticErrors: true,
-            tsconfig: tsConfigPath,
-            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-            compilerOptions: { isolatedModules: true, noEmit: true },
-            silent: true,
-            formatter: 'codeframe',
-          })
-        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
@@ -1001,6 +1008,12 @@ export default async function getBaseWebpackConfig(
                   conformanceConfig.DuplicatePolyfillsConformanceCheck
                     .BlockedAPIToBePolyfilled,
               }),
+            !isServer &&
+              config.experimental.granularChunks &&
+              conformanceConfig.GranularChunksConformanceCheck.enabled &&
+              new GranularChunksConformanceCheck(
+                splitChunksConfigs.prodGranular
+              ),
           ].filter(Boolean),
         }),
       new WellKnownErrorsPlugin(),
@@ -1032,6 +1045,7 @@ export default async function getBaseWebpackConfig(
     isServer,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
+    productionBrowserSourceMaps,
   })
 
   if (typeof config.webpack === 'function') {
@@ -1048,7 +1062,7 @@ export default async function getBaseWebpackConfig(
 
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
       )
     }
   }
@@ -1066,13 +1080,13 @@ export default async function getBaseWebpackConfig(
       '/tmp/test.styl',
     ]
 
-    if (rule instanceof RegExp && fileNames.some(input => rule.test(input))) {
+    if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {
       return true
     }
 
     if (typeof rule === 'function') {
       if (
-        fileNames.some(input => {
+        fileNames.some((input) => {
           try {
             if (rule(input)) {
               return true
@@ -1094,7 +1108,7 @@ export default async function getBaseWebpackConfig(
 
   const hasUserCssConfig =
     webpackConfig.module?.rules.some(
-      rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+      (rule) => canMatchCss(rule.test) || canMatchCss(rule.include)
     ) ?? false
 
   if (hasUserCssConfig) {
@@ -1112,7 +1126,7 @@ export default async function getBaseWebpackConfig(
     if (webpackConfig.module?.rules.length) {
       // Remove default CSS Loader
       webpackConfig.module.rules = webpackConfig.module.rules.filter(
-        r =>
+        (r) =>
           !(
             typeof r.oneOf?.[0]?.options === 'object' &&
             r.oneOf[0].options.__next_css_remove === true
@@ -1122,13 +1136,13 @@ export default async function getBaseWebpackConfig(
     if (webpackConfig.plugins?.length) {
       // Disable CSS Extraction Plugin
       webpackConfig.plugins = webpackConfig.plugins.filter(
-        p => (p as any).__next_css_remove !== true
+        (p) => (p as any).__next_css_remove !== true
       )
     }
     if (webpackConfig.optimization?.minimizer?.length) {
       // Disable CSS Minifier
       webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
-        e => (e as any).__next_css_remove !== true
+        (e) => (e as any).__next_css_remove !== true
       )
     }
   } else {
@@ -1164,7 +1178,7 @@ export default async function getBaseWebpackConfig(
 
   // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
-    ;[].forEach.call(webpackConfig.module.rules, function(
+    ;[].forEach.call(webpackConfig.module.rules, function (
       rule: webpack.RuleSetRule
     ) {
       if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
@@ -1182,7 +1196,7 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      ;[].forEach.call(rule.use, function(use: webpack.RuleSetUseItem) {
+      ;[].forEach.call(rule.use, function (use: webpack.RuleSetUseItem) {
         if (
           !(
             use &&

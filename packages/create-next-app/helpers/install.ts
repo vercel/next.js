@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import spawn from 'cross-spawn'
 
@@ -40,7 +41,7 @@ export function install(
       stdio: 'inherit',
       env: { ...process.env, ADBLOCK: '1', DISABLE_OPENCOLLECTIVE: '1' },
     })
-    child.on('close', code => {
+    child.on('close', (code) => {
       if (code !== 0) {
         reject({ command: `${command} ${args.join(' ')}` })
         return

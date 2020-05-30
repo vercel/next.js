@@ -21,7 +21,9 @@ jest.setTimeout(1000 * 60 * 5)
 describe('Client Navigation', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
 
     const prerender = [
       '/async-props',
@@ -57,7 +59,7 @@ describe('Client Navigation', () => {
       '/nested-cdm',
     ]
     await Promise.all(
-      prerender.map(route => renderViaHTTP(context.appPort, route))
+      prerender.map((route) => renderViaHTTP(context.appPort, route))
     )
   })
   afterAll(() => killApp(context.server))
@@ -639,10 +641,7 @@ describe('Client Navigation', () => {
         .text()
       expect(counter).toBe('Counter: 2')
 
-      counter = await browser
-        .back()
-        .elementByCss('#counter')
-        .text()
+      counter = await browser.back().elementByCss('#counter').text()
       expect(counter).toBe('Counter: 1')
 
       const getInitialPropsRunCount = await browser
@@ -986,6 +985,15 @@ describe('Client Navigation', () => {
   describe('with 404 pages', () => {
     it('should 404 on not existent page', async () => {
       const browser = await webdriver(context.appPort, '/non-existent')
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
+      await browser.close()
+    })
+
+    it('should 404 on wrong casing', async () => {
+      const browser = await webdriver(context.appPort, '/nAv/AbOuT')
       expect(await browser.elementByCss('h1').text()).toBe('404')
       expect(await browser.elementByCss('h2').text()).toBe(
         'This page could not be found.'

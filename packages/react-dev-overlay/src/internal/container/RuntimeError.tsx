@@ -68,7 +68,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 }) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
     return error.frames.findIndex(
-      entry =>
+      (entry) =>
         entry.expanded &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
@@ -88,11 +88,11 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
   const [all, setAll] = React.useState(firstFrame == null)
   const toggleAll = React.useCallback(() => {
-    setAll(v => !v)
+    setAll((v) => !v)
   }, [])
 
   const leadingFrames = React.useMemo(
-    () => allLeadingFrames.filter(f => f.expanded || all),
+    () => allLeadingFrames.filter((f) => f.expanded || all),
     [all, allLeadingFrames]
   )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
@@ -100,7 +100,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [error.frames, firstFirstPartyFrameIndex]
   )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => allCallStackFrames.filter(f => f.expanded || all),
+    () => allCallStackFrames.filter((f) => f.expanded || all),
     [all, allCallStackFrames]
   )
 
@@ -132,9 +132,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             codeFrame={firstFrame.originalCodeFrame}
           />
         </React.Fragment>
-      ) : (
-        undefined
-      )}
+      ) : undefined}
       {visibleCallStackFrames.length ? (
         <React.Fragment>
           <h5>Call Stack</h5>
@@ -142,9 +140,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
           ))}
         </React.Fragment>
-      ) : (
-        undefined
-      )}
+      ) : undefined}
       {canShowMore ? (
         <React.Fragment>
           <button
@@ -156,9 +152,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             {all ? 'Hide' : 'Show'} collapsed frames
           </button>
         </React.Fragment>
-      ) : (
-        undefined
-      )}
+      ) : undefined}
     </React.Fragment>
   )
 }

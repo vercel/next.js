@@ -19,7 +19,7 @@ let appPort
 let app
 let output
 
-const handleOutput = msg => {
+const handleOutput = (msg) => {
   output += msg
 }
 
@@ -92,6 +92,7 @@ export default function EvilPage(): JSX.Element {
   it('should build the app', async () => {
     const output = await nextBuild(appDir, [], { stdout: true })
     expect(output.stdout).toMatch(/Compiled successfully/)
+    expect(output.code).toBe(0)
   })
 
   describe('should compile with different types', () => {

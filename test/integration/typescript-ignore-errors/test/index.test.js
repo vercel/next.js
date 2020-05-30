@@ -23,9 +23,10 @@ describe('TypeScript with error handling options', () => {
       describe(`ignoreDevErrors: ${ignoreDevErrors}, ignoreBuildErrors: ${ignoreBuildErrors}`, () => {
         beforeAll(() => {
           const nextConfig = {
+            experimental: { modern: true },
             typescript: { ignoreDevErrors, ignoreBuildErrors },
           }
-          nextConfigFile.replace('{}', JSON.stringify(nextConfig))
+          nextConfigFile.write('module.exports = ' + JSON.stringify(nextConfig))
         })
         afterAll(() => {
           nextConfigFile.restore()
@@ -41,8 +42,8 @@ describe('TypeScript with error handling options', () => {
             try {
               const appPort = await findPort()
               app = await launchApp(appDir, appPort, {
-                onStdout: msg => (output += msg),
-                onStderr: msg => (output += msg),
+                onStdout: (msg) => (output += msg),
+                onStderr: (msg) => (output += msg),
               })
               await renderViaHTTP(appPort, '')
 
@@ -76,6 +77,7 @@ describe('TypeScript with error handling options', () => {
             } else {
               expect(stdout).not.toContain('Compiled successfully')
               expect(stderr).toContain('Failed to compile.')
+              expect(stderr).toContain('./pages/index.tsx:2:31')
               expect(stderr).toContain("not assignable to type 'boolean'")
             }
           }

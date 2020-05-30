@@ -23,7 +23,9 @@ const runTests = () => {
     expect(stderr).toContain(
       'To use a multi-match in the destination you must add'
     )
-    expect(stderr).toContain('https://err.sh/zeit/next.js/invalid-multi-match')
+    expect(stderr).toContain(
+      'https://err.sh/vercel/next.js/invalid-multi-match'
+    )
   })
 }
 
@@ -32,7 +34,7 @@ describe('Custom routes invalid multi-match', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -46,7 +48,7 @@ describe('Custom routes invalid multi-match', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

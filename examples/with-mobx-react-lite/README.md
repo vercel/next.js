@@ -6,19 +6,19 @@ In this example we are going to display a digital clock that updates every secon
 
 ![](http://i.imgur.com/JCxtWSj.gif)
 
-This example is a mobx-react-lite port of the [with-mobx](https://github.com/zeit/next.js/tree/master/examples/with-mobx) example. MobX support has been implemented using React Hooks.
+This example is a mobx-react-lite port of the [with-mobx](https://github.com/vercel/next.js/tree/master/examples/with-mobx) example. MobX support has been implemented using React Hooks.
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-mobx-react-lite)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-react-lite)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-mobx-react-lite with-mobx-react-lite-app
@@ -31,7 +31,7 @@ yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx-react-lite
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx-react-lite
 cd with-mobx-react-lite
 ```
 
