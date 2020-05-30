@@ -7,7 +7,7 @@ description: Enable client-side transitions between routes with the built-in Lin
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/hello-world">Hello World</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/hello-world">Hello World</a></li>
   </ul>
 </details>
 

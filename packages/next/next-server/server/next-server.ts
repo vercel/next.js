@@ -342,7 +342,7 @@ export default class Server {
             // It's very important to keep this route's param optional.
             // (but it should support as many params as needed, separated by '/')
             // Otherwise this will lead to a pretty simple DOS attack.
-            // See more: https://github.com/zeit/next.js/issues/2617
+            // See more: https://github.com/vercel/next.js/issues/2617
             match: route('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
@@ -580,6 +580,7 @@ export default class Server {
               }
             }
             ;(req as any)._nextDidRewrite = true
+            ;(req as any)._nextRewroteUrl = newUrl
 
             return {
               finished: false,
@@ -970,8 +971,12 @@ export default class Server {
       isPreviewMode = previewData !== false
     }
 
-    // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}`
+    // Compute the iSSG cache key. We use the rewroteUrl since
+    // pages with fallback: false are allowed to be rewritten to
+    // and we need to look up the path by the rewritten path
+    let urlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : `${parseUrl(req.url || '').pathname!}`
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit

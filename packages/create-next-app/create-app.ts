@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import retry from 'async-retry'
 import chalk from 'chalk'
 import cpy from 'cpy'

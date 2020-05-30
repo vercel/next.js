@@ -7,7 +7,7 @@ description: Export your Next.js app to static HTML, and run it standalone witho
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
   </ul>
 </details>
 

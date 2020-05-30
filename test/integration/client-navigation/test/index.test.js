@@ -21,7 +21,9 @@ jest.setTimeout(1000 * 60 * 5)
 describe('Client Navigation', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
 
     const prerender = [
       '/async-props',
