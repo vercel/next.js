@@ -1,40 +1,48 @@
-import { Component } from 'react'
-import initializeStore from '../store'
+import { Provider } from 'react-redux'
+import { initializeStore } from '../store'
+import App from 'next/app'
 
-const __NEXT_REDUX_STORE__ = '__NEXT_REDUX_STORE__'
-
-function getOrCreateStore(initialState) {
-  // Always make a new store if server, otherwise state is shared between requests
-  if (typeof window === 'undefined') {
-    return initializeStore(initialState)
+export const withRedux = (PageComponent) => {
+  const WithRedux = ({ initialReduxState, ...props }) => {
+    const store = initializeClientSideStore(initialReduxState)
+    return (
+      <Provider store={store}>
+        <PageComponent {...props} />
+      </Provider>
+    )
   }
 
-  // Create store if unavailable on the client and set it on the window object
-  if (!window[__NEXT_REDUX_STORE__]) {
-    window[__NEXT_REDUX_STORE__] = initializeStore(initialState)
+  // Make sure people don't use this HOC on _app.js level
+  if (process.env.NODE_ENV !== 'production') {
+    const isAppHoc =
+      PageComponent === App || PageComponent.prototype instanceof App
+    if (isAppHoc) {
+      throw new Error('The withRedux HOC only works with PageComponents')
+    }
   }
-  return window[__NEXT_REDUX_STORE__]
+
+  // Set the correct displayName in development
+  if (process.env.NODE_ENV !== 'production') {
+    const displayName =
+      PageComponent.displayName || PageComponent.name || 'Component'
+
+    WithRedux.displayName = `withRedux(${displayName})`
+  }
+  return WithRedux
 }
 
-export default function withReduxStore(App) {
-  return class AppWithRedux extends Component {
-    static async getInitialProps(appContext) {
-      // Get or Create the store with `undefined` as initialState
-      // This allows you to set a custom default initialState
-      const store = getOrCreateStore()
+let reduxStore
 
-      // Provide the store to getInitialProps of pages
-      appContext.ctx.store = store
+export const initializeServerSideStore = (initialState) => {
+  // Always make a new store if server ('getStaticProps' or 'getServerSideProps'), to avoid sharing the state between requests.
+  // Check ssg.js and ssr.js pages for usage
+  return initializeStore(initialState)
+}
 
-      return {
-        ...(App.getInitialProps ? await App.getInitialProps(appContext) : {}),
-        initialReduxState: store.getState(),
-      }
-    }
-
-    render() {
-      const { initialReduxState } = this.props
-      return <App {...this.props} store={getOrCreateStore(initialReduxState)} />
-    }
+export const initializeClientSideStore = (initialState) => {
+  // Create store if unavailable on the client and set it on the window object
+  if (!reduxStore) {
+    reduxStore = initializeStore(initialState)
   }
+  return reduxStore
 }
