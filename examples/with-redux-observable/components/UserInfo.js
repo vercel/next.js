@@ -1,9 +1,16 @@
 import { useSelector } from 'react-redux'
 
-const UserInfo = ({ error, fetchCharacter, isFetchedOnServer = false }) => {
-  const { name, id, username, email, phone, website } = useSelector(
-    (state) => state.character
-  )
+const useUser = () => {
+  return useSelector((state) => ({
+    character: state.character,
+    error: state.error,
+    isFetchedOnServer: state.isFetchedOnServer,
+  }))
+}
+
+const UserInfo = () => {
+  const { character, isFetchedOnServer, error } = useUser()
+  const { name, id, username, email, phone, website } = character
 
   return (
     <div className="UserInfo">
