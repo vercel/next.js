@@ -31,7 +31,7 @@ export async function getStaticProps({ params }) {
 
 export default function Index(props) {
   return (
-    <div id="gsp-optional-route">
+    <div id="route">
       gsp route:{' '}
       {props.params.slug === undefined
         ? 'undefined'
