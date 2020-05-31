@@ -502,12 +502,9 @@ export default class HotReloader {
     }
   }
 
-  waitUntilValid(
-    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
-  ): Promise<webpack.Stats> {
-    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
+  waitUntilValid(): Promise<webpack.Stats> {
     return new Promise((resolve) => {
-      middleware!.waitUntilValid(resolve)
+      this.webpackDevMiddleware!.waitUntilValid(resolve)
     })
   }
 
