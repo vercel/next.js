@@ -76,3 +76,15 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 `.env.local` always overrides the defaults set.
 
 > **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored
+
+## Environment Variables on Vercel
+
+When deploying on [Vercel](https://vercel.com) you can configure secrets in the [Environment Variables](https://vercel.com/docs/v2/build-step#environment-variables) section of the project in the Vercel dashboard.
+
+You can still use `.env`, `.env.development` and `.env.production` to add defaults.
+
+If you've configured [Development Environment Variables](https://vercel.com/docs/v2/build-step#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
+
+```bash
+vercel env pull .env.local
+```
