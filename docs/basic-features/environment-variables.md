@@ -8,8 +8,8 @@ description: Learn to add and access environment variables in your Next.js appli
 
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
-- [Inline variables starting with `NEXT_PUBLIC_`](#inlined-environment-variables)
-- [Use `.env` to add custom environment variables](#exposing-environment-variables)
+- [Use `.env.local` to load environment variables](#loading-environment-variables)
+- [Expose environment variables to the browser](#exposing-environment-variables-to-the-browser)
 
 ## Loading Environment Variables
 
@@ -18,15 +18,14 @@ Next.js has built-in support for loading environment variables from `.env.local`
 An example `.env.local`:
 
 ```bash
-# .env.local
 DB_HOST=localhost
 DB_USER=myuser
 DB_PASS=mypassword
 ```
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in `getStaticProps`, `getStaticPaths`, `getServerSideProps`, and API routes.
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching) and [API routes](/docs/api-routes/introduction).
 
-For example using `getStaticProps`:
+For example, using [`getStaticProps`](/docs/basic-features/data-fetching#getstaticprops-static-generation):
 
 ```js
 // pages/index.js
@@ -47,7 +46,6 @@ By default all environment variables loaded through `.env.local` are only availa
 In order to expose a variable to the browser you can prefix the variable with `NEXT_PUBLIC_`. For example:
 
 ```bash
-# .env.local
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
@@ -75,7 +73,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 `.env.local` always overrides the defaults set.
 
-> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored
+> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
 
