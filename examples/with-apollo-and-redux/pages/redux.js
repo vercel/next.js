@@ -1,5 +1,4 @@
 import { useDispatch } from 'react-redux'
-import { withRedux } from '../lib/redux'
 import useInterval from '../lib/useInterval'
 import Layout from '../components/Layout'
 import Clock from '../components/Clock'
@@ -23,17 +22,4 @@ const ReduxPage = () => {
   )
 }
 
-ReduxPage.getInitialProps = ({ reduxStore }) => {
-  // Tick the time once, so we'll have a
-  // valid time before first render
-  const { dispatch } = reduxStore
-  dispatch({
-    type: 'TICK',
-    light: typeof window === 'object',
-    lastUpdate: Date.now(),
-  })
-
-  return {}
-}
-
-export default withRedux(ReduxPage)
+export default ReduxPage
