@@ -29,6 +29,7 @@ const UserInfo = () => {
       <p>
         (was user fetched on server? - <b>{isFetchedOnServer.toString()})</b>
       </p>
+      <p> Please note there are no more than 10 users in the API!</p>
       <style jsx>{`
         article {
           background-color: #528ce0;
