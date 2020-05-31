@@ -1,4 +1,3 @@
-import 'isomorphic-unfetch'
 import { API_URL } from './constants'
 
 async function fetchAPI(query, { variables } = {}) {
