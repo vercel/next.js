@@ -27,8 +27,7 @@ const UserInfo = () => {
         </article>
       )}
       <p>
-        (was character fetched on server? -{' '}
-        <b>{isFetchedOnServer.toString()})</b>
+        (was user fetched on server? - <b>{isFetchedOnServer.toString()})</b>
       </p>
       <style jsx>{`
         article {
