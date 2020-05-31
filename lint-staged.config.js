@@ -2,7 +2,6 @@ const escape = require('shell-quote').quote
 const { CLIEngine } = require('eslint')
 
 const cli = new CLIEngine({})
-
 const isWin = process.platform === 'win32'
 
 module.exports = {
