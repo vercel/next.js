@@ -120,6 +120,18 @@ function runTests() {
       'top level route param: [get-static-paths|hello|world]'
     )
   })
+
+  it('should match rout path on undefined param', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-undefined')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp undefined route: undefined')
+  })
+
+  it('should match rout path on null param', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-null')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp null route: undefined')
+  })
 }
 
 const nextConfig = join(appDir, 'next.config.js')

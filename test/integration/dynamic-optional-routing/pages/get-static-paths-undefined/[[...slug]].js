@@ -2,13 +2,7 @@ export async function getStaticPaths() {
   return {
     paths: [
       {
-        params: { slug: [] },
-      },
-      {
-        params: { slug: ['p1'] },
-      },
-      {
-        params: { slug: ['p2', 'p3'] },
+        params: {},
       },
     ],
     fallback: false,
@@ -22,7 +16,7 @@ export async function getStaticProps({ params }) {
 export default function Index(props) {
   return (
     <div id="route">
-      gsp route:{' '}
+      gsp undefined route:{' '}
       {props.params.slug === undefined
         ? 'undefined'
         : `[${props.params.slug.join('|')}]`}
