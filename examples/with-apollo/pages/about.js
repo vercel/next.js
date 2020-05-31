@@ -3,7 +3,7 @@ import Header from '../components/Header'
 
 const AboutPage = () => (
   <App>
-    <Header />
+    <Header pathname="/about" />
     <article>
       <h1>The Idea Behind This Example</h1>
       <p>
@@ -16,23 +16,26 @@ const AboutPage = () => (
       </p>
       <p>
         In this simple example, we integrate Apollo seamlessly with{' '}
-        <a href="https://github.com/vercel/next.js">Next</a> by wrapping our
-        Page component inside a{' '}
-        <a href="https://facebook.github.io/react/docs/higher-order-components.html">
-          higher-order component (HOC)
-        </a>
-        . Using the HOC pattern we're able to pass down a central store of query
-        result data created by Apollo into our React component hierarchy defined
-        inside a page of our Next application.
+        <a href="https://github.com/vercel/next.js">Next</a> by calling{' '}
+        <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
+          getStaticProps
+        </a>{' '}
+        at our Page component. This approach lets us opt out of getInitialProps
+        and let us use all the niceties provided by{' '}
+        <a href="https://github.com/vercel/next.js">Next</a>.
       </p>
       <p>
-        On initial page load, while on the server and inside getInitialProps, we
-        invoke the Apollo method,{' '}
+        On initial page load, while on the server and inside{' '}
+        <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
+          getStaticProps
+        </a>
+        , we invoke the Apollo method,{' '}
         <a href="https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree">
           getDataFromTree
         </a>
         . This method returns a promise; at the point in which the promise
-        resolves, our Apollo Client store is completely initialized.
+        resolves, our Apollo Client store is completely initialized. Then we
+        serve the received html as string which gives us 100% SSG content.
       </p>
       <p>
         This example relies on <a href="http://graph.cool">graph.cool</a> for
