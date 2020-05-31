@@ -40,7 +40,7 @@ export async function getStaticProps() {
 }
 ```
 
-## Exposing Environment Variables to the browser
+## Exposing Environment Variables to the Browser
 
 By default all environment variables loaded through `.env.local` are only available in the Node.js environment, meaning they won't be exposed to the browser.
 
@@ -69,7 +69,7 @@ export default HomePage
 
 ## Default Environment Variables
 
-In general only one `.env.local` file is needed. However sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
+In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
 
 Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), and `.env.production` (production environment).
 
