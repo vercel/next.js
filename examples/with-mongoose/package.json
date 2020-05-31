@@ -19,7 +19,9 @@
     "next-connect": "^0.6.6",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
+    "react-hook-form": "^5.7.2",
     "react-markdown": "^4.3.1",
+    "react-mde": "^10.0.3",
     "use-effect-reducer": "^0.6.0"
   },
   "license": "ISC"

@@ -2,6 +2,7 @@ import { useRouter } from 'next/router'
 import { useEffectReducer } from 'use-effect-reducer'
 
 import Comment from './comment'
+import CreateComment from './create-comment'
 
 function commentReducer(state, event, exec) {
   switch (event.type) {
@@ -13,6 +14,17 @@ function commentReducer(state, event, exec) {
       return {
         ...event.data,
         docs: [...state.docs, ...event.data.docs],
+      }
+
+    case 'SAVE_COMMENT':
+      exec({ type: 'saveComment', slug: event.slug, comment: event.comment })
+      return state
+
+    case 'COMMENT_CREATED':
+      return {
+        ...state,
+        totalDocs: state.totalDocs + 1,
+        docs: [event.comment, ...state.docs],
       }
 
     default:
@@ -31,14 +43,28 @@ const initialState = {
   totalDocs: 0,
   totalPages: 1,
 }
-async function fetchComments(_, effect, dispatch) {
+async function fetchComments(state, effect, dispatch) {
   const response = await fetch(
-    `/api/article/${effect.slug}/comment?page=${effect.page}`
+    `/api/article/${effect.slug}/comment?offset=${state.docs.length}`
   )
 
   if (response.ok) {
     const data = await response.json()
     dispatch({ type: 'COMMENTS_FETCHED', data })
+  }
+}
+async function saveComment(_, effect, dispatch) {
+  const response = await fetch(`/api/article/${effect.slug}/comment`, {
+    method: 'POST',
+    body: JSON.stringify(effect.comment),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (response.ok) {
+    const data = await response.json()
+    dispatch({ type: 'COMMENT_CREATED', comment: data })
   }
 }
 
@@ -53,11 +79,19 @@ const Comments = () => {
     },
     {
       fetchComments,
+      saveComment,
     }
   )
 
   return (
     <div className="row">
+      <div className="col-12">
+        <CreateComment
+          onCreateComment={(comment) =>
+            dispatch({ type: 'SAVE_COMMENT', slug: router.query.slug, comment })
+          }
+        />
+      </div>
       <div className="col-12">
         <h3 className="lead font-weight-bold mb-4">
           Comments ({state.totalDocs})
@@ -71,7 +105,7 @@ const Comments = () => {
         {state.hasNextPage && (
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-lg btn-block"
             onClick={() =>
               dispatch({
                 type: 'FETCH_COMMENTS',
