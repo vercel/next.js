@@ -1,4 +1,4 @@
-import { connect } from 'react-redux'
+import { useSelector } from 'react-redux'
 import Link from 'next/link'
 
 const codeStyle = {
@@ -9,17 +9,19 @@ const codeStyle = {
   marginBottom: 10,
 }
 
-const ShowReduxState = (state) => (
-  <>
-    <pre style={codeStyle}>
-      <code>{JSON.stringify(state, null, 4)}</code>
-    </pre>
-    <Link href="/">
-      <a>Go Back Home</a>
-    </Link>
-  </>
-)
+const ShowReduxState = () => {
+  const state = useSelector((state) => state)
 
-const mapDispatchToProps = (state) => state
+  return (
+    <>
+      <pre style={codeStyle}>
+        <code>{JSON.stringify(state, null, 4)}</code>
+      </pre>
+      <Link href="/">
+        <a>Go Back Home</a>
+      </Link>
+    </>
+  )
+}
 
-export default connect(mapDispatchToProps)(ShowReduxState)
+export default ShowReduxState
