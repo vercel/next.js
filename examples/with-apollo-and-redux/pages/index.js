@@ -1,7 +1,5 @@
 import { useDispatch } from 'react-redux'
-import { withRedux } from '../lib/redux'
-import { compose } from 'redux'
-import { withApollo } from '../lib/apollo'
+import { renderWithApollo } from '../lib/apollo'
 import useInterval from '../lib/useInterval'
 import Layout from '../components/Layout'
 import Clock from '../components/Clock'
@@ -19,6 +17,7 @@ const IndexPage = () => {
       lastUpdate: Date.now(),
     })
   }, 1000)
+
   return (
     <Layout>
       {/* Redux */}
@@ -32,17 +31,11 @@ const IndexPage = () => {
   )
 }
 
-IndexPage.getInitialProps = ({ reduxStore }) => {
-  // Tick the time once, so we'll have a
-  // valid time before first render
-  const { dispatch } = reduxStore
-  dispatch({
-    type: 'TICK',
-    light: typeof window === 'object',
-    lastUpdate: Date.now(),
-  })
-
-  return {}
+export function getStaticProps() {
+  renderWithApollo(IndexPage)
+  return {
+    props: {},
+  }
 }
 
-export default compose(withApollo, withRedux)(IndexPage)
+export default IndexPage
