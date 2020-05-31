@@ -1,5 +1,5 @@
 import { Provider } from 'react-redux'
-import { initializeStore } from '../redux/store'
+import { initializeStore } from '../store/store'
 import App from 'next/app'
 
 export const withRedux = (PageComponent) => {

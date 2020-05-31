@@ -8,15 +8,12 @@ import * as types from './actionTypes'
 
 export const fetchUsersEpic = (action$, state$) =>
   action$.pipe(
-    ofType(types.START_FETCHING_CHARACTERS),
+    ofType(types.START_FETCHING_USERS),
     mergeMap((action) => {
       return interval(3000).pipe(
         map((x) => actions.fetchUser()),
         takeUntil(
-          action$.ofType(
-            types.STOP_FETCHING_CHARACTERS,
-            types.FETCH_CHARACTER_FAILURE
-          )
+          action$.ofType(types.STOP_FETCHING_USERS, types.FETCH_USER_FAILURE)
         )
       )
     })
@@ -24,10 +21,10 @@ export const fetchUsersEpic = (action$, state$) =>
 
 export const fetchUserEpic = (action$, state$) =>
   action$.pipe(
-    ofType(types.FETCH_CHARACTER),
+    ofType(types.FETCH_USER),
     mergeMap((action) =>
       request({
-        url: `https://jsonplaceholder.typicode.com/users/${state$.value.nextCharacterId}`,
+        url: `https://jsonplaceholder.typicode.com/users/${state$.value.nextUserId}`,
       }).pipe(
         map((response) =>
           actions.fetchUserSuccess(response.response, action.payload.isServer)

@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { of, Subject } from 'rxjs'
 import { StateObservable } from 'redux-observable'
 import UserInfo from '../components/UserInfo'
-import { rootEpic } from '../redux/epics'
+import { rootEpic } from '../store/epics'
 import {
   stopFetchingUsers,
   startFetchingUsers,
   fetchUser,
-} from '../redux/actions'
-import { initializeStore } from '../redux/store'
+} from '../store/actions'
+import { initializeStore } from '../store/store'
 
 const Counter = () => {
   const dispatch = useDispatch()

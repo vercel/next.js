@@ -8,7 +8,7 @@ import * as types from './actionTypes'
 let store
 
 const INITIAL_STATE = {
-  nextCharacterId: 1,
+  nextUserId: 1,
   character: {},
   isFetchedOnServer: false,
   error: null,
@@ -16,14 +16,14 @@ const INITIAL_STATE = {
 
 function reducer(state = INITIAL_STATE, { type, payload }) {
   switch (type) {
-    case types.FETCH_CHARACTER_SUCCESS:
+    case types.FETCH_USER_SUCCESS:
       return {
         ...state,
         character: payload.response,
         isFetchedOnServer: payload.isServer,
-        nextCharacterId: state.nextCharacterId + 1,
+        nextUserId: state.nextUserId + 1,
       }
-    case types.FETCH_CHARACTER_FAILURE:
+    case types.FETCH_USER_FAILURE:
       return {
         ...state,
         error: payload.error,
