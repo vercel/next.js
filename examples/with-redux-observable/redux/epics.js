@@ -6,12 +6,12 @@ import { request } from 'universal-rxjs-ajax' // because standard AjaxObservable
 import * as actions from './actions'
 import * as types from './actionTypes'
 
-export const fetchUserEpic = (action$, state$) =>
+export const fetchUsersEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.START_FETCHING_CHARACTERS),
     mergeMap((action) => {
       return interval(3000).pipe(
-        map((x) => actions.fetchCharacter()),
+        map((x) => actions.fetchUser()),
         takeUntil(
           action$.ofType(
             types.STOP_FETCHING_CHARACTERS,
@@ -22,7 +22,7 @@ export const fetchUserEpic = (action$, state$) =>
     })
   )
 
-export const fetchCharacterEpic = (action$, state$) =>
+export const fetchUserEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.FETCH_CHARACTER),
     mergeMap((action) =>
@@ -30,14 +30,11 @@ export const fetchCharacterEpic = (action$, state$) =>
         url: `https://jsonplaceholder.typicode.com/users/${state$.value.nextCharacterId}`,
       }).pipe(
         map((response) =>
-          actions.fetchCharacterSuccess(
-            response.response,
-            action.payload.isServer
-          )
+          actions.fetchUserSuccess(response.response, action.payload.isServer)
         ),
         catchError((error) =>
           of(
-            actions.fetchCharacterFailure(
+            actions.fetchUserFailure(
               error.xhr.response,
               action.payload.isServer
             )
@@ -47,4 +44,4 @@ export const fetchCharacterEpic = (action$, state$) =>
     )
   )
 
-export const rootEpic = combineEpics(fetchUserEpic, fetchCharacterEpic)
+export const rootEpic = combineEpics(fetchUsersEpic, fetchUserEpic)

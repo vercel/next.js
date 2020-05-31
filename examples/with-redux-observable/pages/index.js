@@ -6,9 +6,9 @@ import { StateObservable } from 'redux-observable'
 import UserInfo from '../components/UserInfo'
 import { rootEpic } from '../redux/epics'
 import {
-  stopFetchingCharacters,
-  startFetchingCharacters,
-  fetchCharacter,
+  stopFetchingUsers,
+  startFetchingUsers,
+  fetchUser,
 } from '../redux/actions'
 import { initializeStore } from '../redux/store'
 
@@ -16,9 +16,9 @@ const Counter = () => {
   const dispatch = useDispatch()
 
   useEffect(() => {
-    dispatch(startFetchingCharacters())
+    dispatch(startFetchingUsers())
     return () => {
-      dispatch(stopFetchingCharacters())
+      dispatch(stopFetchingUsers())
     }
   }, [dispatch])
 
@@ -39,7 +39,7 @@ const Counter = () => {
 export async function getStaticProps() {
   const store = initializeStore()
   const state$ = new StateObservable(new Subject(), store.getState())
-  const resultAction = await rootEpic(of(fetchCharacter()), state$).toPromise() // we need to convert Observable to Promise
+  const resultAction = await rootEpic(of(fetchUser()), state$).toPromise() // we need to convert Observable to Promise
   store.dispatch(resultAction)
 
   return { props: {} }

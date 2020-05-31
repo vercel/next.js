@@ -1,21 +1,21 @@
 import * as types from './actionTypes'
 
-export const startFetchingCharacters = () => ({
+export const startFetchingUsers = () => ({
   type: types.START_FETCHING_CHARACTERS,
 })
-export const stopFetchingCharacters = () => ({
+export const stopFetchingUsers = () => ({
   type: types.STOP_FETCHING_CHARACTERS,
 })
-export const fetchCharacter = (isServer = false) => ({
+export const fetchUser = (isServer = false) => ({
   type: types.FETCH_CHARACTER,
   payload: { isServer },
 })
-export const fetchCharacterSuccess = (response, isServer) => ({
+export const fetchUserSuccess = (response, isServer) => ({
   type: types.FETCH_CHARACTER_SUCCESS,
   payload: { response, isServer },
 })
 
-export const fetchCharacterFailure = (error, isServer) => ({
+export const fetchUserFailure = (error, isServer) => ({
   type: types.FETCH_CHARACTER_FAILURE,
   payload: { error, isServer },
 })
