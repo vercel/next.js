@@ -4,104 +4,87 @@ description: Learn to add and access environment variables in your Next.js appli
 
 # Environment Variables
 
-> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
+> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, upgrade or refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
 
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
 - [Inline variables starting with `NEXT_PUBLIC_`](#inlined-environment-variables)
 - [Use `.env` to add custom environment variables](#exposing-environment-variables)
 
-## Inlined Environment Variables
+## Loading Environment Variables
 
-Next.js will inline any environment variable that starts with `NEXT_PUBLIC_` in your application. Inlining means replacing the variable with the value. For example, the following page:
+Next.js has built-in support for loading environment variables from `.env.local` into `process.env`.
 
-```jsx
-export default function Page() {
-  return <h1>The public value is: {process.env.NEXT_PUBLIC_EXAMPLE_KEY}</h1>
-}
-```
-
-Will end up being:
-
-```jsx
-export default function Page() {
-  return <h1>The public value is: {'my-value'}</h1>
-}
-```
-
-Next.js replaced `process.env.NEXT_PUBLIC_EXAMPLE_KEY` with its value, that in this case is `'my-value'`.
-
-You can use the shell or any other tool that runs before the [Next.js CLI](/api-reference/cli) to add environment variables. For example, using bash:
+An example `.env.local`:
 
 ```bash
-NEXT_PUBLIC_EXAMPLE_KEY=my-value npx next dev
+# .env.local
+DB_HOST=localhost
+DB_USER=myuser
+DB_PASS=mypassword
 ```
 
-Or using [cross-env](https://github.com/kentcdodds/cross-env) for Windows and Unix support:
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in `getStaticProps`, `getStaticPaths`, `getServerSideProps`, and API routes.
 
-```bash
-npx cross-env NEXT_PUBLIC_EXAMPLE_KEY=my-value next dev
-```
+For example using `getStaticProps`:
 
-### Caveats
-
-- Trying to destructure `process.env` variables won't work due to the limitations of webpack's [DefinePlugin](https://webpack.js.org/plugins/define-plugin/).
-- To avoid exposing secrets, do not use the `NEXT_PUBLIC_` prefix for them. Instead, [expose the variables using `.env`](#exposing-environment-variables).
-
-## Exposing Environment Variables
-
-Next.js allows you to expose variables using an environment variables file (`.env`), with included support for multiple environments. It works like this:
-
-- `.env` - Contains environment variables for all environments
-- `.env.local` - Local variable overrides for all environments
-- `.env.[environment]` - Environment variables for one environment. For example: `.env.development`
-- `.env.[environment].local` - Local variable overrides for one environment. For example: `.env.development.local`
-
-> **Note**: `.env` files **should be** included in your repository, and **`.env*.local` should be in `.gitignore`**, as those files are intended to be ignored. Consider `.local` files as a good place for secrets, and non-local files as a good place for defaults.
-
-The supported environments are `development`, `production` and `test`. The environment is selected in the following way:
-
-- [`next dev`](/docs/api-reference/cli#development) uses `development`
-- [`next build`](/docs/api-reference/cli#build) and [`next start`](/docs/api-reference/cli#production) use `production`
-
-If the same environment variable is defined multiple times, the priority of which variable to use is decided in the following order:
-
-- Already defined environment variables have the higher priority. For example: `MY_KEY=value next dev`
-- `.env.[environment].local`
-- `.env.local`
-- `.env.[environment]`
-- `.env`
-
-For example, consider the file `.env.local` with the following content:
-
-```bash
-API_KEY='my-secret-api-key'
-NEXT_PUBLIC_APP_LOCALE='en-us'
-```
-
-And the following page:
-
-```jsx
-export default function Page() {
-  return <h1>The locale is set to: {process.env.NEXT_PUBLIC_APP_LOCALE}</h1>
-}
-
+```js
+// pages/index.js
 export async function getStaticProps() {
-  const db = await myDB(process.env.API_KEY)
+  const db = await myDB.connect({
+    host: process.env.DB_HOST,
+    username: process.env.DB_USER,
+    password: process.env.DB_PASS,
+  })
   // ...
 }
 ```
 
-`process.env.NEXT_PUBLIC_APP_LOCALE` will be replaced with `'en-us'` in the build output. This is because variables that start with `NEXT_PUBLIC_` will be [inlined at build time](#inlined-environment-variables).
+## Exposing Environment Variables to the Browser
 
-`process.env.API_KEY` will be a variable with `'my-secret-api-key'` at build time and runtime, but the build output will not contain this key. This is because `process.env.API_KEY` is only used by [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) which [runs only on the server](/docs/basic-features/data-fetching.md#write-server-side-code-directly) — and only the props returned by `getStaticProps` are included in the client build. Same goes for our other [data fetching methods](/docs/basic-features/data-fetching.md).
+By default all environment variables loaded through `.env.local` are only available in the Node.js environment, meaning they won't be exposed to the browser.
 
-Now, if you add a `.env` file like this one:
+In order to expose a variable to the browser you can prefix the variable with `NEXT_PUBLIC_`. For example:
 
 ```bash
-API_KEY='default-api-key'
-CLIENT_KEY='default-client-key'
-NEXT_PUBLIC_APP_LOCALE='en-us'
+# .env.local
+NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-Both `API_KEY` and `NEXT_PUBLIC_APP_LOCALE` will be ignored as `.env.local` has a higher priority, but `CLIENT_KEY` will become available.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically. Allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
+
+```js
+// pages/index.js
+import setupAnalyticsService from '../lib/my-analytics-service'
+
+// NEXT_PUBLIC_ANALYTICS_ID can be used here as it's prefixed by NEXT_PUBLIC_
+setupAnalyticsService(process.env.NEXT_PUBLIC_ANALYTICS_ID)
+
+function HomePage() {
+  return <h1>Hello World</h1>
+}
+
+export default HomePage
+```
+
+## Default Environment Variables
+
+In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
+
+Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), and `.env.production` (production environment).
+
+`.env.local` always overrides the defaults set.
+
+> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored
+
+## Environment Variables on Vercel
+
+When deploying on [Vercel](https://vercel.com) you can configure secrets in the [Environment Variables](https://vercel.com/docs/v2/build-step#environment-variables) section of the project in the Vercel dashboard.
+
+You can still use `.env`, `.env.development` and `.env.production` to add defaults.
+
+If you've configured [Development Environment Variables](https://vercel.com/docs/v2/build-step#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
+
+```bash
+vercel env pull .env.local
+```
