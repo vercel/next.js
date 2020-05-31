@@ -184,7 +184,7 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
