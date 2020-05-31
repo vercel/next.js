@@ -652,12 +652,14 @@ export async function buildStaticPaths(
         if (optional) {
           replaced = `[${replaced}]`
         }
-        builtPage = builtPage.replace(
-          replaced,
-          repeat
-            ? (paramValue as string[]).map(encodeURIComponent).join('/')
-            : encodeURIComponent(paramValue as string)
-        )
+        builtPage = builtPage
+          .replace(
+            replaced,
+            repeat
+              ? (paramValue as string[]).map(encodeURIComponent).join('/')
+              : encodeURIComponent(paramValue as string)
+          )
+          .replace(/(?!^)\/$/, '')
       })
 
       prerenderPaths?.add(builtPage)
