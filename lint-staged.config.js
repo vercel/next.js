@@ -1,9 +1,14 @@
 const escape = require('shell-quote').quote
+const { CLIEngine } = require('eslint')
+
+const cli = new CLIEngine({})
+
 const isWin = process.platform === 'win32'
 
 module.exports = {
   '**/*.{js,jsx,ts,tsx}': (filenames) => {
     const escapedFileNames = filenames
+      .filter((file) => !cli.isPathIgnored(file))
       .map((filename) => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')
     return [
@@ -15,6 +20,7 @@ module.exports = {
   },
   '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
     const escapedFileNames = filenames
+      .filter((file) => !cli.isPathIgnored(file))
       .map((filename) => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')
     return [
