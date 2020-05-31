@@ -1,12 +1,17 @@
-import { rehydrate } from 'glamor'
+import { rehydrate, css } from 'glamor'
 
-// Adds server generated styles to glamor cache.
-// Has to run before any `style()` calls
-// '__NEXT_DATA__.ids' is set in '_document.js'
+// Rehydrate to ensure that the client doesn't duplicate styles
+// It has to execute before any code that defines styles
+// '__REHYDRATE_IDS' is set in '_document.js'
 if (typeof window !== 'undefined') {
-  rehydrate(window.__NEXT_DATA__.ids)
+  rehydrate(window.__REHYDRATE_IDS)
 }
 
+const rule = css({
+  color: 'red',
+  fontSize: 50,
+})
+
 export default function Home() {
-  return <h1 css={{ color: 'red', fontSize: 50 }}>My page</h1>
+  return <h1 {...rule}>My page</h1>
 }
