@@ -427,11 +427,16 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path.join('/')}`
+          const pathname = `/${params.path
+            // we need to re-encode the params since they are decoded
+            // by path-match and we are re-building the URL
+            .map((param: string) => encodeURIComponent(param))
+            .join('/')}`
             .replace(/\.json$/, '')
             .replace(/\/index$/, '/')
 
           const parsedUrl = parseUrl(pathname, true)
+
           await this.render(
             req,
             res,
@@ -580,6 +585,7 @@ export default class Server {
               }
             }
             ;(req as any)._nextDidRewrite = true
+            ;(req as any)._nextRewroteUrl = newUrl
 
             return {
               finished: false,
@@ -959,7 +965,7 @@ export default class Server {
     }
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq
+    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
     delete query._nextDataReq
 
     let previewData: string | false | object | undefined
@@ -970,8 +976,15 @@ export default class Server {
       isPreviewMode = previewData !== false
     }
 
-    // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}`
+    // Compute the iSSG cache key. We use the rewroteUrl since
+    // pages with fallback: false are allowed to be rewritten to
+    // and we need to look up the path by the rewritten path
+    let urlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : `${parseUrl(req.url || '').pathname!}`
+
+    // remove trailing slash
+    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
@@ -1123,6 +1136,7 @@ export default class Server {
       }
 
       sendPayload(res, html, 'html')
+      return null
     }
 
     const {
