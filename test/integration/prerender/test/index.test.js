@@ -835,6 +835,18 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         },
         {
           dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-gssp.json$`
+          ),
+          page: '/bad-gssp',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-ssr.json$`
+          ),
+          page: '/bad-ssr',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
           ),
           page: '/blog',
