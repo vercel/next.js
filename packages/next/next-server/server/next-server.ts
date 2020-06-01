@@ -40,7 +40,7 @@ import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
-import { normalizePagePath, canonicalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
@@ -602,7 +602,7 @@ export default class Server {
           throw new Error('pathname is undefined')
         }
 
-        pathname = canonicalizePagePath(pathname)
+        pathname = pathname.replace(/(?!^)\/$/, '')
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
@@ -980,7 +980,8 @@ export default class Server {
       ? (req as any)._nextRewroteUrl
       : `${parseUrl(req.url || '').pathname!}`
 
-    urlPathname = canonicalizePagePath(urlPathname)
+    // remove trailing slash
+    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
