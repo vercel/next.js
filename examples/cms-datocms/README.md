@@ -20,7 +20,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-datocms cms-datocms-app
+npx create-next-app --example cms-datocms cms-datocms-app
 # or
 yarn create next-app --example cms-datocms cms-datocms-app
 ```

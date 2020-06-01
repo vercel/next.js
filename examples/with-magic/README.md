@@ -21,7 +21,7 @@ Deploy the example using [Vercel Now](https://vercel.com/docs/now-cli#commands/o
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-magic with-magic-app
+npx create-next-app --example with-magic with-magic-app
 # or
 yarn create next-app --example with-magic with-magic-app
 ```
