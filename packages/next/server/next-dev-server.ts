@@ -206,7 +206,7 @@ export default class DevServer extends Server {
             .filter(isDynamicRoute)
             .map((page) => ({
               page,
-              match: getRouteMatcher(getRouteRegex(page, false)),
+              match: getRouteMatcher(getRouteRegex(page, true)),
             }))
 
           const firstOptionalCatchAllPage =

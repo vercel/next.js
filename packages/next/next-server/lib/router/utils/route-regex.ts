@@ -6,7 +6,7 @@ function escapeRegex(str: string) {
 
 export function getRouteRegex(
   normalizedRoute: string,
-  trailingSlash = true
+  noEndSlash?: boolean
 ): {
   re: RegExp
   namedRegex?: string
@@ -63,9 +63,7 @@ export function getRouteRegex(
 
   return {
     re: new RegExp(
-      '^' +
-        parameterizedRoute +
-        (trailingSlash || isCatchAll ? '(?:/)?$' : '$'),
+      '^' + parameterizedRoute + (!noEndSlash || isCatchAll ? '(?:/)?$' : '$'),
       'i'
     ),
     groups,

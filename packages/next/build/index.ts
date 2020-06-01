@@ -328,7 +328,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     dynamicRoutes: getSortedRoutes(pageKeys)
       .filter(isDynamicRoute)
       .map((page) => {
-        const routeRegex = getRouteRegex(page, false)
+        const routeRegex = getRouteRegex(page, true)
         return {
           page,
           regex: routeRegex.re.source,
@@ -973,15 +973,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       finalDynamicRoutes[tbdRoute] = {
-        routeRegex: getRouteRegex(tbdRoute, false).re.source,
+        routeRegex: getRouteRegex(tbdRoute, true).re.source,
         dataRoute,
         fallback: ssgFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
         dataRouteRegex: getRouteRegex(
-          dataRoute.replace(/\.json$/, ''),
-          false
-        ).re.source.replace(/\$$/, '\\.json$'),
+          dataRoute.replace(/\.json$/, '')
+        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
       }
     })
     const prerenderManifest: PrerenderManifest = {
