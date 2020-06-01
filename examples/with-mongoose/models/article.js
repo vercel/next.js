@@ -74,6 +74,25 @@ ArticleSchema.statics.findLatest = function (conditions, limit = 2) {
     .populate('category')
     .limit(limit)
 }
+ArticleSchema.statics.aggregateArchive = function (categoryId) {
+  const aggregation = this.aggregate()
+
+  if (categoryId) {
+    aggregation.match({ category: categoryId })
+  }
+
+  return aggregation
+    .project({
+      year: { $year: '$createdAt' },
+      month: { $month: '$createdAt' },
+    })
+    .group({
+      _id: { year: '$year', month: '$month' },
+      total: { $sum: 1 },
+    })
+    .sort({ _id: -1 })
+    .exec()
+}
 
 ArticleSchema.query.bySlug = function (slug) {
   return this.where({ slug })

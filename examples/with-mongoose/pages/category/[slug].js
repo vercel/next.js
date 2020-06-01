@@ -34,7 +34,7 @@ const CategoryPage = (props) => (
             statusText={props.statusText}
           />
         )}
-        <SideBar />
+        <SideBar archives={props.archives} />
       </div>
     </main>
   </Layout>
@@ -45,13 +45,13 @@ export async function getServerSideProps(context) {
   const { page = 1, limit = 5, sort = '-createdAt', slug } = context.query
   const query = {}
   const categories = await Category.find()
+  const category = categories.find((category) => category.slug === slug)
+  const archives = await Article.aggregateArchive(category._id)
 
-  if (slug) {
-    query.category = categories.find((category) => category.slug === slug)
-
-    if (!query.category) {
-      context.res.statusCode = 404
-    }
+  if (!category) {
+    context.res.statusCode = 404
+  } else {
+    query.category = category
   }
 
   const latest = await Article.findLatest(query)
@@ -71,6 +71,7 @@ export async function getServerSideProps(context) {
       pagination,
       statusCode: query.category ? 204 : 404,
       statusText: query.category ? 'No content' : 'Not found',
+      archives,
     },
   }
 }

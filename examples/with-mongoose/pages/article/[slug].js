@@ -45,7 +45,7 @@ const ArticlePage = (props) => {
               <Comments />
             </div>
           )}
-          <SideBar />
+          <SideBar archives={props.archives} />
         </div>
       </main>
     </Layout>
@@ -72,11 +72,13 @@ export async function getStaticProps(context) {
   const slug = context.params.slug
   const categories = await Category.find()
   const article = await Article.findOne().bySlug(slug).populate('category')
+  const archives = await Article.aggregateArchive()
 
   return {
     props: {
       categories: categories.map((category) => category.toJSON()),
       article: article && article.toJSON(),
+      archives,
     },
   }
 }

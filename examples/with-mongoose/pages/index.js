@@ -28,7 +28,7 @@ const IndexPage = (props) => (
           ))}
           <Pagination {...props.pagination} />
         </div>
-        <SideBar />
+        <SideBar archives={props.archives} />
       </div>
     </main>
   </Layout>
@@ -39,6 +39,7 @@ export async function getServerSideProps(context) {
   const { page = 1, limit = 5, sort = '-createdAt', slug } = context.query
   const query = {}
   const categories = await Category.find()
+  const archives = await Article.aggregateArchive()
 
   if (slug) {
     query.category = categories.find((category) => category.slug === slug)
@@ -60,6 +61,7 @@ export async function getServerSideProps(context) {
       latest: latest.map((article) => article.toJSON()),
       featured: featured.toJSON(),
       pagination,
+      archives,
     },
   }
 }
