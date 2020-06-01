@@ -17,6 +17,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
 
 ## How to use
 
