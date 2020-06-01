@@ -983,6 +983,9 @@ export default class Server {
       ? (req as any)._nextRewroteUrl
       : `${parseUrl(req.url || '').pathname!}`
 
+    // remove trailing slash
+    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
+
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq && urlPathname.includes(this.buildId)) {
