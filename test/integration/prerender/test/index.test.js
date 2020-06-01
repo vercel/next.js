@@ -1175,6 +1175,15 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('FAIL_FUNCTION')
       })
+
+      it('should call /_error GIP on 500', async () => {
+        stderr = ''
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+        expect(stderr).toMatch('CUSTOM_ERROR_GIP_CALLED')
+        expect(stderr).not.toMatch('!!! WARNING !!!')
+      })
     }
   }
 }
@@ -1385,6 +1394,8 @@ describe('SSG Prerender', () => {
   })
 
   describe('enumlated serverless mode', () => {
+    const cstmError = join(appDir, 'pages', '_error.js')
+
     beforeAll(async () => {
       const startServerlessEmulator = async (dir, port, buildId) => {
         const scriptPath = join(dir, 'server.js')
@@ -1393,7 +1404,11 @@ describe('SSG Prerender', () => {
           { ...process.env },
           { PORT: port, BUILD_ID: buildId }
         )
-        return initNextServerScript(scriptPath, /ready on/i, env)
+        return initNextServerScript(scriptPath, /ready on/i, env, false, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
       }
 
       origConfig = await fs.readFile(nextConfig, 'utf8')
@@ -1401,6 +1416,21 @@ describe('SSG Prerender', () => {
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`,
         'utf8'
+      )
+      await fs.writeFile(
+        cstmError,
+        `
+          function Error() {
+            return <div />
+          }
+
+          Error.getInitialProps = () => {
+            console.error('CUSTOM_ERROR_GIP_CALLED')
+            return {}
+          }
+
+          export default Error
+        `
       )
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
@@ -1413,6 +1443,7 @@ describe('SSG Prerender', () => {
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
     afterAll(async () => {
+      await fs.remove(cstmError)
       await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
