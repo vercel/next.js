@@ -61,7 +61,7 @@ Once the site is ready, you'll need to install the [WPGraphQL](https://www.wpgra
 
 The [WPGraphiQL](https://github.com/wp-graphql/wp-graphiql) plugin gives you access to a GraphQL IDE directly from your WordPress Admin, allowing you to inspect and play around with the GraphQL API.
 
-The process to add WPGraphiQL is the same as the one for WPGraphQL, go to the [WPGraphiQL repo](https://github.com/wp-graphql/wp-graphiql), download it, and install it as a plugin in your WordPress site. Once that's done you should be able to access the GraphiQL page in the admin:
+The process to add WPGraphiQL is the same as the one for WPGraphQL: Go to the [WPGraphiQL repo](https://github.com/wp-graphql/wp-graphiql), download the ZIP archive, and install it as a plugin in your WordPress site. Once that's done you should be able to access the GraphiQL page in the admin:
 
 ![WPGraphiQL page](./docs/wp-graphiql.png)
 
@@ -72,20 +72,16 @@ Inside your WordPress admin, go to **Posts** and start adding new posts:
 - We recommend creating at least **2 posts**
 - Use dummy data for the content
 - Pick an author from your WordPress users
-- Add a **Featured Image**, you can download one from [Unsplash](https://unsplash.com/)
+- Add a **Featured Image**. You can download one from [Unsplash](https://unsplash.com/)
 - Fill the **Excerpt** field
 
 ![New post](./docs/new-post.png)
 
-When you’re done, make sure to **Publish** the posts
+When you’re done, make sure to **Publish** the posts.
 
-> **Note:** Only **public** posts that have been published will be rendered by the app, unless [Preview Mode](/docs/advanced-features/preview-mode.md) is enabled.
+> **Note:** Only **published** posts will be rendered by the app unless [Preview Mode](/docs/advanced-features/preview-mode.md) is enabled.
 
 ### Step 3. Set up environment variables
-
-From the dropdown next to the project name, click **API Keys**.
-
-Create a new API Key with the **Read** permission.
 
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
