@@ -174,9 +174,13 @@ http://localhost:3000/api/preview?secret=<secret>&slug=draft-post-test
 
 You should now be able to see the draft post. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-### Step 8. Deploy on Vercel
+### Step 10. Deploy Strapi
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+To deploy to production, you must first deploy your Strapi app. The Strapi app for our demo at https://next-blog-strapi.now.sh/ is deployed to Heroku ([here’s the documentation](https://strapi.io/documentation/v3.x/deployment/heroku.html)) and uses Cloudinary for image hosting ([see this file](https://github.com/strapi/strapi-starter-next-blog/blob/master/backend/extensions/upload/config/settings.js)).
+
+### Step 11. Deploy on Vercel
+
+After deploying Strapi, you can deploy this Next.js app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 To deploy on Vercel, you need to set the environment variables with **Vercel Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
