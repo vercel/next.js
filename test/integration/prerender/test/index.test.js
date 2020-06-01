@@ -1151,6 +1151,18 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('FAIL_FUNCTION')
       })
+
+      it('should fail the page function instead of rendering 500 (getServerSideProps)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (render)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-ssr')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
     }
   }
 }
