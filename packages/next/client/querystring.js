@@ -284,7 +284,7 @@ const isHexTable = [
   0, // ... 256
 ]
 
-function encodeStr(str, noEscapeTable, hexTable) {
+function encodeStr(str, noEscapeTable, curHexTable) {
   const len = str.length
   if (len === 0) return ''
 
@@ -299,7 +299,7 @@ function encodeStr(str, noEscapeTable, hexTable) {
       if (noEscapeTable[c] === 1) continue
       if (lastPos < i) out += str.slice(lastPos, i)
       lastPos = i + 1
-      out += hexTable[c]
+      out += curHexTable[c]
       continue
     }
 
@@ -308,15 +308,15 @@ function encodeStr(str, noEscapeTable, hexTable) {
     // Multi-byte characters ...
     if (c < 0x800) {
       lastPos = i + 1
-      out += hexTable[0xc0 | (c >> 6)] + hexTable[0x80 | (c & 0x3f)]
+      out += curHexTable[0xc0 | (c >> 6)] + curHexTable[0x80 | (c & 0x3f)]
       continue
     }
     if (c < 0xd800 || c >= 0xe000) {
       lastPos = i + 1
       out +=
-        hexTable[0xe0 | (c >> 12)] +
-        hexTable[0x80 | ((c >> 6) & 0x3f)] +
-        hexTable[0x80 | (c & 0x3f)]
+        curHexTable[0xe0 | (c >> 12)] +
+        curHexTable[0x80 | ((c >> 6) & 0x3f)] +
+        curHexTable[0x80 | (c & 0x3f)]
       continue
     }
     // Surrogate pair

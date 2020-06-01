@@ -371,9 +371,7 @@ describe('Production Usage', () => {
 
   it('should handle non-encoded query value server side', async () => {
     const html = await renderViaHTTP(appPort, '/server-query?id=0&value=%')
-    const query = cheerio
-      .load(html)('#query')
-      .text()
+    const query = cheerio.load(html)('#query').text()
     expect(JSON.parse(query)).toEqual({
       id: '0',
       value: '%',
