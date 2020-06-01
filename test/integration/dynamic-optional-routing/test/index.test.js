@@ -273,25 +273,25 @@ describe('Dynamic Optional Routing', () => {
         await fs.outputFile(
           invalidRoute,
           `
-          export async function getStaticPaths() {
-            return {
-              paths: [
-                { params: {} },
-              ],
-              fallback: false,
+            export async function getStaticPaths() {
+              return {
+                paths: [
+                  { params: {} },
+                ],
+                fallback: false,
+              }
             }
-          }
 
-          export async function getStaticProps({ params }) {
-            return { props: { params } }
-          }
+            export async function getStaticProps({ params }) {
+              return { props: { params } }
+            }
 
-          export default function Index(props) {
-            return (
-              <div>Invalid</div>
-            )
-          }
-        `,
+            export default function Index(props) {
+              return (
+                <div>Invalid</div>
+              )
+            }
+          `,
           'utf-8'
         )
         const { stderr } = await nextBuild(appDir, [], { stderr: true })
