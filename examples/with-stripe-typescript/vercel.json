@@ -5,7 +5,7 @@
   },
   "build": {
     "env": {
-      "STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key"
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key"
     }
   }
 }
