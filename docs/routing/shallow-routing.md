@@ -7,7 +7,7 @@ description: You can use shallow routing to change the URL without triggering a 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing">Shallow Routing</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-shallow-routing">Shallow Routing</a></li>
   </ul>
 </details>
 

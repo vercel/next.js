@@ -18,16 +18,25 @@
   "settings": {
     "react": {
       "version": "detect"
-    }
+    },
+    "import/internal-regex": "^next/"
   },
   "overrides": [
+    {
+      "files": ["packages/**"],
+      "rules": {
+        "import/no-extraneous-dependencies": [
+          "error",
+          { "devDependencies": false }
+        ]
+      }
+    },
     {
       "files": ["test/**/*.test.js"],
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
-        "jest/no-disabled-tests": "off",
-        "jest/no-try-expect": "off"
+        "jest/no-disabled-tests": "off"
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },

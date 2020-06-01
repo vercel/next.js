@@ -286,7 +286,7 @@ export async function loadGetInitialProps<
     if (App.prototype?.getInitialProps) {
       const message = `"${getDisplayName(
         App
-      )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
+      )}.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
   }
@@ -321,7 +321,7 @@ export async function loadGetInitialProps<
       console.warn(
         `${getDisplayName(
           App
-        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/zeit/next.js/empty-object-getInitialProps`
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/vercel/next.js/empty-object-getInitialProps`
       )
     }
   }
@@ -347,7 +347,7 @@ export const urlObjectKeys = [
 export function formatWithValidation(
   url: UrlObject,
   options?: URLFormatOptions
-) {
+): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {

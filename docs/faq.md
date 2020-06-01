@@ -8,7 +8,7 @@ description: Get to know more about Next.js with the frequently asked questions.
   <summary>What browsers are supported?</summary>
   <p>Next.js supports IE11 and all modern browsers out of the box using <a href="https://new.babeljs.io/docs/en/next/babel-preset-env.html">@babel/preset-env</a>. In order to support IE11 Next.js adds a global Promise polyfill.</p>
 
-  <p>In cases where your own code or any external npm dependencies you are using require features not supported by your target browsers you will need to implement polyfills. If you need to implement polyfills, the <a href="https://github.com/zeit/next.js/tree/canary/examples/with-polyfills">polyfills</a> example demonstrates the recommended approach.</p>
+  <p>In cases where your own code or any external npm dependencies you are using require features not supported by your target browsers you will need to implement polyfills. If you need to implement polyfills, the <a href="https://github.com/vercel/next.js/tree/canary/examples/with-polyfills">polyfills</a> example demonstrates the recommended approach.</p>
 </details>
 
 <details>
@@ -51,12 +51,12 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Can I use it with GraphQL?</summary>
-  <p>Yes! Here's an <a href="https://github.com/zeit/next.js/tree/canary/examples/with-apollo">example with Apollo</a>.</p>
+  <p>Yes! Here's an <a href="https://github.com/vercel/next.js/tree/canary/examples/with-apollo">example with Apollo</a>.</p>
 </details>
 
 <details>
   <summary>Can I use it with Redux?</summary>
-  <p>Yes! Here's an <a href="https://github.com/zeit/next.js/tree/canary/examples/with-redux">example</a>. And there's another <a href="https://github.com/zeit/next.js/tree/canary/examples/with-redux-thunk">example with thunk</a>.</p>
+  <p>Yes! Here's an <a href="https://github.com/vercel/next.js/tree/canary/examples/with-redux">example</a>. And there's another <a href="https://github.com/vercel/next.js/tree/canary/examples/with-redux-thunk">example with thunk</a>.</p>
 </details>
 
 <details>
@@ -66,7 +66,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Can I use Next with my favorite JavaScript library or toolkit?</summary>
-  <p>Since our first release we've had many example contributions. You can check them out in the <a href="https://github.com/zeit/next.js/tree/canary/examples">examples</a> directory.</p>
+  <p>Since our first release we've had many example contributions. You can check them out in the <a href="https://github.com/vercel/next.js/tree/canary/examples">examples</a> directory.</p>
 </details>
 
 <details>

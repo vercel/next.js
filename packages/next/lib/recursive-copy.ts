@@ -16,14 +16,14 @@ export async function recursiveCopy(
     overwrite?: boolean
     filter?(path: string): boolean
   } = {}
-) {
+): Promise<void> {
   const cwdPath = process.cwd()
   const from = path.resolve(cwdPath, source)
   const to = path.resolve(cwdPath, dest)
 
   const sema = new Sema(concurrency)
 
-  async function _copy(item: string) {
+  async function _copy(item: string): Promise<void> {
     const target = item.replace(from, to)
     const stats = await promises.stat(item)
 

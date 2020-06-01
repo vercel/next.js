@@ -1,4 +1,4 @@
-import * as React from 'react'
+import { useReducer } from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
 import nanoid from 'nanoid'
 import produce from 'immer'
@@ -74,7 +74,7 @@ const deleteToDo = async (dispatch, id) => {
   }
 }
 const App = (props) => {
-  const [state, dispatch] = React.useReducer(reducer, {
+  const [state, dispatch] = useReducer(reducer, {
     todos: props.todos,
     currentName: '',
   })

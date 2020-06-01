@@ -8,7 +8,7 @@ import initializePrerenderIndicator from './dev/prerender-indicator'
 import { displayContent } from './dev/fouc'
 
 // Temporary workaround for the issue described here:
-// https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
+// https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
 // The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
 // The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
 // eslint-disable-next-line no-unused-expressions
@@ -42,28 +42,6 @@ initNext({ webpackHMR })
     // delay rendering until after styles have been applied in development
     displayContent(() => {
       render(renderCtx)
-    })
-
-    let lastScroll
-
-    emitter.on('before-reactdom-render', ({ Component, ErrorComponent }) => {
-      // Remember scroll when ErrorComponent is being rendered to later restore it
-      if (!lastScroll && Component === ErrorComponent) {
-        const { pageXOffset, pageYOffset } = window
-        lastScroll = {
-          x: pageXOffset,
-          y: pageYOffset,
-        }
-      }
-    })
-
-    emitter.on('after-reactdom-render', ({ Component, ErrorComponent }) => {
-      if (lastScroll && Component !== ErrorComponent) {
-        // Restore scroll after ErrorComponent was replaced with a page component by HMR
-        const { x, y } = lastScroll
-        window.scroll(x, y)
-        lastScroll = null
-      }
     })
   })
   .catch((err) => {

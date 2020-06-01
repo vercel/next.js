@@ -1,13 +1,6 @@
-import { useSelector, shallowEqual } from 'react-redux'
+import { useSelector } from 'react-redux'
 
-const useClock = () => {
-  return useSelector((state) => {
-    return {
-      lastUpdate: state.lastUpdate,
-      light: state.light,
-    }
-  }, shallowEqual)
-}
+import { selectClock } from '../lib/slices/clockSlice'
 
 const formatTime = (time) => {
   // cut off except hh:mm:ss
@@ -15,7 +8,8 @@ const formatTime = (time) => {
 }
 
 const Clock = () => {
-  const { lastUpdate, light } = useClock()
+  const { lastUpdate, light } = useSelector(selectClock)
+
   return (
     <div className={light ? 'light' : ''}>
       {formatTime(lastUpdate)}

@@ -65,6 +65,7 @@ import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
+import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -108,7 +109,7 @@ export default class Server {
   publicDir: string
   hasStaticDir: boolean
   serverBuildDir: string
-  pagesManifest?: { [name: string]: string }
+  pagesManifest?: PagesManifest
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -288,7 +289,7 @@ export default class Server {
     return this.handleRequest.bind(this)
   }
 
-  public setAssetPrefix(prefix?: string) {
+  public setAssetPrefix(prefix?: string): void {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
@@ -298,7 +299,7 @@ export default class Server {
   // Backwards compatibility
   protected async close(): Promise<void> {}
 
-  protected setImmutableAssetCacheControl(res: ServerResponse) {
+  protected setImmutableAssetCacheControl(res: ServerResponse): void {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
@@ -341,7 +342,7 @@ export default class Server {
             // It's very important to keep this route's param optional.
             // (but it should support as many params as needed, separated by '/')
             // Otherwise this will lead to a pretty simple DOS attack.
-            // See more: https://github.com/zeit/next.js/issues/2617
+            // See more: https://github.com/vercel/next.js/issues/2617
             match: route('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
@@ -426,11 +427,16 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path.join('/')}`
+          const pathname = `/${params.path
+            // we need to re-encode the params since they are decoded
+            // by path-match and we are re-building the URL
+            .map((param: string) => encodeURIComponent(param))
+            .join('/')}`
             .replace(/\.json$/, '')
             .replace(/\/index$/, '/')
 
           const parsedUrl = parseUrl(pathname, true)
+
           await this.render(
             req,
             res,
@@ -579,6 +585,7 @@ export default class Server {
               }
             }
             ;(req as any)._nextDidRewrite = true
+            ;(req as any)._nextRewroteUrl = newUrl
 
             return {
               finished: false,
@@ -604,7 +611,7 @@ export default class Server {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
-            pathname!,
+            pathname,
             query
           )
           if (handled) {
@@ -637,7 +644,7 @@ export default class Server {
     }
   }
 
-  private async getPagePath(pathname: string) {
+  private async getPagePath(pathname: string): Promise<string> {
     return getPagePath(
       pathname,
       this.distDir,
@@ -660,12 +667,12 @@ export default class Server {
     _res: ServerResponse,
     _params: Params,
     _parsedUrl: UrlWithParsedQuery
-  ) {
+  ): Promise<boolean> {
     return false
   }
 
   // Used to build API page in development
-  protected async ensureApiPage(pathname: string) {}
+  protected async ensureApiPage(pathname: string): Promise<void> {}
 
   /**
    * Resolves `API` request, in development builds on demand
@@ -678,7 +685,7 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery
-  ) {
+  ): Promise<boolean> {
     let page = pathname
     let params: Params | boolean = false
     let pageFound = await this.hasPage(page)
@@ -701,7 +708,16 @@ export default class Server {
     // or else it won't be in the manifest yet
     await this.ensureApiPage(page)
 
-    const builtPagePath = await this.getPagePath(page)
+    let builtPagePath
+    try {
+      builtPagePath = await this.getPagePath(page)
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return false
+      }
+      throw err
+    }
+
     const pageModule = require(builtPagePath)
     query = { ...query, ...params }
 
@@ -766,7 +782,7 @@ export default class Server {
       }))
   }
 
-  private handleCompression(req: IncomingMessage, res: ServerResponse) {
+  private handleCompression(req: IncomingMessage, res: ServerResponse): void {
     if (this.compression) {
       this.compression(req, res, () => {})
     }
@@ -776,7 +792,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
-  ) {
+  ): Promise<void> {
     this.handleCompression(req, res)
 
     try {
@@ -799,7 +815,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     html: string
-  ) {
+  ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
     return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
@@ -949,7 +965,7 @@ export default class Server {
     }
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq
+    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
     delete query._nextDataReq
 
     let previewData: string | false | object | undefined
@@ -960,74 +976,15 @@ export default class Server {
       isPreviewMode = previewData !== false
     }
 
-    // non-spr requests should render like normal
-    if (!isSSG) {
-      // handle serverless
-      if (isLikeServerless) {
-        if (isDataReq) {
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            'passthrough'
-          )
+    // Compute the iSSG cache key. We use the rewroteUrl since
+    // pages with fallback: false are allowed to be rewritten to
+    // and we need to look up the path by the rewritten path
+    let urlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : `${parseUrl(req.url || '').pathname!}`
 
-          sendPayload(
-            res,
-            JSON.stringify(renderResult?.renderOpts?.pageData),
-            'json',
-            !this.renderOpts.dev
-              ? {
-                  private: isPreviewMode,
-                  stateful: true, // non-SSG data request
-                }
-              : undefined
-          )
-          return null
-        }
-        prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
-      }
-
-      if (isDataReq && isServerProps) {
-        const props = await renderToHTML(req, res, pathname, query, {
-          ...components,
-          ...opts,
-          isDataReq,
-        })
-        sendPayload(
-          res,
-          JSON.stringify(props),
-          'json',
-          !this.renderOpts.dev
-            ? {
-                private: isPreviewMode,
-                stateful: true, // GSSP data request
-              }
-            : undefined
-        )
-        return null
-      }
-
-      const html = await renderToHTML(req, res, pathname, query, {
-        ...components,
-        ...opts,
-      })
-
-      if (html && isServerProps) {
-        sendPayload(res, html, 'html', {
-          private: isPreviewMode,
-          stateful: true, // GSSP request
-        })
-        return null
-      }
-
-      return html
-    }
-
-    // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}${
-      query.amp ? '.amp' : ''
-    }`
+    // remove trailing slash
+    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
@@ -1037,12 +994,14 @@ export default class Server {
         .replace(/\/index$/, '/')
     }
 
-    const ssgCacheKey = isPreviewMode
-      ? undefined // Preview mode bypasses the cache
-      : urlPathname
+    const ssgCacheKey =
+      isPreviewMode || !isSSG
+        ? undefined // Preview mode bypasses the cache
+        : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
@@ -1103,6 +1062,7 @@ export default class Server {
         const renderOpts: RenderOpts = {
           ...components,
           ...opts,
+          isDataReq,
         }
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
@@ -1140,6 +1100,7 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      ssgCacheKey &&
       !didRespond &&
       !isDataReq &&
       !isPreviewMode &&
@@ -1169,40 +1130,34 @@ export default class Server {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
           prepareServerlessUrl(req, query)
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            'passthrough'
-          )
-          html = renderResult.html
-        } else {
-          html = (await renderToHTML(req, res, pathname, query, {
-            ...components,
-            ...opts,
-          })) as string
         }
+        const { value: renderResult } = await doRender()
+        html = renderResult.html
       }
 
       sendPayload(res, html, 'html')
+      return null
     }
 
     const {
       isOrigin,
       value: { html, pageData, sprRevalidate },
     } = await doRender()
-    if (!isResSent(res)) {
+    let resHtml = html
+    if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        !this.renderOpts.dev
+        !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
-              stateful: false, // GSP response
+              stateful: !isSSG,
               revalidate: sprRevalidate,
             }
           : undefined
       )
+      resHtml = null
     }
 
     // Update the SPR cache if the head request and cacheable
@@ -1210,7 +1165,7 @@ export default class Server {
       await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
     }
 
-    return null
+    return resHtml
   }
 
   public async renderToHTML(
@@ -1495,7 +1450,10 @@ export default class Server {
   }
 }
 
-function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
+function prepareServerlessUrl(
+  req: IncomingMessage,
+  query: ParsedUrlQuery
+): void {
   const curUrl = parseUrl(req.url!, true)
   req.url = formatUrl({
     ...curUrl,

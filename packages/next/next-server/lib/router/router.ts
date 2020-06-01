@@ -73,7 +73,7 @@ type RouteInfo = {
   error?: any
 }
 
-type Subscription = (data: RouteInfo, App?: ComponentType) => void
+type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
 
 type BeforePopStateCallback = (state: any) => boolean
 
@@ -296,7 +296,7 @@ export default class Router implements BaseRouter {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof url === 'undefined' || typeof as === 'undefined') {
         console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/zeit/next.js/popstate-state-empty'
+          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
         )
       }
     }
@@ -310,12 +310,11 @@ export default class Router implements BaseRouter {
       throw new Error(`Cannot update unavailable route: ${route}`)
     }
 
-    const newData = {
-      ...data,
+    const newData = Object.assign({}, data, {
       Component,
       __N_SSG: mod.__N_SSG,
       __N_SSP: mod.__N_SSP,
-    }
+    })
     this.components[route] = newData
 
     // pages/_app.js updated
@@ -416,7 +415,7 @@ export default class Router implements BaseRouter {
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return resolve(false)
@@ -456,7 +455,7 @@ export default class Router implements BaseRouter {
             return reject(
               new Error(
                 `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+                  `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
               )
             )
           }
@@ -487,15 +486,15 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname, query, as, routeInfo)
+          this.set(route, pathname, query, as, routeInfo).then(() => {
+            if (error) {
+              Router.events.emit('routeChangeError', error, as)
+              throw error
+            }
 
-          if (error) {
-            Router.events.emit('routeChangeError', error, as)
-            throw error
-          }
-
-          Router.events.emit('routeChangeComplete', as)
-          return resolve(true)
+            Router.events.emit('routeChangeComplete', as)
+            return resolve(true)
+          })
         },
         reject
       )
@@ -666,14 +665,14 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     data: RouteInfo
-  ): void {
+  ): Promise<void> {
     this.isFallback = false
 
     this.route = route
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.notify(data)
+    return this.notify(data)
   }
 
   /**
@@ -749,7 +748,7 @@ export default class Router implements BaseRouter {
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return
@@ -856,7 +855,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: RouteInfo): void {
-    this.sub(data, this.components['/_app'].Component)
+  notify(data: RouteInfo): Promise<void> {
+    return this.sub(data, this.components['/_app'].Component)
   }
 }

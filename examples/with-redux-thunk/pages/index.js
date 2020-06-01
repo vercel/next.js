@@ -1,38 +1,23 @@
-import { PureComponent } from 'react'
-import { connect } from 'react-redux'
+import { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
 import Link from 'next/link'
-import { startClock, serverRenderClock } from '../actions'
+import { startClock } from '../actions'
 import Examples from '../components/examples'
 
-class Index extends PureComponent {
-  static getInitialProps({ store, req }) {
-    store.dispatch(serverRenderClock(!!req))
+const Index = () => {
+  const dispatch = useDispatch()
+  useEffect(() => {
+    dispatch(startClock())
+  }, [dispatch])
 
-    return {}
-  }
-
-  componentDidMount() {
-    this.timer = this.props.startClock()
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.timer)
-  }
-
-  render() {
-    return (
-      <>
-        <Examples />
-        <Link href="/show-redux-state">
-          <a>Click to see current Redux State</a>
-        </Link>
-      </>
-    )
-  }
+  return (
+    <>
+      <Examples />
+      <Link href="/show-redux-state">
+        <a>Click to see current Redux State</a>
+      </Link>
+    </>
+  )
 }
 
-const mapDispatchToProps = {
-  startClock,
-}
-
-export default connect(null, mapDispatchToProps)(Index)
+export default Index

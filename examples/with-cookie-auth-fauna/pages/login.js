@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import Router from 'next/router'
 import Layout from '../components/layout'
 
