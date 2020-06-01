@@ -23,8 +23,6 @@ export type OriginProps = {
   crossOrigin?: string
 }
 
-export async function middleware({ req, res }: DocumentContext) {}
-
 function dedupe(bundles: any[]): any[] {
   const files = new Set()
   const kept = []
