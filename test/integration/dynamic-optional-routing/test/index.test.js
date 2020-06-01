@@ -26,53 +26,43 @@ function runTests() {
   it('should render catch-all top-level route with multiple segments', async () => {
     const html = await renderViaHTTP(appPort, '/hello/world')
     const $ = cheerio.load(html)
-    expect($('#optional-route').text()).toBe(
-      'top level route param: [hello,world]'
-    )
+    expect($('#route').text()).toBe('top level route param: [hello|world]')
   })
 
   it('should render catch-all top-level route with single segment', async () => {
     const html = await renderViaHTTP(appPort, '/hello')
     const $ = cheerio.load(html)
-    expect($('#optional-route').text()).toBe('top level route param: [hello]')
+    expect($('#route').text()).toBe('top level route param: [hello]')
   })
 
   it('should render catch-all top-level route with no segments', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
-    expect($('#optional-route').text()).toBe('top level route param: undefined')
+    expect($('#route').text()).toBe('top level route param: undefined')
   })
 
   it('should render catch-all nested route with multiple segments', async () => {
     const html = await renderViaHTTP(appPort, '/nested/hello/world')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe(
-      'nested route param: [hello,world]'
-    )
+    expect($('#route').text()).toBe('nested route param: [hello|world]')
   })
 
   it('should render catch-all nested route with single segment', async () => {
     const html = await renderViaHTTP(appPort, '/nested/hello')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe(
-      'nested route param: [hello]'
-    )
+    expect($('#route').text()).toBe('nested route param: [hello]')
   })
 
   it('should render catch-all nested route with no segments', async () => {
     const html = await renderViaHTTP(appPort, '/nested')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe(
-      'nested route param: undefined'
-    )
+    expect($('#route').text()).toBe('nested route param: undefined')
   })
 
   it('should render catch-all nested route with no segments and leading slash', async () => {
     const html = await renderViaHTTP(appPort, '/nested/')
     const $ = cheerio.load(html)
-    expect($('#nested-optional-route').text()).toBe(
-      'nested route param: undefined'
-    )
+    expect($('#route').text()).toBe('nested route param: undefined')
   })
 
   it('should match catch-all api route with multiple segments', async () => {
@@ -97,6 +87,96 @@ function runTests() {
     const res = await fetchViaHTTP(appPort, '/api/post/')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({})
+  })
+
+  it('should handle getStaticPaths no segments', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: undefined')
+  })
+
+  it('should handle getStaticPaths no segments and trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: undefined')
+  })
+
+  it('should handle getStaticPaths 1 segment', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p1')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [p1]')
+  })
+
+  it('should handle getStaticPaths 1 segment and trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p1/')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [p1]')
+  })
+
+  it('should handle getStaticPaths 2 segments', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p2/p3')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [p2|p3]')
+  })
+
+  it('should handle getStaticPaths 2 segments and trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p2/p3/')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [p2|p3]')
+  })
+
+  it('should fall back to top-level catch-all', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/hello/world')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe(
+      'top level route param: [get-static-paths|hello|world]'
+    )
+  })
+
+  it('should match root path on undefined param', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-undefined')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp undefined route: undefined')
+  })
+
+  it('should match root path on false param', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-false')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp false route: undefined')
+  })
+
+  it('should match root path on null param', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-null')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp null route: undefined')
+  })
+
+  it('should handle getStaticPaths with fallback no segments', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-fallback')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe(
+      'gsp fallback route: undefined is not fallback'
+    )
+  })
+
+  it('should handle getStaticPaths with fallback 2 segments', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/get-static-paths-fallback/p2/p3'
+    )
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe(
+      'gsp fallback route: [p2|p3] is not fallback'
+    )
+  })
+
+  it('should fallback correctly when fallback enabled', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/get-static-paths-fallback/hello/world'
+    )
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp fallback route: undefined is fallback')
   })
 }
 
@@ -163,6 +243,7 @@ describe('Dynamic Optional Routing', () => {
     afterAll(() => killApp(app))
 
     runTests()
+
     runInvalidPagesTests(async (appDir) => {
       let stderr = ''
       await launchApp(appDir, await findPort(), {
@@ -193,9 +274,46 @@ describe('Dynamic Optional Routing', () => {
     afterAll(() => killApp(app))
 
     runTests()
+
     runInvalidPagesTests(async (appDir) =>
       nextBuild(appDir, [], { stderr: true })
     )
+
+    it('should fail to build when param is not explicitly defined', async () => {
+      const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
+      try {
+        await fs.outputFile(
+          invalidRoute,
+          `
+            export async function getStaticPaths() {
+              return {
+                paths: [
+                  { params: {} },
+                ],
+                fallback: false,
+              }
+            }
+
+            export async function getStaticProps({ params }) {
+              return { props: { params } }
+            }
+
+            export default function Index(props) {
+              return (
+                <div>Invalid</div>
+              )
+            }
+          `,
+          'utf-8'
+        )
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        await expect(stderr).toMatch(
+          'A required parameter (slug) was not provided as an array in getStaticPaths for /invalid/[[...slug]]'
+        )
+      } finally {
+        await fs.unlink(invalidRoute)
+      }
+    })
   })
 
   describe('serverless mode', () => {
