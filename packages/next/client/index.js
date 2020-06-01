@@ -102,23 +102,13 @@ class Container extends React.Component {
           (isDynamicRoute(router.pathname) || location.search)) ||
         (props.__N_SSG && location.search))
     ) {
-      const parsedQuery = parseQs(location.search.substr(1), '&', '=', {
-        decodeURIComponent: str => {
-          try {
-            return decodeURIComponent(str)
-          } catch (err) {
-            return str
-          }
-        },
-      })
-
       // update query on mount for exported pages
       router.replace(
         router.pathname +
           '?' +
           stringifyQs({
             ...router.query,
-            ...parsedQuery,
+            ...parseQs(location.search.substr(1)),
           }),
         asPath,
         {

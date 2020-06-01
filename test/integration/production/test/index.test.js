@@ -388,26 +388,35 @@ describe('Production Usage', () => {
 
   // The below tests fail on safari from an invalid URL error
   if (browserName !== 'safari') {
-    it('should handle non-encoded query value server side with hydration', async () => {
-      const browser = await webdriver(appPort, '/server-query?id=0&value=%')
-      expect(await browser.eval('window.didHydrate')).toBe(true)
+    const queryResults = [
+      ['id=0&value=%', { id: '0', value: '%' }],
+      ['b=%2sf%2a', { b: '%2sf*' }],
+      ['b=%2%2af%2a', { b: '%2%2af*' }],
+      ['b=%2%2a%2af%2a', { b: '%2%2a*f*' }],
+      ['b=%%2a', { b: '%%2a' }],
+      ['b=%%2a%2a', { b: '%%2a*' }],
+    ]
 
-      const query = await browser.elementByCss('#query').text()
-      expect(JSON.parse(query)).toEqual({
-        id: '0',
-        value: '%',
-      })
+    it('should handle non-encoded query value server side with hydration', async () => {
+      expect.assertions(queryResults.length * 2)
+      for (const [queryStr, expected] of queryResults) {
+        const browser = await webdriver(appPort, `/server-query?${queryStr}`)
+        expect(await browser.eval('window.didHydrate')).toBe(true)
+
+        const query = await browser.elementByCss('#query').text()
+        expect(JSON.parse(query)).toEqual(expected)
+      }
     })
 
     it('should handle non-encoded query value client side', async () => {
-      const browser = await webdriver(appPort, '/client-query?id=0&value=%')
-      expect(await browser.eval('window.didHydrate')).toBe(true)
+      expect.assertions(queryResults.length * 2)
+      for (const [queryStr, expected] of queryResults) {
+        const browser = await webdriver(appPort, `/client-query?${queryStr}`)
+        expect(await browser.eval('window.didHydrate')).toBe(true)
 
-      const query = await browser.elementByCss('#query').text()
-      expect(JSON.parse(query)).toEqual({
-        id: '0',
-        value: '%',
-      })
+        const query = await browser.elementByCss('#query').text()
+        expect(JSON.parse(query)).toEqual(expected)
+      }
     })
   }
 
