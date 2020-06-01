@@ -290,7 +290,7 @@ const navigateTest = (dev = false) => {
   })
 }
 
-const runTests = (dev = false, looseMode = false) => {
+const runTests = (dev = false, isEmulatedServerless = false) => {
   navigateTest(dev)
 
   it('should SSR normal page correctly', async () => {
@@ -503,7 +503,7 @@ const runTests = (dev = false, looseMode = false) => {
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
 
-  if (!looseMode) {
+  if (!isEmulatedServerless) {
     it('should handle fallback only page correctly HTML', async () => {
       const browser = await webdriver(appPort, '/fallback-only/first%2Fpost')
 
@@ -539,7 +539,7 @@ const runTests = (dev = false, looseMode = false) => {
     })
   }
 
-  if (!looseMode) {
+  if (!isEmulatedServerless) {
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(
         appPort,
@@ -788,7 +788,7 @@ const runTests = (dev = false, looseMode = false) => {
       expect(stderr).not.toContain('ERR_HTTP_HEADERS_SENT')
     })
   } else {
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
@@ -1061,7 +1061,7 @@ const runTests = (dev = false, looseMode = false) => {
       }
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle de-duping correctly', async () => {
         let vals = new Array(10).fill(null)
 
@@ -1091,7 +1091,7 @@ const runTests = (dev = false, looseMode = false) => {
       expect(initialHtml).toBe(newHtml)
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
         const initialHtml = await renderViaHTTP(appPort, route)

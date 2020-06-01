@@ -204,6 +204,7 @@ const nextServerlessLoader: loader.Loader = function () {
             res.statusCode = 400
             res.end('Bad Request')
           } else {
+            // Throw the error to crash the serverless function
             throw err
           }
         }
@@ -394,6 +395,7 @@ const nextServerlessLoader: loader.Loader = function () {
           res.statusCode = 400
         } else {
           console.error(err)
+          // Throw the error to crash the serverless function
           throw err
         }
 
@@ -417,6 +419,7 @@ const nextServerlessLoader: loader.Loader = function () {
       } catch(err) {
         console.error(err)
         await onError(err)
+        // Throw the error to crash the serverless function
         throw err
       }
     }

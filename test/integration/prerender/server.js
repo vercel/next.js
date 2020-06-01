@@ -92,9 +92,15 @@ const server = http.createServer((req, res) => {
       })
     }
     if (!res.finished) {
-      return typeof re.render === 'function'
-        ? re.render(req, res)
-        : re.default(req, res)
+      try {
+        return typeof re.render === 'function'
+          ? re.render(req, res)
+          : re.default(req, res)
+      } catch (e) {
+        console.log('FAIL_FUNCTION', e)
+        res.write('FAIL_FUNCTION')
+        res.end()
+      }
     }
   }
 })
