@@ -1144,6 +1144,14 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       await waitFor(500)
       expect(stderr).not.toMatch(/Failed to update prerender files for/)
     })
+
+    if (isEmulatedServerless) {
+      it('should fail the api function instead of rendering 500', async () => {
+        const res = await fetchViaHTTP(appPort, '/api/bad')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+    }
   }
 }
 

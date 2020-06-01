@@ -193,6 +193,7 @@ const nextServerlessLoader: loader.Loader = function () {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
+            true,
             onError
           )
         } catch (err) {
