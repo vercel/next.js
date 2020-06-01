@@ -9,10 +9,6 @@ export const articleShape = shape({
   abstract: string.isRequired,
   body: string.isRequired,
   category: categoryShape.isRequired,
-  cover: shape({
-    url: string.isRequired,
-    alt: string,
-  }),
   createdAt: string,
   updatedAt: string,
 })

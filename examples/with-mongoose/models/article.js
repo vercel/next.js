@@ -29,13 +29,6 @@ const ArticleSchema = new Schema(
       required: [true, 'Body should be defined'],
       trim: true,
     },
-    cover: new Schema({
-      url: {
-        type: String,
-        required: true,
-      },
-      alt: String,
-    }),
     category: {
       type: Types.ObjectId,
       required: true,
