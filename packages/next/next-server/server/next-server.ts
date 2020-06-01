@@ -499,15 +499,15 @@ export default class Server {
 
       // Headers come very first
       headers = this.customRoutes.headers.map((r) => {
-        const route = getCustomRoute(r, 'header')
+        const headerRoute = getCustomRoute(r, 'header')
         return {
-          match: route.match,
-          type: route.type,
-          name: `${route.type} ${route.source} header route`,
+          match: headerRoute.match,
+          type: headerRoute.type,
+          name: `${headerRoute.type} ${headerRoute.source} header route`,
           fn: async (_req, res, params, _parsedUrl) => {
             const hasParams = Object.keys(params).length > 0
 
-            for (const header of (route as Header).headers) {
+            for (const header of (headerRoute as Header).headers) {
               let { key, value } = header
               if (hasParams) {
                 key = updateHeaderValue(key, params)
@@ -521,22 +521,22 @@ export default class Server {
       })
 
       redirects = this.customRoutes.redirects.map((redirect) => {
-        const route = getCustomRoute(redirect, 'redirect')
+        const redirectRoute = getCustomRoute(redirect, 'redirect')
         return {
-          type: route.type,
-          match: route.match,
-          statusCode: route.statusCode,
+          type: redirectRoute.type,
+          match: redirectRoute.match,
+          statusCode: redirectRoute.statusCode,
           name: `Redirect route`,
           fn: async (_req, res, params, parsedUrl) => {
             const { parsedDestination } = prepareDestination(
-              route.destination,
+              redirectRoute.destination,
               params,
               parsedUrl.query
             )
             const updatedDestination = formatUrl(parsedDestination)
 
             res.setHeader('Location', updatedDestination)
-            res.statusCode = getRedirectStatus(route as Redirect)
+            res.statusCode = getRedirectStatus(redirectRoute as Redirect)
 
             // Since IE11 doesn't support the 308 header add backwards
             // compatibility using refresh header
@@ -553,15 +553,15 @@ export default class Server {
       })
 
       rewrites = this.customRoutes.rewrites.map((rewrite) => {
-        const route = getCustomRoute(rewrite, 'rewrite')
+        const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
         return {
           check: true,
-          type: route.type,
+          type: rewriteRoute.type,
           name: `Rewrite route`,
-          match: route.match,
+          match: rewriteRoute.match,
           fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination(
-              route.destination,
+              rewriteRoute.destination,
               params,
               parsedUrl.query,
               true
@@ -1199,18 +1199,18 @@ export default class Server {
             continue
           }
 
-          const result = await this.findPageComponents(
+          const dynamicRouteResult = await this.findPageComponents(
             dynamicRoute.page,
             query,
             params
           )
-          if (result) {
+          if (dynamicRouteResult) {
             try {
               return await this.renderToHTMLWithComponents(
                 req,
                 res,
                 dynamicRoute.page,
-                result,
+                dynamicRouteResult,
                 { ...this.renderOpts, params }
               )
             } catch (err) {
@@ -1302,14 +1302,14 @@ export default class Server {
             err,
           }
         )
-      } catch (err) {
-        if (err instanceof NoFallbackError) {
+      } catch (maybeFallbackError) {
+        if (maybeFallbackError instanceof NoFallbackError) {
           throw new Error('invariant: failed to render error page')
         }
-        throw err
+        throw maybeFallbackError
       }
-    } catch (err) {
-      console.error(err)
+    } catch (renderToHtmlError) {
+      console.error(renderToHtmlError)
       res.statusCode = 500
       html = 'Internal Server Error'
     }

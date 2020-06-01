@@ -127,10 +127,10 @@ export default function ({
           const dynamicImports: BabelTypes.StringLiteral[] = []
 
           loader.traverse({
-            Import(path) {
-              const args = path.parentPath.get('arguments')
-              if (!Array.isArray(args)) return
-              const node: any = args[0].node
+            Import(importPath) {
+              const importArguments = importPath.parentPath.get('arguments')
+              if (!Array.isArray(importArguments)) return
+              const node: any = importArguments[0].node
               dynamicImports.push(node)
             },
           })

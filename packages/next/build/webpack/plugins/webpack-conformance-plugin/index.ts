@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'next/dist/compiled/recast'
-import { compilation, Compiler } from 'webpack'
+import { compilation as CompilationType, Compiler } from 'webpack'
 import {
   IConformanceAnomaly,
   IConformanceTestResult,
@@ -49,7 +49,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildStartedHandler = (
-    compilation: compilation.Compilation,
+    compilation: CompilationType.Compilation,
     callback: () => void
   ) => {
     const buildStartedResults: IConformanceTestResult[] = this.tests.map(
@@ -68,7 +68,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildCompletedHandler = (
-    compilation: compilation.Compilation,
+    compilation: CompilationType.Compilation,
     cb: () => void
   ): void => {
     const buildCompletedResults: IConformanceTestResult[] = this.tests.map(
@@ -88,7 +88,9 @@ export default class WebpackConformancePlugin {
     cb()
   }
 
-  private parserHandler = (factory: compilation.NormalModuleFactory): void => {
+  private parserHandler = (
+    factory: CompilationType.NormalModuleFactory
+  ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     const collectedVisitors: Map<string, [NodeInspector?]> = new Map()
     // Collect all interested visitors from all tests.

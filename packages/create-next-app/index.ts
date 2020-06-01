@@ -133,7 +133,7 @@ async function run(): Promise<void> {
       }
 
       if (examplesJSON) {
-        const choices = examplesJSON.map((example: any) => ({
+        const allChoices = examplesJSON.map((example: any) => ({
           title: example.name,
           value: example.name,
         }))
@@ -145,7 +145,7 @@ async function run(): Promise<void> {
           type: 'autocomplete',
           name: 'exampleName',
           message: 'Pick an example',
-          choices,
+          choices: allChoices,
           suggest: (input: any, choices: any) => {
             const regex = new RegExp(input, 'i')
             return choices.filter((choice: any) => regex.test(choice.title))

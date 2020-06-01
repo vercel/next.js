@@ -187,8 +187,8 @@ export function getCookieParser(req: IncomingMessage) {
       return {}
     }
 
-    const { parse } = require('next/dist/compiled/cookie')
-    return parse(Array.isArray(header) ? header.join(';') : header)
+    const { parse: parseCookieFn } = require('next/dist/compiled/cookie')
+    return parseCookieFn(Array.isArray(header) ? header.join(';') : header)
   }
 }
 

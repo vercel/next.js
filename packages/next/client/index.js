@@ -26,8 +26,8 @@ window.__NEXT_DATA__ = data
 export const version = process.env.__NEXT_VERSION
 
 const {
-  props,
-  err,
+  props: hydrateProps,
+  err: hydrateErr,
   page,
   query,
   buildId,
@@ -67,12 +67,12 @@ let lastAppProps
 let lastRenderReject
 let webpackHMR
 export let router
-let Component
-let App, onPerfEntry
+let CachedComponent
+let CachedApp, onPerfEntry
 
 class Container extends React.Component {
-  componentDidCatch(err, info) {
-    this.props.fn(err, info)
+  componentDidCatch(componentErr, info) {
+    this.props.fn(componentErr, info)
   }
 
   componentDidMount() {
@@ -84,8 +84,11 @@ class Container extends React.Component {
         .then((mod) => {
           return mod.default()
         })
-        .catch((err) => {
-          console.error('Error calling post-hydration for plugins', err)
+        .catch((postHydrationErr) => {
+          console.error(
+            'Error calling post-hydration for plugins',
+            postHydrationErr
+          )
         })
     }
 
@@ -98,7 +101,7 @@ class Container extends React.Component {
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) || location.search)) ||
-        (props && props.__N_SSG && location.search))
+        (hydrateProps && hydrateProps.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -168,7 +171,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     webpackHMR = passedWebpackHMR
   }
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
-  App = app
+  CachedApp = app
 
   if (mod && mod.reportWebVitals) {
     onPerfEntry = ({
@@ -203,14 +206,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     }
   }
 
-  let initialErr = err
+  let initialErr = hydrateErr
 
   try {
-    ;({ page: Component } = await pageLoader.loadPage(page))
+    ;({ page: CachedComponent } = await pageLoader.loadPage(page))
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
-      if (!isValidElementType(Component)) {
+      if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${page}"`
         )
@@ -226,7 +229,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
-      if (initialErr === err) {
+      if (initialErr === hydrateErr) {
         setTimeout(() => {
           let error
           try {
@@ -260,10 +263,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 
   router = createRouter(page, query, asPath, {
-    initialProps: props,
+    initialProps: hydrateProps,
     pageLoader,
-    App,
-    Component,
+    App: CachedApp,
+    Component: CachedComponent,
     wrapApp,
     err: initialErr,
     isFallback,
@@ -275,15 +278,20 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-init-client!')
-      .then((mod) => {
-        return mod.default({ router })
+      .then((initClientModule) => {
+        return initClientModule.default({ router })
       })
-      .catch((err) => {
-        console.error('Error calling client-init for plugins', err)
+      .catch((initClientErr) => {
+        console.error('Error calling client-init for plugins', initClientErr)
       })
   }
 
-  const renderCtx = { App, Component, props, err: initialErr }
+  const renderCtx = {
+    App: CachedApp,
+    Component: CachedComponent,
+    props: hydrateProps,
+    err: initialErr,
+  }
 
   if (process.env.NODE_ENV === 'production') {
     render(renderCtx)
@@ -295,30 +303,30 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 }
 
-export async function render(props) {
-  if (props.err) {
-    await renderError(props)
+export async function render(renderingProps) {
+  if (renderingProps.err) {
+    await renderError(renderingProps)
     return
   }
 
   try {
-    await doRender(props)
-  } catch (err) {
+    await doRender(renderingProps)
+  } catch (renderErr) {
     if (process.env.NODE_ENV === 'development') {
       // Ensure this error is displayed in the overlay in development
       setTimeout(() => {
-        throw err
+        throw renderErr
       })
     }
-    await renderError({ ...props, err })
+    await renderError({ ...renderingProps, err: renderErr })
   }
 }
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(props) {
-  const { App, err } = props
+export function renderError(renderErrorProps) {
+  const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
@@ -339,11 +347,14 @@ export function renderError(props) {
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-error-client!')
-      .then((mod) => {
-        return mod.default({ err })
+      .then((onClientErrorModule) => {
+        return onClientErrorModule.default({ err })
       })
-      .catch((err) => {
-        console.error('error calling on-error-client for plugins', err)
+      .catch((onClientErrorErr) => {
+        console.error(
+          'error calling on-error-client for plugins',
+          onClientErrorErr
+        )
       })
   }
 
@@ -361,10 +372,12 @@ export function renderError(props) {
       ctx: { err, pathname: page, query, asPath, AppTree },
     }
     return Promise.resolve(
-      props.props ? props.props : loadGetInitialProps(App, appCtx)
+      renderErrorProps.props
+        ? renderErrorProps.props
+        : loadGetInitialProps(App, appCtx)
     ).then((initProps) =>
       doRender({
-        ...props,
+        ...renderErrorProps,
         err,
         Component: ErrorComponent,
         props: initProps,
@@ -465,7 +478,7 @@ function AppContainer({ children }) {
   return (
     <Container
       fn={(error) =>
-        renderError({ App, err: error }).catch((err) =>
+        renderError({ App: CachedApp, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
       }
@@ -479,8 +492,13 @@ function AppContainer({ children }) {
   )
 }
 
-const wrapApp = (App) => (props) => {
-  const appProps = { ...props, Component, err, router }
+const wrapApp = (App) => (wrappedAppProps) => {
+  const appProps = {
+    ...wrappedAppProps,
+    Component: CachedComponent,
+    err: hydrateErr,
+    router,
+  }
   return (
     <AppContainer>
       <App {...appProps} />

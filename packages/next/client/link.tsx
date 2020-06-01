@@ -54,7 +54,7 @@ export type LinkProps = {
   prefetch?: boolean
 }
 
-let observer: IntersectionObserver
+let cachedObserver: IntersectionObserver
 const listeners = new Map<Element, () => void>()
 const IntersectionObserver =
   typeof window !== 'undefined' ? window.IntersectionObserver : null
@@ -62,8 +62,8 @@ const prefetched: { [cacheKey: string]: boolean } = {}
 
 function getObserver(): IntersectionObserver | undefined {
   // Return shared instance of IntersectionObserver if already created
-  if (observer) {
-    return observer
+  if (cachedObserver) {
+    return cachedObserver
   }
 
   // Only create shared IntersectionObserver if supported in browser
@@ -71,7 +71,7 @@ function getObserver(): IntersectionObserver | undefined {
     return undefined
   }
 
-  return (observer = new IntersectionObserver(
+  return (cachedObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (!listeners.has(entry.target)) {
@@ -80,7 +80,7 @@ function getObserver(): IntersectionObserver | undefined {
 
         const cb = listeners.get(entry.target)!
         if (entry.isIntersecting || entry.intersectionRatio > 0) {
-          observer.unobserve(entry.target)
+          cachedObserver.unobserve(entry.target)
           listeners.delete(entry.target)
           cb()
         }

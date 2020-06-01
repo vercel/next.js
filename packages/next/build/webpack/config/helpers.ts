@@ -10,7 +10,7 @@ export const loader = curry(function loader(
   }
 
   if (rule.oneOf) {
-    const existing = config.module.rules.find((rule) => rule.oneOf)
+    const existing = config.module.rules.find((arrayRule) => arrayRule.oneOf)
     if (existing) {
       existing.oneOf!.push(...rule.oneOf)
       return config
@@ -21,7 +21,7 @@ export const loader = curry(function loader(
   return config
 })
 
-export const unshiftLoader = curry(function loader(
+export const unshiftLoader = curry(function unshiftLoader(
   rule: RuleSetRule,
   config: Configuration
 ) {
@@ -30,7 +30,7 @@ export const unshiftLoader = curry(function loader(
   }
 
   if (rule.oneOf) {
-    const existing = config.module.rules.find((rule) => rule.oneOf)
+    const existing = config.module.rules.find((arrayRule) => arrayRule.oneOf)
     if (existing) {
       existing.oneOf!.unshift(...rule.oneOf)
       return config

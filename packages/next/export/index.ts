@@ -397,11 +397,12 @@ export default async function exportApp(
       })
 
       for (const validation of result.ampValidations || []) {
-        const { page, result } = validation
-        ampValidations[page] = result
+        const { page, result: ampValidationResult } = validation
+        ampValidations[page] = ampValidationResult
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result?.errors) && result.errors.length > 0)
+          (Array.isArray(ampValidationResult?.errors) &&
+            ampValidationResult.errors.length > 0)
       }
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)

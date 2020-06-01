@@ -101,7 +101,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 
   static renderDocument<P>(
-    Document: new () => Document<P>,
+    DocumentComponent: new () => Document<P>,
     props: DocumentProps & P
   ): React.ReactElement {
     return (
@@ -115,7 +115,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
             process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
         }}
       >
-        <Document {...props} />
+        <DocumentComponent {...props} />
       </DocumentComponentContext.Provider>
     )
   }
@@ -659,7 +659,7 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
-      const devFiles = [
+      const AmpDevFiles = [
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -681,8 +681,8 @@ export class NextScript extends Component<OriginProps> {
               data-ampdevmode
             />
           )}
-          {devFiles
-            ? devFiles.map((file) => (
+          {AmpDevFiles
+            ? AmpDevFiles.map((file) => (
                 <script
                   key={file}
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}

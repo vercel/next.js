@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 
-let inspector
+let maybeInspector
 try {
-  inspector = require('inspector')
+  maybeInspector = require('inspector')
 } catch (e) {
   console.log('Unable to CPU profile in < node 8.0')
 }
@@ -24,7 +24,7 @@ class Profiler {
     }
 
     try {
-      this.session = new inspector.Session()
+      this.session = new maybeInspector.Session()
       this.session.connect()
     } catch (_) {
       this.session = undefined
@@ -43,11 +43,11 @@ class Profiler {
   sendCommand(method, params) {
     if (this.hasSession()) {
       return new Promise((resolve, reject) => {
-        return this.session.post(method, params, (err, params) => {
+        return this.session.post(method, params, (err, sessionParams) => {
           if (err !== null) {
             reject(err)
           } else {
-            resolve(params)
+            resolve(sessionParams)
           }
         })
       })
@@ -89,7 +89,7 @@ export const createTrace = (outputPath) => {
   const trace = new Tracer({
     noStream: true,
   })
-  const profiler = new Profiler(inspector)
+  const profiler = new Profiler(maybeInspector)
   if (/\/|\\/.test(outputPath)) {
     const dirPath = path.dirname(outputPath)
     fs.mkdirSync(dirPath, { recursive: true })

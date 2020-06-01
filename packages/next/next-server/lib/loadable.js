@@ -318,16 +318,16 @@ function flushInitializers(initializers, ids) {
 }
 
 Loadable.preloadAll = () => {
-  return new Promise((resolve, reject) => {
-    flushInitializers(ALL_INITIALIZERS).then(resolve, reject)
+  return new Promise((resolveInitializers, reject) => {
+    flushInitializers(ALL_INITIALIZERS).then(resolveInitializers, reject)
   })
 }
 
 Loadable.preloadReady = (ids = []) => {
-  return new Promise((resolve) => {
+  return new Promise((resolvePreload) => {
     const res = () => {
       initialized = true
-      return resolve()
+      return resolvePreload()
     }
     // We always will resolve, errors should be handled within loading UIs.
     flushInitializers(READY_INITIALIZERS, ids).then(res, res)

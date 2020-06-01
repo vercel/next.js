@@ -16,7 +16,7 @@ export async function getTypeScriptIntent(
   const hasTypeScriptConfiguration = await fileExists(tsConfigPath)
   if (hasTypeScriptConfiguration) {
     const content = await fs.readFile(tsConfigPath, { encoding: 'utf8' }).then(
-      (content) => content.trim(),
+      (txt) => txt.trim(),
       () => null
     )
     return { firstTimeSetup: content === '' || content === '{}' }

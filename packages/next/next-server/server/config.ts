@@ -74,11 +74,11 @@ const experimentalWarning = execOnce(() => {
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
-    (config, key) => {
+    (currentConfig, key) => {
       const value = userConfig[key]
 
       if (value === undefined || value === null) {
-        return config
+        return currentConfig
       }
 
       if (key === 'experimental' && value && value !== defaultConfig[key]) {
@@ -132,7 +132,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       if (!!value && value.constructor === Object) {
-        config[key] = {
+        currentConfig[key] = {
           ...defaultConfig[key],
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
@@ -143,10 +143,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           }, {}),
         }
       } else {
-        config[key] = value
+        currentConfig[key] = value
       }
 
-      return config
+      return currentConfig
     },
     {}
   )
