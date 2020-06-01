@@ -127,9 +127,9 @@ Copy the `.env.local.example` file in this directory to `.env.local` (which will
 cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_STRAPI_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `NEXT_EXAMPLE_CMS_STRAPI_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - `NEXT_PUBLIC_API_URL` should be set as `http://localhost:1337` (no trailing slash).
 
 ### Step 8. Run Next.js in development mode
