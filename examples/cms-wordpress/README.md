@@ -79,7 +79,7 @@ Inside your WordPress admin, go to **Posts** and start adding new posts:
 
 When you’re done, make sure to **Publish** the posts.
 
-> **Note:** Only **published** posts will be rendered by the app unless [Preview Mode](/docs/advanced-features/preview-mode.md) is enabled.
+> **Note:** Only **published** posts and public fields will be rendered by the app unless [Preview Mode](/docs/advanced-features/preview-mode.md) is enabled.
 
 ### Step 3. Set up environment variables
 
@@ -115,15 +115,15 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
-### Step 5. Add authentication for Preview Mode
+### Step 5. Add authentication for Preview Mode (Optional)
 
-By default, the blog will work with public posts from your WordPress site, private content cannot be retrieved, like unpublished posts and private fields. To have access to unpublished posts you'll need to setup authentication. This is completely optional.
+**This step is optional.** By default, the blog will work with public posts from your WordPress site. Private content such as unpublished posts and private fields cannot be retrieved. To have access to unpublished posts you'll need to set up authentication.
 
 To add [authentication to WPGraphQL](https://docs.wpgraphql.com/guides/authentication-and-authorization/), first you need to add the [WPGraphQL JWT plugin](https://github.com/wp-graphql/wp-graphql-jwt-authentication) to your Wordpress Admin following the same process you used to add the WPGraphQL plugin.
 
 > Adding the WPGraphQL JWT plugin will disable your GraphQL API until you add a JWT secret ([#91](https://github.com/wp-graphql/wp-graphql-jwt-authentication/issues/91))
 
-Once that's done, you'll need to access the WordPress filesystem to add the secret required to validate JWT tokens, for that it's recommended to use SFTP, there are many guides for this, and it may vary depending in your provider. For example:
+Once that's done, you'll need to access the WordPress filesystem to add the secret required to validate JWT tokens. We recommend using SFTP — the instructions vary depending on your hosting provider. For example:
 
 - [SFTP guide for WP Engine](https://wpengine.com/support/sftp/)
 - [SFTP guide for WordPress.com](https://wordpress.com/support/sftp/)
@@ -136,7 +136,7 @@ define( 'GRAPHQL_JWT_AUTH_SECRET_KEY', 'YOUR_STRONG_SECRET' );
 
 > You can read more about this in the documentation for [WPGraphQL JWT Authentication](https://docs.wpgraphql.com/extensions/wpgraphql-jwt-authentication/).
 
-Now, you need to get a **refresh token** to make authenticated requests with GraphQL. Make the following GraphQL mutation to your WordPress site:
+Now, you need to get a **refresh token** to make authenticated requests with GraphQL. Make the following GraphQL mutation to your WordPress site from the GraphQL IDE (See notes about WPGraphiQL from earlier). Replace `your_username` with the **username** of an user with the `Administrator` role, and `your_password` with the user's password.
 
 ```graphql
 mutation Login {
@@ -152,12 +152,10 @@ mutation Login {
 }
 ```
 
-Replace `your_username` with the **username** of an user with the `Administrator` role, and `your_password` with the user's password.
-
 Copy the `refreshToken` returned by the mutation, then open `.env.local`, and make the following changes:
 
-- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you just got
-- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET` and set it to be any random string (ideally URL friendly)
+- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you just received.
+- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET` and set it to be any random string (ideally URL friendly).
 
 Your `.env.local` file should look like this:
 
@@ -169,9 +167,11 @@ NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN=...
 NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=...
 ```
 
+**Important:** Restart your Next.js server to update the environment variables.
+
 ### Step 6. Try preview mode
 
-On your WordPress admin, create a new post like before. But **do not Publish** it.
+On your WordPress admin, create a new post like before, but **do not publish** it.
 
 Now, if you go to `http://localhost:3000`, you won’t see the post. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
@@ -181,9 +181,9 @@ To enable Preview Mode, go to this URL:
 http://localhost:3000/api/preview?secret=<secret>&id=<id>
 ```
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET`
-- `<id>` should be the post's `databaseId` field, this is the integer that you usually see in the URL (`?post=18`)
-- `<slug>` can be used instead of `id`, it's generated based on the title
+- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET`.
+- `<id>` should be the post's `databaseId` field, which is the integer that you usually see in the URL (`?post=18` → 18).
+- Alternatively, you can use `<slug>` instead of `<id>`. `<slug>` is generated based on the title.
 
 You should now be able to see this post. To exit Preview Mode, you can click on **Click here to exit preview mode** at the top.
 
@@ -197,10 +197,10 @@ Install [Vercel CLI](https://vercel.com/download), log in to your account from t
 
 ```bash
 vercel secrets add next_example_cms_wordpress_api_url <NEXT_EXAMPLE_CMS_WORDPRESS_API_URL>
+
+# If you added authentication for preview mode:
 vercel secrets add next_example_cms_wordpress_auth_refresh_token <NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN>
 vercel secrets add next_example_cms_wordpress_preview_secret <NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET>
 ```
-
-> If you don't need [Preview Mode](/docs/advanced-features/preview-mode.md), update `vercel.json` to only include `NEXT_EXAMPLE_CMS_WORDPRESS_API_URL`
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
