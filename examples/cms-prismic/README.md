@@ -13,6 +13,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
 
 ## How to use
 

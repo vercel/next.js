@@ -12,6 +12,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
+- [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
 
 ## How to use
 
