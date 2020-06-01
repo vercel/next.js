@@ -107,8 +107,20 @@ function runTests() {
     expect($('#route').text()).toBe('gsp route: [p1]')
   })
 
+  it('should handle getStaticPaths 1 segment and trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p1/')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [p1]')
+  })
+
   it('should handle getStaticPaths 2 segments', async () => {
     const html = await renderViaHTTP(appPort, '/get-static-paths/p2/p3')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [p2|p3]')
+  })
+
+  it('should handle getStaticPaths 2 segments and trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths/p2/p3/')
     const $ = cheerio.load(html)
     expect($('#route').text()).toBe('gsp route: [p2|p3]')
   })
