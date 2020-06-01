@@ -43,7 +43,7 @@ Then set each variable on `.env`:
 - `NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY` should look like `pk_test_abc` or `pk_live_ABC`
 - `MAGIC_SECRET_KEY` should look like `sk_test_ABC` or `sk_live_ABC`
 
-To deploy on Vercel, you need to set up the environment variables with the [Environment Variables UI](https://vercel.com/blog/environment-variables-ui) using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set up the environment variables with the [Environment Variables UI](https://vercel.com/blog/environment-variables-ui) using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/env)).
 
 Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, link your project and run the following command to add the `NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY` and `MAGIC_SECRET_KEY` environment variables.
 
