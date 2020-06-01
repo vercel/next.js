@@ -9,7 +9,7 @@ This example shows the usage of [Now Secrets](https://vercel.com/docs/v2/deploym
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example::
 
 ```bash
-npm init next-app --example with-now-env with-now-env-app
+npx create-next-app --example with-now-env with-now-env-app
 # or
 yarn create next-app --example with-now-env with-now-env-app
 ```
