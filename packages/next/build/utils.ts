@@ -640,6 +640,7 @@ export async function buildStaticPaths(
         let paramValue = params[validParamKey]
         if (
           optional &&
+          params.hasOwnProperty(validParamKey) &&
           (paramValue === null ||
             paramValue === undefined ||
             (paramValue as any) === false)
