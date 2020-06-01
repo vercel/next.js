@@ -121,7 +121,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 To add [authentication to WPGraphQL](https://docs.wpgraphql.com/guides/authentication-and-authorization/), first you need to add the [WPGraphQL JWT plugin](https://github.com/wp-graphql/wp-graphql-jwt-authentication) to your Wordpress Admin following the same process you used to add the WPGraphQL plugin.
 
-> Adding the WPGraphQL JWT plugin will disable your GraphQL API until you add a JWT secret ([#91](https://github.com/wp-graphql/wp-graphql-jwt-authentication/issues/91))
+> Adding the WPGraphQL JWT plugin will disable your GraphQL API until you add a JWT secret ([GitHub issue](https://github.com/wp-graphql/wp-graphql-jwt-authentication/issues/91)).
 
 Once that's done, you'll need to access the WordPress filesystem to add the secret required to validate JWT tokens. We recommend using SFTP — the instructions vary depending on your hosting provider. For example:
 
