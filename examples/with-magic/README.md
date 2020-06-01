@@ -12,13 +12,13 @@ The login cookie is `httpOnly`, meaning it can only be accessed by the API, and 
 
 Deploy the example using [Vercel Now](https://vercel.com/docs/now-cli#commands/overview/basic-usage):
 
-[![Deploy with Vercel Now](https://vercel.com/button)](https://vercel.com/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-magic)
+[![Deploy with Vercel Now](https://vercel.com/button)](https://vercel.com/new/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-magic)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npm init next-app --example with-magic with-magic-app

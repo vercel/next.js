@@ -1,10 +1,10 @@
 {
   "name": "@next/bundle-analyzer",
-  "version": "9.4.3-canary.0",
+  "version": "9.4.5-canary.3",
   "main": "index.js",
   "license": "MIT",
   "repository": {
-    "url": "zeit/next.js",
+    "url": "vercel/next.js",
     "directory": "packages/next-bundle-analyzer"
   },
   "dependencies": {

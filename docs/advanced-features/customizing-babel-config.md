@@ -7,7 +7,7 @@ description: Extend the babel preset added by Next.js with your own configs.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-custom-babel-config">Customizing babel configuration</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-custom-babel-config">Customizing babel configuration</a></li>
   </ul>
 </details>
 

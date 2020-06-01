@@ -5,13 +5,61 @@ import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
 
 export type Env = { [key: string]: string }
+export type LoadedEnvFiles = Array<{
+  path: string
+  contents: string
+}>
 
 let combinedEnv: Env | undefined = undefined
+let loadedEnvFiles: LoadedEnvFiles = []
 
-export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
+export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
   // don't reload env if we already have since this breaks escaped
   // environment values e.g. \$ENV_FILE_KEY
-  if (combinedEnv) return combinedEnv
+  if (
+    combinedEnv ||
+    process.env.__NEXT_PROCESSED_ENV ||
+    !loadedEnvFiles.length
+  ) {
+    return process.env as Env
+  }
+  // flag that we processed the environment values in case a serverless
+  // function is re-used or we are running in `next start` mode
+  process.env.__NEXT_PROCESSED_ENV = 'true'
+
+  for (const envFile of loadedEnvFiles) {
+    try {
+      let result: DotenvConfigOutput = {}
+      result.parsed = dotenv.parse(envFile.contents)
+
+      result = dotenvExpand(result)
+
+      if (result.parsed) {
+        log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
+      }
+
+      Object.assign(process.env, result.parsed)
+    } catch (err) {
+      log.error(
+        `Failed to load env from ${path.join(dir || '', envFile.path)}`,
+        err
+      )
+    }
+  }
+
+  return process.env as Env
+}
+
+export function loadEnvConfig(
+  dir: string,
+  dev?: boolean
+): {
+  combinedEnv: Env
+  loadedEnvFiles: LoadedEnvFiles
+} {
+  // don't reload env if we already have since this breaks escaped
+  // environment values e.g. \$ENV_FILE_KEY
+  if (combinedEnv) return { combinedEnv, loadedEnvFiles }
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -24,10 +72,6 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
     `.env.${mode}`,
     '.env',
   ].filter(Boolean) as string[]
-
-  combinedEnv = {
-    ...(process.env as any),
-  } as Env
 
   for (const envFile of dotenvFiles) {
     // only load .env if the user provided has an env config file
@@ -42,32 +86,16 @@ export function loadEnvConfig(dir: string, dev?: boolean): Env | false {
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      let result: DotenvConfigOutput = {}
-      result.parsed = dotenv.parse(contents)
-
-      result = dotenvExpand(result)
-
-      if (result.parsed) {
-        log.info(`Loaded env from ${dotEnvPath}`)
-      }
-
-      Object.assign(combinedEnv, result.parsed)
+      loadedEnvFiles.push({
+        path: envFile,
+        contents,
+      })
     } catch (err) {
       if (err.code !== 'ENOENT') {
         log.error(`Failed to load env from ${envFile}`, err)
       }
     }
   }
-
-  // load global env values prefixed with `NEXT_PUBLIC_` to process.env
-  for (const key of Object.keys(combinedEnv)) {
-    if (
-      key.startsWith('NEXT_PUBLIC_') &&
-      typeof process.env[key] === 'undefined'
-    ) {
-      process.env[key] = combinedEnv[key]
-    }
-  }
-
-  return combinedEnv
+  combinedEnv = processEnv(loadedEnvFiles, dir)
+  return { combinedEnv, loadedEnvFiles }
 }

@@ -1,8 +1,10 @@
+import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import { IncomingMessage, ServerResponse } from 'http'
-import { PageConfig } from 'next/types'
+import generateETag from 'next/dist/compiled/etag'
+import fresh from 'next/dist/compiled/fresh'
 import getRawBody from 'next/dist/compiled/raw-body'
+import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
@@ -54,7 +56,7 @@ export async function apiResolver(
     }
 
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
-    apiRes.send = (data) => sendData(apiRes, data)
+    apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
@@ -96,7 +98,10 @@ export async function apiResolver(
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
-export async function parseBody(req: NextApiRequest, limit: string | number) {
+export async function parseBody(
+  req: NextApiRequest,
+  limit: string | number
+): Promise<any> {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
@@ -129,7 +134,7 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
  * Parse `JSON` and handles invalid `JSON` strings
  * @param str `JSON` string
  */
-function parseJson(str: string) {
+function parseJson(str: string): object {
   if (str.length === 0) {
     // special-case empty json body, as it's a common client-side mistake
     return {}
@@ -192,23 +197,63 @@ export function getCookieParser(req: IncomingMessage) {
  * @param res response object
  * @param statusCode `HTTP` status code of response
  */
-export function sendStatusCode(res: NextApiResponse, statusCode: number) {
+export function sendStatusCode(
+  res: NextApiResponse,
+  statusCode: number
+): NextApiResponse<any> {
   res.statusCode = statusCode
   return res
 }
 
+function sendEtagResponse(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  body: string | Buffer
+): boolean {
+  const etag = generateETag(body)
+
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return true
+  }
+
+  res.setHeader('ETag', etag)
+  return false
+}
+
 /**
  * Send `any` body to response
+ * @param req request object
  * @param res response object
  * @param body of response
  */
-export function sendData(res: NextApiResponse, body: any) {
+export function sendData(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  body: any
+): void {
   if (body === null) {
     res.end()
     return
   }
 
   const contentType = res.getHeader('Content-Type')
+
+  if (body instanceof Stream) {
+    if (!contentType) {
+      res.setHeader('Content-Type', 'application/octet-stream')
+    }
+    body.pipe(res)
+    return
+  }
+
+  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
+  const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
+
+  if (sendEtagResponse(req, res, stringifiedBody)) {
+    return
+  }
 
   if (Buffer.isBuffer(body)) {
     if (!contentType) {
@@ -219,28 +264,12 @@ export function sendData(res: NextApiResponse, body: any) {
     return
   }
 
-  if (body instanceof Stream) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    body.pipe(res)
-    return
-  }
-
-  let str = body
-
-  // Stringify JSON body
-  if (
-    typeof body === 'object' ||
-    typeof body === 'number' ||
-    typeof body === 'boolean'
-  ) {
-    str = JSON.stringify(body)
+  if (isJSONLike) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
 
-  res.setHeader('Content-Length', Buffer.byteLength(str))
-  res.end(str)
+  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
+  res.end(stringifiedBody)
 }
 
 /**
@@ -487,7 +516,7 @@ export function sendError(
   res: NextApiResponse,
   statusCode: number,
   message: string
-) {
+): void {
   res.statusCode = statusCode
   res.statusMessage = message
   res.end(message)
@@ -508,7 +537,7 @@ export function setLazyProp<T>(
   { req, params }: LazyProps,
   prop: string,
   getter: () => T
-) {
+): void {
   const opts = { configurable: true, enumerable: true }
   const optsReset = { ...opts, writable: true }
 
