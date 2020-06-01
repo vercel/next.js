@@ -638,7 +638,12 @@ export async function buildStaticPaths(
       _validParamKeys.forEach((validParamKey) => {
         const { repeat, optional } = _routeRegex.groups[validParamKey]
         let paramValue = params[validParamKey]
-        if (optional && (paramValue === null || paramValue === undefined)) {
+        if (
+          optional &&
+          (paramValue === null ||
+            paramValue === undefined ||
+            (paramValue as any) === false)
+        ) {
           paramValue = []
         }
         if (

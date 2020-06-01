@@ -127,6 +127,12 @@ function runTests() {
     expect($('#route').text()).toBe('gsp undefined route: undefined')
   })
 
+  it('should match root path on false param', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-false')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp false route: undefined')
+  })
+
   it('should match root path on null param', async () => {
     const html = await renderViaHTTP(appPort, '/get-static-paths-null')
     const $ = cheerio.load(html)
