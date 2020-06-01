@@ -1,6 +1,7 @@
 import { CREATED } from 'http-status-codes'
 import nextConnect from 'next-connect'
 
+import { isDate } from 'libs/is-date'
 import { connectDB, onError, onNoMatch } from 'libs/middlewares'
 import Article from 'models/article'
 import Category from 'models/category'
@@ -19,11 +20,16 @@ const listArticles = async (req, res) => {
     limit = 10,
     sort = '-createdAt',
     category: slug,
+    from,
+    to,
   } = req.query
   const query = {}
 
   if (slug) {
     query.category = await Category.findOne({ slug })
+  }
+  if (isDate(from) && isDate(to)) {
+    query.createdAt = { $gt: new Date(from), $lt: new Date(to) }
   }
 
   const articles = await Article.paginate(query, {
