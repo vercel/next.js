@@ -221,8 +221,8 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
                 obj,
                 `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
                 resolveContext,
-                (resolverErr: any, resovlerResult: any | undefined) => {
-                  resolve([resolverErr, resovlerResult])
+                (resolverErr: any, resolverResult: any | undefined) => {
+                  resolve([resolverErr, resolverResult])
                 }
               )
             })
