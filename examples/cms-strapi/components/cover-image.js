@@ -1,16 +1,19 @@
 import Link from 'next/link'
 
 export default function CoverImage({ title, url, slug }) {
+  const imageUrl = `${
+    url.startsWith('/') ? process.env.NEXT_PUBLIC_API_URL : ''
+  }${url}`
   return (
     <div className="-mx-5 sm:mx-0">
       {slug ? (
         <Link as={`/posts/${slug}`} href="/posts/[slug]">
           <a aria-label={title}>
-            <img src={`${process.env.NEXT_PUBLIC_API_URL}${url}`} alt={title} />
+            <img src={imageUrl} alt={title} />
           </a>
         </Link>
       ) : (
-        <img src={`${process.env.NEXT_PUBLIC_API_URL}${url}`} alt={title} />
+        <img src={imageUrl} alt={title} />
       )}
     </div>
   )
