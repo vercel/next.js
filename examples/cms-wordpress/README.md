@@ -40,20 +40,20 @@ cd cms-wordpress
 
 ### Step 1. Prepare your WordPress site
 
-First, a WordPress site is required before hand, there are many solutions out there that can create help you with this, like [WP Engine](https://wpengine.com/) and [WordPress.com](https://wordpress.com/).
+First, you need a WordPress site. There are many solutions for WordPress hosting, such as [WP Engine](https://wpengine.com/) and [WordPress.com](https://wordpress.com/).
 
-Once the site is ready, you'll need to install the [WPGraphQL](https://www.wpgraphql.com/) plugin, it will add a GraphQL API to your WordPress site, which we'll use to query the posts from this app. Follow the next steps to install it:
+Once the site is ready, you'll need to install the [WPGraphQL](https://www.wpgraphql.com/) plugin. It will add a GraphQL API to your WordPress site, which we'll use to query the posts. Follow these steps to install it:
 
 - Download the [WPGraphQL repo](https://github.com/wp-graphql/wp-graphql) as a ZIP archive.
-- Inside your WordPress admin, go to **Plugins** and then click on **Add New**
+- Inside your WordPress admin, go to **Plugins** and then click **Add New**.
 
 ![Add new plugin](./docs/plugins-add-new.png)
 
-- Now click in the **Upload Plugin** button at the top of the page, you should be able to upload the WPGraphQL plugin
+- Click the **Upload Plugin** button at the top of the page and upload the WPGraphQL plugin.
 
 ![Upload new plugin](./docs/plugins-upload-new.png)
 
-- Once the plugin has been added, make sure to activate it too from either the **Activate Plugin** button after that WordPress shows after adding the plugin, or from the **Plugins** page.
+- Once the plugin has been added, activate it from either the **Activate Plugin** button displayed after uploading or from the **Plugins** page.
 
 ![WPGraphQL installed](./docs/plugin-installed.png)
 
