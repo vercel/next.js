@@ -30,3 +30,7 @@ examples/**/out
 examples/**/.env*.local
 
 pr-stats.md
+
+# Vercel
+.vercel
+.now
