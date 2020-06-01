@@ -9,7 +9,7 @@ This example shows how to import WebAssembly files (`.wasm`) and use them inside
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-webassembly with-webassembly-app
+npx create-next-app --example with-webassembly with-webassembly-app
 # or
 yarn create next-app --example with-webassembly with-webassembly-app
 ```
