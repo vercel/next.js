@@ -193,18 +193,20 @@ const nextServerlessLoader: loader.Loader = function () {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
+            true,
             onError
           )
         } catch (err) {
           console.error(err)
           await onError(err)
 
+          // TODO: better error for DECODE_FAILED?
           if (err.code === 'DECODE_FAILED') {
             res.statusCode = 400
             res.end('Bad Request')
           } else {
-            res.statusCode = 500
-            res.end('Internal Server Error')
+            // Throw the error to crash the serverless function
+            throw err
           }
         }
       }
@@ -214,6 +216,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
     import 'next/dist/next-server/server/node-polyfill-fetch'
+    const {isResSent} = require('next/dist/next-server/lib/utils');
 
     ${envLoading}
     ${runtimeConfigImports}
@@ -390,10 +393,36 @@ const nextServerlessLoader: loader.Loader = function () {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
         } else if (err.code === 'DECODE_FAILED') {
+          // TODO: better error?
           res.statusCode = 400
         } else {
-          console.error(err)
-          res.statusCode = 500
+          console.error('Unhandled error during request:', err)
+
+          // Backwards compat (call getInitialProps in custom error):
+          try {
+            await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+              getStaticProps: undefined,
+              getStaticPaths: undefined,
+              getServerSideProps: undefined,
+              Component: Error,
+              err: err,
+              // Short-circuit rendering:
+              isDataReq: true
+            }))
+          } catch (underErrorErr) {
+            console.error('Failed call /_error subroutine, continuing to crash function:', underErrorErr)
+          }
+
+          // Throw the error to crash the serverless function
+          if (isResSent(res)) {
+            console.error('!!! WARNING !!!')
+            console.error(
+              'Your function crashed, but closed the response before allowing the function to exit.\\n' +
+              'This may cause unexpected behavior for the next request.'
+            )
+            console.error('!!! WARNING !!!')
+          }
+          throw err
         }
 
         const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
@@ -414,10 +443,10 @@ const nextServerlessLoader: loader.Loader = function () {
           sendHTML(req, res, html, {generateEtags: ${generateEtags}})
         }
       } catch(err) {
-        await onError(err)
         console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
+        await onError(err)
+        // Throw the error to crash the serverless function
+        throw err
       }
     }
   `

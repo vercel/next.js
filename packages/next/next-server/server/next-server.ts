@@ -735,6 +735,7 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
+      false,
       this.onErrorMiddleware
     )
     return true
