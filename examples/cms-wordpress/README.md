@@ -195,14 +195,14 @@ You should now be able to see this post. To exit Preview Mode, you can click on 
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Vercel Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
 
 Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace the values with the corresponding strings in `.env.local`:
 
 ```bash
-now secrets add next_example_cms_wordpress_api_url <NEXT_EXAMPLE_CMS_WORDPRESS_API_URL>
-now secrets add next_example_cms_wordpress_auth_refresh_token <NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN>
-now secrets add next_example_cms_wordpress_preview_secret <NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET>
+vercel secrets add next_example_cms_wordpress_api_url <NEXT_EXAMPLE_CMS_WORDPRESS_API_URL>
+vercel secrets add next_example_cms_wordpress_auth_refresh_token <NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN>
+vercel secrets add next_example_cms_wordpress_preview_secret <NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET>
 ```
 
 > If you don't need [Preview Mode](/docs/advanced-features/preview-mode.md), update `vercel.json` to only include `NEXT_EXAMPLE_CMS_WORDPRESS_API_URL`
