@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -9,7 +9,8 @@ import {
   File,
   findPort,
   getBrowserBodyText,
-  getReactErrorOverlayContent,
+  getRedboxHeader,
+  hasRedbox,
   initNextServerScript,
   killApp,
   launchApp,
@@ -25,7 +26,7 @@ import {
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 const indexPage = join(__dirname, '../pages/index.js')
@@ -35,6 +36,7 @@ let buildId
 let distPagesDir
 let exportDir
 let stderr
+let origConfig
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -129,6 +131,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/lang/de/about': {
+    dataRoute: `/_next/data/${buildId}/lang/de/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/en/about': {
+    dataRoute: `/_next/data/${buildId}/lang/en/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/es/about': {
+    dataRoute: `/_next/data/${buildId}/lang/es/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/fr/about': {
+    dataRoute: `/_next/data/${buildId}/lang/fr/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
     initialRevalidateSeconds: false,
@@ -170,7 +192,7 @@ const navigateTest = (dev = false) => {
 
     await waitFor(2500)
 
-    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+    await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -381,8 +403,13 @@ const runTests = (dev = false, looseMode = false) => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+    expect(
+      await check(() => browser.eval('window.beforeClick'), {
+        test(v) {
+          return v !== 'abc'
+        },
+      })
+    ).toBe(true)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -392,8 +419,13 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-at-first-post').click()
-      await waitFor(3000)
-      expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+      expect(
+        await check(() => browser.eval('window.beforeClick'), {
+          test(v) {
+            return v !== 'abc'
+          },
+        })
+      ).toBe(true)
 
       const text = await browser.elementByCss('#params').text()
       expect(text).toMatch(/post.*?post-999/)
@@ -405,11 +437,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -460,11 +488,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -474,14 +498,46 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
+
+  if (!looseMode) {
+    it('should handle fallback only page correctly HTML', async () => {
+      const browser = await webdriver(appPort, '/fallback-only/first%2Fpost')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toContain('hi fallback')
+
+      // wait for fallback data to load
+      await check(() => browser.elementByCss('p').text(), /Post/)
+
+      // check fallback data
+      const post = await browser.elementByCss('p').text()
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+
+      expect(post).toContain('first/post')
+      expect(params).toEqual({
+        slug: 'first/post',
+      })
+      expect(query).toEqual(params)
+    })
+
+    it('should handle fallback only page correctly data', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(
+          appPort,
+          `/_next/data/${buildId}/fallback-only/second%2Fpost.json`
+        )
+      )
+
+      expect(data.pageProps.params).toEqual({
+        slug: 'second/post',
+      })
+    })
+  }
 
   if (!looseMode) {
     it('should 404 for a missing catchall explicit route', async () => {
@@ -493,17 +549,22 @@ const runTests = (dev = false, looseMode = false) => {
       const html = await res.text()
       expect(html).toMatch(/This page could not be found/)
     })
+
+    it('should allow rewriting to SSG page with fallback: false', async () => {
+      const html = await renderViaHTTP(appPort, '/about')
+      expect(html).toMatch(/About:.*?en/)
+    })
   }
 
   if (dev) {
     // TODO: re-enable when this is supported in dev
-    // it('should show error when rewriting to dynamic SSG page', async () => {
-    //   const item = Math.round(Math.random() * 100)
-    //   const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
-    //   expect(html).toContain(
-    //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
-    //   )
-    // })
+    it.skip('should show error when rewriting to dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+      expect(html).toContain(
+        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+      )
+    })
 
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
@@ -569,7 +630,8 @@ const runTests = (dev = false, looseMode = false) => {
       // we need to reload the page to trigger getStaticProps
       await browser.refresh()
 
-      const errOverlayContent = await getReactErrorOverlayContent(browser)
+      expect(await hasRedbox(browser)).toBe(true)
+      const errOverlayContent = await getRedboxHeader(browser)
 
       await fs.writeFile(indexPage, origContent)
       const errorMsg = /oops from getStaticProps/
@@ -694,12 +756,13 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/non-json/direct')
 
       // FIXME: enable this
-      // expect(await getReactErrorOverlayContent(browser)).toMatch(
+      // expect(await getRedboxHeader(browser)).toMatch(
       //   /Error serializing `.time` returned from `getStaticProps`/
       // )
 
       // FIXME: disable this
-      expect(await getReactErrorOverlayContent(browser)).toMatch(
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
         /Failed to load static props/
       )
     })
@@ -709,14 +772,20 @@ const runTests = (dev = false, looseMode = false) => {
       await browser.elementByCss('#non-json').click()
 
       // FIXME: enable this
-      // expect(await getReactErrorOverlayContent(browser)).toMatch(
+      // expect(await getRedboxHeader(browser)).toMatch(
       //   /Error serializing `.time` returned from `getStaticProps`/
       // )
 
       // FIXME: disable this
-      expect(await getReactErrorOverlayContent(browser)).toMatch(
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
         /Failed to load static props/
       )
+    })
+
+    it('should not contain headers already sent error', async () => {
+      await renderViaHTTP(appPort, '/fallback-only/some-fallback-post')
+      expect(stderr).not.toContain('ERR_HTTP_HEADERS_SENT')
     })
   } else {
     if (!looseMode) {
@@ -735,7 +804,7 @@ const runTests = (dev = false, looseMode = false) => {
         await check(() => getBrowserBodyText(browser), /hello /)
       })
 
-      it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
         const browser = await webdriver(appPort, '/')
         await browser.elementByCss('#non-json').click()
         await check(() => getBrowserBodyText(browser), /hello /)
@@ -771,36 +840,52 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/blog',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blog/(?<post>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
+          routeKeys: ['post'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
+          routeKeys: ['post', 'comment'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall/(?<slug>.+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
+          routeKeys: ['slug'],
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall\\-explicit/(?<slug>.+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
+          routeKeys: ['slug'],
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -814,9 +899,37 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
+            )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+          page: '/fallback-only/[slug]',
+          routeKeys: ['slug'],
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/lang/(?<lang>[^/]+?)/about\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          page: '/lang/[lang]/about',
+          routeKeys: ['lang'],
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/non\\-json/(?<p>[^/]+?)\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
+          routeKeys: ['p'],
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -825,12 +938,16 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/something',
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/user/(?<user>[^/]+?)/profile\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
+          routeKeys: ['user'],
         },
       ])
     })
@@ -841,7 +958,7 @@ const runTests = (dev = false, looseMode = false) => {
       )
       const escapedBuildId = escapeRegex(buildId)
 
-      Object.keys(manifest.dynamicRoutes).forEach(key => {
+      Object.keys(manifest.dynamicRoutes).forEach((key) => {
         const item = manifest.dynamicRoutes[key]
 
         if (item.dataRouteRegex) {
@@ -872,6 +989,24 @@ const runTests = (dev = false, looseMode = false) => {
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
+        },
+        '/fallback-only/[slug]': {
+          dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/fallback-only/[slug].html',
+          routeRegex: normalizeRegEx(
+            '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
+        '/lang/[lang]/about': {
+          dataRoute: `/_next/data/${buildId}/lang/[lang]/about.json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx('^\\/lang\\/([^\\/]+?)\\/about(?:\\/)?$'),
         },
         '/non-json/[p]': {
           dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
@@ -1013,10 +1148,9 @@ const runTests = (dev = false, looseMode = false) => {
 }
 
 describe('SSG Prerender', () => {
-  afterAll(() => fs.remove(nextConfig))
-
   describe('dev mode', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
@@ -1027,6 +1161,10 @@ describe('SSG Prerender', () => {
                 {
                   source: "/some-rewrite/:item",
                   destination: "/blog/post-:item"
+                },
+                {
+                  source: '/about',
+                  destination: '/lang/en/about'
                 }
               ]
             }
@@ -1036,19 +1174,24 @@ describe('SSG Prerender', () => {
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+        onStderr: (msg) => {
           stderr += msg
         },
       })
       buildId = 'development'
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(true)
   })
 
   describe('dev mode getStaticPaths', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         // we set cpus to 1 so that we make sure the requests
@@ -1058,10 +1201,12 @@ describe('SSG Prerender', () => {
       )
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      })
     })
     afterAll(async () => {
-      await fs.remove(nextConfig)
+      await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
 
@@ -1104,6 +1249,7 @@ describe('SSG Prerender', () => {
     beforeAll(async () => {
       // remove firebase import since it breaks in legacy serverless mode
       origBlogPageContent = await fs.readFile(blogPagePath, 'utf8')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
 
       await fs.writeFile(
         blogPagePath,
@@ -1115,7 +1261,19 @@ describe('SSG Prerender', () => {
 
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless' }`,
+        `module.exports = {
+          target: 'serverless',
+          experimental: {
+            rewrites() {
+              return [
+                {
+                  source: '/about',
+                  destination: '/lang/en/about'
+                }
+              ]
+            }
+          }
+        }`,
         'utf8'
       )
       await fs.remove(join(appDir, '.next'))
@@ -1123,7 +1281,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1131,6 +1289,7 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await fs.writeFile(blogPagePath, origBlogPageContent)
       await killApp(app)
     })
@@ -1205,6 +1364,7 @@ describe('SSG Prerender', () => {
         return initNextServerScript(scriptPath, /ready on/i, env)
       }
 
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`,
@@ -1220,7 +1380,10 @@ describe('SSG Prerender', () => {
       appPort = await findPort()
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(false, true)
   })
@@ -1228,7 +1391,6 @@ describe('SSG Prerender', () => {
   describe('production mode', () => {
     let buildOutput = ''
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await fs.remove(join(appDir, '.next'))
       const { stdout } = await nextBuild(appDir, [], { stdout: true })
       buildOutput = stdout
@@ -1236,7 +1398,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1255,8 +1417,20 @@ describe('SSG Prerender', () => {
   })
 
   describe('export mode', () => {
+    // disable fallback: true since this is an error during `next export`
+    const fallbackTruePages = [
+      '/blog/[post]/[comment].js',
+      '/user/[user]/profile.js',
+      '/catchall/[...slug].js',
+      '/non-json/[p].js',
+      '/blog/[post]/index.js',
+      '/fallback-only/[slug].js',
+    ]
+    const fallbackTruePageContents = {}
+
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = {
@@ -1270,6 +1444,19 @@ describe('SSG Prerender', () => {
         }`
       )
       await fs.remove(join(appDir, '.next'))
+
+      for (const page of fallbackTruePages) {
+        const pagePath = join(appDir, 'pages', page)
+        fallbackTruePageContents[page] = await fs.readFile(pagePath, 'utf8')
+        await fs.writeFile(
+          pagePath,
+          fallbackTruePageContents[page].replace(
+            'fallback: true',
+            'fallback: false'
+          )
+        )
+      }
+
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
@@ -1277,8 +1464,14 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await stopApp(app)
-      await fs.remove(nextConfig)
+
+      for (const page of fallbackTruePages) {
+        const pagePath = join(appDir, 'pages', page)
+
+        await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
     })
 
     it('should copy prerender files and honor exportTrailingSlash', async () => {

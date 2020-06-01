@@ -1,7 +1,7 @@
 import React from 'react'
 import Button, { ButtonGroup } from '@atlaskit/button'
 
-export default () => {
+export default function ButtonComponent() {
   return (
     <React.Fragment>
       <Button style={{ margin: 10 }}>Button</Button>

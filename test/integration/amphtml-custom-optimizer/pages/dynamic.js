@@ -2,7 +2,7 @@ export const config = {
   amp: true,
 }
 
-const Dynamic = props => (
+const Dynamic = (props) => (
   <amp-img
     width="500"
     height="500"

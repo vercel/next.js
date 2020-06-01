@@ -22,7 +22,7 @@ export const API_ROUTE = /^\/api(?:\/|$)/
 export const PAGES_DIR_ALIAS = 'private-next-pages'
 export const DOT_NEXT_ALIAS = 'private-dot-next'
 
-export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://err.sh/zeit/next.js/public-next-folder-conflict`
+export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://err.sh/vercel/next.js/public-next-folder-conflict`
 
 export const SSG_GET_INITIAL_PROPS_CONFLICT = `You can not use getInitialProps with getStaticProps. To use SSG, please remove your getInitialProps`
 
@@ -41,3 +41,7 @@ export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'https://nextjs.link/issg'
 
 export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's component and must be exported from the page. See more info here: https://err.sh/next.js/gssp-component-member`
+
+export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://err.sh/next.js/non-standard-node-env`
+
+export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback: true\` in \`getStaticPaths\` can not be exported. See more info here: https://err.sh/next.js/ssg-fallback-true-export`

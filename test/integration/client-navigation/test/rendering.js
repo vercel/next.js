@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 
-export default function(render, fetch) {
+export default function (render, fetch) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -204,33 +204,27 @@ export default function(render, fetch) {
     test('getInitialProps circular structure', async () => {
       const $ = await get$('/circular-json-error')
       const expectedErrorMessage =
-        'Circular structure in "getInitialProps" result of page "/circular-json-error".'
+        'Circular structure in \\"getInitialProps\\" result of page \\"/circular-json-error\\".'
       expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
+        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
       ).toBeTruthy()
     })
 
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage =
-        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
       expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
+        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
       ).toBeTruthy()
     })
 
     test('getInitialProps resolves to null', async () => {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage =
-        '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
+        '\\"EmptyInitialPropsPage.getInitialProps()\\" should resolve to an object. But found \\"null\\" instead.'
       expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
+        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
       ).toBeTruthy()
     })
 
@@ -277,24 +271,24 @@ export default function(render, fetch) {
 
     test('allows to import .json files', async () => {
       const html = await render('/json')
-      expect(html.includes('Zeit')).toBeTruthy()
+      expect(html.includes('Vercel')).toBeTruthy()
     })
 
     test('default export is not a React Component', async () => {
       const $ = await get$('/no-default-export')
-      const pre = $('pre')
+      const pre = $('#__NEXT_DATA__')
       expect(pre.text()).toMatch(/The default export is not a React Component/)
     })
 
     test('error-inside-page', async () => {
       const $ = await get$('/error-inside-page')
-      expect($('pre').text()).toMatch(/This is an expected error/)
+      expect($('#__NEXT_DATA__').text()).toMatch(/This is an expected error/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('error-in-the-global-scope', async () => {
       const $ = await get$('/error-in-the-global-scope')
-      expect($('pre').text()).toMatch(/aa is not defined/)
+      expect($('#__NEXT_DATA__').text()).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
@@ -330,10 +324,10 @@ export default function(render, fetch) {
       }
 
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        resources.map((resource) => fetch(resource))
       )
 
-      responses.forEach(res => {
+      responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'no-store, must-revalidate'
@@ -369,6 +363,12 @@ export default function(render, fetch) {
     describe('404', () => {
       it('should 404 on not existent page', async () => {
         const $ = await get$('/non-existent')
+        expect($('h1').text()).toBe('404')
+        expect($('h2').text()).toBe('This page could not be found.')
+      })
+
+      it('should 404 on wrong casing', async () => {
+        const $ = await get$('/NaV/aBoUt')
         expect($('h1').text()).toBe('404')
         expect($('h2').text()).toBe('This page could not be found.')
       })

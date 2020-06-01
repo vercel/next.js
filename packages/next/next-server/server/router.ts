@@ -38,7 +38,7 @@ export const prepareDestination = (
   destination: string,
   params: Params,
   query: ParsedUrlQuery,
-  isRedirect?: boolean
+  appendParamsToQuery?: boolean
 ) => {
   const parsedDestination = parseUrl(destination, true)
   const destQuery = parsedDestination.query
@@ -58,18 +58,21 @@ export const prepareDestination = (
   for (const [key, strOrArray] of Object.entries(destQuery)) {
     let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
     if (value) {
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      value = `/${value}`
       const queryCompiler = compilePathToRegex(value, { validate: false })
-      value = queryCompiler(params)
+      value = queryCompiler(params).substr(1)
     }
     destQuery[key] = value
   }
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query
-  if (!isRedirect) {
+  if (appendParamsToQuery) {
     for (const [name, value] of Object.entries(params)) {
       if (!(name in destQuery)) {
-        destQuery[name] = Array.isArray(value) ? value.join('/') : value
+        destQuery[name] = value
       }
     }
   }
@@ -85,7 +88,7 @@ export const prepareDestination = (
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
-        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`
+        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/vercel/next.js/invalid-multi-match`
       )
     }
     throw err
@@ -149,8 +152,8 @@ export default class Router {
     this.dynamicRoutes = routes
   }
 
-  addFsRoute(route: Route) {
-    this.fsRoutes.unshift(route)
+  addFsRoute(fsRoute: Route) {
+    this.fsRoutes.unshift(fsRoute)
   }
 
   async execute(
@@ -159,12 +162,12 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
-    const pageChecks: { [name: string]: boolean } = {}
+    const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       if (pageChecks[p]) {
         return pageChecks[p]
       }
-      const result = await this.pageChecker(p)
+      const result = this.pageChecker(p)
       pageChecks[p] = result
       return result
     }
@@ -179,7 +182,7 @@ export default class Router {
       - User rewrites (checking filesystem and pages each match)
     */
 
-    const routes = [
+    const allRoutes = [
       ...this.headers,
       ...this.redirects,
       ...this.fsRoutes,
@@ -191,14 +194,19 @@ export default class Router {
               type: 'route',
               name: 'Page checker',
               match: route('/:path*'),
-              fn: async (req, res, params, parsedUrl) => {
-                const { pathname } = parsedUrl
+              fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
+                const { pathname } = parsedCheckerUrl
 
                 if (!pathname) {
                   return { finished: false }
                 }
-                if (await this.pageChecker(pathname)) {
-                  return this.catchAllRoute.fn(req, res, params, parsedUrl)
+                if (await memoizedPageChecker(pathname)) {
+                  return this.catchAllRoute.fn(
+                    checkerReq,
+                    checkerRes,
+                    params,
+                    parsedCheckerUrl
+                  )
                 }
                 return { finished: false }
               },
@@ -211,12 +219,12 @@ export default class Router {
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
     ]
 
-    for (const route of routes) {
-      const newParams = route.match(parsedUrlUpdated.pathname)
+    for (const testRoute of allRoutes) {
+      const newParams = testRoute.match(parsedUrlUpdated.pathname)
 
       // Check if the match function matched
       if (newParams) {
-        const result = await route.fn(req, res, newParams, parsedUrlUpdated)
+        const result = await testRoute.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled
         if (result.finished) {
@@ -235,19 +243,19 @@ export default class Router {
         }
 
         // check filesystem
-        if (route.check === true) {
+        if (testRoute.check === true) {
           for (const fsRoute of this.fsRoutes) {
             const fsParams = fsRoute.match(parsedUrlUpdated.pathname)
 
             if (fsParams) {
-              const result = await fsRoute.fn(
+              const fsResult = await fsRoute.fn(
                 req,
                 res,
                 fsParams,
                 parsedUrlUpdated
               )
 
-              if (result.finished) {
+              if (fsResult.finished) {
                 return true
               }
             }

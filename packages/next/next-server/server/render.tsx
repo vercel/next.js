@@ -45,7 +45,7 @@ import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
-    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
+    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/vercel/next.js/no-router-instance'
   throw new Error(message)
 }
 
@@ -141,7 +141,6 @@ export type RenderOptsPartial = {
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
-  hasCssMode: boolean
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
@@ -154,7 +153,6 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
@@ -180,7 +178,6 @@ function renderDocument(
     isFallback,
     dynamicImportsIds,
     dangerousAsPath,
-    hasCssMode,
     err,
     dev,
     ampPath,
@@ -258,7 +255,6 @@ function renderDocument(
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
-          hasCssMode,
           hybridAmp,
           staticMarkup,
           devFiles,
@@ -298,13 +294,11 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    documentMiddlewareEnabled = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
     pageConfig = {},
-    DocumentMiddleware,
     Component,
     buildManifest,
     reactLoadableManifest,
@@ -486,10 +480,6 @@ export async function renderToHTML(
   }
   let props: any
 
-  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
-    await DocumentMiddleware(ctx)
-  }
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -502,7 +492,7 @@ export async function renderToHTML(
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <LoadableContext.Provider
-          value={moduleName => reactLoadableModules.push(moduleName)}
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           {children}
         </LoadableContext.Provider>
@@ -541,17 +531,17 @@ export async function renderToHTML(
             ? { preview: true, previewData: previewData }
             : undefined),
         })
-      } catch (err) {
+      } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
         // 404 rendering
-        if (err.code === 'ENOENT') {
-          delete err.code
+        if (staticPropsError.code === 'ENOENT') {
+          delete staticPropsError.code
         }
-        throw err
+        throw staticPropsError
       }
 
       const invalidKeys = Object.keys(data).filter(
-        key => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'unstable_revalidate' && key !== 'props'
       )
 
       if (invalidKeys.includes('revalidate')) {
@@ -627,16 +617,16 @@ export async function renderToHTML(
             ? { preview: true, previewData: previewData }
             : undefined),
         })
-      } catch (err) {
+      } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
         // 404 rendering
-        if (err.code === 'ENOENT') {
-          delete err.code
+        if (serverSidePropsError.code === 'ENOENT') {
+          delete serverSidePropsError.code
         }
-        throw err
+        throw serverSidePropsError
       }
 
-      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -655,11 +645,11 @@ export async function renderToHTML(
       props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
-  } catch (err) {
-    if (isDataReq || !dev || !err) throw err
-    ctx.err = err
-    renderOpts.err = err
-    console.error(err)
+  } catch (dataFetchError) {
+    if (isDataReq || !dev || !dataFetchError) throw dataFetchError
+    ctx.err = dataFetchError
+    renderOpts.err = dataFetchError
+    console.error(dataFetchError)
   }
 
   if (
@@ -670,13 +660,13 @@ export async function renderToHTML(
   ) {
     console.warn(
       `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
-        `See more info here: https://err.sh/zeit/next.js/reserved-page-prop`
+        `See more info here: https://err.sh/vercel/next.js/reserved-page-prop`
     )
   }
 
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq) return props
+  if (isDataReq && !isSSG) return props
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
@@ -712,7 +702,7 @@ export async function renderToHTML(
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
       )
     }
   }
@@ -758,7 +748,7 @@ export async function renderToHTML(
     const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach(item => {
+      manifestItem.forEach((item) => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })

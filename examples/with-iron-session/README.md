@@ -12,6 +12,11 @@ It uses current best practices for authentication in the Next.js ecosystem.
 - Layout based on the user's logged-in/out status
 - Session data is signed and encrypted in a cookie
 
+[`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
+
+- Express / Connect middlewares
+- Multiple encryption keys (password) to allow for seamless updates or just password rotation
+
 ---
 
 <p align="center"><b>Online demo at <a href="https://next-iron-session.now.sh/">https://next-iron-session.now.sh/</a> 👀</b></p>
@@ -22,13 +27,13 @@ It uses current best practices for authentication in the Next.js ecosystem.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-iron-session)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-iron-session with-iron-session-app
@@ -41,7 +46,7 @@ yarn create next-app --example with-iron-session with-iron-session-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-iron-session
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-iron-session
 cd with-iron-session
 ```
 

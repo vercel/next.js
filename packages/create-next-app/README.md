@@ -1,6 +1,6 @@
 # create-next-app
 
-This package includes the global command for creating [Next.js](https://github.com/zeit/next.js) applications.
+This package includes the global command for creating [Next.js](https://github.com/vercel/next.js) applications.
 
 Please refer to its documentation:
 

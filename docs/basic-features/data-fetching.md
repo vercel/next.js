@@ -6,6 +6,20 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
 
 > This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress">WordPress Example</a> (<a href="https://next-blog-wordpress.now.sh">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
+    <li><a href="https://static-tweet.now.sh/">Static Tweet Demo</a></li>
+  </ul>
+</details>
+
 In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we’ll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven’t done so.
 
 We’ll talk about the three unique Next.js functions you can use to fetch data for pre-rendering:
@@ -34,19 +48,19 @@ The `context` parameter is an object containing the following keys:
 - `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
+> **Note**: You can import modules in top-level scope for use in `getStaticProps`.
+> Imports used in `getStaticProps` will not be bundled for the client-side, as [explained below](#write-server-side-code-directly).
+
 ### Simple Example
 
 Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
-// You can use any data fetching library
-import fetch from 'node-fetch'
-
 // posts will be populated at build time by getStaticProps()
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>{post.title}</li>
       ))}
     </ul>
@@ -58,6 +72,7 @@ function Blog({ posts }) {
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
   // Call an external API endpoint to get posts.
+  // You can use any data fetching library
   const res = await fetch('https://.../posts')
   const posts = await res.json()
 
@@ -89,9 +104,37 @@ For TypeScript, you can use the `GetStaticProps` type from `next`:
 ```ts
 import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async context => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
+```
+
+If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`, like this:
+
+```tsx
+import { InferGetStaticPropsType } from 'next'
+
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps = async () => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
+  // will resolve posts to type Post[]
+}
+
+export default Blog
 ```
 
 ### Reading files: Use `process.cwd()`
@@ -112,7 +155,7 @@ import path from 'path'
 function Blog({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li>
           <h3>{post.filename}</h3>
           <p>{post.content}</p>
@@ -129,7 +172,7 @@ export async function getStaticProps() {
   const postsDirectory = path.join(process.cwd(), 'posts')
   const filenames = fs.readdirSync(postsDirectory)
 
-  const posts = filenames.map(filename => {
+  const posts = filenames.map((filename) => {
     const filePath = path.join(postsDirectory, filename)
     const fileContents = fs.readFileSync(filePath, 'utf8')
 
@@ -162,6 +205,8 @@ Because `getStaticProps` runs at build time, it does **not** receive data that�
 #### Write server-side code directly
 
 Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers. You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
+
+You can use [this tool](https://next-code-elimination.now.sh/) to verify what Next.js eliminates from the client-side bundle.
 
 #### Statically Generates both HTML and JSON
 
@@ -237,7 +282,6 @@ Here’s an example which pre-renders one blog post per page called `pages/posts
 
 ```jsx
 // pages/posts/[id].js
-import fetch from 'node-fetch'
 
 function Post({ post }) {
   // Render post...
@@ -250,7 +294,7 @@ export async function getStaticPaths() {
   const posts = await res.json()
 
   // Get the paths we want to pre-render based on posts
-  const paths = posts.map(post => ({
+  const paths = posts.map((post) => ({
     params: { id: post.id },
   }))
 
@@ -283,6 +327,8 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
+> `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
+
 #### Fallback pages
 
 In the “fallback” version of a page:
@@ -295,7 +341,6 @@ Here’s an example that uses `isFallback`:
 ```jsx
 // pages/posts/[id].js
 import { useRouter } from 'next/router'
-import fetch from 'node-fetch'
 
 function Post({ post }) {
   const router = useRouter()
@@ -313,7 +358,7 @@ function Post({ post }) {
 export async function getStaticPaths() {
   return {
     // Only `/posts/1` and `/posts/2` are generated at build time
-    paths: [{ params: { id: 1 } }, { params: { id: 2 } }],
+    paths: [{ params: { id: '1' } }, { params: { id: '2' } }],
     // Enable statically generating additional pages
     // For example: `/posts/3`
     fallback: true,
@@ -401,6 +446,9 @@ The `context` parameter is an object containing the following keys:
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
+> **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
+> Imports used in `getServerSideProps` will not be bundled for the client-side, as [explained below](#only-runs-on-server-side).
+
 ### Simple example
 
 Here’s an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
@@ -436,9 +484,34 @@ For TypeScript, you can use the `GetServerSideProps` type from `next`:
 ```ts
 import { GetServerSideProps } from 'next'
 
-export const getServerSideProps: GetServerSideProps = async context => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
   // ...
 }
+```
+
+If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`, like this:
+
+```tsx
+import { InferGetServerSidePropsType } from 'next'
+
+type Data = { ... }
+
+export const getServerSideProps = async () => {
+  const res = await fetch('https://.../data')
+  const data: Data = await res.json()
+
+  return {
+    props: {
+      data,
+    },
+  }
+}
+
+function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  // will resolve posts to type Data
+}
+
+export default Page
 ```
 
 ### Technical details
@@ -449,6 +522,8 @@ export const getServerSideProps: GetServerSideProps = async context => {
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
 - When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
+
+You can use [this tool](https://next-code-elimination.now.sh/) to verify what Next.js eliminates from the client-side bundle.
 
 #### Only allowed in a page
 
@@ -482,16 +557,6 @@ function Profile() {
 ```
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
-
-## More Examples
-
-Take a look at the following examples to learn more:
-
-- [Blog Starter using markdown files](https://github.com/zeit/next.js/tree/canary/examples/blog-starter) ([Demo](https://next-blog-starter.now.sh/))
-- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
-- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape) ([Demo](https://next-blog-takeshape.now.sh/))
-- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
-- [Prismic Example](https://github.com/zeit/next.js/tree/canary/examples/cms-prismic) ([Demo](https://next-blog-prismic.now.sh/))
 
 ## Learn more
 

@@ -1,10 +1,11 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join } = require('path')
 
-module.exports = function(task) {
+module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('ncc', {}, function*(file, options) {
+  task.plugin('ncc', {}, function* (file, options) {
     if (options.externals && options.packageName) {
       options.externals = { ...options.externals }
       delete options.externals[options.packageName]
@@ -14,13 +15,26 @@ module.exports = function(task) {
       minify: true,
       ...options,
     }).then(({ code, assets }) => {
-      Object.keys(assets).forEach(key =>
+      Object.keys(assets).forEach((key) => {
+        let data = assets[key].source
+
+        if (join(file.dir, key).endsWith('terser-webpack-plugin/worker.js')) {
+          data = Buffer.from(
+            data
+              .toString()
+              .replace(
+                `require('terser')`,
+                `require("${options.externals['terser']}")`
+              )
+          )
+        }
+
         this._.files.push({
-          dir: join(file.dir, dirname(key)),
+          data,
           base: basename(key),
-          data: assets[key].source,
+          dir: join(file.dir, dirname(key)),
         })
-      )
+      })
 
       if (options && options.packageName) {
         writePackageManifest.call(this, options.packageName, file.base)

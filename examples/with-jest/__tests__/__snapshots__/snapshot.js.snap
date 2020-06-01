@@ -50,7 +50,7 @@ exports[`renders homepage unchanged 1`] = `
       </a>
       <a
         className="card"
-        href="https://github.com/zeit/next.js/tree/master/examples"
+        href="https://github.com/vercel/next.js/tree/master/examples"
       >
         <h3>
           Examples →

@@ -1,27 +1,30 @@
-import React from 'react'
+import { useSelector } from 'react-redux'
 
-const pad = n => (n < 10 ? `0${n}` : n)
+const formatTime = (time) => {
+  return new Date(time).toJSON().slice(11, 19)
+}
 
-const format = t =>
-  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
+const Clock = () => {
+  const lastUpdate = useSelector((state) => state.timer.lastUpdate)
+  const light = useSelector((state) => state.timer.light)
+  return (
+    <div className={light ? 'light' : ''}>
+      {formatTime(lastUpdate)}
+      <style jsx>{`
+        div {
+          padding: 15px;
+          display: inline-block;
+          color: #82fa58;
+          font: 50px menlo, monaco, monospace;
+          background-color: #000;
+        }
 
-const Clock = ({ lastUpdate, light }) => (
-  <div className={light ? 'light' : ''}>
-    {format(new Date(lastUpdate))}
-    <style jsx>{`
-      div {
-        padding: 15px;
-        display: inline-block;
-        color: #82fa58;
-        font: 50px menlo, monaco, monospace;
-        background-color: #000;
-      }
-
-      .light {
-        background-color: #999;
-      }
-    `}</style>
-  </div>
-)
+        .light {
+          background-color: #999;
+        }
+      `}</style>
+    </div>
+  )
+}
 
 export default Clock

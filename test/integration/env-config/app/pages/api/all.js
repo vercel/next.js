@@ -22,7 +22,7 @@ const variables = [
 
 const items = {}
 
-variables.forEach(variable => {
+variables.forEach((variable) => {
   items[variable] = process.env[variable]
 })
 

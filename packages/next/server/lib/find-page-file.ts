@@ -1,7 +1,23 @@
-import { join } from 'path'
+import { join, sep as pathSeparator, normalize } from 'path'
 import chalk from 'next/dist/compiled/chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
+import fs from 'fs'
+import { promisify } from 'util'
+
+const readdir = promisify(fs.readdir)
+
+async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
+  const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
+
+  const segmentExistsPromises = pageSegments.map(async (segment, i) => {
+    const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
+    const parentDirEntries = await readdir(segmentParentDir)
+    return parentDirEntries.includes(segment)
+  })
+
+  return (await Promise.all(segmentExistsPromises)).every(Boolean)
+}
 
 export async function findPageFile(
   rootDir: string,
@@ -36,6 +52,10 @@ export async function findPageFile(
   }
 
   if (foundPagePaths.length < 1) {
+    return null
+  }
+
+  if (!(await isTrueCasePagePath(foundPagePaths[0], rootDir))) {
     return null
   }
 
