@@ -61,12 +61,12 @@ function unique() {
   const metaCategories: { [metatype: string]: Set<string> } = {}
 
   return (h: React.ReactElement<any>) => {
-    let unique = true
+    let isUnique = true
 
     if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') > 0) {
       const key = h.key.slice(h.key.indexOf('$') + 1)
       if (keys.has(key)) {
-        unique = false
+        isUnique = false
       } else {
         keys.add(key)
       }
@@ -77,7 +77,7 @@ function unique() {
       case 'title':
       case 'base':
         if (tags.has(h.type)) {
-          unique = false
+          isUnique = false
         } else {
           tags.add(h.type)
         }
@@ -89,7 +89,7 @@ function unique() {
 
           if (metatype === 'charSet') {
             if (metaTypes.has(metatype)) {
-              unique = false
+              isUnique = false
             } else {
               metaTypes.add(metatype)
             }
@@ -97,7 +97,7 @@ function unique() {
             const category = h.props[metatype]
             const categories = metaCategories[metatype] || new Set()
             if (categories.has(category)) {
-              unique = false
+              isUnique = false
             } else {
               categories.add(category)
               metaCategories[metatype] = categories
@@ -107,7 +107,7 @@ function unique() {
         break
     }
 
-    return unique
+    return isUnique
   }
 }
 

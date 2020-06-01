@@ -10,12 +10,16 @@ export function getRouteRegex(
 ): {
   re: RegExp
   namedRegex?: string
-  groups: { [groupName: string]: { pos: number; repeat: boolean } }
+  groups: {
+    [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
+  }
 } {
   // Escape all characters that could be considered RegEx
   const escapedRoute = escapeRegex(normalizedRoute.replace(/\/$/, '') || '/')
 
-  const groups: { [groupName: string]: { pos: number; repeat: boolean } } = {}
+  const groups: {
+    [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
+  } = {}
   let groupIndex = 1
   let isCatchAll = false
 
@@ -35,7 +39,7 @@ export function getRouteRegex(
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
         // eslint-disable-next-line no-sequences
-      ] = { pos: groupIndex++, repeat: isCatchAll }
+      ] = { pos: groupIndex++, repeat: isCatchAll, optional: isOptional }
       return isCatchAll ? (isOptional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
     }
   )

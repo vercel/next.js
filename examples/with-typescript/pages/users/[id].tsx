@@ -10,10 +10,7 @@ type Props = {
   errors?: string
 }
 
-const StaticPropsDetail: React.FunctionComponent<Props> = ({
-  item,
-  errors,
-}) => {
+const StaticPropsDetail = ({ item, errors }: Props) => {
   if (errors) {
     return (
       <Layout title="Error | Next.js + TypeScript Example">
