@@ -504,6 +504,42 @@ const runTests = (dev = false, looseMode = false) => {
   })
 
   if (!looseMode) {
+    it('should handle fallback only page correctly HTML', async () => {
+      const browser = await webdriver(appPort, '/fallback-only/first%2Fpost')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toContain('hi fallback')
+
+      // wait for fallback data to load
+      await check(() => browser.elementByCss('p').text(), /Post/)
+
+      // check fallback data
+      const post = await browser.elementByCss('p').text()
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+
+      expect(post).toContain('first/post')
+      expect(params).toEqual({
+        slug: 'first/post',
+      })
+      expect(query).toEqual(params)
+    })
+
+    it('should handle fallback only page correctly data', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(
+          appPort,
+          `/_next/data/${buildId}/fallback-only/second%2Fpost.json`
+        )
+      )
+
+      expect(data.pageProps.params).toEqual({
+        slug: 'second/post',
+      })
+    })
+  }
+
+  if (!looseMode) {
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(
         appPort,
@@ -746,6 +782,11 @@ const runTests = (dev = false, looseMode = false) => {
         /Failed to load static props/
       )
     })
+
+    it('should not contain headers already sent error', async () => {
+      await renderViaHTTP(appPort, '/fallback-only/some-fallback-post')
+      expect(stderr).not.toContain('ERR_HTTP_HEADERS_SENT')
+    })
   } else {
     if (!looseMode) {
       it('should should use correct caching headers for a no-revalidate page', async () => {
@@ -855,6 +896,18 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/default-revalidate',
         },
         {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+          page: '/fallback-only/[slug]',
+          routeKeys: ['slug'],
+        },
+        {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
             buildId
           )}/lang/(?<lang>[^/]+?)/about\\.json$`,
@@ -935,6 +988,16 @@ const runTests = (dev = false, looseMode = false) => {
           ),
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
+        '/fallback-only/[slug]': {
+          dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/fallback-only/[slug].html',
+          routeRegex: normalizeRegEx(
+            '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
           ),
         },
         '/lang/[lang]/about': {
@@ -1361,6 +1424,7 @@ describe('SSG Prerender', () => {
       '/catchall/[...slug].js',
       '/non-json/[p].js',
       '/blog/[post]/index.js',
+      '/fallback-only/[slug].js',
     ]
     const fallbackTruePageContents = {}
 
