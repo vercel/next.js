@@ -132,6 +132,34 @@ function runTests() {
     const $ = cheerio.load(html)
     expect($('#route').text()).toBe('gsp null route: undefined')
   })
+
+  it('should handle getStaticPaths with fallback no segments', async () => {
+    const html = await renderViaHTTP(appPort, '/get-static-paths-fallback')
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe(
+      'gsp fallback route: undefined is not fallback'
+    )
+  })
+
+  it('should handle getStaticPaths with fallback 2 segments', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/get-static-paths-fallback/p2/p3'
+    )
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe(
+      'gsp fallback route: [p2|p3] is not fallback'
+    )
+  })
+
+  it('should fallback correctly when fallback enabled', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/get-static-paths-fallback/hello/world'
+    )
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp fallback route: undefined is fallback')
+  })
 }
 
 const nextConfig = join(appDir, 'next.config.js')
