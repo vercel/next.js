@@ -63,9 +63,9 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
-function parseJsonFile(path: string) {
+function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
-  const contents = readFileSync(path, 'utf8')
+  const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file
   if (contents.trim() === '') {
@@ -80,7 +80,7 @@ function parseJsonFile(path: string) {
       { start: { line: err.lineNumber, column: err.columnNumber } },
       { message: err.message, highlightCode: true }
     )
-    throw new Error(`Failed to parse "${path}":\n${codeFrame}`)
+    throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
   }
 }
 
@@ -761,11 +761,11 @@ export default async function getBaseWebpackConfig(
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
-          exclude: (path: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(path))) {
+          exclude: (excludePath: string) => {
+            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
             }
-            return /node_modules/.test(path)
+            return /node_modules/.test(excludePath)
           },
           use: config.experimental.babelMultiThread
             ? [
