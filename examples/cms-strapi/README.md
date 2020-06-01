@@ -182,13 +182,13 @@ To deploy to production, you must first deploy your Strapi app. The Strapi app f
 
 After deploying Strapi, you can deploy this Next.js app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Vercel Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables with **Vercel Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/vercel-cli#commands/secrets)).
 
 Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_PUBLIC_API_URL>` and `<NEXT_EXAMPLE_CMS_STRAPI_PREVIEW_SECRET>` with the corresponding strings in `.env`.
 
 ```
-now secrets add next_example_cms_strapi_api_url <NEXT_PUBLIC_API_URL>
-now secrets add next_example_cms_strapi_preview_secret <NEXT_EXAMPLE_CMS_STRAPI_PREVIEW_SECRET>
+vercel secrets add next_example_cms_strapi_api_url <NEXT_PUBLIC_API_URL>
+vercel secrets add next_example_cms_strapi_preview_secret <NEXT_EXAMPLE_CMS_STRAPI_PREVIEW_SECRET>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
