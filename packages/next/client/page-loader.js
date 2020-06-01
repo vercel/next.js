@@ -351,7 +351,11 @@ export default class PageLoader {
             process.env.__NEXT_GRANULAR_CHUNKS &&
               !isDependency &&
               this.getDependencies(route).then((urls) =>
-                Promise.all(urls.map((url) => this.prefetch(url, true)))
+                Promise.all(
+                  urls.map((dependencyUrl) =>
+                    this.prefetch(dependencyUrl, true)
+                  )
+                )
               ),
           ]
     ).then(
