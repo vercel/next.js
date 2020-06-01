@@ -1,9 +1,7 @@
 import { posix } from 'path'
-export function normalizePagePath(page: string): string {
-  // If the page is `/` we need to append `/index`, otherwise the returned directory root will be bundles instead of pages
-  if (page === '/') {
-    page = '/index'
-  }
+
+// resolve paths to a unique canonicalized form
+export function canonicalizePagePath(page: string): string {
   // Resolve on anything that doesn't start with `/`
   if (!page.startsWith('/')) {
     page = `/${page}`
@@ -16,6 +14,16 @@ export function normalizePagePath(page: string): string {
     throw new Error(
       `Requested and resolved page mismatch: ${page} ${resolvedPage}`
     )
+  }
+  return page
+}
+
+// resolve paths to a unique path that always has at least one segment
+export function normalizePagePath(page: string): string {
+  page = canonicalizePagePath(page)
+  // If the page is `/` we need to append `/index`, otherwise the returned directory root will be bundles instead of pages
+  if (page === '/') {
+    page = '/index'
   }
   return page
 }
