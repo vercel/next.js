@@ -6,9 +6,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[`LIVE` - https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
-
-[`PREVIEW MODE` - https://next-blog-agilitycms.now.sh/?agilitypreviewkey](https://next-blog-agilitycms.now.sh/?agilitypreviewkey=GzL%2fio1pLkfKc9BR1%2fC1cDQeKjL0AkwrTAJ22q3UEjAcOhyrqZejDkDv4kMlBKqrEuQxsuRyiP%2bUaykDYlJ%2fJg%3d%3d)
+- **Live**: [`https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
+- **Preview Mode**: [https://next-blog-agilitycms.now.sh/?agilitypreviewkey=...](https://next-blog-agilitycms.now.sh/?agilitypreviewkey=GzL%2fio1pLkfKc9BR1%2fC1cDQeKjL0AkwrTAJ22q3UEjAcOhyrqZejDkDv4kMlBKqrEuQxsuRyiP%2bUaykDYlJ%2fJg%3d%3d)
 
 ### Related examples
 
