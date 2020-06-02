@@ -1,0 +1,16 @@
+{
+  "env": {
+    "NEXT_EXAMPLE_CMS_AGILITY_GUID": "@next_example_cms_agility_guid",
+    "NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY": "@next_example_cms_agility_api_fetch_key",
+    "NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY": "@next_example_cms_agility_api_preview_key",
+    "NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY": "@next_example_cms_agility_security_key"
+  },
+  "build": {
+    "env": {
+      "NEXT_EXAMPLE_CMS_AGILITY_GUID": "@next_example_cms_agility_guid",
+      "NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY": "@next_example_cms_agility_api_fetch_key",
+      "NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY": "@next_example_cms_agility_api_preview_key",
+      "NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY": "@next_example_cms_agility_security_key"
+    }
+  }
+}
