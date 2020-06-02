@@ -45,7 +45,8 @@ export function getPagePath(
       page = cleanedPage
     }
   }
-  return join(serverBuildPath, pagesManifest[page])
+
+  return join(serverBuildPath, pagesManifest[page]!)
 }
 
 export function requirePage(
