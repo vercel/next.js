@@ -43,7 +43,7 @@ cd cms-agilitycms
 
 ### How is this Different from Other CMS Examples?
 
-We believe **Editors** should have full control of their pages and what content is on each page without getting into code.
+The key principle behind Agility CMS is that **Editors** should have full control of their pages and what content is on each page without getting into code.
 
 This means you'll not only be definining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
 
