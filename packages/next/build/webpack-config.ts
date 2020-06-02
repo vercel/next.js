@@ -941,7 +941,6 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new BuildManifestPlugin({
           buildId,
-          clientManifest: true,
           modern: config.experimental.modern,
         }),
       tracer &&
