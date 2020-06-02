@@ -21,7 +21,7 @@ const getModernOptions = (babelOptions = {}) => {
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
-    // Blacklist accidental inclusions
+    // Block accidental inclusions
     'transform-regenerator',
     'transform-async-to-generator',
   ]
