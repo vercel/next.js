@@ -6,7 +6,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-- **Live**: [`https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
+- **Live**: [https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
 - **Preview Mode**: [https://next-blog-agilitycms.now.sh/?agilitypreviewkey=...](https://next-blog-agilitycms.now.sh/?agilitypreviewkey=GzL%2fio1pLkfKc9BR1%2fC1cDQeKjL0AkwrTAJ22q3UEjAcOhyrqZejDkDv4kMlBKqrEuQxsuRyiP%2bUaykDYlJ%2fJg%3d%3d)
 
 ### Related examples
@@ -289,7 +289,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://zeit.co/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
 
 Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable with the corresponding strings in `.env.local`:
 
