@@ -24,24 +24,19 @@ export async function findPageFile(
   normalizedPagePath: string,
   pageExtensions: string[]
 ): Promise<string | null> {
-  let foundPagePaths: string[] = []
+  const foundPagePaths: string[] = []
 
   for (const extension of pageExtensions) {
     const relativePagePath = `${normalizedPagePath}.${extension}`
     const pagePath = join(rootDir, relativePagePath)
 
-    // only /sub/index when /sub/index/index.js is allowed
-    // see test/integration/route-indexes for expected index handling
-    if (
-      normalizedPagePath.startsWith('/index') ||
-      !normalizedPagePath.endsWith('/index')
-    ) {
-      if (await isWriteable(pagePath)) {
-        foundPagePaths.push(relativePagePath)
-      }
+    if (await isWriteable(pagePath)) {
+      foundPagePaths.push(relativePagePath)
     }
 
-    if (!normalizedPagePath.startsWith('/index')) {
+    // pages starting with /index must match exact.
+    // Others can also match on an ./index.js file
+    if (!/^\/index(\/|$)/.test(normalizedPagePath)) {
       const relativePagePathWithIndex = join(
         normalizedPagePath,
         `index.${extension}`
