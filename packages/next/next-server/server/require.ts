@@ -46,7 +46,7 @@ export function getPagePath(
     }
   }
 
-  return join(serverBuildPath, pagesManifest[page]!)
+  return join(serverBuildPath, pagesManifest[page]!.js)
 }
 
 export function requirePage(

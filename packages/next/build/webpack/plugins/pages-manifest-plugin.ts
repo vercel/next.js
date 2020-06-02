@@ -6,7 +6,12 @@ import {
   SERVERLESS_ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
 
-export type PagesManifest = { [page: string]: string | undefined }
+interface Page {
+  js: string
+  html?: string
+  json?: string
+}
+export type PagesManifest = { [page: string]: Page | undefined }
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
@@ -40,10 +45,9 @@ export default class PagesManifestPlugin implements Plugin {
         }
 
         // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = chunk.name.replace(
-          /\\/g,
-          '/'
-        )
+        pages[`/${pagePath.replace(/\\/g, '/')}`] = {
+          js: chunk.name.replace(/\\/g, '/'),
+        }
       }
 
       if (typeof pages['/index'] !== 'undefined') {

@@ -549,7 +549,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let ssgPageRoutes: string[] | null = null
       let hasSsgFallback: boolean = false
 
-      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
+      pagesManifest[page] = Object.assign(pagesManifest[page] || {}, {
+        js: bundleRelative.replace(/\\/g, '/'),
+      })
 
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
@@ -854,9 +856,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       if (!isSsg) {
-        pagesManifest[page] = relativeDest
-        if (page === '/') pagesManifest['/index'] = relativeDest
-        if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
+        const pageObject = Object.assign(pagesManifest[page] || {}, {
+          js: relativeDest,
+          [ext]: relativeDest,
+        })
+        pagesManifest[page] = pageObject
+        if (page === '/') pagesManifest['/index'] = pageObject
+        if (page === '/.amp') pagesManifest['/index.amp'] = pageObject
       }
       await promises.mkdir(path.dirname(dest), { recursive: true })
       await promises.rename(orig, dest)
