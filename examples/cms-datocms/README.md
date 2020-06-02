@@ -8,19 +8,22 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
+- [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-datocms cms-datocms-app
+npx create-next-app --example cms-datocms cms-datocms-app
 # or
 yarn create next-app --example cms-datocms cms-datocms-app
 ```
@@ -30,7 +33,7 @@ yarn create next-app --example cms-datocms cms-datocms-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-datocms
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-datocms
 cd cms-datocms
 ```
 
@@ -124,7 +127,7 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 7. Try preview mode
 

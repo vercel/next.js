@@ -565,7 +565,7 @@ export async function buildStaticPaths(
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
-    `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+    `See here for more info: https://err.sh/vercel/next.js/invalid-getstaticpaths-value`
 
   if (
     !staticPathsResult ||
@@ -636,8 +636,17 @@ export async function buildStaticPaths(
       const { params = {} } = entry
       let builtPage = page
       _validParamKeys.forEach((validParamKey) => {
-        const { repeat } = _routeRegex.groups[validParamKey]
-        const paramValue = params[validParamKey]
+        const { repeat, optional } = _routeRegex.groups[validParamKey]
+        let paramValue = params[validParamKey]
+        if (
+          optional &&
+          params.hasOwnProperty(validParamKey) &&
+          (paramValue === null ||
+            paramValue === undefined ||
+            (paramValue as any) === false)
+        ) {
+          paramValue = []
+        }
         if (
           (repeat && !Array.isArray(paramValue)) ||
           (!repeat && typeof paramValue !== 'string')
@@ -648,13 +657,18 @@ export async function buildStaticPaths(
             } in getStaticPaths for ${page}`
           )
         }
-
-        builtPage = builtPage.replace(
-          `[${repeat ? '...' : ''}${validParamKey}]`,
-          repeat
-            ? (paramValue as string[]).map(encodeURIComponent).join('/')
-            : encodeURIComponent(paramValue as string)
-        )
+        let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
+        if (optional) {
+          replaced = `[${replaced}]`
+        }
+        builtPage = builtPage
+          .replace(
+            replaced,
+            repeat
+              ? (paramValue as string[]).map(encodeURIComponent).join('/')
+              : encodeURIComponent(paramValue as string)
+          )
+          .replace(/(?!^)\/$/, '')
       })
 
       prerenderPaths?.add(builtPage)
@@ -776,16 +790,16 @@ export async function isPageStatic(
 
 export function hasCustomGetInitialProps(
   bundle: string,
-  runtimeEnvConfig: any
+  runtimeEnvConfig: any,
+  checkingApp: boolean
 ): boolean {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   let mod = require(bundle)
 
-  if (bundle.endsWith('_app.js') || bundle.endsWith('_error.js')) {
-    mod = mod.default || mod
+  if (checkingApp) {
+    mod = mod._app || mod.default || mod
   } else {
-    // since we don't output _app in serverless mode get it from a page
-    mod = mod._app
+    mod = mod.default || mod
   }
   return mod.getInitialProps !== mod.origGetInitialProps
 }

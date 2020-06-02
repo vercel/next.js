@@ -18,9 +18,20 @@
   "settings": {
     "react": {
       "version": "detect"
-    }
+    },
+    "import/internal-regex": "^next/"
   },
   "overrides": [
+    {
+      "files": ["packages/**"],
+      "rules": {
+        "no-shadow": ["warn", { "builtinGlobals": false }],
+        "import/no-extraneous-dependencies": [
+          "error",
+          { "devDependencies": false }
+        ]
+      }
+    },
     {
       "files": ["test/**/*.test.js"],
       "extends": ["plugin:jest/recommended"],

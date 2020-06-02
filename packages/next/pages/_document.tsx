@@ -23,8 +23,6 @@ export type OriginProps = {
   crossOrigin?: string
 }
 
-export async function middleware({ req, res }: DocumentContext) {}
-
 function dedupe(bundles: any[]): any[] {
   const files = new Set()
   const kept = []
@@ -103,7 +101,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 
   static renderDocument<P>(
-    Document: new () => Document<P>,
+    DocumentComponent: new () => Document<P>,
     props: DocumentProps & P
   ): React.ReactElement {
     return (
@@ -111,13 +109,13 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         value={{
           _documentProps: props,
           // In dev we invalidate the cache by appending a timestamp to the resource URL.
-          // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+          // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
           // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
           _devOnlyInvalidateCacheQueryString:
             process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
         }}
       >
-        <Document {...props} />
+        <DocumentComponent {...props} />
       </DocumentComponentContext.Provider>
     )
   }
@@ -635,7 +633,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/zeit/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/vercel/next.js/circular-structure`
         )
       }
       throw err
@@ -661,7 +659,7 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
-      const devFiles = [
+      const AmpDevFiles = [
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -683,8 +681,8 @@ export class NextScript extends Component<OriginProps> {
               data-ampdevmode
             />
           )}
-          {devFiles
-            ? devFiles.map((file) => (
+          {AmpDevFiles
+            ? AmpDevFiles.map((file) => (
                 <script
                   key={file}
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}

@@ -47,6 +47,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { BuildManifest } from '../next-server/server/get-page-files'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -64,14 +65,15 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getJsPageSizeInKb,
+  getNamedExports,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNamedExports,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
+import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 
 const staticCheckWorker = require.resolve('./utils')
@@ -99,12 +101,12 @@ export type PrerenderManifest = {
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
-      '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
+      '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
     )
   }
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  const { loadedEnvFiles } = loadEnvConfig(dir)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -172,7 +174,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   eventNextPlugins(path.resolve(dir)).then((events) => telemetry.record(events))
 
-  await verifyTypeScriptSetup(dir, pagesDir)
+  const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+  await verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
 
   try {
     await promises.stat(publicDir)
@@ -215,7 +218,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     target,
     buildId,
     previewProps,
-    config
+    config,
+    loadedEnvFiles
   )
   const pageKeys = Object.keys(mappedPages)
   const conflictingPublicFiles: string[] = []
@@ -251,9 +255,29 @@ export default async function build(dir: string, conf = null): Promise<void> {
     throw new Error(
       `Conflicting public and page file${
         numConflicting === 1 ? ' was' : 's were'
-      } found. https://err.sh/zeit/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+      } found. https://err.sh/vercel/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
         '\n'
       )}`
+    )
+  }
+
+  const nestedReservedPages = pageKeys.filter((page) => {
+    return (
+      page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
+    )
+  })
+
+  if (nestedReservedPages.length) {
+    console.warn(
+      '\n' +
+        chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
+        ) +
+        nestedReservedPages.join('\n') +
+        chalk.bold(
+          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+        )
     )
   }
 
@@ -355,7 +379,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn(
       chalk.bold.yellow(`Warning: `) +
         chalk.bold(
-          `Production code optimization has been disabled in your project. Read more: https://err.sh/zeit/next.js/minification-disabled`
+          `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
         )
     )
   }
@@ -363,7 +387,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const webpackBuildStart = process.hrtime()
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
+  // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
   if (isLikeServerless) {
     const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
@@ -409,7 +433,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const parsed = page_name_regex.exec(error)
       const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(
-        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
+        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.`
       )
     }
 
@@ -421,7 +445,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('__next_polyfill__') > -1
     ) {
       throw new Error(
-        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
+        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/vercel/next.js/invalid-resolve-alias'
       )
     }
     throw new Error('> Build failed because of webpack errors')
@@ -461,10 +485,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(
     await promises.readFile(manifestPath, 'utf8')
-  )
+  ) as PagesManifest
   const buildManifest = JSON.parse(
     await promises.readFile(buildManifestPath, 'utf8')
-  )
+  ) as BuildManifest
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
@@ -494,7 +518,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           : ['server', 'static', buildId, 'pages']),
         '_error.js'
       ),
-      runtimeEnvConfig
+      runtimeEnvConfig,
+      false
     ))
 
   const analysisBegin = process.hrtime()
@@ -537,7 +562,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
-          runtimeEnvConfig
+          runtimeEnvConfig,
+          true
         )
 
         namedExports = getNamedExports(
@@ -566,18 +592,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          let result = await staticCheckWorkers.isPageStatic(
+          let workerResult = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
             runtimeEnvConfig
           )
 
-          if (result.isHybridAmp) {
+          if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
           }
 
-          if (result.isAmpOnly) {
+          if (workerResult.isAmpOnly) {
             // ensure all AMP only bundles got removed
             try {
               const clientBundle = path.join(
@@ -601,32 +627,35 @@ export default async function build(dir: string, conf = null): Promise<void> {
             }
           }
 
-          if (result.hasStaticProps) {
+          if (workerResult.hasStaticProps) {
             ssgPages.add(page)
             isSsg = true
 
-            if (result.prerenderRoutes) {
-              additionalSsgPaths.set(page, result.prerenderRoutes)
-              ssgPageRoutes = result.prerenderRoutes
+            if (workerResult.prerenderRoutes) {
+              additionalSsgPaths.set(page, workerResult.prerenderRoutes)
+              ssgPageRoutes = workerResult.prerenderRoutes
             }
-            if (result.prerenderFallback) {
+            if (workerResult.prerenderFallback) {
               hasSsgFallback = true
               ssgFallbackPages.add(page)
             }
-          } else if (result.hasServerProps) {
+          } else if (workerResult.hasServerProps) {
             serverPropsPages.add(page)
-          } else if (result.isStatic && customAppGetInitialProps === false) {
+          } else if (
+            workerResult.isStatic &&
+            customAppGetInitialProps === false
+          ) {
             staticPages.add(page)
             isStatic = true
           }
 
           if (hasPages404 && page === '/404') {
-            if (!result.isStatic && !result.hasStaticProps) {
+            if (!workerResult.isStatic && !workerResult.hasStaticProps) {
               throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps
-            if (customAppGetInitialProps && !result.hasStaticProps) {
+            if (customAppGetInitialProps && !workerResult.hasStaticProps) {
               staticPages.delete(page)
             }
           }
@@ -717,7 +746,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         .map((pg) => `pages${pg}`)
         .join(
           '\n'
-        )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
+        )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
     )
   }
 

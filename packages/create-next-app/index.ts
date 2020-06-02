@@ -1,15 +1,15 @@
 #!/usr/bin/env node
+/* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
-
-import { createApp } from './create-app'
+import { createApp, DownloadError } from './create-app'
+import { listExamples } from './helpers/examples'
+import { shouldUseYarn } from './helpers/should-use-yarn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
-import { shouldUseYarn } from './helpers/should-use-yarn'
-import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -133,7 +133,7 @@ async function run(): Promise<void> {
       }
 
       if (examplesJSON) {
-        const choices = examplesJSON.map((example: any) => ({
+        const allChoices = examplesJSON.map((example: any) => ({
           title: example.name,
           value: example.name,
         }))
@@ -145,7 +145,7 @@ async function run(): Promise<void> {
           type: 'autocomplete',
           name: 'exampleName',
           message: 'Pick an example',
-          choices,
+          choices: allChoices,
           suggest: (input: any, choices: any) => {
             const regex = new RegExp(input, 'i')
             return choices.filter((choice: any) => regex.test(choice.title))
@@ -166,12 +166,32 @@ async function run(): Promise<void> {
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
-  await createApp({
-    appPath: resolvedProjectPath,
-    useNpm: !!program.useNpm,
-    example: example && example !== 'default' ? example : undefined,
-    examplePath: program.examplePath,
-  })
+  try {
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      example: example && example !== 'default' ? example : undefined,
+      examplePath: program.examplePath,
+    })
+  } catch (reason) {
+    if (!(reason instanceof DownloadError)) {
+      throw reason
+    }
+
+    const res = await prompts({
+      type: 'confirm',
+      name: 'builtin',
+      message:
+        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+        `Do you want to use the default template instead?`,
+      initial: true,
+    })
+    if (!res.builtin) {
+      throw reason
+    }
+
+    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+  }
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)

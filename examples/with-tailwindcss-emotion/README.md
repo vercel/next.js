@@ -1,6 +1,6 @@
 # Tailwind CSS with Emotion.js example
 
-This is an example of how you can add [tailwind CSS](https://tailwindcss.com/) with [Emotion.js](https://emotion.sh/docs/introduction) in your web app. It takes inspiration from [examples/with-tailwindcss](https://github.com/zeit/next.js/blob/canary/examples/with-tailwindcss/README.md).
+This is an example of how you can add [tailwind CSS](https://tailwindcss.com/) with [Emotion.js](https://emotion.sh/docs/introduction) in your web app. It takes inspiration from [examples/with-tailwindcss](https://github.com/vercel/next.js/blob/canary/examples/with-tailwindcss/README.md).
 
 `@tailwindcssinjs/macro` is used to add tailwind classes inside Emotion by injecting the tailwind CSS into the styled component. No need to use CSS files, autoprefix, minifier, etc. You will get the full benefits of Emotion.
 
@@ -8,16 +8,16 @@ This is an example of how you can add [tailwind CSS](https://tailwindcss.com/) w
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-tailwindcss-emotion)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-tailwindcss-emotion with-tailwindcss-emotion-app
+npx create-next-app --example with-tailwindcss-emotion with-tailwindcss-emotion-app
 # or
 yarn create next-app --example with-tailwindcss-emotion with-tailwindcss-emotion-app
 ```
@@ -27,7 +27,7 @@ yarn create next-app --example with-tailwindcss-emotion with-tailwindcss-emotion
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-tailwindcss-emotion
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-tailwindcss-emotion
 cd with-tailwindcss-emotion
 ```
 

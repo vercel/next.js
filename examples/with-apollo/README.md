@@ -15,7 +15,7 @@ https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-apollo)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-apollo)
 
 _Live Example: https://next-with-apollo.now.sh_
 
@@ -23,10 +23,10 @@ _Live Example: https://next-with-apollo.now.sh_
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-apollo with-apollo-app
+npx create-next-app --example with-apollo with-apollo-app
 # or
 yarn create next-app --example with-apollo with-apollo-app
 ```
@@ -36,7 +36,7 @@ yarn create next-app --example with-apollo with-apollo-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-apollo
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-apollo
 cd with-apollo
 ```
 

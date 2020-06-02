@@ -9,6 +9,7 @@ import {
 } from 'source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
@@ -57,7 +58,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const compilation = isServerSide
         ? options.serverStats()?.compilation
         : options.stats()?.compilation
-      const m = compilation?.modules?.find((m) => m.id === id)
+      const m = compilation?.modules?.find(
+        (searchModule) => searchModule.id === id
+      )
       return (
         m?.source(
           compilation.dependencyTemplates,

@@ -8,20 +8,22 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-sanity cms-sanity-app
+npx create-next-app --example cms-sanity cms-sanity-app
 # or
 yarn create next-app --example cms-sanity cms-sanity-app
 ```
@@ -31,7 +33,7 @@ yarn create next-app --example cms-sanity cms-sanity-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-sanity
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-sanity
 cd cms-sanity
 ```
 
@@ -130,7 +132,7 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 9. Try preview mode
 

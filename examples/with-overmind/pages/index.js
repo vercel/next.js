@@ -1,4 +1,3 @@
-import React from 'react'
 import { createOvermindSSR } from 'overmind'
 import { config } from '../overmind'
 import Header from '../components/Header'
@@ -24,7 +23,7 @@ export async function getStaticProps() {
   ]
 
   return {
-    mutations: overmind.hydrate(),
+    props: { mutations: overmind.hydrate() },
   }
 }
 

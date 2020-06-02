@@ -168,7 +168,11 @@ export default class HotReloader {
     this.previewProps = previewProps
   }
 
-  async run(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlObject) {
+  public async run(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl: UrlObject
+  ) {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
@@ -183,10 +187,10 @@ export default class HotReloader {
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (
-      res: ServerResponse,
-      parsedUrl: UrlObject
+      pageBundleRes: ServerResponse,
+      parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
-      const { pathname } = parsedUrl
+      const { pathname } = parsedPageBundleUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
@@ -201,7 +205,7 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(res, error)
+          await renderScriptError(pageBundleRes, error)
           return { finished: true }
         }
 
@@ -216,15 +220,15 @@ export default class HotReloader {
         try {
           const mod = require(bundlePath)
           if (mod?.config?.amp === true) {
-            res.statusCode = 404
-            res.end()
+            pageBundleRes.statusCode = 404
+            pageBundleRes.end()
             return { finished: true }
           }
         } catch (_) {}
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(res, errors[0])
+          await renderScriptError(pageBundleRes, errors[0])
           return { finished: true }
         }
       }
@@ -246,11 +250,11 @@ export default class HotReloader {
     return { finished }
   }
 
-  async clean(): Promise<void> {
+  private async clean(): Promise<void> {
     return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
-  async getWebpackConfig() {
+  private async getWebpackConfig() {
     const pagePaths = await Promise.all([
       findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
       findPageFile(this.pagesDir, '/_document', this.config.pageExtensions),
@@ -266,7 +270,8 @@ export default class HotReloader {
       'server',
       this.buildId,
       this.previewProps,
-      this.config
+      this.config,
+      []
     )
 
     let additionalClientEntrypoints: { [file: string]: string } = {}
@@ -301,7 +306,7 @@ export default class HotReloader {
     ])
   }
 
-  async start(): Promise<void> {
+  public async start(): Promise<void> {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
@@ -318,7 +323,7 @@ export default class HotReloader {
     ] = ((await this.waitUntilValid()) as any).stats
   }
 
-  async stop(
+  public async stop(
     webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
   ): Promise<void> {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
@@ -332,29 +337,7 @@ export default class HotReloader {
     }
   }
 
-  async reload(): Promise<void> {
-    this.stats = null
-    this.serverStats = null
-
-    await this.clean()
-
-    const configs = await this.getWebpackConfig()
-    const compiler = webpack(configs)
-
-    const buildTools = await this.prepareBuildTools(compiler)
-    // [Client, Server]
-    ;[
-      this.stats,
-      this.serverStats,
-    ] = ((await this.waitUntilValid()) as any).stats
-
-    const oldWebpackDevMiddleware = this.webpackDevMiddleware
-
-    this.assignBuildTools(buildTools)
-    await this.stop(oldWebpackDevMiddleware!)
-  }
-
-  assignBuildTools({
+  private assignBuildTools({
     webpackDevMiddleware,
     webpackHotMiddleware,
     onDemandEntries,
@@ -380,7 +363,7 @@ export default class HotReloader {
     ]
   }
 
-  async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
+  private async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
@@ -508,7 +491,6 @@ export default class HotReloader {
       {
         buildId: this.buildId,
         pagesDir: this.pagesDir,
-        reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
@@ -524,19 +506,14 @@ export default class HotReloader {
     }
   }
 
-  waitUntilValid(
-    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
-  ): Promise<webpack.Stats> {
-    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
+  private waitUntilValid(): Promise<webpack.Stats> {
     return new Promise((resolve) => {
-      middleware!.waitUntilValid(resolve)
+      this.webpackDevMiddleware!.waitUntilValid(resolve)
     })
   }
 
-  async getCompilationErrors(page: string) {
+  public async getCompilationErrors(page: string) {
     const normalizedPage = normalizePage(page)
-    // When we are reloading, we need to wait until it's reloaded properly.
-    await this.onDemandEntries.waitUntilReloaded()
 
     if (this.stats.hasErrors()) {
       const { compilation } = this.stats
@@ -561,11 +538,11 @@ export default class HotReloader {
     return []
   }
 
-  send = (action: string, ...args: any[]): void => {
+  private send(action: string, ...args: any[]): void {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 
-  async ensurePage(page: string) {
+  public async ensurePage(page: string) {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
