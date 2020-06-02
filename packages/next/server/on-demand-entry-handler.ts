@@ -11,7 +11,10 @@ import * as Log from '../build/output/log'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE } from '../lib/constants'
 import { ROUTE_NAME_REGEX } from '../next-server/lib/constants'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  normalizePagePath,
+  denormalizePagePath,
+} from '../next-server/server/normalize-page-path'
 import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
 
@@ -122,7 +125,7 @@ export default function onDemandEntryHandler(
 
     // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
     for (const pagePath of pagePaths) {
-      const page = normalizePage('/' + pagePath)
+      const page = denormalizePagePath('/' + pagePath)
 
       const entry = entries[page]
       if (!entry) {
@@ -320,10 +323,7 @@ function disposeInactiveEntries(
 // This also applies to sub pages as well.
 export function normalizePage(page: string) {
   const unixPagePath = page.replace(/\\/g, '/')
-  if (unixPagePath === '/index' || unixPagePath === '/') {
-    return '/'
-  }
-  return unixPagePath.replace(/\/index$/, '')
+  return unixPagePath
 }
 
 // Make sure only one invalidation happens at a time
