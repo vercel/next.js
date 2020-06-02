@@ -10,7 +10,7 @@ export const fetchUsersEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.START_FETCHING_USERS),
     mergeMap((action) => {
-      return interval(3000).pipe(
+      return interval(5000).pipe(
         map((x) => actions.fetchUser()),
         takeUntil(
           action$.ofType(types.STOP_FETCHING_USERS, types.FETCH_USER_FAILURE)

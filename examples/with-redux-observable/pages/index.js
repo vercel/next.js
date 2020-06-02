@@ -1,16 +1,8 @@
 import { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import Link from 'next/link'
-import { of, Subject } from 'rxjs'
-import { StateObservable } from 'redux-observable'
 import UserInfo from '../components/UserInfo'
-import { rootEpic } from '../store/epics'
-import {
-  stopFetchingUsers,
-  startFetchingUsers,
-  fetchUser,
-} from '../store/actions'
-import { initializeStore } from '../store/store'
+import { stopFetchingUsers, startFetchingUsers } from '../store/actions'
 
 const Counter = () => {
   const dispatch = useDispatch()
@@ -35,14 +27,4 @@ const Counter = () => {
     </div>
   )
 }
-
-export async function getStaticProps() {
-  const store = initializeStore()
-  const state$ = new StateObservable(new Subject(), store.getState())
-  const resultAction = await rootEpic(of(fetchUser()), state$).toPromise() // we need to convert Observable to Promise
-  store.dispatch(resultAction)
-
-  return { props: {} }
-}
-
 export default Counter
