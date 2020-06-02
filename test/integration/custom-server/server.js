@@ -25,7 +25,7 @@ app.prepare().then(() => {
     }
 
     if (/test-index-hmr/.test(req.url)) {
-      return app.render(req, res, '/index')
+      return app.render(req, res, '/')
     }
 
     if (/dashboard/.test(req.url)) {
