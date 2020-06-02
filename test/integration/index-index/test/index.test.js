@@ -44,7 +44,7 @@ function runTests() {
   })
 
   it('should client render page /index', async () => {
-    const browser = await webdriver(appPort, '/')
+    const browser = await webdriver(appPort, '/index')
     try {
       const text = await browser.elementByCss('#page').text()
       expect(text).toBe('index > index')
@@ -60,7 +60,7 @@ function runTests() {
   })
 
   it('should client render page /index/index', async () => {
-    const browser = await webdriver(appPort, '/')
+    const browser = await webdriver(appPort, '/index/index')
     try {
       const text = await browser.elementByCss('#page').text()
       expect(text).toBe('index > index > index')
@@ -70,8 +70,8 @@ function runTests() {
   })
 
   it('should 404 on /index/index/index', async () => {
-    const response = await fetchViaHTTP(appPort, '/index/index')
-    expect(response.status()).toBe(404)
+    const response = await fetchViaHTTP(appPort, '/index/index/index')
+    expect(response.status).toBe(404)
   })
 }
 
