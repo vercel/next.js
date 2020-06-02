@@ -52,15 +52,23 @@ export function getRouteRegex(
     namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {
+        const isOptional = /^\\\[.*\\\]$/.test($1)
+        if (isOptional) {
+          $1 = $1.slice(2, -2)
+        }
         isCatchAll = /^(\\\.){3}/.test($1)
         const key = $1
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
           .replace(/^\.{3}/, '')
 
+        const escapedKey = escapeRegex(key)
+
         return isCatchAll
-          ? `/(?<${escapeRegex(key)}>.+?)`
-          : `/(?<${escapeRegex(key)}>[^/]+?)`
+          ? isOptional
+            ? `(?:/(?<${escapedKey}>.+?))?`
+            : `/(?<${escapedKey}>.+?)`
+          : `/(?<${escapedKey}>[^/]+?)`
       }
     )
   }
