@@ -8,10 +8,9 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
-import { denormalizePagePath } from '../../../next-server/server/normalize-page-path'
+import { routeFromEntryFile } from './pages-manifest-plugin'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
@@ -82,12 +81,7 @@ export default class BuildManifestPlugin {
 
         // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
         for (const [, entrypoint] of compilation.entrypoints.entries()) {
-          const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
-          if (!result) {
-            continue
-          }
-
-          const pagePath = result[1]
+          const pagePath = routeFromEntryFile(entrypoint.name)
 
           if (!pagePath) {
             continue
@@ -114,9 +108,7 @@ export default class BuildManifestPlugin {
             filesForEntry.push(file.replace(/\\/g, '/'))
           }
 
-          assetMap.pages[
-            denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
-          ] = [...filesForEntry, ...mainJsFiles]
+          assetMap.pages[pagePath] = [...filesForEntry, ...mainJsFiles]
         }
 
         if (typeof assetMap.pages['/index'] !== 'undefined') {

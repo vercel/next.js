@@ -24,6 +24,7 @@ import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
+import { routeFromEntryFile } from '../build/webpack/plugins/pages-manifest-plugin'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -425,18 +426,14 @@ export default class HotReloader {
 
           if (addedPages.size > 0) {
             for (const addedPage of addedPages) {
-              let page = denormalizePagePath(
-                '/' + ROUTE_NAME_REGEX.exec(addedPage)![1].replace(/\\/g, '/')
-              )
+              const page = routeFromEntryFile(addedPage)
               this.send('addedPage', page)
             }
           }
 
           if (removedPages.size > 0) {
             for (const removedPage of removedPages) {
-              let page = denormalizePagePath(
-                '/' + ROUTE_NAME_REGEX.exec(removedPage)![1].replace(/\\/g, '/')
-              )
+              const page = routeFromEntryFile(removedPage)
               this.send('removedPage', page)
             }
           }
