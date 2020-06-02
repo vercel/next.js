@@ -294,28 +294,6 @@ export function tryGetPreviewData(
     return false
   }
 
-  return tryGetPreviewDataFromCookies(req, res, options, cookies)
-}
-
-function getPreviewDataParser(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  opts: __ApiPreviewProps
-): () => object | string | undefined {
-  // Similar to tryGetPreviewData, except assumes cookies have already been parsed, and
-  // returns undefined instead of false
-  return function () {
-    const cookies = req.cookies
-    return tryGetPreviewDataFromCookies(req, res, opts, cookies) || undefined
-  }
-}
-
-function tryGetPreviewDataFromCookies(
-  req: IncomingMessage,
-  res: ServerResponse,
-  options: __ApiPreviewProps,
-  cookies: NextApiRequestCookies
-): object | string | false {
   const hasBypass = COOKIE_NAME_PRERENDER_BYPASS in cookies
   const hasData = COOKIE_NAME_PRERENDER_DATA in cookies
 
@@ -369,6 +347,16 @@ function tryGetPreviewDataFromCookies(
     return data
   } catch {
     return false
+  }
+}
+
+function getPreviewDataParser(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  opts: __ApiPreviewProps
+): () => object | string | undefined {
+  return function () {
+    return tryGetPreviewData(req, res, opts) || undefined
   }
 }
 
