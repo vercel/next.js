@@ -11,6 +11,7 @@ import {
   ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
+import { denormalizePagePath } from '../../../next-server/server/normalize-page-path'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
@@ -113,10 +114,9 @@ export default class BuildManifestPlugin {
             filesForEntry.push(file.replace(/\\/g, '/'))
           }
 
-          assetMap.pages[`/${pagePath.replace(/\\/g, '/')}`] = [
-            ...filesForEntry,
-            ...mainJsFiles,
-          ]
+          assetMap.pages[
+            denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
+          ] = [...filesForEntry, ...mainJsFiles]
         }
 
         if (typeof assetMap.pages['/index'] !== 'undefined') {

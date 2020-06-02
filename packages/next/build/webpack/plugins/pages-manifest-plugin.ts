@@ -7,6 +7,29 @@ import {
 } from '../../../next-server/lib/constants'
 import { denormalizePagePath } from '../../../next-server/server/normalize-page-path'
 
+export function routeFromEntryFile(
+  entryFile: string,
+  isServerlessLike: boolean = false
+): string | null {
+  const result = (isServerlessLike
+    ? SERVERLESS_ROUTE_NAME_REGEX
+    : ROUTE_NAME_REGEX
+  ).exec(entryFile)
+
+  if (!result) {
+    return null
+  }
+
+  // pagePath is in the format of normalizePagePath
+  const pagePath = result[1]
+
+  if (!pagePath) {
+    return null
+  }
+
+  return denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
+}
+
 export type PagesManifest = { [page: string]: string }
 
 // This plugin creates a pages-manifest.json from page entrypoints.
@@ -25,26 +48,14 @@ export default class PagesManifestPlugin implements Plugin {
       const pages: PagesManifest = {}
 
       for (const chunk of chunks) {
-        const result = (this.serverless
-          ? SERVERLESS_ROUTE_NAME_REGEX
-          : ROUTE_NAME_REGEX
-        ).exec(chunk.name)
-
-        if (!result) {
-          continue
-        }
-
-        // pagePath is in the format of normalizePagePath
-        const pagePath = result[1]
+        const pagePath = routeFromEntryFile(chunk.name, this.serverless)
 
         if (!pagePath) {
           continue
         }
 
         // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[
-          denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
-        ] = chunk.name.replace(/\\/g, '/')
+        pages[pagePath] = chunk.name.replace(/\\/g, '/')
       }
 
       compilation.assets[PAGES_MANIFEST] = new RawSource(
