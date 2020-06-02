@@ -140,10 +140,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           column: frameColumn,
         })
         if (pos.source) {
-          posSourceContent = consumer.sourceContentFor(
-            pos.source,
-            /* returnNullOnMissing */ true
-          )
+          posSourceContent =
+            consumer.sourceContentFor(
+              pos.source,
+              /* returnNullOnMissing */ true
+            ) ?? null
         }
         consumer.destroy()
       } catch (err) {
@@ -166,12 +167,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           : pos.source
       )
 
-      const fileContent: string | null =
-        posSourceContent ??
-        (await fs.readFile(filePath, 'utf-8').catch(() => null))
-
       const originalFrame: StackFrame = {
-        file: fileContent
+        file: posSourceContent
           ? path.relative(options.rootDirectory, filePath)
           : pos.source,
         lineNumber: pos.line,
@@ -181,9 +178,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const originalCodeFrame: string | null =
-        fileContent && pos.line
+        posSourceContent && pos.line
           ? (codeFrameColumns(
-              fileContent,
+              posSourceContent,
               { start: { line: pos.line, column: pos.column } },
               { forceColor: true }
             ) as string)
