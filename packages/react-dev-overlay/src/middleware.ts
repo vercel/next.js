@@ -178,7 +178,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const originalCodeFrame: string | null =
-        posSourceContent && pos.line
+        !(originalFrame.file?.includes('node_modules') ?? true) &&
+        posSourceContent &&
+        pos.line
           ? (codeFrameColumns(
               posSourceContent,
               { start: { line: pos.line, column: pos.column } },
