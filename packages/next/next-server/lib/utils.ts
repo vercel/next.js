@@ -196,7 +196,7 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Preview data set on the request, if any
    * */
-  previewData?: object | string
+  previewData?: any
 }
 
 /**
