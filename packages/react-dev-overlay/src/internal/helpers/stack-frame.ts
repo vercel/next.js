@@ -68,9 +68,10 @@ export function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded:
-        body.originalStackFrame?.file &&
-        !body.originalStackFrame.file.includes('node_modules'),
+      expanded: !Boolean(
+        /* collapsed */
+        body.originalStackFrame?.file?.includes('node_modules') ?? true
+      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
