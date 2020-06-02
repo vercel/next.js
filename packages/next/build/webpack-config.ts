@@ -360,23 +360,6 @@ export default async function getBaseWebpackConfig(
         vendors: false,
       },
     },
-    prod: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-        },
-        react: {
-          name: 'commons',
-          chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-subscription)[\\/]/,
-        },
-      },
-    },
     prodGranular: {
       chunks: 'all',
       cacheGroups: {
@@ -461,9 +444,7 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
   } else {
-    splitChunksConfig = config.experimental.granularChunks
-      ? splitChunksConfigs.prodGranular
-      : splitChunksConfigs.prod
+    splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
   const crossOrigin =
@@ -850,9 +831,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
-          config.experimental.granularChunks && !dev
-        ),
+        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(!dev),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
@@ -966,7 +945,6 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new BuildManifestPlugin({
           buildId,
-          clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
       tracer &&
@@ -1013,7 +991,6 @@ export default async function getBaseWebpackConfig(
                     .BlockedAPIToBePolyfilled,
               }),
             !isServer &&
-              config.experimental.granularChunks &&
               conformanceConfig.GranularChunksConformanceCheck.enabled &&
               new GranularChunksConformanceCheck(
                 splitChunksConfigs.prodGranular
