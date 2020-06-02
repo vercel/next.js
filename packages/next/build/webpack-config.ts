@@ -827,7 +827,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(!dev),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
