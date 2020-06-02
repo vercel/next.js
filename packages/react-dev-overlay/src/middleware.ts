@@ -132,12 +132,19 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       let pos: NullableMappedPosition
+      let posSourceContent: string | null = null
       try {
         const consumer = await new SourceMapConsumer(source.map())
         pos = consumer.originalPositionFor({
           line: frameLine,
           column: frameColumn,
         })
+        if (pos.source) {
+          posSourceContent = consumer.sourceContentFor(
+            pos.source,
+            /* returnNullOnMissing */ true
+          )
+        }
         consumer.destroy()
       } catch (err) {
         console.log('Failed to parse source map:', err)
@@ -158,9 +165,10 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           ? pos.source.substring(11)
           : pos.source
       )
-      const fileContent: string | null = await fs
-        .readFile(filePath, 'utf-8')
-        .catch(() => null)
+
+      const fileContent: string | null =
+        posSourceContent ??
+        (await fs.readFile(filePath, 'utf-8').catch(() => null))
 
       const originalFrame: StackFrame = {
         file: fileContent
