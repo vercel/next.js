@@ -617,7 +617,7 @@ describe('Production Usage', () => {
 
     for (let key of Object.keys(pagesManifest)) {
       expect(key).not.toMatch(/\\/)
-      expect(pagesManifest[key]).not.toMatch(/\\/)
+      expect(pagesManifest[key].js).not.toMatch(/\\/)
     }
   })
 
