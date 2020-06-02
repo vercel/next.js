@@ -58,6 +58,7 @@ export type NextRouter = BaseRouter &
     | 'beforePopState'
     | 'events'
     | 'isFallback'
+    | 'disableBfCache'
   >
 
 export type PrefetchOptions = {
@@ -857,5 +858,18 @@ export default class Router implements BaseRouter {
 
   notify(data: RouteInfo): Promise<void> {
     return this.sub(data, this.components['/_app'].Component)
+  }
+
+  // Sometimes you might want to disable browser Back-Forward Cache
+  // because it makes your state data to be out of sync with what
+  // forms are showing. This should be on a per-page basis.
+
+  disableBfCache(): void {
+    window.addEventListener('pageshow', (e: PageTransitionEvent): void => {
+      if (e.persisted || window.performance?.navigation.type === 2) {
+        const { pathname, query } = this
+        this.replace(formatWithValidation({ pathname, query }), getURL())
+      }
+    })
   }
 }

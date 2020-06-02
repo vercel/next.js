@@ -53,6 +53,7 @@ const coreMethodFields = [
   'back',
   'prefetch',
   'beforePopState',
+  'disableBfCache',
 ]
 
 // Events is a static property on the router, the router doesn't have to be initialized to use it
