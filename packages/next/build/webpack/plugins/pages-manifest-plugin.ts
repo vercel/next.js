@@ -5,6 +5,7 @@ import {
   ROUTE_NAME_REGEX,
   SERVERLESS_ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
+import { denormalizePagePath } from '../../../next-server/server/normalize-page-path'
 
 export type PagesManifest = { [page: string]: string }
 
@@ -33,6 +34,7 @@ export default class PagesManifestPlugin implements Plugin {
           continue
         }
 
+        // pagePath is in the format of normalizePagePath
         const pagePath = result[1]
 
         if (!pagePath) {
@@ -40,17 +42,14 @@ export default class PagesManifestPlugin implements Plugin {
         }
 
         // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = chunk.name.replace(
-          /\\/g,
-          '/'
-        )
+        pages[
+          denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
+        ] = chunk.name.replace(/\\/g, '/')
       }
 
-      if (typeof pages['/index'] !== 'undefined') {
-        pages['/'] = pages['/index']
-      }
-
-      compilation.assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages))
+      compilation.assets[PAGES_MANIFEST] = new RawSource(
+        JSON.stringify(pages, null, 2)
+      )
     })
   }
 }
