@@ -43,16 +43,10 @@ const generateClientManifest = (
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private clientManifest: boolean
   private modern: boolean
 
-  constructor(options: {
-    buildId: string
-    clientManifest: boolean
-    modern: boolean
-  }) {
+  constructor(options: { buildId: string; modern: boolean }) {
     this.buildId = options.buildId
-    this.clientManifest = options.clientManifest
     this.modern = options.modern
   }
 
@@ -142,15 +136,13 @@ export default class BuildManifestPlugin {
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
-        if (this.clientManifest) {
+        assetMap.lowPriorityFiles.push(
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+        )
+        if (this.modern) {
           assetMap.lowPriorityFiles.push(
-            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
           )
-          if (this.modern) {
-            assetMap.lowPriorityFiles.push(
-              `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
-            )
-          }
         }
 
         // Add the runtime ssg manifest file as a lazy-loaded file dependency.
@@ -179,26 +171,24 @@ export default class BuildManifestPlugin {
           JSON.stringify(assetMap, null, 2)
         )
 
-        if (this.clientManifest) {
-          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
-          compilation.assets[clientManifestPath] = new RawSource(
+        compilation.assets[clientManifestPath] = new RawSource(
+          `self.__BUILD_MANIFEST = ${generateClientManifest(
+            assetMap,
+            false
+          )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+        )
+
+        if (this.modern) {
+          const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
+
+          compilation.assets[modernClientManifestPath] = new RawSource(
             `self.__BUILD_MANIFEST = ${generateClientManifest(
               assetMap,
-              false
+              true
             )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
           )
-
-          if (this.modern) {
-            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
-
-            compilation.assets[modernClientManifestPath] = new RawSource(
-              `self.__BUILD_MANIFEST = ${generateClientManifest(
-                assetMap,
-                true
-              )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-            )
-          }
         }
         callback()
       }
