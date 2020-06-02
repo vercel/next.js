@@ -17,8 +17,8 @@ export interface GranularChunksConformanceCheck
 
 function getWarningMessage(modifiedProp: string) {
   return (
-    `${CONFORMANCE_WARNING_PREFIX}: The splitChunks config as part of the granularChunks flag has ` +
-    `been carefully crafted to optimize build size and build times. Modifying - ${chalk.bold(
+    `${CONFORMANCE_WARNING_PREFIX}: The splitChunks config has been carefully ` +
+    `crafted to optimize build size and build times. Modifying - ${chalk.bold(
       modifiedProp
     )} could result in slower builds and increased code duplication`
   )
@@ -26,8 +26,8 @@ function getWarningMessage(modifiedProp: string) {
 
 function getErrorMessage(message: string) {
   return (
-    `${CONFORMANCE_ERROR_PREFIX}: The splitChunks config as part of the granularChunks flag has ` +
-    `been carefully crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
+    `${CONFORMANCE_ERROR_PREFIX}: The splitChunks config has been carefully ` +
+    `crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
       message
     )}`
   )

@@ -141,7 +141,7 @@ export function createEntrypoints(
         pageLoaderOpts
       )}!`
 
-      // Make sure next/router is a dependency of _app or else granularChunks
+      // Make sure next/router is a dependency of _app or else chunk splitting
       // might cause the router to not be able to load causing hydration
       // to fail
 

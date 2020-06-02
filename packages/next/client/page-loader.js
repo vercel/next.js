@@ -57,7 +57,7 @@ export default class PageLoader {
     this.pageCache = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
-    if (process.env.__NEXT_GRANULAR_CHUNKS) {
+    if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
@@ -215,7 +215,7 @@ export default class PageLoader {
 
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
-        if (process.env.__NEXT_GRANULAR_CHUNKS) {
+        if (process.env.NODE_ENV === 'production') {
           this.getDependencies(route).then((deps) => {
             deps.forEach((d) => {
               if (
@@ -348,7 +348,7 @@ export default class PageLoader {
               relPrefetch,
               url.match(/\.css$/) ? 'style' : 'script'
             ),
-            process.env.__NEXT_GRANULAR_CHUNKS &&
+            process.env.NODE_ENV === 'production' &&
               !isDependency &&
               this.getDependencies(route).then((urls) =>
                 Promise.all(
