@@ -17,6 +17,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
 
 ## How to use
 
@@ -25,7 +26,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example blog-starter blog-starter-app
+npx create-next-app --example blog-starter blog-starter-app
 # or
 yarn create next-app --example blog-starter blog-starter-app
 ```
