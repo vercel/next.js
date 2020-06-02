@@ -8,11 +8,13 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 

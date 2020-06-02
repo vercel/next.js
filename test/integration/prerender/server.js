@@ -2,7 +2,7 @@ const http = require('http')
 const url = require('url')
 const fs = require('fs')
 const path = require('path')
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   let { pathname } = url.parse(req.url)
   pathname = pathname.replace(/\/$/, '')
   let isDataReq = false
@@ -92,9 +92,16 @@ const server = http.createServer((req, res) => {
       })
     }
     if (!res.finished) {
-      return typeof re.render === 'function'
-        ? re.render(req, res)
-        : re.default(req, res)
+      try {
+        return await (typeof re.render === 'function'
+          ? re.render(req, res)
+          : re.default(req, res))
+      } catch (e) {
+        console.log('FAIL_FUNCTION', e)
+        res.statusCode = 500
+        res.write('FAIL_FUNCTION')
+        res.end()
+      }
     }
   }
 })
