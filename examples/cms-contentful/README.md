@@ -8,11 +8,14 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
-- [Prismic](/examples/cms-prismic)
-- [TakeShape](/examples/cms-takeshape)
 - [Sanity](/examples/cms-sanity)
+- [TakeShape](/examples/cms-takeshape)
+- [Prismic](/examples/cms-prismic)
+- [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 

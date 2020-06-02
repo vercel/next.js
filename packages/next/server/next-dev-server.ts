@@ -5,7 +5,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import Worker from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
-import { join, relative, resolve, sep } from 'path'
+import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
@@ -73,7 +73,7 @@ export default class DevServer extends Server {
         )
       })
     }
-    if (fs.existsSync(join(this.dir, 'static'))) {
+    if (fs.existsSync(pathJoin(this.dir, 'static'))) {
       console.warn(
         `The static directory has been deprecated in favor of the public directory. https://err.sh/vercel/next.js/static-dir-deprecated`
       )
@@ -351,7 +351,7 @@ export default class DevServer extends Server {
 
     if (pathname!.startsWith('/_next')) {
       try {
-        await fs.promises.stat(join(this.publicDir, '_next'))
+        await fs.promises.stat(pathJoin(this.publicDir, '_next'))
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
       } catch (err) {}
     }
@@ -417,7 +417,7 @@ export default class DevServer extends Server {
       type: 'route',
       name: '_next/development catchall',
       fn: async (req, res, params) => {
-        const p = join(this.distDir, ...(params.path || []))
+        const p = pathJoin(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
         return {
           finished: true,
@@ -522,9 +522,9 @@ export default class DevServer extends Server {
       if (err.code === 'ENOENT') {
         try {
           await this.hotReloader!.ensurePage('/404')
-        } catch (err) {
-          if (err.code !== 'ENOENT') {
-            throw err
+        } catch (hotReloaderError) {
+          if (hotReloaderError.code !== 'ENOENT') {
+            throw hotReloaderError
           }
         }
 
@@ -592,13 +592,13 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathParts: string[]
   ): Promise<void> {
-    const p = join(this.publicDir, ...pathParts.map(encodeURIComponent))
+    const p = pathJoin(this.publicDir, ...pathParts.map(encodeURIComponent))
     return this.serveStatic(req, res, p)
   }
 
   async hasPublicFile(path: string): Promise<boolean> {
     try {
-      const info = await fs.promises.stat(join(this.publicDir, path))
+      const info = await fs.promises.stat(pathJoin(this.publicDir, path))
       return info.isFile()
     } catch (_) {
       return false
@@ -630,7 +630,7 @@ export default class DevServer extends Server {
     }
 
     // (2) Resolve "up paths" to determine real request
-    const untrustedFilePath = resolve(decodedUntrustedFilePath)
+    const untrustedFilePath = pathResolve(decodedUntrustedFilePath)
 
     // don't allow null bytes anywhere in the file path
     if (untrustedFilePath.indexOf('\0') !== -1) {
@@ -642,10 +642,10 @@ export default class DevServer extends Server {
     // Note that in development .next/server is available for error reporting purposes.
     // see `packages/next/next-server/server/next-server.ts` for more details.
     if (
-      untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
-      untrustedFilePath.startsWith(join(this.distDir, 'server') + sep) ||
-      untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
-      untrustedFilePath.startsWith(join(this.dir, 'public') + sep)
+      untrustedFilePath.startsWith(pathJoin(this.distDir, 'static') + sep) ||
+      untrustedFilePath.startsWith(pathJoin(this.distDir, 'server') + sep) ||
+      untrustedFilePath.startsWith(pathJoin(this.dir, 'static') + sep) ||
+      untrustedFilePath.startsWith(pathJoin(this.dir, 'public') + sep)
     ) {
       return true
     }
