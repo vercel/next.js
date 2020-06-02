@@ -24,7 +24,7 @@ exports['default'] = {
       simultaneousActions: 5,
       // allow connections to be created without remoteIp and remotePort (they will be set to 0)
       enforceConnectionProperties: true,
-      // disables the whitelisting of client params
+      // disables the access list of client params
       disableParamScrubbing: false,
       // params you would like hidden from any logs
       filteredParams: [],
