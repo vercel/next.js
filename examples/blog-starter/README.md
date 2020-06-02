@@ -12,12 +12,14 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 
 ### Related examples
 
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
 - [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
 
 ## How to use
 
