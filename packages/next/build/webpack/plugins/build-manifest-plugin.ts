@@ -79,13 +79,6 @@ export default class BuildManifestPlugin {
         )
         assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
 
-        for (const filePath of Object.keys(compilation.assets)) {
-          const path = filePath.replace(/\\/g, '/')
-          if (/^static\/development\/dll\//.test(path)) {
-            assetMap.devFiles.push(path)
-          }
-        }
-
         // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
         for (const [, entrypoint] of compilation.entrypoints.entries()) {
           const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
