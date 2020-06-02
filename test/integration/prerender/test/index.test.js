@@ -290,7 +290,7 @@ const navigateTest = (dev = false) => {
   })
 }
 
-const runTests = (dev = false, looseMode = false) => {
+const runTests = (dev = false, isEmulatedServerless = false) => {
   navigateTest(dev)
 
   it('should SSR normal page correctly', async () => {
@@ -503,7 +503,43 @@ const runTests = (dev = false, looseMode = false) => {
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
 
-  if (!looseMode) {
+  if (!isEmulatedServerless) {
+    it('should handle fallback only page correctly HTML', async () => {
+      const browser = await webdriver(appPort, '/fallback-only/first%2Fpost')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toContain('hi fallback')
+
+      // wait for fallback data to load
+      await check(() => browser.elementByCss('p').text(), /Post/)
+
+      // check fallback data
+      const post = await browser.elementByCss('p').text()
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+
+      expect(post).toContain('first/post')
+      expect(params).toEqual({
+        slug: 'first/post',
+      })
+      expect(query).toEqual(params)
+    })
+
+    it('should handle fallback only page correctly data', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(
+          appPort,
+          `/_next/data/${buildId}/fallback-only/second%2Fpost.json`
+        )
+      )
+
+      expect(data.pageProps.params).toEqual({
+        slug: 'second/post',
+      })
+    })
+  }
+
+  if (!isEmulatedServerless) {
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(
         appPort,
@@ -746,8 +782,13 @@ const runTests = (dev = false, looseMode = false) => {
         /Failed to load static props/
       )
     })
+
+    it('should not contain headers already sent error', async () => {
+      await renderViaHTTP(appPort, '/fallback-only/some-fallback-post')
+      expect(stderr).not.toContain('ERR_HTTP_HEADERS_SENT')
+    })
   } else {
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
@@ -791,6 +832,18 @@ const runTests = (dev = false, looseMode = false) => {
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
           ),
           page: '/another',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-gssp.json$`
+          ),
+          page: '/bad-gssp',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-ssr.json$`
+          ),
+          page: '/bad-ssr',
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -853,6 +906,18 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/default-revalidate.json$`
           ),
           page: '/default-revalidate',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+          page: '/fallback-only/[slug]',
+          routeKeys: ['slug'],
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -937,6 +1002,16 @@ const runTests = (dev = false, looseMode = false) => {
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
         },
+        '/fallback-only/[slug]': {
+          dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/fallback-only/[slug].html',
+          routeRegex: normalizeRegEx(
+            '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
         '/lang/[lang]/about': {
           dataRoute: `/_next/data/${buildId}/lang/[lang]/about.json`,
           dataRouteRegex: normalizeRegEx(
@@ -998,7 +1073,7 @@ const runTests = (dev = false, looseMode = false) => {
       }
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle de-duping correctly', async () => {
         let vals = new Array(10).fill(null)
 
@@ -1028,7 +1103,7 @@ const runTests = (dev = false, looseMode = false) => {
       expect(initialHtml).toBe(newHtml)
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
         const initialHtml = await renderViaHTTP(appPort, route)
@@ -1081,6 +1156,35 @@ const runTests = (dev = false, looseMode = false) => {
       await waitFor(500)
       expect(stderr).not.toMatch(/Failed to update prerender files for/)
     })
+
+    if (isEmulatedServerless) {
+      it('should fail the api function instead of rendering 500', async () => {
+        const res = await fetchViaHTTP(appPort, '/api/bad')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (getServerSideProps)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (render)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-ssr')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should call /_error GIP on 500', async () => {
+        stderr = ''
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+        expect(stderr).toMatch('CUSTOM_ERROR_GIP_CALLED')
+        expect(stderr).not.toMatch('!!! WARNING !!!')
+      })
+    }
   }
 }
 
@@ -1290,6 +1394,8 @@ describe('SSG Prerender', () => {
   })
 
   describe('enumlated serverless mode', () => {
+    const cstmError = join(appDir, 'pages', '_error.js')
+
     beforeAll(async () => {
       const startServerlessEmulator = async (dir, port, buildId) => {
         const scriptPath = join(dir, 'server.js')
@@ -1298,7 +1404,11 @@ describe('SSG Prerender', () => {
           { ...process.env },
           { PORT: port, BUILD_ID: buildId }
         )
-        return initNextServerScript(scriptPath, /ready on/i, env)
+        return initNextServerScript(scriptPath, /ready on/i, env, false, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
       }
 
       origConfig = await fs.readFile(nextConfig, 'utf8')
@@ -1306,6 +1416,21 @@ describe('SSG Prerender', () => {
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`,
         'utf8'
+      )
+      await fs.writeFile(
+        cstmError,
+        `
+          function Error() {
+            return <div />
+          }
+
+          Error.getInitialProps = () => {
+            console.error('CUSTOM_ERROR_GIP_CALLED')
+            return {}
+          }
+
+          export default Error
+        `
       )
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
@@ -1318,6 +1443,7 @@ describe('SSG Prerender', () => {
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
     afterAll(async () => {
+      await fs.remove(cstmError)
       await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
@@ -1361,6 +1487,7 @@ describe('SSG Prerender', () => {
       '/catchall/[...slug].js',
       '/non-json/[p].js',
       '/blog/[post]/index.js',
+      '/fallback-only/[slug].js',
     ]
     const fallbackTruePageContents = {}
 

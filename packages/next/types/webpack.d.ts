@@ -2277,7 +2277,7 @@ declare module 'webpack' {
 
       function indent(s: string | string[]): string
 
-      function prefix(s: string | string[], prefix: string): string
+      function prefix(s: string | string[], prefixToAdd: string): string
 
       function asString(str: string | string[]): string
 
@@ -2292,7 +2292,7 @@ declare module 'webpack' {
         filterFn: (module: compilation.Module, num: number) => boolean,
         moduleTemplate: compilation.ModuleTemplate,
         dependencyTemplates: any,
-        prefix?: string
+        prefixToAdd?: string
       ): ConcatSource
     }
 

@@ -13,7 +13,7 @@ You can check the [Example Dockerfile for your own Node.js project](https://gith
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-docker with-docker-app
+npx create-next-app --example with-docker with-docker-app
 # or
 yarn create next-app --example with-docker with-docker-app
 ```

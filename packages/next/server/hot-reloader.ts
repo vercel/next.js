@@ -187,10 +187,10 @@ export default class HotReloader {
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (
-      res: ServerResponse,
-      parsedUrl: UrlObject
+      pageBundleRes: ServerResponse,
+      parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
-      const { pathname } = parsedUrl
+      const { pathname } = parsedPageBundleUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
@@ -205,7 +205,7 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(res, error)
+          await renderScriptError(pageBundleRes, error)
           return { finished: true }
         }
 
@@ -220,15 +220,15 @@ export default class HotReloader {
         try {
           const mod = require(bundlePath)
           if (mod?.config?.amp === true) {
-            res.statusCode = 404
-            res.end()
+            pageBundleRes.statusCode = 404
+            pageBundleRes.end()
             return { finished: true }
           }
         } catch (_) {}
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(res, errors[0])
+          await renderScriptError(pageBundleRes, errors[0])
           return { finished: true }
         }
       }

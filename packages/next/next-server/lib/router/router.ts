@@ -582,7 +582,7 @@ export default class Router implements BaseRouter {
             .then((res) => {
               const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolve) => {
+              return new Promise((resolveRouteInfo) => {
                 this.getInitialProps(Component, {
                   err,
                   pathname,
@@ -591,7 +591,7 @@ export default class Router implements BaseRouter {
                   (props) => {
                     routeInfo.props = props
                     routeInfo.error = err
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   },
                   (gipErr) => {
                     console.error(
@@ -600,12 +600,12 @@ export default class Router implements BaseRouter {
                     )
                     routeInfo.error = err
                     routeInfo.props = {}
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   }
                 )
               }) as Promise<RouteInfo>
             })
-            .catch((err) => handleError(err, true))
+            .catch((routeInfoErr) => handleError(routeInfoErr, true))
         )
       }) as Promise<RouteInfo>
     }
