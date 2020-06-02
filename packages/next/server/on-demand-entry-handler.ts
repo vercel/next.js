@@ -125,7 +125,7 @@ export default function onDemandEntryHandler(
 
     // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
     for (const pagePath of pagePaths) {
-      const page = denormalizePagePath('/' + pagePath)
+      const page = denormalizePagePath(normalizePage('/' + pagePath))
 
       const entry = entries[page]
       if (!entry) {
