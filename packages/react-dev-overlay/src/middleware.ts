@@ -58,7 +58,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const compilation = isServerSide
         ? options.serverStats()?.compilation
         : options.stats()?.compilation
-      const m = compilation?.modules?.find((m) => m.id === id)
+      const m = compilation?.modules?.find(
+        (searchModule) => searchModule.id === id
+      )
       return (
         m?.source(
           compilation.dependencyTemplates,
@@ -130,12 +132,20 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       let pos: NullableMappedPosition
+      let posSourceContent: string | null = null
       try {
         const consumer = await new SourceMapConsumer(source.map())
         pos = consumer.originalPositionFor({
           line: frameLine,
           column: frameColumn,
         })
+        if (pos.source) {
+          posSourceContent =
+            consumer.sourceContentFor(
+              pos.source,
+              /* returnNullOnMissing */ true
+            ) ?? null
+        }
         consumer.destroy()
       } catch (err) {
         console.log('Failed to parse source map:', err)
@@ -156,12 +166,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           ? pos.source.substring(11)
           : pos.source
       )
-      const fileContent: string | null = await fs
-        .readFile(filePath, 'utf-8')
-        .catch(() => null)
 
       const originalFrame: StackFrame = {
-        file: fileContent
+        file: posSourceContent
           ? path.relative(options.rootDirectory, filePath)
           : pos.source,
         lineNumber: pos.line,
@@ -171,9 +178,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const originalCodeFrame: string | null =
-        fileContent && pos.line
+        !(originalFrame.file?.includes('node_modules') ?? true) &&
+        posSourceContent &&
+        pos.line
           ? (codeFrameColumns(
-              fileContent,
+              posSourceContent,
               { start: { line: pos.line, column: pos.column } },
               { forceColor: true }
             ) as string)
