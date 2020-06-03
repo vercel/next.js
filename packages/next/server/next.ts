@@ -13,6 +13,12 @@ type NextServerConstructor = Omit<ServerConstructor, 'staticMarkup'> & {
 function createServer(options: NextServerConstructor): Server {
   const standardEnv = ['production', 'development', 'test']
 
+  if (options == null) {
+    throw new Error(
+      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+    )
+  }
+
   if (
     !(options as any).isNextDevCommand &&
     process.env.NODE_ENV &&
@@ -22,6 +28,12 @@ function createServer(options: NextServerConstructor): Server {
   }
 
   if (options.dev) {
+    if (typeof options.dev !== 'boolean') {
+      console.warn(
+        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://err.sh/next.js/invalid-server-options"
+      )
+    }
+
     const DevServer = require('./next-dev-server').default
     return new DevServer(options)
   }
