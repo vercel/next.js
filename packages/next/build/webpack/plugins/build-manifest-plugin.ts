@@ -79,8 +79,7 @@ export default class BuildManifestPlugin {
         )
         assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
 
-        // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
-        for (const [, entrypoint] of compilation.entrypoints.entries()) {
+        for (const entrypoint of compilation.entrypoints.values()) {
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
           if (!pagePath) {

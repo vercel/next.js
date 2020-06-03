@@ -14,7 +14,6 @@ export default function getRouteFromEntrypoint(
     return null
   }
 
-  // pagePath is in the format of normalizePagePath
   const pagePath = result[1]
 
   if (!pagePath) {
