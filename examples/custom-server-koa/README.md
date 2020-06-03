@@ -18,6 +18,14 @@ npx create-next-app --example custom-server-koa custom-server-koa-app
 yarn create next-app --example custom-server-koa custom-server-koa-app
 ```
 
+Define environment variables or use the default values:
+
+```sh
+# Relative path to .next directory
+NEXT_CLIENT_DIR=/
+NEXT_CONFIG_PATH=/next.config.js
+```
+
 ### Download manually
 
 Download the example:
