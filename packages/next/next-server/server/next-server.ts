@@ -475,7 +475,7 @@ export default class Server {
           type,
           match: getCustomRouteMatcher(r.source),
           name: type,
-          fn: async (req, res, params, parsedUrl) => ({ finished: false }),
+          fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
         } as Route & Rewrite & Header)
 
       const updateHeaderValue = (value: string, params: Params): string => {
@@ -672,7 +672,7 @@ export default class Server {
   }
 
   // Used to build API page in development
-  protected async ensureApiPage(pathname: string): Promise<void> {}
+  protected async ensureApiPage(_pathname: string): Promise<void> {}
 
   /**
    * Resolves `API` request, in development builds on demand

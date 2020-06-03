@@ -54,7 +54,7 @@ function ReactDevOverlay({ children }) {
   }, [dispatch])
 
   const onComponentError = React.useCallback(
-    (error: Error, componentStack: string | null) => {
+    (_error: Error, _componentStack: string | null) => {
       // TODO: special handling
     },
     []

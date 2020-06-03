@@ -154,7 +154,7 @@ export class DuplicatePolyfillsConformanceCheck
       },
       {
         visitor: 'visitCallExpression',
-        inspectNode: (path: NodePath, { request }: IParsedModuleDetails) => {
+        inspectNode: (path: NodePath) => {
           const { node }: { node: types.namedTypes.CallExpression } = path
           if (!node.arguments || node.arguments.length < 2) {
             return EARLY_EXIT_SUCCESS_RESULT

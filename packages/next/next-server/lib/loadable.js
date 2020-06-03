@@ -252,8 +252,7 @@ class LoadableSubscription {
         this._update({})
         this._clearTimeouts()
       })
-      // eslint-disable-next-line handle-callback-err
-      .catch((err) => {
+      .catch((_err) => {
         this._update({})
         this._clearTimeouts()
       })

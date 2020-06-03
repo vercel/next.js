@@ -681,7 +681,7 @@ export async function pages_document(task) {
   await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
-export async function pages(task, opts) {
+export async function pages(task, _opts) {
   await task.parallel(['pages_app', 'pages_error', 'pages_document'])
 }
 

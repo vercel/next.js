@@ -137,13 +137,15 @@ const interceptAllParserHooks = (moduleFactory: any, tracer: any) => {
   moduleTypes.forEach((moduleType) => {
     moduleFactory.hooks.parser
       .for(moduleType)
-      .tap('ProfilingPlugin', (parser: any, parserOpts: any) => {
+      .tap('ProfilingPlugin', (parser: any) => {
         interceptAllHooksFor(parser, tracer, 'Parser')
       })
   })
 }
 
-const makeInterceptorFor = (instance: any, tracer: any) => (hookName: any) => ({
+const makeInterceptorFor = (_instance: any, tracer: any) => (
+  hookName: any
+) => ({
   register: ({ name, type, context, fn }: any) => {
     const newFn = makeNewProfiledTapFn(hookName, tracer, {
       name,
@@ -172,7 +174,7 @@ const makeInterceptorFor = (instance: any, tracer: any) => (hookName: any) => ({
  * @returns {PluginFunction} Chainable hooked function.
  */
 const makeNewProfiledTapFn = (
-  hookName: any,
+  _hookName: any,
   tracer: any,
   { name, type, fn }: any
 ) => {
