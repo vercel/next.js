@@ -4,6 +4,8 @@ description: The complete Next.js runtime is now Strict Mode-compliant, learn ho
 
 # React Strict Mode
 
+> **Suggested**: We strongly suggest you enable Strict Mode in your Next.js application to better prepare your application for the future of React.
+
 The Next.js runtime is now Strict Mode-compliant. To opt-in to Strict Mode, configure the following option in your `next.config.js`:
 
 ```js
