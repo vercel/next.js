@@ -1,5 +1,8 @@
-import { ROUTE_NAME_REGEX, SERVERLESS_ROUTE_NAME_REGEX } from '../lib/constants'
 import { denormalizePagePath } from './normalize-page-path'
+
+// matches static/<buildid>/pages/:page*.js
+const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
+const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
 
 export default function getRouteFromEntrypoint(
   entryFile: string,

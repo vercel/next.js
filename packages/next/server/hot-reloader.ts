@@ -16,7 +16,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
@@ -520,7 +519,7 @@ export default class HotReloader {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation, {
         enhanceName(name) {
-          return '/' + ROUTE_NAME_REGEX.exec(name)![1]
+          return getRouteFromEntrypoint(name)
         },
       })
 
