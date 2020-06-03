@@ -62,6 +62,7 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
+  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
