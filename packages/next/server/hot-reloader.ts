@@ -269,7 +269,6 @@ export default class HotReloader {
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
-      /* dev */ true,
       pages,
       'server',
       this.buildId,
