@@ -519,7 +519,7 @@ export default class HotReloader {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation, {
         enhanceName(name) {
-          return getRouteFromEntrypoint(name)
+          return getRouteFromEntrypoint(name) || name
         },
       })
 
