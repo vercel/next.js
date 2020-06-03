@@ -119,7 +119,12 @@
         "import/no-extraneous-dependencies": [
           "error",
           { "devDependencies": false }
-        ],
+        ]
+      }
+    },
+    {
+      "files": ["packages/**/*.tsx", "packages/**/*.ts"],
+      "rules": {
         "@typescript-eslint/no-unused-vars": [
           "warn",
           {
