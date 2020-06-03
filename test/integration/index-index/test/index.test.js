@@ -93,10 +93,7 @@ describe('Dynamic Optional Routing', () => {
       const curConfig = await fs.readFile(nextConfig, 'utf8')
 
       if (curConfig.includes('target')) {
-        await fs.writeFile(
-          nextConfig,
-          `module.exports = { experimental: { optionalCatchAll: true } }`
-        )
+        await fs.writeFile(nextConfig, `module.exports = {}`)
       }
       await nextBuild(appDir)
 
@@ -115,7 +112,7 @@ describe('Dynamic Optional Routing', () => {
       origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless', experimental: { optionalCatchAll: true } }`
+        `module.exports = { target: 'serverless' }`
       )
 
       await nextBuild(appDir)

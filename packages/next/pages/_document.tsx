@@ -826,8 +826,6 @@ function getAmpPath(ampPath: string, asPath: string): string {
 }
 
 function getPageFile(page: string, buildId?: string): string {
-  // TODO: This is the same logic as in normalizePagePath
-  //       probably want to share some of the code here
   const startingUrl =
     page === '/'
       ? '/index'
