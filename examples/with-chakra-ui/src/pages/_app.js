@@ -10,7 +10,7 @@ class App extends NextApp {
       <ThemeProvider theme={theme}>
         <ColorModeProvider>
           <CSSReset />
-          <Component {...pageProps}/>
+          <Component {...pageProps} />
         </ColorModeProvider>
       </ThemeProvider>
     )
