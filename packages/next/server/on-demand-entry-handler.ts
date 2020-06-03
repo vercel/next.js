@@ -125,7 +125,7 @@ export default function onDemandEntryHandler(
 
     // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
     for (const pagePath of pagePaths) {
-      const page = denormalizePagePath(normalizePage('/' + pagePath))
+      const page = denormalizePagePath(normalizePathSep('/' + pagePath))
 
       const entry = entries[page]
       if (!entry) {
@@ -156,7 +156,7 @@ export default function onDemandEntryHandler(
   disposeHandler.unref()
 
   function handlePing(pg: string) {
-    const page = normalizePage(pg)
+    const page = normalizePathSep(pg)
     const entryInfo = entries[page]
     let toSend
 
@@ -232,7 +232,7 @@ export default function onDemandEntryHandler(
 
       return new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-        const normalizedPage = normalizePage(page)
+        const normalizedPage = normalizePathSep(page)
         const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
@@ -321,7 +321,7 @@ function disposeInactiveEntries(
 
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
-export function normalizePage(page: string) {
+export function normalizePathSep(page: string) {
   return page.replace(/\\/g, '/')
 }
 

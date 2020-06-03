@@ -22,9 +22,11 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
-import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
+import onDemandEntryHandler, {
+  normalizePathSep,
+} from './on-demand-entry-handler'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
-import { routeFromEntryFile } from '../build/webpack/plugins/pages-manifest-plugin'
+import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -426,14 +428,14 @@ export default class HotReloader {
 
           if (addedPages.size > 0) {
             for (const addedPage of addedPages) {
-              const page = routeFromEntryFile(addedPage)
+              const page = getRouteFromEntrypoint(addedPage)
               this.send('addedPage', page)
             }
           }
 
           if (removedPages.size > 0) {
             for (const removedPage of removedPages) {
-              const page = routeFromEntryFile(removedPage)
+              const page = getRouteFromEntrypoint(removedPage)
               this.send('removedPage', page)
             }
           }
@@ -511,7 +513,7 @@ export default class HotReloader {
   }
 
   public async getCompilationErrors(page: string) {
-    const normalizedPage = normalizePage(page)
+    const normalizedPage = normalizePathSep(page)
 
     if (this.stats.hasErrors()) {
       const { compilation } = this.stats

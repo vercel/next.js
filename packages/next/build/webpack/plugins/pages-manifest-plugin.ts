@@ -1,34 +1,7 @@
 import { Compiler, Plugin } from 'webpack'
 import { RawSource } from 'webpack-sources'
-import {
-  PAGES_MANIFEST,
-  ROUTE_NAME_REGEX,
-  SERVERLESS_ROUTE_NAME_REGEX,
-} from '../../../next-server/lib/constants'
-import { denormalizePagePath } from '../../../next-server/server/normalize-page-path'
-
-export function routeFromEntryFile(
-  entryFile: string,
-  isServerlessLike: boolean = false
-): string | null {
-  const result = (isServerlessLike
-    ? SERVERLESS_ROUTE_NAME_REGEX
-    : ROUTE_NAME_REGEX
-  ).exec(entryFile)
-
-  if (!result) {
-    return null
-  }
-
-  // pagePath is in the format of normalizePagePath
-  const pagePath = result[1]
-
-  if (!pagePath) {
-    return null
-  }
-
-  return denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
-}
+import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
+import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 
@@ -48,7 +21,7 @@ export default class PagesManifestPlugin implements Plugin {
       const pages: PagesManifest = {}
 
       for (const chunk of chunks) {
-        const pagePath = routeFromEntryFile(chunk.name, this.serverless)
+        const pagePath = getRouteFromEntrypoint(chunk.name, this.serverless)
 
         if (!pagePath) {
           continue

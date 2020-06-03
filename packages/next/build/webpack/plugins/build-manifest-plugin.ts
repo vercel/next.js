@@ -10,7 +10,7 @@ import {
   IS_BUNDLED_PAGE_REGEX,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
-import { routeFromEntryFile } from './pages-manifest-plugin'
+import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
@@ -81,7 +81,7 @@ export default class BuildManifestPlugin {
 
         // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
         for (const [, entrypoint] of compilation.entrypoints.entries()) {
-          const pagePath = routeFromEntryFile(entrypoint.name)
+          const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
           if (!pagePath) {
             continue
