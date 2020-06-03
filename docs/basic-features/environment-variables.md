@@ -67,19 +67,19 @@ export default HomePage
 
 ## Default Environment Variables
 
-In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
+In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`), `production` (`next start`) or `test` (depending on your test commands) environment.
 
-Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), and `.env.production` (production environment).
+Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), `.env.production` (production environment) and `.env.test` (testing environment).
 
-`.env.local` always overrides the defaults set.
+`.env.local` always overrides the defaults set, except for `test` environment since normally you expect tests to produce the same results for everyone.
 
-> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Note**: `.env`, `.env.development`, `.env.production` and `.env.test` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
 
 When deploying on [Vercel](https://vercel.com) you can configure secrets in the [Environment Variables](https://vercel.com/docs/v2/build-step#environment-variables) section of the project in the Vercel dashboard.
 
-You can still use `.env`, `.env.development` and `.env.production` to add defaults.
+You can still use `.env`, `.env.development`, `.env.production` and `.env.test` to add defaults.
 
 If you've configured [Development Environment Variables](https://vercel.com/docs/v2/build-step#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
 
