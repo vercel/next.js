@@ -393,10 +393,11 @@ function renderReactElement(reactEl, domEl) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
       const opts = { hydrate: true }
+
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? ReactDOM.unstable_createRoot(domEl, opts)
-          : ReactDOM.unstable_createBlockingRoot(domEl, opts)
+          ? ReactDOM.createRoot(domEl, opts)
+          : ReactDOM.createBlockingRoot(domEl, opts)
     }
     reactRoot.render(reactEl)
   } else {
