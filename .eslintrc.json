@@ -134,6 +134,22 @@
           }
         ]
       }
+    },
+    {
+      "files": ["**_document.*"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "next/head",
+                "message": "`next/head` should not be imported inside `_document`. https://err.sh/next.js/document-import-next-head"
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "rules": {
@@ -192,6 +208,17 @@
     "no-octal-escape": "warn",
     "no-redeclare": ["warn", { "builtinGlobals": false }],
     "no-regex-spaces": "warn",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "next/document",
+            "message": "`next/document` should not be imported outside `_document`. https://err.sh/next.js/no-document-import-next-document"
+          }
+        ]
+      }
+    ],
     "no-restricted-syntax": ["warn", "WithStatement"],
     "no-script-url": "warn",
     "no-self-assign": "warn",
