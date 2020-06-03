@@ -427,11 +427,16 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path.join('/')}`
+          const pathname = `/${params.path
+            // we need to re-encode the params since they are decoded
+            // by path-match and we are re-building the URL
+            .map((param: string) => encodeURIComponent(param))
+            .join('/')}`
             .replace(/\.json$/, '')
             .replace(/\/index$/, '/')
 
           const parsedUrl = parseUrl(pathname, true)
+
           await this.render(
             req,
             res,
@@ -494,15 +499,15 @@ export default class Server {
 
       // Headers come very first
       headers = this.customRoutes.headers.map((r) => {
-        const route = getCustomRoute(r, 'header')
+        const headerRoute = getCustomRoute(r, 'header')
         return {
-          match: route.match,
-          type: route.type,
-          name: `${route.type} ${route.source} header route`,
+          match: headerRoute.match,
+          type: headerRoute.type,
+          name: `${headerRoute.type} ${headerRoute.source} header route`,
           fn: async (_req, res, params, _parsedUrl) => {
             const hasParams = Object.keys(params).length > 0
 
-            for (const header of (route as Header).headers) {
+            for (const header of (headerRoute as Header).headers) {
               let { key, value } = header
               if (hasParams) {
                 key = updateHeaderValue(key, params)
@@ -516,22 +521,22 @@ export default class Server {
       })
 
       redirects = this.customRoutes.redirects.map((redirect) => {
-        const route = getCustomRoute(redirect, 'redirect')
+        const redirectRoute = getCustomRoute(redirect, 'redirect')
         return {
-          type: route.type,
-          match: route.match,
-          statusCode: route.statusCode,
+          type: redirectRoute.type,
+          match: redirectRoute.match,
+          statusCode: redirectRoute.statusCode,
           name: `Redirect route`,
           fn: async (_req, res, params, parsedUrl) => {
             const { parsedDestination } = prepareDestination(
-              route.destination,
+              redirectRoute.destination,
               params,
               parsedUrl.query
             )
             const updatedDestination = formatUrl(parsedDestination)
 
             res.setHeader('Location', updatedDestination)
-            res.statusCode = getRedirectStatus(route as Redirect)
+            res.statusCode = getRedirectStatus(redirectRoute as Redirect)
 
             // Since IE11 doesn't support the 308 header add backwards
             // compatibility using refresh header
@@ -548,15 +553,15 @@ export default class Server {
       })
 
       rewrites = this.customRoutes.rewrites.map((rewrite) => {
-        const route = getCustomRoute(rewrite, 'rewrite')
+        const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
         return {
           check: true,
-          type: route.type,
+          type: rewriteRoute.type,
           name: `Rewrite route`,
-          match: route.match,
+          match: rewriteRoute.match,
           fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination(
-              route.destination,
+              rewriteRoute.destination,
               params,
               parsedUrl.query,
               true
@@ -580,6 +585,7 @@ export default class Server {
               }
             }
             ;(req as any)._nextDidRewrite = true
+            ;(req as any)._nextRewroteUrl = newUrl
 
             return {
               finished: false,
@@ -729,6 +735,7 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
+      false,
       this.onErrorMiddleware
     )
     return true
@@ -959,7 +966,7 @@ export default class Server {
     }
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq
+    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
     delete query._nextDataReq
 
     let previewData: string | false | object | undefined
@@ -970,8 +977,15 @@ export default class Server {
       isPreviewMode = previewData !== false
     }
 
-    // Compute the iSSG cache key
-    let urlPathname = `${parseUrl(req.url || '').pathname!}`
+    // Compute the iSSG cache key. We use the rewroteUrl since
+    // pages with fallback: false are allowed to be rewritten to
+    // and we need to look up the path by the rewritten path
+    let urlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : `${parseUrl(req.url || '').pathname!}`
+
+    // remove trailing slash
+    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
@@ -1123,6 +1137,7 @@ export default class Server {
       }
 
       sendPayload(res, html, 'html')
+      return null
     }
 
     const {
@@ -1185,18 +1200,18 @@ export default class Server {
             continue
           }
 
-          const result = await this.findPageComponents(
+          const dynamicRouteResult = await this.findPageComponents(
             dynamicRoute.page,
             query,
             params
           )
-          if (result) {
+          if (dynamicRouteResult) {
             try {
               return await this.renderToHTMLWithComponents(
                 req,
                 res,
                 dynamicRoute.page,
-                result,
+                dynamicRouteResult,
                 { ...this.renderOpts, params }
               )
             } catch (err) {
@@ -1288,14 +1303,14 @@ export default class Server {
             err,
           }
         )
-      } catch (err) {
-        if (err instanceof NoFallbackError) {
+      } catch (maybeFallbackError) {
+        if (maybeFallbackError instanceof NoFallbackError) {
           throw new Error('invariant: failed to render error page')
         }
-        throw err
+        throw maybeFallbackError
       }
-    } catch (err) {
-      console.error(err)
+    } catch (renderToHtmlError) {
+      console.error(renderToHtmlError)
       res.statusCode = 500
       html = 'Internal Server Error'
     }

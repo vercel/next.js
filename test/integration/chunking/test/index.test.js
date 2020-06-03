@@ -139,7 +139,7 @@ describe('Chunking', () => {
 
     afterAll(() => stopApp(server))
 
-    it('should hydrate with granularChunks config', async () => {
+    it('should hydrate with aggressive chunking', async () => {
       const browser = await webdriver(appPort, '/page2')
       const text = await browser.elementByCss('#padded-str').text()
 
