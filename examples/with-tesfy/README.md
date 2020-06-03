@@ -1,16 +1,17 @@
 # Tesfy example
 
-[Tesfy](https://tesfy.io/) allows you to create **unlimited** A/B tests and Feature Flags for **free** using a [SaaS](https://app.tesfy.io/) or by your self.
+[Tesfy](https://tesfy.io/) allows you to create **unlimited** A/B Tests and Feature Flags for **free** using a [web app](https://app.tesfy.io/) or by your self.
 
 This example shows how to integrate [react-tesfy](https://github.com/andresz1/react-tesfy) in Next.js.
 
 To use Tesfy there are only two mandatory things needed. A `userId` and a configuration file known as `datafile`. In the `_app.js` you will notice that those are being get.
 
-The `userId` must uniquely identify a user even is not logged in, for that reason a [uuid](https://en.wikipedia.org/wiki/Universally_unique_identifier) is created and stored in cookie so next time a page is requested a new `userId` won't be created, instead the cookie one will be used.
+The `userId` must uniquely identify a user even if not logged in, for that reason a [uuid](https://en.wikipedia.org/wiki/Universally_unique_identifier) is created and stored in a cookie so the next time a page is requested a new `userId` won't be created, instead the cookie one will be used.
 
 The `datafile` is just a `json` that defines the configuration of the experiments and features avaliable. It must be fetched from Tesfy CDN or from your own servers everytime a request is performed, later on this configuration could also be fetched if wanted (e.g. during page transitions).
 
 ## Caveats
+
 - Since `getInitialProps` is defined in `_app.js` Automatic Static Optimization will be disabled. Static Generation is not supported yet.
 
 ## Deploy your own
