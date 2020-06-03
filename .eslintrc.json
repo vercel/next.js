@@ -77,7 +77,8 @@
         "@typescript-eslint/no-unused-vars": [
           "warn",
           {
-            "args": "none",
+            "args": "all",
+            "argsIgnorePattern": "^_",
             "ignoreRestSiblings": true
           }
         ],
