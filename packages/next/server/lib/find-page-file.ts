@@ -30,7 +30,7 @@ export async function findPageFile(
     const relativePagePath = `${normalizedPagePath}.${extension}`
     const pagePath = join(rootDir, relativePagePath)
 
-    // only /index and /sub/index when /sub/index/index.js is allowed
+    // only /sub/index when /sub/index/index.js is allowed
     // see test/integration/route-indexes for expected index handling
     if (
       normalizedPagePath.startsWith('/index') ||
@@ -41,13 +41,15 @@ export async function findPageFile(
       }
     }
 
-    const relativePagePathWithIndex = join(
-      normalizedPagePath,
-      `index.${extension}`
-    )
-    const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (await isWriteable(pagePathWithIndex)) {
-      foundPagePaths.push(relativePagePathWithIndex)
+    if (!normalizedPagePath.startsWith('/index')) {
+      const relativePagePathWithIndex = join(
+        normalizedPagePath,
+        `index.${extension}`
+      )
+      const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
+      if (await isWriteable(pagePathWithIndex)) {
+        foundPagePaths.push(relativePagePathWithIndex)
+      }
     }
   }
 

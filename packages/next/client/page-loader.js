@@ -28,7 +28,6 @@ function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
-  route = route.replace(/\/index$/, '/')
 
   if (route === '/') return route
   return route.replace(/\/$/, '')

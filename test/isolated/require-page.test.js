@@ -54,9 +54,10 @@ describe('normalizePagePath', () => {
 })
 
 describe('getPagePath', () => {
-  it('Should append /index to the / page', () => {
-    const pagePath = getPagePath('/', distDir)
-    expect(pagePath).toBe(join(pathToBundles, `${sep}index.js`))
+  it('Should not append /index to the / page', () => {
+    expect(() => getPagePath('/', distDir)).toThrow(
+      'Cannot find module for page: /'
+    )
   })
 
   it('Should prepend / when a page does not have it', () => {
@@ -70,9 +71,10 @@ describe('getPagePath', () => {
 })
 
 describe('requirePage', () => {
-  it('Should require /index.js when using /', async () => {
-    const page = await requirePage('/', distDir)
-    expect(page.test).toBe('hello')
+  it('Should not find page /index when using /', async () => {
+    await expect(() => requirePage('/', distDir)).toThrow(
+      'Cannot find module for page: /'
+    )
   })
 
   it('Should require /index.js when using /index', async () => {
