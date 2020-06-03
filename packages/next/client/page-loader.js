@@ -33,6 +33,14 @@ function normalizeRoute(route) {
   return route.replace(/\/$/, '')
 }
 
+export function getAssetPath(route, extension) {
+  return route === '/'
+    ? `/index${extension}`
+    : /^\/index(\/|$)/.test(route)
+    ? `/index${route}${extension}`
+    : `${route}${extension}`
+}
+
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
     link = document.createElement('link')
@@ -98,9 +106,8 @@ export default class PageLoader {
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
       path = delBasePath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${
-        path === '/' ? '/index' : path
-      }.json`
+      const dataRoute = getAssetPath(path, '.json')
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}`
     }
 
     const { pathname: hrefPathname, query } = parse(href, true)
@@ -244,7 +251,7 @@ export default class PageLoader {
 
   loadRoute(route) {
     route = normalizeRoute(route)
-    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    let scriptRoute = getAssetPath(route, '.js')
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
@@ -326,7 +333,7 @@ export default class PageLoader {
     } else {
       route = normalizeRoute(route)
 
-      let scriptRoute = `${route === '/' ? '/index' : route}.js`
+      let scriptRoute = getAssetPath(route, '.js')
       if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
         scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
       }

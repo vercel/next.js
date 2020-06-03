@@ -10,6 +10,8 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  check,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -37,6 +39,16 @@ function runTests() {
     }
   })
 
+  it('should follow link to /', async () => {
+    const browser = await webdriver(appPort, '/links')
+    try {
+      await browser.elementByCss('#link1').click()
+      await check(() => browser.elementByCss('#page').text(), /^index$/)
+    } finally {
+      await browser.close()
+    }
+  })
+
   it('should ssr page /index', async () => {
     const html = await renderViaHTTP(appPort, '/index')
     const $ = cheerio.load(html)
@@ -48,6 +60,17 @@ function runTests() {
     try {
       const text = await browser.elementByCss('#page').text()
       expect(text).toBe('index > index')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should follow link to /index', async () => {
+    const browser = await webdriver(appPort, '/links')
+    try {
+      await browser.elementByCss('#link2').click()
+      await waitFor(1000)
+      await check(() => browser.elementByCss('#page').text(), /^index > index$/)
     } finally {
       await browser.close()
     }
@@ -69,15 +92,38 @@ function runTests() {
     }
   })
 
+  it('should follow link to /index/index', async () => {
+    const browser = await webdriver(appPort, '/links')
+    try {
+      await browser.elementByCss('#link3').click()
+      await check(
+        () => browser.elementByCss('#page').text(),
+        /^index > index > index$/
+      )
+    } finally {
+      await browser.close()
+    }
+  })
+
   it('should 404 on /index/index/index', async () => {
     const response = await fetchViaHTTP(appPort, '/index/index/index')
     expect(response.status).toBe(404)
+  })
+
+  it('should not find a link to /index/index/index', async () => {
+    const browser = await webdriver(appPort, '/links')
+    try {
+      await browser.elementByCss('#link4').click()
+      await check(() => browser.elementByCss('h1').text(), /404/)
+    } finally {
+      await browser.close()
+    }
   })
 }
 
 const nextConfig = join(appDir, 'next.config.js')
 
-describe('Dynamic Optional Routing', () => {
+describe('nested index.js', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
