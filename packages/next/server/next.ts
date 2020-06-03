@@ -13,7 +13,7 @@ type NextServerConstructor = Omit<ServerConstructor, 'staticMarkup'> & {
 function createServer(options: NextServerConstructor): Server {
   const standardEnv = ['production', 'development', 'test']
 
-  if (typeof options === 'undefined') {
+  if (options == null) {
     throw new Error(
       'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
     )

@@ -11,8 +11,14 @@ describe('Invalid server options', () => {
     )
   })
 
-  test('next() called with undefined parameters should throw error', () => {
+  test('next() called with undefined parameter should throw error', () => {
     expect(() => next(undefined)).toThrowError(
+      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+    )
+  })
+
+  test('next() called with null parameter should throw error', () => {
+    expect(() => next(null)).toThrowError(
       'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
     )
   })
