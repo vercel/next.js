@@ -23,16 +23,6 @@
   },
   "overrides": [
     {
-      "files": ["packages/**"],
-      "rules": {
-        "no-shadow": ["warn", { "builtinGlobals": false }],
-        "import/no-extraneous-dependencies": [
-          "error",
-          { "devDependencies": false }
-        ]
-      }
-    },
-    {
       "files": ["test/**/*.test.js"],
       "extends": ["plugin:jest/recommended"],
       "rules": {
@@ -118,6 +108,29 @@
             "allowCallExpression": true,
             "allowLiteral": true,
             "allowObject": true
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/**"],
+      "rules": {
+        "no-shadow": ["warn", { "builtinGlobals": false }],
+        "import/no-extraneous-dependencies": [
+          "error",
+          { "devDependencies": false }
+        ]
+      }
+    },
+    {
+      "files": ["packages/**/*.tsx", "packages/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-unused-vars": [
+          "warn",
+          {
+            "args": "all",
+            "argsIgnorePattern": "^_",
+            "ignoreRestSiblings": true
           }
         ]
       }
