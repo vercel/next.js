@@ -10,10 +10,7 @@ import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE } from '../lib/constants'
-import {
-  IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX,
-} from '../next-server/lib/constants'
+import { ROUTE_NAME_REGEX } from '../next-server/lib/constants'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
@@ -44,14 +41,12 @@ export default function onDemandEntryHandler(
   {
     buildId,
     pagesDir,
-    reload,
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     buildId: string
     pagesDir: string
-    reload: any
     pageExtensions: string[]
     maxInactiveAge: number
     pagesBufferLength: number
@@ -62,9 +57,6 @@ export default function onDemandEntryHandler(
   let entries: any = {}
   let lastAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
-  let reloading = false
-  let stopped = false
-  let reloadCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise(
@@ -101,29 +93,6 @@ export default function onDemandEntryHandler(
     )
   }
 
-  function findHardFailedPages(errors: any[]) {
-    return errors
-      .filter((e) => {
-        // Make sure to only pick errors which marked with missing modules
-        const hasNoModuleFoundError =
-          /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-        if (!hasNoModuleFoundError) return false
-
-        // The page itself is missing. So this is a failed page.
-        if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
-
-        // No dependencies means this is a top level page.
-        // So this is a failed page.
-        return e.module.dependencies.length === 0
-      })
-      .map((e) => e.module.chunks)
-      .reduce((a, b) => [...a, ...b], [])
-      .map((c: any) => {
-        const pageName = ROUTE_NAME_REGEX.exec(c.name)![1]
-        return normalizePage(`/${pageName}`)
-      })
-  }
-
   function getPagePathsFromEntrypoints(entrypoints: any) {
     const pagePaths = []
     for (const [, entrypoint] of entrypoints.entries()) {
@@ -146,12 +115,6 @@ export default function onDemandEntryHandler(
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats] = multiStats.stats
-    const hardFailedPages = [
-      ...new Set([
-        ...findHardFailedPages(clientStats.compilation.errors),
-        ...findHardFailedPages(serverStats.compilation.errors),
-      ]),
-    ]
     const pagePaths = new Set([
       ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
       ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
@@ -176,30 +139,9 @@ export default function onDemandEntryHandler(
     }
 
     invalidator.doneBuilding()
-
-    if (hardFailedPages.length > 0 && !reloading) {
-      console.log(
-        `> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(
-          ', '
-        )}`
-      )
-      reloading = true
-      reload()
-        .then(() => {
-          console.log('> Webpack reloaded.')
-          reloadCallbacks!.emit('done')
-          stop()
-        })
-        .catch((err: Error) => {
-          console.error(`> Webpack reloading failed: ${err.message}`)
-          console.error(err.stack)
-          process.exit(1)
-        })
-    }
   })
 
   const disposeHandler = setInterval(function () {
-    if (stopped) return
     disposeInactiveEntries(
       devMiddleware,
       entries,
@@ -209,13 +151,6 @@ export default function onDemandEntryHandler(
   }, 5000)
 
   disposeHandler.unref()
-
-  function stop() {
-    clearInterval(disposeHandler)
-    stopped = true
-    doneCallbacks = null
-    reloadCallbacks = null
-  }
 
   function handlePing(pg: string) {
     const page = normalizePage(pg)
@@ -252,17 +187,7 @@ export default function onDemandEntryHandler(
   }
 
   return {
-    waitUntilReloaded() {
-      if (!reloading) return Promise.resolve(true)
-      return new Promise((resolve) => {
-        reloadCallbacks!.once('done', function () {
-          resolve()
-        })
-      })
-    },
-
     async ensurePage(page: string) {
-      await this.waitUntilReloaded()
       let normalizedPagePath: string
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -335,40 +260,23 @@ export default function onDemandEntryHandler(
 
     middleware() {
       return (req: IncomingMessage, res: ServerResponse, next: Function) => {
-        if (stopped) {
-          // If this handler is stopped, we need to reload the user's browser.
-          // So the user could connect to the actually running handler.
-          res.statusCode = 302
-          res.setHeader('Location', req.url!)
-          res.end('302')
-        } else if (reloading) {
-          // Webpack config is reloading. So, we need to wait until it's done and
-          // reload user's browser.
-          // So the user could connect to the new handler and webpack setup.
-          this.waitUntilReloaded().then(() => {
-            res.statusCode = 302
-            res.setHeader('Location', req.url!)
-            res.end('302')
-          })
-        } else {
-          if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
+        if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
 
-          const { query } = parse(req.url!, true)
-          const page = query.page
-          if (!page) return next()
+        const { query } = parse(req.url!, true)
+        const page = query.page
+        if (!page) return next()
 
-          const runPing = () => {
-            const data = handlePing(query.page as string)
-            if (!data) return
-            res.write('data: ' + JSON.stringify(data) + '\n\n')
-          }
-          const pingInterval = setInterval(() => runPing(), 5000)
-
-          req.on('close', () => {
-            clearInterval(pingInterval)
-          })
-          next()
+        const runPing = () => {
+          const data = handlePing(query.page as string)
+          if (!data) return
+          res.write('data: ' + JSON.stringify(data) + '\n\n')
         }
+        const pingInterval = setInterval(() => runPing(), 5000)
+
+        req.on('close', () => {
+          clearInterval(pingInterval)
+        })
+        next()
       }
     },
   }

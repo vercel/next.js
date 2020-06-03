@@ -34,8 +34,8 @@ function createServer(options: NextServerConstructor): Server {
       )
     }
 
-    const Server = require('./next-dev-server').default
-    return new Server(options)
+    const DevServer = require('./next-dev-server').default
+    return new DevServer(options)
   }
 
   return new Server(options)
