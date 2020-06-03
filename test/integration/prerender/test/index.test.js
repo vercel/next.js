@@ -1489,6 +1489,9 @@ describe('SSG Prerender', () => {
       '/blog/[post]/index.js',
       '/fallback-only/[slug].js',
     ]
+
+    const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
+
     const fallbackTruePageContents = {}
 
     beforeAll(async () => {
@@ -1520,6 +1523,11 @@ describe('SSG Prerender', () => {
         )
       }
 
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(pagePath, `${pagePath}.bak`)
+      }
+
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
@@ -1534,6 +1542,11 @@ describe('SSG Prerender', () => {
         const pagePath = join(appDir, 'pages', page)
 
         await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
+
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(`${pagePath}.bak`, pagePath)
       }
     })
 
