@@ -22,10 +22,11 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
-import onDemandEntryHandler, {
+import onDemandEntryHandler from './on-demand-entry-handler'
+import {
+  denormalizePagePath,
   normalizePathSep,
-} from './on-demand-entry-handler'
-import { denormalizePagePath } from '../next-server/server/normalize-page-path'
+} from '../next-server/server/normalize-page-path'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {

@@ -14,6 +14,7 @@ import { ROUTE_NAME_REGEX } from '../next-server/lib/constants'
 import {
   normalizePagePath,
   denormalizePagePath,
+  normalizePathSep,
 } from '../next-server/server/normalize-page-path'
 import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
@@ -125,7 +126,7 @@ export default function onDemandEntryHandler(
 
     // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
     for (const pagePath of pagePaths) {
-      const page = denormalizePagePath(normalizePathSep('/' + pagePath))
+      const page = denormalizePagePath(`/${pagePath}`)
 
       const entry = entries[page]
       if (!entry) {
@@ -317,12 +318,6 @@ function disposeInactiveEntries(
     // disposing inactive page(s)
     devMiddleware.invalidate()
   }
-}
-
-// /index and / is the same. So, we need to identify both pages as the same.
-// This also applies to sub pages as well.
-export function normalizePathSep(page: string) {
-  return page.replace(/\\/g, '/')
 }
 
 // Make sure only one invalidation happens at a time

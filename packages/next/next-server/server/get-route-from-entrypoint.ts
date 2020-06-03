@@ -21,5 +21,5 @@ export default function getRouteFromEntrypoint(
     return null
   }
 
-  return denormalizePagePath(`/${pagePath.replace(/\\/g, '/')}`)
+  return denormalizePagePath(`/${pagePath}`)
 }
