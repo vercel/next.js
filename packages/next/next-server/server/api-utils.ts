@@ -26,6 +26,7 @@ export async function apiResolver(
   params: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
+  propagateError: boolean,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -89,6 +90,9 @@ export async function apiResolver(
     } else {
       console.error(err)
       if (onError) await onError({ err })
+      if (propagateError) {
+        throw err
+      }
       sendError(apiRes, 500, 'Internal Server Error')
     }
   }
@@ -187,8 +191,8 @@ export function getCookieParser(req: IncomingMessage) {
       return {}
     }
 
-    const { parse } = require('next/dist/compiled/cookie')
-    return parse(Array.isArray(header) ? header.join(';') : header)
+    const { parse: parseCookieFn } = require('next/dist/compiled/cookie')
+    return parseCookieFn(Array.isArray(header) ? header.join(';') : header)
   }
 }
 
