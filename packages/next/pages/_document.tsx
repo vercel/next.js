@@ -573,11 +573,11 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files, lowPriorityFiles } = this.context._documentProps
+    const { assetPrefix, files, buildManifest } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     const normalScripts = files?.filter((file) => file.endsWith('.js'))
-    const lowPriorityScripts = lowPriorityFiles?.filter((file) =>
+    const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
       file.endsWith('.js')
     )
 
@@ -606,10 +606,10 @@ export class NextScript extends Component<OriginProps> {
   getPolyfillScripts() {
     // polyfills.js has to be rendered as nomodule without async
     // It also has to be the first script to load
-    const { assetPrefix, polyfillFiles } = this.context._documentProps
+    const { assetPrefix, buildManifest } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return polyfillFiles
+    return buildManifest.polyfillFiles
       .filter(
         (polyfill) =>
           polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
@@ -642,10 +642,9 @@ export class NextScript extends Component<OriginProps> {
 
   render() {
     const {
-      staticMarkup,
       assetPrefix,
       inAmpMode,
-      devFiles,
+      buildManifest,
       __NEXT_DATA__,
       bodyTags,
       unstable_runtimeJS,
@@ -667,7 +666,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <>
-          {staticMarkup || disableRuntimeJS ? null : (
+          {disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
@@ -772,8 +771,8 @@ export class NextScript extends Component<OriginProps> {
 
     return (
       <>
-        {!disableRuntimeJS && devFiles
-          ? devFiles.map(
+        {!disableRuntimeJS && buildManifest.devFiles
+          ? buildManifest.devFiles.map(
               (file: string) =>
                 !file.match(/\.js\.map/) && (
                   <script
@@ -787,7 +786,7 @@ export class NextScript extends Component<OriginProps> {
                 )
             )
           : null}
-        {staticMarkup || disableRuntimeJS ? null : (
+        {disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
@@ -813,8 +812,8 @@ export class NextScript extends Component<OriginProps> {
         {!disableRuntimeJS && this.getPolyfillScripts()}
         {!disableRuntimeJS && appScript}
         {!disableRuntimeJS && page !== '/_error' && pageScript}
-        {disableRuntimeJS || staticMarkup ? null : this.getDynamicChunks()}
-        {disableRuntimeJS || staticMarkup ? null : this.getScripts()}
+        {disableRuntimeJS ? null : this.getDynamicChunks()}
+        {disableRuntimeJS ? null : this.getScripts()}
         {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
       </>
     )
