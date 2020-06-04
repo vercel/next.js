@@ -107,7 +107,7 @@ Next, click the Preview Link button on the Post to see the updated title. (Scree
 
 <img src="https://cdn.cosmicjs.com/80f42680-a07a-11ea-829b-5b458b05d525-preview-button.png" width="300" />
 
-To exit the preview mode, you can click on **Click here to exit preview mode** at the top.
+To exit preview mode, you can click on **Click here to exit preview mode** at the top.
 
 ### Step 6. Deploy on Vercel
 

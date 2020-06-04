@@ -14,8 +14,14 @@ export async function getPreviewPostBySlug(slug) {
     props: 'slug',
     status: 'all',
   }
-  const data = await bucket.getObject(params)
-  return data?.object
+
+  try {
+    const data = await bucket.getObject(params)
+    return data.object
+  } catch (error) {
+    // Ignore the error if any, and consider the object as not found
+    return
+  }
 }
 
 export async function getAllPostsWithSlug() {
@@ -24,7 +30,7 @@ export async function getAllPostsWithSlug() {
     props: 'slug',
   }
   const data = await bucket.getObjects(params)
-  return data?.objects
+  return data.objects
 }
 
 export async function getAllPostsForHome(preview) {
@@ -34,16 +40,16 @@ export async function getAllPostsForHome(preview) {
     ...(preview && { status: 'all' }),
   }
   const data = await bucket.getObjects(params)
-  return data?.objects
+  return data.objects
 }
 
 export async function getPostAndMorePosts(slug, preview) {
-  let singleObjectParams = {
+  const singleObjectParams = {
     slug,
     props: 'slug,title,metadata,created_at',
     ...(preview && { status: 'all' }),
   }
-  let moreObjectParams = {
+  const moreObjectParams = {
     type: 'posts',
     limit: 3,
     props: 'title,slug,metadata,created_at',
@@ -51,12 +57,12 @@ export async function getPostAndMorePosts(slug, preview) {
   }
   const object = await bucket.getObject(singleObjectParams)
   const moreObjects = await bucket.getObjects(moreObjectParams)
-  const morePosts = moreObjects?.objects
-    ?.filter(({ slug: object_slug }) => object_slug !== slug)
+  const morePosts = moreObjects.objects
+    .filter(({ slug: object_slug }) => object_slug !== slug)
     .slice(0, 2)
 
   return {
-    post: object?.object,
+    post: object.object,
     morePosts,
   }
 }
