@@ -64,15 +64,15 @@ export async function getStaticProps({ params, preview = null }) {
         ...data.post,
         content,
       },
-      morePosts: data.morePosts,
+      morePosts: data.morePosts || [],
     },
   }
 }
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsWithSlug()
+  const allPosts = (await getAllPostsWithSlug()) || []
   return {
-    paths: allPosts.map((post) => `/posts/${post.slug}`) || [],
+    paths: allPosts.map((post) => `/posts/${post.slug}`),
     fallback: true,
   }
 }

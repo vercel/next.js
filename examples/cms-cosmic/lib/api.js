@@ -8,6 +8,8 @@ const bucket = Cosmic().bucket({
   read_key: READ_KEY,
 })
 
+const is404 = (error) => /not found/i.test(error.message)
+
 export async function getPreviewPostBySlug(slug) {
   const params = {
     slug,
@@ -19,8 +21,9 @@ export async function getPreviewPostBySlug(slug) {
     const data = await bucket.getObject(params)
     return data.object
   } catch (error) {
-    // Ignore the error if any, and consider the object as not found
-    return
+    // Don't throw if an slug doesn't exist
+    if (is404(error)) return
+    throw error
   }
 }
 
@@ -55,14 +58,18 @@ export async function getPostAndMorePosts(slug, preview) {
     props: 'title,slug,metadata,created_at',
     ...(preview && { status: 'all' }),
   }
-  const object = await bucket.getObject(singleObjectParams)
+  const object = await bucket.getObject(singleObjectParams).catch((error) => {
+    // Don't throw if an slug doesn't exist
+    if (is404(error)) return
+    throw error
+  })
   const moreObjects = await bucket.getObjects(moreObjectParams)
   const morePosts = moreObjects.objects
-    .filter(({ slug: object_slug }) => object_slug !== slug)
+    ?.filter(({ slug: object_slug }) => object_slug !== slug)
     .slice(0, 2)
 
   return {
-    post: object.object,
+    post: object?.object,
     morePosts,
   }
 }
