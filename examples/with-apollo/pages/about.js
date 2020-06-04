@@ -29,13 +29,10 @@ const AboutPage = () => (
         <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
           getStaticProps
         </a>
-        , we invoke the Apollo method,{' '}
-        <a href="https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree">
-          getDataFromTree
-        </a>
-        . This method returns a promise; at the point in which the promise
-        resolves, our Apollo Client store is completely initialized. Then we
-        serve the received html as string which gives us 100% SSG content.
+        , we fetch the query used to get the list of posts. At the point in
+        which the query promise resolves, our Apollo Client store is completely
+        initialized. Then we serve the initial HTML with the fetched data and
+        hydrate Apollo in the browser.
       </p>
       <p>
         This example relies on <a href="http://graph.cool">graph.cool</a> for
