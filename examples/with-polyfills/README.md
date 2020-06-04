@@ -1,6 +1,6 @@
 # Example app with polyfills
 
-Next.js supports modern browsers and IE 11. It adds polyfills as they’re needed out of the box. If you need to add custom polyfills, you can follow this example.
+Next.js supports modern browsers and IE 11. It loads required polyfills automatically. If you need to add custom polyfills, you can follow this example.
 
 ## Deploy your own
 
