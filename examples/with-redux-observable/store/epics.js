@@ -6,38 +6,32 @@ import { request } from 'universal-rxjs-ajax' // because standard AjaxObservable
 import * as actions from './actions'
 import * as types from './actionTypes'
 
-export const fetchUserEpic = (action$, state$) =>
+export const fetchUsersEpic = (action$, state$) =>
   action$.pipe(
-    ofType(types.START_FETCHING_CHARACTERS),
+    ofType(types.START_FETCHING_USERS),
     mergeMap((action) => {
-      return interval(3000).pipe(
-        map((x) => actions.fetchCharacter()),
+      return interval(5000).pipe(
+        map((x) => actions.fetchUser()),
         takeUntil(
-          action$.ofType(
-            types.STOP_FETCHING_CHARACTERS,
-            types.FETCH_CHARACTER_FAILURE
-          )
+          action$.ofType(types.STOP_FETCHING_USERS, types.FETCH_USER_FAILURE)
         )
       )
     })
   )
 
-export const fetchCharacterEpic = (action$, state$) =>
+export const fetchUserEpic = (action$, state$) =>
   action$.pipe(
-    ofType(types.FETCH_CHARACTER),
+    ofType(types.FETCH_USER),
     mergeMap((action) =>
       request({
-        url: `https://swapi.co/api/people/${state$.value.nextCharacterId}`,
+        url: `https://jsonplaceholder.typicode.com/users/${state$.value.nextUserId}`,
       }).pipe(
         map((response) =>
-          actions.fetchCharacterSuccess(
-            response.response,
-            action.payload.isServer
-          )
+          actions.fetchUserSuccess(response.response, action.payload.isServer)
         ),
         catchError((error) =>
           of(
-            actions.fetchCharacterFailure(
+            actions.fetchUserFailure(
               error.xhr.response,
               action.payload.isServer
             )
@@ -47,4 +41,4 @@ export const fetchCharacterEpic = (action$, state$) =>
     )
   )
 
-export const rootEpic = combineEpics(fetchUserEpic, fetchCharacterEpic)
+export const rootEpic = combineEpics(fetchUsersEpic, fetchUserEpic)
