@@ -59,12 +59,6 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         'next-plugin-loader?middleware=document-body-tags-server!'
       )
     : () => []
-  static htmlPropsMiddleware = process.env.__NEXT_PLUGINS
-    ? import(
-        // @ts-ignore loader syntax
-        'next-plugin-loader?middleware=document-html-props-server!'
-      )
-    : () => []
 
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
@@ -148,10 +142,9 @@ export class Html extends Component<
   context!: React.ContextType<typeof DocumentComponentContext>
 
   render() {
-    const { inAmpMode, htmlProps } = this.context._documentProps
+    const { inAmpMode } = this.context._documentProps
     return (
       <html
-        {...htmlProps}
         {...this.props}
         amp={inAmpMode ? '' : undefined}
         data-ampdevmode={

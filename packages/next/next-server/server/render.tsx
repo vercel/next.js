@@ -185,7 +185,6 @@ function renderDocument(
     hybridAmp,
     files,
     dynamicImports,
-    htmlProps,
     bodyTags,
     headTags,
     gsp,
@@ -207,7 +206,6 @@ function renderDocument(
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
-    htmlProps: any
     bodyTags: any
     headTags: any
     isFallback?: boolean
@@ -252,7 +250,6 @@ function renderDocument(
           files,
           dynamicImports,
           assetPrefix,
-          htmlProps,
           bodyTags,
           headTags,
           unstable_runtimeJS,
@@ -324,7 +321,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
   const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
-  const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
   const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
@@ -751,7 +747,6 @@ export async function renderToHTML(
     props,
     headTags: await headTags(documentCtx),
     bodyTags: await bodyTags(documentCtx),
-    htmlProps: await htmlProps(documentCtx),
     isFallback,
     docProps,
     pathname,

@@ -28,12 +28,6 @@ function runTests() {
     expect(html).toMatch(/home/)
   })
 
-  it('should apply htmlProps from plugin correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
-    expect($('html').attr('lang')).toBe('en')
-  })
-
   it('should apply headTags from plugin correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
