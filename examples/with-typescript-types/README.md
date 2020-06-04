@@ -25,8 +25,8 @@ yarn create next-app --example with-typescript-types with-typescript-types
 Download the example:
 
 ```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-typescript
-cd with-typescript
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-typescript-types
+cd with-typescript-types
 ```
 
 Install it and run:
