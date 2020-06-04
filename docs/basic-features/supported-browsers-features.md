@@ -18,13 +18,15 @@ If any of your dependencies includes these polyfills, they’ll be eliminated au
 
 In addition, to reduce bundle size, Next.js will only load these polyfills for browsers that require them. The majority of the web traffic globally will not download these polyfills.
 
-### Server-side Polyfills
+### Server-Side Polyfills
 
 In addition to `fetch()` on the client side, Next.js polyfills `fetch()` in the Node.js environment. You can use `fetch()` on your server code (such as `getStaticProps`) without using polyfills such as `isomorphic-unfetch` or `node-fetch`.
 
-### Custom Polyfills (Advanced)
+### Custom Polyfills
 
-If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself. In that case, you can take a look at the [with-polyfills](https://github.com/vercel/next.js/blob/canary/examples/with-polyfills/) example.
+If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself.
+
+In this case, you should add a top-level import for the **specific polyfill** you need in your [Custom `<App>`](docs/advanced-features/custom-app.md) or the individual component.
 
 ## JavaScript Language Features
 
