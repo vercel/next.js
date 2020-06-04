@@ -252,7 +252,10 @@ export default class DevServer extends Server {
   }
 
   async prepare(): Promise<void> {
-    await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
+    const tsConfigPath = this.nextConfig.typescript?.tsConfigPath
+      ? pathResolve(this.dir, this.nextConfig.typescript.tsConfigPath)
+      : pathJoin(this.dir, 'tsconfig.json')
+    await verifyTypeScriptSetup(tsConfigPath, this.dir, this.pagesDir!, false)
     await this.loadCustomRoutes()
 
     if (this.customRoutes) {
