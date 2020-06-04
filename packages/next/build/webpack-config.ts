@@ -450,6 +450,15 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
+  let customDocumentFile: string | null = await findPageFile(
+    pagesDir,
+    '/_document',
+    config.pageExtensions
+  )
+  if (customDocumentFile) {
+    customDocumentFile = path.resolve(path.join(pagesDir, customDocumentFile))
+  }
+
   const conformanceConfig = Object.assign(
     {
       ReactSyncScriptsConformanceCheck: {
@@ -494,6 +503,23 @@ export default async function getBaseWebpackConfig(
               'string-hash',
               'next/constants',
             ]
+
+            // next/head import should not be allowed inside _document page
+            // So we check for _document content and throw an error in case next/head is imported
+            if (request === 'next/head' && customDocumentFile) {
+              const documentContent = readFileSync(customDocumentFile, 'utf8')
+              if (documentContent.indexOf(request) !== -1) {
+                throw new Error(
+                  `
+                    ${chalk.yellow.bold('Error: ')}
+                    ${chalk.cyan(
+                      'next/head'
+                    )} should not be imported inside ${chalk.cyan(`_document`)}.
+                    \nRead more: https://err.sh/next.js/document-import-next-head
+                  `
+                )
+              }
+            }
 
             if (notExternalModules.indexOf(request) !== -1) {
               return callback()
