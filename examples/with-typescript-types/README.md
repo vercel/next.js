@@ -6,7 +6,7 @@ This example shows how to properly export and import typescript types without ge
 Attempted import error: 'TypeA' is not exported from './package-1'.
 ```
 
-error as addressed in [7882](https://github.com/vercel/next.js/issues/7882)
+error as raised in [vercel/next.js#7882](https://github.com/vercel/next.js/issues/7882).
 
 ## Useful links
 
