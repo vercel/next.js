@@ -840,7 +840,7 @@ export default class Server {
       !(await this.hasPage('/index'))
     ) {
       // maintain backwards compatibility for custom server
-      // (see custum-server integration tests)
+      // (see custom-server integration tests)
       pathname = '/'
     }
 
