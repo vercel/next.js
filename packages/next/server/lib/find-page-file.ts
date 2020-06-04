@@ -25,7 +25,7 @@ export async function findPageFile(
   normalizedPagePath: string,
   pageExtensions: string[]
 ): Promise<string | null> {
-  let foundPagePaths: string[] = []
+  const foundPagePaths: string[] = []
   const page = denormalizePagePath(normalizedPagePath)
 
   for (const extension of pageExtensions) {
