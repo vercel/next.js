@@ -28,8 +28,7 @@ Out of the box, with no configuration, Next.js compiles CSS with the following t
 
 By default, [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
 
-CSS variables are not compiled because it is [not possible to safely do so](https://github.com/MadLittleMods/postcss-css-variables#caveats).
-If you must use variables, consider using something like [Sass variables](https://sass-lang.com/documentation/variables) which are compiled away by [Sass](https://sass-lang.com/).
+CSS variables are only valid if set in the :root selector.
 
 > **Note**: To support [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid), you need to enable `grid: "autoplace"` for Autoprefixer. See ["Customizing Plugins"](#customizing-plugins) below.
 
@@ -73,10 +72,7 @@ This is the default configuration used by Next.js:
         "autoprefixer": {
           "flexbox": "no-2009"
         },
-        "stage": 3,
-        "features": {
-          "custom-properties": false
-        }
+        "stage": 3
       }
     ]
   ]
@@ -100,9 +96,6 @@ module.exports = {
                 flexbox: 'no-2009',
               },
               stage: 3,
-              features: {
-                'custom-properties': false,
-              },
             },
           ],
         ]
@@ -127,9 +120,6 @@ Do **not use `require()`** to import the PostCSS Plugins. Plugins must be provid
 >         flexbox: 'no-2009',
 >       },
 >       stage: 3,
->       features: {
->         'custom-properties': false,
->       },
 >     },
 >   },
 > }
