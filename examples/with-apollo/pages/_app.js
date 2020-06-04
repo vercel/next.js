@@ -1,8 +1,8 @@
 import { ApolloProvider } from '@apollo/react-hooks'
-import createApolloClient from '../apolloClient'
+import { useApollo } from '../lib/apolloClient'
 
 export default function App({ Component, pageProps }) {
-  const apolloClient = createApolloClient(pageProps.initialApolloState)
+  const apolloClient = useApollo(pageProps.initialApolloState)
 
   return (
     <ApolloProvider client={apolloClient}>
