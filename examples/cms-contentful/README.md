@@ -15,6 +15,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [Prismic](/examples/cms-prismic)
 - [Strapi](/examples/cms-strapi)
 - [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use

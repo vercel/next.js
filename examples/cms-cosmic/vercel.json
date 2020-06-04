@@ -1,0 +1,14 @@
+{
+  "env": {
+    "NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG": "@next_example_cms_cosmic_bucket_slug",
+    "NEXT_EXAMPLE_CMS_COSMIC_READ_KEY": "@next_example_cms_cosmic_read_key",
+    "NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET": "@next_example_cms_cosmic_preview_secret"
+  },
+  "build": {
+    "env": {
+      "NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG": "@next_example_cms_cosmic_bucket_slug",
+      "NEXT_EXAMPLE_CMS_COSMIC_READ_KEY": "@next_example_cms_cosmic_read_key",
+      "NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET": "@next_example_cms_cosmic_preview_secret"
+    }
+  }
+}

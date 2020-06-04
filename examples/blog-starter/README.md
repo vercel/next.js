@@ -20,6 +20,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 - [Contentful](/examples/cms-contentful)
 - [Strapi](/examples/cms-strapi)
 - [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
 
 ## How to use
 
