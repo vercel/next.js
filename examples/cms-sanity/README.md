@@ -8,11 +8,14 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -21,7 +24,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-sanity cms-sanity-app
+npx create-next-app --example cms-sanity cms-sanity-app
 # or
 yarn create next-app --example cms-sanity cms-sanity-app
 ```

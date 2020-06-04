@@ -26,12 +26,12 @@ import url from 'url'
 import {
   Compiler,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  compilation,
+  compilation as CompilationType,
 } from 'webpack'
 
 function buildManifest(
   compiler: Compiler,
-  compilation: compilation.Compilation
+  compilation: CompilationType.Compilation
 ) {
   let context = compiler.options.context
   let manifest: { [k: string]: any[] } = {}
