@@ -4,6 +4,7 @@ import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 import fs from 'fs'
 import { promisify } from 'util'
+import { denormalizePagePath } from '../../next-server/server/normalize-page-path'
 
 const readdir = promisify(fs.readdir)
 
@@ -25,31 +26,22 @@ export async function findPageFile(
   pageExtensions: string[]
 ): Promise<string | null> {
   let foundPagePaths: string[] = []
+  const page = denormalizePagePath(normalizedPagePath)
 
   for (const extension of pageExtensions) {
-    const relativePagePath = `${normalizedPagePath}.${extension}`
-    const pagePath = join(rootDir, relativePagePath)
+    if (!/^(\/index)*$/.test(normalizedPagePath)) {
+      const relativePagePath = `${page}.${extension}`
+      const pagePath = join(rootDir, relativePagePath)
 
-    // only /sub/index when /sub/index/index.js is allowed
-    // see test/integration/route-indexes for expected index handling
-    if (
-      normalizedPagePath.startsWith('/index') ||
-      !normalizedPagePath.endsWith('/index')
-    ) {
       if (await isWriteable(pagePath)) {
         foundPagePaths.push(relativePagePath)
       }
     }
 
-    if (!normalizedPagePath.startsWith('/index')) {
-      const relativePagePathWithIndex = join(
-        normalizedPagePath,
-        `index.${extension}`
-      )
-      const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-      if (await isWriteable(pagePathWithIndex)) {
-        foundPagePaths.push(relativePagePathWithIndex)
-      }
+    const relativePagePathWithIndex = join(page, `index.${extension}`)
+    const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
+    if (await isWriteable(pagePathWithIndex)) {
+      foundPagePaths.push(relativePagePathWithIndex)
     }
   }
 
