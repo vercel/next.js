@@ -1,5 +1,3 @@
-import fetch from 'node-fetch'
-
 export default async function fetcher(...args) {
   try {
     const response = await fetch(...args)
