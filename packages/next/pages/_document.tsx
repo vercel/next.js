@@ -53,12 +53,6 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         'next-plugin-loader?middleware=document-head-tags-server!'
       )
     : () => []
-  static bodyTagsMiddleware = process.env.__NEXT_PLUGINS
-    ? import(
-        // @ts-ignore loader syntax
-        'next-plugin-loader?middleware=document-body-tags-server!'
-      )
-    : () => []
 
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
@@ -639,7 +633,6 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       buildManifest,
       __NEXT_DATA__,
-      bodyTags,
       unstable_runtimeJS,
     } = this.context._documentProps
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -684,7 +677,6 @@ export class NextScript extends Component<OriginProps> {
                 />
               ))
             : null}
-          {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
         </>
       )
     }
@@ -807,7 +799,6 @@ export class NextScript extends Component<OriginProps> {
         {!disableRuntimeJS && page !== '/_error' && pageScript}
         {disableRuntimeJS ? null : this.getDynamicChunks()}
         {disableRuntimeJS ? null : this.getScripts()}
-        {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
       </>
     )
   }

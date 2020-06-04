@@ -37,18 +37,6 @@ function runTests() {
     expect(found).toBeTruthy()
   })
 
-  it('should apply bodyTags from plugin correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
-    const found = Array.from($('body').children()).find(
-      (el) =>
-        el.type === 'script' &&
-        el.children[0] &&
-        el.children[0].data.includes('console.log')
-    )
-    expect(found).toBeTruthy()
-  })
-
   it('should call clientInit from plugin correctly', async () => {
     const browser = await webdriver(appPort, '/')
     expect(await browser.eval('window.didClientInit')).toBe(true)
