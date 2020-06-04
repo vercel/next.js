@@ -6,7 +6,7 @@ import PostList from '../components/PostList'
 
 const ClientOnlyPage = (props) => (
   <App>
-    <Header pathname="/client-only" />
+    <Header />
     <InfoBox>
       ℹ️ This page shows how use Apollo only in the client. If you{' '}
       <a href="/client-only">reload</a> this page, you will see a loader since

@@ -3,7 +3,7 @@ import Header from '../components/Header'
 
 const AboutPage = () => (
   <App>
-    <Header pathname="/about" />
+    <Header />
     <article>
       <h1>The Idea Behind This Example</h1>
       <p>
