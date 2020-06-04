@@ -1,5 +1,4 @@
 import chalk from 'next/dist/compiled/chalk'
-import path from 'path'
 import { FatalTypeScriptError } from './typescript/FatalTypeScriptError'
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import {
@@ -12,13 +11,13 @@ import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 
 export async function verifyTypeScriptSetup(
+  tsConfigPath: string,
   dir: string,
   pagesDir: string,
   typeCheckPreflight: boolean
 ): Promise<TypeCheckResult | boolean> {
-  const tsConfigPath = path.join(dir, 'tsconfig.json')
-
   try {
+    console.log({ tsConfigPath })
     // Check if the project uses TypeScript:
     const intent = await getTypeScriptIntent(dir, pagesDir)
     if (!intent) {

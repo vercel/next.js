@@ -175,7 +175,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
   eventNextPlugins(path.resolve(dir)).then((events) => telemetry.record(events))
 
   const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
-  await verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
+
+  const tsConfigPath = config.typescript?.tsConfigPath
+    ? path.resolve(dir, config.typescript.tsConfigPath)
+    : path.join(dir, 'tsconfig.json')
+  await verifyTypeScriptSetup(
+    tsConfigPath,
+    dir,
+    pagesDir,
+    !ignoreTypeScriptErrors
+  )
 
   try {
     await promises.stat(publicDir)
