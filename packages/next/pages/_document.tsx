@@ -182,7 +182,9 @@ export class Head extends Component<
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           as="style"
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
         />,
         <link
           key={file}
@@ -191,7 +193,9 @@ export class Head extends Component<
           href={`${assetPrefix}/_next/${encodeURI(
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
         />
       )
     })
@@ -222,7 +226,9 @@ export class Head extends Component<
               )}${_devOnlyInvalidateCacheQueryString}`}
               as="script"
               nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
             />
           )
         })
@@ -256,7 +262,9 @@ export class Head extends Component<
               file
             )}${_devOnlyInvalidateCacheQueryString}`}
             as="script"
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
           />
         ))
   }
@@ -467,7 +475,9 @@ export class Head extends Component<
                 }
                 as="script"
                 nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                crossOrigin={
+                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                }
               />
             )}
             {!disableRuntimeJS && page !== '/_error' && (
@@ -484,7 +494,9 @@ export class Head extends Component<
                 }
                 as="script"
                 nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                crossOrigin={
+                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                }
               />
             )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
@@ -552,7 +564,9 @@ export class NextScript extends Component<OriginProps> {
             bundle.file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           {...modernProps}
         />
       )
@@ -583,7 +597,9 @@ export class NextScript extends Component<OriginProps> {
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           async
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           {...modernProps}
         />
       )
@@ -605,7 +621,9 @@ export class NextScript extends Component<OriginProps> {
         <script
           key={polyfill}
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           noModule={true}
           src={`${assetPrefix}/_next/${polyfill}${_devOnlyInvalidateCacheQueryString}`}
         />
@@ -657,7 +675,9 @@ export class NextScript extends Component<OriginProps> {
               id="__NEXT_DATA__"
               type="application/json"
               nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
               dangerouslySetInnerHTML={{
                 __html: NextScript.getInlineScriptSource(
                   this.context._documentProps
@@ -672,7 +692,9 @@ export class NextScript extends Component<OriginProps> {
                   key={file}
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
                   nonce={this.props.nonce}
-                  crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                  crossOrigin={
+                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                  }
                   data-ampdevmode
                 />
               ))
@@ -701,7 +723,7 @@ export class NextScript extends Component<OriginProps> {
           _devOnlyInvalidateCacheQueryString
         }
         nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
         {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
       />,
       process.env.__NEXT_MODERN_BUILD && (
@@ -717,7 +739,9 @@ export class NextScript extends Component<OriginProps> {
             _devOnlyInvalidateCacheQueryString
           }
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           type="module"
         />
       ),
@@ -734,7 +758,7 @@ export class NextScript extends Component<OriginProps> {
         }
         key="_app"
         nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
         {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
       />,
       process.env.__NEXT_MODERN_BUILD && (
@@ -748,7 +772,9 @@ export class NextScript extends Component<OriginProps> {
           }
           key="_app-modern"
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           type="module"
         />
       ),
@@ -766,7 +792,9 @@ export class NextScript extends Component<OriginProps> {
                       file
                     )}${_devOnlyInvalidateCacheQueryString}`}
                     nonce={this.props.nonce}
-                    crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                    crossOrigin={
+                      this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                    }
                   />
                 )
             )
@@ -776,7 +804,9 @@ export class NextScript extends Component<OriginProps> {
             id="__NEXT_DATA__"
             type="application/json"
             nonce={this.props.nonce}
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
             dangerouslySetInnerHTML={{
               __html: NextScript.getInlineScriptSource(
                 this.context._documentProps
@@ -787,7 +817,9 @@ export class NextScript extends Component<OriginProps> {
         {process.env.__NEXT_MODERN_BUILD && !disableRuntimeJS ? (
           <script
             nonce={this.props.nonce}
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
             noModule={true}
             dangerouslySetInnerHTML={{
               __html: NextScript.safariNomoduleFix,
