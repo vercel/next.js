@@ -15,8 +15,6 @@ Deploy the example using [Vercel](https://vercel.com):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-apollo)
 
-_Live Example: https://next-with-apollo.now.sh_
-
 ## How to use
 
 ### Using `create-next-app`
