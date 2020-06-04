@@ -3,8 +3,14 @@ import Layout from '../components/Layout'
 const Home = () => (
   <Layout>
     <h1>
-      <a href="https://github.com/vvo/next-iron-session">`next-iron-session`</a>
-      -based authentication example
+      <img
+        src="/GitHub-Mark-32px.png"
+        width="32"
+        height="32"
+        style={{ marginRight: '.3em', verticalAlign: 'middle' }}
+      />
+      <a href="https://github.com/vvo/next-iron-session">next-iron-session</a> -
+      Authentication example
     </h1>
 
     <p>
