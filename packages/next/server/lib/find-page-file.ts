@@ -26,10 +26,12 @@ export async function findPageFile(
   pageExtensions: string[]
 ): Promise<string | null> {
   const foundPagePaths: string[] = []
+
+  const isdeeplyNestedIndex = /^(\/index)*$/.test(normalizedPagePath)
   const page = denormalizePagePath(normalizedPagePath)
 
   for (const extension of pageExtensions) {
-    if (!/^(\/index)*$/.test(normalizedPagePath)) {
+    if (!isdeeplyNestedIndex && !page.endsWith('/index')) {
       const relativePagePath = `${page}.${extension}`
       const pagePath = join(rootDir, relativePagePath)
 
