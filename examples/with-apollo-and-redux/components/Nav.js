@@ -1,10 +1,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-const Nav = () => {
-  const router = useRouter()
-  console.log('YO', router)
-  const { pathname } = router
+export default function Nav() {
+  const { pathname } = useRouter()
 
   return (
     <header>
@@ -33,5 +31,3 @@ const Nav = () => {
     </header>
   )
 }
-
-export default Nav

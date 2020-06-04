@@ -1,12 +1,15 @@
 import { useDispatch } from 'react-redux'
 import { initializeStore } from '../lib/redux'
-import getApolloState from '../lib/getApolloState'
+import { initializeApollo } from '../lib/apollo'
 import useInterval from '../lib/useInterval'
 import Layout from '../components/Layout'
 import Clock from '../components/Clock'
 import Counter from '../components/Counter'
 import Submit from '../components/Submit'
-import PostList from '../components/PostList'
+import PostList, {
+  ALL_POSTS_QUERY,
+  allPostsQueryVars,
+} from '../components/PostList'
 
 const IndexPage = () => {
   // Tick the time every second
@@ -35,20 +38,27 @@ const IndexPage = () => {
 
 export async function getStaticProps() {
   const reduxStore = initializeStore()
+  const apolloClient = initializeApollo()
   const { dispatch } = reduxStore
 
-  // If you build and start the app, the date added here will have the same
-  // value for all requests, as this method gets executed at build time.
   dispatch({
     type: 'TICK',
     light: true,
     lastUpdate: Date.now(),
   })
 
-  const initialApolloState = await getApolloState(IndexPage, reduxStore)
-  const initialReduxState = reduxStore.getState()
+  await apolloClient.query({
+    query: ALL_POSTS_QUERY,
+    variables: allPostsQueryVars,
+  })
 
-  return { props: { initialApolloState, initialReduxState } }
+  return {
+    props: {
+      initialReduxState: reduxStore.getState(),
+      initialApolloState: apolloClient.cache.extract(),
+    },
+    unstable_revalidate: 1,
+  }
 }
 
 export default IndexPage
