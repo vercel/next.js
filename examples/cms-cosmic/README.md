@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://cosmic-nextjs-blog.now.sh/](https://cosmic-nextjs-blog.now.sh/)
+[https://next-blog-cosmic.now.sh/](https://next-blog-cosmic.now.sh/)
 
 ### Related examples
 
