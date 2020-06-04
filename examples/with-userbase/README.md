@@ -59,12 +59,12 @@ cp .env.local.example .env.local
 
 Then set the variable on `.env.local`:
 
-- `USERBASE_APP_ID` should be the _App ID_ from when you created your Userbase account.
+- `NEXT_PUBLIC_USERBASE_APP_ID` should be the _App ID_ from when you created your Userbase account.
 
 Your `.env.local` file should look like this:
 
 ```bash
-USERBASE_APP_ID=...
+NEXT_PUBLIC_USERBASE_APP_ID=...
 ```
 
 ### Step 3. Run Next.js in development mode
@@ -87,10 +87,10 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com/import?fil
 
 To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following command to add the environment variable. Replace <USERBASE_APP_ID> with the corresponding string in `.env.local`:
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following command to add the environment variable. Replace <NEXT_PUBLIC_USERBASE_APP_ID> with the corresponding string in `.env.local`:
 
 ```
-vercel secrets add userbase-app-id <USERBASE_APP_ID>
+vercel secrets add userbase-app-id <NEXT_PUBLIC_USERBASE_APP_ID>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
