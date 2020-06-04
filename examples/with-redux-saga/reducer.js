@@ -1,7 +1,7 @@
 import { actionTypes } from './actions'
 import { HYDRATE } from 'next-redux-wrapper'
 
-export const exampleInitialState = {
+const initialState = {
   count: 0,
   error: false,
   lastUpdate: 0,
@@ -14,6 +14,7 @@ function reducer(state, action) {
     case HYDRATE: {
       return { ...state, ...action.payload }
     }
+
     case actionTypes.FAILURE:
       return {
         ...state,
@@ -35,7 +36,7 @@ function reducer(state, action) {
     case actionTypes.RESET:
       return {
         ...state,
-        ...{ count: exampleInitialState.count },
+        ...{ count: initialState.count },
       }
 
     case actionTypes.LOAD_DATA_SUCCESS:
