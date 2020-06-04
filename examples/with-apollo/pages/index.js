@@ -8,7 +8,7 @@ import getApolloState from '../lib/getApolloState'
 const IndexPage = () => (
   <App>
     <Header pathname="/" />
-    <InfoBox>ℹ️ This example shows how to use SSG with Apollo.</InfoBox>
+    <InfoBox>ℹ️ This page shows how to use SSG with Apollo.</InfoBox>
     <Submit />
     <PostList />
   </App>
