@@ -5,28 +5,28 @@ import { HttpLink } from 'apollo-link-http'
 
 let apolloClient
 
-function createApolloClient(initialState) {
+function createApolloClient() {
   return new ApolloClient({
-    ssrMode: false,
+    ssrMode: typeof window === 'undefined',
     link: new HttpLink({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
     }),
-    cache: new InMemoryCache().restore(initialState),
+    cache: new InMemoryCache(),
   })
 }
 
 export function initializeApollo(initialState = null) {
-  const _apolloClient = apolloClient ?? createApolloClient(initialState)
+  const _apolloClient = apolloClient ?? createApolloClient()
 
-  // If your page has Next.js data fetching methods that use a Mobx store, it will
-  // get hydrated here, check `pages/ssg.js` and `pages/ssr.js` for more details
-  // if (initialState) {
-  //   _apolloClient.hydrate(initialState)
-  // }
-  // For SSG and SSR always create a new store
+  // If your page has Next.js data fetching methods that use Apollo Client, the initial state
+  // get hydrated here
+  if (initialState) {
+    _apolloClient.cache.restore(initialState)
+  }
+  // For SSG and SSR always create a new Apollo Client
   if (typeof window === 'undefined') return _apolloClient
-  // Create the store once in the client
+  // Create the Apollo Client once in the client
   if (!apolloClient) apolloClient = _apolloClient
 
   return _apolloClient
