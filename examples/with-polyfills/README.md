@@ -1,8 +1,6 @@
 # Example app with polyfills
 
-Next.js supports browsers from IE10 to the latest. It adds polyfills as they need. But Next.js cannot add polyfills for code inside NPM modules. So sometimes, you need to add polyfills by yourself.
-
-This how you can do it easily with Next.js's custom webpack config feature.
+Next.js supports modern browsers and IE 11. It loads required polyfills automatically. If you need to add custom polyfills, you can follow this example.
 
 ## Deploy your own
 
