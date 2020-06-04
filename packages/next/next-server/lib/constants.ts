@@ -31,9 +31,6 @@ export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `${CLIENT_STATIC_FILES_RUNTIM
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/polyfills.js`
 // matches static/<buildid>/pages/<page>.js
 export const IS_BUNDLED_PAGE_REGEX = /^static[/\\][^/\\]+[/\\]pages.*\.js$/
-// matches static/<buildid>/pages/:page*.js
-export const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
-export const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'

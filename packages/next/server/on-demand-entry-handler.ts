@@ -10,10 +10,13 @@ import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE } from '../lib/constants'
-import { ROUTE_NAME_REGEX } from '../next-server/lib/constants'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  normalizePagePath,
+  normalizePathSep,
+} from '../next-server/server/normalize-page-path'
 import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
+import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -93,21 +96,13 @@ export default function onDemandEntryHandler(
     )
   }
 
-  function getPagePathsFromEntrypoints(entrypoints: any) {
+  function getPagePathsFromEntrypoints(entrypoints: any): string[] {
     const pagePaths = []
-    for (const [, entrypoint] of entrypoints.entries()) {
-      const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
-      if (!result) {
-        continue
+    for (const entrypoint of entrypoints.values()) {
+      const page = getRouteFromEntrypoint(entrypoint.name)
+      if (page) {
+        pagePaths.push(page)
       }
-
-      const pagePath = result[1]
-
-      if (!pagePath) {
-        continue
-      }
-
-      pagePaths.push(pagePath)
     }
 
     return pagePaths
@@ -120,10 +115,7 @@ export default function onDemandEntryHandler(
       ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
     ])
 
-    // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
-    for (const pagePath of pagePaths) {
-      const page = normalizePage('/' + pagePath)
-
+    for (const page of pagePaths) {
       const entry = entries[page]
       if (!entry) {
         continue
@@ -153,7 +145,7 @@ export default function onDemandEntryHandler(
   disposeHandler.unref()
 
   function handlePing(pg: string) {
-    const page = normalizePage(pg)
+    const page = normalizePathSep(pg)
     const entryInfo = entries[page]
     let toSend
 
@@ -229,7 +221,7 @@ export default function onDemandEntryHandler(
 
       return new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-        const normalizedPage = normalizePage(page)
+        const normalizedPage = normalizePathSep(page)
         const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
@@ -314,16 +306,6 @@ function disposeInactiveEntries(
     // disposing inactive page(s)
     devMiddleware.invalidate()
   }
-}
-
-// /index and / is the same. So, we need to identify both pages as the same.
-// This also applies to sub pages as well.
-export function normalizePage(page: string) {
-  const unixPagePath = page.replace(/\\/g, '/')
-  if (unixPagePath === '/index' || unixPagePath === '/') {
-    return '/'
-  }
-  return unixPagePath.replace(/\/index$/, '')
 }
 
 // Make sure only one invalidation happens at a time

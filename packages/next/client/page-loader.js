@@ -28,10 +28,17 @@ function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
-  route = route.replace(/\/index$/, '/')
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
+}
+
+export function getAssetPath(route) {
+  return route === '/'
+    ? '/index'
+    : /^\/index(\/|$)/.test(route)
+    ? `/index${route}`
+    : `${route}`
 }
 
 function appendLink(href, rel, as) {
@@ -99,9 +106,8 @@ export default class PageLoader {
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
       path = delBasePath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${
-        path === '/' ? '/index' : path
-      }.json`
+      const dataRoute = getAssetPath(path)
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}.json`
     }
 
     const { pathname: hrefPathname, query } = parse(href, true)
@@ -245,11 +251,11 @@ export default class PageLoader {
 
   loadRoute(route) {
     route = normalizeRoute(route)
-    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    let scriptRoute = getAssetPath(route)
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
-    )}/pages${encodeURI(scriptRoute)}`
+    )}/pages${encodeURI(scriptRoute)}.js`
     this.loadScript(url, route, true)
   }
 
@@ -327,14 +333,13 @@ export default class PageLoader {
     } else {
       route = normalizeRoute(route)
 
-      let scriptRoute = `${route === '/' ? '/index' : route}.js`
-      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
-        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
-      }
+      const scriptRoute = getAssetPath(route)
+      const ext =
+        process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
 
       url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
-      )}/pages${encodeURI(scriptRoute)}`
+      )}/pages${encodeURI(scriptRoute)}${ext}`
     }
 
     return Promise.all(

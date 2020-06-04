@@ -826,6 +826,11 @@ function getAmpPath(ampPath: string, asPath: string): string {
 }
 
 function getPageFile(page: string, buildId?: string): string {
-  const startingUrl = page === '/' ? '/index' : page
+  const startingUrl =
+    page === '/'
+      ? '/index'
+      : /^\/index(\/|$)/.test(page)
+      ? `/index${page}`
+      : page
   return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }
