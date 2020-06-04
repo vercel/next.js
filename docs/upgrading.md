@@ -10,9 +10,9 @@ description: Learn how to upgrade Next.js.
 
 #### Production Deployment on Vercel
 
-If you previously configured `routes` in your `now.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://nextjs.org/docs/routing/dynamic-routes).
+If you previously configured `routes` in your `vercel.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://nextjs.org/docs/routing/dynamic-routes).
 
-Next.js 9's dynamic routes are **automatically configured on [Now](https://vercel.com/now)** and do not require any `now.json` customization.
+Next.js 9's dynamic routes are **automatically configured on [Vercel](https://vercel.com/)** and do not require any `vercel.json` customization.
 
 You can read more about [Dynamic Routing here](https://nextjs.org/docs/routing/dynamic-routes).
 

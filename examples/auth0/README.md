@@ -48,7 +48,7 @@ POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
 
 ### Hosting on Vercel
 
-When deploying this example to Vercel you'll want to update the `now.json` configuration file.
+When deploying this example to Vercel you'll want to update the `vercel.json` configuration file.
 
 ```json
 {
