@@ -393,12 +393,9 @@ function renderReactElement(reactEl, domEl) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
       const opts = { hydrate: true }
-      const createRoot = ReactDOM.unstable_createRoot
-        ? ReactDOM.unstable_createRoot
-        : ReactDOM.createRoot
-      const createBlockingRoot = ReactDOM.unstable_createBlockingRoot
-        ? ReactDOM.unstable_createBlockingRoot
-        : ReactDOM.createBlockingRoot
+      const createRoot = ReactDOM.unstable_createRoot || ReactDOM.createRoot
+      const createBlockingRoot =
+        ReactDOM.unstable_createBlockingRoot || ReactDOM.createBlockingRoot
 
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
