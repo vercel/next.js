@@ -48,6 +48,7 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     sprFlushToDisk: true,
     reactMode: 'legacy',
+    reactProductionProfiling: false,
     workerThreads: false,
     basePath: '',
     pageEnv: false,
