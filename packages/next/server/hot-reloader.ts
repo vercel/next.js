@@ -16,13 +16,17 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
-import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
+import onDemandEntryHandler from './on-demand-entry-handler'
+import {
+  denormalizePagePath,
+  normalizePathSep,
+} from '../next-server/server/normalize-page-path'
+import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -200,7 +204,7 @@ export default class HotReloader {
         return {}
       }
 
-      const page = `/${params.path.join('/')}`
+      const page = denormalizePagePath(`/${params.path.join('/')}`)
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
@@ -423,18 +427,14 @@ export default class HotReloader {
 
           if (addedPages.size > 0) {
             for (const addedPage of addedPages) {
-              let page =
-                '/' + ROUTE_NAME_REGEX.exec(addedPage)![1].replace(/\\/g, '/')
-              page = page === '/index' ? '/' : page
+              const page = getRouteFromEntrypoint(addedPage)
               this.send('addedPage', page)
             }
           }
 
           if (removedPages.size > 0) {
             for (const removedPage of removedPages) {
-              let page =
-                '/' + ROUTE_NAME_REGEX.exec(removedPage)![1].replace(/\\/g, '/')
-              page = page === '/index' ? '/' : page
+              const page = getRouteFromEntrypoint(removedPage)
               this.send('removedPage', page)
             }
           }
@@ -512,13 +512,13 @@ export default class HotReloader {
   }
 
   public async getCompilationErrors(page: string) {
-    const normalizedPage = normalizePage(page)
+    const normalizedPage = normalizePathSep(page)
 
     if (this.stats.hasErrors()) {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation, {
         enhanceName(name) {
-          return '/' + ROUTE_NAME_REGEX.exec(name)![1]
+          return getRouteFromEntrypoint(name) as string
         },
       })
 
