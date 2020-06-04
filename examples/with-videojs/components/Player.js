@@ -9,6 +9,7 @@ const Player = (props) => {
   }, [])
 
   useEffect(() => {
+    if (videoEl == null) return
     const player = videojs(videoEl, props)
     return () => {
       player.dispose()
@@ -16,9 +17,12 @@ const Player = (props) => {
   }, [props, videoEl])
 
   return (
-    <div data-vjs-player>
-      <video ref={onVideo} className="video-js" playsInline />
-    </div>
+    <>
+      <h1>The implementation below is using react functions</h1>
+      <div data-vjs-player>
+        <video ref={onVideo} className="video-js" playsInline />
+      </div>
+    </>
   )
 }
 
