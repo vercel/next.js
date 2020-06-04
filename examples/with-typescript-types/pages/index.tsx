@@ -1,4 +1,4 @@
-import type { TypeA } from '../packages'
+import type { TypeA } from '../types'
 
 const Example: TypeA = {
   name: 'next',
