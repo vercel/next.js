@@ -1,7 +1,6 @@
 import { useDispatch } from 'react-redux'
-import { withRedux } from '../lib/redux'
-import { compose } from 'redux'
-import { withApollo } from '../lib/apollo'
+import { initializeStore } from '../lib/redux'
+import getApolloState from '../lib/getApolloState'
 import useInterval from '../lib/useInterval'
 import Layout from '../components/Layout'
 import Clock from '../components/Clock'
@@ -12,6 +11,7 @@ import PostList from '../components/PostList'
 const IndexPage = () => {
   // Tick the time every second
   const dispatch = useDispatch()
+
   useInterval(() => {
     dispatch({
       type: 'TICK',
@@ -19,6 +19,7 @@ const IndexPage = () => {
       lastUpdate: Date.now(),
     })
   }, 1000)
+
   return (
     <Layout>
       {/* Redux */}
@@ -32,17 +33,22 @@ const IndexPage = () => {
   )
 }
 
-IndexPage.getInitialProps = ({ reduxStore }) => {
-  // Tick the time once, so we'll have a
-  // valid time before first render
+export async function getStaticProps() {
+  const reduxStore = initializeStore()
   const { dispatch } = reduxStore
+
+  // If you build and start the app, the date added here will have the same
+  // value for all requests, as this method gets executed at build time.
   dispatch({
     type: 'TICK',
-    light: typeof window === 'object',
+    light: true,
     lastUpdate: Date.now(),
   })
 
-  return {}
+  const initialApolloState = await getApolloState(IndexPage, reduxStore)
+  const initialReduxState = reduxStore.getState()
+
+  return { props: { initialApolloState, initialReduxState } }
 }
 
-export default compose(withApollo, withRedux)(IndexPage)
+export default IndexPage
