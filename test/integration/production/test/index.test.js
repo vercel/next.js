@@ -51,7 +51,7 @@ describe('Production Usage', () => {
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
-      const html = await renderViaHTTP(appPort, '/index')
+      const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
 
@@ -154,7 +154,7 @@ describe('Production Usage', () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index/index.js`,
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
         {
           method: 'GET',
           headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
@@ -167,7 +167,7 @@ describe('Production Usage', () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index/index.js`,
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
         {
           method: 'GET',
           headers: { 'if-unmodified-since': 'nextjs' },
@@ -194,7 +194,7 @@ describe('Production Usage', () => {
       const resources = new Set()
 
       // test a regular page
-      resources.add(`${url}static/${buildId}/pages/index/index.js`)
+      resources.add(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
       resources.add(
@@ -202,7 +202,7 @@ describe('Production Usage', () => {
       )
 
       // test main.js runtime etc
-      for (const item of buildManifest.pages['/index']) {
+      for (const item of buildManifest.pages['/']) {
         resources.add(url + item)
       }
 
@@ -293,7 +293,7 @@ describe('Production Usage', () => {
 
   describe('With navigation', () => {
     it('should navigate via client side', async () => {
-      const browser = await webdriver(appPort, '/index')
+      const browser = await webdriver(appPort, '/')
       const text = await browser
         .elementByCss('a')
         .click()
@@ -478,7 +478,7 @@ describe('Production Usage', () => {
     })
 
     it('should add autoExport for auto pre-rendered pages', async () => {
-      for (const page of ['/index', '/about']) {
+      for (const page of ['/', '/about']) {
         const html = await renderViaHTTP(appPort, page)
         const $ = cheerio.load(html)
         const data = JSON.parse($('#__NEXT_DATA__').html())
