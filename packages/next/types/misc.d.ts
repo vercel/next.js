@@ -226,41 +226,10 @@ declare module 'next/dist/compiled/comment-json' {
   export = m
 }
 
-declare module 'autodll-webpack-plugin' {
-  import webpack from 'webpack'
-  class AutoDllPlugin implements webpack.Plugin {
-    constructor(settings?: {
-      inject?: boolean
-      plugins?: webpack.Configuration['plugins']
-      context?: string
-      debug?: boolean
-      filename?: string
-      path?: string
-      inherit?: boolean
-      entry?: webpack.Entry
-      config?: webpack.Configuration
-    })
-    apply: webpack.Plugin['apply'];
-    [k: string]: any
-  }
-
-  export = AutoDllPlugin
-}
-
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack'
-  import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 
-  class PnpWebpackPlugin extends webpack.Plugin {
-    static forkTsCheckerOptions: <
-      T extends Partial<ForkTsCheckerWebpackPlugin.Options>
-    >(
-      settings: T
-    ) => T & {
-      resolveModuleNameModule?: string
-      resolveTypeReferenceDirectiveModule?: string
-    }
-  }
+  class PnpWebpackPlugin extends webpack.Plugin {}
 
   export = PnpWebpackPlugin
 }

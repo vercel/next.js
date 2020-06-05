@@ -636,8 +636,17 @@ export async function buildStaticPaths(
       const { params = {} } = entry
       let builtPage = page
       _validParamKeys.forEach((validParamKey) => {
-        const { repeat } = _routeRegex.groups[validParamKey]
-        const paramValue = params[validParamKey]
+        const { repeat, optional } = _routeRegex.groups[validParamKey]
+        let paramValue = params[validParamKey]
+        if (
+          optional &&
+          params.hasOwnProperty(validParamKey) &&
+          (paramValue === null ||
+            paramValue === undefined ||
+            (paramValue as any) === false)
+        ) {
+          paramValue = []
+        }
         if (
           (repeat && !Array.isArray(paramValue)) ||
           (!repeat && typeof paramValue !== 'string')
@@ -648,13 +657,18 @@ export async function buildStaticPaths(
             } in getStaticPaths for ${page}`
           )
         }
-
-        builtPage = builtPage.replace(
-          `[${repeat ? '...' : ''}${validParamKey}]`,
-          repeat
-            ? (paramValue as string[]).map(encodeURIComponent).join('/')
-            : encodeURIComponent(paramValue as string)
-        )
+        let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
+        if (optional) {
+          replaced = `[${replaced}]`
+        }
+        builtPage = builtPage
+          .replace(
+            replaced,
+            repeat
+              ? (paramValue as string[]).map(encodeURIComponent).join('/')
+              : encodeURIComponent(paramValue as string)
+          )
+          .replace(/(?!^)\/$/, '')
       })
 
       prerenderPaths?.add(builtPage)

@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.4.5-canary.0",
+  "version": "9.4.5-canary.7",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -58,7 +58,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.4.0",
+    "@ampproject/toolbox-optimizer": "2.5.0",
     "@babel/code-frame": "7.8.3",
     "@babel/core": "7.7.7",
     "@babel/plugin-proposal-class-properties": "7.8.3",
@@ -76,8 +76,8 @@
     "@babel/preset-typescript": "7.9.0",
     "@babel/runtime": "7.9.6",
     "@babel/types": "7.9.6",
-    "@next/react-dev-overlay": "9.4.5-canary.0",
-    "@next/react-refresh-utils": "9.4.5-canary.0",
+    "@next/react-dev-overlay": "9.4.5-canary.7",
+    "@next/react-refresh-utils": "9.4.5-canary.7",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
@@ -86,7 +86,6 @@
     "chokidar": "2.1.8",
     "css-loader": "3.5.3",
     "find-cache-dir": "3.3.1",
-    "fork-ts-checker-webpack-plugin": "3.1.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",
@@ -115,7 +114,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.4.5-canary.0",
+    "@next/polyfill-nomodule": "9.4.5-canary.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -161,7 +160,6 @@
     "ast-types": "0.13.2",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
-    "autodll-webpack-plugin": "0.4.2",
     "babel-loader": "8.1.0",
     "babel-plugin-dynamic-import-node": "2.3.3",
     "cache-loader": "4.1.0",
