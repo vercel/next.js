@@ -1,21 +1,5 @@
 import { atom, selector } from 'recoil'
 
-export const latestTime = atom({
-  key: 'latestTime',
-  default: null,
-})
-
-export const timeState = selector({
-  key: 'time',
-  get: ({ get }) => {
-    const lastUpdate = get(latestTime) || Date.now()
-    return new Date(lastUpdate).toJSON().slice(11, 19)
-  },
-  set: ({ set }) => {
-    set(latestTime, Date.now())
-  },
-})
-
 export const countState = atom({
   key: 'count',
   default: 0,
