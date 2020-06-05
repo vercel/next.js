@@ -135,7 +135,7 @@ export default class DevServer extends Server {
           match: route(path),
           type: 'route',
           name: `${path} exportpathmap route`,
-          fn: async (req, res, params, parsedUrl) => {
+          fn: async (req, res, _params, parsedUrl) => {
             const { query: urlQuery } = parsedUrl
 
             Object.keys(urlQuery)

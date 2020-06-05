@@ -12,7 +12,7 @@ type Props = {
   author: Author
 }
 
-const PostHeader: React.FC<Props> = ({ title, coverImage, date, author }) => {
+const PostHeader = ({ title, coverImage, date, author }: Props) => {
   return (
     <>
       <PostTitle>{title}</PostTitle>
