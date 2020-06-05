@@ -11,11 +11,8 @@ const Index = () => {
   useEffect(() => {
     dispatch(startClock())
   }, [dispatch])
-  return (
-    <>
-      <Page title="Index Page" linkTo="/other" NavigateTo="Other Page" />
-    </>
-  )
+
+  return <Page title="Index Page" linkTo="/other" NavigateTo="Other Page" />
 }
 
 export const getStaticProps = wrapper.getStaticProps(async ({ store }) => {
@@ -25,6 +22,7 @@ export const getStaticProps = wrapper.getStaticProps(async ({ store }) => {
     store.dispatch(loadData())
     store.dispatch(END)
   }
+
   await store.sagaTask.toPromise()
 })
 
