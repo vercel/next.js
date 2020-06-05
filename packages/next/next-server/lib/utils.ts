@@ -169,6 +169,8 @@ export type DocumentProps = DocumentInitialProps & {
   bodyTags: any[]
   headTags: any[]
   unstable_runtimeJS?: false
+  distDir?: string
+  inlineCss?: boolean
 }
 
 /**
