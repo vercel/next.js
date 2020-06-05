@@ -118,6 +118,21 @@ const runTests = (context, dev = false) => {
       await browser.close()
     }
   })
+
+  it('should allow URL query strings without refresh', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello?query=true')
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, 6000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+    } finally {
+      await browser.close()
+    }
+  })
 }
 
 describe('basePath development', () => {
