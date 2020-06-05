@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import flush from 'styled-jsx/server'
+import { readFileSync } from 'fs'
 import {
   AMP_RENDER_TARGET,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -212,6 +213,54 @@ export class Head extends Component<
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
+  getInlineCSS(): JSX.Element[] | null {
+    const { assetPrefix, distDir, files } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
+    const cssFiles =
+      files && files.length ? files.filter((f) => /\.css$/.test(f)) : []
+
+    const inlineCssElements: JSX.Element[] = []
+    cssFiles.forEach((file) => {
+      try {
+        const contents = readFileSync(
+          `${distDir}/${encodeURI(file)}`
+        ).toString()
+        inlineCssElements.push(
+          <style
+            dangerouslySetInnerHTML={{
+              __html: contents,
+            }}
+          />
+        )
+      } catch (_) {
+        // If the file wasn't read, fallback to a link tag
+        inlineCssElements.push(
+          <link
+            key={`${file}-preload`}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            as="style"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />,
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="stylesheet"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        )
+      }
+    })
+
+    return inlineCssElements.length === 0 ? null : inlineCssElements
+  }
+
   getPreloadDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
@@ -286,6 +335,7 @@ export class Head extends Component<
       dangerousAsPath,
       headTags,
       unstable_runtimeJS,
+      inlineCss,
     } = this.context._documentProps
     const disableRuntimeJS = unstable_runtimeJS === false
     const { _devOnlyInvalidateCacheQueryString } = this.context
@@ -467,7 +517,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {this.getCssLinks()}
+            {inlineCss ? this.getInlineCSS() : this.getCssLinks()}
             {!disableRuntimeJS && (
               <link
                 rel="preload"

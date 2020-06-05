@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     pageEnv: false,
     productionBrowserSourceMaps: false,
     optionalCatchAll: false,
+    inlineCss: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

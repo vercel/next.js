@@ -114,7 +114,6 @@ module.exports = (
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
           pragma: '__jsx',
-          runtime: 'automatic',
           ...options['preset-react'],
         },
       ],

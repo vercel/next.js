@@ -199,6 +199,8 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    distDir,
+    inlineCss,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -224,8 +226,11 @@ function renderDocument(
     customServer?: boolean
     gip?: boolean
     appGip?: boolean
+    distDir?: string
+    inlineCss?: boolean
   }
 ): string {
+  // console.log('config ', arguments)
   return (
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
@@ -267,6 +272,8 @@ function renderDocument(
           bodyTags,
           headTags,
           unstable_runtimeJS,
+          distDir,
+          inlineCss,
           ...docProps,
         })}
       </AmpStateContext.Provider>
