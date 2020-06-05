@@ -4,6 +4,7 @@ import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
 import { delBasePath } from './../next-server/lib/router/router'
+import { getAssetPath } from './../next-server/server/get-asset-path'
 
 function hasRel(rel, link) {
   try {
@@ -31,14 +32,6 @@ function normalizeRoute(route) {
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
-}
-
-export function getAssetPath(route) {
-  return route === '/'
-    ? '/index'
-    : /^\/index(\/|$)/.test(route)
-    ? `/index${route}`
-    : `${route}`
 }
 
 function appendLink(href, rel, as) {

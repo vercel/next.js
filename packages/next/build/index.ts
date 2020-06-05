@@ -75,6 +75,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
+import { getAssetPath } from '../next-server/server/get-asset-path'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -524,7 +525,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async (page) => {
-      const actualPage = normalizePagePath(page)
+      const actualPage = getAssetPath(normalizePagePath(page))
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
@@ -685,7 +686,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...serverPropsPages,
       ...ssgPages,
     ]).map((page) => {
-      const pagePath = normalizePagePath(page)
+      const pagePath = getAssetPath(normalizePagePath(page))
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
@@ -873,7 +874,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSsgFallback = ssgFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
-      let file = normalizePagePath(page)
+      let file = getAssetPath(normalizePagePath(page))
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
@@ -932,7 +933,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               dataRoute: path.posix.join(
                 '/_next/data',
                 buildId,
-                `${normalizePagePath(route)}.json`
+                `${getAssetPath(normalizePagePath(route))}.json`
               ),
             }
           }
@@ -971,7 +972,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (ssgPages.size > 0) {
     const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
     tbdPrerenderRoutes.forEach((tbdRoute) => {
-      const normalizedRoute = normalizePagePath(tbdRoute)
+      const normalizedRoute = getAssetPath(normalizePagePath(tbdRoute))
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,

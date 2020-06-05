@@ -1,4 +1,5 @@
-import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from './normalize-page-path'
+import { getAssetPath } from './get-asset-path'
 
 export type BuildManifest = {
   devFiles: string[]
@@ -14,10 +15,10 @@ export function getPageFiles(
   page: string
 ): string[] {
   const normalizedPage = normalizePagePath(page)
-  let files = buildManifest.pages[normalizedPage]
+  let files = buildManifest.pages[getAssetPath(normalizedPage)]
 
   if (!files) {
-    files = buildManifest.pages[denormalizePagePath(normalizedPage)]
+    files = buildManifest.pages[normalizedPage]
   }
 
   if (!files) {

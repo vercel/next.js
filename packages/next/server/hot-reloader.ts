@@ -22,10 +22,7 @@ import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler from './on-demand-entry-handler'
-import {
-  denormalizePagePath,
-  normalizePathSep,
-} from '../next-server/server/normalize-page-path'
+import { normalizePathSep } from '../next-server/server/normalize-page-path'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
@@ -80,7 +77,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/:buildId/pages/:path*.js(\\.map|)'
+  '/_next/static/:buildId/:entrypoint(.*)'
 )
 
 // Recursively look up the issuer till it ends up at the root
@@ -204,7 +201,12 @@ export default class HotReloader {
         return {}
       }
 
-      const page = denormalizePagePath(`/${params.path.join('/')}`)
+      const page = getRouteFromEntrypoint(`/${params.entrypoint}`, true)
+
+      if (!page) {
+        return {}
+      }
+
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)

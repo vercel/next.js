@@ -4,6 +4,7 @@ import path from 'path'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
+import { getAssetPath } from './get-asset-path'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
@@ -96,7 +97,7 @@ export function initializeSprCache({
 }
 
 export async function getFallback(page: string): Promise<string> {
-  page = normalizePagePath(page)
+  page = getAssetPath(normalizePagePath(page))
   return promises.readFile(getSeedPath(page, 'html'), 'utf8')
 }
 
@@ -105,7 +106,7 @@ export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
   if (sprOptions.dev) return
-  pathname = normalizePagePath(pathname)
+  pathname = getAssetPath(normalizePagePath(pathname))
 
   let data: SprCacheValue | undefined = cache.get(pathname)
 
@@ -162,14 +163,14 @@ export async function setSprCache(
     prerenderManifest.routes[pathname] = {
       dataRoute: path.posix.join(
         '/_next/data',
-        `${normalizePagePath(pathname)}.json`
+        `${getAssetPath(normalizePagePath(pathname))}.json`
       ),
       srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
       initialRevalidateSeconds: revalidateSeconds,
     }
   }
 
-  pathname = normalizePagePath(pathname)
+  pathname = getAssetPath(normalizePagePath(pathname))
   cache.set(pathname, {
     ...data,
     revalidateAfter: calculateRevalidate(pathname),

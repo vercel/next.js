@@ -1,8 +1,9 @@
-import { denormalizePagePath } from './normalize-page-path'
+import { normalizePathSep } from './normalize-page-path'
 
 // matches static/<buildid>/pages/:page*.js
-const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
-const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
+const ROUTE_NAME_REGEX = /^static\/[^/]+\/pages\/(.*)\.js$/
+// matches pages/:page*.js
+const SERVERLESS_ROUTE_NAME_REGEX = /^pages\/(.*)\.js$/
 
 export default function getRouteFromEntrypoint(
   entryFile: string,
@@ -11,17 +12,23 @@ export default function getRouteFromEntrypoint(
   const result = (isServerlessLike
     ? SERVERLESS_ROUTE_NAME_REGEX
     : ROUTE_NAME_REGEX
-  ).exec(entryFile)
+  ).exec(normalizePathSep(entryFile))
 
   if (!result) {
     return null
   }
 
-  const pagePath = result[1]
+  let pagePath = `/${result[1]}`
 
   if (!pagePath) {
     return null
   }
 
-  return denormalizePagePath(`/${pagePath}`)
+  if (pagePath.startsWith('/index/')) {
+    pagePath = pagePath.slice(6)
+  } else if (pagePath === '/index') {
+    pagePath = '/'
+  }
+
+  return pagePath
 }

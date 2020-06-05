@@ -33,14 +33,12 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import {
-  normalizePagePath,
-  denormalizePagePath,
-} from '../next-server/server/normalize-page-path'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import { getAssetPath } from '../next-server/server/get-asset-path'
 
 const exists = promisify(existsOrig)
 
@@ -290,9 +288,7 @@ export default async function exportApp(
   // make sure to prevent duplicates
   const exportPaths = [
     ...new Set(
-      Object.keys(exportPathMap).map((path) =>
-        denormalizePagePath(normalizePagePath(path))
-      )
+      Object.keys(exportPathMap).map((path) => normalizePagePath(path))
     ),
   ]
 
@@ -427,7 +423,7 @@ export default async function exportApp(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async (route) => {
-        route = normalizePagePath(route)
+        route = getAssetPath(normalizePagePath(route))
         const orig = join(distPagesDir, route)
         const htmlDest = join(
           outDir,

@@ -9,6 +9,7 @@ import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '../lib/load-env-config'
+import { getAssetPath } from '../next-server/server/get-asset-path'
 
 type PagesMapping = {
   [page: string]: string
@@ -97,7 +98,7 @@ export function createEntrypoints(
 
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
-    const bundleFile = `${normalizePagePath(page)}.js`
+    const bundleFile = `${getAssetPath(normalizePagePath(page))}.js`
     const isApiRoute = page.match(API_ROUTE)
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)

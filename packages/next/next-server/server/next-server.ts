@@ -66,6 +66,7 @@ import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { getAssetPath } from './get-asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -878,7 +879,7 @@ export default class Server {
   ): Promise<FindComponentsResult | null> {
     const paths = [
       // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      query.amp ? getAssetPath(normalizePagePath(pathname)) + '.amp' : null,
       pathname,
     ].filter(Boolean)
     for (const pagePath of paths) {

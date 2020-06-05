@@ -17,6 +17,7 @@ import {
 import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
+import { getAssetPath } from '../next-server/server/get-asset-path'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -211,7 +212,7 @@ export default function onDemandEntryHandler(
 
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
-      const bundleFile = `${normalizePagePath(pageUrl)}.js`
+      const bundleFile = `${getAssetPath(normalizePagePath(pageUrl))}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)

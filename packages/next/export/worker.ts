@@ -13,6 +13,7 @@ import 'next/dist/next-server/server/node-polyfill-fetch'
 import { IncomingMessage, ServerResponse } from 'http'
 import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
+import { getAssetPath } from '../next-server/server/get-asset-path'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -88,7 +89,7 @@ export default async function exportPage({
   try {
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
-    const filePath = normalizePagePath(path)
+    const filePath = getAssetPath(normalizePagePath(path))
     const ampPath = `${filePath}.amp`
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined

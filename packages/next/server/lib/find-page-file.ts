@@ -4,7 +4,6 @@ import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 import fs from 'fs'
 import { promisify } from 'util'
-import { denormalizePagePath } from '../../next-server/server/normalize-page-path'
 
 const readdir = promisify(fs.readdir)
 
@@ -27,11 +26,9 @@ export async function findPageFile(
 ): Promise<string | null> {
   const foundPagePaths: string[] = []
 
-  const page = denormalizePagePath(normalizedPagePath)
-
   for (const extension of pageExtensions) {
     if (!normalizedPagePath.endsWith('/index')) {
-      const relativePagePath = `${page}.${extension}`
+      const relativePagePath = `${normalizedPagePath}.${extension}`
       const pagePath = join(rootDir, relativePagePath)
 
       if (await isWriteable(pagePath)) {
@@ -39,7 +36,10 @@ export async function findPageFile(
       }
     }
 
-    const relativePagePathWithIndex = join(page, `index.${extension}`)
+    const relativePagePathWithIndex = join(
+      normalizedPagePath,
+      `index.${extension}`
+    )
     const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
     if (await isWriteable(pagePathWithIndex)) {
       foundPagePaths.push(relativePagePathWithIndex)
