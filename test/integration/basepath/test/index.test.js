@@ -59,17 +59,23 @@ const runTests = (context, dev = false) => {
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.hello).toBe('world')
+
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/gsp')
   })
 
   it('should fetch data for getServerSideProps without reloading', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.eval('window.beforeNavigate = true')
-    await browser.elementByCss('#gsp-link').click()
-    await browser.waitForElementByCss('#gsp')
+    await browser.elementByCss('#gssp-link').click()
+    await browser.waitForElementByCss('#gssp')
     expect(await browser.eval('window.beforeNavigate')).toBe(true)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.hello).toBe('world')
+
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/gssp')
   })
 
   it('should have correct href for a link', async () => {
@@ -129,6 +135,9 @@ const runTests = (context, dev = false) => {
         setTimeout(resolve, 10000)
       })
       expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/hello')
     } finally {
       await browser.close()
     }
