@@ -34,5 +34,3 @@ pr-stats.md
 # Vercel
 .vercel
 .now
-examples/with-electron-typescript/main/index.js
-examples/with-electron-typescript/main/preload.js
