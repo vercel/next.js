@@ -16,9 +16,9 @@ export default function withGraphqlClient(App) {
 
       // Run all GraphQL queries in the component tree
       // and extract the resulting data
-      const graphQLClient = initGraphQL()
       let graphQLState = {}
       if (typeof window === 'undefined') {
+        const graphQLClient = initGraphQL()
         try {
           // Run all GraphQL queries
           graphQLState = await getInitialState({
@@ -45,7 +45,12 @@ export default function withGraphqlClient(App) {
 
     constructor(props) {
       super(props)
-      this.graphQLClient = initGraphQL(props.graphQLState)
+      if (props.graphQLClient) {
+        // During SSR the GraphQL client is provided as a prop
+        this.graphQLClient = props.graphQLClient
+      } else {
+        this.graphQLClient = initGraphQL(props.graphQLState)
+      }
     }
 
     render() {

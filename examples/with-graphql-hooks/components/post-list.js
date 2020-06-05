@@ -25,7 +25,9 @@ export default function PostList() {
     variables: { skip, first: 10 },
     updateData: (prevResult, result) => ({
       ...result,
-      allPosts: [...prevResult.allPosts, ...result.allPosts],
+      allPosts: prevResult
+        ? [...prevResult.allPosts, ...result.allPosts]
+        : result.allPosts,
     }),
   })
 
