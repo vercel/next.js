@@ -60,7 +60,7 @@ Inside the Strapi directory, stop the server, [install GraphQL](https://strapi.i
 # If using Yarn: yarn strapi install graphql
 npm run strapi install graphql
 
-npm run dev # or: yarn develop
+npm run develop # or: yarn develop
 ```
 
 ### Step 3. Create an `Author` collection
