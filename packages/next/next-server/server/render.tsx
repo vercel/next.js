@@ -230,7 +230,6 @@ function renderDocument(
     inlineCss?: boolean
   }
 ): string {
-  // console.log('config ', arguments)
   return (
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
