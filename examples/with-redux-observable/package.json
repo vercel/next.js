@@ -6,18 +6,16 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "tomaszmularczyk(tomasz.mularczyk89@gmail.com)",
   "dependencies": {
     "next": "latest",
-    "next-redux-wrapper": "^2.0.0-beta.6",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-redux": "^5.0.7",
-    "redux": "^4.0.0",
-    "redux-logger": "^3.0.6",
-    "redux-observable": "^1.0.0",
-    "rxjs": "^6.3.3",
-    "universal-rxjs-ajax": "^2.0.0"
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-redux": "7.2.0",
+    "redux": "4.0.5",
+    "redux-logger": "3.0.6",
+    "redux-observable": "1.2.0",
+    "rxjs": "6.5.5",
+    "universal-rxjs-ajax": "2.0.4"
   },
   "license": "ISC"
 }

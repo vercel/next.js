@@ -45,7 +45,7 @@ import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
-    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
+    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/vercel/next.js/no-router-instance'
   throw new Error(message)
 }
 
@@ -290,7 +290,6 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
-  pathname = pathname === '/index' ? '/' : pathname
   const {
     err,
     dev = false,
@@ -383,9 +382,7 @@ export async function renderToHTML(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
       }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client${
-          isFallback ? ' for the fallback page ' : ''
-        }`
+        `Using this will cause the page to fail to parse the params on the client`
     )
   }
 
@@ -531,13 +528,13 @@ export async function renderToHTML(
             ? { preview: true, previewData: previewData }
             : undefined),
         })
-      } catch (err) {
+      } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
         // 404 rendering
-        if (err.code === 'ENOENT') {
-          delete err.code
+        if (staticPropsError.code === 'ENOENT') {
+          delete staticPropsError.code
         }
-        throw err
+        throw staticPropsError
       }
 
       const invalidKeys = Object.keys(data).filter(
@@ -617,13 +614,13 @@ export async function renderToHTML(
             ? { preview: true, previewData: previewData }
             : undefined),
         })
-      } catch (err) {
+      } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
         // 404 rendering
-        if (err.code === 'ENOENT') {
-          delete err.code
+        if (serverSidePropsError.code === 'ENOENT') {
+          delete serverSidePropsError.code
         }
-        throw err
+        throw serverSidePropsError
       }
 
       const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
@@ -645,11 +642,11 @@ export async function renderToHTML(
       props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
-  } catch (err) {
-    if (isDataReq || !dev || !err) throw err
-    ctx.err = err
-    renderOpts.err = err
-    console.error(err)
+  } catch (dataFetchError) {
+    if (isDataReq || !dev || !dataFetchError) throw dataFetchError
+    ctx.err = dataFetchError
+    renderOpts.err = dataFetchError
+    console.error(dataFetchError)
   }
 
   if (
@@ -660,13 +657,13 @@ export async function renderToHTML(
   ) {
     console.warn(
       `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
-        `See more info here: https://err.sh/zeit/next.js/reserved-page-prop`
+        `See more info here: https://err.sh/vercel/next.js/reserved-page-prop`
     )
   }
 
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq) return props
+  if (isDataReq && !isSSG) return props
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
@@ -702,7 +699,7 @@ export async function renderToHTML(
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
       )
     }
   }

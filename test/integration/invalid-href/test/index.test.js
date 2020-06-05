@@ -90,7 +90,9 @@ describe('Invalid hrefs', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -183,7 +185,7 @@ describe('Invalid hrefs', () => {
       expect(
         errors.find((err) =>
           err.includes(
-            'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/zeit/next.js/incompatible-href-as'
+            'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
           )
         )
       ).toBeTruthy()

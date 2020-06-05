@@ -14,14 +14,14 @@ type Props = {
   slug: string
 }
 
-const PostPreview: React.FC<Props> = ({
+const PostPreview = ({
   title,
   coverImage,
   date,
   excerpt,
   author,
   slug,
-}) => {
+}: Props) => {
   return (
     <div>
       <div className="mb-5">
