@@ -6,6 +6,10 @@ In this simple example, we integrate Apollo seamlessly with [Next.js data fetchi
 
 This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
 
+## Demo
+
+[https://next-with-apollo.now.sh](https://next-with-apollo.now.sh)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
