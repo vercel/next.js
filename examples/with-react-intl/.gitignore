@@ -1,1 +1,3 @@
 lang/.messages/
+node_modules
+.next
