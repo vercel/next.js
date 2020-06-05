@@ -272,6 +272,7 @@ Note that the value for each `params` must match the parameters used in the page
 
 - If the page name is `pages/posts/[postId]/[commentId]`, then `params` should contain `postId` and `commentId`.
 - If the page name uses catch-all routes, for example `pages/[...slug]`, then `params` should contain `slug` which is an array. For example, if this array is `['foo', 'bar']`, then Next.js will statically generate the page at `/foo/bar`.
+- If the page uses an optional catch-all route, supply `null`, `[]`, `undefined` or `false` to render the rootmost route. For example, if you supply `slug: false` for `pages/[[...slug]]`, Next.js will statically generate the page `/`.
 
 #### The `fallback` key (required)
 
