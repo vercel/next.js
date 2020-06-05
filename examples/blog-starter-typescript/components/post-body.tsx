@@ -5,7 +5,7 @@ type Props = {
   content: string
 }
 
-const PostBody: React.FC<Props> = ({ content }) => {
+const PostBody = ({ content }: Props) => {
   return (
     <div className="max-w-2xl mx-auto">
       <div

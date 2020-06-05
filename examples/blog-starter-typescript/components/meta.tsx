@@ -2,7 +2,7 @@ import React from 'react'
 import Head from 'next/head'
 import { CMS_NAME, HOME_OG_IMAGE_URL } from '../lib/constants'
 
-const Meta: React.FC = () => {
+const Meta = () => {
   return (
     <Head>
       <link
