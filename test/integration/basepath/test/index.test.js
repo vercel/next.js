@@ -126,7 +126,7 @@ const runTests = (context, dev = false) => {
       await new Promise((resolve, reject) => {
         // Timeout of EventSource created in setupPing()
         // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
-        setTimeout(resolve, 6000)
+        setTimeout(resolve, 10000)
       })
       expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
     } finally {
