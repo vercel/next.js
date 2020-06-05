@@ -379,6 +379,10 @@ export default class Router implements BaseRouter {
       let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
       let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
 
+      // parse url parts without basePath since pathname should map 1-1 with
+      // pages dir
+      const { pathname, query, protocol } = parse(delBasePath(url), true)
+
       url = addBasePath(url)
       as = addBasePath(as)
 
@@ -409,8 +413,6 @@ export default class Router implements BaseRouter {
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
       }
-
-      const { pathname, query, protocol } = parse(url, true)
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
