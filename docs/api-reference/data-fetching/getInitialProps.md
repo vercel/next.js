@@ -14,7 +14,7 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
   </ul>
 </details>
 
@@ -30,7 +30,7 @@ function Page({ stars }) {
 }
 
 Page.getInitialProps = async (ctx) => {
-  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const json = await res.json()
   return { stars: json.stargazers_count }
 }
@@ -45,7 +45,7 @@ import React from 'react'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const res = await fetch('https://api.github.com/repos/vercel/next.js')
     const json = await res.json()
     return { stars: json.stargazers_count }
   }

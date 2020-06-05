@@ -2,7 +2,7 @@
 
 > Downloads and runs project with provided configs gathering stats to compare branches
 
-See it in action at Next.js https://github.com/zeit/next.js
+See it in action at Next.js https://github.com/vercel/next.js
 
 ## Getting Started
 
@@ -26,7 +26,7 @@ const StatsConfig = {
   // the main branch to compare against (what PRs will be merging into)
   mainBranch: 'canary',
   // the main repository path (relative to https://github.com/)
-  mainRepo: 'zeit/next.js',
+  mainRepo: 'vercel/next.js',
   // whether to attempt auto merging the main branch into PR before running stats
   autoMergeMain: boolean | undefined,
   // an array of configs for each run

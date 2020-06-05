@@ -70,7 +70,7 @@ The API of `Router`, exported by `next/router`, is defined below.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/using-router">Using Router</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/using-router">Using Router</a></li>
   </ul>
 </details>
 
@@ -260,7 +260,7 @@ Router.reload()
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-loading">With a page loading indicator</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-loading">With a page loading indicator</a></li>
   </ul>
 </details>
 

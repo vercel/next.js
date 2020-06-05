@@ -28,10 +28,17 @@ function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
-  route = route.replace(/\/index$/, '/')
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
+}
+
+export function getAssetPath(route) {
+  return route === '/'
+    ? '/index'
+    : /^\/index(\/|$)/.test(route)
+    ? `/index${route}`
+    : `${route}`
 }
 
 function appendLink(href, rel, as) {
@@ -57,7 +64,7 @@ export default class PageLoader {
     this.pageCache = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
-    if (process.env.__NEXT_GRANULAR_CHUNKS) {
+    if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
@@ -99,9 +106,8 @@ export default class PageLoader {
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
       path = delBasePath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${
-        path === '/' ? '/index' : path
-      }.json`
+      const dataRoute = getAssetPath(path)
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}.json`
     }
 
     const { pathname: hrefPathname, query } = parse(href, true)
@@ -215,7 +221,7 @@ export default class PageLoader {
 
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
-        if (process.env.__NEXT_GRANULAR_CHUNKS) {
+        if (process.env.NODE_ENV === 'production') {
           this.getDependencies(route).then((deps) => {
             deps.forEach((d) => {
               if (
@@ -245,11 +251,11 @@ export default class PageLoader {
 
   loadRoute(route) {
     route = normalizeRoute(route)
-    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    let scriptRoute = getAssetPath(route)
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
-    )}/pages${encodeURI(scriptRoute)}`
+    )}/pages${encodeURI(scriptRoute)}.js`
     this.loadScript(url, route, true)
   }
 
@@ -287,7 +293,7 @@ export default class PageLoader {
 
     if (process.env.NODE_ENV !== 'production') {
       // Wait for webpack to become idle if it's not.
-      // More info: https://github.com/zeit/next.js/pull/1511
+      // More info: https://github.com/vercel/next.js/pull/1511
       if (module.hot && module.hot.status() !== 'idle') {
         console.log(
           `Waiting for webpack to become "idle" to initialize the page: "${route}"`
@@ -327,14 +333,13 @@ export default class PageLoader {
     } else {
       route = normalizeRoute(route)
 
-      let scriptRoute = `${route === '/' ? '/index' : route}.js`
-      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
-        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
-      }
+      const scriptRoute = getAssetPath(route)
+      const ext =
+        process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
 
       url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
-      )}/pages${encodeURI(scriptRoute)}`
+      )}/pages${encodeURI(scriptRoute)}${ext}`
     }
 
     return Promise.all(
@@ -348,10 +353,14 @@ export default class PageLoader {
               relPrefetch,
               url.match(/\.css$/) ? 'style' : 'script'
             ),
-            process.env.__NEXT_GRANULAR_CHUNKS &&
+            process.env.NODE_ENV === 'production' &&
               !isDependency &&
               this.getDependencies(route).then((urls) =>
-                Promise.all(urls.map((url) => this.prefetch(url, true)))
+                Promise.all(
+                  urls.map((dependencyUrl) =>
+                    this.prefetch(dependencyUrl, true)
+                  )
+                )
               ),
           ]
     ).then(

@@ -296,7 +296,7 @@ export default class Router implements BaseRouter {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof url === 'undefined' || typeof as === 'undefined') {
         console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/zeit/next.js/popstate-state-empty'
+          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
         )
       }
     }
@@ -415,7 +415,7 @@ export default class Router implements BaseRouter {
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return resolve(false)
@@ -455,7 +455,7 @@ export default class Router implements BaseRouter {
             return reject(
               new Error(
                 `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+                  `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
               )
             )
           }
@@ -581,7 +581,7 @@ export default class Router implements BaseRouter {
             .then((res) => {
               const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolve) => {
+              return new Promise((resolveRouteInfo) => {
                 this.getInitialProps(Component, {
                   err,
                   pathname,
@@ -590,7 +590,7 @@ export default class Router implements BaseRouter {
                   (props) => {
                     routeInfo.props = props
                     routeInfo.error = err
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   },
                   (gipErr) => {
                     console.error(
@@ -599,12 +599,12 @@ export default class Router implements BaseRouter {
                     )
                     routeInfo.error = err
                     routeInfo.props = {}
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   }
                 )
               }) as Promise<RouteInfo>
             })
-            .catch((err) => handleError(err, true))
+            .catch((routeInfoErr) => handleError(routeInfoErr, true))
         )
       }) as Promise<RouteInfo>
     }
@@ -748,7 +748,7 @@ export default class Router implements BaseRouter {
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return

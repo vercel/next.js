@@ -117,7 +117,7 @@ export default async function exportPage({
         }
       } else {
         throw new Error(
-          `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/zeit/next.js/export-path-mismatch`
+          `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
         )
       }
     }
@@ -261,18 +261,18 @@ export default async function exportPage({
     }
 
     const validateAmp = async (
-      html: string,
-      page: string,
+      rawAmpHtml: string,
+      ampPageName: string,
       validatorPath?: string
     ) => {
       const validator = await AmpHtmlValidator.getInstance(validatorPath)
-      const result = validator.validateString(html)
+      const result = validator.validateString(rawAmpHtml)
       const errors = result.errors.filter((e) => e.severity === 'ERROR')
       const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
       if (warnings.length || errors.length) {
         results.ampValidations.push({
-          page,
+          page: ampPageName,
           result: {
             errors,
             warnings,
@@ -348,7 +348,7 @@ export default async function exportPage({
   } catch (error) {
     console.error(
       `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
-        error
+        error.stack
     )
     return { ...results, error: true }
   }

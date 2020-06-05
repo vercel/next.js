@@ -49,7 +49,7 @@ export const getServerSideProps = withSession(async function ({ req, res }) {
 export default SsrProfile
 
 function githubUrl(login) {
-  return `https://api.github.com/${login}`
+  return `https://api.github.com/users/${login}`
 }
 
 SsrProfile.propTypes = {

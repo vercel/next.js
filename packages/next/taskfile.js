@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
@@ -49,7 +50,7 @@ const externals = {
   'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
   'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',
   chokidar: 'chokidar',
-  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader, terser-webpack-plugin
+  // dependents: babel-loader, async-retry, cache-loader, terser-webpack-plugin
   'find-cache-dir': 'find-cache-dir',
   // dependents: thread-loader
   'loader-runner': 'loader-runner',
@@ -103,15 +104,7 @@ export async function ncc_async_sema(task, opts) {
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
 }
-// eslint-disable-next-line camelcase
-externals['autodll-webpack-plugin'] =
-  'next/dist/compiled/autodll-webpack-plugin'
-export async function ncc_autodll_webpack_plugin(task, opts) {
-  await task
-    .source(opts.src || 'build/bundles/autodll-webpack-plugin.js')
-    .ncc({ packageName: 'autodll-webpack-plugin', externals })
-    .target('compiled/autodll-webpack-plugin')
-}
+
 // eslint-disable-next-line camelcase
 externals['babel-loader'] = 'next/dist/compiled/babel-loader'
 export async function ncc_babel_loader(task, opts) {
@@ -517,6 +510,14 @@ export async function ncc_terser_webpack_plugin(task, opts) {
     .target('compiled/terser-webpack-plugin')
 }
 
+externals['comment-json'] = 'next/dist/compiled/comment-json'
+export async function ncc_comment_json(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('comment-json')))
+    .ncc({ packageName: 'comment-json', externals })
+    .target('compiled/comment-json')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -543,7 +544,6 @@ export async function ncc(task) {
       'ncc_arg',
       'ncc_async_retry',
       'ncc_async_sema',
-      'ncc_autodll_webpack_plugin',
       'ncc_babel_loader',
       'ncc_cache_loader',
       'ncc_chalk',
@@ -592,6 +592,7 @@ export async function ncc(task) {
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
+      'ncc_comment_json',
     ])
 }
 
@@ -680,7 +681,7 @@ export async function pages_document(task) {
   await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
-export async function pages(task, opts) {
+export async function pages(task, _opts) {
   await task.parallel(['pages_app', 'pages_error', 'pages_document'])
 }
 
