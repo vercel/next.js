@@ -51,20 +51,20 @@ After creating an account, make note of your _App ID_ which you'll be needing la
 
 ### Step 2. Setting up environment variables
 
-Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set the variable on `.env`:
+Then set the variable on `.env.local`:
 
-- `USERBASE_APP_ID` should be the _App ID_ from when you created your Userbase account.
+- `NEXT_PUBLIC_USERBASE_APP_ID` should be the _App ID_ from when you created your Userbase account.
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
-USERBASE_APP_ID=...
+NEXT_PUBLIC_USERBASE_APP_ID=...
 ```
 
 ### Step 3. Run Next.js in development mode
@@ -85,12 +85,12 @@ Your todo app should be up and running on [http://localhost:3000](http://localho
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following command to add the environment variable. Replace <USERBASE_APP_ID> with the corresponding string in .env:
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following command to add the environment variable. Replace <NEXT_PUBLIC_USERBASE_APP_ID> with the corresponding string in `.env.local`:
 
 ```
-now secrets add userbase-app-id <USERBASE_APP_ID>
+vercel secrets add userbase-app-id <NEXT_PUBLIC_USERBASE_APP_ID>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
