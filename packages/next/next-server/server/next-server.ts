@@ -834,6 +834,16 @@ export default class Server {
       )
     }
 
+    if (
+      this.renderOpts.customServer &&
+      pathname === '/index' &&
+      !(await this.hasPage('/index'))
+    ) {
+      // maintain backwards compatibility for custom server
+      // (see custom-server integration tests)
+      pathname = '/'
+    }
+
     const url: any = req.url
 
     // we allow custom servers to call render for all URLs

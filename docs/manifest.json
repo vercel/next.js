@@ -32,6 +32,10 @@
             {
               "title": "Environment Variables",
               "path": "/docs/basic-features/environment-variables.md"
+            },
+            {
+              "title": "Supported Browsers and Features",
+              "path": "/docs/basic-features/supported-browsers-features.md"
             }
           ]
         },

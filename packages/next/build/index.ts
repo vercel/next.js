@@ -853,9 +853,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       if (!isSsg) {
-        pagesManifest[page] = relativeDest
-        if (page === '/') pagesManifest['/index'] = relativeDest
-        if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
+        if (page === '/.amp') {
+          pagesManifest['/index.amp'] = relativeDest
+        } else {
+          pagesManifest[page] = relativeDest
+        }
       }
       await promises.mkdir(path.dirname(dest), { recursive: true })
       await promises.rename(orig, dest)
@@ -943,7 +945,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await promises.rmdir(exportOptions.outdir)
     await promises.writeFile(
       manifestPath,
-      JSON.stringify(pagesManifest),
+      JSON.stringify(pagesManifest, null, 2),
       'utf8'
     )
   }
