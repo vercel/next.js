@@ -92,6 +92,16 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should work with nested folder with same name as basePath', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/docs/another')
+    expect(html).toContain('hello from another')
+
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.next.router.push("/docs/another")')
+
+    await check(() => browser.elementByCss('p').text(), /hello from another/)
+  })
+
   it('should 404 when manually adding basePath with <Link>', async () => {
     const browser = await webdriver(
       context.appPort,
