@@ -12,7 +12,7 @@ type Props = {
   className?: string
 }
 
-const CustomDonationInput: React.FunctionComponent<Props> = ({
+const CustomDonationInput = ({
   name,
   value,
   min,
@@ -21,7 +21,7 @@ const CustomDonationInput: React.FunctionComponent<Props> = ({
   step,
   onChange,
   className,
-}) => (
+}: Props) => (
   <label>
     Custom donation amount ({formatAmountForDisplay(min, currency)}-
     {formatAmountForDisplay(max, currency)}):

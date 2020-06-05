@@ -33,7 +33,7 @@ const CARD_OPTIONS = {
   },
 }
 
-const ElementsForm: React.FunctionComponent = () => {
+const ElementsForm = () => {
   const [input, setInput] = useState({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
     cardholderName: '',
