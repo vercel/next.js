@@ -1,6 +1,5 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
@@ -64,9 +63,9 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
-function parseJsonFile(path: string) {
+function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
-  const contents = readFileSync(path, 'utf8')
+  const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file
   if (contents.trim() === '') {
@@ -81,7 +80,7 @@ function parseJsonFile(path: string) {
       { start: { line: err.lineNumber, column: err.columnNumber } },
       { message: err.message, highlightCode: true }
     )
-    throw new Error(`Failed to parse "${path}":\n${codeFrame}`)
+    throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
   }
 }
 
@@ -247,8 +246,6 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors =
-    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -331,8 +328,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool = dev ? 'cheap-module-source-map' : false
-
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
       // mini-css-extract-plugin
@@ -352,23 +347,6 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
-      },
-    },
-    prod: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-        },
-        react: {
-          name: 'commons',
-          chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-subscription)[\\/]/,
-        },
       },
     },
     prodGranular: {
@@ -455,9 +433,7 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
   } else {
-    splitChunksConfig = config.experimental.granularChunks
-      ? splitChunksConfigs.prodGranular
-      : splitChunksConfigs.prod
+    splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
   const crossOrigin =
@@ -759,11 +735,11 @@ export default async function getBaseWebpackConfig(
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
-          exclude: (path: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(path))) {
+          exclude: (excludePath: string) => {
+            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
             }
-            return /node_modules/.test(path)
+            return /node_modules/.test(excludePath)
           },
           use: config.experimental.babelMultiThread
             ? [
@@ -844,9 +820,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
-          config.experimental.granularChunks && !dev
-        ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
@@ -917,27 +890,8 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            // Webpack 5 has the ability to cache packages persistently, so we
-            // do not need this DLL plugin:
+            // Webpack 5 enables HMR automatically in the development mode
             if (!isServer && !isWebpack5) {
-              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
-                distDir
-              )
-              devPlugins.push(
-                new AutoDllPlugin({
-                  filename: '[name]_[hash].js',
-                  path: './static/development/dll',
-                  context: dir,
-                  entry: {
-                    dll: ['react', 'react-dom'],
-                  },
-                  config: {
-                    devtool,
-                    mode: webpackMode,
-                    resolve: resolveConfig,
-                  },
-                })
-              )
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
             }
 
@@ -960,35 +914,16 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new BuildManifestPlugin({
           buildId,
-          clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
       tracer &&
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
-        !isServer &&
-        useTypeScript &&
-        !ignoreTypeScriptErrors &&
-        new ForkTsCheckerWebpackPlugin(
-          PnpWebpackPlugin.forkTsCheckerOptions({
-            typescript: typeScriptPath,
-            async: false,
-            useTypescriptIncrementalApi: true,
-            checkSyntacticErrors: true,
-            tsconfig: tsConfigPath,
-            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-            compilerOptions: { isolatedModules: true, noEmit: true },
-            silent: true,
-            formatter: 'codeframe',
-          })
-        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
         new NextEsmPlugin({
-          excludedPlugins: ['ForkTsCheckerWebpackPlugin'],
           filename: (getFileName: Function | string) => (...args: any[]) => {
             const name =
               typeof getFileName === 'function'
@@ -1025,7 +960,6 @@ export default async function getBaseWebpackConfig(
                     .BlockedAPIToBePolyfilled,
               }),
             !isServer &&
-              config.experimental.granularChunks &&
               conformanceConfig.GranularChunksConformanceCheck.enabled &&
               new GranularChunksConformanceCheck(
                 splitChunksConfigs.prodGranular

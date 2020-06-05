@@ -290,7 +290,6 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
-  pathname = pathname === '/index' ? '/' : pathname
   const {
     err,
     dev = false,
@@ -383,9 +382,7 @@ export async function renderToHTML(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
       }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client${
-          isFallback ? ' for the fallback page ' : ''
-        }`
+        `Using this will cause the page to fail to parse the params on the client`
     )
   }
 
@@ -531,13 +528,13 @@ export async function renderToHTML(
             ? { preview: true, previewData: previewData }
             : undefined),
         })
-      } catch (err) {
+      } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
         // 404 rendering
-        if (err.code === 'ENOENT') {
-          delete err.code
+        if (staticPropsError.code === 'ENOENT') {
+          delete staticPropsError.code
         }
-        throw err
+        throw staticPropsError
       }
 
       const invalidKeys = Object.keys(data).filter(
@@ -617,13 +614,13 @@ export async function renderToHTML(
             ? { preview: true, previewData: previewData }
             : undefined),
         })
-      } catch (err) {
+      } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
         // 404 rendering
-        if (err.code === 'ENOENT') {
-          delete err.code
+        if (serverSidePropsError.code === 'ENOENT') {
+          delete serverSidePropsError.code
         }
-        throw err
+        throw serverSidePropsError
       }
 
       const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
@@ -645,11 +642,11 @@ export async function renderToHTML(
       props.pageProps = Object.assign({}, props.pageProps, data.props)
       ;(renderOpts as any).pageData = props
     }
-  } catch (err) {
-    if (isDataReq || !dev || !err) throw err
-    ctx.err = err
-    renderOpts.err = err
-    console.error(err)
+  } catch (dataFetchError) {
+    if (isDataReq || !dev || !dataFetchError) throw dataFetchError
+    ctx.err = dataFetchError
+    renderOpts.err = dataFetchError
+    console.error(dataFetchError)
   }
 
   if (

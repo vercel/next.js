@@ -1,0 +1,14 @@
+{
+  "name": "with-next-translate",
+  "scripts": {
+    "dev": "next-translate && next dev",
+    "build": "next-translate && next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "9.4.4",
+    "next-translate": "0.16.1",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  }
+}
