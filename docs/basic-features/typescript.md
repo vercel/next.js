@@ -100,7 +100,8 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 If you have a [custom `App`](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
-import /* App, */ { AppProps, AppContext } from 'next/app'
+// import App from "next/app";
+import { AppProps /*, AppContext */ } from 'next/app'
 
 function MyApp({ Component, pageProps }: AppProps) {
   return <Component {...pageProps} />
