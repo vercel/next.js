@@ -101,7 +101,7 @@ If you have a [custom `App`](/docs/advanced-features/custom-app), you can use th
 
 ```ts
 // import App from "next/app";
-import { AppProps /*, AppContext */ } from 'next/app'
+import type { AppProps /*, AppContext */ } from 'next/app'
 
 function MyApp({ Component, pageProps }: AppProps) {
   return <Component {...pageProps} />
