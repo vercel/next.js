@@ -5,12 +5,11 @@ const Home = () => {
   const [message, setMessage] = useState(null)
 
   useEffect(() => {
-    global.ipcRenderer.on('message', (event, message) => setMessage(message))
+    const handleMessage = (event, message) => setMessage(message)
+    global.ipcRenderer.on('message', handleMessage)
 
     return () => {
-      global.ipcRenderer.removeListener('message', (event, message) =>
-        setMessage(message)
-      )
+      global.ipcRenderer.removeListener('message', handleMessage)
     }
   }, [])
 
