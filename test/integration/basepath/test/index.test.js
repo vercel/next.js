@@ -59,17 +59,23 @@ const runTests = (context, dev = false) => {
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.hello).toBe('world')
+
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/gsp')
   })
 
   it('should fetch data for getServerSideProps without reloading', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.eval('window.beforeNavigate = true')
-    await browser.elementByCss('#gsp-link').click()
-    await browser.waitForElementByCss('#gsp')
+    await browser.elementByCss('#gssp-link').click()
+    await browser.waitForElementByCss('#gssp')
     expect(await browser.eval('window.beforeNavigate')).toBe(true)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.hello).toBe('world')
+
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/gssp')
   })
 
   it('should have correct href for a link', async () => {
@@ -114,6 +120,24 @@ const runTests = (context, dev = false) => {
 
       expect(text).toBe('Hello Other')
       expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should allow URL query strings without refresh', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello?query=true')
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, 10000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/hello')
     } finally {
       await browser.close()
     }
