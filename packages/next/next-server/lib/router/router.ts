@@ -422,7 +422,7 @@ export default class Router implements BaseRouter {
       // url and as should always be prefixed with basePath by this
       // point by either next/link or router.push/replace so strip the
       // basePath from the pathname to match the pages dir 1-to-1
-      pathname = delBasePath(pathname!)
+      pathname = pathname ? delBasePath(pathname) : pathname
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
