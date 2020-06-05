@@ -11,7 +11,7 @@ import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
-import checkCustomRoutes from '../lib/check-custom-routes'
+import { loadCustomRoutes } from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -253,7 +253,8 @@ export default class DevServer extends Server {
 
   async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
-    await this.loadCustomRoutes()
+
+    this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     if (this.customRoutes) {
       const { redirects, rewrites, headers } = this.customRoutes
@@ -381,30 +382,6 @@ export default class DevServer extends Server {
       previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
       previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
     })
-  }
-
-  private async loadCustomRoutes(): Promise<void> {
-    const result = {
-      redirects: [],
-      rewrites: [],
-      headers: [],
-    }
-    const { redirects, rewrites, headers } = this.nextConfig.experimental
-
-    if (typeof redirects === 'function') {
-      result.redirects = await redirects()
-      checkCustomRoutes(result.redirects, 'redirect')
-    }
-    if (typeof rewrites === 'function') {
-      result.rewrites = await rewrites()
-      checkCustomRoutes(result.rewrites, 'rewrite')
-    }
-    if (typeof headers === 'function') {
-      result.headers = await headers()
-      checkCustomRoutes(result.headers, 'header')
-    }
-
-    this.customRoutes = result
   }
 
   generateRoutes() {

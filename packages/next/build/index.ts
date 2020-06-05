@@ -10,12 +10,11 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import checkCustomRoutes, {
+import {
   getRedirectStatus,
-  Header,
   Redirect,
-  Rewrite,
   RouteType,
+  loadCustomRoutes,
 } from '../lib/check-custom-routes'
 import {
   PAGES_404_GET_INITIAL_PROPS_ERROR,
@@ -112,25 +111,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const headers: Header[] = []
-  const rewrites: Rewrite[] = []
-  const redirects: Redirect[] = []
 
-  if (typeof config.experimental.redirects === 'function') {
-    const _redirects = await config.experimental.redirects()
-    checkCustomRoutes(_redirects, 'redirect')
-    redirects.push(..._redirects)
-  }
-  if (typeof config.experimental.rewrites === 'function') {
-    const _rewrites = await config.experimental.rewrites()
-    checkCustomRoutes(_rewrites, 'rewrite')
-    rewrites.push(..._rewrites)
-  }
-  if (typeof config.experimental.headers === 'function') {
-    const _headers = await config.experimental.headers()
-    checkCustomRoutes(_headers, 'header')
-    headers.push(..._headers)
-  }
+  const { headers, rewrites, redirects } = await loadCustomRoutes(config)
 
   if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
     const cacheDir = path.join(distDir, 'cache')

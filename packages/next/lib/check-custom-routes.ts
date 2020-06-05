@@ -302,3 +302,51 @@ export default function checkCustomRoutes(
     throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
   }
 }
+
+interface CustomRoutes {
+  headers: Header[]
+  rewrites: Rewrite[]
+  redirects: Redirect[]
+}
+
+export async function loadCustomRoutes(config: any): Promise<CustomRoutes> {
+  const headers: Header[] = []
+  const rewrites: Rewrite[] = []
+  const redirects: Redirect[] = []
+
+  if (typeof config.experimental.redirects === 'function') {
+    const _redirects = await config.experimental.redirects()
+    checkCustomRoutes(_redirects, 'redirect')
+    redirects.push(..._redirects)
+  }
+  if (typeof config.experimental.rewrites === 'function') {
+    const _rewrites = await config.experimental.rewrites()
+    checkCustomRoutes(_rewrites, 'rewrite')
+    rewrites.push(..._rewrites)
+  }
+  if (typeof config.experimental.headers === 'function') {
+    const _headers = await config.experimental.headers()
+    checkCustomRoutes(_headers, 'header')
+    headers.push(..._headers)
+  }
+
+  if (config.trailingSlash) {
+    redirects.push({
+      source: '/:path+',
+      destination: '/:path+/',
+      permanent: true,
+    })
+  } else {
+    redirects.push({
+      source: '/:path+/',
+      destination: '/:path+',
+      permanent: true,
+    })
+  }
+
+  return {
+    headers,
+    rewrites,
+    redirects,
+  }
+}

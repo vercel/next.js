@@ -22,6 +22,27 @@ let appPort
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 
+function testShouldRedirect(routes) {
+  it.each(routes)(
+    '%s should redirect to %s',
+    async (route, expectedLocation) => {
+      const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'manual' })
+      expect(res.status).toBe(308)
+      const { pathname } = new URL(res.headers.get('location'))
+      expect(pathname).toBe(expectedLocation)
+    }
+  )
+}
+
+function testShouldResolve(routes) {
+  it.each(routes)('%s should resolve to %s', async (route, expectedPage) => {
+    const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'error' })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#page-marker').text()).toBe(expectedPage)
+  })
+}
+
 function runTests() {
   describe.each([
     // page route => page file
@@ -32,8 +53,6 @@ function runTests() {
     ['/project/my-project/', '/project/my-project.js'],
     ['/catch-all/hello/', '/catch-all/[...slug].js'],
     ['/catch-all/hello/world/', '/catch-all/[...slug].js'],
-    // TODO: /index handling doesn't work properly in dev
-    // ['/project/index/', '/project/index/index.js'],
   ])('route %s should resolve to page %s', (route, expectedPage) => {
     it('handles serverside render correctly', async () => {
       const res = await fetchViaHTTP(appPort, route)
@@ -104,26 +123,49 @@ function runTests() {
 }
 
 describe('Trailing slashes', () => {
-  describe('dev mode', () => {
+  describe('dev mode, trailingSlash: false', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { trailingSlash: false }`
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
 
+    testShouldRedirect([['/about/', '/about']])
+
+    testShouldResolve([
+      ['/', '/index.js'],
+      ['/about', '/about.js'],
+    ])
+
     runTests()
   })
 
-  describe('production mode', () => {
+  describe('dev mode, trailingSlash: true', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(nextConfig, `module.exports = { trailingSlash: true }`)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(
-          nextConfig,
-          `module.exports = { experimental: { optionalCatchAll: true } }`
-        )
-      }
+    testShouldRedirect([['/about', '/about/']])
+
+    testShouldResolve([
+      ['/', '/index.js'],
+      ['/about/', '/about.js'],
+    ])
+  })
+
+  describe('production mode, trailingSlash: false', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { trailingSlash: false }`
+      )
       await nextBuild(appDir)
 
       appPort = await findPort()
@@ -131,28 +173,33 @@ describe('Trailing slashes', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    testShouldRedirect([['/about/', '/about']])
+
+    testShouldResolve([
+      ['/', '/index.js'],
+      ['/about', '/about.js'],
+    ])
   })
 
-  describe('serverless mode', () => {
-    let origNextConfig
-
+  describe('production mode, trailingSlash: true', () => {
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless', experimental: { optionalCatchAll: true } }`
-      )
-
+      await fs.writeFile(nextConfig, `module.exports = { trailingSlash: true }`)
       await nextBuild(appDir)
 
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
-    runTests()
+    afterAll(() => killApp(app))
+
+    testShouldRedirect([['/about', '/about/']])
+
+    testShouldResolve([
+      ['/', '/index.js'],
+      ['/about/', '/about.js'],
+    ])
   })
+})
+
+afterAll(async () => {
+  await fs.writeFile(nextConfig, `module.exports = { trailingSlash: false }`)
 })
