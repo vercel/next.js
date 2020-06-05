@@ -8,12 +8,15 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -57,7 +60,7 @@ Inside the Strapi directory, stop the server, [install GraphQL](https://strapi.i
 # If using Yarn: yarn strapi install graphql
 npm run strapi install graphql
 
-npm run dev # or: yarn develop
+npm run develop # or: yarn develop
 ```
 
 ### Step 3. Create an `Author` collection

@@ -789,11 +789,12 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
-    it('should work with /index page', async () => {
+    it('should not work with /index page', async () => {
       const browser = await webdriver(context.appPort, '/index')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
       await browser.close()
     })
 
