@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import React, { Component } from 'react'
+import React, { useContext, Component } from 'react'
 import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
@@ -121,32 +121,22 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-export class Html extends Component<
-  React.DetailedHTMLProps<
+export function Html(
+  props: React.DetailedHTMLProps<
     React.HtmlHTMLAttributes<HTMLHtmlElement>,
     HTMLHtmlElement
   >
-> {
-  static contextType = DocumentComponentContext
-
-  static propTypes = {
-    children: PropTypes.node.isRequired,
-  }
-
-  context!: React.ContextType<typeof DocumentComponentContext>
-
-  render() {
-    const { inAmpMode } = this.context._documentProps
-    return (
-      <html
-        {...this.props}
-        amp={inAmpMode ? '' : undefined}
-        data-ampdevmode={
-          inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
-        }
-      />
-    )
-  }
+) {
+  const { inAmpMode } = useContext(DocumentComponentContext)._documentProps
+  return (
+    <html
+      {...props}
+      amp={inAmpMode ? '' : undefined}
+      data-ampdevmode={
+        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+      }
+    />
+  )
 }
 
 export class Head extends Component<
