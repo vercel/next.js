@@ -517,17 +517,11 @@ export default class Server {
     })
 
     redirects = [
-      this.nextConfig.trailingSlash
-        ? {
-            source: '/:path+',
-            destination: '/:path+/',
-            permanent: true,
-          }
-        : {
-            source: '/:path+/',
-            destination: '/:path+',
-            permanent: true,
-          },
+      {
+        source: this.nextConfig.trailingSlash ? '/:path+' : '/:path+/',
+        destination: this.nextConfig.trailingSlash ? '/:path+/' : '/:path+',
+        permanent: true,
+      },
       ...this.customRoutes.redirects,
     ].map((redirect) => {
       const redirectRoute = getCustomRoute(redirect, 'redirect')
