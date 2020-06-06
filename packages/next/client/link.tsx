@@ -40,25 +40,21 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
-function formatTrailingSlash(url: string): string {
-  const [pathname, hash] = url.split('#')
-  let [path, qs] = pathname.split('?')
-  if (path && path !== '/') {
-    path = path.replace(/\/$/, '')
-    // Append a trailing slash if this path does not have an extension
-    if (process.env.__NEXT_TRAILING_SLASH && !/\.[^/]+\/?$/.test(path))
-      path += `/`
-  }
-  if (typeof qs === 'string') path += '?' + qs
-  if (typeof hash === 'string') path += '#' + hash
-  return path
+function normalizeTrailingSlash(url: UrlObject): UrlObject {
+  if (!url.pathname || url.pathname === '/') return url
+  let { pathname, ...rest } = url
+  pathname = pathname.replace(/\/$/, '')
+  // Append a trailing slash if this path does not have an extension
+  if (process.env.__NEXT_TRAILING_SLASH && !/\.[^/]+\/?$/.test(pathname))
+    pathname += `/`
+  return { pathname, ...rest }
 }
 
 function formatUrl(url: Url): string {
   return (
     url &&
-    formatTrailingSlash(
-      typeof url === 'object' ? formatWithValidation(url) : url
+    formatWithValidation(
+      normalizeTrailingSlash(typeof url === 'object' ? url : parse(url))
     )
   )
 }
