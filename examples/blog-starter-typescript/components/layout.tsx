@@ -8,7 +8,7 @@ type Props = {
   children: React.ReactNode
 }
 
-const Layout: React.FC<Props> = ({ preview, children }) => {
+const Layout = ({ preview, children }: Props) => {
   return (
     <>
       <Meta />

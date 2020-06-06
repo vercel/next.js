@@ -273,7 +273,6 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
-  pathname = pathname === '/index' ? '/' : pathname
   const {
     err,
     dev = false,
@@ -363,9 +362,7 @@ export async function renderToHTML(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
       }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client${
-          isFallback ? ' for the fallback page ' : ''
-        }`
+        `Using this will cause the page to fail to parse the params on the client`
     )
   }
 
