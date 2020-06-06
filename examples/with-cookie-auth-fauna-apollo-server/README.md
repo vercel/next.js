@@ -8,6 +8,10 @@ These are some of the features that this setup provides:
 - Token validation on refresh and window focus thanks to `react-query`'s [`useQuery` API](https://github.com/tannerlinsley/react-query#useQuery). In other words, if the token associated with a user identity is invalidated with [`Logout`](https://docs.fauna.com/fauna/current/api/fql/functions/logout) or in any other way, the user is also logged out in the front-end (as soon as the window is focused or refreshed).
 - A local GraphQL server which functions as a proxy that allows us to extend Fauna's GraphQL endpoint, and basically, let's us add local-only queries or mutations in order to extend the flexibility of remote queries or mutations, bringing great flexibility to the web-app. In this case, the proxy is used to create a `validCookie` query which runs before every login, signup or logout mutation to verify if the httpCookie token is valid or not, before delegating to the remote schema (the one located in Fauna's endpoint).
 
+## Demo
+
+[https://with-graphql-faunadb-cookie-auth.now.sh/](https://with-graphql-faunadb-cookie-auth.now.sh/)
+
 ## How to use
 
 ### Using `create-next-app`
