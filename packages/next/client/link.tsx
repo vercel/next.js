@@ -49,8 +49,8 @@ function formatTrailingSlash(url: string): string {
     if (process.env.__NEXT_TRAILING_SLASH && !/\.[^/]+\/?$/.test(path))
       path += `/`
   }
-  if (qs) path += '?' + qs
-  if (hash) path += '#' + hash
+  if (typeof qs === 'string') path += '?' + qs
+  if (typeof hash === 'string') path += '#' + hash
   return path
 }
 
