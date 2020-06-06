@@ -208,7 +208,7 @@ Due to CSS ordering issues, all CSS files that aren't modules should be imported
 
 ### Does it work with JavaScript disabled?
 
-Yes, if you disable JavaScript the CSS will still be loaded in the production build (`next start`). During development, we require JavaScript to be enabled to provide the best developer experience with Fast Refresh.
+Yes, if you disable JavaScript the CSS will still be loaded in the production build (`next start`). During development, we require JavaScript to be enabled to provide the best developer experience with [Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 
 ## Related
 
