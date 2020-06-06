@@ -1,8 +1,7 @@
 import Iron from '@hapi/iron'
 import { MAX_AGE, setTokenCookie, getTokenCookie } from './auth-cookies'
 
-// Use an environment variable here instead of a hardcoded value for production
-const TOKEN_SECRET = 'this-is-a-secret-value-with-at-least-32-characters'
+const TOKEN_SECRET = process.env.TOKEN_SECRET
 
 export async function setLoginSession(res, session) {
   const createdAt = Date.now()

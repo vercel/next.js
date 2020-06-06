@@ -36,5 +36,3 @@ yarn dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-> If you have issues installing `bcrypt`, follow this instructions: https://github.com/kelektiv/node.bcrypt.js/wiki/Installation-Instructions
