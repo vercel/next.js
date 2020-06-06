@@ -56,7 +56,7 @@ function formatTrailingSlash(url: string, requireSlash: boolean): string {
 function formatUrl(url: Url): string {
   return formatTrailingSlash(
     url && typeof url === 'object' ? formatWithValidation(url) : url,
-    process.env.__NEXT_TRAILING_SLASH
+    !!process.env.__NEXT_TRAILING_SLASH
   )
 }
 
