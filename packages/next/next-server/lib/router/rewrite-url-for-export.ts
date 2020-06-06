@@ -1,5 +1,6 @@
 export function rewriteUrlForNextExport(url: string): string {
   const [pathname, hash] = url.split('#')
+  // tslint:disable-next-line
   let [path, qs] = pathname.split('?')
   if (path) {
     path = path.replace(/\/$/, '')
