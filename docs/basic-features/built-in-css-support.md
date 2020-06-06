@@ -42,6 +42,10 @@ In development, expressing stylesheets this way allows your styles to be hot rel
 
 In production, all CSS files will be automatically concatenated into a single minified `.css` file.
 
+### Import styles from `node_modules`
+
+If you’d like to import CSS files from `node_modules`, you must do so inside `pages/_app.js`.
+
 ## Adding Component-Level CSS
 
 Next.js supports [CSS Modules](https://github.com/css-modules/css-modules) using the `[name].module.css` file naming convention.
@@ -199,6 +203,12 @@ export default HelloWorld
 ```
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
+
+## FAQ
+
+### Does it work with JavaScript disabled?
+
+Yes, if you disable JavaScript the CSS will still be loaded in the production build (`next start`). During development, we require JavaScript to be enabled to provide the best developer experience with [Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 
 ## Related
 
