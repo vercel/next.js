@@ -200,6 +200,16 @@ export default HelloWorld
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
+## FAQ
+
+### How can I import global styles from `node_modules` inside components code?
+
+Due to CSS ordering issues, all CSS files that aren't modules should be imported inside `pages/_app.js`.
+
+### Does it work with JavaScript disabled?
+
+Yes, if you disable JavaScript the CSS will still be loaded in the production build (`next start`). During development, we require JavaScript to be enabled to provide the best developer experience with Fast Refresh.
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
