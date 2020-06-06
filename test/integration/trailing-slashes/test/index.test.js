@@ -124,15 +124,20 @@ function runTests() {
 
 describe('Trailing slashes', () => {
   describe('dev mode, trailingSlash: false', () => {
+    let origNextConfig
     beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { trailingSlash: false }`
+        origNextConfig.replace('// <placeholder>', 'trailingSlash: false')
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
 
     testShouldRedirect([['/about/', '/about']])
 
@@ -145,12 +150,20 @@ describe('Trailing slashes', () => {
   })
 
   describe('dev mode, trailingSlash: true', () => {
+    let origNextConfig
     beforeAll(async () => {
-      await fs.writeFile(nextConfig, `module.exports = { trailingSlash: true }`)
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(
+        nextConfig,
+        origNextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
 
     testShouldRedirect([['/about', '/about/']])
 
@@ -161,17 +174,22 @@ describe('Trailing slashes', () => {
   })
 
   describe('production mode, trailingSlash: false', () => {
+    let origNextConfig
     beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { trailingSlash: false }`
+        origNextConfig.replace('// <placeholder>', 'trailingSlash: false')
       )
       await nextBuild(appDir)
 
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
 
     testShouldRedirect([['/about/', '/about']])
 
@@ -182,14 +200,22 @@ describe('Trailing slashes', () => {
   })
 
   describe('production mode, trailingSlash: true', () => {
+    let origNextConfig
     beforeAll(async () => {
-      await fs.writeFile(nextConfig, `module.exports = { trailingSlash: true }`)
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(
+        nextConfig,
+        origNextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      )
       await nextBuild(appDir)
 
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
 
     testShouldRedirect([['/about', '/about/']])
 
@@ -198,8 +224,4 @@ describe('Trailing slashes', () => {
       ['/about/', '/about.js'],
     ])
   })
-})
-
-afterAll(async () => {
-  await fs.writeFile(nextConfig, `module.exports = { trailingSlash: false }`)
 })

@@ -254,10 +254,10 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
 
-    const { redirects, rewrites, headers } = await loadCustomRoutes(
-      this.nextConfig
-    )
+    this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
+    // reload router
+    const { redirects, rewrites, headers } = this.customRoutes
     if (redirects.length || rewrites.length || headers.length) {
       this.router = new Router(this.generateRoutes())
     }
