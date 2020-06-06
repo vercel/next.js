@@ -2,36 +2,19 @@ import { AuthenticationError, UserInputError } from 'apollo-server-micro'
 import cookie from 'cookie'
 import jwt from 'jsonwebtoken'
 import getConfig from 'next/config'
-import bcrypt from 'bcrypt'
-import v4 from 'uuid/v4'
+import { createUser, findUser, validatePassword } from '../lib/user'
 
 const JWT_SECRET = getConfig().serverRuntimeConfig.JWT_SECRET
-
-const users = []
-
-function createUser(data) {
-  const salt = bcrypt.genSaltSync()
-
-  return {
-    id: v4(),
-    email: data.email,
-    hashedPassword: bcrypt.hashSync(data.password, salt),
-  }
-}
-
-function validPassword(user, password) {
-  return bcrypt.compareSync(password, user.hashedPassword)
-}
 
 export const resolvers = {
   Query: {
     async viewer(_parent, _args, context, _info) {
       const { token } = cookie.parse(context.req.headers.cookie ?? '')
+
       if (token) {
         try {
-          const { id, email } = jwt.verify(token, JWT_SECRET)
-
-          return users.find((user) => user.id === id && user.email === email)
+          const { email } = jwt.verify(token, JWT_SECRET)
+          return findUser({ email })
         } catch {
           throw new AuthenticationError(
             'Authentication token is invalid, please log in'
@@ -42,17 +25,13 @@ export const resolvers = {
   },
   Mutation: {
     async signUp(_parent, args, _context, _info) {
-      const user = createUser(args.input)
-
-      users.push(user)
-
+      const user = await createUser(args.input)
       return { user }
     },
-
     async signIn(_parent, args, context, _info) {
-      const user = users.find((user) => user.email === args.input.email)
+      const user = await findUser({ email: args.input.email })
 
-      if (user && validPassword(user, args.input.password)) {
+      if (user && validatePassword(user, args.input.password)) {
         const token = jwt.sign(
           { email: user.email, id: user.id, time: new Date() },
           JWT_SECRET,
