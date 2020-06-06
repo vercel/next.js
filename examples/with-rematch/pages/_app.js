@@ -1,17 +1,12 @@
-import App from 'next/app'
 import { Provider } from 'react-redux'
+import { useStore } from '../shared/store'
 
-import withRematch from '../shared/withRematch'
+export default function App({ Component, pageProps }) {
+  const store = useStore(pageProps.initialReduxState)
 
-class MyApp extends App {
-  render() {
-    const { Component, pageProps, reduxStore } = this.props
-    return (
-      <Provider store={reduxStore}>
-        <Component {...pageProps} />
-      </Provider>
-    )
-  }
+  return (
+    <Provider store={store}>
+      <Component {...pageProps} />
+    </Provider>
+  )
 }
-
-export default withRematch(MyApp)
