@@ -1,1 +1,3 @@
-module.exports = { trailingSlash: false }
+module.exports = {
+  // <placeholder>
+}
