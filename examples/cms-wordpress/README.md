@@ -82,7 +82,7 @@ Inside your WordPress admin, go to **Posts** and start adding new posts:
 
 When you’re done, make sure to **Publish** the posts.
 
-> **Note:** Only **published** posts and public fields will be rendered by the app unless [Preview Mode](/docs/advanced-features/preview-mode.md) is enabled.
+> **Note:** Only **published** posts and public fields will be rendered by the app unless [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) is enabled.
 
 ### Step 3. Set up environment variables
 
@@ -176,7 +176,7 @@ NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=...
 
 On your WordPress admin, create a new post like before, but **do not publish** it.
 
-Now, if you go to `http://localhost:3000`, you won’t see the post. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to `http://localhost:3000`, you won’t see the post. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable Preview Mode, go to this URL:
 
