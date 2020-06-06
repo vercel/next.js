@@ -8,11 +8,15 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### Related examples
 
-- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -21,7 +25,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-takeshape cms-takeshape-app
+npx create-next-app --example cms-takeshape cms-takeshape-app
 # or
 yarn create next-app --example cms-takeshape cms-takeshape-app
 ```
@@ -138,7 +142,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 On TakeShape, create a new post like before. But **DO NOT** click **Enabled** under **Workflow Status**.
 
-Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 

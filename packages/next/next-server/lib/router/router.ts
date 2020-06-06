@@ -379,6 +379,10 @@ export default class Router implements BaseRouter {
       let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
       let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
 
+      // parse url parts without basePath since pathname should map 1-1 with
+      // pages dir
+      const { pathname, query, protocol } = parse(delBasePath(url), true)
+
       url = addBasePath(url)
       as = addBasePath(as)
 
@@ -409,8 +413,6 @@ export default class Router implements BaseRouter {
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
       }
-
-      const { pathname, query, protocol } = parse(url, true)
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
@@ -581,7 +583,7 @@ export default class Router implements BaseRouter {
             .then((res) => {
               const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolve) => {
+              return new Promise((resolveRouteInfo) => {
                 this.getInitialProps(Component, {
                   err,
                   pathname,
@@ -590,7 +592,7 @@ export default class Router implements BaseRouter {
                   (props) => {
                     routeInfo.props = props
                     routeInfo.error = err
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   },
                   (gipErr) => {
                     console.error(
@@ -599,12 +601,12 @@ export default class Router implements BaseRouter {
                     )
                     routeInfo.error = err
                     routeInfo.props = {}
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   }
                 )
               }) as Promise<RouteInfo>
             })
-            .catch((err) => handleError(err, true))
+            .catch((routeInfoErr) => handleError(routeInfoErr, true))
         )
       }) as Promise<RouteInfo>
     }

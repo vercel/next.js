@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useStripe } from '@stripe/react-stripe-js'
 
 import CustomDonationInput from '../components/CustomDonationInput'
 
@@ -6,9 +7,8 @@ import { fetchPostJSON } from '../utils/api-helpers'
 import { formatAmountForDisplay } from '../utils/stripe-helpers'
 import * as config from '../config'
 
-import { useStripe } from '@stripe/react-stripe-js'
-
-const CheckoutForm: React.FunctionComponent = () => {
+const CheckoutForm = () => {
+  const [loading, setLoading] = useState(false)
   const [input, setInput] = useState({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
   })
@@ -22,6 +22,7 @@ const CheckoutForm: React.FunctionComponent = () => {
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
+    setLoading(true)
     // Create a Checkout Session.
     const response = await fetchPostJSON('/api/checkout_sessions', {
       amount: input.customDonation,
@@ -43,6 +44,7 @@ const CheckoutForm: React.FunctionComponent = () => {
     // error, display the localized error message to your customer
     // using `error.message`.
     console.warn(error.message)
+    setLoading(false)
   }
 
   return (
@@ -60,7 +62,7 @@ const CheckoutForm: React.FunctionComponent = () => {
       <button
         className="checkout-style-background"
         type="submit"
-        disabled={!stripe}
+        disabled={!stripe || loading}
       >
         Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
       </button>

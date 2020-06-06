@@ -11,7 +11,7 @@ export type LoadedEnvFiles = Array<{
 }>
 
 let combinedEnv: Env | undefined = undefined
-let loadedEnvFiles: LoadedEnvFiles = []
+let cachedLoadedEnvFiles: LoadedEnvFiles = []
 
 export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
   // don't reload env if we already have since this breaks escaped
@@ -59,7 +59,7 @@ export function loadEnvConfig(
 } {
   // don't reload env if we already have since this breaks escaped
   // environment values e.g. \$ENV_FILE_KEY
-  if (combinedEnv) return { combinedEnv, loadedEnvFiles }
+  if (combinedEnv) return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -86,7 +86,7 @@ export function loadEnvConfig(
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      loadedEnvFiles.push({
+      cachedLoadedEnvFiles.push({
         path: envFile,
         contents,
       })
@@ -96,6 +96,6 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(loadedEnvFiles, dir)
-  return { combinedEnv, loadedEnvFiles }
+  combinedEnv = processEnv(cachedLoadedEnvFiles, dir)
+  return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

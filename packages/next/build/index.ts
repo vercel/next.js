@@ -213,7 +213,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
-    /* dev */ false,
     mappedPages,
     target,
     buildId,
@@ -592,18 +591,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          let result = await staticCheckWorkers.isPageStatic(
+          let workerResult = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
             runtimeEnvConfig
           )
 
-          if (result.isHybridAmp) {
+          if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
           }
 
-          if (result.isAmpOnly) {
+          if (workerResult.isAmpOnly) {
             // ensure all AMP only bundles got removed
             try {
               const clientBundle = path.join(
@@ -627,32 +626,35 @@ export default async function build(dir: string, conf = null): Promise<void> {
             }
           }
 
-          if (result.hasStaticProps) {
+          if (workerResult.hasStaticProps) {
             ssgPages.add(page)
             isSsg = true
 
-            if (result.prerenderRoutes) {
-              additionalSsgPaths.set(page, result.prerenderRoutes)
-              ssgPageRoutes = result.prerenderRoutes
+            if (workerResult.prerenderRoutes) {
+              additionalSsgPaths.set(page, workerResult.prerenderRoutes)
+              ssgPageRoutes = workerResult.prerenderRoutes
             }
-            if (result.prerenderFallback) {
+            if (workerResult.prerenderFallback) {
               hasSsgFallback = true
               ssgFallbackPages.add(page)
             }
-          } else if (result.hasServerProps) {
+          } else if (workerResult.hasServerProps) {
             serverPropsPages.add(page)
-          } else if (result.isStatic && customAppGetInitialProps === false) {
+          } else if (
+            workerResult.isStatic &&
+            customAppGetInitialProps === false
+          ) {
             staticPages.add(page)
             isStatic = true
           }
 
           if (hasPages404 && page === '/404') {
-            if (!result.isStatic && !result.hasStaticProps) {
+            if (!workerResult.isStatic && !workerResult.hasStaticProps) {
               throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps
-            if (customAppGetInitialProps && !result.hasStaticProps) {
+            if (customAppGetInitialProps && !workerResult.hasStaticProps) {
               staticPages.delete(page)
             }
           }
@@ -851,9 +853,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       if (!isSsg) {
-        pagesManifest[page] = relativeDest
-        if (page === '/') pagesManifest['/index'] = relativeDest
-        if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
+        if (page === '/.amp') {
+          pagesManifest['/index.amp'] = relativeDest
+        } else {
+          pagesManifest[page] = relativeDest
+        }
       }
       await promises.mkdir(path.dirname(dest), { recursive: true })
       await promises.rename(orig, dest)
@@ -941,7 +945,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await promises.rmdir(exportOptions.outdir)
     await promises.writeFile(
       manifestPath,
-      JSON.stringify(pagesManifest),
+      JSON.stringify(pagesManifest, null, 2),
       'utf8'
     )
   }
