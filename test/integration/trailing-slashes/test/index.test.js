@@ -103,6 +103,7 @@ function testWithTrailingSlash() {
   ])
 
   testLinkShouldRewriteTo([
+    ['/', '/'],
     ['/about', '/about'],
     ['/about/', '/about'],
   ])
@@ -121,6 +122,7 @@ function testWithoutTrailingSlash() {
   ])
 
   testLinkShouldRewriteTo([
+    ['/', '/'],
     ['/about', '/about/'],
     ['/about/', '/about/'],
   ])
