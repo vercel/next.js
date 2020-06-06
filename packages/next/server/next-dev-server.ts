@@ -11,7 +11,7 @@ import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
-import { loadCustomRoutes } from '../lib/check-custom-routes'
+import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -254,14 +254,12 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
 
-    this.customRoutes = await loadCustomRoutes(this.nextConfig)
+    const { redirects, rewrites, headers } = await loadCustomRoutes(
+      this.nextConfig
+    )
 
-    if (this.customRoutes) {
-      const { redirects, rewrites, headers } = this.customRoutes
-
-      if (redirects.length || rewrites.length || headers.length) {
-        this.router = new Router(this.generateRoutes())
-      }
+    if (redirects.length || rewrites.length || headers.length) {
+      this.router = new Router(this.generateRoutes())
     }
 
     this.hotReloader = new HotReloader(this.dir, {
@@ -368,8 +366,9 @@ export default class DevServer extends Server {
   }
 
   // override production loading of routes-manifest
-  protected getCustomRoutes() {
-    return this.customRoutes
+  protected getCustomRoutes(): CustomRoutes {
+    // actual routes will be loaded asynchronously during .prepare()
+    return { redirects: [], rewrites: [], headers: [] }
   }
 
   private _devCachedPreviewProps: __ApiPreviewProps | undefined

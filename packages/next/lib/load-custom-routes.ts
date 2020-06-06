@@ -122,7 +122,7 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
-export default function checkCustomRoutes(
+function checkCustomRoutes(
   routes: Redirect[] | Header[] | Rewrite[],
   type: RouteType
 ): void {
@@ -303,46 +303,47 @@ export default function checkCustomRoutes(
   }
 }
 
-interface CustomRoutes {
+export interface CustomRoutes {
   headers: Header[]
   rewrites: Rewrite[]
   redirects: Redirect[]
 }
 
-export async function loadCustomRoutes(config: any): Promise<CustomRoutes> {
-  const headers: Header[] = []
-  const rewrites: Rewrite[] = []
-  const redirects: Redirect[] = []
+async function loadRedirects(config: any) {
+  if (typeof config.experimental.redirects !== 'function') {
+    return []
+  }
+  const _redirects = await config.experimental.redirects()
+  checkCustomRoutes(_redirects, 'redirect')
+  return _redirects
+}
 
-  if (typeof config.experimental.redirects === 'function') {
-    const _redirects = await config.experimental.redirects()
-    checkCustomRoutes(_redirects, 'redirect')
-    redirects.push(..._redirects)
+async function loadRewrites(config: any) {
+  if (typeof config.experimental.rewrites !== 'function') {
+    return []
   }
-  if (typeof config.experimental.rewrites === 'function') {
-    const _rewrites = await config.experimental.rewrites()
-    checkCustomRoutes(_rewrites, 'rewrite')
-    rewrites.push(..._rewrites)
-  }
-  if (typeof config.experimental.headers === 'function') {
-    const _headers = await config.experimental.headers()
-    checkCustomRoutes(_headers, 'header')
-    headers.push(..._headers)
-  }
+  const _rewrites = await config.experimental.rewrites()
+  checkCustomRoutes(_rewrites, 'rewrite')
+  return _rewrites
+}
 
-  if (config.trailingSlash) {
-    redirects.push({
-      source: '/:path+',
-      destination: '/:path+/',
-      permanent: true,
-    })
-  } else {
-    redirects.push({
-      source: '/:path+/',
-      destination: '/:path+',
-      permanent: true,
-    })
+async function loadHeaders(config: any) {
+  if (typeof config.experimental.headers !== 'function') {
+    return []
   }
+  const _headers = await config.experimental.headers()
+  checkCustomRoutes(_headers, 'header')
+  return _headers
+}
+
+export default async function loadCustomRoutes(
+  config: any
+): Promise<CustomRoutes> {
+  const [headers, rewrites, redirects] = await Promise.all([
+    loadRedirects(config),
+    loadRewrites(config),
+    loadHeaders(config),
+  ])
 
   return {
     headers,

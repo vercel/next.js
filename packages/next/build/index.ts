@@ -10,12 +10,11 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import {
+import loadCustomRoutes, {
   getRedirectStatus,
   Redirect,
   RouteType,
-  loadCustomRoutes,
-} from '../lib/check-custom-routes'
+} from '../lib/load-custom-routes'
 import {
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
