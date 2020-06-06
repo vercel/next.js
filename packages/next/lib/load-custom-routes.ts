@@ -340,9 +340,9 @@ export default async function loadCustomRoutes(
   config: any
 ): Promise<CustomRoutes> {
   const [headers, rewrites, redirects] = await Promise.all([
-    loadRedirects(config),
-    loadRewrites(config),
     loadHeaders(config),
+    loadRewrites(config),
+    loadRedirects(config),
   ])
 
   return {
