@@ -1,5 +1,5 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs').promises
 const fetch = require('node-fetch')
 const prettyMs = require('pretty-ms')
 const logger = require('./util/logger')
