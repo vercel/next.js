@@ -44,7 +44,7 @@ export function getAssetPath(route) {
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
     link = document.createElement('link')
-    link.crossOrigin = process.crossOrigin
+    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     link.href = href
     link.rel = rel
     if (as) link.as = as
@@ -267,7 +267,7 @@ export default class PageLoader {
       // dependencies already have it added during build manifest creation
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
-    script.crossOrigin = process.crossOrigin
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     script.src = url
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)

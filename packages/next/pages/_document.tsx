@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import React, { Component } from 'react'
+import React, { useContext, Component } from 'react'
 import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
@@ -51,18 +51,6 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     ? import(
         // @ts-ignore loader syntax
         'next-plugin-loader?middleware=document-head-tags-server!'
-      )
-    : () => []
-  static bodyTagsMiddleware = process.env.__NEXT_PLUGINS
-    ? import(
-        // @ts-ignore loader syntax
-        'next-plugin-loader?middleware=document-body-tags-server!'
-      )
-    : () => []
-  static htmlPropsMiddleware = process.env.__NEXT_PLUGINS
-    ? import(
-        // @ts-ignore loader syntax
-        'next-plugin-loader?middleware=document-html-props-server!'
       )
     : () => []
 
@@ -133,33 +121,22 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-export class Html extends Component<
-  React.DetailedHTMLProps<
+export function Html(
+  props: React.DetailedHTMLProps<
     React.HtmlHTMLAttributes<HTMLHtmlElement>,
     HTMLHtmlElement
   >
-> {
-  static contextType = DocumentComponentContext
-
-  static propTypes = {
-    children: PropTypes.node.isRequired,
-  }
-
-  context!: React.ContextType<typeof DocumentComponentContext>
-
-  render() {
-    const { inAmpMode, htmlProps } = this.context._documentProps
-    return (
-      <html
-        {...htmlProps}
-        {...this.props}
-        amp={inAmpMode ? '' : undefined}
-        data-ampdevmode={
-          inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
-        }
-      />
-    )
-  }
+) {
+  const { inAmpMode } = useContext(DocumentComponentContext)._documentProps
+  return (
+    <html
+      {...props}
+      amp={inAmpMode ? '' : undefined}
+      data-ampdevmode={
+        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+      }
+    />
+  )
 }
 
 export class Head extends Component<
@@ -195,7 +172,9 @@ export class Head extends Component<
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           as="style"
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
         />,
         <link
           key={file}
@@ -204,7 +183,9 @@ export class Head extends Component<
           href={`${assetPrefix}/_next/${encodeURI(
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
         />
       )
     })
@@ -235,7 +216,9 @@ export class Head extends Component<
               )}${_devOnlyInvalidateCacheQueryString}`}
               as="script"
               nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
             />
           )
         })
@@ -269,7 +252,9 @@ export class Head extends Component<
               file
             )}${_devOnlyInvalidateCacheQueryString}`}
             as="script"
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
           />
         ))
   }
@@ -480,7 +465,9 @@ export class Head extends Component<
                 }
                 as="script"
                 nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                crossOrigin={
+                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                }
               />
             )}
             {!disableRuntimeJS && page !== '/_error' && (
@@ -497,7 +484,9 @@ export class Head extends Component<
                 }
                 as="script"
                 nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                crossOrigin={
+                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                }
               />
             )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
@@ -565,7 +554,9 @@ export class NextScript extends Component<OriginProps> {
             bundle.file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           {...modernProps}
         />
       )
@@ -573,11 +564,11 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files, lowPriorityFiles } = this.context._documentProps
+    const { assetPrefix, files, buildManifest } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     const normalScripts = files?.filter((file) => file.endsWith('.js'))
-    const lowPriorityScripts = lowPriorityFiles?.filter((file) =>
+    const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
       file.endsWith('.js')
     )
 
@@ -596,7 +587,9 @@ export class NextScript extends Component<OriginProps> {
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           async
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           {...modernProps}
         />
       )
@@ -606,10 +599,10 @@ export class NextScript extends Component<OriginProps> {
   getPolyfillScripts() {
     // polyfills.js has to be rendered as nomodule without async
     // It also has to be the first script to load
-    const { assetPrefix, polyfillFiles } = this.context._documentProps
+    const { assetPrefix, buildManifest } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return polyfillFiles
+    return buildManifest.polyfillFiles
       .filter(
         (polyfill) =>
           polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
@@ -618,7 +611,9 @@ export class NextScript extends Component<OriginProps> {
         <script
           key={polyfill}
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           noModule={true}
           src={`${assetPrefix}/_next/${polyfill}${_devOnlyInvalidateCacheQueryString}`}
         />
@@ -642,12 +637,10 @@ export class NextScript extends Component<OriginProps> {
 
   render() {
     const {
-      staticMarkup,
       assetPrefix,
       inAmpMode,
-      devFiles,
+      buildManifest,
       __NEXT_DATA__,
-      bodyTags,
       unstable_runtimeJS,
     } = this.context._documentProps
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -667,12 +660,14 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <>
-          {staticMarkup || disableRuntimeJS ? null : (
+          {disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
               type="application/json"
               nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
               dangerouslySetInnerHTML={{
                 __html: NextScript.getInlineScriptSource(
                   this.context._documentProps
@@ -687,12 +682,13 @@ export class NextScript extends Component<OriginProps> {
                   key={file}
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
                   nonce={this.props.nonce}
-                  crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                  crossOrigin={
+                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                  }
                   data-ampdevmode
                 />
               ))
             : null}
-          {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
         </>
       )
     }
@@ -717,7 +713,7 @@ export class NextScript extends Component<OriginProps> {
           _devOnlyInvalidateCacheQueryString
         }
         nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
         {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
       />,
       process.env.__NEXT_MODERN_BUILD && (
@@ -733,7 +729,9 @@ export class NextScript extends Component<OriginProps> {
             _devOnlyInvalidateCacheQueryString
           }
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           type="module"
         />
       ),
@@ -750,7 +748,7 @@ export class NextScript extends Component<OriginProps> {
         }
         key="_app"
         nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
         {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
       />,
       process.env.__NEXT_MODERN_BUILD && (
@@ -764,7 +762,9 @@ export class NextScript extends Component<OriginProps> {
           }
           key="_app-modern"
           nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
           type="module"
         />
       ),
@@ -772,8 +772,8 @@ export class NextScript extends Component<OriginProps> {
 
     return (
       <>
-        {!disableRuntimeJS && devFiles
-          ? devFiles.map(
+        {!disableRuntimeJS && buildManifest.devFiles
+          ? buildManifest.devFiles.map(
               (file: string) =>
                 !file.match(/\.js\.map/) && (
                   <script
@@ -782,17 +782,21 @@ export class NextScript extends Component<OriginProps> {
                       file
                     )}${_devOnlyInvalidateCacheQueryString}`}
                     nonce={this.props.nonce}
-                    crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                    crossOrigin={
+                      this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                    }
                   />
                 )
             )
           : null}
-        {staticMarkup || disableRuntimeJS ? null : (
+        {disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
             type="application/json"
             nonce={this.props.nonce}
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
             dangerouslySetInnerHTML={{
               __html: NextScript.getInlineScriptSource(
                 this.context._documentProps
@@ -803,7 +807,9 @@ export class NextScript extends Component<OriginProps> {
         {process.env.__NEXT_MODERN_BUILD && !disableRuntimeJS ? (
           <script
             nonce={this.props.nonce}
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
             noModule={true}
             dangerouslySetInnerHTML={{
               __html: NextScript.safariNomoduleFix,
@@ -813,9 +819,8 @@ export class NextScript extends Component<OriginProps> {
         {!disableRuntimeJS && this.getPolyfillScripts()}
         {!disableRuntimeJS && appScript}
         {!disableRuntimeJS && page !== '/_error' && pageScript}
-        {disableRuntimeJS || staticMarkup ? null : this.getDynamicChunks()}
-        {disableRuntimeJS || staticMarkup ? null : this.getScripts()}
-        {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
+        {disableRuntimeJS ? null : this.getDynamicChunks()}
+        {disableRuntimeJS ? null : this.getScripts()}
       </>
     )
   }

@@ -28,30 +28,12 @@ function runTests() {
     expect(html).toMatch(/home/)
   })
 
-  it('should apply htmlProps from plugin correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
-    expect($('html').attr('lang')).toBe('en')
-  })
-
   it('should apply headTags from plugin correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     const found = Array.from($('head').children()).find((el) => {
       return (el.attribs.src || '').match(/googletagmanager.*?my-tracking-id/)
     })
-    expect(found).toBeTruthy()
-  })
-
-  it('should apply bodyTags from plugin correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
-    const found = Array.from($('body').children()).find(
-      (el) =>
-        el.type === 'script' &&
-        el.children[0] &&
-        el.children[0].data.includes('console.log')
-    )
     expect(found).toBeTruthy()
   })
 

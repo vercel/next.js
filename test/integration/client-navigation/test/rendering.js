@@ -310,8 +310,7 @@ export default function (render, fetch) {
 
       // test dynamic chunk
       resources.push(
-        '/_next/' +
-          reactLoadableManifest['../../components/hello1'][0].publicPath
+        '/_next/' + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc
