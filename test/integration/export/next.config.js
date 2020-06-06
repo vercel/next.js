@@ -9,7 +9,7 @@ module.exports = (phase) => {
     serverRuntimeConfig: {
       bar: 'bar',
     },
-    exportTrailingSlash: false,
+    exportTrailingSlash: true,
     exportPathMap: function () {
       return {
         '/': { page: '/' },
