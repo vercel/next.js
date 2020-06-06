@@ -1,0 +1,27 @@
+enum UserRole {
+  ADMIN
+  FREE_USER
+}
+
+type User {
+  email: String! @unique
+  role: UserRole!
+}
+
+input CreateUserInput {
+  email: String!
+  password: String!
+  role: UserRole!
+}
+
+input LoginUserInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  signupUser(data: CreateUserInput!): String! @resolver(name: "signup_user")
+  createUser(data: CreateUserInput!): User! @resolver(name: "create_user")
+  loginUser(data: LoginUserInput!): String! @resolver(name: "login_user")
+  logoutUser: Boolean! @resolver(name: "logout_user")
+}
