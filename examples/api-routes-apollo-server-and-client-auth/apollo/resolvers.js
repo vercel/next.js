@@ -1,20 +1,16 @@
 import { AuthenticationError, UserInputError } from 'apollo-server-micro'
-import cookie from 'cookie'
-import jwt from 'jsonwebtoken'
-import getConfig from 'next/config'
 import { createUser, findUser, validatePassword } from '../lib/user'
-
-const JWT_SECRET = getConfig().serverRuntimeConfig.JWT_SECRET
+import { setLoginSession, getLoginSession } from '../lib/auth'
+import { removeTokenCookie } from '../lib/auth-cookies'
 
 export const resolvers = {
   Query: {
     async viewer(_parent, _args, context, _info) {
-      const { token } = cookie.parse(context.req.headers.cookie ?? '')
+      const session = await getLoginSession(context.req)
 
-      if (token) {
+      if (session) {
         try {
-          const { email } = jwt.verify(token, JWT_SECRET)
-          return findUser({ email })
+          return findUser({ email: session.email })
         } catch {
           throw new AuthenticationError(
             'Authentication token is invalid, please log in'
@@ -32,24 +28,12 @@ export const resolvers = {
       const user = await findUser({ email: args.input.email })
 
       if (user && validatePassword(user, args.input.password)) {
-        const token = jwt.sign(
-          { email: user.email, id: user.id, time: new Date() },
-          JWT_SECRET,
-          {
-            expiresIn: '6h',
-          }
-        )
+        const session = {
+          id: user.id,
+          email: user.email,
+        }
 
-        context.res.setHeader(
-          'Set-Cookie',
-          cookie.serialize('token', token, {
-            httpOnly: true,
-            maxAge: 6 * 60 * 60,
-            path: '/',
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production',
-          })
-        )
+        await setLoginSession(context.res, session)
 
         return { user }
       }
@@ -57,17 +41,7 @@ export const resolvers = {
       throw new UserInputError('Invalid email and password combination')
     },
     async signOut(_parent, _args, context, _info) {
-      context.res.setHeader(
-        'Set-Cookie',
-        cookie.serialize('token', '', {
-          httpOnly: true,
-          maxAge: -1,
-          path: '/',
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
-        })
-      )
-
+      removeTokenCookie(context.res)
       return true
     },
   },
