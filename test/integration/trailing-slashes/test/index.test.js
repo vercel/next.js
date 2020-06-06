@@ -22,8 +22,8 @@ let appPort
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 
-function testShouldRedirect(routes) {
-  it.each(routes)(
+function testShouldRedirect(expectations) {
+  it.each(expectations)(
     '%s should redirect to %s',
     async (route, expectedLocation) => {
       const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'manual' })
@@ -34,34 +34,20 @@ function testShouldRedirect(routes) {
   )
 }
 
-function testShouldResolve(routes) {
-  it.each(routes)('%s should resolve to %s', async (route, expectedPage) => {
-    const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'error' })
-    expect(res.status).toBe(200)
-    const $ = cheerio.load(await res.text())
-    expect($('#page-marker').text()).toBe(expectedPage)
-  })
-}
-
-function runTests() {
-  describe.each([
-    // page route => page file
-    ['/', '/index.js'],
-    ['/about/', '/about.js'],
-    ['/user/', '/user/index.js'],
-    ['/project/', '/project/index.js'],
-    ['/project/my-project/', '/project/my-project.js'],
-    ['/catch-all/hello/', '/catch-all/[...slug].js'],
-    ['/catch-all/hello/world/', '/catch-all/[...slug].js'],
-  ])('route %s should resolve to page %s', (route, expectedPage) => {
-    it('handles serverside render correctly', async () => {
-      const res = await fetchViaHTTP(appPort, route)
+function testShouldResolve(expectations) {
+  it.each(expectations)(
+    '%s should resolve to %s',
+    async (route, expectedPage) => {
+      const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'error' })
       expect(res.status).toBe(200)
       const $ = cheerio.load(await res.text())
       expect($('#page-marker').text()).toBe(expectedPage)
-    })
+    }
+  )
 
-    it('handles client side render correctly', async () => {
+  it.each(expectations)(
+    '%s should client side render %s',
+    async (route, expectedPage) => {
       let browser
       try {
         browser = await webdriver(appPort, route)
@@ -72,54 +58,72 @@ function runTests() {
       } finally {
         if (browser) await browser.close()
       }
-    })
+    }
+  )
+}
 
-    it('handles client side navigation correctly', async () => {
+function testLinkShouldRewriteTo(expectations) {
+  it.each(expectations)(
+    '%s should have href %s',
+    async (href, expectedHref) => {
+      const content = await renderViaHTTP(appPort, `/linker?href=${href}`)
+      const $ = cheerio.load(content)
+      expect($('#link').attr('href')).toBe(expectedHref)
+    }
+  )
+
+  it.each(expectations)(
+    '%s should navigate to %s',
+    async (href, expectedHref) => {
       let browser
       try {
-        browser = await webdriver(appPort, `/linker?href=${route}`)
+        browser = await webdriver(appPort, `/linker?href=${href}`)
         await browser.elementByCss('#link').click()
 
         await browser.waitForElementByCss('#hydration-marker')
-        const text = await browser.elementByCss('#page-marker').text()
-        expect(text).toBe(expectedPage)
+        const { pathname } = new URL(await browser.eval('window.location.href'))
+        expect(pathname).toBe(expectedHref)
       } finally {
         if (browser) await browser.close()
       }
-    })
-  })
+    }
+  )
+}
 
-  describe.each([
-    // non-resolving page route
-    ['/non-existing/'],
-    ['/catch-all/'],
-    // TODO: /index handling doesn't work yet
-    // ['/index/'],
-    // ['/user/index/'],
-  ])('route %s should not resolve', (route) => {
-    it('returns 404 when navigated directly', async () => {
-      const res = await fetchViaHTTP(appPort, route)
-      expect(res.status).toBe(404)
-    })
+function testWithTrailingSlash() {
+  testShouldRedirect([
+    ['/about/', '/about'],
+    ['/catch-all/hello/world/', '/catch-all/hello/world'],
+  ])
 
-    it('shows 404 page on client side navigation', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, `/linker?href=${route}`)
-        await browser.elementByCss('#link').click()
+  testShouldResolve([
+    ['/', '/index.js'],
+    ['/about', '/about.js'],
+    ['/catch-all/hello/world', '/catch-all/[...slug].js'],
+  ])
 
-        await browser.waitForElementByCss('#page-404')
-      } finally {
-        if (browser) await browser.close()
-      }
-    })
-  })
+  testLinkShouldRewriteTo([
+    ['/about', '/about'],
+    ['/about/', '/about'],
+  ])
+}
 
-  it('includes the bundle correctly', async () => {
-    const content = await renderViaHTTP(appPort, '/about/')
-    expect(content).not.toMatch('/about/.js')
-    expect(content).toMatch('/about.js')
-  })
+function testWithoutTrailingSlash() {
+  testShouldRedirect([
+    ['/about', '/about/'],
+    ['/catch-all/hello/world', '/catch-all/hello/world/'],
+  ])
+
+  testShouldResolve([
+    ['/', '/index.js'],
+    ['/about/', '/about.js'],
+    ['/catch-all/hello/world/', '/catch-all/[...slug].js'],
+  ])
+
+  testLinkShouldRewriteTo([
+    ['/about', '/about/'],
+    ['/about/', '/about/'],
+  ])
 }
 
 describe('Trailing slashes', () => {
@@ -139,14 +143,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testShouldRedirect([['/about/', '/about']])
-
-    testShouldResolve([
-      ['/', '/index.js'],
-      ['/about', '/about.js'],
-    ])
-
-    runTests()
+    testWithTrailingSlash()
   })
 
   describe('dev mode, trailingSlash: true', () => {
@@ -165,12 +162,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testShouldRedirect([['/about', '/about/']])
-
-    testShouldResolve([
-      ['/', '/index.js'],
-      ['/about/', '/about.js'],
-    ])
+    testWithoutTrailingSlash()
   })
 
   describe('production mode, trailingSlash: false', () => {
@@ -191,12 +183,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testShouldRedirect([['/about/', '/about']])
-
-    testShouldResolve([
-      ['/', '/index.js'],
-      ['/about', '/about.js'],
-    ])
+    testWithTrailingSlash()
   })
 
   describe('production mode, trailingSlash: true', () => {
@@ -217,11 +204,6 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testShouldRedirect([['/about', '/about/']])
-
-    testShouldResolve([
-      ['/', '/index.js'],
-      ['/about/', '/about.js'],
-    ])
+    testWithoutTrailingSlash()
   })
 })

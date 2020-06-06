@@ -40,8 +40,24 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
+function formatTrailingSlash(url: string, requireSlash: boolean): string {
+  const [pathname, hash] = url.split('#')
+  let [path, qs] = pathname.split('?')
+  if (path) {
+    path = path.replace(/\/$/, '')
+    // Append a trailing slash if this path does not have an extension
+    if (requireSlash && !/\.[^/]+\/?$/.test(path)) path += `/`
+  }
+  if (qs) path += '?' + qs
+  if (hash) path += '#' + hash
+  return path
+}
+
 function formatUrl(url: Url): string {
-  return url && typeof url === 'object' ? formatWithValidation(url) : url
+  return formatTrailingSlash(
+    url && typeof url === 'object' ? formatWithValidation(url) : url,
+    process.env.__NEXT_TRAILING_SLASH
+  )
 }
 
 export type LinkProps = {
