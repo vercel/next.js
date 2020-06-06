@@ -35,7 +35,7 @@ const Index = () => {
       <div>
         You're signed in as {viewer.email} goto{' '}
         <Link href="/about">
-          <a>static</a>
+          <a>about</a>
         </Link>{' '}
         page. or{' '}
         <Link href="/signout">

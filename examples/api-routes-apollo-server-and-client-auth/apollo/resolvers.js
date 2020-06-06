@@ -6,16 +6,16 @@ import { removeTokenCookie } from '../lib/auth-cookies'
 export const resolvers = {
   Query: {
     async viewer(_parent, _args, context, _info) {
-      const session = await getLoginSession(context.req)
+      try {
+        const session = await getLoginSession(context.req)
 
-      if (session) {
-        try {
+        if (session) {
           return findUser({ email: session.email })
-        } catch {
-          throw new AuthenticationError(
-            'Authentication token is invalid, please log in'
-          )
         }
+      } catch (error) {
+        throw new AuthenticationError(
+          'Authentication token is invalid, please log in'
+        )
       }
     },
   },
