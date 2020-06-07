@@ -128,11 +128,7 @@ export default class Server {
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   router: Router
   protected dynamicRoutes?: DynamicRoutes
-  protected customRoutes: {
-    rewrites: Rewrite[]
-    redirects: Redirect[]
-    headers: Header[]
-  }
+  protected customRoutes: CustomRoutes
   protected staticPathsWorker?: import('jest-worker').default & {
     loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
   }
@@ -301,8 +297,8 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  protected getCustomRoutes() {
-    return require(join(this.distDir, ROUTES_MANIFEST)) as CustomRoutes
+  protected getCustomRoutes(): CustomRoutes {
+    return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
