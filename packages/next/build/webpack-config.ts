@@ -803,7 +803,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(crossOrigin),
+        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
