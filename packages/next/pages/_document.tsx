@@ -506,16 +506,12 @@ export class Head extends Component<
   }
 }
 
-export class Main extends Component {
-  static contextType = DocumentComponentContext
-
-  context!: React.ContextType<typeof DocumentComponentContext>
-
-  render() {
-    const { inAmpMode, html } = this.context._documentProps
-    if (inAmpMode) return AMP_RENDER_TARGET
-    return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
-  }
+export function Main() {
+  const { inAmpMode, html } = useContext(
+    DocumentComponentContext
+  )._documentProps
+  if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
+  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 export class NextScript extends Component<OriginProps> {
