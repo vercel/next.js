@@ -31,6 +31,8 @@ export function initEnvironment(initialRecords) {
   // Create a network layer from the fetch function
   const environment = relayEnvironment ?? createEnvironment(initialRecords)
 
+  // If your page has Next.js data fetching methods that use Relay, the initial records
+  // will get hydrated here
   if (initialRecords) {
     environment.getStore().publish(new RecordSource(initialRecords))
   }
