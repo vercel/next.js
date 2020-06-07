@@ -87,7 +87,6 @@ export type ServerConstructor = {
    * Where the Next project is located - @default '.'
    */
   dir?: string
-  staticMarkup?: boolean
   /**
    * Hide error messages containing server information - @default false
    */
@@ -113,7 +112,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    staticMarkup: boolean
     buildId: string
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
@@ -140,7 +138,6 @@ export default class Server {
 
   public constructor({
     dir = '.',
-    staticMarkup = false,
     quiet = false,
     conf = null,
     dev = false,
@@ -171,7 +168,6 @@ export default class Server {
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      staticMarkup,
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),
