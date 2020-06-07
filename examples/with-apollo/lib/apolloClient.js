@@ -1,27 +1,17 @@
 import { useMemo } from 'react'
 import { ApolloClient } from 'apollo-client'
 import { InMemoryCache } from 'apollo-cache-inmemory'
+import { HttpLink } from 'apollo-link-http'
 
 let apolloClient
-
-function createIsomorphLink() {
-  if (typeof window === 'undefined') {
-    const { SchemaLink } = require('apollo-link-schema')
-    const { schema } = require('./schema')
-    return new SchemaLink({ schema })
-  } else {
-    const { HttpLink } = require('apollo-link-http')
-    return new HttpLink({
-      uri: '/api/graphql',
-      credentials: 'same-origin',
-    })
-  }
-}
 
 function createApolloClient() {
   return new ApolloClient({
     ssrMode: typeof window === 'undefined',
-    link: createIsomorphLink(),
+    link: new HttpLink({
+      uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
+      credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
+    }),
     cache: new InMemoryCache(),
   })
 }
