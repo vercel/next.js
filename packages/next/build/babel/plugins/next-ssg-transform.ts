@@ -1,5 +1,8 @@
 import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
-import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
+import {
+  SERVER_PROPS_SSG_CONFLICT,
+  SERVER_PROPS_PATHS_CONFLICT,
+} from '../../../lib/constants'
 import {
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -83,7 +86,7 @@ const isDataIdentifier = (name: string, state: PluginState): boolean => {
       state.isServerProps = true
     } else {
       if (state.isServerProps) {
-        throw new Error(SERVER_PROPS_SSG_CONFLICT)
+        throw new Error(SERVER_PROPS_PATHS_CONFLICT)
       }
       state.isPrerender = true
     }
