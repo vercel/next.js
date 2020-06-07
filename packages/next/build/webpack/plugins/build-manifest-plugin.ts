@@ -1,5 +1,5 @@
 import devalue from 'next/dist/compiled/devalue'
-import { Compiler } from 'webpack'
+import { Compiler, compilation as CompilationType } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {
   BUILD_MANIFEST,
@@ -14,15 +14,15 @@ import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-e
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
-const generateClientManifest = (
+function generateClientManifest(
   assetMap: BuildManifest,
   isModern: boolean
-): string => {
+): string {
   const clientManifest: { [s: string]: string[] } = {}
   const appDependencies = new Set(assetMap.pages['/_app'])
 
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
-    if (page === '/_app' || page === '/_polyfills') return
+    if (page === '/_app') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
     const filteredDeps = dependencies.filter(
@@ -54,7 +54,7 @@ export default class BuildManifestPlugin {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
       (compilation, callback) => {
-        const { chunks } = compilation
+        const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
           polyfillFiles: [],
           devFiles: [],
@@ -73,7 +73,9 @@ export default class BuildManifestPlugin {
         const polyfillChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
-        const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
+
+        // Create a separate entry  for polyfills
+        assetMap.polyfillFiles = polyfillChunk ? polyfillChunk.files : []
 
         const reactRefreshChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
@@ -114,9 +116,6 @@ export default class BuildManifestPlugin {
         if (typeof assetMap.pages['/index'] !== 'undefined') {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
-
-        // Create a separate entry  for polyfills
-        assetMap.polyfillFiles = polyfillFiles
 
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be

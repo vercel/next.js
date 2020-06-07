@@ -383,10 +383,6 @@ async function computeFromManifest(
     // prevent duplicate '/' and '/index'
     if (key === '/index') return
 
-    if (key === '/_polyfills') {
-      return
-    }
-
     if (pageInfos) {
       const cleanKey = key.replace(/\/index$/, '') || '/'
       const pageInfo = pageInfos.get(cleanKey)
