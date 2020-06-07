@@ -1,4 +1,4 @@
-# Recoil example
+# Recoil Example
 
 This example shows how to integrate Recoil in Next.js.
 

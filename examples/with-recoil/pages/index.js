@@ -1,12 +1,5 @@
-import React from 'react'
 import Counter from '../components/counter'
 
-const IndexPage = () => {
-  return (
-    <>
-      <Counter />
-    </>
-  )
-}
+const IndexPage = () => <Counter />
 
 export default IndexPage
