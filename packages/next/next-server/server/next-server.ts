@@ -356,10 +356,6 @@ export default class Server {
         ]
       : []
 
-    let headers: Route[] = []
-    let rewrites: Route[] = []
-    let redirects: Route[] = []
-
     const fsRoutes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -490,7 +486,7 @@ export default class Server {
     }
 
     // Headers come very first
-    headers = this.customRoutes.headers.map((r) => {
+    const headers = this.customRoutes.headers.map((r) => {
       const headerRoute = getCustomRoute(r, 'header')
       return {
         match: headerRoute.match,
@@ -512,7 +508,7 @@ export default class Server {
       } as Route
     })
 
-    redirects = [
+    const redirects = [
       ...this.customRoutes.redirects,
       {
         source: this.nextConfig.trailingSlash ? '/:path+' : '/:path+/',
@@ -551,7 +547,7 @@ export default class Server {
       } as Route
     })
 
-    rewrites = this.customRoutes.rewrites.map((rewrite) => {
+    const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
         check: true,
