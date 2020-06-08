@@ -251,7 +251,6 @@ export default async function exportApp(
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
-    staticMarkup: false,
     hotReloader: null,
     basePath: nextConfig.experimental.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
