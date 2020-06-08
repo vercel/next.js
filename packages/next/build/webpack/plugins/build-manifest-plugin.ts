@@ -65,22 +65,22 @@ export default class BuildManifestPlugin {
         const mainJsChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
         )
+
         const mainJsFiles: string[] =
-          mainJsChunk && mainJsChunk.files.length > 0
-            ? mainJsChunk.files.filter((file: string) => /\.js$/.test(file))
-            : []
+          mainJsChunk?.files.filter((file: string) => file.endsWith('.js')) ??
+          []
 
         const polyfillChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
 
         // Create a separate entry  for polyfills
-        assetMap.polyfillFiles = polyfillChunk ? polyfillChunk.files : []
+        assetMap.polyfillFiles = polyfillChunk?.files ?? []
 
         const reactRefreshChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
         )
-        assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
+        assetMap.devFiles = reactRefreshChunk?.files ?? []
 
         for (const entrypoint of compilation.entrypoints.values()) {
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
@@ -93,12 +93,7 @@ export default class BuildManifestPlugin {
 
           // getFiles() - helper function to read the files for an entrypoint from stats object
           for (const file of entrypoint.getFiles()) {
-            if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file)) {
-              continue
-            }
-
-            // Only `.js` and `.css` files are added for now. In the future we can also handle other file types.
-            if (!/\.js$/.test(file) && !/\.css$/.test(file)) {
+            if (!file.endsWith('.js') && !file.endsWith('.css')) {
               continue
             }
 
