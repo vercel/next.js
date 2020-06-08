@@ -7,7 +7,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  IS_BUNDLED_PAGE_REGEX,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
@@ -94,11 +93,6 @@ export default class BuildManifestPlugin {
           // getFiles() - helper function to read the files for an entrypoint from stats object
           for (const file of entrypoint.getFiles()) {
             if (!file.endsWith('.js') && !file.endsWith('.css')) {
-              continue
-            }
-
-            // The page bundles are manually added to _document.js as they need extra properties
-            if (IS_BUNDLED_PAGE_REGEX.exec(file)) {
               continue
             }
 
