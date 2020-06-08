@@ -380,10 +380,6 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach((key) => {
-    if (key === '/_polyfills') {
-      return
-    }
-
     if (pageInfos) {
       const pageInfo = pageInfos.get(key)
       // don't include AMP pages since they don't rely on shared bundles

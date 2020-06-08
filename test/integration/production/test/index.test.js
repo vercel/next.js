@@ -562,16 +562,6 @@ describe('Production Usage', () => {
 
         // Let the browser to prefetch the page and error it on the console.
         await waitFor(3000)
-        const browserLogs = await browser.log('browser')
-        let foundLog = false
-        browserLogs.forEach((log) => {
-          if (
-            log.message.match(/\/no-such-page\.js - Failed to load resource/)
-          ) {
-            foundLog = true
-          }
-        })
-        expect(foundLog).toBe(true)
 
         // When we go to the 404 page, it'll do a hard reload.
         // So, it's possible for the front proxy to load a page from another zone.
