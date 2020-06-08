@@ -37,7 +37,6 @@ function SignUp() {
 
       router.push('/signin')
     } catch (error) {
-      console.log('ERROR', error)
       setErrorMsg(getErrorMessage(error))
     }
   }
