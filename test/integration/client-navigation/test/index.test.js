@@ -425,7 +425,7 @@ describe('Client Navigation', () => {
             .click()
             .eval('window.pageYOffset')
 
-          expect(scrollPosition).toBe(7258)
+          expect(scrollPosition).toBe(7294)
 
           // Scrolls back to top when scrolling to `#` with no value.
           const scrollPositionAfterEmptyHash = await browser
@@ -452,9 +452,7 @@ describe('Client Navigation', () => {
             .click()
             .eval('window.pageYOffset')
 
-          console.log(scrollPosition)
-
-          expect(scrollPosition).toBe(16258)
+          expect(scrollPosition).toBe(16294)
 
           // Scrolls back to top when scrolling to `#` with no value.
           const scrollPositionAfterEmptyHash = await browser
@@ -482,7 +480,23 @@ describe('Client Navigation', () => {
             .waitForElementByCss('#hash-changes-page')
 
           const scrollPosition = await browser.eval('window.pageYOffset')
-          expect(scrollPosition).toBe(7258)
+          expect(scrollPosition).toBe(7294)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('Should update asPath', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          await browser.elementByCss('#via-link').click()
+
+          const asPath = await browser.elementByCss('div#asPath').text()
+          expect(asPath).toBe('ASPATH: /nav/hash-changes#via-link')
         } finally {
           if (browser) {
             await browser.close()

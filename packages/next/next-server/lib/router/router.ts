@@ -406,6 +406,7 @@ export default class Router implements BaseRouter {
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as, options)
         this.scrollToHash(as)
+        this.notify(this.components[this.route])
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
       }
