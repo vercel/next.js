@@ -140,16 +140,25 @@ const App = (props: Props) => {
     </div>
   )
 }
-App.getInitialProps = async () => {
+
+export const getStaticProps = async () => {
   let result: { data: GetTodoListQuery; errors: {}[] } = await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
   )
   if (result.errors) {
     console.log('Failed to fetch todolist. ', result.errors)
-    return { todos: [] }
+    return {
+      props: {
+        todos: [],
+      },
+    }
   }
   if (result.data.getTodoList !== null) {
-    return { todos: result.data.getTodoList.todos.items }
+    return {
+      props: {
+        todos: result.data.getTodoList.todos.items,
+      },
+    }
   }
 
   try {
@@ -164,6 +173,11 @@ App.getInitialProps = async () => {
   } catch (err) {
     console.warn(err)
   }
-  return { todos: [] }
+  return {
+    props: {
+      todos: [],
+    },
+  }
 }
+
 export default App
