@@ -72,8 +72,13 @@ export default class PageLoader {
     this.loadingRoutes = {
       // By default these 2 pages are being loaded in the initial html
       '/_app': true,
-      [initialPage]: true,
     }
+
+    // TODO get rid of this limitation for rendering the error page
+    if (initialPage !== '/_error') {
+      this.loadingRoutes[initialPage] = true
+    }
+
     if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
