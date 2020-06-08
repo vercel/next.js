@@ -1,3 +1,1 @@
-# Sentry (Simple Example)
-
-This example has been deprecated. Please use [examples/with-sentry](../with-sentry) instead.
+This example has been moved to [examples/with-sentry](../with-sentry).
