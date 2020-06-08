@@ -1,5 +1,4 @@
 import cookie from 'cookie'
-import Router from 'next/router'
 import { withAuthSync } from '../utils/auth'
 import { FAUNA_SECRET_COOKIE } from '../utils/fauna-auth'
 import { profileApi } from './api/profile'
@@ -21,36 +20,24 @@ const Profile = (props) => {
   )
 }
 
-Profile.getInitialProps = async (ctx) => {
-  if (typeof window === 'undefined') {
-    const { req, res } = ctx
-    const cookies = cookie.parse(req.headers.cookie ?? '')
-    const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
+export const getServerSideProps = async (context) => {
+  const { req, res } = context
+  const cookies = cookie.parse(req.headers.cookie ?? '')
+  const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
 
-    if (!faunaSecret) {
-      res.writeHead(302, { Location: '/login' })
-      res.end()
-      return {}
-    }
-
-    const profileInfo = await profileApi(faunaSecret)
-
-    return { userId: profileInfo }
+  if (!faunaSecret) {
+    res.writeHead(302, { Location: '/login' })
+    res.end()
+    return
   }
 
-  const response = await fetch('/api/profile')
+  const userId = await profileApi(faunaSecret)
 
-  if (response.status === 401) {
-    Router.push('/login')
-    return {}
+  return {
+    props: {
+      userId,
+    },
   }
-  if (response.status !== 200) {
-    throw new Error(await response.text())
-  }
-
-  const data = await response.json()
-
-  return { userId: data.userId }
 }
 
 export default withAuthSync(Profile)
