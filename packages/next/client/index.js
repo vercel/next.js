@@ -50,7 +50,7 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, prefix)
+const pageLoader = new PageLoader(buildId, prefix, page)
 const register = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
@@ -170,7 +170,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  const { page: app, mod } = await pageLoader.loadPageScript('/_app')
+  const { page: app, mod } = await pageLoader.loadPage('/_app')
   CachedApp = app
 
   if (mod && mod.reportWebVitals) {
