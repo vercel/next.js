@@ -657,7 +657,7 @@ export async function renderToHTML(
   const files = [
     ...new Set([
       ...getPageFiles(buildManifest, '/_app'),
-      ...getPageFiles(buildManifest, pathname),
+      ...(pathname !== '/_error' ? getPageFiles(buildManifest, pathname) : []),
     ]),
   ]
 
