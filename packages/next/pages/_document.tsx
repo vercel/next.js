@@ -535,7 +535,7 @@ export class NextScript extends Component<OriginProps> {
     return dedupe(dynamicImports).map((bundle: any) => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = bundle.file.endnsWith('.module.js')
+        modernProps = bundle.file.endsWith('.module.js')
           ? { type: 'module' }
           : { noModule: true }
       }
