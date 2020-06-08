@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from 'graphql-hooks'
 import ErrorMessage from './error-message'
 import PostUpvoter from './post-upvoter'
@@ -19,17 +19,22 @@ export const allPostsQuery = `
   }
 `
 
+export const allPostsQueryOptions = (skip = 0) => ({
+  variables: { skip, first: 10 },
+  updateData: (prevResult, result) => ({
+    ...result,
+    allPosts: prevResult
+      ? [...prevResult.allPosts, ...result.allPosts]
+      : result.allPosts,
+  }),
+})
+
 export default function PostList() {
   const [skip, setSkip] = useState(0)
-  const { loading, error, data, refetch } = useQuery(allPostsQuery, {
-    variables: { skip, first: 10 },
-    updateData: (prevResult, result) => ({
-      ...result,
-      allPosts: prevResult
-        ? [...prevResult.allPosts, ...result.allPosts]
-        : result.allPosts,
-    }),
-  })
+  const { loading, error, data, refetch } = useQuery(
+    allPostsQuery,
+    allPostsQueryOptions(skip)
+  )
 
   if (error) return <ErrorMessage message="Error loading posts." />
   if (!data) return <div>Loading</div>
@@ -38,7 +43,7 @@ export default function PostList() {
 
   const areMorePosts = allPosts.length < _allPostsMeta.count
   return (
-    <Fragment>
+    <>
       <Submit
         onSubmission={() => {
           refetch({ variables: { skip: 0, first: allPosts.length } })
@@ -109,6 +114,6 @@ export default function PostList() {
           }
         `}</style>
       </section>
-    </Fragment>
+    </>
   )
 }

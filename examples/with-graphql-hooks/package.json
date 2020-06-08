@@ -1,25 +1,18 @@
 {
   "name": "with-graphql-hooks",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "graphql-hooks": "^4.4.4",
     "graphql-hooks-memcache": "^1.3.2",
-    "graphql-hooks-ssr": "^1.1.5",
     "next": "latest",
     "prop-types": "^15.7.2",
     "react": "^16.8.2",
     "react-dom": "^16.8.2"
-  },
-  "browser": {
-    "graphql-hooks-ssr": false
   }
 }
