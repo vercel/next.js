@@ -72,7 +72,7 @@ export default class PageLoader {
     this.loadingRoutes = {
       // By default these 2 pages are being loaded in the initial html
       '/_app': true,
-      [initialPage.initialPage]: true,
+      [initialPage]: true,
     }
     if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
