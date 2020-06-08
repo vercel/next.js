@@ -499,7 +499,7 @@ export default class Router implements BaseRouter {
 
           Router.events.emit('beforeHistoryChange', as)
 
-          if (manualScrollRestoration) {
+          if (manualScrollRestoration && history.state) {
             const {
               url: curUrl,
               as: curAs,
