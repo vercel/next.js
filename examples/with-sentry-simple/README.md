@@ -1,3 +1,3 @@
-# With Sentry (Simple)
+# Sentry (Simple Example)
 
 This example has been deprecated. Please use [examples/with-sentry](../with-sentry) instead.
