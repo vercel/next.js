@@ -1,6 +1,9 @@
-/* globals window */
 import firebase from 'firebase/app'
 import 'firebase/auth'
+import cookie from 'js-cookie'
+import initFirebase from '../auth/initFirebase'
+
+initFirebase()
 
 export default async function logout() {
   return firebase
@@ -8,16 +11,7 @@ export default async function logout() {
     .signOut()
     .then(() => {
       // Sign-out successful.
-      if (typeof window !== 'undefined') {
-        // Remove the server-side rendered user data element. See:
-        // https://github.com/vercel/next.js/issues/2252#issuecomment-353992669
-        try {
-          const elem = window.document.getElementById('__MY_AUTH_USER_INFO')
-          elem.parentNode.removeChild(elem)
-        } catch (e) {
-          console.error(e)
-        }
-      }
+      cookie.remove('auth')
       return true
     })
     .catch((e) => {
