@@ -198,7 +198,7 @@ describe('Production Usage', () => {
 
       // test dynamic chunk
       resources.add(
-        url + reactLoadableManifest['../../components/hello1'][0].publicPath
+        url + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc

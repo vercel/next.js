@@ -56,6 +56,7 @@ export default class BuildManifestPlugin {
       (compilation, callback) => {
         const { chunks } = compilation
         const assetMap: BuildManifest = {
+          polyfillFiles: [],
           devFiles: [],
           lowPriorityFiles: [],
           pages: { '/_app': [] },
@@ -110,12 +111,8 @@ export default class BuildManifestPlugin {
           assetMap.pages[pagePath] = [...filesForEntry, ...mainJsFiles]
         }
 
-        if (typeof assetMap.pages['/index'] !== 'undefined') {
-          assetMap.pages['/'] = assetMap.pages['/index']
-        }
-
         // Create a separate entry  for polyfills
-        assetMap.pages['/_polyfills'] = polyfillFiles
+        assetMap.polyfillFiles = polyfillFiles
 
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
