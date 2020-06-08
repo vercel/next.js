@@ -264,7 +264,6 @@ export class Head extends Component<
       styles,
       ampPath,
       inAmpMode,
-      assetPrefix,
       hybridAmp,
       canonicalBase,
       __NEXT_DATA__,
@@ -273,8 +272,6 @@ export class Head extends Component<
       unstable_runtimeJS,
     } = this.context._documentProps
     const disableRuntimeJS = unstable_runtimeJS === false
-    const { _devOnlyInvalidateCacheQueryString } = this.context
-    const { page, buildId } = __NEXT_DATA__
 
     let { head } = this.context._documentProps
     let children = this.props.children
@@ -453,42 +450,6 @@ export class Head extends Component<
               />
             )}
             {this.getCssLinks()}
-            {!disableRuntimeJS && (
-              <link
-                rel="preload"
-                href={
-                  assetPrefix +
-                  getOptionalModernScriptVariant(
-                    encodeURI(`/_next/static/${buildId}/pages/_app.js`)
-                  ) +
-                  _devOnlyInvalidateCacheQueryString
-                }
-                as="script"
-                nonce={this.props.nonce}
-                crossOrigin={
-                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                }
-              />
-            )}
-            {!disableRuntimeJS && page !== '/_error' && (
-              <link
-                rel="preload"
-                href={
-                  assetPrefix +
-                  getOptionalModernScriptVariant(
-                    encodeURI(
-                      `/_next/static/${buildId}/pages${getPageFile(page)}`
-                    )
-                  ) +
-                  _devOnlyInvalidateCacheQueryString
-                }
-                as="script"
-                nonce={this.props.nonce}
-                crossOrigin={
-                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                }
-              />
-            )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
             {this.context._documentProps.isDevelopment && (
@@ -637,7 +598,6 @@ export class NextScript extends Component<OriginProps> {
       assetPrefix,
       inAmpMode,
       buildManifest,
-      __NEXT_DATA__,
       unstable_runtimeJS,
     } = this.context._documentProps
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -690,82 +650,12 @@ export class NextScript extends Component<OriginProps> {
       )
     }
 
-    const { page, buildId } = __NEXT_DATA__
-
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
         console.warn(
           'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
         )
     }
-
-    const pageScript = [
-      <script
-        async
-        data-next-page={page}
-        key={page}
-        src={
-          assetPrefix +
-          encodeURI(`/_next/static/${buildId}/pages${getPageFile(page)}`) +
-          _devOnlyInvalidateCacheQueryString
-        }
-        nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
-        {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
-      />,
-      process.env.__NEXT_MODERN_BUILD && (
-        <script
-          async
-          data-next-page={page}
-          key={`${page}-modern`}
-          src={
-            assetPrefix +
-            getOptionalModernScriptVariant(
-              encodeURI(`/_next/static/${buildId}/pages${getPageFile(page)}`)
-            ) +
-            _devOnlyInvalidateCacheQueryString
-          }
-          nonce={this.props.nonce}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-          type="module"
-        />
-      ),
-    ]
-
-    const appScript = [
-      <script
-        async
-        data-next-page="/_app"
-        src={
-          assetPrefix +
-          `/_next/static/${buildId}/pages/_app.js` +
-          _devOnlyInvalidateCacheQueryString
-        }
-        key="_app"
-        nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
-        {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
-      />,
-      process.env.__NEXT_MODERN_BUILD && (
-        <script
-          async
-          data-next-page="/_app"
-          src={
-            assetPrefix +
-            `/_next/static/${buildId}/pages/_app.module.js` +
-            _devOnlyInvalidateCacheQueryString
-          }
-          key="_app-modern"
-          nonce={this.props.nonce}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-          type="module"
-        />
-      ),
-    ]
 
     return (
       <>
@@ -811,8 +701,6 @@ export class NextScript extends Component<OriginProps> {
           />
         ) : null}
         {!disableRuntimeJS && this.getPolyfillScripts()}
-        {!disableRuntimeJS && appScript}
-        {!disableRuntimeJS && page !== '/_error' && pageScript}
         {disableRuntimeJS ? null : this.getDynamicChunks()}
         {disableRuntimeJS ? null : this.getScripts()}
       </>
@@ -822,14 +710,4 @@ export class NextScript extends Component<OriginProps> {
 
 function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
-}
-
-function getPageFile(page: string, buildId?: string): string {
-  const startingUrl =
-    page === '/'
-      ? '/index'
-      : /^\/index(\/|$)/.test(page)
-      ? `/index${page}`
-      : page
-  return buildId ? `${startingUrl}.${buildId}.js` : `${startingUrl}.js`
 }
