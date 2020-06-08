@@ -22,8 +22,11 @@ let app
 const runTests = () => {
   it('should restore the scroll position on navigating back', async () => {
     const browser = await webdriver(appPort, '/')
-    await browser.eval(() => document.querySelector('#end-el').scrollIntoView())
-    const scrollPosition = await browser.eval(() => window.scrollY)
+    await browser.eval(() =>
+      document.querySelector('#to-another').scrollIntoView()
+    )
+    const scrollX = await browser.eval(() => window.scrollX)
+    const scrollY = await browser.eval(() => window.scrollY)
 
     await browser.elementByCss('#to-another').click()
 
@@ -38,8 +41,10 @@ const runTests = () => {
       /the end/
     )
 
-    const newScrollPosition = await browser.eval(() => window.scrollY)
-    expect(scrollPosition).toBe(newScrollPosition)
+    const newScrollX = await browser.eval(() => window.scrollX)
+    const newScrollY = await browser.eval(() => window.scrollY)
+    expect(scrollX).toBe(newScrollX)
+    expect(scrollY).toBe(newScrollY)
   })
 }
 

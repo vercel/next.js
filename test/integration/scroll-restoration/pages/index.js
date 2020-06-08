@@ -3,7 +3,16 @@ import Link from 'next/link'
 const Page = ({ loaded }) => {
   const link = (
     <Link href="/another">
-      <a id="to-another">to another</a>
+      <a
+        id="to-another"
+        style={{
+          marginLeft: 5000,
+          width: 95000,
+          display: 'block',
+        }}
+      >
+        to another
+      </a>
     </Link>
   )
 
@@ -12,7 +21,7 @@ const Page = ({ loaded }) => {
       <>
         <div
           style={{
-            width: 50,
+            width: 10000,
             height: 10000,
             background: 'orange',
           }}
