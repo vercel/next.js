@@ -380,16 +380,12 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach((key) => {
-    // prevent duplicate '/' and '/index'
-    if (key === '/index') return
-
     if (key === '/_polyfills') {
       return
     }
 
     if (pageInfos) {
-      const cleanKey = key.replace(/\/index$/, '') || '/'
-      const pageInfo = pageInfos.get(cleanKey)
+      const pageInfo = pageInfos.get(key)
       // don't include AMP pages since they don't rely on shared bundles
       if (pageInfo?.isHybridAmp || pageInfo?.isAmp) {
         return
