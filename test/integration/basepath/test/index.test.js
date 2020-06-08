@@ -38,7 +38,117 @@ const runTests = (context, dev = false) => {
       )
       expect(routesManifest.basePath).toBe('/docs')
     })
+
+    it('should prefetch pages correctly when manually called', async () => {
+      const browser = await webdriver(context.appPort, '/docs/other-page')
+      await browser.eval('window.next.router.prefetch("/gssp")')
+
+      await check(
+        async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
+
+          for (const link of links) {
+            const href = await link.getAttribute('href')
+            if (href.includes('gssp')) {
+              return true
+            }
+          }
+          return false
+        },
+        {
+          test(result) {
+            return result === true
+          },
+        }
+      )
+    })
+
+    it('should prefetch pages correctly in viewport with <Link>', async () => {
+      const browser = await webdriver(context.appPort, '/docs/hello')
+      await browser.eval('window.next.router.prefetch("/gssp")')
+
+      await check(
+        async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
+          let found = new Set()
+
+          for (const link of links) {
+            const href = await link.getAttribute('href')
+            if (href.match(/(gsp|gssp|other-page)\.js$/)) {
+              found.add(href)
+            }
+            if (href.match(/gsp\.json$/)) {
+              found.add(href)
+            }
+          }
+          return found
+        },
+        {
+          test(result) {
+            return result.size === 4
+          },
+        }
+      )
+    })
   }
+
+  it('should work with nested folder with same name as basePath', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/docs/another')
+    expect(html).toContain('hello from another')
+
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.next.router.push("/docs/another")')
+
+    await check(() => browser.elementByCss('p').text(), /hello from another/)
+  })
+
+  it('should 404 when manually adding basePath with <Link>', async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/docs/invalid-manual-basepath'
+    )
+    await browser.eval('window.beforeNav = "hi"')
+    await browser.elementByCss('#other-page-link').click()
+
+    await check(() => browser.eval('window.beforeNav'), {
+      test(content) {
+        return content !== 'hi'
+      },
+    })
+
+    const html = await browser.eval('document.documentElement.innerHTML')
+    expect(html).toContain('This page could not be found')
+  })
+
+  it('should 404 when manually adding basePath with router.push', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNav = "hi"')
+    await browser.eval('window.next.router.push("/docs/other-page")')
+
+    await check(() => browser.eval('window.beforeNav'), {
+      test(content) {
+        return content !== 'hi'
+      },
+    })
+
+    const html = await browser.eval('document.documentElement.innerHTML')
+    expect(html).toContain('This page could not be found')
+  })
+
+  it('should 404 when manually adding basePath with router.replace', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNav = "hi"')
+    await browser.eval('window.next.router.replace("/docs/other-page")')
+
+    await check(() => browser.eval('window.beforeNav'), {
+      test(content) {
+        return content !== 'hi'
+      },
+    })
+
+    const html = await browser.eval('document.documentElement.innerHTML')
+    expect(html).toContain('This page could not be found')
+  })
 
   it('should show the hello page under the /docs prefix', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')

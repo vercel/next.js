@@ -3,7 +3,6 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { delBasePath } from './../next-server/lib/router/router'
 
 function hasRel(rel, link) {
   try {
@@ -105,7 +104,6 @@ export default class PageLoader {
    */
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
-      path = delBasePath(path)
       const dataRoute = getAssetPath(path)
       return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}.json`
     }
