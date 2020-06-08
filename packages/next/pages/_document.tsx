@@ -159,7 +159,7 @@ export class Head extends Component<
     const { assetPrefix, files } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const cssFiles =
-      files && files.length ? files.filter((f) => /\.css$/.test(f)) : []
+      files && files.length ? files.filter((f) => f.endsWith('.css')) : []
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
@@ -535,12 +535,13 @@ export class NextScript extends Component<OriginProps> {
     return dedupe(dynamicImports).map((bundle: any) => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = /\.module\.js$/.test(bundle.file)
+        modernProps = bundle.file.endnsWith('.module.js')
           ? { type: 'module' }
           : { noModule: true }
       }
 
-      if (!/\.js$/.test(bundle.file) || files.includes(bundle.file)) return null
+      if (!bundle.file.endsWith('.js') || files.includes(bundle.file))
+        return null
 
       return (
         <script
@@ -601,7 +602,7 @@ export class NextScript extends Component<OriginProps> {
     return buildManifest.polyfillFiles
       .filter(
         (polyfill) =>
-          polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
+          polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => (
         <script
@@ -769,21 +770,18 @@ export class NextScript extends Component<OriginProps> {
     return (
       <>
         {!disableRuntimeJS && buildManifest.devFiles
-          ? buildManifest.devFiles.map(
-              (file: string) =>
-                !file.match(/\.js\.map/) && (
-                  <script
-                    key={file}
-                    src={`${assetPrefix}/_next/${encodeURI(
-                      file
-                    )}${_devOnlyInvalidateCacheQueryString}`}
-                    nonce={this.props.nonce}
-                    crossOrigin={
-                      this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                    }
-                  />
-                )
-            )
+          ? buildManifest.devFiles.map((file: string) => (
+              <script
+                key={file}
+                src={`${assetPrefix}/_next/${encodeURI(
+                  file
+                )}${_devOnlyInvalidateCacheQueryString}`}
+                nonce={this.props.nonce}
+                crossOrigin={
+                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+                }
+              />
+            ))
           : null}
         {disableRuntimeJS ? null : (
           <script
