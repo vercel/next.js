@@ -74,7 +74,7 @@ export default class PageLoader {
       '/_app': true,
     }
 
-    // TODO get rid of this limitation for rendering the error page
+    // TODO: get rid of this limitation for rendering the error page
     if (initialPage !== '/_error') {
       this.loadingRoutes[initialPage] = true
     }
