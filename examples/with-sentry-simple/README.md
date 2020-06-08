@@ -45,9 +45,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 - By default, neither sourcemaps nor error tracking is enabled in development mode (see Configuration).
 - When enabled in development mode, error handling [works differently than in production](https://nextjs.org/docs#custom-error-handling) as `_error.js` is never actually called.
-- The build output will contain warning about unhandled Promise rejections. This caused by the test pages, and is expected.
+- The build output will contain warning about unhandled Promise rejections. This is caused by the test pages, and is expected.
 - The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
-- Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) is because if used with SSR, these plugins are used during production for generating the source-maps and sending them to sentry.
+- Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) because if used with SSR, these plugins are used during production for generating the source-maps and sending them to sentry.
 
 ## Configuration
 
