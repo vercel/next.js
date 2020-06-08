@@ -1,5 +1,5 @@
 import devalue from 'next/dist/compiled/devalue'
-import { Compiler } from 'webpack'
+import { Compiler, compilation as CompilationType } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {
   BUILD_MANIFEST,
@@ -54,7 +54,7 @@ export default class BuildManifestPlugin {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
       (compilation, callback) => {
-        const entrypoints = compilation.entrypoints
+        const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
           polyfillFiles: [],
           devFiles: [],
@@ -62,26 +62,27 @@ export default class BuildManifestPlugin {
           pages: { '/_app': [] },
         }
 
-        const mainJsEntrypointFiles = entrypoints
-          .get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
-          .getFiles()
+        const mainJsChunk = chunks.find(
+          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
+        )
+        const mainJsFiles: string[] =
+          mainJsChunk && mainJsChunk.files.length > 0
+            ? mainJsChunk.files.filter((file: string) => /\.js$/.test(file))
+            : []
 
-        // Create a separate entry  for polyfills
-        assetMap.polyfillFiles =
-          entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)?.getFiles() ??
-          []
-
-        assetMap.devFiles =
-          entrypoints
-            .get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
-            ?.getFiles()
-            .filter((file: string) => file.endsWith('.js')) ?? []
-
-        const mainJsFiles: string[] = mainJsEntrypointFiles.filter(
-          (file: string) => file.endsWith('.js')
+        const polyfillChunk = chunks.find(
+          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
 
-        for (const entrypoint of entrypoints.values()) {
+        // Create a separate entry  for polyfills
+        assetMap.polyfillFiles = polyfillChunk ? polyfillChunk.files : []
+
+        const reactRefreshChunk = chunks.find(
+          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+        )
+        assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
+
+        for (const entrypoint of compilation.entrypoints.values()) {
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
           if (!pagePath) {
@@ -92,7 +93,12 @@ export default class BuildManifestPlugin {
 
           // getFiles() - helper function to read the files for an entrypoint from stats object
           for (const file of entrypoint.getFiles()) {
-            if (!file.endsWith('.js') && !file.endsWith('.css')) {
+            if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file)) {
+              continue
+            }
+
+            // Only `.js` and `.css` files are added for now. In the future we can also handle other file types.
+            if (!/\.js$/.test(file) && !/\.css$/.test(file)) {
               continue
             }
 
