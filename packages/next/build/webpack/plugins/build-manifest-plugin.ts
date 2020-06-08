@@ -92,7 +92,7 @@ export default class BuildManifestPlugin {
 
           // getFiles() - helper function to read the files for an entrypoint from stats object
           for (const file of entrypoint.getFiles()) {
-            if (!file.endsWith('.js') && !file.endsWith('.css')) {
+            if (!(file.endsWith('.js') || file.endsWith('.css'))) {
               continue
             }
 
