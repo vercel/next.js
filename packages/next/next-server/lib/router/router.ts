@@ -489,6 +489,14 @@ export default class Router implements BaseRouter {
           }
 
           Router.events.emit('beforeHistoryChange', as)
+
+          const { url: curUrl, as: curAs, options: curOptions } = history.state
+
+          this.changeState('replaceState', curUrl, curAs, {
+            ...curOptions,
+            scrollY: window.scrollY,
+          })
+
           this.changeState(method, url, as, options)
 
           if (process.env.NODE_ENV !== 'production') {
@@ -505,6 +513,10 @@ export default class Router implements BaseRouter {
             }
 
             Router.events.emit('routeChangeComplete', as)
+
+            if (options.scrollY) {
+              window.scrollTo(0, options.scrollY)
+            }
             return resolve(true)
           })
         },
