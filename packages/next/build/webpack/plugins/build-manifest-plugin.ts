@@ -111,10 +111,6 @@ export default class BuildManifestPlugin {
           assetMap.pages[pagePath] = [...filesForEntry, ...mainJsFiles]
         }
 
-        if (typeof assetMap.pages['/index'] !== 'undefined') {
-          assetMap.pages['/'] = assetMap.pages['/index']
-        }
-
         // Create a separate entry  for polyfills
         assetMap.polyfillFiles = polyfillFiles
 
