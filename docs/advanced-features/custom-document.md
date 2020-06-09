@@ -10,10 +10,14 @@ A custom `Document` can also include `getInitialProps` for expressing asynchrono
 
 To override the default `Document`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
 
+> It should be noted that using `getInitialProps` in your custom document will **disable automatic static optimisation across all pages**.
+
 ```jsx
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
+  // Including getInitialProps in your document will disable
+  //   automatic static optimisation.
   static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx)
     return { ...initialProps }
