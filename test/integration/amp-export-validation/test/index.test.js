@@ -19,7 +19,7 @@ describe('AMP Validation on Export', () => {
       stdout: true,
       stderr: true,
     })
-    await nextExport(appDir, { outdir: outDir })
+    await nextExport(appDir, { outdir: outDir }, { ignoreFail: true })
     buildOutput = stdout + stderr
   })
 
