@@ -197,7 +197,7 @@ type Send<T> = (body: T) => void
 /**
  * Next `API` route response
  */
-export type NextApiResponse<T = any> = ServerResponse & {
+export interface NextApiResponse<T = any> extends ServerResponse {
   /**
    * Send data `any` data in response
    */
