@@ -19,10 +19,12 @@ function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
 }
 
 export function runCompiler(
-  config: Configuration | Configuration[]
+  config: Configuration | Configuration[],
+  exposeCompiler: (compiler: webpack.Compiler) => void
 ): Promise<CompilerResult> {
   return new Promise(async (resolve, reject) => {
     const compiler = webpack(config)
+    exposeCompiler(compiler)
     compiler.run(
       (err: Error, statsOrMultiStats: { stats: Stats[] } | Stats) => {
         if (err) {

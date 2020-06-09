@@ -345,7 +345,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
     JSON.stringify(routesManifest),
     'utf8'
   )
-
+  let exposeClientCompiler: (compiler: webpack.Compiler) => void = () => null
+  const withClientCompiler = (
+    userCompilerHook: typeof exposeClientCompiler
+  ) => {
+    exposeClientCompiler = userCompilerHook
+  }
+  let exposeServerCompiler: (compiler: webpack.Compiler) => void = () => null
+  const withServerCompiler = (
+    userCompilerHook: typeof exposeServerCompiler
+  ) => {
+    exposeServerCompiler = userCompilerHook
+  }
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       tracer,
@@ -355,6 +366,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       target,
       pagesDir,
       entrypoints: entrypoints.client,
+      withCompiler: withClientCompiler,
     }),
     getBaseWebpackConfig(dir, {
       tracer,
@@ -364,6 +376,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       target,
       pagesDir,
       entrypoints: entrypoints.server,
+      withCompiler: withServerCompiler,
     }),
   ])
 
@@ -388,7 +401,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let result: CompilerResult = { warnings: [], errors: [] }
   // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
   if (isLikeServerless) {
-    const clientResult = await runCompiler(clientConfig)
+    const clientResult = await runCompiler(clientConfig, exposeClientCompiler)
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
       result = {
@@ -396,14 +409,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
         errors: [...clientResult.errors],
       }
     } else {
-      const serverResult = await runCompiler(configs[1])
+      const serverResult = await runCompiler(configs[1], exposeServerCompiler)
       result = {
         warnings: [...clientResult.warnings, ...serverResult.warnings],
         errors: [...clientResult.errors, ...serverResult.errors],
       }
     }
   } else {
-    result = await runCompiler(configs)
+    result = await runCompiler(configs, exposeServerCompiler)
   }
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
