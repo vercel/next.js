@@ -280,6 +280,68 @@ export async function printTreeView(
   console.log()
 }
 
+export async function generateSizeManifest(
+  pageInfos: Map<string, PageInfo>,
+  pageKeys: readonly string[],
+  {
+    distPath,
+    buildId,
+    pagesDir,
+    pageExtensions,
+    buildManifest,
+    isModern,
+    useStatic404,
+  }: {
+    distPath: string
+    buildId: string
+    pagesDir: string
+    pageExtensions: string[]
+    buildManifest: BuildManifestShape
+    isModern: boolean
+    useStatic404: boolean
+  }
+) {
+  const sizeInfo: { [pageLocation: string]: PageInfo } = {}
+
+  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+    static: useStatic404,
+  } as any)
+
+  if (!pageKeys.includes('/404')) {
+    pageKeys = [...pageKeys, '/404']
+  }
+  const pageList = pageKeys.filter(
+    (e) =>
+      !(
+        e === '/_document' ||
+        e === '/_error' ||
+        (!hasCustomApp && e === '/_app')
+      )
+  )
+  pageList.forEach((page: string) => {
+    const pageSize = pageInfos.get(page)
+    if (!pageSize) {
+      throw new Error(
+        `The page size info for page: \`${page}\` not found in pageInfos`
+      )
+    }
+    sizeInfo[page] = pageSize
+  })
+
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    buildId,
+    isModern,
+    pageInfos
+  )
+
+  return { pageSizes: sizeInfo, fileSizes: sizeData }
+}
+
 export function printCustomRoutes({
   redirects,
   rewrites,
