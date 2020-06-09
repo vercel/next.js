@@ -21,5 +21,6 @@ export default () => (
       </a>
     </Link>
     <div id="base-path">{useRouter().basePath}</div>
+    <div id="pathname">{useRouter().pathname}</div>
   </>
 )

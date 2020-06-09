@@ -1,20 +1,20 @@
 /* eslint-env jest */
-
+import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
+  check,
+  File,
   findPort,
+  killApp,
+  launchApp,
   nextBuild,
   nextStart,
-  launchApp,
-  killApp,
-  File,
-  waitFor,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -351,12 +351,18 @@ describe('CSS Support', () => {
         const cssFile = new File(join(appDir, 'styles/global1.css'))
         try {
           cssFile.replace('color: red', 'color: purple')
-          await waitFor(2000) // wait for HMR
 
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('.red-text')).color`
+              ),
+            {
+              test(content) {
+                return content === 'rgb(128, 0, 128)'
+              },
+            }
           )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
 
           // ensure text remained
           expect(await browser.elementById('text-input').getValue()).toBe(
@@ -833,12 +839,17 @@ describe('CSS Support', () => {
         const cssFile = new File(join(appDir, 'pages/index.module.css'))
         try {
           cssFile.replace('color: blue;', 'color: blue; ')
-          await waitFor(2000) // wait for HMR
-
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('#blueText')).color`
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('#blueText')).color`
+              ),
+            {
+              test(content) {
+                return content === 'rgb(0, 0, 255)'
+              },
+            }
           )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
         } finally {
           cssFile.restore()
         }

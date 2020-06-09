@@ -24,7 +24,6 @@ export function createPagesMapping(
       let page = `${pagePath
         .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
-      page = page === '/index' ? '/' : page
 
       const pageKey = page === '' ? '/' : page
 
@@ -62,7 +61,6 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
-  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,

@@ -5,6 +5,7 @@ import { format, URLFormatOptions, UrlObject } from 'url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
+import { BuildManifest } from '../server/get-page-files'
 
 /**
  * Types used by both next and next-server
@@ -153,20 +154,15 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
   hybridAmp: boolean
-  staticMarkup: boolean
   isDevelopment: boolean
-  devFiles: string[]
   files: string[]
-  lowPriorityFiles: string[]
-  polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
-  htmlProps: any
-  bodyTags: any[]
   headTags: any[]
   unstable_runtimeJS?: false
 }
