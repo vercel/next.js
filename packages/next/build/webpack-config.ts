@@ -263,6 +263,26 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
   }
 
+  if (isServer) {
+    const packageJsonPath = path.resolve(dir, './package.json')
+    const packageJsonFile = parseJsonFile(packageJsonPath)
+    const { dependencies } = packageJsonFile
+    if (dependencies?.react) {
+      const version = +dependencies['react'].substr(0, 5)
+      if (version < 16.1) {
+        console.warn(
+          'Next.js requires React 16.10 or newer for Fast Refresh to work correctly.'
+        )
+      }
+    }
+
+    if (dependencies['node-sass'] != null && dependencies['sass'] != null) {
+      console.warn(
+        "It is not recommended to use node-sass and sass together. Preferably, remove 'node-sass' and leave 'sass'."
+      )
+    }
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
