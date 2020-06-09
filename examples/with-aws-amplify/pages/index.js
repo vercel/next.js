@@ -4,7 +4,11 @@ import nanoid from 'nanoid'
 import produce from 'immer'
 
 import config from '../src/aws-exports'
-import { createTodo, deleteTodo } from '../src/graphql/mutations'
+import {
+  createTodo,
+  deleteTodo,
+  createTodoList,
+} from '../src/graphql/mutations'
 import { getTodoList } from '../src/graphql/queries'
 
 const MY_ID = nanoid()
@@ -122,6 +126,19 @@ export const getStaticProps = async () => {
         todos: result.data.getTodoList.todos.items,
       },
     }
+  }
+
+  try {
+    await API.graphql(
+      graphqlOperation(createTodoList, {
+        input: {
+          id: 'global',
+          createdAt: `${Date.now()}`,
+        },
+      })
+    )
+  } catch (err) {
+    throw new Error(err)
   }
 }
 
