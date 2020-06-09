@@ -17,7 +17,7 @@ jobs:
 
   #     - run: yarn upgrade react@next react-dom@next -W --dev
 
-  #     - uses: actions/cache@v1
+  #     - uses: actions/cache@v2
   #       id: cache-build
   #       with:
   #         path: '.'
@@ -35,7 +35,7 @@ jobs:
       matrix:
         group: [1, 2, 3, 4, 5, 6]
     steps:
-      # - uses: actions/cache@v1
+      # - uses: actions/cache@v2
       #   id: restore-build
       #   with:
       #     path: '.'
