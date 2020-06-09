@@ -103,6 +103,7 @@ async function run(): Promise<void> {
       'Please provide an example name or url, otherwise remove the example option.'
     )
     process.exit(1)
+    return
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
