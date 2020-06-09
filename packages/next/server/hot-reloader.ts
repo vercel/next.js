@@ -487,7 +487,6 @@ export default class HotReloader {
       webpackDevMiddleware,
       multiCompiler,
       {
-        buildId: this.buildId,
         pagesDir: this.pagesDir,
         pageExtensions: this.config.pageExtensions,
         ...(this.config.onDemandEntries as {
