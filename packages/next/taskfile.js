@@ -607,8 +607,7 @@ export async function compile(task) {
     'lib',
     'client',
     'telemetry',
-    'nextserverserver',
-    'nextserverlib',
+    'nextserver',
   ])
 }
 
@@ -709,33 +708,19 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry')
-  await task.watch('next-server/server/**/*.+(js|ts|tsx)', 'nextserverserver')
-  await task.watch('next-server/lib/**/*.+(js|ts|tsx)', 'nextserverlib')
+  await task.watch('next-server/server/**/*.+(js|ts|tsx)', 'nextserver')
 }
 
-export async function nextserverlib(task, opts) {
+export async function nextserver(task, opts) {
   await task
-    .source(opts.src || 'next-server/lib/**/*.+(js|ts|tsx)')
+    .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
     .babel('server')
-    .target('dist/next-server/lib')
-  notify('Compiled lib files')
-}
-
-export async function nextserverserver(task, opts) {
-  await task
-    .source(opts.src || 'next-server/server/**/*.+(js|ts|tsx)')
-    .babel('server')
-    .target('dist/next-server/server')
+    .target('dist/next-server')
   notify('Compiled server files')
-}
-
-export async function nextserverbuild(task) {
-  await task.parallel(['nextserverserver', 'nextserverlib'])
 }
 
 export async function release(task) {
   await task.clear('dist').start('build')
-  await task.clear('dist/next-server').start('nextserverbuild')
 }
 
 // notification helper
