@@ -1,6 +1,5 @@
 import { API, graphqlOperation } from 'aws-amplify'
-
-import { getTodo } from '../../src/graphql/queries'
+import { getTodo, getTodoList } from '../../src/graphql/queries'
 import config from '../../src/aws-exports'
 
 API.configure(config)
@@ -14,8 +13,23 @@ const TodoPage = (props) => {
   )
 }
 
-export const getServerSideProps = async (context) => {
-  const { id } = context.query
+export const getStaticPaths = async () => {
+  let result = await API.graphql(
+    graphqlOperation(getTodoList, { id: 'global' })
+  )
+  if (result.errors) {
+    console.log('Failed to fetch todolist. ', result.errors)
+    throw new Error(result.errors)
+  }
+  if (result.data.getTodoList !== null) {
+    const paths = result.data.getTodoList.todos.items.map(({ id }) => ({
+      params: { id },
+    }))
+    return { paths, fallback: false }
+  }
+}
+
+export const getStaticProps = async ({ params: { id } }) => {
   try {
     const todo = await API.graphql({
       ...graphqlOperation(getTodo),
@@ -23,11 +37,7 @@ export const getServerSideProps = async (context) => {
     })
     if (todo.errors) {
       console.log('Failed to fetch todo. ', todo.errors)
-      return {
-        props: {
-          todo: {},
-        },
-      }
+      throw new Error(todo.errors)
     }
     return {
       props: {
@@ -36,11 +46,7 @@ export const getServerSideProps = async (context) => {
     }
   } catch (err) {
     console.log('Failed to fetch todo. ', err)
-    return {
-      props: {
-        todo: {},
-      },
-    }
+    throw new Error(err)
   }
 }
 

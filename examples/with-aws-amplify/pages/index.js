@@ -4,11 +4,7 @@ import nanoid from 'nanoid'
 import produce from 'immer'
 
 import config from '../src/aws-exports'
-import {
-  createTodo,
-  deleteTodo,
-  createTodoList,
-} from '../src/graphql/mutations'
+import { createTodo, deleteTodo } from '../src/graphql/mutations'
 import { getTodoList } from '../src/graphql/queries'
 
 const MY_ID = nanoid()
@@ -118,11 +114,7 @@ export const getStaticProps = async () => {
   )
   if (result.errors) {
     console.log('Failed to fetch todolist. ', result.errors)
-    return {
-      props: {
-        todos: [],
-      },
-    }
+    throw new Error(result.errors)
   }
   if (result.data.getTodoList !== null) {
     return {
@@ -130,24 +122,6 @@ export const getStaticProps = async () => {
         todos: result.data.getTodoList.todos.items,
       },
     }
-  }
-
-  try {
-    await API.graphql(
-      graphqlOperation(createTodoList, {
-        input: {
-          id: 'global',
-          createdAt: `${Date.now()}`,
-        },
-      })
-    )
-  } catch (err) {
-    console.warn(err)
-  }
-  return {
-    props: {
-      todos: [],
-    },
   }
 }
 
