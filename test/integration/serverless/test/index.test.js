@@ -20,7 +20,6 @@ import fetch from 'node-fetch'
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
-const buildIdFile = join(appDir, '.next/BUILD_ID')
 let stderr = ''
 let appPort
 let app
@@ -172,15 +171,15 @@ describe('Serverless', () => {
 
   it('should not have combined client-side chunks', () => {
     expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
-    const buildId = readFileSync(buildIdFile, 'utf8').trim()
+    const buildManifest = require(join(appDir, '.next/build-manifest.json'))
 
-    const pageContent = join(
-      appDir,
-      '.next/static',
-      buildId,
-      'pages/dynamic.js'
+    const pageFile = buildManifest.pages['/'].find((file) =>
+      file.includes('pages/index')
     )
-    expect(readFileSync(pageContent, 'utf8')).not.toContain('Hello!')
+
+    expect(
+      readFileSync(join(__dirname, '..', '.next', pageFile), 'utf8')
+    ).not.toContain('Hello!')
   })
 
   it('should not output _app.js and _document.js to serverless build', () => {
