@@ -140,7 +140,7 @@ describe('Application Export Intent Output', () => {
 
     it('should build and export', async () => {
       await nextBuild(appDir)
-      await nextExportDefault(appDir)
+      await nextExportDefault(appDir, { ignoreFail: true })
     })
 
     it('should have the expected outputs for export', () => {

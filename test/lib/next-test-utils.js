@@ -126,6 +126,15 @@ export function runNextCommand(argv, options = {}) {
     }
 
     instance.on('close', (code) => {
+      if (
+        !options.stderr &&
+        !options.stdout &&
+        !options.ignoreFail &&
+        code !== 0
+      ) {
+        return reject(new Error(`command failed with code ${code}`))
+      }
+
       resolve({
         code,
         stdout: stdoutOutput,
