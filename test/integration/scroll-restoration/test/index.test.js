@@ -25,8 +25,17 @@ const runTests = () => {
     await browser.eval(() =>
       document.querySelector('#to-another').scrollIntoView()
     )
+    const scrollRestoration = await browser.eval(
+      () => window.history.scrollRestoration
+    )
+
+    expect(scrollRestoration).toBe('manual')
+
     const scrollX = Math.floor(await browser.eval(() => window.scrollX))
     const scrollY = Math.floor(await browser.eval(() => window.scrollY))
+
+    expect(scrollX).not.toBe(0)
+    expect(scrollY).not.toBe(0)
 
     await browser.eval(() => window.next.router.push('/another'))
 
