@@ -17,3 +17,4 @@ yarn add sass
 ### Useful Links
 
 - [Sass Support in Documentation](https://nextjs.org/docs/basic-features/built-in-css-support#sass-support)
+- [with-next-sass](https://github.com/vercel/next.js/tree/master/examples/with-next-sass)
