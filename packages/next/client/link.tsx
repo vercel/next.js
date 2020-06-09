@@ -135,6 +135,11 @@ class Link extends Component<LinkProps> {
       this.props.href,
       this.props.as
     )
+    if (parsedHref == null) {
+      throw new Error(
+        'When using <Link> you should provide href attribute. https://err.sh/next.js/link-missing-href'
+      )
+    }
     const resolvedHref = resolve(pathname, parsedHref)
     return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
