@@ -242,9 +242,13 @@ describe('create next app', () => {
 
   it('should exit if example flag is empty', async () => {
     await usingTempDir(async (cwd) => {
-      const projectName = 'missing-example-name'
-      const res = await run(cwd, projectName, '--example')
-      expect(res.exitCode).toBe(1)
+      try {
+        const projectName = 'no-example-provided'
+        await run(cwd, projectName, '--example')
+      } catch (e) {
+        // eslint-disable-next-line jest/no-try-expect
+        expect(e.exitCode).toBe(1)
+      }
     })
   })
 })
