@@ -108,7 +108,6 @@ export async function printTreeView(
   const sizeData = await computeFromManifest(
     buildManifest,
     distPath,
-    buildId,
     isModern,
     pageInfos
   )
@@ -365,7 +364,6 @@ let lastComputePageInfo: boolean | undefined
 async function computeFromManifest(
   manifest: BuildManifestShape,
   distPath: string,
-  buildId: string,
   isModern: boolean,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
@@ -406,15 +404,6 @@ async function computeFromManifest(
       }
     })
   })
-
-  // Add well-known shared file
-  files.set(
-    path.posix.join(
-      `static/${buildId}/pages/`,
-      `/_app${isModern ? '.module' : ''}.js`
-    ),
-    Infinity
-  )
 
   const commonFiles = [...files.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
@@ -489,16 +478,10 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string,
   buildManifest: BuildManifestShape,
   isModern: boolean
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(
-    buildManifest,
-    distPath,
-    buildId,
-    isModern
-  )
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
 
   const fnFilterModern = (entry: string) =>
     entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
@@ -515,22 +498,6 @@ export async function getJsPageSizeInKb(
     intersect(pageFiles, data.uniqueFiles),
     data.commonFiles
   ).map(fnMapRealPath)
-
-  const clientBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `${page}${isModern ? '.module' : ''}.js`
-  )
-  const appBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `/_app${isModern ? '.module' : ''}.js`
-  )
-  selfFilesReal.push(clientBundle)
-  allFilesReal.push(clientBundle)
-  if (clientBundle !== appBundle) {
-    allFilesReal.push(appBundle)
-  }
 
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This

@@ -528,7 +528,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
-        buildId,
         buildManifest,
         config.experimental.modern
       )
