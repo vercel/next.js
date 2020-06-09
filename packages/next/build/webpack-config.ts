@@ -689,7 +689,7 @@ export default async function getBaseWebpackConfig(
         }
 
         if (chunk.name.includes('BUILD_ID')) {
-          return chunk.name.replace(
+          return escapePathVariables(chunk.name).replace(
             'BUILD_ID',
             isServer || dev ? buildId : '[contenthash]'
           )
