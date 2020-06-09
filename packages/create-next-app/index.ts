@@ -99,11 +99,10 @@ async function run(): Promise<void> {
   }
 
   if (program.example === true) {
-    console.log()
-    console.log('You did not provide an example name or url')
-    console.log()
-    console.log('Switching to the default starter app')
-    console.log()
+    console.error(
+      'Please provide an example name or url, otherwise remove the example option.'
+    )
+    process.exit(1)
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
