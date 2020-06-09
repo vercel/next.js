@@ -1,4 +1,3 @@
-import React from 'react'
 import cn from 'classnames'
 import Link from 'next/link'
 
@@ -8,7 +7,7 @@ type Props = {
   slug?: string
 }
 
-const CoverImage: React.FC<Props> = ({ title, src, slug }) => {
+const CoverImage = ({ title, src, slug }: Props) => {
   const image = (
     <img
       src={src}

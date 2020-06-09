@@ -368,7 +368,7 @@ export default class NextEsmPlugin implements Plugin {
           setTimeout(() => {
             this.updateOptions(childCompiler)
 
-            childCompiler.runAsChild((err, entries, childCompilation) => {
+            childCompiler.runAsChild((err, _entries, childCompilation) => {
               if (err) {
                 return reject(err)
               }
