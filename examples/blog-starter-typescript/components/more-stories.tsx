@@ -1,4 +1,3 @@
-import React from 'react'
 import PostPreview from './post-preview'
 import Post from '../types/post'
 
