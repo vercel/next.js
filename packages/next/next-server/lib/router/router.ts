@@ -531,9 +531,7 @@ export default class Router implements BaseRouter {
             Router.events.emit('routeChangeComplete', as)
 
             if (manualScrollRestoration && '_N_X' in options) {
-              requestAnimationFrame(() => {
-                window.scrollTo(options._N_X, options._N_Y)
-              })
+              window.scrollTo(options._N_X, options._N_Y)
             }
             return resolve(true)
           })

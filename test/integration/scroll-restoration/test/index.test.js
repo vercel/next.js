@@ -25,24 +25,27 @@ const runTests = () => {
     await browser.eval(() =>
       document.querySelector('#to-another').scrollIntoView()
     )
-    const scrollX = await browser.eval(() => window.scrollX)
-    const scrollY = await browser.eval(() => window.scrollY)
+    const scrollX = Math.floor(await browser.eval(() => window.scrollX))
+    const scrollY = Math.floor(await browser.eval(() => window.scrollY))
 
-    await browser.elementByCss('#to-another').click()
+    await browser.eval(() => window.next.router.push('/another'))
 
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
       /hi from another/
     )
+    await browser.eval(() => (window.didHydrate = false))
 
-    await browser.back()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /the end/
-    )
+    await browser.eval(() => window.history.back())
+    await check(() => browser.eval(() => window.didHydrate), {
+      test(content) {
+        return content
+      },
+    })
 
-    const newScrollX = await browser.eval(() => window.scrollX)
-    const newScrollY = await browser.eval(() => window.scrollY)
+    const newScrollX = Math.floor(await browser.eval(() => window.scrollX))
+    const newScrollY = Math.floor(await browser.eval(() => window.scrollY))
+
     expect(scrollX).toBe(newScrollX)
     expect(scrollY).toBe(newScrollY)
   })

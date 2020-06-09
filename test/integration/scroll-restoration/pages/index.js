@@ -16,6 +16,10 @@ const Page = ({ loaded }) => {
     </Link>
   )
 
+  if (typeof window !== 'undefined') {
+    window.didHydrate = true
+  }
+
   if (loaded) {
     return (
       <>
