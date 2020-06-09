@@ -1018,8 +1018,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
-    // No need to call this fn as we already emitted a default SSG manifest:
-    // await generateClientSsgManifest(prerenderManifest, { distDir, buildId })
   }
 
   await promises.writeFile(
