@@ -122,7 +122,7 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
-export default function checkCustomRoutes(
+function checkCustomRoutes(
   routes: Redirect[] | Header[] | Rewrite[],
   type: RouteType
 ): void {
@@ -300,5 +300,54 @@ export default function checkCustomRoutes(
     console.error()
 
     throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
+  }
+}
+
+export interface CustomRoutes {
+  headers: Header[]
+  rewrites: Rewrite[]
+  redirects: Redirect[]
+}
+
+async function loadRedirects(config: any) {
+  if (typeof config.experimental.redirects !== 'function') {
+    return []
+  }
+  const _redirects = await config.experimental.redirects()
+  checkCustomRoutes(_redirects, 'redirect')
+  return _redirects
+}
+
+async function loadRewrites(config: any) {
+  if (typeof config.experimental.rewrites !== 'function') {
+    return []
+  }
+  const _rewrites = await config.experimental.rewrites()
+  checkCustomRoutes(_rewrites, 'rewrite')
+  return _rewrites
+}
+
+async function loadHeaders(config: any) {
+  if (typeof config.experimental.headers !== 'function') {
+    return []
+  }
+  const _headers = await config.experimental.headers()
+  checkCustomRoutes(_headers, 'header')
+  return _headers
+}
+
+export default async function loadCustomRoutes(
+  config: any
+): Promise<CustomRoutes> {
+  const [headers, rewrites, redirects] = await Promise.all([
+    loadHeaders(config),
+    loadRewrites(config),
+    loadRedirects(config),
+  ])
+
+  return {
+    headers,
+    rewrites,
+    redirects,
   }
 }

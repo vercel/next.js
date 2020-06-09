@@ -13,7 +13,8 @@ import {
   Redirect,
   Rewrite,
   RouteType,
-} from '../../lib/check-custom-routes'
+  CustomRoutes,
+} from '../../lib/load-custom-routes'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
@@ -127,11 +128,7 @@ export default class Server {
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   router: Router
   protected dynamicRoutes?: DynamicRoutes
-  protected customRoutes?: {
-    rewrites: Rewrite[]
-    redirects: Redirect[]
-    headers: Header[]
-  }
+  protected customRoutes: CustomRoutes
   protected staticPathsWorker?: import('jest-worker').default & {
     loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
   }
@@ -202,6 +199,7 @@ export default class Server {
       this.pagesManifest = require(pagesManifestPath)
     }
 
+    this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
@@ -299,7 +297,7 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  protected getCustomRoutes() {
+  protected getCustomRoutes(): CustomRoutes {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
@@ -326,8 +324,6 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
-    this.customRoutes = this.getCustomRoutes()
-
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
@@ -355,10 +351,6 @@ export default class Server {
           } as Route,
         ]
       : []
-
-    let headers: Route[] = []
-    let rewrites: Route[] = []
-    let redirects: Route[] = []
 
     const fsRoutes: Route[] = [
       {
@@ -461,137 +453,132 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
-    if (this.customRoutes) {
-      const getCustomRoute = (
-        r: Rewrite | Redirect | Header,
-        type: RouteType
-      ) =>
-        ({
-          ...r,
-          type,
-          match: getCustomRouteMatcher(r.source),
-          name: type,
-          fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
-        } as Route & Rewrite & Header)
+    const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
+      ({
+        ...r,
+        type,
+        match: getCustomRouteMatcher(r.source),
+        name: type,
+        fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
+      } as Route & Rewrite & Header)
 
-      const updateHeaderValue = (value: string, params: Params): string => {
-        if (!value.includes(':')) {
-          return value
-        }
-        const { parsedDestination } = prepareDestination(value, params, {})
-
-        if (
-          !parsedDestination.pathname ||
-          !parsedDestination.pathname.startsWith('/')
-        ) {
-          // the value needs to start with a forward-slash to be compiled
-          // correctly
-          return compilePathToRegex(`/${value}`, { validate: false })(
-            params
-          ).substr(1)
-        }
-        return formatUrl(parsedDestination)
+    const updateHeaderValue = (value: string, params: Params): string => {
+      if (!value.includes(':')) {
+        return value
       }
+      const { parsedDestination } = prepareDestination(value, params, {})
 
-      // Headers come very first
-      headers = this.customRoutes.headers.map((r) => {
-        const headerRoute = getCustomRoute(r, 'header')
-        return {
-          match: headerRoute.match,
-          type: headerRoute.type,
-          name: `${headerRoute.type} ${headerRoute.source} header route`,
-          fn: async (_req, res, params, _parsedUrl) => {
-            const hasParams = Object.keys(params).length > 0
+      if (
+        !parsedDestination.pathname ||
+        !parsedDestination.pathname.startsWith('/')
+      ) {
+        // the value needs to start with a forward-slash to be compiled
+        // correctly
+        return compilePathToRegex(`/${value}`, { validate: false })(
+          params
+        ).substr(1)
+      }
+      return formatUrl(parsedDestination)
+    }
 
-            for (const header of (headerRoute as Header).headers) {
-              let { key, value } = header
-              if (hasParams) {
-                key = updateHeaderValue(key, params)
-                value = updateHeaderValue(value, params)
-              }
-              res.setHeader(key, value)
+    // Headers come very first
+    const headers = this.customRoutes.headers.map((r) => {
+      const headerRoute = getCustomRoute(r, 'header')
+      return {
+        match: headerRoute.match,
+        type: headerRoute.type,
+        name: `${headerRoute.type} ${headerRoute.source} header route`,
+        fn: async (_req, res, params, _parsedUrl) => {
+          const hasParams = Object.keys(params).length > 0
+
+          for (const header of (headerRoute as Header).headers) {
+            let { key, value } = header
+            if (hasParams) {
+              key = updateHeaderValue(key, params)
+              value = updateHeaderValue(value, params)
             }
-            return { finished: false }
-          },
-        } as Route
-      })
+            res.setHeader(key, value)
+          }
+          return { finished: false }
+        },
+      } as Route
+    })
 
-      redirects = this.customRoutes.redirects.map((redirect) => {
-        const redirectRoute = getCustomRoute(redirect, 'redirect')
-        return {
-          type: redirectRoute.type,
-          match: redirectRoute.match,
-          statusCode: redirectRoute.statusCode,
-          name: `Redirect route`,
-          fn: async (_req, res, params, parsedUrl) => {
-            const { parsedDestination } = prepareDestination(
-              redirectRoute.destination,
-              params,
-              parsedUrl.query
-            )
-            const updatedDestination = formatUrl(parsedDestination)
+    const redirects = this.customRoutes.redirects.map((redirect) => {
+      const redirectRoute = getCustomRoute(redirect, 'redirect')
+      return {
+        type: redirectRoute.type,
+        match: redirectRoute.match,
+        statusCode: redirectRoute.statusCode,
+        name: `Redirect route`,
+        fn: async (_req, res, params, parsedUrl) => {
+          const { parsedDestination } = prepareDestination(
+            redirectRoute.destination,
+            params,
+            parsedUrl.query
+          )
+          const updatedDestination = formatUrl(parsedDestination)
 
-            res.setHeader('Location', updatedDestination)
-            res.statusCode = getRedirectStatus(redirectRoute as Redirect)
+          res.setHeader('Location', updatedDestination)
+          res.statusCode = getRedirectStatus(redirectRoute as Redirect)
 
-            // Since IE11 doesn't support the 308 header add backwards
-            // compatibility using refresh header
-            if (res.statusCode === 308) {
-              res.setHeader('Refresh', `0;url=${updatedDestination}`)
-            }
+          // Since IE11 doesn't support the 308 header add backwards
+          // compatibility using refresh header
+          if (res.statusCode === 308) {
+            res.setHeader('Refresh', `0;url=${updatedDestination}`)
+          }
 
-            res.end()
+          res.end()
+          return {
+            finished: true,
+          }
+        },
+      } as Route
+    })
+
+    const rewrites = this.customRoutes.rewrites.map((rewrite) => {
+      const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
+      return {
+        check: true,
+        type: rewriteRoute.type,
+        name: `Rewrite route`,
+        match: rewriteRoute.match,
+        fn: async (req, res, params, parsedUrl) => {
+          const { newUrl, parsedDestination } = prepareDestination(
+            rewriteRoute.destination,
+            params,
+            parsedUrl.query,
+            true
+          )
+
+          // external rewrite, proxy it
+          if (parsedDestination.protocol) {
+            const target = formatUrl(parsedDestination)
+            const proxy = new Proxy({
+              target,
+              changeOrigin: true,
+              ignorePath: true,
+            })
+            proxy.web(req, res)
+
+            proxy.on('error', (err: Error) => {
+              console.error(`Error occurred proxying ${target}`, err)
+            })
             return {
               finished: true,
             }
-          },
-        } as Route
-      })
+          }
+          ;(req as any)._nextDidRewrite = true
+          ;(req as any)._nextRewroteUrl = newUrl
 
-      rewrites = this.customRoutes.rewrites.map((rewrite) => {
-        const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
-        return {
-          check: true,
-          type: rewriteRoute.type,
-          name: `Rewrite route`,
-          match: rewriteRoute.match,
-          fn: async (req, res, params, parsedUrl) => {
-            const { newUrl, parsedDestination } = prepareDestination(
-              rewriteRoute.destination,
-              params,
-              parsedUrl.query,
-              true
-            )
-
-            // external rewrite, proxy it
-            if (parsedDestination.protocol) {
-              const target = formatUrl(parsedDestination)
-              const proxy = new Proxy({
-                target,
-                changeOrigin: true,
-                ignorePath: true,
-              })
-              proxy.web(req, res)
-
-              proxy.on('error', (err: Error) => {
-                console.error(`Error occurred proxying ${target}`, err)
-              })
-              return {
-                finished: true,
-              }
-            }
-            ;(req as any)._nextDidRewrite = true
-            ;(req as any)._nextRewroteUrl = newUrl
-
-            return {
-              finished: false,
-              pathname: newUrl,
-              query: parsedDestination.query,
-            }
-          },
-        } as Route
-      })
-    }
+          return {
+            finished: false,
+            pathname: newUrl,
+            query: parsedDestination.query,
+          }
+        },
+      } as Route
+    })
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
