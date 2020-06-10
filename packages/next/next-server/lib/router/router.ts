@@ -457,7 +457,9 @@ export default class Router implements BaseRouter {
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
         const routeRegex = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+        const routeMatch = getRouteMatcher(routeRegex)(
+          delBasePath(asPathname || '')
+        )
         if (!routeMatch) {
           const missingParams = Object.keys(routeRegex.groups).filter(
             (param) => !query[param]
