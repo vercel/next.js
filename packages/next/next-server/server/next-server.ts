@@ -27,7 +27,9 @@ import {
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  BUILD_MANIFEST,
 } from '../lib/constants'
+import { BuildManifest } from './get-page-files'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -161,6 +163,17 @@ export default class Server {
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
+
+    // Verifies build and server uses same version of Next.js
+    const { nextVersion }: BuildManifest = require(join(
+      this.distDir,
+      BUILD_MANIFEST
+    ))
+    if (nextVersion !== process.env.__NEXT_VERSION) {
+      throw new Error(
+        "Next.js version used for build differs from current version!  Try building your app with 'next build' before starting the server."
+      )
+    }
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
