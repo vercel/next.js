@@ -6,6 +6,7 @@ module.exports = {
   },
   configs: {
     recommended: {
+      plugins: ['@next/next'],
       rules: {
         '@next/next/no-css-tags': 1,
         '@next/next/no-sync-scripts': 1,
