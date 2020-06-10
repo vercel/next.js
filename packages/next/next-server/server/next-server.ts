@@ -507,8 +507,12 @@ export default class Server {
     const redirects = [
       ...this.customRoutes.redirects,
       {
-        source: this.nextConfig.trailingSlash ? '/:path+' : '/:path+/',
-        destination: this.nextConfig.trailingSlash ? '/:path+/' : '/:path+',
+        source: this.nextConfig.experimental.trailingSlash
+          ? '/:path+'
+          : '/:path+/',
+        destination: this.nextConfig.experimental.trailingSlash
+          ? '/:path+/'
+          : '/:path+',
         permanent: true,
       },
     ].map((redirect) => {

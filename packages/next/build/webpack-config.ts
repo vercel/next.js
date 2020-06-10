@@ -815,7 +815,7 @@ export default async function getBaseWebpackConfig(
             }
           : {}),
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
-          config.trailingSlash
+          config.experimental.trailingSlash
         ),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
