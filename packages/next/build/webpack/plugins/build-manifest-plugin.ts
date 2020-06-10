@@ -99,7 +99,7 @@ export default class BuildManifestPlugin {
             filesForEntry.push(file.replace(/\\/g, '/'))
           }
 
-          assetMap.pages[pagePath] = [...filesForEntry, ...mainJsFiles]
+          assetMap.pages[pagePath] = [...mainJsFiles, ...filesForEntry]
         }
 
         // Add the runtime build manifest file (generated later in this file)
