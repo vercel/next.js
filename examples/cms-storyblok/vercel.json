@@ -1,0 +1,11 @@
+{
+  "env": {
+    "NEXT_EXAMPLE_CMS_STORYBLOK_PREVIEW_SECRET": "@next_example_cms_storyblok_preview_secret",
+    "NEXT_EXAMPLE_CMS_STORYBLOK_API_KEY": "@next_example_cms_storyblok_api_key"
+  },
+  "build": {
+    "env": {
+      "NEXT_EXAMPLE_CMS_STORYBLOK_API_KEY": "@next_example_cms_storyblok_api_key"
+    }
+  }
+}
