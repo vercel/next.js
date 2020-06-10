@@ -18,31 +18,20 @@ const TodoPage = (props: { todo: GetTodoQuery['getTodo'] }) => {
 
 export const getServerSideProps = async (context) => {
   const { id } = context.query
-  try {
-    const todo = (await API.graphql({
-      ...graphqlOperation(getTodo),
-      variables: { id },
-    })) as { data: GetTodoQuery; errors: {}[] }
-    if (todo.errors) {
-      console.log('Failed to fetch todo. ', todo.errors)
-      return {
-        props: {
-          todo: {},
-        },
-      }
-    }
-    return {
-      props: {
-        todo: todo.data.getTodo,
-      },
-    }
-  } catch (err) {
-    console.warn(err)
-    return {
-      props: {
-        todo: {},
-      },
-    }
+  const todo = (await API.graphql({
+    ...graphqlOperation(getTodo),
+    variables: { id },
+  })) as { data: GetTodoQuery; errors: any[] }
+
+  if (todo.errors) {
+    console.error(todo.errors)
+    throw new Error(todo.errors[0].message)
+  }
+
+  return {
+    props: {
+      todo: todo.data.getTodo,
+    },
   }
 }
 
