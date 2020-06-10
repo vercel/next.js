@@ -82,7 +82,7 @@ export async function getAllPostsForHome(preview) {
 }
 
 export async function getPostAndMorePosts(slug, preview) {
-  const post = await fetchAPI(
+  const data = await fetchAPI(
     `
   query PostBySlug($slug: ID!) {
     PostItem(id: $slug) {
@@ -101,20 +101,7 @@ export async function getPostAndMorePosts(slug, preview) {
         }
       }
     }
-  }
-  `,
-    {
-      preview,
-      variables: {
-        slug: `posts/${slug}`,
-      },
-    }
-  )
-  const morePosts = post?.PostItem?.id
-    ? await fetchAPI(
-        `
-  query PostBySlug($id: String) {
-    PostItems(excluding_ids: $id, per_page: 2, sort_by: "first_published_at:desc") {
+    PostItems(per_page: 3, sort_by: "first_published_at:desc") {
       items {
         slug
         published_at
@@ -133,17 +120,18 @@ export async function getPostAndMorePosts(slug, preview) {
     }
   }
   `,
-        {
-          preview,
-          variables: {
-            id: `${post.PostItem.id}`,
-          },
-        }
-      )
-    : {}
+    {
+      preview,
+      variables: {
+        slug: `posts/${slug}`,
+      },
+    }
+  )
 
   return {
-    post: post?.PostItem,
-    morePosts: morePosts?.PostItems?.items || [],
+    post: data?.PostItem,
+    morePosts: (data?.PostItems?.items || [])
+      .filter((item) => item.slug !== slug)
+      .slice(0, 2),
   }
 }
