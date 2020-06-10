@@ -1,14 +1,20 @@
+import { IncomingMessage, ServerResponse } from 'http'
 import { useMemo } from 'react'
 import { ApolloClient } from 'apollo-client'
-import { InMemoryCache } from 'apollo-cache-inmemory'
+import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 
-let apolloClient
+let apolloClient: ApolloClient<NormalizedCacheObject> | undefined
 
-function createIsomorphLink() {
+export type ResolverContext = {
+  req?: IncomingMessage
+  res?: ServerResponse
+}
+
+function createIsomorphLink(context: ResolverContext = {}) {
   if (typeof window === 'undefined') {
     const { SchemaLink } = require('apollo-link-schema')
     const { schema } = require('./schema')
-    return new SchemaLink({ schema })
+    return new SchemaLink({ schema, context })
   } else {
     const { HttpLink } = require('apollo-link-http')
     return new HttpLink({
@@ -18,16 +24,21 @@ function createIsomorphLink() {
   }
 }
 
-function createApolloClient() {
+function createApolloClient(context?: ResolverContext) {
   return new ApolloClient({
     ssrMode: typeof window === 'undefined',
-    link: createIsomorphLink(),
+    link: createIsomorphLink(context),
     cache: new InMemoryCache(),
   })
 }
 
-export function initializeApollo(initialState = null) {
-  const _apolloClient = apolloClient ?? createApolloClient()
+export function initializeApollo(
+  initialState: any = null,
+  // Pages with Next.js data fetching methods, like `getStaticProps`, can send
+  // a custom context which will be used by `SchemaLink` to server render pages
+  context?: ResolverContext
+) {
+  const _apolloClient = apolloClient ?? createApolloClient(context)
 
   // If your page has Next.js data fetching methods that use Apollo Client, the initial state
   // get hydrated here
@@ -42,7 +53,7 @@ export function initializeApollo(initialState = null) {
   return _apolloClient
 }
 
-export function useApollo(initialState) {
+export function useApollo(initialState: any) {
   const store = useMemo(() => initializeApollo(initialState), [initialState])
   return store
 }
