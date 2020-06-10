@@ -1,10 +1,7 @@
 import { Compiler, Plugin } from 'webpack'
 import { RawSource } from 'webpack-sources'
-import {
-  PAGES_MANIFEST,
-  ROUTE_NAME_REGEX,
-  SERVERLESS_ROUTE_NAME_REGEX,
-} from '../../../next-server/lib/constants'
+import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
+import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 
@@ -24,33 +21,19 @@ export default class PagesManifestPlugin implements Plugin {
       const pages: PagesManifest = {}
 
       for (const chunk of chunks) {
-        const result = (this.serverless
-          ? SERVERLESS_ROUTE_NAME_REGEX
-          : ROUTE_NAME_REGEX
-        ).exec(chunk.name)
-
-        if (!result) {
-          continue
-        }
-
-        const pagePath = result[1]
+        const pagePath = getRouteFromEntrypoint(chunk.name, this.serverless)
 
         if (!pagePath) {
           continue
         }
 
         // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = chunk.name.replace(
-          /\\/g,
-          '/'
-        )
+        pages[pagePath] = chunk.name.replace(/\\/g, '/')
       }
 
-      if (typeof pages['/index'] !== 'undefined') {
-        pages['/'] = pages['/index']
-      }
-
-      compilation.assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages))
+      compilation.assets[PAGES_MANIFEST] = new RawSource(
+        JSON.stringify(pages, null, 2)
+      )
     })
   }
 }

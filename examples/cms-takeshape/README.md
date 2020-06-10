@@ -14,6 +14,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
 - [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -140,7 +142,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 On TakeShape, create a new post like before. But **DO NOT** click **Enabled** under **Workflow Status**.
 
-Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 

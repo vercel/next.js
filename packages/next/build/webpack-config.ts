@@ -328,13 +328,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool =
-    process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL
-      ? false
-      : dev
-      ? 'cheap-module-source-map'
-      : false
-
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
       // mini-css-extract-plugin
@@ -354,23 +347,6 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
-      },
-    },
-    prod: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-        },
-        react: {
-          name: 'commons',
-          chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-subscription)[\\/]/,
-        },
       },
     },
     prodGranular: {
@@ -457,9 +433,7 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
   } else {
-    splitChunksConfig = config.experimental.granularChunks
-      ? splitChunksConfigs.prodGranular
-      : splitChunksConfigs.prod
+    splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
   const crossOrigin =
@@ -829,7 +803,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(crossOrigin),
+        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
@@ -845,9 +819,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
-        ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
-          config.experimental.granularChunks && !dev
         ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
@@ -919,27 +890,8 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            // Webpack 5 has the ability to cache packages persistently, so we
-            // do not need this DLL plugin:
+            // Webpack 5 enables HMR automatically in the development mode
             if (!isServer && !isWebpack5) {
-              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
-                distDir
-              )
-              devPlugins.push(
-                new AutoDllPlugin({
-                  filename: '[name]_[hash].js',
-                  path: './static/development/dll',
-                  context: dir,
-                  entry: {
-                    dll: ['react', 'react-dom'],
-                  },
-                  config: {
-                    devtool,
-                    mode: webpackMode,
-                    resolve: resolveConfig,
-                  },
-                })
-              )
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
             }
 
@@ -962,7 +914,6 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new BuildManifestPlugin({
           buildId,
-          clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
       tracer &&
@@ -1009,7 +960,6 @@ export default async function getBaseWebpackConfig(
                     .BlockedAPIToBePolyfilled,
               }),
             !isServer &&
-              config.experimental.granularChunks &&
               conformanceConfig.GranularChunksConformanceCheck.enabled &&
               new GranularChunksConformanceCheck(
                 splitChunksConfigs.prodGranular

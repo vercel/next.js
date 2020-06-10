@@ -1,4 +1,3 @@
-import React from 'react'
 import Container from './container'
 import cn from 'classnames'
 import { EXAMPLE_PATH } from '../lib/constants'
@@ -7,7 +6,7 @@ type Props = {
   preview?: boolean
 }
 
-const Alert: React.FC<Props> = ({ preview }) => {
+const Alert = ({ preview }: Props) => {
   return (
     <div
       className={cn('border-b', {
