@@ -12,6 +12,7 @@ import {
   nextStart,
   fetchViaHTTP,
   renderViaHTTP,
+  getPageFileFromBuildManifest,
 } from 'next-test-utils'
 import qs from 'querystring'
 import path from 'path'
@@ -171,11 +172,8 @@ describe('Serverless', () => {
 
   it('should not have combined client-side chunks', () => {
     expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
-    const buildManifest = require(join(appDir, '.next/build-manifest.json'))
 
-    const pageFile = buildManifest.pages['/'].find((file) =>
-      file.includes('pages/index')
-    )
+    const pageFile = getPageFileFromBuildManifest(appDir, '/')
 
     expect(
       readFileSync(join(__dirname, '..', '.next', pageFile), 'utf8')
