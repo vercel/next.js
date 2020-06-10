@@ -1,10 +1,12 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { promises } from 'fs'
 import { join } from 'path'
+import {
+  readNextBuildClientPageFile,
+  readNextBuildServerPageFile,
+} from 'next-test-utils'
 
-const readNextBuildFile = (relativePath) =>
-  promises.readFile(join(__dirname, '../.next', relativePath), 'utf8')
+const appDir = join(__dirname, '..')
 
 export default (context) => {
   describe('process.env', () => {
@@ -18,9 +20,9 @@ export default (context) => {
 
   describe('process.browser', () => {
     it('should eliminate server only code on the client', async () => {
-      const buildId = await readNextBuildFile('./BUILD_ID')
-      const clientCode = await readNextBuildFile(
-        `./static/${buildId}/pages/process-env.js`
+      const clientCode = await readNextBuildClientPageFile(
+        appDir,
+        '/process-env'
       )
       expect(clientCode).toMatch(
         /__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/
@@ -31,9 +33,9 @@ export default (context) => {
     })
 
     it('should eliminate client only code on the server', async () => {
-      const buildId = await readNextBuildFile('./BUILD_ID')
-      const serverCode = await readNextBuildFile(
-        `./server/static/${buildId}/pages/process-env.js`
+      const serverCode = await readNextBuildServerPageFile(
+        appDir,
+        '/process-env'
       )
       expect(serverCode).not.toMatch(
         /__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/
