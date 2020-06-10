@@ -9,7 +9,5 @@ export default function DateComponent({ dateString }) {
       setDate(new Date())
     }
   }, [date])
-  return (
-    date && <time dateTime={date}>{format(date, 'LLLL d, yyyy')}</time>
-  )
+  return date && <time dateTime={date}>{format(date, 'LLLL d, yyyy')}</time>
 }
