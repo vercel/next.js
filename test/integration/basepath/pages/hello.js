@@ -20,6 +20,18 @@ export default () => (
         <h1>getServerSideProps</h1>
       </a>
     </Link>
+    <br />
+    <Link href="/[slug]" as="/first">
+      <a id="dynamic-link">
+        <h1>dynamic page</h1>
+      </a>
+    </Link>
+    <br />
+    <Link href="/catchall/[...parts]" as="/catchall/hello/world">
+      <a id="catchall-link">
+        <h1>catchall page</h1>
+      </a>
+    </Link>
     <div id="base-path">{useRouter().basePath}</div>
     <div id="pathname">{useRouter().pathname}</div>
   </>
