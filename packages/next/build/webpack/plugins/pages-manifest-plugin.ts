@@ -30,11 +30,14 @@ export default class PagesManifestPlugin implements Plugin {
           continue
         }
 
-        const files = entrypoint.getFiles()
+        const files = entrypoint
+          .getFiles()
+          .filter((file: string) => file.endsWith('.js'))
 
         if (files.length > 1) {
           console.log(
-            `Found more than one file in server entrypoint ${entrypoint.name}`
+            `Found more than one file in server entrypoint ${entrypoint.name}`,
+            files
           )
           continue
         }
