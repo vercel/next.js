@@ -90,8 +90,18 @@ const defaultEnv = command === 'dev' ? 'development' : 'production'
 
 const standardEnv = ['production', 'development', 'test']
 
-if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
-  log.warn(NON_STANDARD_NODE_ENV)
+if (process.env.NODE_ENV) {
+  const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
+  const notAuthorizedCommands =
+    process.env.NODE_ENV === 'development'
+      ? ['start', 'build']
+      : process.env.NODE_ENV === 'production'
+      ? ['dev']
+      : []
+
+  if (isNotStandard || notAuthorizedCommands.includes(command)) {
+    log.warn(NON_STANDARD_NODE_ENV)
+  }
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
