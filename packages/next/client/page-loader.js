@@ -11,6 +11,12 @@ function hasRel(rel, link) {
   } catch {}
 }
 
+function pageLoadError(route) {
+  const error = new Error(`Error loading ${route}`)
+  error.code = 'PAGE_LOAD_ERROR'
+  return error
+}
+
 const relPrefetch =
   hasRel('preload') && !hasRel('prefetch')
     ? // https://caniuse.com/#feat=link-rel-preload
@@ -56,13 +62,22 @@ function appendLink(href, rel, as) {
 }
 
 export default class PageLoader {
-  constructor(buildId, assetPrefix) {
+  constructor(buildId, assetPrefix, initialPage) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
     this.pageRegisterEvents = mitt()
-    this.loadingRoutes = {}
+    this.loadingRoutes = {
+      // By default these 2 pages are being loaded in the initial html
+      '/_app': true,
+    }
+
+    // TODO: get rid of this limitation for rendering the error page
+    if (initialPage !== '/_error') {
+      this.loadingRoutes[initialPage] = true
+    }
+
     if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
@@ -88,14 +103,13 @@ export default class PageLoader {
 
   // Returns a promise for the dependencies for a particular route
   getDependencies(route) {
-    return this.promisedBuildManifest.then(
-      (man) =>
-        (man[route] &&
-          man[route].map(
-            (url) => `${this.assetPrefix}/_next/${encodeURI(url)}`
-          )) ||
-        []
-    )
+    return this.promisedBuildManifest.then((m) => {
+      return m[route]
+        ? m[route].map((url) => `${this.assetPrefix}/_next/${encodeURI(url)}`)
+        : this.pageRegisterEvents.emit(route, {
+            error: pageLoadError(route),
+          }) ?? []
+    })
   }
 
   /**
@@ -182,13 +196,17 @@ export default class PageLoader {
   }
 
   loadPage(route) {
-    return this.loadPageScript(route)
-  }
-
-  loadPageScript(route) {
     route = normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
+      // If there's a cached version of the page, let's use it.
+      const cachedPage = this.pageCache[route]
+      if (cachedPage) {
+        const { error, page, mod } = cachedPage
+        error ? reject(error) : resolve({ page, mod })
+        return
+      }
+
       const fire = ({ error, page, mod }) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
@@ -200,22 +218,8 @@ export default class PageLoader {
         }
       }
 
-      // If there's a cached version of the page, let's use it.
-      const cachedPage = this.pageCache[route]
-      if (cachedPage) {
-        const { error, page, mod } = cachedPage
-        error ? reject(error) : resolve({ page, mod })
-        return
-      }
-
       // Register a listener to get the page
       this.pageRegisterEvents.on(route, fire)
-
-      // If the page is loading via SSR, we need to wait for it
-      // rather downloading it again.
-      if (document.querySelector(`script[data-next-page="${route}"]`)) {
-        return
-      }
 
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
@@ -223,13 +227,13 @@ export default class PageLoader {
           this.getDependencies(route).then((deps) => {
             deps.forEach((d) => {
               if (
-                /\.js$/.test(d) &&
+                d.endsWith('.js') &&
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
-                this.loadScript(d, route, false)
+                this.loadScript(d, route)
               }
               if (
-                /\.css$/.test(d) &&
+                d.endsWith('.css') &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
                 appendLink(d, 'stylesheet').catch(() => {
@@ -238,39 +242,30 @@ export default class PageLoader {
                 })
               }
             })
-            this.loadRoute(route)
           })
         } else {
-          this.loadRoute(route)
+          // Development only. In production the page file is part of the build manifest
+          route = normalizeRoute(route)
+          let scriptRoute = getAssetPath(route)
+
+          const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+            this.buildId
+          )}/pages${encodeURI(scriptRoute)}.js`
+          this.loadScript(url, route)
         }
       }
     })
   }
 
-  loadRoute(route) {
-    route = normalizeRoute(route)
-    let scriptRoute = getAssetPath(route)
-
-    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-      this.buildId
-    )}/pages${encodeURI(scriptRoute)}.js`
-    this.loadScript(url, route, true)
-  }
-
-  loadScript(url, route, isPage) {
+  loadScript(url, route) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
       script.type = 'module'
-      // Only page bundle scripts need to have .module added to url,
-      // dependencies already have it added during build manifest creation
-      if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     script.src = url
     script.onerror = () => {
-      const error = new Error(`Error loading script ${url}`)
-      error.code = 'PAGE_LOAD_ERROR'
-      this.pageRegisterEvents.emit(route, { error })
+      this.pageRegisterEvents.emit(route, { error: pageLoadError(url) })
     }
     document.body.appendChild(script)
   }
@@ -329,28 +324,29 @@ export default class PageLoader {
     if (isDependency) {
       url = route
     } else {
-      route = normalizeRoute(route)
+      if (process.env.NODE_ENV !== 'production') {
+        route = normalizeRoute(route)
 
-      const scriptRoute = getAssetPath(route)
-      const ext =
-        process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
+        const scriptRoute = getAssetPath(route)
+        const ext =
+          process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
 
-      url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${encodeURI(scriptRoute)}${ext}`
+        url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+          this.buildId
+        )}/pages${encodeURI(scriptRoute)}${ext}`
+      }
     }
 
     return Promise.all(
-      document.querySelector(
-        `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
-      )
+      document.querySelector(`link[rel="${relPrefetch}"][href^="${url}"]`)
         ? []
         : [
-            appendLink(
-              url,
-              relPrefetch,
-              url.match(/\.css$/) ? 'style' : 'script'
-            ),
+            url &&
+              appendLink(
+                url,
+                relPrefetch,
+                url.endsWith('.css') ? 'style' : 'script'
+              ),
             process.env.NODE_ENV === 'production' &&
               !isDependency &&
               this.getDependencies(route).then((urls) =>
