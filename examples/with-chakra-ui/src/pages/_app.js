@@ -4,7 +4,7 @@ import theme from '../theme'
 
 function MyApp({ Component, pageProps }) {
   return (
-    <ThemeProvider>
+    <ThemeProvider theme={theme}>
       <ColorModeProvider>
         <CSSReset />
         <Component {...pageProps} />
