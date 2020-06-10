@@ -293,8 +293,6 @@ export default function (render, fetch) {
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = 'development'
-
       // build dynamic page
       await fetch('/dynamic/ssr')
 
@@ -304,9 +302,6 @@ export default function (render, fetch) {
         REACT_LOADABLE_MANIFEST
       ))
       const resources = []
-
-      // test a regular page
-      resources.push(`/_next/static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
       resources.push(
