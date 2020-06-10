@@ -1,0 +1,59 @@
+<html>
+  <head>
+    <title>Simple GraphiQL Example</title>
+    <link href="https://unpkg.com/graphiql/graphiql.min.css" rel="stylesheet" />
+  </head>
+  <body style="margin: 0;">
+    <div id="graphiql" style="height: 100vh;"></div>
+
+    <script
+      crossorigin
+      src="https://unpkg.com/react/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/graphiql/graphiql.min.js"
+    ></script>
+
+    <script>
+      const URL = 'https://next-js-example.myshopify.com/api/2020-04/graphql'
+      const defaultQuery = `
+{
+  shop {
+    name
+  }
+  products(first: 10) {
+    edges {
+      node {
+        title
+      }
+    }
+  }
+}
+`
+      const graphQLFetcher = (graphQLParams) =>
+        fetch(URL, {
+          method: 'post',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/graphql',
+            'X-Shopify-Storefront-Access-Token':
+              '16e2e7df62fcf97f05906f6ba6a07f77',
+          },
+          body: JSON.stringify(graphQLParams),
+        }).then((response) => response.json())
+
+      ReactDOM.render(
+        React.createElement(GraphiQL, {
+          fetcher: graphQLFetcher,
+          defaultQuery,
+        }),
+        document.getElementById('graphiql')
+      )
+    </script>
+  </body>
+</html>
