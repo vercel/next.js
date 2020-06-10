@@ -17,7 +17,7 @@ const context = React.createContext(null)
 
 /*
   With Typescript:
-  const Provider: React.FC<{ css: TCss<typeof config> }> = ({ css, children }) => {
+  const Provider = ({ css, children }: { css: TCss<typeof config>, children?: React.ReactNode }) => {
     return <context.Provider value={css}>{children}</context.Provider>
   }
 */
