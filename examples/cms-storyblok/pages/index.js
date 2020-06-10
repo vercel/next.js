@@ -22,7 +22,7 @@ export default function Index({ allPosts, preview }) {
             <HeroPost
               title={heroPost.content.title}
               coverImage={heroPost.content.image}
-              date={heroPost.published_at}
+              date={heroPost.first_published_at || heroPost.published_at}
               author={heroPost.content.author}
               slug={heroPost.slug}
               excerpt={heroPost.content.intro}

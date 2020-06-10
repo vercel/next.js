@@ -57,10 +57,11 @@ export async function getAllPostsForHome(preview) {
   const data = await fetchAPI(
     `
     {
-      PostItems {
+      PostItems(sort_by: "first_published_at:desc") {
         items {
           slug
           published_at
+          first_published_at
           content {
             long_text
             intro
@@ -87,6 +88,7 @@ export async function getPostAndMorePosts(slug, preview) {
     PostItem(id: $slug) {
       slug
       published_at
+      first_published_at
       id
       content {
         long_text
@@ -112,10 +114,11 @@ export async function getPostAndMorePosts(slug, preview) {
     ? await fetchAPI(
         `
   query PostBySlug($id: String) {
-    PostItems(excluding_ids: $id, per_page: 2) {
+    PostItems(excluding_ids: $id, per_page: 2, sort_by: "first_published_at:desc") {
       items {
         slug
         published_at
+        first_published_at
         content {
           long_text
           intro
