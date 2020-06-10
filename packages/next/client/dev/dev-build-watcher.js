@@ -126,6 +126,7 @@ function createCss(prefix) {
       bottom: 10px;
       right: 30px;
 
+      border-radius: 3px;
       background: #000;
       color: #fff;
       font: initial;
@@ -135,7 +136,7 @@ function createCss(prefix) {
       text-transform: initial;
       visibility: initial;
 
-      padding: 8px 10px;
+      padding: 7px 10px 8px 10px;
       align-items: center;
       box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.25), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
 
