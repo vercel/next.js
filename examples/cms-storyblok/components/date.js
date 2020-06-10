@@ -10,6 +10,6 @@ export default function DateComponent({ dateString }) {
     }
   }, [date])
   return (
-    date && <time dateTime={dateString}>{format(date, 'LLLL d, yyyy')}</time>
+    date && <time dateTime={date}>{format(date, 'LLLL d, yyyy')}</time>
   )
 }
