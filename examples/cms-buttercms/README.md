@@ -17,6 +17,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Agility CMS](/examples/cms-agilitycms)
 - [Cosmic](/examples/cms-cosmic)
 - [Strapi](/examples/cms-strapi)
+- [Storyblok](/examples/cms-storyblok)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
