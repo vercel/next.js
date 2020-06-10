@@ -190,46 +190,6 @@ describe('create next app', () => {
   // TODO: investigate why this test stalls on yarn install when
   // stdin is piped instead of inherited on windows
   if (process.platform !== 'win32') {
-    it('should allow to manually select an example', async () => {
-      await usingTempDir(async (cwd) => {
-        const runExample = (...args) => {
-          const res = run(cwd, ...args)
-
-          function pickExample(data) {
-            if (/hello-world/.test(data.toString())) {
-              res.stdout.removeListener('data', pickExample)
-              res.stdin.write('\n')
-            }
-          }
-
-          function searchExample(data) {
-            if (/Pick an example/.test(data.toString())) {
-              res.stdout.removeListener('data', searchExample)
-              res.stdin.write('hello-world')
-              res.stdout.on('data', pickExample)
-            }
-          }
-
-          function selectExample(data) {
-            if (/Pick a template/.test(data.toString())) {
-              res.stdout.removeListener('data', selectExample)
-              res.stdin.write('\u001b[B\n') // Down key and enter
-              res.stdout.on('data', searchExample)
-            }
-          }
-
-          res.stdout.on('data', selectExample)
-
-          return res
-        }
-
-        const res = await runExample('no-example')
-
-        expect(res.exitCode).toBe(0)
-        expect(res.stdout).toMatch(/Downloading files for example hello-world/)
-      })
-    })
-
     it('should fall back to default template', async () => {
       await usingTempDir(async (cwd) => {
         const runExample = (...args) => {
@@ -277,6 +237,18 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+    })
+  })
+
+  it('should exit if example flag is empty', async () => {
+    await usingTempDir(async (cwd) => {
+      try {
+        const projectName = 'no-example-provided'
+        await run(cwd, projectName, '--example')
+      } catch (e) {
+        // eslint-disable-next-line jest/no-try-expect
+        expect(e.exitCode).toBe(1)
+      }
     })
   })
 })
