@@ -156,7 +156,7 @@ To deploy on Vercel, you need to set the environment variables with **Vercel Sec
 Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_STORYBLOK_API_KEY>` and `<NEXT_EXAMPLE_CMS_STORYBLOK_PREVIEW_SECRET>` with the corresponding strings in `.env`.
 
 ```
-vercel secrets add next_example_cms_storyblok_api_url <NEXT_EXAMPLE_CMS_STORYBLOK_API_KEY>
+vercel secrets add next_example_cms_storyblok_api_key <NEXT_EXAMPLE_CMS_STORYBLOK_API_KEY>
 vercel secrets add next_example_cms_storyblok_preview_secret <NEXT_EXAMPLE_CMS_STORYBLOK_PREVIEW_SECRET>
 ```
 
