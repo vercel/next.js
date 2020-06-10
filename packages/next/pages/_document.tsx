@@ -490,7 +490,12 @@ export class NextScript extends Component<OriginProps> {
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
   getDynamicChunks() {
-    const { dynamicImports, assetPrefix, files } = this.context._documentProps
+    const {
+      dynamicImports,
+      assetPrefix,
+      files,
+      isDevelopment,
+    } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dedupe(dynamicImports).map((bundle: any) => {
@@ -506,7 +511,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          async
+          async={!isDevelopment}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -522,7 +527,12 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files, buildManifest } = this.context._documentProps
+    const {
+      assetPrefix,
+      files,
+      buildManifest,
+      isDevelopment,
+    } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     const normalScripts = files?.filter((file) => file.endsWith('.js'))
@@ -544,7 +554,7 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          async
+          async={!isDevelopment}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
