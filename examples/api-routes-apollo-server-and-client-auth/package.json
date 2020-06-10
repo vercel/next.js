@@ -1,32 +1,29 @@
 {
-  "name": "with-apollo",
-  "version": "2.0.0",
+  "name": "api-routes-apollo-server-and-client-auth",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@apollo/react-common": "3.1.3",
-    "@apollo/react-hooks": "3.1.3",
-    "@apollo/react-ssr": "3.1.3",
-    "apollo-cache-inmemory": "1.6.5",
-    "apollo-client": "2.6.8",
-    "apollo-link-http": "1.5.16",
-    "apollo-link-schema": "1.2.4",
-    "apollo-server-micro": "2.9.16",
+    "@apollo/react-common": "^3.1.4",
+    "@apollo/react-hooks": "^3.1.5",
+    "@hapi/iron": "6.0.0",
+    "apollo-cache-inmemory": "^1.6.6",
+    "apollo-client": "^2.6.10",
+    "apollo-link-http": "^1.5.17",
+    "apollo-link-schema": "^1.2.5",
+    "apollo-server-micro": "^2.14.2",
     "apollo-utilities": "^1.3.2",
-    "bcrypt": "3.0.7",
-    "cookie": "0.4.0",
+    "cookie": "^0.4.1",
     "graphql": "^14.0.2",
-    "graphql-tag": "2.10.1",
-    "jsonwebtoken": "8.5.1",
+    "graphql-tag": "^2.10.3",
     "next": "latest",
     "prop-types": "^15.6.2",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "uuid": "3.4.0"
+    "uuid": "8.1.0"
   },
-  "author": "",
   "license": "ISC"
 }

@@ -3,9 +3,9 @@ import Link from 'next/link'
 export default function About() {
   return (
     <div>
-      This is a static page goto{' '}
+      Welcome to the about page. Go to the{' '}
       <Link href="/">
-        <a>dynamic</a>
+        <a>Home</a>
       </Link>{' '}
       page.
     </div>
