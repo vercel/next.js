@@ -11,9 +11,10 @@ import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
-import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
+import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
 import {
@@ -349,10 +350,9 @@ export default class DevServer extends Server {
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
-      try {
-        await fs.promises.stat(pathJoin(this.publicDir, '_next'))
+      if (await fileExists(pathJoin(this.publicDir, '_next'))) {
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-      } catch (err) {}
+      }
     }
 
     const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
