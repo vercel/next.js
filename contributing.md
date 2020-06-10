@@ -114,6 +114,16 @@ EXAMPLE=./test/integration/basic
    ```sh
    yarn install --force
    ```
+### Running your own app with locally compiled version of Next.js ( Using link )
+
+Alternatively, ``` yarn link ``` or ``` npm link ``` can be used to achieve the same, this creates a symlink instead of copying files.
+
+1. Change directory to```<local-path-to-cloned-nextjs-repo>/packages/next```
+2. run ``` yarn link ``` 
+3. Change directory to your app's root directory
+4. run ``` yarn link "next" ```
+5. run your application as you normally would
+
 
 ## Adding examples
 
