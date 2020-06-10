@@ -165,14 +165,16 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     // Verifies build and server uses same version of Next.js
-    const { nextVersion }: BuildManifest = require(join(
-      this.distDir,
-      BUILD_MANIFEST
-    ))
-    if (nextVersion !== process.env.__NEXT_VERSION) {
-      throw new Error(
-        "Next.js version used for build differs from current version!  Try building your app with 'next build' before starting the server."
-      )
+    if (!dev) {
+      const { nextVersion }: BuildManifest = require(join(
+        this.distDir,
+        BUILD_MANIFEST
+      ))
+      if (nextVersion !== process.env.__NEXT_VERSION) {
+        throw new Error(
+          `Next.js version used (${nextVersion}) for build differs from current version (${process.env.__NEXT_VERSION})!  Try building your app with 'next build' before starting the server.`
+        )
+      }
     }
 
     this.renderOpts = {
