@@ -102,6 +102,24 @@ const runTests = (context, dev = false) => {
     await check(() => browser.elementByCss('p').text(), /hello from another/)
   })
 
+  it('should work with normal dynamic page', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#dynamic-link').click()
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /slug: first/
+    )
+  })
+
+  it('should work with catch-all page', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#catchall-link').click()
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /parts: hello\/world/
+    )
+  })
+
   it('should 404 when manually adding basePath with <Link>', async () => {
     const browser = await webdriver(
       context.appPort,
