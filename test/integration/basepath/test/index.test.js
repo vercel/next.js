@@ -107,7 +107,7 @@ const runTests = (context, dev = false) => {
     await browser.elementByCss('#dynamic-link').click()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /slug:.*?first/
+      /slug: first/
     )
   })
 
@@ -116,7 +116,7 @@ const runTests = (context, dev = false) => {
     await browser.elementByCss('#catchall-link').click()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /parts:.*?hello\/world/
+      /parts: hello\/world/
     )
   })
 
