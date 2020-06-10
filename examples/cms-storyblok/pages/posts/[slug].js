@@ -58,7 +58,7 @@ export async function getStaticProps({ params, preview = null }) {
       preview,
       post: {
         ...data.post,
-        html: data?.post?.content?.long_text
+        html: data.post?.content?.long_text
           ? new RichTextResolver().render(data.post.content.long_text)
           : null,
       },
