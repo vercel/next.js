@@ -19,13 +19,11 @@ import { getRouteRegex } from './utils/route-regex'
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return path.indexOf(basePath) !== 0 ? basePath + path : path
+  return `${basePath}${path}`
 }
 
 export function delBasePath(path: string): string {
-  return path.indexOf(basePath) === 0
-    ? path.substr(basePath.length) || '/'
-    : path
+  return path.substr(basePath.length)
 }
 
 function toRoute(path: string): string {
@@ -36,6 +34,21 @@ const prepareRoute = (path: string) =>
   toRoute(!path || path === '/' ? '/index' : path)
 
 type Url = UrlObject | string
+
+function prepareUrlAs(url: Url, as: Url) {
+  // If url and as provided as an object representation,
+  // we'll format them into the string version here.
+  url = typeof url === 'object' ? formatWithValidation(url) : url
+  as = typeof as === 'object' ? formatWithValidation(as) : as
+
+  url = addBasePath(url)
+  as = as ? addBasePath(as) : as
+
+  return {
+    url,
+    as,
+  }
+}
 
 type ComponentRes = { page: ComponentType; mod: any }
 
@@ -80,6 +93,9 @@ type BeforePopStateCallback = (state: any) => boolean
 type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
+
+const manualScrollRestoration =
+  typeof window !== 'undefined' && 'scrollRestoration' in window.history
 
 function fetchNextData(
   pathname: string,
@@ -235,12 +251,18 @@ export default class Router implements BaseRouter {
         // we have to register the initial route upon initialization
         this.changeState(
           'replaceState',
-          formatWithValidation({ pathname, query }),
+          formatWithValidation({ pathname: addBasePath(pathname), query }),
           as
         )
       }
 
       window.addEventListener('popstate', this.onPopState)
+
+      // enable custom scroll restoration handling when available
+      // otherwise fallback to browser's default handling
+      if (manualScrollRestoration) {
+        window.history.scrollRestoration = 'manual'
+      }
     }
   }
 
@@ -269,7 +291,7 @@ export default class Router implements BaseRouter {
       const { pathname, query } = this
       this.changeState(
         'replaceState',
-        formatWithValidation({ pathname, query }),
+        formatWithValidation({ pathname: addBasePath(pathname), query }),
         getURL()
       )
       return
@@ -300,7 +322,7 @@ export default class Router implements BaseRouter {
         )
       }
     }
-    this.replace(url, as, options)
+    this.change('replaceState', url, as, options)
   }
 
   update(route: string, mod: any) {
@@ -346,6 +368,7 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as: Url = url, options = {}) {
+    ;({ url, as } = prepareUrlAs(url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -356,13 +379,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as: Url = url, options = {}) {
+    ;({ url, as } = prepareUrlAs(url, as))
     return this.change('replaceState', url, as, options)
   }
 
   change(
     method: HistoryMethod,
-    _url: Url,
-    _as: Url,
+    url: string,
+    as: string,
     options: any
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
@@ -373,18 +397,6 @@ export default class Router implements BaseRouter {
       if (ST) {
         performance.mark('routeChange')
       }
-
-      // If url and as provided as an object representation,
-      // we'll format them into the string version here.
-      let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
-      let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
-
-      // parse url parts without basePath since pathname should map 1-1 with
-      // pages dir
-      const { pathname, query, protocol } = parse(delBasePath(url), true)
-
-      url = addBasePath(url)
-      as = addBasePath(as)
 
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
@@ -413,6 +425,13 @@ export default class Router implements BaseRouter {
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
       }
+
+      let { pathname, query, protocol } = parse(url, true)
+
+      // url and as should always be prefixed with basePath by this
+      // point by either next/link or router.push/replace so strip the
+      // basePath from the pathname to match the pages dir 1-to-1
+      pathname = pathname ? delBasePath(pathname) : pathname
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
@@ -479,6 +498,21 @@ export default class Router implements BaseRouter {
           }
 
           Router.events.emit('beforeHistoryChange', as)
+
+          if (manualScrollRestoration && history.state) {
+            const {
+              url: curUrl,
+              as: curAs,
+              options: curOptions,
+            } = history.state
+
+            this.changeState('replaceState', curUrl, curAs, {
+              ...curOptions,
+              _N_X: window.scrollX,
+              _N_Y: window.scrollY,
+            })
+          }
+
           this.changeState(method, url, as, options)
 
           if (process.env.NODE_ENV !== 'production') {
@@ -488,13 +522,17 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname, query, as, routeInfo).then(() => {
+          this.set(route, pathname!, query, as, routeInfo).then(() => {
             if (error) {
               Router.events.emit('routeChangeError', error, as)
               throw error
             }
 
             Router.events.emit('routeChangeComplete', as)
+
+            if (manualScrollRestoration && '_N_X' in options) {
+              window.scrollTo(options._N_X, options._N_Y)
+            }
             return resolve(true)
           })
         },
@@ -760,9 +798,9 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-      const route = delBasePath(toRoute(pathname))
+      const route = toRoute(pathname)
       Promise.all([
-        this.pageLoader.prefetchData(url, delBasePath(asPath)),
+        this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
@@ -773,7 +811,6 @@ export default class Router implements BaseRouter {
     const cancel = (this.clc = () => {
       cancelled = true
     })
-    route = delBasePath(route)
 
     const componentResult = await this.pageLoader.loadPage(route)
 

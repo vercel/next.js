@@ -251,7 +251,6 @@ export default async function exportApp(
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
-    staticMarkup: false,
     hotReloader: null,
     basePath: nextConfig.experimental.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
@@ -331,7 +330,7 @@ export default async function exportApp(
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.bold.red(`Attention`) +
+      chalk.bold.red(`Warning`) +
         ': ' +
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
