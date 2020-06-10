@@ -104,8 +104,8 @@ function createContainer(prefix) {
             y2="100%"
             id="${prefix}linear-gradient"
           >
-            <stop stop-color="#FFFFFF" offset="0%" />
-            <stop stop-color="#000000" offset="100%" />
+            <stop stop-color="#000000" offset="0%" />
+            <stop stop-color="#FFFFFF" offset="100%" />
           </linearGradient>
         </defs>
         <g id="${prefix}icon-group" fill="none" stroke="url(#${prefix}linear-gradient)" stroke-width="18">
@@ -126,8 +126,8 @@ function createCss(prefix) {
       bottom: 10px;
       right: 30px;
 
-      background: #fff;
-      color: #000;
+      background: #000;
+      color: #fff;
       font: initial;
       cursor: initial;
       letter-spacing: initial;
