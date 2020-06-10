@@ -817,6 +817,23 @@ describe('CSS Support', () => {
       await killApp(app)
     })
 
+    it('should not execute scripts in any order', async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      let asyncCount = 0
+      let totalCount = 0
+      for (const script of $('script').toArray()) {
+        ++totalCount
+        if ('async' in script.attribs) {
+          ++asyncCount
+        }
+      }
+
+      expect(asyncCount).toBe(0)
+      expect(totalCount).not.toBe(0)
+    })
+
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
 
