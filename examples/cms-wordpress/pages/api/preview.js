@@ -6,8 +6,8 @@ export default async function preview(req, res) {
   // Check the secret and next parameters
   // This secret should only be known by this API route
   if (
-    !process.env.NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET ||
-    secret !== process.env.NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET ||
+    !process.env.WORDPRESS_PREVIEW_SECRET ||
+    secret !== process.env.WORDPRESS_PREVIEW_SECRET ||
     (!id && !slug)
   ) {
     return res.status(401).json({ message: 'Invalid token' })
