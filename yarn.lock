@@ -10,15 +10,16 @@
     cross-fetch "3.0.4"
     lru-cache "5.1.1"
 
-"@ampproject/toolbox-optimizer@2.5.1":
-  version "2.5.1"
-  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-optimizer/-/toolbox-optimizer-2.5.1.tgz#0f5897d77d0e73957541c85f0f3f49a73e3449fe"
-  integrity sha512-C4pYFt9K9+sXngBeYB/+zrW+38mMhjG8Xu3iTO13WsPL6Ym/UNopLjmhK99mxsnQgn/lkzcACY0n7QH7WMp4JA==
+"@ampproject/toolbox-optimizer@2.5.2":
+  version "2.5.2"
+  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-optimizer/-/toolbox-optimizer-2.5.2.tgz#17085463255d96a81606803c4bf5d1f1414cfc17"
+  integrity sha512-hDvDgAMTHUnye2Y7WhoF+6MtgOlkru+4EJtLUdrfOKdZyNGJ7s9E+lGsncFHwyyIaEWcs5RkthcZMVHgkg7ZoQ==
   dependencies:
     "@ampproject/toolbox-core" "^2.5.1"
     "@ampproject/toolbox-runtime-version" "^2.5.1"
     "@ampproject/toolbox-script-csp" "^2.3.0"
     "@ampproject/toolbox-validator-rules" "^2.3.0"
+    abort-controller "3.0.0"
     cross-fetch "3.0.4"
     cssnano "4.1.10"
     dom-serializer "1.0.1"
