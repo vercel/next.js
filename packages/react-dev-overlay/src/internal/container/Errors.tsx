@@ -57,15 +57,16 @@ function makeClickable(text: string): JSX.Element[] {
   // Regex Checks for http:// or https://
   const regx = /(https?:\/\/)([^\s/$.?#].[^\s]*)/gi
 
-  return text.split(' ').map((word) => {
+  return text.split(' ').map((word, index, array) => {
     if (regx.test(word)) {
       return (
         <>
-          <a href={word}>{word}</a>{' '}
+          <a href={word}>{word}</a>
+          {index === array.length - 1 ? ' ' : ''}
         </>
       )
     }
-    return <>{word} </>
+    return index === array.length - 1 ? <>{word}</> : <>{word} </>
   })
 }
 
