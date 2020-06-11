@@ -5,7 +5,12 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
+import {
+  Redirect,
+  Rewrite,
+  Header,
+  CustomRoutes,
+} from '../lib/load-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -279,11 +284,7 @@ export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
-}: {
-  redirects: Redirect[]
-  rewrites: Rewrite[]
-  headers: Header[]
-}) {
+}: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
     type: 'Redirects' | 'Rewrites' | 'Headers'
