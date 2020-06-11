@@ -109,6 +109,6 @@ describe('Invalid link href', () => {
   })
 
   it('Shows no error when href is empty string', async () => {
-    await noError('/fourth')
+    await noError('/fifth')
   })
 })
