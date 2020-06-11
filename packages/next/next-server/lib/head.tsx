@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import withSideEffect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
@@ -147,22 +147,16 @@ const Effect = withSideEffect()
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
+  const ampState = useContext(AmpStateContext)
+  const updateHead = useContext(HeadManagerContext)
   return (
-    <AmpStateContext.Consumer>
-      {(ampState) => (
-        <HeadManagerContext.Consumer>
-          {(updateHead) => (
-            <Effect
-              reduceComponentsToState={reduceComponents}
-              handleStateChange={updateHead}
-              inAmpMode={isInAmpMode(ampState)}
-            >
-              {children}
-            </Effect>
-          )}
-        </HeadManagerContext.Consumer>
-      )}
-    </AmpStateContext.Consumer>
+    <Effect
+      reduceComponentsToState={reduceComponents}
+      handleStateChange={updateHead}
+      inAmpMode={isInAmpMode(ampState)}
+    >
+      {children}
+    </Effect>
   )
 }
 
