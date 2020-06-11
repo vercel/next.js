@@ -36,6 +36,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
+import CaseSensitivePathsPlugin from './webpack/plugins/case-sensitive-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -299,10 +300,13 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    plugins: isWebpack5
-      ? // webpack 5+ has the PnP resolver built-in by default:
-        []
-      : [PnpWebpackPlugin],
+    plugins: [
+      new CaseSensitivePathsPlugin(),
+      ...(isWebpack5
+        ? // webpack 5+ has the PnP resolver built-in by default:
+          []
+        : [PnpWebpackPlugin]),
+    ],
   }
 
   const webpackMode = dev ? 'development' : 'production'
