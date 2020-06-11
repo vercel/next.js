@@ -142,6 +142,13 @@ const nextServerlessLoader: loader.Loader = function () {
     }
   `
 
+  const handleBasePath = basePath
+    ? `
+    // always strip the basePath if configured since it is required
+    req.url = req.url.replace(new RegExp('^${basePath}'), '')
+  `
+    : ''
+
   if (page.match(API_ROUTE)) {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
@@ -169,15 +176,7 @@ const nextServerlessLoader: loader.Loader = function () {
         try {
           await initServer()
 
-          ${
-            basePath
-              ? `
-          if(req.url.startsWith('${basePath}')) {
-            req.url = req.url.replace('${basePath}', '')
-          }
-          `
-              : ''
-          }
+          ${handleBasePath}
           const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
@@ -259,15 +258,9 @@ const nextServerlessLoader: loader.Loader = function () {
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
-      ${
-        basePath
-          ? `
-      if(req.url.startsWith('${basePath}')) {
-        req.url = req.url.replace('${basePath}', '')
-      }
-      `
-          : ''
-      }
+
+      ${handleBasePath}
+
       const options = {
         App,
         Document,
