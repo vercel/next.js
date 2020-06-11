@@ -142,12 +142,16 @@ const App = (props: Props) => {
 }
 
 export const getStaticProps = async () => {
-  let result: { data: GetTodoListQuery; error: string } = await API.graphql(
+  let result = (await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
-  )
-  if (result.error) {
-    console.log('Failed to fetch todolist. ', result.error)
-    throw new Error(result.error)
+  )) as { data: GetTodoListQuery; errors: any[] }
+  if (result.errors) {
+    console.log('Failed to fetch todolist. ', result.errors)
+    throw new Error(result.errors[0].message)
+  }
+  if (result.errors) {
+    console.log('Failed to fetch todolist. ', result.errors)
+    throw new Error(result.errors[0].message)
   }
   if (result.data.getTodoList !== null) {
     return {
@@ -168,6 +172,11 @@ export const getStaticProps = async () => {
     )
   } catch (err) {
     throw new Error(err)
+  }
+  return {
+    props: {
+      todos: [],
+    },
   }
 }
 
