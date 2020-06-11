@@ -38,6 +38,7 @@ const defaultConfig: { [key: string]: any } = {
   exportTrailingSlash: false,
   sassOptions: {},
   experimental: {
+    trailingSlash: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
