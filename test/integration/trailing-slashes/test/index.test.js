@@ -36,18 +36,19 @@ function testShouldRedirect(expectations) {
 
 function testShouldResolve(expectations) {
   it.each(expectations)(
-    '%s should resolve to %s',
-    async (route, expectedPage) => {
+    '%s should resolve to %s, with router path %s',
+    async (route, expectedPage, expectedRouterPath) => {
       const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'error' })
       expect(res.status).toBe(200)
       const $ = cheerio.load(await res.text())
       expect($('#page-marker').text()).toBe(expectedPage)
+      expect($('#router-pathname').text()).toBe(expectedRouterPath)
     }
   )
 
   it.each(expectations)(
-    '%s should client side render %s',
-    async (route, expectedPage) => {
+    '%s should client side render %s, with router path %s',
+    async (route, expectedPage, expectedRouterPath) => {
       let browser
       try {
         browser = await webdriver(appPort, route)
@@ -55,6 +56,10 @@ function testShouldResolve(expectations) {
         await browser.waitForElementByCss('#hydration-marker')
         const text = await browser.elementByCss('#page-marker').text()
         expect(text).toBe(expectedPage)
+        const routerPathname = await browser
+          .elementByCss('#router-pathname')
+          .text()
+        expect(routerPathname).toBe(expectedRouterPath)
       } finally {
         if (browser) await browser.close()
       }
@@ -97,9 +102,14 @@ function testWithTrailingSlash() {
   ])
 
   testShouldResolve([
-    ['/', '/index.js'],
-    ['/about', '/about.js'],
-    ['/catch-all/hello/world', '/catch-all/[...slug].js'],
+    // visited url, expected page, expected router path
+    ['/', '/index.js', '/'],
+    ['/about', '/about.js', '/about'],
+    [
+      '/catch-all/hello/world',
+      '/catch-all/[...slug].js',
+      '/catch-all/[...slug]',
+    ],
   ])
 
   testLinkShouldRewriteTo([
@@ -116,9 +126,14 @@ function testWithoutTrailingSlash() {
   ])
 
   testShouldResolve([
-    ['/', '/index.js'],
-    ['/about/', '/about.js'],
-    ['/catch-all/hello/world/', '/catch-all/[...slug].js'],
+    // visited url, expected page, expected router path
+    ['/', '/index.js', '/'],
+    ['/about/', '/about.js', '/about'],
+    [
+      '/catch-all/hello/world/',
+      '/catch-all/[...slug].js',
+      '/catch-all/[...slug]',
+    ],
   ])
 
   testLinkShouldRewriteTo([
