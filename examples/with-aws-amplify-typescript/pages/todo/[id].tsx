@@ -23,32 +23,25 @@ export const getStaticPaths = async () => {
     console.error('Failed to fetch todo.', result.errors)
     throw new Error(result.errors[0].message)
   }
-  if (result.data.getTodoList !== null) {
-    const paths = result.data.getTodoList.todos.items.map(({ id }) => ({
-      params: { id },
-    }))
-    return { paths, fallback: false }
-  }
+  const paths = result.data.getTodoList.todos.items.map(({ id }) => ({
+    params: { id },
+  }))
+  return { paths, fallback: false }
 }
 
 export const getStaticProps = async ({ params: { id } }) => {
-  try {
-    const todo = (await API.graphql({
-      ...graphqlOperation(getTodo),
-      variables: { id },
-    })) as { data: GetTodoQuery; errors: any[] }
-    if (todo.errors) {
-      console.error(todo.errors)
-      throw new Error(todo.errors[0].message)
-    }
-    return {
-      props: {
-        todo: todo.data.getTodo,
-      },
-    }
-  } catch (err) {
-    console.log('Failed to fetch todo. ', err)
-    throw new Error(err)
+  const todo = (await API.graphql({
+    ...graphqlOperation(getTodo),
+    variables: { id },
+  })) as { data: GetTodoQuery; errors: any[] }
+  if (todo.errors) {
+    console.error(todo.errors)
+    throw new Error(todo.errors[0].message)
+  }
+  return {
+    props: {
+      todo: todo.data.getTodo,
+    },
   }
 }
 
