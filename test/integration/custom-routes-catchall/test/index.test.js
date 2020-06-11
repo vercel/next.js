@@ -20,16 +20,13 @@ let app
 
 const runTests = () => {
   it('should rewrite to /_next/static correctly', async () => {
-    // ensure the bundle is built
-    await renderViaHTTP(appPort, '/hello')
-
     const bundlePath = await join(
       '/docs/_next/static/',
       buildId,
-      'pages/hello.js'
+      '_buildManifest.js'
     )
     const data = await renderViaHTTP(appPort, bundlePath)
-    expect(data).toContain('hello from hello.js')
+    expect(data).toContain('/hello')
   })
 
   it('should rewrite and render page correctly', async () => {
