@@ -140,6 +140,12 @@ export const getStaticProps = async () => {
   } catch (err) {
     throw new Error(err)
   }
+
+  return {
+    props: {
+      todos: [],
+    },
+  }
 }
 
 export default App
