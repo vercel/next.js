@@ -471,3 +471,50 @@ export function getBrowserBodyText(browser) {
 export function normalizeRegEx(src) {
   return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }
+
+export function getBuildManifest(dir) {
+  return require(path.join(dir, '.next/build-manifest.json'))
+}
+
+export function getPageFileFromBuildManifest(dir, page) {
+  const buildManifest = getBuildManifest(dir)
+  const pageFiles = buildManifest.pages[page]
+  if (!pageFiles) {
+    throw new Error(`No files for page ${page}`)
+  }
+
+  const pageFile = pageFiles.find(
+    (file) =>
+      file.endsWith('.js') &&
+      file.includes(`pages${page === '' ? '/index' : page}`)
+  )
+  if (!pageFile) {
+    throw new Error(`No page file for page ${page}`)
+  }
+
+  return pageFile
+}
+
+export function readNextBuildClientPageFile(appDir, page) {
+  const pageFile = getPageFileFromBuildManifest(appDir, page)
+  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+}
+
+export function getPagesManifest(dir) {
+  return require(path.join(dir, '.next/server/pages-manifest.json'))
+}
+
+export function getPageFileFromPagesManifest(dir, page) {
+  const pagesManifest = getPagesManifest(dir)
+  const pageFile = pagesManifest[page]
+  if (!pageFile) {
+    throw new Error(`No file for page ${page}`)
+  }
+
+  return pageFile
+}
+
+export function readNextBuildServerPageFile(appDir, page) {
+  const pageFile = getPageFileFromPagesManifest(appDir, page)
+  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+}
