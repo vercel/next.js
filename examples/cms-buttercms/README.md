@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 [https://next-blog-buttercms.now.sh/](https://next-blog-buttercms.now.sh/)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-2-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-buttercms&env=BUTTERCMS_API_KEY,BUTTERCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ButterCMS.%20More%20details%20on%20https://vercel.link/buttercms-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -59,8 +65,8 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_BUTTERCMS_API_KEY` should be set as the API key.
-- `NEXT_EXAMPLE_CMS_BUTTERCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `BUTTERCMS_API_KEY` should be set as the API key.
+- `BUTTERCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 ### Step 3. Run Next.js in development mode
 
@@ -96,7 +102,7 @@ To enable the Preview Mode, go to this URL:
 http://localhost:3000/api/preview?secret=<secret>&slug=draft-post-test
 ```
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_BUTTERCMS_PREVIEW_SECRET`.
+- `<secret>` should be the string you entered for `BUTTERCMS_PREVIEW_SECRET`.
 
 You should now be able to see the draft post. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
@@ -104,15 +110,16 @@ You should now be able to see the draft post. To exit the preview mode, you can 
 
 ### Step 5. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Vercel Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/vercel-cli#commands/secrets)).
+#### Deploy Your Local Project
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_BUTTERCMS_API_KEY>` and `<NEXT_EXAMPLE_CMS_BUTTERCMS_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-```
-vercel secrets add next_example_cms_buttercms_api_key <NEXT_EXAMPLE_CMS_BUTTERCMS_API_KEY>
-vercel secrets add next_example_cms_buttercms_preview_secret <NEXT_EXAMPLE_CMS_BUTTERCMS_PREVIEW_SECRET>
-```
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-buttercms&env=BUTTERCMS_API_KEY,BUTTERCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ButterCMS.%20More%20details%20on%20https://vercel.link/buttercms-env)

@@ -3,7 +3,7 @@ async function fetchAPI(query, { variables, preview } = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Token: process.env.NEXT_EXAMPLE_CMS_STORYBLOK_API_KEY,
+      Token: process.env.STORYBLOK_API_KEY,
       Version: preview ? 'draft' : 'published',
     },
     body: JSON.stringify({

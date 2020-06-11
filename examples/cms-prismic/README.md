@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### [https://next-blog-prismic.now.sh/](https://next-blog-prismic.now.sh/)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-prismic&env=PRISMIC_API_TOKEN,PRISMIC_REPOSITORY_NAME&envDescription=Required%20to%20connect%20the%20app%20with%20Prismic.%20More%20details%20on%20https://vercel.link/cms-prismic-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -106,24 +112,24 @@ Next, select **Post** and create a new document.
 
 Follow the instructions in [this post](https://intercom.help/prismicio/en/articles/1036153-generating-an-access-token) to generate a new access token.
 
-Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
-- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
-- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
+- `PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
+- `PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
+- `PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN=...
-NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME=...
-NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
+PRISMIC_API_TOKEN=...
+PRISMIC_REPOSITORY_NAME=...
+PRISMIC_REPOSITORY_LOCALE=...
 ```
 
 Make sure the locale matches your settings in the Prismic dashboard.
@@ -160,15 +166,16 @@ You should now be able to see the updated title. To exit preview mode, you can c
 
 ### Step 8. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+#### Deploy Your Local Project
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>` with the corresponding strings in `.env`:
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-```bash
-now secrets add next_example_cms_prismic_api_token <NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN>
-now secrets add next_example_cms_prismic_repository_name <NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_NAME>
-```
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-prismic&env=PRISMIC_API_TOKEN,PRISMIC_REPOSITORY_NAME&envDescription=Required%20to%20connect%20the%20app%20with%20Prismic.%20More%20details%20on%20https://vercel.link/cms-prismic-env)

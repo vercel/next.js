@@ -1,13 +1,13 @@
 import { createClient } from 'contentful'
 
 const client = createClient({
-  space: process.env.NEXT_EXAMPLE_CMS_CONTENTFUL_SPACE_ID,
-  accessToken: process.env.NEXT_EXAMPLE_CMS_CONTENTFUL_ACCESS_TOKEN,
+  space: process.env.CONTENTFUL_SPACE_ID,
+  accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
 })
 
 const previewClient = createClient({
-  space: process.env.NEXT_EXAMPLE_CMS_CONTENTFUL_SPACE_ID,
-  accessToken: process.env.NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_ACCESS_TOKEN,
+  space: process.env.CONTENTFUL_SPACE_ID,
+  accessToken: process.env.CONTENTFUL_PREVIEW_ACCESS_TOKEN,
   host: 'preview.contentful.com',
 })
 
