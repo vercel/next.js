@@ -8,7 +8,7 @@ Deployed Demo: [https://next-userbase.now.sh](https://next-userbase.now.sh)
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The Userbase app ID, found in the Userbase dashboard.&envLink=https://v1.userbase.com/#)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=encodeURI(The Userbase app ID, found in the Userbase dashboard.&envLink=https://v1.userbase.com/#))
 
 ## How to use
 
