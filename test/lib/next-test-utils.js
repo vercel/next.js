@@ -355,7 +355,11 @@ export async function check(contentFn, regex, hardError = true) {
   for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (regex.test(content)) {
+      if (typeof regex === 'string') {
+        if (regex === content) {
+          return true
+        }
+      } else if (regex.test(content)) {
         // found the content
         return true
       }
