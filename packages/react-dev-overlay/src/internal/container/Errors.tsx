@@ -53,6 +53,22 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
+function makeClickable(text: string): JSX.Element[] {
+  // Regex Checks for http:// or https://
+  const regx = /(https?:\/\/)([^\s/$.?#].[^\s]*)/gi
+
+  return text.split(' ').map((word) => {
+    if (regx.test(word)) {
+      return (
+        <>
+          <a href={word}>{word}</a>{' '}
+        </>
+      )
+    }
+    return <>{word} </>
+  })
+}
+
 async function getErrorByType(
   ev: SupportedErrorEvent
 ): Promise<ReadyErrorEvent> {
@@ -242,7 +258,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
             <p id="nextjs__container_errors_desc">
-              {activeError.error.name}: {activeError.error.message}
+              {activeError.error.name}:{' '}
+              {makeClickable(activeError.error.message)}
             </p>
             {isServerError ? (
               <div>
@@ -291,6 +308,11 @@ export const styles = css`
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
+  }
+  .nextjs-container-errors-header > div > a,
+  a:hover,
+  a:visited {
+    color: var(--color-ansi-red);
   }
 
   .nextjs-container-errors-body > h5:not(:first-child) {
