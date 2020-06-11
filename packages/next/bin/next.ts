@@ -92,14 +92,14 @@ const standardEnv = ['production', 'development', 'test']
 
 if (process.env.NODE_ENV) {
   const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
-  const notAuthorizedCommands =
+  const shouldWarnCommands =
     process.env.NODE_ENV === 'development'
       ? ['start', 'build']
       : process.env.NODE_ENV === 'production'
       ? ['dev']
       : []
 
-  if (isNotStandard || notAuthorizedCommands.includes(command)) {
+  if (isNotStandard || shouldWarnCommands.includes(command)) {
     log.warn(NON_STANDARD_NODE_ENV)
   }
 }
