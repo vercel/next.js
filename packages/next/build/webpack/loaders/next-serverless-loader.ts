@@ -145,7 +145,7 @@ const nextServerlessLoader: loader.Loader = function () {
   const handleBasePath = basePath
     ? `
     // always strip the basePath if configured since it is required
-    req.url = req.url.replace('${basePath}', '')
+    req.url = req.url.replace(new RegExp('^${basePath}'), '')
   `
     : ''
 
