@@ -148,11 +148,11 @@ const Effect = withSideEffect()
  */
 function Head({ children }: { children: React.ReactNode }) {
   const ampState = useContext(AmpStateContext)
-  const updateHead = useContext(HeadManagerContext)
+  const headManager = useContext(HeadManagerContext)
   return (
     <Effect
       reduceComponentsToState={reduceComponents}
-      handleStateChange={updateHead}
+      headManager={headManager}
       inAmpMode={isInAmpMode(ampState)}
     >
       {children}
