@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### [https://next-blog-contentful.now.sh/](https://next-blog-contentful.now.sh/)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentful&env=CONTENTFUL_SPACE_ID,CONTENTFUL_ACCESS_TOKEN,CONTENTFUL_PREVIEW_ACCESS_TOKEN,CONTENTFUL_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Contentful.%20More%20details%20on%20https://vercel.link/cms-contentful-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -162,18 +168,18 @@ cp .env.example .env
 
 Then set each variable on `.env`:
 
-- `NEXT_EXAMPLE_CMS_CONTENTFUL_SPACE_ID` should be the **Space ID** field of your API Key
-- `NEXT_EXAMPLE_CMS_CONTENTFUL_ACCESS_TOKEN` should be the **[Content Delivery API](https://www.contentful.com/developers/docs/references/content-delivery-api/) - access token** field of your API key
-- `NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_ACCESS_TOKEN` should be the **[Content Preview API](https://www.contentful.com/developers/docs/references/content-preview-api/) - access token** field of your API key
-- `NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET` should be any value you want. It must be URL friendly as the dashboard will send it as a query parameter to enable preview mode
+- `CONTENTFUL_SPACE_ID` should be the **Space ID** field of your API Key
+- `CONTENTFUL_ACCESS_TOKEN` should be the **[Content Delivery API](https://www.contentful.com/developers/docs/references/content-delivery-api/) - access token** field of your API key
+- `CONTENTFUL_PREVIEW_ACCESS_TOKEN` should be the **[Content Preview API](https://www.contentful.com/developers/docs/references/content-preview-api/) - access token** field of your API key
+- `CONTENTFUL_PREVIEW_SECRET` should be any value you want. It must be URL friendly as the dashboard will send it as a query parameter to enable preview mode
 
 Your `.env` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_CONTENTFUL_SPACE_ID=...
-NEXT_EXAMPLE_CMS_CONTENTFUL_ACCESS_TOKEN=...
-NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_ACCESS_TOKEN=...
-NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET=...
+CONTENTFUL_SPACE_ID=...
+CONTENTFUL_ACCESS_TOKEN=...
+CONTENTFUL_PREVIEW_ACCESS_TOKEN=...
+CONTENTFUL_PREVIEW_SECRET=...
 ```
 
 ### Step 6. Run Next.js in development mode
@@ -197,10 +203,10 @@ In your Contentful space, go to **Settings > Content preview** and add a new con
 The **Name** field may be anything, like `Development`. Then, under **Content preview URLs**, check **Post** and set its value to:
 
 ```
-http://localhost:3000/api/preview?secret=<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>&slug={entry.fields.slug}
+http://localhost:3000/api/preview?secret=<CONTENTFUL_PREVIEW_SECRET>&slug={entry.fields.slug}
 ```
 
-Replace `<NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env`.
+Replace `<CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env`.
 
 ![Content preview setup](./docs/content-preview-setup.jpg)
 
@@ -216,17 +222,4 @@ You will now be able to see the updated title. To exit preview mode, you can cli
 
 ### Step 8. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
-
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable with the corresponding strings in `.env`:
-
-```bash
-now secrets add next_example_contentful_space_id <NEXT_EXAMPLE_CMS_CONTENTFUL_SPACE_ID>
-now secrets add next_example_cms_contentful_access_token <NEXT_EXAMPLE_CMS_CONTENTFUL_ACCESS_TOKEN>
-now secrets add next_example_cms_contentful_preview_access_token <NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_ACCESS_TOKEN>
-now secrets add next_example_cms_contentful_preview_secret <NEXT_EXAMPLE_CMS_CONTENTFUL_PREVIEW_SECRET>
-```
-
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Click on the [Deploy](#deploy-your-own) button!
