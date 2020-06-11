@@ -5,7 +5,12 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
+import {
+  Redirect,
+  Rewrite,
+  Header,
+  CustomRoutes,
+} from '../lib/load-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -17,6 +22,7 @@ import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
+import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -108,7 +114,6 @@ export async function printTreeView(
   const sizeData = await computeFromManifest(
     buildManifest,
     distPath,
-    buildId,
     isModern,
     pageInfos
   )
@@ -279,11 +284,7 @@ export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
-}: {
-  redirects: Redirect[]
-  rewrites: Rewrite[]
-  headers: Header[]
-}) {
+}: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
     type: 'Redirects' | 'Rewrites' | 'Headers'
@@ -365,7 +366,6 @@ let lastComputePageInfo: boolean | undefined
 async function computeFromManifest(
   manifest: BuildManifestShape,
   distPath: string,
-  buildId: string,
   isModern: boolean,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
@@ -380,16 +380,8 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach((key) => {
-    // prevent duplicate '/' and '/index'
-    if (key === '/index') return
-
-    if (key === '/_polyfills') {
-      return
-    }
-
     if (pageInfos) {
-      const cleanKey = key.replace(/\/index$/, '') || '/'
-      const pageInfo = pageInfos.get(cleanKey)
+      const pageInfo = pageInfos.get(key)
       // don't include AMP pages since they don't rely on shared bundles
       if (pageInfo?.isHybridAmp || pageInfo?.isAmp) {
         return
@@ -414,15 +406,6 @@ async function computeFromManifest(
       }
     })
   })
-
-  // Add well-known shared file
-  files.set(
-    path.posix.join(
-      `static/${buildId}/pages/`,
-      `/_app${isModern ? '.module' : ''}.js`
-    ),
-    Infinity
-  )
 
   const commonFiles = [...files.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
@@ -497,21 +480,17 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string,
   buildManifest: BuildManifestShape,
   isModern: boolean
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(
-    buildManifest,
-    distPath,
-    buildId,
-    isModern
-  )
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
 
   const fnFilterModern = (entry: string) =>
     entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
 
-  const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
+  const pageFiles = (
+    buildManifest.pages[denormalizePagePath(page)] || []
+  ).filter(fnFilterModern)
   const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
 
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
@@ -524,27 +503,12 @@ export async function getJsPageSizeInKb(
     data.commonFiles
   ).map(fnMapRealPath)
 
-  const clientBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `${page}${isModern ? '.module' : ''}.js`
-  )
-  const appBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `/_app${isModern ? '.module' : ''}.js`
-  )
-  selfFilesReal.push(clientBundle)
-  allFilesReal.push(clientBundle)
-  if (clientBundle !== appBundle) {
-    allFilesReal.push(appBundle)
-  }
-
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
     const allFilesSize = sum(await Promise.all(allFilesReal.map(fsStatGzip)))
     const selfFilesSize = sum(await Promise.all(selfFilesReal.map(fsStatGzip)))
+
     return [selfFilesSize, allFilesSize]
   } catch (_) {}
   return [-1, -1]

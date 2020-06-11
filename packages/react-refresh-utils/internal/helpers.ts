@@ -44,7 +44,13 @@ declare const module: {
 }
 
 function isSafeExport(key: string): boolean {
-  return key === '__esModule' || key === '__N_SSG' || key === '__N_SSP'
+  return (
+    key === '__esModule' ||
+    key === '__N_SSG' ||
+    key === '__N_SSP' ||
+    // TODO: remove this key from page config instead of allow listing it
+    key === 'config'
+  )
 }
 
 function registerExportsForReactRefresh(
