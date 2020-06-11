@@ -84,3 +84,7 @@ Your todo app should be up and running on [http://localhost:3000](http://localho
 ### Step 4. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+To deploy on Vercel, you need to set the environment variable using the [Vercel dashboard](https://vercel.com/dashboard) ([Documentation](https://vercel.com/docs/v2/build-step#environment-variables)).
+
+You can do this when importing your project by selecting the environment variables dropdown, and using a name of `NEXT_PUBLIC_USERBASE_APP_ID` with the [Userbase app ID](https://v1.userbase.com/#) as the value.
