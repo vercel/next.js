@@ -32,7 +32,7 @@ const Index = () => {
     )
   return (
     <div>
-      {user && (
+      {user && data && (
         <>
           <div>
             <p>You're signed in. Email: {user.email}</p>
