@@ -41,12 +41,16 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
 }
 
 function normalizeTrailingSlash(url: UrlObject): UrlObject {
-  if (!url.pathname || url.pathname === '/') return url
+  if (!url.pathname || url.pathname === '/') {
+    return url
+  }
+
   let { pathname, ...rest } = url
   pathname = pathname.replace(/\/$/, '')
   // Append a trailing slash if this path does not have an extension
-  if (process.env.__NEXT_TRAILING_SLASH && !/\.[^/]+\/?$/.test(pathname))
+  if (process.env.__NEXT_TRAILING_SLASH && !/\.[^/]+$/.test(pathname)) {
     pathname += `/`
+  }
   return { pathname, ...rest }
 }
 
