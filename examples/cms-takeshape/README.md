@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### [https://next-blog-takeshape.now.sh/](https://next-blog-takeshape.now.sh/)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape&env=TAKESHAPE_PROJECT_ID,TAKESHAPE_API_KEY,TAKESHAPE_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20TakeShape.%20More%20details%20on%20https://vercel.link/cms-takeshape-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -114,16 +120,16 @@ cp .env.example .env
 
 Then set each variable on `.env`:
 
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY` should be the API token you just copied.
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID` should be the project ID, which is a substring in the project page URL: `https://app.takeshape.io/projects/<project-id>/...`
-- `NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `TAKESHAPE_API_KEY` should be the API token you just copied.
+- `TAKESHAPE_PROJECT_ID` should be the project ID, which is a substring in the project page URL: `https://app.takeshape.io/projects/<project-id>/...`
+- `TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Your `.env` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID=...
-NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY=...
-NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET=...
+TAKESHAPE_PROJECT_ID=...
+TAKESHAPE_API_KEY=...
+TAKESHAPE_PREVIEW_SECRET=...
 ```
 
 ### Step 6. Run Next.js in development mode
@@ -152,23 +158,11 @@ To enable the Preview Mode, go to this URL:
 http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
 ```
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET`.
+- `<secret>` should be the string you entered for `TAKESHAPE_PREVIEW_SECRET`.
 - `<slug>` should be the post's `slug` attribute (you can check on TakeShape).
 
 You should now be able to see this post. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
 ### Step 8. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
-
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY>` and `<NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET>` with the corresponding strings in `.env`.
-
-```
-now secrets add next_example_cms_takeshape_api_key <NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY>
-now secrets add next_example_cms_takeshape_project_id <NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID>
-now secrets add next_example_cms_takeshape_preview_secret <NEXT_EXAMPLE_CMS_TAKESHAPE_PREVIEW_SECRET>
-```
-
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Click on the [Deploy](#deploy-your-own) button!
