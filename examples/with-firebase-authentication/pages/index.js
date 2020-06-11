@@ -2,14 +2,12 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import { useUser } from '../utils/auth/useUser'
 
-const fetcher = async (url, token) => {
-  let response = await fetch(url, {
+const fetcher = (url, token) =>
+  fetch(url, {
     method: 'GET',
     headers: new Headers({ 'Content-Type': 'application/json', token }),
     credentials: 'same-origin',
-  })
-  return await response.json()
-}
+  }).then((res) => res.json())
 
 const Index = () => {
   const { user, logout } = useUser()
@@ -18,7 +16,7 @@ const Index = () => {
     fetcher
   )
 
-  if (!user)
+  if (!user) {
     return (
       <>
         <p>Hi there!</p>
@@ -30,33 +28,31 @@ const Index = () => {
         </p>
       </>
     )
+  }
+
   return (
     <div>
-      {user && data && (
-        <>
-          <div>
-            <p>You're signed in. Email: {user.email}</p>
-            <p
-              style={{
-                display: 'inlinelock',
-                color: 'blue',
-                textDecoration: 'underline',
-                cursor: 'pointer',
-              }}
-              onClick={() => logout()}
-            >
-              Log out
-            </p>
-          </div>
-          <div>
-            <Link href={'/example'}>
-              <a>Another example page</a>
-            </Link>
-          </div>
-          {error && <div>Failed to fetch food!</div>}
-          {data && <div>Your favorite food is {data.food}.</div>}
-        </>
-      )}
+      <div>
+        <p>You're signed in. Email: {user.email}</p>
+        <p
+          style={{
+            display: 'inlinelock',
+            color: 'blue',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+          }}
+          onClick={() => logout()}
+        >
+          Log out
+        </p>
+      </div>
+      <div>
+        <Link href={'/example'}>
+          <a>Another example page</a>
+        </Link>
+      </div>
+      {error && <div>Failed to fetch food!</div>}
+      {data && <div>Your favorite food is {data.food}.</div>}
     </div>
   )
 }

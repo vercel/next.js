@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 import cookies from 'js-cookie'
 import firebase from 'firebase/app'
 import 'firebase/auth'
@@ -9,6 +9,7 @@ initFirebase()
 
 const useUser = () => {
   const [user, setUser] = useState()
+  const router = useRouter()
 
   const logout = async () => {
     return firebase
@@ -17,7 +18,7 @@ const useUser = () => {
       .then(() => {
         // Sign-out successful.
         cookies.remove('auth')
-        Router.push('/auth')
+        router.push('/auth')
       })
       .catch((e) => {
         console.error(e)
@@ -27,10 +28,11 @@ const useUser = () => {
   useEffect(() => {
     const cookie = cookies.get('auth')
     if (!cookie) {
-      Router.push('/')
+      router.push('/')
       return
     }
     setUser(JSON.parse(cookie))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { user, logout }
