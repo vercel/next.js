@@ -357,11 +357,7 @@ describe('CSS Support', () => {
               browser.eval(
                 `window.getComputedStyle(document.querySelector('.red-text')).color`
               ),
-            {
-              test(content) {
-                return content === 'rgb(128, 0, 128)'
-              },
-            }
+            'rgb(128, 0, 128)'
           )
 
           // ensure text remained
