@@ -2,8 +2,8 @@ async function fetchAPI(query, { variables } = {}, isAdminOnly = false) {
   const headers = {
     'Content-Type': 'application/json',
   }
-  if(isAdminOnly) {
-    headers['X-Hasura-Admin-Secret'] = process.env.HASURA_GRAPHQL_ADMIN_SECRET;
+  if (isAdminOnly) {
+    headers['X-Hasura-Admin-Secret'] = process.env.HASURA_GRAPHQL_ADMIN_SECRET
   }
   const res = await fetch(`${process.env.HASURA_GRAPHQL_ENDPOINT}`, {
     method: 'POST',
@@ -49,13 +49,17 @@ export async function getPreviewPostBySlug(slug) {
 }
 
 export async function getAllPostsWithSlug() {
-  const data = fetchAPI(`
+  const data = fetchAPI(
+    `
     {
       post {
         slug
       }
     },
-  `, {}, true)
+  `,
+    {},
+    true
+  )
   return data?.post
 }
 
@@ -79,7 +83,7 @@ export async function getAllPosts(preview) {
     {
       variables: {
         where: {
-          ...(preview ? {} : { status: {_eq: 'published' }}),
+          ...(preview ? {} : { status: { _eq: 'published' } }),
         },
       },
     },

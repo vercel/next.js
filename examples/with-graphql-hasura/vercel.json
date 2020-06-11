@@ -5,8 +5,8 @@
   },
   "build": {
     "env": {
-	  "HASURA_GRAPHQL_ENDPOINT": "@hasura_graphql_endpoint",
-	  "HASURA_GRAPHQL_ADMIN_SECRET": "@hasura_graphql_admin_secret"
+      "HASURA_GRAPHQL_ENDPOINT": "@hasura_graphql_endpoint",
+      "HASURA_GRAPHQL_ADMIN_SECRET": "@hasura_graphql_admin_secret"
     }
   }
 }

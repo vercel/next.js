@@ -69,6 +69,7 @@ Now in your terminal,
 ```bash
 hasura migrate apply
 ```
+
 This will apply the schema to Postgres, creating tables and populates sample data.
 
 ### Step 3. Apply Metadata
@@ -145,7 +146,7 @@ You should now be able to see the draft post. To exit the preview mode, you can 
 
 ### Step 7. Deploy Hasura
 
-To deploy to production, you must first deploy Hasura on a public URL. The Hasura backend for our demo at https://next-blog-hasura.now.sh/ is deployed to Heroku ([here’s the documentation](https://hasura.io/docs/1.0/graphql/manual/getting-started/heroku-simple.html)). 
+To deploy to production, you must first deploy Hasura on a public URL. The Hasura backend for our demo at https://next-blog-hasura.now.sh/ is deployed to Heroku ([here’s the documentation](https://hasura.io/docs/1.0/graphql/manual/getting-started/heroku-simple.html)).
 
 After setting up Hasura on Heroku, copy the Heroku app URL to apply the migrations
 

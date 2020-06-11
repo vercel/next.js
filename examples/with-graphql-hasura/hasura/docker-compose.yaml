@@ -4,22 +4,22 @@ services:
     image: postgres
     restart: always
     ports:
-    - "5432:5432"
+      - '5432:5432'
     volumes:
-    - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: postgrespassword
   graphql-engine:
     image: hasura/graphql-engine:v1.2.2
     ports:
-    - "8080:8080"
+      - '8080:8080'
     depends_on:
-    - "postgres"
+      - 'postgres'
     restart: always
     environment:
-    - HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:postgrespassword@postgres:5432/postgres
-    - HASURA_GRAPHQL_ENABLE_CONSOLE=true
-    - HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public
+      - HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:postgrespassword@postgres:5432/postgres
+      - HASURA_GRAPHQL_ENABLE_CONSOLE=true
+      - HASURA_GRAPHQL_UNAUTHORIZED_ROLE=public
     ## Uncomment the line below to enable admin secret
     ## - HASURA_GRAPHQL_ADMIN_SECRET=myadminsecretkey
 volumes:
