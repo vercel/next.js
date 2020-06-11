@@ -1,0 +1,45 @@
+- table:
+    schema: public
+    name: author
+  array_relationships:
+  - name: posts
+    using:
+      foreign_key_constraint_on:
+        column: author_id
+        table:
+          schema: public
+          name: post
+  select_permissions:
+  - role: public
+    permission:
+      columns:
+      - id
+      - name
+      - picture
+      - created_at
+      filter: {}
+- table:
+    schema: public
+    name: post
+  object_relationships:
+  - name: author
+    using:
+      foreign_key_constraint_on: author_id
+  select_permissions:
+  - role: public
+    permission:
+      columns:
+      - id
+      - title
+      - content
+      - excerpt
+      - cover_image
+      - date
+      - slug
+      - author_id
+      - status
+      - created_at
+      - updated_at
+      filter:
+        status:
+          _eq: published
