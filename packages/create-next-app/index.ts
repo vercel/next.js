@@ -50,7 +50,7 @@ async function run(): Promise<void> {
   var refinedVer: Number = Number(semver.join('.'))
 
   // Throws an Error if NodeJs Version is less than 10.13.x
-  if (refinedVer < 19.13) {
+  if (refinedVer < 10.13) {
     console.error(
       chalk.red(
         `The version of NodeJs you are using is lower than the minimum required version (10.13.x)`
