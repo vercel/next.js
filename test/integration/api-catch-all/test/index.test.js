@@ -26,6 +26,13 @@ function runTests() {
     expect(data).toEqual({ slug: ['1'] })
   })
 
+  it('should return redirect when catch-all with index and trailing slash', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/users/', null, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(308)
+  })
+
   it('should return data when catch-all with index and trailing slash', async () => {
     const data = await fetchViaHTTP(appPort, '/api/users/', null, {}).then(
       (res) => res.ok && res.json()
