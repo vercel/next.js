@@ -18,7 +18,6 @@ jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
-let buildId
 const appDir = join(__dirname, '../app')
 
 const getEnvFromHtml = async (path) => {
@@ -72,10 +71,19 @@ const runTests = (mode = 'dev') => {
     // make sure to build page
     await renderViaHTTP(appPort, '/global')
 
+    const buildManifest = require(join(
+      __dirname,
+      '../app/.next/build-manifest.json'
+    ))
+
+    const pageFile = buildManifest.pages['/global'].find((filename) =>
+      filename.includes('pages/global')
+    )
+
     // read client bundle contents since a server side render can
     // have the value available during render but it not be injected
     const bundleContent = await fs.readFile(
-      join(appDir, '.next/static', buildId, 'pages/global.js'),
+      join(appDir, '.next', pageFile),
       'utf8'
     )
     expect(bundleContent).toContain('another')
@@ -128,7 +136,6 @@ describe('Env Config', () => {
           PROCESS_ENV_KEY: 'processenvironment',
         },
       })
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -144,7 +151,6 @@ describe('Env Config', () => {
           NODE_ENV: 'test',
         },
       })
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -207,7 +213,6 @@ describe('Env Config', () => {
       }
 
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       for (const file of envFiles) {

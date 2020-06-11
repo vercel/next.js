@@ -12,6 +12,7 @@ const fixturesDir = join(__dirname, '..', 'fixtures')
 
 describe('Build Output', () => {
   describe('Basic Application Output', () => {
+    let stdout
     const appDir = join(fixturesDir, 'basic-app')
 
     beforeAll(async () => {
@@ -19,9 +20,9 @@ describe('Build Output', () => {
     })
 
     it('should not include internal pages', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      ;({ stdout } = await nextBuild(appDir, [], {
         stdout: true,
-      })
+      }))
 
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
@@ -34,6 +35,82 @@ describe('Build Output', () => {
       expect(stdout).not.toContain('<buildId>')
 
       expect(stdout).toContain('○ /')
+    })
+
+    it('should not deviate from snapshot', async () => {
+      console.log(stdout)
+
+      const parsePageSize = (page) =>
+        stdout.match(
+          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
+        )[1]
+
+      const parsePageFirstLoad = (page) =>
+        stdout.match(
+          new RegExp(
+            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
+          )
+        )[1]
+
+      const parseSharedSize = (sharedPartName) =>
+        stdout.match(
+          new RegExp(`${sharedPartName} .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`)
+        )[1]
+
+      const indexSize = parsePageSize('/')
+      const indexFirstLoad = parsePageFirstLoad('/')
+
+      const err404Size = parsePageSize('/404')
+      const err404FirstLoad = parsePageFirstLoad('/404')
+
+      const sharedByAll = parseSharedSize('shared by all')
+      const _appSize = parseSharedSize('_app\\.js')
+      const webpackSize = parseSharedSize('webpack\\..*?\\.js')
+      const mainSize = parseSharedSize('main\\..*?\\.js')
+      const frameworkSize = parseSharedSize('framework\\..*?\\.js')
+
+      for (const size of [
+        indexSize,
+        indexFirstLoad,
+        err404Size,
+        err404FirstLoad,
+        sharedByAll,
+        _appSize,
+        webpackSize,
+        mainSize,
+        frameworkSize,
+      ]) {
+        expect(parseFloat(size)).toBeGreaterThan(0)
+      }
+
+      // should be no bigger than 265 bytes
+      expect(parseFloat(indexSize) - 265).toBeLessThanOrEqual(0)
+      expect(indexSize.endsWith('B')).toBe(true)
+
+      // should be no bigger than 62 kb
+      expect(parseFloat(indexFirstLoad) - 61).toBeLessThanOrEqual(0)
+      expect(indexFirstLoad.endsWith('kB')).toBe(true)
+
+      expect(parseFloat(err404Size) - 3.4).toBeLessThanOrEqual(0)
+      expect(err404Size.endsWith('kB')).toBe(true)
+
+      expect(parseFloat(err404FirstLoad) - 64).toBeLessThanOrEqual(0)
+      expect(err404FirstLoad.endsWith('kB')).toBe(true)
+
+      expect(parseFloat(sharedByAll) - 61).toBeLessThanOrEqual(0)
+      expect(sharedByAll.endsWith('kB')).toBe(true)
+
+      expect(parseFloat(_appSize) - 1000).toBeLessThanOrEqual(0)
+      expect(_appSize.endsWith('B')).toBe(true)
+
+      expect(parseFloat(webpackSize) - 775).toBeLessThanOrEqual(0)
+      expect(webpackSize.endsWith('B')).toBe(true)
+
+      expect(parseFloat(mainSize) - 6.3).toBeLessThanOrEqual(0)
+      expect(mainSize.endsWith('kB')).toBe(true)
+
+      expect(parseFloat(frameworkSize) - 41).toBeLessThanOrEqual(0)
+      expect(frameworkSize.endsWith('kB')).toBe(true)
     })
 
     it('should not emit extracted comments', async () => {

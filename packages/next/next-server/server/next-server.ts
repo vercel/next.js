@@ -358,10 +358,6 @@ export default class Server {
         type: 'route',
         name: '_next/static catchall',
         fn: async (req, res, params, parsedUrl) => {
-          // The commons folder holds commonschunk files
-          // The chunks folder holds dynamic entries
-          // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
-
           // make sure to 404 for /_next/static itself
           if (!params.path) {
             await this.render404(req, res, parsedUrl)
@@ -375,7 +371,8 @@ export default class Server {
             params.path[0] === 'chunks' ||
             params.path[0] === 'css' ||
             params.path[0] === 'media' ||
-            params.path[0] === this.buildId
+            params.path[0] === this.buildId ||
+            params.path[1] === 'pages'
           ) {
             this.setImmutableAssetCacheControl(res)
           }

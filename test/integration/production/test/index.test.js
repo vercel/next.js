@@ -151,29 +151,37 @@ describe('Production Usage', () => {
     })
 
     it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
           headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
-        }
-      )
-      expect(res.status).toBe(412)
+        })
+        expect(res.status).toBe(412)
+      }
     })
 
     it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
           headers: { 'if-unmodified-since': 'nextjs' },
-        }
-      )
-      expect(res.status).toBe(200)
+        })
+        expect(res.status).toBe(200)
+      }
     })
 
     it('should set Content-Length header', async () => {
@@ -183,7 +191,6 @@ describe('Production Usage', () => {
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
       const reactLoadableManifest = require(join(
         '../.next',
@@ -192,9 +199,6 @@ describe('Production Usage', () => {
       const url = `http://localhost:${appPort}/_next/`
 
       const resources = new Set()
-
-      // test a regular page
-      resources.add(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
       resources.add(

@@ -17,18 +17,33 @@ export default class PagesManifestPlugin implements Plugin {
 
   apply(compiler: Compiler): void {
     compiler.hooks.emit.tap('NextJsPagesManifest', (compilation) => {
-      const { chunks } = compilation
+      const entrypoints = compilation.entrypoints
       const pages: PagesManifest = {}
 
-      for (const chunk of chunks) {
-        const pagePath = getRouteFromEntrypoint(chunk.name, this.serverless)
+      for (const entrypoint of entrypoints.values()) {
+        const pagePath = getRouteFromEntrypoint(
+          entrypoint.name,
+          this.serverless
+        )
 
         if (!pagePath) {
           continue
         }
 
+        const files = entrypoint
+          .getFiles()
+          .filter((file: string) => file.endsWith('.js'))
+
+        if (files.length > 1) {
+          console.log(
+            `Found more than one file in server entrypoint ${entrypoint.name}`,
+            files
+          )
+          continue
+        }
+
         // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[pagePath] = chunk.name.replace(/\\/g, '/')
+        pages[pagePath] = files[0].replace(/\\/g, '/')
       }
 
       compilation.assets[PAGES_MANIFEST] = new RawSource(
