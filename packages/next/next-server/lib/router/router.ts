@@ -262,6 +262,23 @@ export default class Router implements BaseRouter {
       // otherwise fallback to browser's default handling
       if (manualScrollRestoration) {
         window.history.scrollRestoration = 'manual'
+
+        let scrollDebounceTimeout: undefined | NodeJS.Timeout
+
+        const debouncedScrollSave = () => {
+          if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
+
+          scrollDebounceTimeout = setTimeout(() => {
+            const { url, as: curAs, options } = history.state
+            this.changeState('replaceState', url, curAs, {
+              ...options,
+              _N_X: window.scrollX,
+              _N_Y: window.scrollY,
+            })
+          }, 10)
+        }
+
+        window.addEventListener('scroll', debouncedScrollSave)
       }
     }
   }
@@ -500,20 +517,6 @@ export default class Router implements BaseRouter {
           }
 
           Router.events.emit('beforeHistoryChange', as)
-
-          if (manualScrollRestoration && history.state) {
-            const {
-              url: curUrl,
-              as: curAs,
-              options: curOptions,
-            } = history.state
-
-            this.changeState('replaceState', curUrl, curAs, {
-              ...curOptions,
-              _N_X: window.scrollX,
-              _N_Y: window.scrollY,
-            })
-          }
 
           this.changeState(method, url, as, options)
 
