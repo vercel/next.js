@@ -1,6 +1,5 @@
 import { ResolvePlugin } from 'webpack'
 import { join, sep as pathSeparator, normalize } from 'path'
-import { promisify } from 'util'
 import { promises as fs } from 'fs'
 
 async function checkIsTrueCasePath(file: string, readdir: typeof fs.readdir) {
@@ -19,11 +18,6 @@ async function checkIsTrueCasePath(file: string, readdir: typeof fs.readdir) {
 // run on a case-insesnitive filesystem
 export default class CaseSensitivePathsPlugin implements ResolvePlugin {
   apply(resolver: any) {
-    // Make sure to use a cached file system to deduplicate readdir calls
-    // for the same folder
-    const readdir: typeof fs.readdir = promisify(
-      resolver.fileSystem.readdir.bind(resolver.fileSystem)
-    )
     resolver.getHook(`existing-file`).intercept({
       register: (tapInfo: any) => {
         if (tapInfo.name === 'NextPlugin') {
@@ -57,7 +51,7 @@ export default class CaseSensitivePathsPlugin implements ResolvePlugin {
               callback
             )
           }
-          checkIsTrueCasePath(file, readdir).then((isTrueCasePath) => {
+          checkIsTrueCasePath(file, fs.readdir).then((isTrueCasePath) => {
             if (!isTrueCasePath) {
               // Can't resolve these
               return callback()
