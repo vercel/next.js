@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import withSideEffect from './side-effect'
+import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
@@ -140,8 +140,6 @@ function reduceComponents(
     })
 }
 
-const Effect = withSideEffect()
-
 /**
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
@@ -160,6 +158,7 @@ function Head({ children }: { children: React.ReactNode }) {
   )
 }
 
-Head.rewind = Effect.rewind
+// TODO: Remove in the next major release
+Head.rewind = () => {}
 
 export default Head

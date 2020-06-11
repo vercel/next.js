@@ -14,38 +14,36 @@ type SideEffectProps = {
   inAmpMode?: boolean
 }
 
-export default () => {
-  return class extends Component<SideEffectProps> {
-    emitChange = (): void => {
-      this.props.headManager.updateHead(
-        this.props.reduceComponentsToState(
-          [...this.props.headManager.mountedInstances],
-          this.props
-        )
+export default class extends Component<SideEffectProps> {
+  emitChange = (): void => {
+    this.props.headManager.updateHead(
+      this.props.reduceComponentsToState(
+        [...this.props.headManager.mountedInstances],
+        this.props
       )
-    }
+    )
+  }
 
-    constructor(props: any) {
-      super(props)
-      if (isServer) {
-        this.props.headManager.mountedInstances.add(this)
-        this.emitChange()
-      }
-    }
-    componentDidMount() {
+  constructor(props: any) {
+    super(props)
+    if (isServer) {
       this.props.headManager.mountedInstances.add(this)
       this.emitChange()
     }
-    componentDidUpdate() {
-      this.emitChange()
-    }
-    componentWillUnmount() {
-      this.props.headManager.mountedInstances.delete(this)
-      this.emitChange()
-    }
+  }
+  componentDidMount() {
+    this.props.headManager.mountedInstances.add(this)
+    this.emitChange()
+  }
+  componentDidUpdate() {
+    this.emitChange()
+  }
+  componentWillUnmount() {
+    this.props.headManager.mountedInstances.delete(this)
+    this.emitChange()
+  }
 
-    render() {
-      return null
-    }
+  render() {
+    return null
   }
 }
