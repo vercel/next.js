@@ -229,7 +229,9 @@ export default class Router implements BaseRouter {
     // until after mount to prevent hydration mismatch
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport
+        ? pathname
+        : delBasePath(as)
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -500,15 +502,17 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname!, query, as, routeInfo).then(() => {
-            if (error) {
-              Router.events.emit('routeChangeError', error, as)
-              throw error
-            }
+          this.set(route, pathname!, query, delBasePath(as), routeInfo).then(
+            () => {
+              if (error) {
+                Router.events.emit('routeChangeError', error, as)
+                throw error
+              }
 
-            Router.events.emit('routeChangeComplete', as)
-            return resolve(true)
-          })
+              Router.events.emit('routeChangeComplete', as)
+              return resolve(true)
+            }
+          )
         },
         reject
       )
