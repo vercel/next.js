@@ -70,29 +70,32 @@ function updateElements(type, components) {
 export default function initHeadManager() {
   let updatePromise = null
 
-  return (head) => {
-    const promise = (updatePromise = Promise.resolve().then(() => {
-      if (promise !== updatePromise) return
+  return {
+    mountedInstances: new Set(),
+    updateHead: (head) => {
+      const promise = (updatePromise = Promise.resolve().then(() => {
+        if (promise !== updatePromise) return
 
-      updatePromise = null
-      const tags = {}
+        updatePromise = null
+        const tags = {}
 
-      head.forEach((h) => {
-        const components = tags[h.type] || []
-        components.push(h)
-        tags[h.type] = components
-      })
+        head.forEach((h) => {
+          const components = tags[h.type] || []
+          components.push(h)
+          tags[h.type] = components
+        })
 
-      const titleComponent = tags.title ? tags.title[0] : null
-      let title = ''
-      if (titleComponent) {
-        const { children } = titleComponent.props
-        title = typeof children === 'string' ? children : children.join('')
-      }
-      if (title !== document.title) document.title = title
-      ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
-        updateElements(type, tags[type] || [])
-      })
-    }))
+        const titleComponent = tags.title ? tags.title[0] : null
+        let title = ''
+        if (titleComponent) {
+          const { children } = titleComponent.props
+          title = typeof children === 'string' ? children : children.join('')
+        }
+        if (title !== document.title) document.title = title
+        ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
+          updateElements(type, tags[type] || [])
+        })
+      }))
+    },
   }
 }

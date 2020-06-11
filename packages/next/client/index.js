@@ -60,7 +60,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 window.__NEXT_P.push = register
 
-const updateHead = initHeadManager()
+const headManager = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
@@ -484,7 +484,7 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={updateHead}>
+        <HeadManagerContext.Provider value={headManager}>
           {children}
         </HeadManagerContext.Provider>
       </RouterContext.Provider>

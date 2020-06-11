@@ -18,9 +18,10 @@ import {
   STATIC_PROPS_ID,
   SERVER_PROPS_ID,
 } from '../lib/constants'
-import Head, { defaultHead } from '../lib/head'
+import { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
+import { HeadManagerContext } from '../lib/head-manager-context'
 import mitt, { MittEmitter } from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
@@ -116,22 +117,6 @@ function enhanceComponents(
       ? options.enhanceComponent(Component)
       : Component,
   }
-}
-
-function render(
-  element: React.ReactElement<any>,
-  ampMode: any
-): { html: string; head: React.ReactElement[] } {
-  let html
-  let head
-
-  try {
-    html = renderToString(element)
-  } finally {
-    head = Head.rewind() || defaultHead(isInAmpMode(ampMode))
-  }
-
-  return { html, head }
 }
 
 export type RenderOptsPartial = {
@@ -463,16 +448,29 @@ export async function renderToHTML(
     hybrid: pageConfig.amp === 'hybrid',
   }
 
+  const inAmpMode = isInAmpMode(ampState)
+
   const reactLoadableModules: string[] = []
+
+  let head: JSX.Element[] = defaultHead(inAmpMode)
 
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
-        <LoadableContext.Provider
-          value={(moduleName) => reactLoadableModules.push(moduleName)}
+        <HeadManagerContext.Provider
+          value={{
+            updateHead: (state) => {
+              head = state
+            },
+            mountedInstances: new Set(),
+          }}
         >
-          {children}
-        </LoadableContext.Provider>
+          <LoadableContext.Provider
+            value={(moduleName) => reactLoadableModules.push(moduleName)}
+          >
+            {children}
+          </LoadableContext.Provider>
+        </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
@@ -661,9 +659,11 @@ export async function renderToHTML(
     ]),
   ]
 
-  const renderPageError = (): { html: string; head: any } | void => {
+  const renderPage: RenderPage = (
+    options: ComponentsEnhancer = {}
+  ): { html: string; head: any } => {
     if (ctx.err && ErrorDebug) {
-      return render(<ErrorDebug error={ctx.err} />, ampState)
+      return { html: renderToString(<ErrorDebug error={ctx.err} />), head }
     }
 
     if (dev && (props.router || props.Component)) {
@@ -671,25 +671,19 @@ export async function renderToHTML(
         `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
       )
     }
-  }
-
-  let renderPage: RenderPage = (
-    options: ComponentsEnhancer = {}
-  ): { html: string; head: any } => {
-    const renderError = renderPageError()
-    if (renderError) return renderError
 
     const {
       App: EnhancedApp,
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    return render(
+    const html = renderToString(
       <AppContainer>
         <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
-      </AppContainer>,
-      ampState
+      </AppContainer>
     )
+
+    return { html, head }
   }
   const documentCtx = { ...ctx, renderPage }
   const docProps: DocumentInitialProps = await loadGetInitialProps(
@@ -721,7 +715,6 @@ export async function renderToHTML(
   }
 
   const dynamicImportsIds = [...dynamicImportIdsSet]
-  const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
   // update renderOpts so export knows current state
