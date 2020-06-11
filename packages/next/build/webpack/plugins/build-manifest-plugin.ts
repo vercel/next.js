@@ -38,6 +38,10 @@ function generateClientManifest(
   return devalue(clientManifest)
 }
 
+function isJsFile(file: string): boolean {
+  return file.endsWith('.js')
+}
+
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -65,21 +69,19 @@ export default class BuildManifestPlugin {
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
         )
 
-        const mainJsFiles: string[] =
-          mainJsChunk?.files.filter((file: string) => file.endsWith('.js')) ??
-          []
+        const mainJsFiles: string[] = mainJsChunk?.files.filter(isJsFile) ?? []
 
         const polyfillChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
 
         // Create a separate entry  for polyfills
-        assetMap.polyfillFiles = polyfillChunk?.files ?? []
+        assetMap.polyfillFiles = polyfillChunk?.files.filter(isJsFile) ?? []
 
         const reactRefreshChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
         )
-        assetMap.devFiles = reactRefreshChunk?.files ?? []
+        assetMap.devFiles = reactRefreshChunk?.files.filter(isJsFile) ?? []
 
         for (const entrypoint of compilation.entrypoints.values()) {
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
@@ -92,7 +94,7 @@ export default class BuildManifestPlugin {
 
           // getFiles() - helper function to read the files for an entrypoint from stats object
           for (const file of entrypoint.getFiles()) {
-            if (!(file.endsWith('.js') || file.endsWith('.css'))) {
+            if (!(isJsFile(file) || file.endsWith('.css'))) {
               continue
             }
 
