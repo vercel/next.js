@@ -659,11 +659,11 @@ export async function renderToHTML(
     ]),
   ]
 
-  const renderPageError = (): { html: string; head: any } | void => {
+  const renderPage: RenderPage = (
+    options: ComponentsEnhancer = {}
+  ): { html: string; head: any } => {
     if (ctx.err && ErrorDebug) {
-      const html = renderToString(<ErrorDebug error={ctx.err} />)
-
-      return { html, head }
+      return { html: renderToString(<ErrorDebug error={ctx.err} />), head }
     }
 
     if (dev && (props.router || props.Component)) {
@@ -671,13 +671,6 @@ export async function renderToHTML(
         `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
       )
     }
-  }
-
-  let renderPage: RenderPage = (
-    options: ComponentsEnhancer = {}
-  ): { html: string; head: any } => {
-    const renderError = renderPageError()
-    if (renderError) return renderError
 
     const {
       App: EnhancedApp,
