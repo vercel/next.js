@@ -1,11 +1,24 @@
-import cookies from 'next-cookies'
+import useSWR from 'swr'
 import Link from 'next/link'
-import Router from 'next/router'
-import logout from '../utils/auth/logout'
+import { useUser } from '../utils/auth/useUser'
 
-const Index = (props) => {
-  const { data } = props
-  if (!data)
+const fetcher = async (url, token) => {
+  let response = await fetch(url, {
+    method: 'GET',
+    headers: new Headers({ 'Content-Type': 'application/json', token }),
+    credentials: 'same-origin',
+  })
+  return await response.json()
+}
+
+const Index = () => {
+  const { user, logout } = useUser()
+  const { data, error } = useSWR(
+    user ? ['/api/getFood', user.token] : null,
+    fetcher
+  )
+
+  if (!user)
     return (
       <>
         <p>Hi there!</p>
@@ -19,10 +32,10 @@ const Index = (props) => {
     )
   return (
     <div>
-      {data && (
+      {user && (
         <>
           <div>
-            <p>You're signed in. Email: {data.user.email}</p>
+            <p>You're signed in. Email: {user.email}</p>
             <p
               style={{
                 display: 'inlinelock',
@@ -30,14 +43,7 @@ const Index = (props) => {
                 textDecoration: 'underline',
                 cursor: 'pointer',
               }}
-              onClick={async () => {
-                try {
-                  logout()
-                  Router.push('/auth')
-                } catch (e) {
-                  console.error(e)
-                }
-              }}
+              onClick={() => logout()}
             >
               Log out
             </p>
@@ -47,54 +53,12 @@ const Index = (props) => {
               <a>Another example page</a>
             </Link>
           </div>
-          <div>
-            <div>Your favorite food is {data.food}.</div>
-          </div>
+          {error && <div>Failed to fetch food!</div>}
+          {data && <div>Your favorite food is {data.food}.</div>}
         </>
       )}
     </div>
   )
-}
-
-export const getServerSideProps = async (context) => {
-  const { auth } = cookies(context)
-  if (!auth) {
-    return {
-      props: {
-        data: null,
-      },
-    }
-  }
-  const { id, email, token } = auth
-
-  try {
-    const response = await fetch('http://localhost:3000/api/getFood', {
-      method: 'GET',
-      // eslint-disable-next-line no-undef
-      headers: new Headers({ 'Content-Type': 'application/json', token }),
-      credentials: 'same-origin',
-    })
-
-    const { food } = await response.json()
-
-    const data = {
-      user: {
-        id,
-        email,
-      },
-      food,
-    }
-
-    return { props: { data } }
-  } catch (error) {
-    console.log(error)
-  }
-
-  return {
-    props: {
-      data: '1',
-    },
-  }
 }
 
 export default Index
