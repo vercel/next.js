@@ -69,19 +69,19 @@ Log into https://manage.sanity.io/ and choose the project you just created. Then
 
 ### Step 4. Set up environment variables
 
-Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
 - `SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - `SANITY_PROJECT_ID`: Get the `projectId` value from the `sanity.json` file created in step 2.
 - `SANITY_API_TOKEN`: Copy the API token generated in the previous step.
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
 SANITY_PREVIEW_SECRET=...
