@@ -1,6 +1,4 @@
 async function fetchAPI(query, { variables } = {}, isAdminOnly = false) {
-  console.log(variables);
-  console.log(isAdminOnly);
   const headers = {
     'Content-Type': 'application/json',
   }
@@ -91,7 +89,6 @@ export async function getAllPosts(preview) {
 }
 
 export async function getPostBySlug(slug, preview) {
-  console.log(preview);
   const data = await fetchAPI(
     `
     query Post($slug: String!){

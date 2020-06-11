@@ -81,6 +81,16 @@ hasura metadata apply
 
 ### Step 4. Set up environment variables
 
+Let's enable admin secret for the Hasura instance.
+
+Open the `docker-compose.yaml` file and uncomment the `HASURA_GRAPHQL_ADMIN_SECRET` line to enable it.
+
+Then in your terminal, execute the following
+
+```bash
+docker-compose up -d
+```
+
 Open a new terminal and `cd` into the Next.js app directory you created earlier.
 
 ```
@@ -116,19 +126,9 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 6. Try preview mode
 
-To try preview mode, let's enable admin secret for the Hasura instance.
+To try preview mode, we have a blog post with the `draft` status.
 
-Open the `docker-compose.yaml` file and uncomment the `HASURA_GRAPHQL_ADMIN_SECRET` line to enable it.
-
-Then in your terminal, execute the following
-
-```bash
-docker-compose up -d
-```
-
-We have a blog post with the `draft` status.
-
-Now, if you go to the post page on localhost, you won't see this post because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to the post page on localhost for such posts, you won't see them because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 
