@@ -687,6 +687,14 @@ export default async function getBaseWebpackConfig(
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
+
+        if (chunk.name.includes('BUILD_ID')) {
+          return escapePathVariables(chunk.name).replace(
+            'BUILD_ID',
+            isServer || dev ? buildId : '[contenthash]'
+          )
+        }
+
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
