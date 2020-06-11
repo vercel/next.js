@@ -33,6 +33,7 @@ import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 
+// NodeJs Version Validation
 var currentNodeVersion = process.versions.node
 var semver: String[] = currentNodeVersion.split('.')
 semver.pop()
