@@ -12,6 +12,7 @@ import {
   nextStart,
   fetchViaHTTP,
   renderViaHTTP,
+  getPageFileFromBuildManifest,
 } from 'next-test-utils'
 import qs from 'querystring'
 import path from 'path'
@@ -20,7 +21,6 @@ import fetch from 'node-fetch'
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
-const buildIdFile = join(appDir, '.next/BUILD_ID')
 let stderr = ''
 let appPort
 let app
@@ -172,15 +172,12 @@ describe('Serverless', () => {
 
   it('should not have combined client-side chunks', () => {
     expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
-    const buildId = readFileSync(buildIdFile, 'utf8').trim()
 
-    const pageContent = join(
-      appDir,
-      '.next/static',
-      buildId,
-      'pages/dynamic.js'
-    )
-    expect(readFileSync(pageContent, 'utf8')).not.toContain('Hello!')
+    const pageFile = getPageFileFromBuildManifest(appDir, '/')
+
+    expect(
+      readFileSync(join(__dirname, '..', '.next', pageFile), 'utf8')
+    ).not.toContain('Hello!')
   })
 
   it('should not output _app.js and _document.js to serverless build', () => {
