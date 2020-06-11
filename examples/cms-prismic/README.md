@@ -122,14 +122,14 @@ Then set each variable on `.env.local`:
 
 - `PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
 - `PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
-- `NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
+- `PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 
 Your `.env.local` file should look like this:
 
 ```bash
 PRISMIC_API_TOKEN=...
 PRISMIC_REPOSITORY_NAME=...
-NEXT_EXAMPLE_CMS_PRISMIC_REPOSITORY_LOCALE=...
+PRISMIC_REPOSITORY_LOCALE=...
 ```
 
 Make sure the locale matches your settings in the Prismic dashboard.
