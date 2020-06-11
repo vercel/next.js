@@ -176,6 +176,11 @@ describe('Serverless Trace', () => {
     )
   })
 
+  it('should reply on API request with trailing slassh successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello/')
+    expect(content).toMatch(/hello world/)
+  })
+
   describe('With basic usage', () => {
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
