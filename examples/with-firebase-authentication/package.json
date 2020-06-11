@@ -17,6 +17,5 @@
     "react-dom": "^16.12.0",
     "react-firebaseui": "4.0.0",
     "swr": "0.2.2"
-  },
-  "devDependencies": {}
+  }
 }
