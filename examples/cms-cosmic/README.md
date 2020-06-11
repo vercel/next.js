@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 [https://next-blog-cosmic.now.sh/](https://next-blog-cosmic.now.sh/)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-cosmic&env=COSMIC_BUCKET_SLUG,COSMIC_READ_KEY,COSMIC_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Cosmic.%20More%20details%20on%20https://vercel.link/cms-cosmic-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -51,16 +57,16 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG` should be the **Bucket slug** key under **Basic Settings**.
-- `NEXT_EXAMPLE_CMS_COSMIC_READ_KEY` should be the **Read Key** under **API Access**.
-- `NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET` can be any random string (but avoid spaces) - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `COSMIC_BUCKET_SLUG` should be the **Bucket slug** key under **Basic Settings**.
+- `COSMIC_READ_KEY` should be the **Read Key** under **API Access**.
+- `COSMIC_PREVIEW_SECRET` can be any random string (but avoid spaces) - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG=...
-NEXT_EXAMPLE_CMS_COSMIC_READ_KEY=...
-NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET=...
+COSMIC_BUCKET_SLUG=...
+COSMIC_READ_KEY=...
+COSMIC_PREVIEW_SECRET=...
 ```
 
 ### Step 4. Run Next.js in development mode
@@ -89,7 +95,7 @@ Add your live URL or localhost development URL which includes your chosen previe
 http://localhost:3000/api/preview?secret=<secret>&slug=[object_slug]
 ```
 
-- `<secret>` is the string you entered for `NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET`.
+- `<secret>` is the string you entered for `COSMIC_PREVIEW_SECRET`.
 - `[object_slug]` shortcode will automatically be converted to the post's `slug` attribute.
 
 On Cosmic, go to one of the posts you've created and:
@@ -107,16 +113,16 @@ To exit preview mode, you can click on **Click here to exit preview mode** at th
 
 ### Step 6. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
+#### Deploy Your Local Project
 
-Install the [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG>`, `<NEXT_EXAMPLE_CMS_COSMIC_READ_KEY>` and `<NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET>` with the corresponding strings in `.env.local`.
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-```
-vercel secrets add next_example_cms_cosmic_bucket_slug <NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG>
-vercel secrets add next_example_cms_cosmic_read_key <NEXT_EXAMPLE_CMS_COSMIC_READ_KEY>
-vercel secrets add next_example_cms_cosmic_preview_secret <NEXT_EXAMPLE_CMS_COSMIC_PREVIEW_SECRET>
-```
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-cosmic&env=COSMIC_BUCKET_SLUG,COSMIC_READ_KEY,COSMIC_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Cosmic.%20More%20details%20on%20https://vercel.link/cms-cosmic-env)
