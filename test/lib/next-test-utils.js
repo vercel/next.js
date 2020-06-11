@@ -389,10 +389,22 @@ export class File {
   }
 
   replace(pattern, newValue) {
-    if (!this.originalContent.includes(pattern)) {
-      throw new Error(
-        `Failed to replace content.\n\nPattern: ${pattern}\n\nContent: ${this.originalContent}`
-      )
+    if (pattern instanceof RegExp) {
+      if (!pattern.test(this.originalContent)) {
+        throw new Error(
+          `Failed to replace content.\n\nPattern: ${pattern.toString()}\n\nContent: ${
+            this.originalContent
+          }`
+        )
+      }
+    } else if (typeof pattern === 'string') {
+      if (!this.originalContent.includes(pattern)) {
+        throw new Error(
+          `Failed to replace content.\n\nPattern: ${pattern}\n\nContent: ${this.originalContent}`
+        )
+      }
+    } else {
+      throw new Error(`Unknown replacement attempt type: ${pattern}`)
     }
 
     const newContent = this.originalContent.replace(pattern, newValue)
