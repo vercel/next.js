@@ -160,20 +160,20 @@ Next, create another entry with the content type **Post**:
 
 From your contentful space, go to **Settings > API keys**. There will be an example Content delivery / preview token - you can use these API keys. (You may also create a new key.)
 
-Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
 - `CONTENTFUL_SPACE_ID` should be the **Space ID** field of your API Key
 - `CONTENTFUL_ACCESS_TOKEN` should be the **[Content Delivery API](https://www.contentful.com/developers/docs/references/content-delivery-api/) - access token** field of your API key
 - `CONTENTFUL_PREVIEW_ACCESS_TOKEN` should be the **[Content Preview API](https://www.contentful.com/developers/docs/references/content-preview-api/) - access token** field of your API key
 - `CONTENTFUL_PREVIEW_SECRET` should be any value you want. It must be URL friendly as the dashboard will send it as a query parameter to enable preview mode
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
 CONTENTFUL_SPACE_ID=...
@@ -206,7 +206,7 @@ The **Name** field may be anything, like `Development`. Then, under **Content pr
 http://localhost:3000/api/preview?secret=<CONTENTFUL_PREVIEW_SECRET>&slug={entry.fields.slug}
 ```
 
-Replace `<CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env`.
+Replace `<CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env.local`.
 
 ![Content preview setup](./docs/content-preview-setup.jpg)
 
