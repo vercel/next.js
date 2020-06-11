@@ -107,18 +107,18 @@ Go to the **Settings** menu at the top and click **API tokens**.
 
 Then click **Read-only API token** and copy the token.
 
-Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
 - `DATOCMS_API_TOKEN` should be the API token you just copied.
 - `DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
 DATOCMS_API_TOKEN=...
