@@ -245,6 +245,11 @@ describe('Serverless', () => {
     )
   })
 
+  it('should reply on API request with trailing slash successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello/')
+    expect(content).toMatch(/hello world/)
+  })
+
   it('should have the correct query string for a dynamic route', async () => {
     const paramRaw = 'test % 123'
     const param = encodeURIComponent(paramRaw)
