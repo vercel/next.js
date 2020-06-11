@@ -94,9 +94,6 @@ type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
 
-const manualScrollRestoration =
-  typeof window !== 'undefined' && 'scrollRestoration' in window.history
-
 function fetchNextData(
   pathname: string,
   query: ParsedUrlQuery | null,
@@ -259,12 +256,6 @@ export default class Router implements BaseRouter {
       }
 
       window.addEventListener('popstate', this.onPopState)
-
-      // enable custom scroll restoration handling when available
-      // otherwise fallback to browser's default handling
-      if (manualScrollRestoration) {
-        window.history.scrollRestoration = 'manual'
-      }
     }
   }
 
@@ -502,21 +493,6 @@ export default class Router implements BaseRouter {
           }
 
           Router.events.emit('beforeHistoryChange', as)
-
-          if (manualScrollRestoration && history.state) {
-            const {
-              url: curUrl,
-              as: curAs,
-              options: curOptions,
-            } = history.state
-
-            this.changeState('replaceState', curUrl, curAs, {
-              ...curOptions,
-              _N_X: window.scrollX,
-              _N_Y: window.scrollY,
-            })
-          }
-
           this.changeState(method, url, as, options)
 
           if (process.env.NODE_ENV !== 'production') {
@@ -534,10 +510,6 @@ export default class Router implements BaseRouter {
               }
 
               Router.events.emit('routeChangeComplete', as)
-
-              if (manualScrollRestoration && '_N_X' in options) {
-                window.scrollTo(options._N_X, options._N_Y)
-              }
               return resolve(true)
             }
           )
