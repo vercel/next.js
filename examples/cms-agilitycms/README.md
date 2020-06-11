@@ -269,7 +269,7 @@ Go to the **Getting Started** section from the menu and click on **API Keys**. Y
 
 Then set each variable on `.env.local`:
 
-- `AGILITY_CMS_GUID` Should be the `Instance GUID` field in your API Keys
+- `AGILITY_CMS_GUID` should be the **Instance GUID** field
 - `AGILITY_CMS_API_FETCH_KEY` should be the **Live API Key** field
 - `AGILITY_CMS_API_PREVIEW_KEY` should be the **Preview API Key** field - this is used when the site is in [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
 - `AGILITY_CMS_SECURITY_KEY` should be the **Security Key** field that can be found in **Settings** > **Global Security** - this is used to communicate between the CMS and your site to validate [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)
