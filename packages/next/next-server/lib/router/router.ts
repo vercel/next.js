@@ -95,7 +95,9 @@ type ComponentLoadCancel = (() => void) | null
 type HistoryMethod = 'replaceState' | 'pushState'
 
 const manualScrollRestoration =
-  typeof window !== 'undefined' && 'scrollRestoration' in window.history
+  process.env.__NEXT_SCROLL_RESTORATION &&
+  typeof window !== 'undefined' &&
+  'scrollRestoration' in window.history
 
 function fetchNextData(
   pathname: string,
