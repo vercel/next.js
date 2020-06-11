@@ -216,6 +216,22 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     )
   }
 
+  const linkifyMessage = (text: string) => {
+    if (/(https?:\/\/[^\s]+)/g.test(text)) {
+      const message = text.substr(0, text.indexOf('http'))
+      const href = text.substr(text.indexOf('http'))
+      return (
+        <>
+          <span>{message}</span>
+          <a id="error-link" href={href}>
+            {href}
+          </a>
+        </>
+      )
+    }
+    return text
+  }
+
   const isServerError = isNodeError(activeError.error)
   return (
     <Overlay>
@@ -242,7 +258,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
             <p id="nextjs__container_errors_desc">
-              {activeError.error.name}: {activeError.error.message}
+              {activeError.error.name}:{' '}
+              {linkifyMessage(activeError.error.message)}
             </p>
             {isServerError ? (
               <div>
@@ -314,5 +331,9 @@ export const styles = css`
   }
   .nextjs-toast-errors > svg {
     margin-right: var(--size-gap);
+  }
+
+  #error-link:any-link {
+    color: inherit;
   }
 `
