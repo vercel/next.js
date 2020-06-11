@@ -17,6 +17,7 @@ import {
   renderViaHTTP,
   File,
   nextStart,
+  initNextServerScript,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -203,7 +204,9 @@ const runTests = (context, dev = false) => {
     expect(props.hello).toBe('world')
 
     const pathname = await browser.elementByCss('#pathname').text()
+    const asPath = await browser.elementByCss('#asPath').text()
     expect(pathname).toBe('/gssp')
+    expect(asPath).toBe('/gssp')
   })
 
   it('should have correct href for a link', async () => {
@@ -634,4 +637,24 @@ describe('basePath serverless', () => {
   })
 
   runTests(context)
+
+  it('should always strip basePath in serverless-loader', async () => {
+    const appPort = await findPort()
+    const app = await initNextServerScript(
+      join(appDir, 'server.js'),
+      /ready on/,
+      {
+        ...process.env,
+        PORT: appPort,
+      }
+    )
+
+    const html = await renderViaHTTP(appPort, '/docs/gssp')
+    await killApp(app)
+
+    const $ = cheerio.load(html)
+
+    expect($('#pathname').text()).toBe('/gssp')
+    expect($('#asPath').text()).toBe('/gssp')
+  })
 })
