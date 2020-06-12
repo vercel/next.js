@@ -1,12 +1,12 @@
 export default function Avatar({ name, picture }) {
+  const url = picture.url ?? picture[0].url
+
   return (
     <div className="flex items-center">
       <img
         src={`${
-          (picture.url ?? picture[0].url).startsWith('/')
-            ? process.env.NEXT_PUBLIC_API_URL
-            : ''
-        }${picture.url ?? picture[0].url}`}
+          url.startsWith('/') ? process.env.NEXT_PUBLIC_API_URL : ''
+        }${url}`}
         className="w-12 h-12 rounded-full mr-4 grayscale"
         alt={name}
       />
