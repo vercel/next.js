@@ -925,7 +925,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             buildId
           )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
           page: '/fallback-only/[slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -937,7 +939,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
           ),
           page: '/lang/[lang]/about',
-          routeKeys: ['lang'],
+          routeKeys: {
+            lang: 'lang',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
