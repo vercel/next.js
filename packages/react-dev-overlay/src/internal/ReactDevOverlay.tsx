@@ -15,7 +15,7 @@ type OverlayState = {
 }
 
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
-  switch (ev.type) {
+  switch (ev?.type) {
     case Bus.TYPE_BUILD_OK: {
       return { ...state, buildError: null }
     }
