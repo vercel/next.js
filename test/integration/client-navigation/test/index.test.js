@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import {
   fetchViaHTTP,
   findPort,
@@ -16,12 +16,14 @@ import { join } from 'path'
 import renderingSuite from './rendering'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
 
     const prerender = [
       '/async-props',
@@ -57,7 +59,7 @@ describe('Client Navigation', () => {
       '/nested-cdm',
     ]
     await Promise.all(
-      prerender.map(route => renderViaHTTP(context.appPort, route))
+      prerender.map((route) => renderViaHTTP(context.appPort, route))
     )
   })
   afterAll(() => killApp(context.server))
@@ -639,10 +641,7 @@ describe('Client Navigation', () => {
         .text()
       expect(counter).toBe('Counter: 2')
 
-      counter = await browser
-        .back()
-        .elementByCss('#counter')
-        .text()
+      counter = await browser.back().elementByCss('#counter').text()
       expect(counter).toBe('Counter: 1')
 
       const getInitialPropsRunCount = await browser
@@ -790,11 +789,12 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
-    it('should work with /index page', async () => {
+    it('should not work with /index page', async () => {
       const browser = await webdriver(context.appPort, '/index')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
       await browser.close()
     })
 
@@ -949,7 +949,7 @@ describe('Client Navigation', () => {
   })
 
   describe('runtime errors', () => {
-    it('should show react-error-overlay when a client side error is thrown inside a component', async () => {
+    it('should show redbox when a client side error is thrown inside a component', async () => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/error-inside-browser-page')
@@ -964,7 +964,7 @@ describe('Client Navigation', () => {
       }
     })
 
-    it('should show react-error-overlay when a client side error is thrown outside a component', async () => {
+    it('should show redbox when a client side error is thrown outside a component', async () => {
       let browser
       try {
         browser = await webdriver(
@@ -986,6 +986,15 @@ describe('Client Navigation', () => {
   describe('with 404 pages', () => {
     it('should 404 on not existent page', async () => {
       const browser = await webdriver(context.appPort, '/non-existent')
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
+      await browser.close()
+    })
+
+    it('should 404 on wrong casing', async () => {
+      const browser = await webdriver(context.appPort, '/nAv/AbOuT')
       expect(await browser.elementByCss('h1').text()).toBe('404')
       expect(await browser.elementByCss('h2').text()).toBe(
         'This page could not be found.'

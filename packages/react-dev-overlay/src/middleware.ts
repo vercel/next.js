@@ -9,6 +9,7 @@ import {
 } from 'source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
@@ -16,6 +17,7 @@ import { launchEditor } from './internal/helpers/launchEditor'
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
   stats(): webpack.Stats
+  serverStats(): webpack.Stats
 }
 
 export type OriginalStackFrameResponse = {
@@ -26,7 +28,11 @@ export type OriginalStackFrameResponse = {
 type Source = { map: () => RawSourceMap } | null
 
 function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
-  async function getSourceById(isFile: boolean, id: string): Promise<Source> {
+  async function getSourceById(
+    isServerSide: boolean,
+    isFile: boolean,
+    id: string
+  ): Promise<Source> {
     if (isFile) {
       const fileContent: string | null = await fs
         .readFile(id, 'utf-8')
@@ -49,8 +55,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     }
 
     try {
-      const compilation = options.stats()?.compilation
-      const m = compilation?.modules?.find(m => m.id === id)
+      const compilation = isServerSide
+        ? options.serverStats()?.compilation
+        : options.stats()?.compilation
+      const m = compilation?.modules?.find(
+        (searchModule) => searchModule.id === id
+      )
       return (
         m?.source(
           compilation.dependencyTemplates,
@@ -63,7 +73,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     }
   }
 
-  return async function(
+  return async function (
     req: IncomingMessage,
     res: ServerResponse,
     next: Function
@@ -71,7 +81,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     const { pathname, query } = url.parse(req.url, true)
 
     if (pathname === '/__nextjs_original-stack-frame') {
-      const frame = (query as unknown) as StackFrame
+      const frame = (query as unknown) as StackFrame & {
+        isServerSide: 'true' | 'false'
+      }
       if (
         !(
           (frame.file?.startsWith('webpack-internal:///') ||
@@ -84,6 +96,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
+      const isServerSide = frame.isServerSide === 'true'
       const moduleId: string = frame.file.replace(
         /^(webpack-internal:\/\/\/|file:\/\/)/,
         ''
@@ -91,7 +104,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
       let source: Source
       try {
-        source = await getSourceById(frame.file.startsWith('file:'), moduleId)
+        source = await getSourceById(
+          isServerSide,
+          frame.file.startsWith('file:'),
+          moduleId
+        )
       } catch (err) {
         console.log('Failed to get source map:', err)
         res.statusCode = 500
@@ -100,8 +117,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -115,12 +132,20 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       let pos: NullableMappedPosition
+      let posSourceContent: string | null = null
       try {
         const consumer = await new SourceMapConsumer(source.map())
         pos = consumer.originalPositionFor({
           line: frameLine,
           column: frameColumn,
         })
+        if (pos.source) {
+          posSourceContent =
+            consumer.sourceContentFor(
+              pos.source,
+              /* returnNullOnMissing */ true
+            ) ?? null
+        }
         consumer.destroy()
       } catch (err) {
         console.log('Failed to parse source map:', err)
@@ -130,8 +155,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (pos.source == null) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -141,12 +166,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           ? pos.source.substring(11)
           : pos.source
       )
-      const fileContent: string | null = await fs
-        .readFile(filePath, 'utf-8')
-        .catch(() => null)
 
       const originalFrame: StackFrame = {
-        file: fileContent
+        file: posSourceContent
           ? path.relative(options.rootDirectory, filePath)
           : pos.source,
         lineNumber: pos.line,
@@ -156,9 +178,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const originalCodeFrame: string | null =
-        fileContent && pos.line
+        !(originalFrame.file?.includes('node_modules') ?? true) &&
+        posSourceContent &&
+        pos.line
           ? (codeFrameColumns(
-              fileContent,
+              posSourceContent,
               { start: { line: pos.line, column: pos.column } },
               { forceColor: true }
             ) as string)
@@ -188,8 +212,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         () => false
       )
       if (!fileExists) {
-        res.statusCode = 404
-        res.write('Not Found')
+        res.statusCode = 204
+        res.write('No Content')
         return res.end()
       }
 
@@ -212,4 +236,4 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
   }
 }
 
-export default getOverlayMiddleware
+export { getOverlayMiddleware }

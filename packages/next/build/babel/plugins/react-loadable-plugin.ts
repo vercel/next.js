@@ -25,14 +25,18 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 
 import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 
-export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
+export default function ({
+  types: t,
+}: {
+  types: typeof BabelTypes
+}): PluginObj {
   return {
     visitor: {
       ImportDeclaration(path: NodePath<BabelTypes.ImportDeclaration>) {
         let source = path.node.source.value
         if (source !== 'next/dynamic') return
 
-        let defaultSpecifier = path.get('specifiers').find(specifier => {
+        let defaultSpecifier = path.get('specifiers').find((specifier) => {
           return specifier.isImportDefaultSpecifier()
         })
 
@@ -45,7 +49,7 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
           return
         }
 
-        binding.referencePaths.forEach(refPath => {
+        binding.referencePaths.forEach((refPath) => {
           let callExpression = refPath.parentPath
 
           if (
@@ -100,7 +104,7 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
             >
           } = {}
 
-          properties.forEach(property => {
+          properties.forEach((property) => {
             const key: any = property.get('key')
             propertiesMap[key.node.name] = property
           })
@@ -123,10 +127,10 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
           const dynamicImports: BabelTypes.StringLiteral[] = []
 
           loader.traverse({
-            Import(path) {
-              const args = path.parentPath.get('arguments')
-              if (!Array.isArray(args)) return
-              const node: any = args[0].node
+            Import(importPath) {
+              const importArguments = importPath.parentPath.get('arguments')
+              if (!Array.isArray(importArguments)) return
+              const node: any = importArguments[0].node
               dynamicImports.push(node)
             },
           })
@@ -142,7 +146,7 @@ export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
                   t.arrowFunctionExpression(
                     [],
                     t.arrayExpression(
-                      dynamicImports.map(dynamicImport => {
+                      dynamicImports.map((dynamicImport) => {
                         return t.callExpression(
                           t.memberExpression(
                             t.identifier('require'),

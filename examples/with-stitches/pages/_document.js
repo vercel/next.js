@@ -1,7 +1,6 @@
 import { createCss } from '@stitches/css'
 import Document from 'next/document'
-
-import { config } from './css'
+import { config } from '../css'
 
 export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
@@ -11,7 +10,7 @@ export default class MyDocument extends Document {
     try {
       ctx.renderPage = () =>
         originalRenderPage({
-          enhanceApp: App => props => <App {...props} serverCss={css} />,
+          enhanceApp: (App) => (props) => <App {...props} serverCss={css} />,
         })
 
       const initialProps = await Document.getInitialProps(ctx)

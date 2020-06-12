@@ -1,4 +1,4 @@
-import reactDevOverlayMiddleware from '@next/react-dev-overlay/lib/middleware'
+import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
@@ -9,21 +9,24 @@ import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
-import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
+import onDemandEntryHandler from './on-demand-entry-handler'
+import {
+  denormalizePagePath,
+  normalizePathSep,
+} from '../next-server/server/normalize-page-path'
+import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -47,6 +50,12 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
+  const isApiRoute = req.url!.match(API_ROUTE)
+  // API routes handle their own CORS headers
+  if (isApiRoute) {
+    return { preflight: false }
+  }
+
   if (!req.headers.origin) {
     return { preflight: false }
   }
@@ -128,6 +137,7 @@ export default class HotReloader {
   private initialized: boolean
   private config: any
   private stats: any
+  private serverStats: any
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
@@ -155,13 +165,18 @@ export default class HotReloader {
     this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
+    this.serverStats = null
     this.serverPrevDocumentHash = null
 
     this.config = config
     this.previewProps = previewProps
   }
 
-  async run(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlObject) {
+  public async run(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl: UrlObject
+  ) {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
@@ -176,25 +191,25 @@ export default class HotReloader {
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (
-      res: ServerResponse,
-      parsedUrl: UrlObject
-    ) => {
-      const { pathname } = parsedUrl
+      pageBundleRes: ServerResponse,
+      parsedPageBundleUrl: UrlObject
+    ): Promise<{ finished?: true }> => {
+      const { pathname } = parsedPageBundleUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
       }
 
       if (params.buildId !== this.buildId) {
-        return
+        return {}
       }
 
-      const page = `/${params.path.join('/')}`
+      const page = denormalizePagePath(`/${params.path.join('/')}`)
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(res, error)
+          await renderScriptError(pageBundleRes, error)
           return { finished: true }
         }
 
@@ -209,15 +224,15 @@ export default class HotReloader {
         try {
           const mod = require(bundlePath)
           if (mod?.config?.amp === true) {
-            res.statusCode = 404
-            res.end()
+            pageBundleRes.statusCode = 404
+            pageBundleRes.end()
             return { finished: true }
           }
         } catch (_) {}
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(res, errors[0])
+          await renderScriptError(pageBundleRes, errors[0])
           return { finished: true }
         }
       }
@@ -225,7 +240,7 @@ export default class HotReloader {
       return {}
     }
 
-    const { finished } = (await handlePageBundleRequest(res, parsedUrl)) as any
+    const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
@@ -239,27 +254,27 @@ export default class HotReloader {
     return { finished }
   }
 
-  async clean() {
+  private async clean(): Promise<void> {
     return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
-  async getWebpackConfig() {
+  private async getWebpackConfig() {
     const pagePaths = await Promise.all([
       findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
       findPageFile(this.pagesDir, '/_document', this.config.pageExtensions),
     ])
 
     const pages = createPagesMapping(
-      pagePaths.filter(i => i !== null) as string[],
+      pagePaths.filter((i) => i !== null) as string[],
       this.config.pageExtensions
     )
     const entrypoints = createEntrypoints(
-      /* dev */ true,
       pages,
       'server',
       this.buildId,
       this.previewProps,
-      this.config
+      this.config,
+      []
     )
 
     let additionalClientEntrypoints: { [file: string]: string } = {}
@@ -294,7 +309,7 @@ export default class HotReloader {
     ])
   }
 
-  async start() {
+  public async start(): Promise<void> {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
@@ -304,10 +319,16 @@ export default class HotReloader {
     const buildTools = await this.prepareBuildTools(multiCompiler)
     this.assignBuildTools(buildTools)
 
-    this.stats = ((await this.waitUntilValid()) as any).stats[0]
+    // [Client, Server]
+    ;[
+      this.stats,
+      this.serverStats,
+    ] = ((await this.waitUntilValid()) as any).stats
   }
 
-  async stop(webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware) {
+  public async stop(
+    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
+  ): Promise<void> {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
@@ -319,24 +340,7 @@ export default class HotReloader {
     }
   }
 
-  async reload() {
-    this.stats = null
-
-    await this.clean()
-
-    const configs = await this.getWebpackConfig()
-    const compiler = webpack(configs)
-
-    const buildTools = await this.prepareBuildTools(compiler)
-    this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
-
-    const oldWebpackDevMiddleware = this.webpackDevMiddleware
-
-    this.assignBuildTools(buildTools)
-    await this.stop(oldWebpackDevMiddleware!)
-  }
-
-  assignBuildTools({
+  private assignBuildTools({
     webpackDevMiddleware,
     webpackHotMiddleware,
     onDemandEntries,
@@ -344,7 +348,7 @@ export default class HotReloader {
     webpackDevMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
     webpackHotMiddleware: NextHandleFunction & WebpackHotMiddleware.EventStream
     onDemandEntries: any
-  }) {
+  }): void {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
@@ -354,32 +358,22 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackHotMiddleware,
       errorOverlayMiddleware({ dir: this.dir }),
-      reactDevOverlayMiddleware({
+      getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
+        serverStats: () => this.serverStats,
       }),
     ]
   }
 
-  async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
-    const tsConfigPath = join(this.dir, 'tsconfig.json')
-    const useTypeScript = await fileExists(tsConfigPath)
-    const ignoreTypeScriptErrors = Boolean(
-      this.config.experimental.reactRefresh === true ||
-        this.config.typescript?.ignoreDevErrors
-    )
-
-    watchCompilers(
-      multiCompiler.compilers[0],
-      multiCompiler.compilers[1],
-      useTypeScript && !ignoreTypeScriptErrors,
-      ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
-    )
+  private async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
+    watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
-      stats => {
+      (stats) => {
+        this.serverStats = stats
         if (!this.initialized) {
           return
         }
@@ -389,7 +383,7 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          c => c.name === normalize(`static/${this.buildId}/pages/_document.js`)
+          (c) => c.name === normalize(`static/BUILD_ID/pages/_document.js`)
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
@@ -416,12 +410,12 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
-      stats => {
+      (stats) => {
         const { compilation } = stats
         const chunkNames = new Set(
           compilation.chunks
-            .map(c => c.name)
-            .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
+            .map((c) => c.name)
+            .filter((name) => IS_BUNDLED_PAGE_REGEX.test(name))
         )
 
         if (this.initialized) {
@@ -432,18 +426,14 @@ export default class HotReloader {
 
           if (addedPages.size > 0) {
             for (const addedPage of addedPages) {
-              let page =
-                '/' + ROUTE_NAME_REGEX.exec(addedPage)![1].replace(/\\/g, '/')
-              page = page === '/index' ? '/' : page
+              const page = getRouteFromEntrypoint(addedPage)
               this.send('addedPage', page)
             }
           }
 
           if (removedPages.size > 0) {
             for (const removedPage of removedPages) {
-              let page =
-                '/' + ROUTE_NAME_REGEX.exec(removedPage)![1].replace(/\\/g, '/')
-              page = page === '/index' ? '/' : page
+              const page = getRouteFromEntrypoint(removedPage)
               this.send('removedPage', page)
             }
           }
@@ -497,11 +487,8 @@ export default class HotReloader {
       webpackDevMiddleware,
       multiCompiler,
       {
-        buildId: this.buildId,
         pagesDir: this.pagesDir,
-        reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
-        hotRouterUpdates: this.config.experimental.reactRefresh !== true,
         ...(this.config.onDemandEntries as {
           maxInactiveAge: number
           pagesBufferLength: number
@@ -516,25 +503,20 @@ export default class HotReloader {
     }
   }
 
-  waitUntilValid(
-    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
-  ) {
-    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
-    return new Promise(resolve => {
-      middleware!.waitUntilValid(resolve)
+  private waitUntilValid(): Promise<webpack.Stats> {
+    return new Promise((resolve) => {
+      this.webpackDevMiddleware!.waitUntilValid(resolve)
     })
   }
 
-  async getCompilationErrors(page: string) {
-    const normalizedPage = normalizePage(page)
-    // When we are reloading, we need to wait until it's reloaded properly.
-    await this.onDemandEntries.waitUntilReloaded()
+  public async getCompilationErrors(page: string) {
+    const normalizedPage = normalizePathSep(page)
 
     if (this.stats.hasErrors()) {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation, {
         enhanceName(name) {
-          return '/' + ROUTE_NAME_REGEX.exec(name)![1]
+          return getRouteFromEntrypoint(name) as string
         },
       })
 
@@ -553,11 +535,11 @@ export default class HotReloader {
     return []
   }
 
-  send = (action: string, ...args: any[]) => {
+  private send(action: string, ...args: any[]): void {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 
-  async ensurePage(page: string) {
+  public async ensurePage(page: string) {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
@@ -567,5 +549,5 @@ export default class HotReloader {
 }
 
 function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter(v => !b.has(v)))
+  return new Set([...a].filter((v) => !b.has(v)))
 }

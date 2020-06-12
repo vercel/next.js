@@ -1,11 +1,11 @@
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
 
-module.exports = phase => {
+module.exports = (phase) => {
   return {
     target: 'serverless',
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
     exportTrailingSlash: true,
-    exportPathMap: function() {
+    exportPathMap: function () {
       return {
         '/': { page: '/' },
         '/about': { page: '/about' },

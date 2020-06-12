@@ -22,7 +22,7 @@ function hasStoreChanged(nextStore: OutputState) {
   if (
     ([
       ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-    ] as Array<keyof OutputState>).every(key =>
+    ] as Array<keyof OutputState>).every((key) =>
       Object.is(lastStore[key], nextStore[key])
     )
   ) {
@@ -33,7 +33,7 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
-store.subscribe(state => {
+store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
   }
@@ -60,7 +60,7 @@ store.subscribe(state => {
         for (const match of matches) {
           const prop = (match.split(']').shift() || '').substr(1)
           console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://err.sh/zeit/next.js/amp-bind-jsx-alt`
+            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://err.sh/vercel/next.js/amp-bind-jsx-alt`
           )
         }
         return

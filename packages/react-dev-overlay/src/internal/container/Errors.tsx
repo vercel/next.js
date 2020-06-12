@@ -14,6 +14,7 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
+import { isNodeError } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import {
   getOriginalStackFrames,
@@ -63,7 +64,10 @@ async function getErrorByType(
         id,
         runtime: true,
         error: event.reason,
-        frames: await getOriginalStackFrames(event.frames),
+        frames: await getOriginalStackFrames(
+          isNodeError(event.reason),
+          event.frames
+        ),
       }
     }
     default: {
@@ -119,11 +123,11 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
       return
     }
     getErrorByType(nextError).then(
-      resolved => {
+      (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
-        setLookups(m => ({ ...m, [resolved.id]: resolved }))
+        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
       },
       () => {
         // TODO: handle this, though an edge case
@@ -135,12 +139,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   const [activeIdx, setActiveIndex] = React.useState<number>(0)
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()
-    setActiveIndex(v => Math.max(0, v - 1))
+    setActiveIndex((v) => Math.max(0, v - 1))
   }, [])
   const next = React.useCallback(
     (e?: MouseEvent | TouchEvent) => {
       e?.preventDefault()
-      setActiveIndex(v => Math.max(0, Math.min(readyErrors.length - 1, v + 1)))
+      setActiveIndex((v) =>
+        Math.max(0, Math.min(readyErrors.length - 1, v + 1))
+      )
     },
     [readyErrors.length]
   )
@@ -210,6 +216,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     )
   }
 
+  const isServerError = isNodeError(activeError.error)
   return (
     <Overlay>
       <Dialog
@@ -231,10 +238,20 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
             </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">Unhandled Runtime Error</h1>
+            <h1 id="nextjs__container_errors_label">
+              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+            </h1>
             <p id="nextjs__container_errors_desc">
               {activeError.error.name}: {activeError.error.message}
             </p>
+            {isServerError ? (
+              <div>
+                <small>
+                  This error happened while generating the page. Any console
+                  logs will be displayed in the terminal window.
+                </small>
+              </div>
+            ) : undefined}
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             <RuntimeError key={activeError.id.toString()} error={activeError} />
@@ -270,6 +287,10 @@ export const styles = css`
     margin-top: var(--size-gap-half);
     color: var(--color-ansi-red);
     white-space: pre-wrap;
+  }
+  .nextjs-container-errors-header > div > small {
+    margin: 0;
+    margin-top: var(--size-gap-half);
   }
 
   .nextjs-container-errors-body > h5:not(:first-child) {

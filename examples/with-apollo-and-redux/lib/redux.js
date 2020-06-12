@@ -1,72 +1,74 @@
-import React from 'react'
-import { Provider } from 'react-redux'
-import { initializeStore } from '../store'
-import App from 'next/app'
+import { useMemo } from 'react'
+import { createStore, applyMiddleware } from 'redux'
+import { composeWithDevTools } from 'redux-devtools-extension'
 
-export const withRedux = (PageComponent, { ssr = true } = {}) => {
-  const WithRedux = ({ initialReduxState, ...props }) => {
-    const store = getOrInitializeStore(initialReduxState)
-    return (
-      <Provider store={store}>
-        <PageComponent {...props} />
-      </Provider>
-    )
-  }
+let store
 
-  // Make sure people don't use this HOC on _app.js level
-  if (process.env.NODE_ENV !== 'production') {
-    const isAppHoc =
-      PageComponent === App || PageComponent.prototype instanceof App
-    if (isAppHoc) {
-      throw new Error('The withRedux HOC only works with PageComponents')
-    }
-  }
-
-  // Set the correct displayName in development
-  if (process.env.NODE_ENV !== 'production') {
-    const displayName =
-      PageComponent.displayName || PageComponent.name || 'Component'
-
-    WithRedux.displayName = `withRedux(${displayName})`
-  }
-
-  if (ssr || PageComponent.getInitialProps) {
-    WithRedux.getInitialProps = async context => {
-      // Get or Create the store with `undefined` as initialState
-      // This allows you to set a custom default initialState
-      const reduxStore = getOrInitializeStore()
-
-      // Provide the store to getInitialProps of pages
-      context.reduxStore = reduxStore
-
-      // Run getInitialProps from HOCed PageComponent
-      const pageProps =
-        typeof PageComponent.getInitialProps === 'function'
-          ? await PageComponent.getInitialProps(context)
-          : {}
-
-      // Pass props to PageComponent
-      return {
-        ...pageProps,
-        initialReduxState: reduxStore.getState(),
-      }
-    }
-  }
-
-  return WithRedux
+const initialState = {
+  lastUpdate: 0,
+  light: false,
+  count: 0,
 }
 
-let reduxStore
-const getOrInitializeStore = initialState => {
-  // Always make a new store if server, otherwise state is shared between requests
-  if (typeof window === 'undefined') {
-    return initializeStore(initialState)
+const reducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'TICK':
+      return {
+        ...state,
+        lastUpdate: action.lastUpdate,
+        light: !!action.light,
+      }
+    case 'INCREMENT':
+      return {
+        ...state,
+        count: state.count + 1,
+      }
+    case 'DECREMENT':
+      return {
+        ...state,
+        count: state.count - 1,
+      }
+    case 'RESET':
+      return {
+        ...state,
+        count: initialState.count,
+      }
+    default:
+      return state
+  }
+}
+
+function initStore(preloadedState = initialState) {
+  return createStore(
+    reducer,
+    preloadedState,
+    composeWithDevTools(applyMiddleware())
+  )
+}
+
+export const initializeStore = (preloadedState) => {
+  let _store = store ?? initStore(preloadedState)
+
+  // After navigating to a page with an initial Redux state, merge that state
+  // with the current state in the store, and create a new store
+  if (preloadedState && store) {
+    _store = initStore({
+      ...store.getState(),
+      ...preloadedState,
+    })
+    // Reset the current store
+    store = undefined
   }
 
-  // Create store if unavailable on the client and set it on the window object
-  if (!reduxStore) {
-    reduxStore = initializeStore(initialState)
-  }
+  // For SSG and SSR always create a new store
+  if (typeof window === 'undefined') return _store
+  // Create the store once in the client
+  if (!store) store = _store
 
-  return reduxStore
+  return _store
+}
+
+export function useStore(initialState) {
+  const store = useMemo(() => initializeStore(initialState), [initialState])
+  return store
 }

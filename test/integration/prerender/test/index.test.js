@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 import fs from 'fs-extra'
@@ -26,7 +26,7 @@ import {
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 const indexPage = join(__dirname, '../pages/index.js')
@@ -36,6 +36,7 @@ let buildId
 let distPagesDir
 let exportDir
 let stderr
+let origConfig
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -130,6 +131,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/lang/de/about': {
+    dataRoute: `/_next/data/${buildId}/lang/de/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/en/about': {
+    dataRoute: `/_next/data/${buildId}/lang/en/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/es/about': {
+    dataRoute: `/_next/data/${buildId}/lang/es/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/fr/about': {
+    dataRoute: `/_next/data/${buildId}/lang/fr/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
     initialRevalidateSeconds: false,
@@ -171,7 +192,7 @@ const navigateTest = (dev = false) => {
 
     await waitFor(2500)
 
-    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+    await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -269,7 +290,7 @@ const navigateTest = (dev = false) => {
   })
 }
 
-const runTests = (dev = false, looseMode = false) => {
+const runTests = (dev = false, isEmulatedServerless = false) => {
   navigateTest(dev)
 
   it('should SSR normal page correctly', async () => {
@@ -382,8 +403,13 @@ const runTests = (dev = false, looseMode = false) => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+    expect(
+      await check(() => browser.eval('window.beforeClick'), {
+        test(v) {
+          return v !== 'abc'
+        },
+      })
+    ).toBe(true)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -393,8 +419,13 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-at-first-post').click()
-      await waitFor(3000)
-      expect(await browser.eval('window.beforeClick')).not.toBe('abc')
+      expect(
+        await check(() => browser.eval('window.beforeClick'), {
+          test(v) {
+            return v !== 'abc'
+          },
+        })
+      ).toBe(true)
 
       const text = await browser.elementByCss('#params').text()
       expect(text).toMatch(/post.*?post-999/)
@@ -406,11 +437,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -461,11 +488,7 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
@@ -475,16 +498,48 @@ const runTests = (dev = false, looseMode = false) => {
     const $ = cheerio.load(html)
 
     expect(
-      JSON.parse(
-        cheerio
-          .load(html)('#__NEXT_DATA__')
-          .text()
-      ).isFallback
+      JSON.parse(cheerio.load(html)('#__NEXT_DATA__').text()).isFallback
     ).toBe(false)
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
 
-  if (!looseMode) {
+  if (!isEmulatedServerless) {
+    it('should handle fallback only page correctly HTML', async () => {
+      const browser = await webdriver(appPort, '/fallback-only/first%2Fpost')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toContain('hi fallback')
+
+      // wait for fallback data to load
+      await check(() => browser.elementByCss('p').text(), /Post/)
+
+      // check fallback data
+      const post = await browser.elementByCss('p').text()
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+
+      expect(post).toContain('first/post')
+      expect(params).toEqual({
+        slug: 'first/post',
+      })
+      expect(query).toEqual(params)
+    })
+
+    it('should handle fallback only page correctly data', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(
+          appPort,
+          `/_next/data/${buildId}/fallback-only/second%2Fpost.json`
+        )
+      )
+
+      expect(data.pageProps.params).toEqual({
+        slug: 'second/post',
+      })
+    })
+  }
+
+  if (!isEmulatedServerless) {
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(
         appPort,
@@ -494,17 +549,21 @@ const runTests = (dev = false, looseMode = false) => {
       const html = await res.text()
       expect(html).toMatch(/This page could not be found/)
     })
+
+    it('should allow rewriting to SSG page with fallback: false', async () => {
+      const html = await renderViaHTTP(appPort, '/about')
+      expect(html).toMatch(/About:.*?en/)
+    })
   }
 
   if (dev) {
-    // TODO: re-enable when this is supported in dev
-    // it('should show error when rewriting to dynamic SSG page', async () => {
-    //   const item = Math.round(Math.random() * 100)
-    //   const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
-    //   expect(html).toContain(
-    //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
-    //   )
-    // })
+    it('should show error when rewriting to dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+      expect(html).toContain(
+        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client`
+      )
+    })
 
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
@@ -722,8 +781,13 @@ const runTests = (dev = false, looseMode = false) => {
         /Failed to load static props/
       )
     })
+
+    it('should not contain headers already sent error', async () => {
+      await renderViaHTTP(appPort, '/fallback-only/some-fallback-post')
+      expect(stderr).not.toContain('ERR_HTTP_HEADERS_SENT')
+    })
   } else {
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
@@ -739,7 +803,7 @@ const runTests = (dev = false, looseMode = false) => {
         await check(() => getBrowserBodyText(browser), /hello /)
       })
 
-      it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
         const browser = await webdriver(appPort, '/')
         await browser.elementByCss('#non-json').click()
         await check(() => getBrowserBodyText(browser), /hello /)
@@ -767,6 +831,18 @@ const runTests = (dev = false, looseMode = false) => {
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
           ),
           page: '/another',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-gssp.json$`
+          ),
+          page: '/bad-gssp',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-ssr.json$`
+          ),
+          page: '/bad-ssr',
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -840,6 +916,30 @@ const runTests = (dev = false, looseMode = false) => {
           page: '/default-revalidate',
         },
         {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+          page: '/fallback-only/[slug]',
+          routeKeys: ['slug'],
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/lang/(?<lang>[^/]+?)/about\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          page: '/lang/[lang]/about',
+          routeKeys: ['lang'],
+        },
+        {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
             buildId
           )}/non\\-json/(?<p>[^/]+?)\\.json$`,
@@ -882,7 +982,7 @@ const runTests = (dev = false, looseMode = false) => {
       )
       const escapedBuildId = escapeRegex(buildId)
 
-      Object.keys(manifest.dynamicRoutes).forEach(key => {
+      Object.keys(manifest.dynamicRoutes).forEach((key) => {
         const item = manifest.dynamicRoutes[key]
 
         if (item.dataRouteRegex) {
@@ -913,6 +1013,24 @@ const runTests = (dev = false, looseMode = false) => {
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
+        },
+        '/fallback-only/[slug]': {
+          dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/fallback-only/[slug].html',
+          routeRegex: normalizeRegEx(
+            '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
+        '/lang/[lang]/about': {
+          dataRoute: `/_next/data/${buildId}/lang/[lang]/about.json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx('^\\/lang\\/([^\\/]+?)\\/about(?:\\/)?$'),
         },
         '/non-json/[p]': {
           dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
@@ -967,7 +1085,7 @@ const runTests = (dev = false, looseMode = false) => {
       }
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle de-duping correctly', async () => {
         let vals = new Array(10).fill(null)
 
@@ -997,7 +1115,7 @@ const runTests = (dev = false, looseMode = false) => {
       expect(initialHtml).toBe(newHtml)
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
         const initialHtml = await renderViaHTTP(appPort, route)
@@ -1050,14 +1168,42 @@ const runTests = (dev = false, looseMode = false) => {
       await waitFor(500)
       expect(stderr).not.toMatch(/Failed to update prerender files for/)
     })
+
+    if (isEmulatedServerless) {
+      it('should fail the api function instead of rendering 500', async () => {
+        const res = await fetchViaHTTP(appPort, '/api/bad')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (getServerSideProps)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (render)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-ssr')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should call /_error GIP on 500', async () => {
+        stderr = ''
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+        expect(stderr).toMatch('CUSTOM_ERROR_GIP_CALLED')
+        expect(stderr).not.toMatch('!!! WARNING !!!')
+      })
+    }
   }
 }
 
 describe('SSG Prerender', () => {
-  afterAll(() => fs.remove(nextConfig))
-
   describe('dev mode', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
@@ -1068,6 +1214,10 @@ describe('SSG Prerender', () => {
                 {
                   source: "/some-rewrite/:item",
                   destination: "/blog/post-:item"
+                },
+                {
+                  source: '/about',
+                  destination: '/lang/en/about'
                 }
               ]
             }
@@ -1077,19 +1227,24 @@ describe('SSG Prerender', () => {
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+        onStderr: (msg) => {
           stderr += msg
         },
       })
       buildId = 'development'
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(true)
   })
 
   describe('dev mode getStaticPaths', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         // we set cpus to 1 so that we make sure the requests
@@ -1099,10 +1254,12 @@ describe('SSG Prerender', () => {
       )
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      })
     })
     afterAll(async () => {
-      await fs.remove(nextConfig)
+      await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
 
@@ -1145,6 +1302,7 @@ describe('SSG Prerender', () => {
     beforeAll(async () => {
       // remove firebase import since it breaks in legacy serverless mode
       origBlogPageContent = await fs.readFile(blogPagePath, 'utf8')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
 
       await fs.writeFile(
         blogPagePath,
@@ -1156,7 +1314,19 @@ describe('SSG Prerender', () => {
 
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless' }`,
+        `module.exports = {
+          target: 'serverless',
+          experimental: {
+            rewrites() {
+              return [
+                {
+                  source: '/about',
+                  destination: '/lang/en/about'
+                }
+              ]
+            }
+          }
+        }`,
         'utf8'
       )
       await fs.remove(join(appDir, '.next'))
@@ -1164,7 +1334,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1172,6 +1342,7 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await fs.writeFile(blogPagePath, origBlogPageContent)
       await killApp(app)
     })
@@ -1235,6 +1406,8 @@ describe('SSG Prerender', () => {
   })
 
   describe('enumlated serverless mode', () => {
+    const cstmError = join(appDir, 'pages', '_error.js')
+
     beforeAll(async () => {
       const startServerlessEmulator = async (dir, port, buildId) => {
         const scriptPath = join(dir, 'server.js')
@@ -1243,13 +1416,33 @@ describe('SSG Prerender', () => {
           { ...process.env },
           { PORT: port, BUILD_ID: buildId }
         )
-        return initNextServerScript(scriptPath, /ready on/i, env)
+        return initNextServerScript(scriptPath, /ready on/i, env, false, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
       }
 
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`,
         'utf8'
+      )
+      await fs.writeFile(
+        cstmError,
+        `
+          function Error() {
+            return <div />
+          }
+
+          Error.getInitialProps = () => {
+            console.error('CUSTOM_ERROR_GIP_CALLED')
+            return {}
+          }
+
+          export default Error
+        `
       )
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
@@ -1261,7 +1454,11 @@ describe('SSG Prerender', () => {
       appPort = await findPort()
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.remove(cstmError)
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(false, true)
   })
@@ -1269,7 +1466,6 @@ describe('SSG Prerender', () => {
   describe('production mode', () => {
     let buildOutput = ''
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await fs.remove(join(appDir, '.next'))
       const { stdout } = await nextBuild(appDir, [], { stdout: true })
       buildOutput = stdout
@@ -1277,7 +1473,7 @@ describe('SSG Prerender', () => {
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -1296,8 +1492,23 @@ describe('SSG Prerender', () => {
   })
 
   describe('export mode', () => {
+    // disable fallback: true since this is an error during `next export`
+    const fallbackTruePages = [
+      '/blog/[post]/[comment].js',
+      '/user/[user]/profile.js',
+      '/catchall/[...slug].js',
+      '/non-json/[p].js',
+      '/blog/[post]/index.js',
+      '/fallback-only/[slug].js',
+    ]
+
+    const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
+
+    const fallbackTruePageContents = {}
+
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = {
@@ -1311,6 +1522,24 @@ describe('SSG Prerender', () => {
         }`
       )
       await fs.remove(join(appDir, '.next'))
+
+      for (const page of fallbackTruePages) {
+        const pagePath = join(appDir, 'pages', page)
+        fallbackTruePageContents[page] = await fs.readFile(pagePath, 'utf8')
+        await fs.writeFile(
+          pagePath,
+          fallbackTruePageContents[page].replace(
+            'fallback: true',
+            'fallback: false'
+          )
+        )
+      }
+
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(pagePath, `${pagePath}.bak`)
+      }
+
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
@@ -1318,8 +1547,19 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await stopApp(app)
-      await fs.remove(nextConfig)
+
+      for (const page of fallbackTruePages) {
+        const pagePath = join(appDir, 'pages', page)
+
+        await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
+
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(`${pagePath}.bak`, pagePath)
+      }
     })
 
     it('should copy prerender files and honor exportTrailingSlash', async () => {

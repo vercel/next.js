@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -12,6 +12,7 @@ import {
   nextStart,
   fetchViaHTTP,
   renderViaHTTP,
+  getPageFileFromBuildManifest,
 } from 'next-test-utils'
 import qs from 'querystring'
 import path from 'path'
@@ -20,18 +21,17 @@ import fetch from 'node-fetch'
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
-const buildIdFile = join(appDir, '.next/BUILD_ID')
 let stderr = ''
 let appPort
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Serverless', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort, {
-      onStderr: msg => {
+      onStderr: (msg) => {
         stderr += msg || ''
       },
     })
@@ -172,15 +172,12 @@ describe('Serverless', () => {
 
   it('should not have combined client-side chunks', () => {
     expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
-    const buildId = readFileSync(buildIdFile, 'utf8').trim()
 
-    const pageContent = join(
-      appDir,
-      '.next/static',
-      buildId,
-      'pages/dynamic.js'
-    )
-    expect(readFileSync(pageContent, 'utf8')).not.toContain('Hello!')
+    const pageFile = getPageFileFromBuildManifest(appDir, '/')
+
+    expect(
+      readFileSync(join(__dirname, '..', '.next', pageFile), 'utf8')
+    ).not.toContain('Hello!')
   })
 
   it('should not output _app.js and _document.js to serverless build', () => {
@@ -259,7 +256,7 @@ describe('Serverless', () => {
           1: encodeURIComponent(paramRaw),
         }),
       },
-    }).then(res => res.text())
+    }).then((res) => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())
 
@@ -272,10 +269,10 @@ describe('Serverless', () => {
     const html = await fetchViaHTTP(appPort, `/catchall/[...slug]`, '', {
       headers: {
         'x-now-route-matches': qs.stringify({
-          1: paramRaw.map(e => encodeURIComponent(e)).join('/'),
+          1: paramRaw.map((e) => encodeURIComponent(e)).join('/'),
         }),
       },
-    }).then(res => res.text())
+    }).then((res) => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())
 

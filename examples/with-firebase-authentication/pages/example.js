@@ -1,7 +1,6 @@
-import React from 'react'
 import Link from 'next/link'
 
-const Example = props => {
+const Example = (props) => {
   return (
     <div>
       <p>
@@ -14,11 +13,5 @@ const Example = props => {
     </div>
   )
 }
-
-Example.displayName = 'Example'
-
-Example.propTypes = {}
-
-Example.defaultProps = {}
 
 export default Example

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   findPort,
@@ -10,7 +10,7 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
@@ -19,8 +19,8 @@ const appDir = join(__dirname, '../')
 const runTests = () => {
   it('should handle / correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('hello from index')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('page could not be found')
   })
 
   it('should handle /index correctly', async () => {

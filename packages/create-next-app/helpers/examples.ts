@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import got from 'got'
 import tar from 'tar'
 import { Stream } from 'stream'
@@ -13,7 +14,7 @@ export type RepoInfo = {
 }
 
 export async function isUrlOk(url: string): Promise<boolean> {
-  const res = await got(url).catch(e => e)
+  const res = await got(url).catch((e) => e)
   return res.statusCode === 200
 }
 
@@ -29,7 +30,7 @@ export async function getRepoInfo(
   if (t === undefined) {
     const infoResponse = await got(
       `https://api.github.com/repos/${username}/${name}`
-    ).catch(e => e)
+    ).catch((e) => e)
     if (infoResponse.statusCode !== 200) {
       return
     }
@@ -61,7 +62,7 @@ export function hasRepo({
 
 export function hasExample(name: string): Promise<boolean> {
   return isUrlOk(
-    `https://api.github.com/repos/zeit/next.js/contents/examples/${encodeURIComponent(
+    `https://api.github.com/repos/vercel/next.js/contents/examples/${encodeURIComponent(
       name
     )}/package.json`
   )
@@ -86,15 +87,12 @@ export function downloadAndExtractExample(
   root: string,
   name: string
 ): Promise<void> {
+  if (name === '__internal-testing-retry') {
+    throw new Error('This is an internal example for testing the CLI.')
+  }
+
   return pipeline(
-    got.stream('https://codeload.github.com/zeit/next.js/tar.gz/canary'),
+    got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
     tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
   )
-}
-
-export async function listExamples(): Promise<any> {
-  const res = await got(
-    'https://api.github.com/repositories/70107786/contents/examples'
-  )
-  return JSON.parse(res.body)
 }

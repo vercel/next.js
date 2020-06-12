@@ -1,4 +1,3 @@
-import React from 'react'
 import FirebaseAuth from '../components/FirebaseAuth'
 
 const Auth = () => {
@@ -11,7 +10,5 @@ const Auth = () => {
     </div>
   )
 }
-
-Auth.propTypes = {}
 
 export default Auth

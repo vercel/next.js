@@ -7,7 +7,7 @@ description: Next.js supports TypeScript by default and has built-in types for p
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
   </ul>
 </details>
 
@@ -54,7 +54,7 @@ For `getStaticProps`, `getStaticPaths`, and `getServerSideProps`, you can use th
 ```ts
 import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async context => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
 
@@ -62,7 +62,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
   // ...
 }
 
-export const getServerSideProps: GetServerSideProps = async context => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
   // ...
 }
 ```
@@ -97,14 +97,27 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 
 ## Custom `App`
 
-If you have a [custom `App` ](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
+If you have a [custom `App`](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
-import { AppProps } from 'next/app'
+// import App from "next/app";
+import type { AppProps /*, AppContext */ } from 'next/app'
 
 function MyApp({ Component, pageProps }: AppProps) {
   return <Component {...pageProps} />
 }
+
+// Only uncomment this method if you have blocking data requirements for
+// every single page in your application. This disables the ability to
+// perform automatic static optimization, causing every page in your app to
+// be server-side rendered.
+//
+// MyApp.getInitialProps = async (appContext: AppContext) => {
+//   // calls page's `getInitialProps` and fills `appProps.pageProps`
+//   const appProps = await App.getInitialProps(appContext);
+
+//   return { ...appProps }
+// }
 
 export default MyApp
 ```

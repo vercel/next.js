@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import {
   check,
@@ -12,7 +12,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 let appPort
 let app
@@ -22,6 +22,7 @@ describe('TypeScript HMR', () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort, {
       env: {
+        __NEXT_TEST_WITH_DEVTOOL: 1,
         // Events can be finicky in CI. This switches to a more reliable
         // polling method.
         CHOKIDAR_USEPOLLING: 'true',

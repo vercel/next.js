@@ -20,7 +20,7 @@ function ActiveLink({ children, href }) {
     color: router.pathname === href ? 'red' : 'black',
   }
 
-  const handleClick = e => {
+  const handleClick = (e) => {
     e.preventDefault()
     router.push(href)
   }
@@ -42,12 +42,10 @@ export default ActiveLink
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
 - `pathname`: `String` - Current route. That is the path of the page in `/pages`
-- `query`: `Object` - The query string parsed to an object. Defaults to `{}`
+- `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - Actual path (including the query) shown in the browser
 
 Additionally, the [`Router API`](#router-api) is also included inside the object.
-
-> The `query` object will be empty during prerendering if the page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
 
 ## withRouter
 
@@ -72,7 +70,7 @@ The API of `Router`, exported by `next/router`, is defined below.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/using-router">Using Router</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/using-router">Using Router</a></li>
   </ul>
 </details>
 
@@ -178,7 +176,7 @@ import { useCallback, useEffect } from 'react'
 import Router from 'next/router'
 
 export default function Login() {
-  const handleSubmit = useCallback(e => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault()
 
     fetch('/api/login', {
@@ -187,7 +185,7 @@ export default function Login() {
       body: JSON.stringify({
         /* Form data */
       }),
-    }).then(res => {
+    }).then((res) => {
       // Do a fast client-side transition to the already prefetched dashboard page
       if (res.ok) Router.push('/dashboard')
     })
@@ -262,7 +260,7 @@ Router.reload()
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-loading">With a page loading indicator</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-loading">With a page loading indicator</a></li>
   </ul>
 </details>
 
@@ -283,7 +281,7 @@ For example, to listen to the router event `routeChangeStart`, do the following:
 ```jsx
 import Router from 'next/router'
 
-const handleRouteChange = url => {
+const handleRouteChange = (url) => {
   console.log('App is changing to: ', url)
 }
 
@@ -316,7 +314,7 @@ Router events should be registered when a component mounts ([useEffect](https://
 import Router from 'next/router'
 
 useEffect(() => {
-  const handleRouteChange = url => {
+  const handleRouteChange = (url) => {
     console.log('App is changing to: ', url)
   }
 
