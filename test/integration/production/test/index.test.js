@@ -151,29 +151,37 @@ describe('Production Usage', () => {
     })
 
     it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
           headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
-        }
-      )
-      expect(res.status).toBe(412)
+        })
+        expect(res.status).toBe(412)
+      }
     })
 
     it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
           headers: { 'if-unmodified-since': 'nextjs' },
-        }
-      )
-      expect(res.status).toBe(200)
+        })
+        expect(res.status).toBe(200)
+      }
     })
 
     it('should set Content-Length header', async () => {
@@ -183,7 +191,6 @@ describe('Production Usage', () => {
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
       const reactLoadableManifest = require(join(
         '../.next',
@@ -193,12 +200,9 @@ describe('Production Usage', () => {
 
       const resources = new Set()
 
-      // test a regular page
-      resources.add(`${url}static/${buildId}/pages/index.js`)
-
       // test dynamic chunk
       resources.add(
-        url + reactLoadableManifest['../../components/hello1'][0].publicPath
+        url + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc
@@ -316,6 +320,25 @@ describe('Production Usage', () => {
 
       expect(text).toBe('Hello World')
       await browser.close()
+    })
+
+    it('should set title by routeChangeComplete event', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(function setup() {
+        window.next.router.events.on('routeChangeComplete', function handler(
+          url
+        ) {
+          window.routeChangeTitle = document.title
+          window.routeChangeUrl = url
+        })
+        window.next.router.push('/with-title')
+      })
+      await browser.waitForElementByCss('#with-title')
+
+      const title = await browser.eval(`window.routeChangeTitle`)
+      const url = await browser.eval(`window.routeChangeUrl`)
+      expect(title).toBe('hello from title')
+      expect(url).toBe('/with-title')
     })
   })
 
@@ -562,16 +585,6 @@ describe('Production Usage', () => {
 
         // Let the browser to prefetch the page and error it on the console.
         await waitFor(3000)
-        const browserLogs = await browser.log('browser')
-        let foundLog = false
-        browserLogs.forEach((log) => {
-          if (
-            log.message.match(/\/no-such-page\.js - Failed to load resource/)
-          ) {
-            foundLog = true
-          }
-        })
-        expect(foundLog).toBe(true)
 
         // When we go to the 404 page, it'll do a hard reload.
         // So, it's possible for the front proxy to load a page from another zone.

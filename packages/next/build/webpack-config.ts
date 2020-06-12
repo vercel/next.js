@@ -687,6 +687,14 @@ export default async function getBaseWebpackConfig(
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
+
+        if (chunk.name.includes('BUILD_ID')) {
+          return escapePathVariables(chunk.name).replace(
+            'BUILD_ID',
+            isServer || dev ? buildId : '[contenthash]'
+          )
+        }
+
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
@@ -803,7 +811,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(crossOrigin),
+        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE

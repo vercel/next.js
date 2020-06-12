@@ -24,7 +24,6 @@ export function createPagesMapping(
       let page = `${pagePath
         .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
-      page = page === '/index' ? '/' : page
 
       const pageKey = page === '' ? '/' : page
 
@@ -101,7 +100,7 @@ export function createEntrypoints(
     const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
 
-    const bundlePath = join('static', buildId, 'pages', bundleFile)
+    const bundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
