@@ -6,9 +6,9 @@ Deployed Demo: [https://next-userbase.now.sh](https://next-userbase.now.sh)
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Once you have access to [the environment variables you'll need](#step-2-setting-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=encodeURI(The Userbase app ID, found in the Userbase dashboard.&envLink=https://v1.userbase.com/#))
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
 
 ## How to use
 
@@ -83,8 +83,16 @@ Your todo app should be up and running on [http://localhost:3000](http://localho
 
 ### Step 4. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variable using the [Vercel dashboard](https://vercel.com/dashboard) ([Documentation](https://vercel.com/docs/v2/build-step#environment-variables)).
+#### Deploy Your Local Project
 
-You can do this when importing your project by selecting the environment variables dropdown, and using a name of `NEXT_PUBLIC_USERBASE_APP_ID` with the [Userbase app ID](https://v1.userbase.com/#) as the value.
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
