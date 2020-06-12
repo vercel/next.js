@@ -9,6 +9,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - **Live**: [https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
 - **Preview Mode**: [https://next-blog-agilitycms.now.sh/?agilitypreviewkey=...](https://next-blog-agilitycms.now.sh/?agilitypreviewkey=GzL%2fio1pLkfKc9BR1%2fC1cDQeKjL0AkwrTAJ22q3UEjAcOhyrqZejDkDv4kMlBKqrEuQxsuRyiP%2bUaykDYlJ%2fJg%3d%3d)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-15-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS.%20More%20details%20on%20https://vercel.link/agility-cms-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -263,18 +269,18 @@ Go to the **Getting Started** section from the menu and click on **API Keys**. Y
 
 Then set each variable on `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_AGILITY_GUID` should be the **Instance GUID** field
-- `NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY` should be the **Live API Key** field
-- `NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY` should be the **Preview API Key** field - this is used when the site is in [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
-- `NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY` should be the **Security Key** field that can be found in **Settings** > **Global Security** - this is used to communicate between the CMS and your site to validate [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)
+- `AGILITY_CMS_GUID` should be the **Instance GUID** field
+- `AGILITY_CMS_API_FETCH_KEY` should be the **Live API Key** field
+- `AGILITY_CMS_API_PREVIEW_KEY` should be the **Preview API Key** field - this is used when the site is in [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
+- `AGILITY_CMS_SECURITY_KEY` should be the **Security Key** field that can be found in **Settings** > **Global Security** - this is used to communicate between the CMS and your site to validate [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)
 
 Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_AGILITY_GUID=...
-NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY=...
-NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY=...
-NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY=...
+AGILITY_CMS_GUID=...
+AGILITY_CMS_API_FETCH_KEY=...
+AGILITY_CMS_API_PREVIEW_KEY=...
+AGILITY_CMS_SECURITY_KEY=...
 ```
 
 ### Step 16. Run Next.js in development mode
@@ -293,20 +299,19 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 17. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+#### Deploy Your Local Project
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable with the corresponding strings in `.env.local`:
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-```
-vercel secrets add next_example_cms_agility_guid <NEXT_EXAMPLE_CMS_AGILITY_GUID>
-vercel secrets add next_example_cms_agility_api_fetch_key <NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY>
-vercel secrets add next_example_cms_agility_api_preview_key <NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY>
-vercel secrets add next_example_cms_agility_security_key <NEXT_EXAMPLE_CMS_AGILITY_SECURITY_KEY>
-```
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS.%20More%20details%20on%20https://vercel.link/agility-cms-env)
 
 ### Step 18. Try preview mode
 
