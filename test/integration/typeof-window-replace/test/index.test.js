@@ -36,7 +36,7 @@ describe('typeof window replace', () => {
   })
 
   it('Replaces `typeof window` with undefined for server code', async () => {
-    const pageFile = pagesManifest['/']
+    const pageFile = pagesManifest.pages['/']
 
     const content = await fs.readFile(
       path.join(appDir, '.next', 'server', pageFile),

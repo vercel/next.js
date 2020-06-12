@@ -69,7 +69,7 @@ const runTests = (mode = 'server') => {
       const manifest = await fs.readJSON(
         join(appDir, '.next', mode, 'pages-manifest.json')
       )
-      expect('/404' in manifest).toBe(true)
+      expect('/404' in manifest.pages).toBe(true)
     })
   }
 }
