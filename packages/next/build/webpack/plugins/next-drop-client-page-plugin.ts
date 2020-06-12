@@ -48,7 +48,7 @@ export class DropClientPage implements Plugin {
         compilation.hooks.optimizeChunksBasic.tap(PLUGIN_NAME, (chunks) => {
           for (let i = chunks.length - 1; i >= 0; i--) {
             const chunk = chunks[i]
-            if (!chunk.entryModule.buildMeta.NEXT_ampFirst) {
+            if (!chunk?.entryModule?.buildMeta?.NEXT_ampFirst) {
               continue
             }
 
