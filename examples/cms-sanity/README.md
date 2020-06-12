@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### [https://next-blog-sanity.now.sh/](https://next-blog-sanity.now.sh/)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-4-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&env=SANITY_PREVIEW_SECRET,SANITY_API_TOKEN,SANITY_PROJECT_ID&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity.%20More%20details%20on%20https://vercel.link/cms-sanity-env)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -17,7 +23,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Agility CMS](/examples/cms-agilitycms)
 - [Cosmic](/examples/cms-cosmic)
 - [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
+- [Storyblok](/examples/cms-storyblok)f
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -63,24 +69,24 @@ Log into https://manage.sanity.io/ and choose the project you just created. Then
 
 ### Step 4. Set up environment variables
 
-Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
-- `NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID`: Get the `projectId` value from the `sanity.json` file created in step 2.
-- `NEXT_EXAMPLE_CMS_SANITY_API_TOKEN`: Copy the API token generated in the previous step.
+- `SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `SANITY_PROJECT_ID`: Get the `projectId` value from the `sanity.json` file created in step 2.
+- `SANITY_API_TOKEN`: Copy the API token generated in the previous step.
 
-Your `.env` file should look like this:
+Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET=...
-NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID=...
-NEXT_EXAMPLE_CMS_SANITY_API_TOKEN=...
+SANITY_PREVIEW_SECRET=...
+SANITY_PROJECT_ID=...
+SANITY_API_TOKEN=...
 ```
 
 ### Step 5. Prepare project for previewing
@@ -90,7 +96,7 @@ Go to https://www.sanity.io/docs/preview-content-on-site and follow the three st
 When you get to the second step about creating a file called `resolveProductionUrl.js`, copy the following instead:
 
 ```js
-const previewSecret = 'MY_SECRET' // Copy the string you used for NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET
+const previewSecret = 'MY_SECRET' // Copy the string you used for SANITY_PREVIEW_SECRET
 const projectUrl = 'http://localhost:3000'
 
 export default function resolveProductionUrl(document) {
@@ -153,16 +159,16 @@ You should now be able to see the updated title. To exit the preview mode, you c
 
 ### Step 10. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+#### Deploy Your Local Project
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable with the corresponding strings in `.env`.
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-```
-now secrets add next_example_cms_sanity_preview_secret <NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>
-now secrets add next_example_cms_sanity_api_token <NEXT_EXAMPLE_CMS_SANITY_API_TOKEN>
-now secrets add next_example_cms_sanity_project_id <NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID>
-```
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&env=SANITY_PREVIEW_SECRET,SANITY_API_TOKEN,SANITY_PROJECT_ID&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity.%20More%20details%20on%20https://vercel.link/cms-sanity-env)
