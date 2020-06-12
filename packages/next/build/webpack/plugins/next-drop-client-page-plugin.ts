@@ -1,29 +1,70 @@
 import { Compiler, Plugin } from 'webpack'
-import { extname } from 'path'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
+import Entrypoint from 'webpack/lib/Entrypoint'
+
+const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
+
+// Recursively look up the issuer till it ends up at the root
+function findEntryModule(issuer: any): any {
+  if (issuer.issuer) {
+    return findEntryModule(issuer.issuer)
+  }
+
+  return issuer
+}
+
+function handler(parser: any) {
+  function markAsAmpFirst() {
+    const entryModule = findEntryModule(parser.state.module)
+
+    entryModule.buildMeta.NEXT_ampFirst = true
+  }
+
+  parser.hooks.varDeclarationConst
+    .for(STRING_LITERAL_DROP_BUNDLE)
+    .tap(PLUGIN_NAME, markAsAmpFirst)
+
+  parser.hooks.varDeclarationLet
+    .for(STRING_LITERAL_DROP_BUNDLE)
+    .tap(PLUGIN_NAME, markAsAmpFirst)
+
+  parser.hooks.varDeclaration
+    .for(STRING_LITERAL_DROP_BUNDLE)
+    .tap(PLUGIN_NAME, markAsAmpFirst)
+}
 
 // Prevents outputting client pages when they are not needed
 export class DropClientPage implements Plugin {
   ampPages = new Set()
 
   apply(compiler: Compiler) {
-    compiler.hooks.emit.tap('DropClientPage', (compilation) => {
-      Object.keys(compilation.assets).forEach((assetKey) => {
-        const asset = compilation.assets[assetKey]
+    compiler.hooks.compilation.tap(
+      PLUGIN_NAME,
+      (compilation, { normalModuleFactory }) => {
+        normalModuleFactory.hooks.parser
+          .for('javascript/auto')
+          .tap(PLUGIN_NAME, handler)
 
-        if (asset?._value?.includes?.('__NEXT_DROP_CLIENT_FILE__')) {
-          const cleanAssetKey = assetKey.replace(/\\/g, '/')
-          const page = '/' + cleanAssetKey.split('pages/')[1]
-          const pageNoExt = page.split(extname(page))[0]
+        compilation.hooks.optimizeChunksBasic.tap(PLUGIN_NAME, (chunks) => {
+          for (let i = chunks.length - 1; i >= 0; i--) {
+            const chunk = chunks[i]
+            if (!chunk.entryModule.buildMeta.NEXT_ampFirst) {
+              continue
+            }
 
-          delete compilation.assets[assetKey]
+            for (const group of chunk.groupsIterable) {
+              if (!(group instanceof Entrypoint)) {
+                continue
+              }
 
-          // Detect being re-ran through a child compiler and don't re-mark the
-          // page as AMP
-          if (!pageNoExt.endsWith('.module')) {
-            this.ampPages.add(pageNoExt.replace(/\/index$/, '') || '/')
+              group.NEXT_ampFirst = true
+            }
+
+            chunk.remove('AMP First page')
+            chunks.splice(i, 1)
           }
-        }
-      })
-    })
+        })
+      }
+    )
   }
 }
