@@ -527,7 +527,7 @@ export function getPagesManifest(dir) {
 
 export function getPageFileFromPagesManifest(dir, page) {
   const pagesManifest = getPagesManifest(dir)
-  const pageFile = pagesManifest[page]
+  const pageFile = pagesManifest.pages[page]
   if (!pageFile) {
     throw new Error(`No file for page ${page}`)
   }
