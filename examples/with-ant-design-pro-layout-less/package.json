@@ -24,6 +24,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "13.13.4",
+    "@types/react": "^16.9.36",
     "typescript": "3.8.3"
   }
 }
