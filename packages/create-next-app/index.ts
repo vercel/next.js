@@ -50,7 +50,7 @@ async function run(): Promise<void> {
   if (currentNodeVersion < 10.13) {
     console.error(
       chalk.red(
-        `The version of NodeJs you are using is lower than the minimum required version (10.13.x)`
+        `Your current node version ${currentNodeVersion} is not supported! The minimum supported version is 10.13 and above!`
       )
     )
     process.exit(1)

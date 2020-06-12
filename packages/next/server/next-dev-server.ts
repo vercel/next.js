@@ -34,12 +34,12 @@ import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 // NodeJs Version Validation
-var currentNodeVersion: Number = parseFloat(process.versions.node)
+const currentNodeVersion: Number = parseFloat(process.versions.node)
 
 // Throws an Error if NodeJs Version is less than 10.13.x
 if (currentNodeVersion < 10.13) {
   throw new Error(
-    `The version of NodeJs you are using is lower than the minimum required version (10.13.x)`
+    `Your current node version ${currentNodeVersion} is not supported! The minimum supported version is 10.13 and above!`
   )
 }
 
