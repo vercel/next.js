@@ -440,7 +440,9 @@ function runTests(dev = false) {
           'utf8'
         )
       )
-      expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
+      expect(
+        Object.keys(pagesManifest.pages).includes('/api/[post]')
+      ).toBeTruthy()
 
       const res = await fetchViaHTTP(appPort, '/api/nextjs')
       const json = await res.json()

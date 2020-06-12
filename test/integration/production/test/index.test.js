@@ -609,9 +609,9 @@ describe('Production Usage', () => {
     // See: https://github.com/vercel/next.js/issues/4920
     const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
 
-    for (let key of Object.keys(pagesManifest)) {
+    for (let key of Object.keys(pagesManifest.pages)) {
       expect(key).not.toMatch(/\\/)
-      expect(pagesManifest[key]).not.toMatch(/\\/)
+      expect(pagesManifest.pages[key]).not.toMatch(/\\/)
     }
   })
 
