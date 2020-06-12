@@ -59,7 +59,6 @@ export default class BuildManifestPlugin {
       (compilation, callback) => {
         const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
-          nextVersion: process.env.__NEXT_VERSION ?? '',
           polyfillFiles: [],
           devFiles: [],
           lowPriorityFiles: [],

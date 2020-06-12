@@ -37,10 +37,10 @@ export function getPagePath(
     throw pageNotFoundError(page)
   }
 
-  if (!pagesManifest[page]) {
+  if (!pagesManifest.pages[page]) {
     throw pageNotFoundError(page)
   }
-  return join(serverBuildPath, pagesManifest[page])
+  return join(serverBuildPath, pagesManifest.pages[page])
 }
 
 export function requirePage(

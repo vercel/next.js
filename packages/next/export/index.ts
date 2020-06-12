@@ -144,13 +144,20 @@ export default async function exportApp(
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest =
-    !options.pages &&
-    (require(join(
+
+  let pages: string[] = []
+
+  if (!options.pages) {
+    const pagesManifest = require(join(
       distDir,
       isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
       PAGES_MANIFEST
-    )) as PagesManifest)
+    )) as PagesManifest
+
+    pages = Object.keys(pagesManifest.pages)
+  } else {
+    pages = options.pages
+  }
 
   let prerenderManifest: PrerenderManifest | undefined = undefined
   try {
@@ -166,7 +173,6 @@ export default async function exportApp(
   )
 
   const excludedPrerenderRoutes = new Set<string>()
-  const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
   let hasApiRoutes = false
 
