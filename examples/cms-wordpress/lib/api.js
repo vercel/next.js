@@ -1,12 +1,12 @@
-const API_URL = process.env.NEXT_EXAMPLE_CMS_WORDPRESS_API_URL
+const API_URL = process.env.WORDPRESS_API_URL
 
 async function fetchAPI(query, { variables } = {}) {
   const headers = { 'Content-Type': 'application/json' }
 
-  if (process.env.NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN) {
+  if (process.env.WORDPRESS_AUTH_REFRESH_TOKEN) {
     headers[
       'Authorization'
-    ] = `Bearer ${process.env.NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN}`
+    ] = `Bearer ${process.env.WORDPRESS_AUTH_REFRESH_TOKEN}`
   }
 
   const res = await fetch(API_URL, {

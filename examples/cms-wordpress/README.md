@@ -6,6 +6,12 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### [https://next-blog-wordpress.now.sh](https://next-blog-wordpress.now.sh)
 
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress&env=WORDPRESS_API_URL&envDescription=Required%20to%20connect%20the%20app%20with%20WordPress.%20More%20details%20on%20https://vercel.link/cms-wordpress-env)
+
 ### Related examples
 
 - [DatoCMS](/examples/cms-datocms)
@@ -94,16 +100,16 @@ Copy the `.env.local.example` file in this directory to `.env.local` (which will
 cp .env.local.example .env.local
 ```
 
-Then open `.env.local` and set `NEXT_EXAMPLE_CMS_WORDPRESS_API_URL` to be the URL to your GraphQL endpoint in WordPress. For example: `https://myapp.wpengine.com/graphql`.
+Then open `.env.local` and set `WORDPRESS_API_URL` to be the URL to your GraphQL endpoint in WordPress. For example: `https://myapp.wpengine.com/graphql`.
 
 Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_WORDPRESS_API_URL=...
+WORDPRESS_API_URL=...
 
 # Only required if you want to enable preview mode
-# NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN=
-# NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=
+# WORDPRESS_AUTH_REFRESH_TOKEN=
+# WORDPRESS_PREVIEW_SECRET=
 ```
 
 ### Step 4. Run Next.js in development mode
@@ -124,7 +130,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 **This step is optional.** By default, the blog will work with public posts from your WordPress site. Private content such as unpublished posts and private fields cannot be retrieved. To have access to unpublished posts you'll need to set up authentication.
 
-To add [authentication to WPGraphQL](https://docs.wpgraphql.com/guides/authentication-and-authorization/), first you need to add the [WPGraphQL JWT plugin](https://github.com/wp-graphql/wp-graphql-jwt-authentication) to your Wordpress Admin following the same process you used to add the WPGraphQL plugin.
+To add [authentication to WPGraphQL](https://docs.wpgraphql.com/guides/authentication-and-authorization/), first you need to add the [WPGraphQL JWT plugin](https://github.com/wp-graphql/wp-graphql-jwt-authentication) to your WordPress Admin following the same process you used to add the WPGraphQL plugin.
 
 > Adding the WPGraphQL JWT plugin will disable your GraphQL API until you add a JWT secret ([GitHub issue](https://github.com/wp-graphql/wp-graphql-jwt-authentication/issues/91)).
 
@@ -159,17 +165,17 @@ mutation Login {
 
 Copy the `refreshToken` returned by the mutation, then open `.env.local`, and make the following changes:
 
-- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you just received.
-- Uncomment `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET` and set it to be any random string (ideally URL friendly).
+- Uncomment `WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you just received.
+- Uncomment `WORDPRESS_PREVIEW_SECRET` and set it to be any random string (ideally URL friendly).
 
 Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_WORDPRESS_API_URL=...
+WORDPRESS_API_URL=...
 
 # Only required if you want to enable preview mode
-NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN=...
-NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET=...
+WORDPRESS_AUTH_REFRESH_TOKEN=...
+WORDPRESS_PREVIEW_SECRET=...
 ```
 
 **Important:** Restart your Next.js server to update the environment variables.
@@ -186,7 +192,7 @@ To enable Preview Mode, go to this URL:
 http://localhost:3000/api/preview?secret=<secret>&id=<id>
 ```
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET`.
+- `<secret>` should be the string you entered for `WORDPRESS_PREVIEW_SECRET`.
 - `<id>` should be the post's `databaseId` field, which is the integer that you usually see in the URL (`?post=18` → 18).
 - Alternatively, you can use `<slug>` instead of `<id>`. `<slug>` is generated based on the title.
 
@@ -194,18 +200,16 @@ You should now be able to see this post. To exit Preview Mode, you can click on 
 
 ### Step 7. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables with **Vercel Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
+#### Deploy Your Local Project
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace the values with the corresponding strings in `.env.local`:
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-```bash
-vercel secrets add next_example_cms_wordpress_api_url <NEXT_EXAMPLE_CMS_WORDPRESS_API_URL>
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-# If you added authentication for preview mode:
-vercel secrets add next_example_cms_wordpress_auth_refresh_token <NEXT_EXAMPLE_CMS_WORDPRESS_AUTH_REFRESH_TOKEN>
-vercel secrets add next_example_cms_wordpress_preview_secret <NEXT_EXAMPLE_CMS_WORDPRESS_PREVIEW_SECRET>
-```
+#### Deploy from Our Template
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress&env=WORDPRESS_API_URL&envDescription=Required%20to%20connect%20the%20app%20with%20WordPress.%20More%20details%20on%20https://vercel.link/cms-wordpress-env)
