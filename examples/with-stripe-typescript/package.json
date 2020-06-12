@@ -18,7 +18,8 @@
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "stripe": "8.56.0",
-    "swr": "^0.1.16"
+    "swr": "^0.1.16",
+    "use-shopping-cart": "2.0.0"
   },
   "devDependencies": {
     "@types/micro": "^7.3.3",
