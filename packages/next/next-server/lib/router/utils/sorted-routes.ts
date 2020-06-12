@@ -127,7 +127,7 @@ class UrlNode {
           }
         }
 
-        slugNames.forEach(slug => {
+        slugNames.forEach((slug) => {
           if (slug === nextSlug) {
             throw new Error(
               `You cannot have the same slug name "${nextSlug}" repeat within a single dynamic path`
