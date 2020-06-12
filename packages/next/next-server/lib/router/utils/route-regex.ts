@@ -69,16 +69,17 @@ export function getRouteRegex(
           : `/(?<${cleanedKey}>[^/]+?)`
       }
     )
+
+    return {
+      re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+      groups,
+      routeKeys,
+      namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
+    }
   }
 
   return {
     re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
     groups,
-    ...(namedParameterizedRoute
-      ? {
-          routeKeys,
-          namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
-        }
-      : {}),
   }
 }
