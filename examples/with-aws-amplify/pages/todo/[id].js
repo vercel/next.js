@@ -30,23 +30,18 @@ export const getStaticPaths = async () => {
 }
 
 export const getStaticProps = async ({ params: { id } }) => {
-  try {
-    const todo = await API.graphql({
-      ...graphqlOperation(getTodo),
-      variables: { id },
-    })
-    if (todo.errors) {
-      console.log('Failed to fetch todo. ', todo.errors)
-      throw new Error(todo.errors)
-    }
-    return {
-      props: {
-        todo: todo.data.getTodo,
-      },
-    }
-  } catch (err) {
-    console.log('Failed to fetch todo. ', err)
-    throw new Error(err)
+  const todo = await API.graphql({
+    ...graphqlOperation(getTodo),
+    variables: { id },
+  })
+  if (todo.errors) {
+    console.log('Failed to fetch todo. ', todo.errors)
+    throw new Error(todo.errors)
+  }
+  return {
+    props: {
+      todo: todo.data.getTodo,
+    },
   }
 }
 
