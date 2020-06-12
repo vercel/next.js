@@ -499,15 +499,13 @@ function runTests(dev) {
     })
   } else {
     it('should output modern bundles with dynamic route correctly', async () => {
-      const bundlePath = join(
-        appDir,
-        '.next/static/',
-        buildId,
-        'pages/blog/[name]/comment/[id]'
-      )
+      const buildManifest = require(join('../.next', 'build-manifest.json'))
 
-      await fs.access(bundlePath + '.js', fs.constants.F_OK)
-      await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
+      const files = buildManifest.pages[
+        '/blog/[name]/comment/[id]'
+      ].filter((filename) => filename.includes('/blog/[name]/comment/[id]'))
+
+      expect(files.length).toBe(2)
     })
 
     it('should output a routes-manifest correctly', async () => {
