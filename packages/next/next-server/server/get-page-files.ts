@@ -1,7 +1,6 @@
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 
 export type BuildManifest = {
-  nextVersion: string
   devFiles: string[]
   polyfillFiles: string[]
   lowPriorityFiles: string[]
