@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import uuidv4 from 'uuid/v4'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * User methods. The example doesn't contain a DB, but for real applications you must use a
