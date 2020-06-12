@@ -324,8 +324,10 @@ describe('Production Usage', () => {
 
     it('should set title by routeChangeComplete event', async () => {
       const browser = await webdriver(appPort, '/')
-      await browser.eval(() => {
-        window.next.router.events.on('routeChangeComplete', (url) => {
+      await browser.eval(function setup() {
+        window.next.router.events.on('routeChangeComplete', function handler(
+          url
+        ) {
           window.routeChangeTitle = document.title
           window.routeChangeUrl = url
         })
@@ -333,8 +335,8 @@ describe('Production Usage', () => {
       })
       await browser.waitForElementByCss('#with-title')
 
-      const title = await browser.eval(() => window.routeChangeTitle)
-      const url = await browser.eval(() => window.routeChangeUrl)
+      const title = await browser.eval(`window.routeChangeTitle`)
+      const url = await browser.eval(`window.routeChangeUrl`)
       expect(title).toBe('hello from title')
       expect(url).toBe('/with-title')
     })
