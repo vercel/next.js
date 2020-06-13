@@ -9,18 +9,33 @@ export const ampFirstEntryNamesMap: WeakMap<
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
 // Recursively look up the issuer till it ends up at the root
-function findEntryModule(issuer: any): any {
-  if (issuer.issuer) {
-    return findEntryModule(issuer.issuer)
+function findEntryModule(mod: any): CompilationType.Module | null {
+  if (mod.reasons) {
+    for (const reason of mod.reasons) {
+      // Top level modules don't have reasons including a module
+      if (!reason.module) {
+        return mod
+      }
+
+      const foundEntryModule = findEntryModule(reason.module)
+      if (foundEntryModule) {
+        return foundEntryModule
+      }
+    }
   }
 
-  return issuer
+  return null
 }
 
 function handler(parser: any) {
   function markAsAmpFirst() {
     const entryModule = findEntryModule(parser.state.module)
 
+    if (!entryModule) {
+      return
+    }
+
+    // @ts-ignore buildInfo exists on Module
     entryModule.buildInfo.NEXT_ampFirst = true
   }
 
