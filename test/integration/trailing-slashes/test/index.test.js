@@ -218,6 +218,23 @@ describe('Trailing slashes', () => {
     })
 
     testWithTrailingSlash()
+
+    it('should have a redirect in the routesmanifest', async () => {
+      const manifest = await fs.readJSON(
+        join(appDir, '.next', 'routes-manifest.json')
+      )
+      expect(manifest).toEqual(
+        expect.objectContaining({
+          redirects: expect.arrayContaining([
+            expect.objectContaining({
+              source: '/:path+/',
+              destination: '/:path+',
+              statusCode: 308,
+            }),
+          ]),
+        })
+      )
+    })
   })
 
   describe('production mode, trailingSlash: true', () => {
@@ -239,5 +256,22 @@ describe('Trailing slashes', () => {
     })
 
     testWithoutTrailingSlash()
+
+    it('should have a redirect in the routesmanifest', async () => {
+      const manifest = await fs.readJSON(
+        join(appDir, '.next', 'routes-manifest.json')
+      )
+      expect(manifest).toEqual(
+        expect.objectContaining({
+          redirects: expect.arrayContaining([
+            expect.objectContaining({
+              source: '/:path+',
+              destination: '/:path+/',
+              statusCode: 308,
+            }),
+          ]),
+        })
+      )
+    })
   })
 })

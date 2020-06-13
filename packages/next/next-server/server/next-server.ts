@@ -502,18 +502,7 @@ export default class Server {
       } as Route
     })
 
-    const redirects = [
-      ...this.customRoutes.redirects,
-      {
-        source: this.nextConfig.experimental.trailingSlash
-          ? '/:path+'
-          : '/:path+/',
-        destination: this.nextConfig.experimental.trailingSlash
-          ? '/:path+/'
-          : '/:path+',
-        permanent: true,
-      },
-    ].map((redirect) => {
+    const redirects = this.customRoutes.redirects.map((redirect) => {
       const redirectRoute = getCustomRoute(redirect, 'redirect')
       return {
         type: redirectRoute.type,
