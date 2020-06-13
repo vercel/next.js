@@ -111,7 +111,7 @@ li {
   flex: 0 0 33%;
   min-width: 304px;
   width: 33%;
-  margin: 0 20px 0 0;
+  margin: 0 20px 20px 0;
   text-decoration: none;
   box-shadow: -20px 20px 60px #abacad, 20px -20px 60px #ffffff;
 }
