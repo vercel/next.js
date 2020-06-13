@@ -7,16 +7,10 @@ export const countState = atom({
 
 export const incrementCount = selector({
   key: 'incrementCount',
-  set: ({ set, get }) => {
-    const currCount = get(countState)
-    set(countState, currCount + 1)
-  },
+  set: ({ set }) => set(countState, (currCount) => currCount + 1),
 })
 
 export const decrementCount = selector({
   key: 'decrementCount',
-  set: ({ set, get }) => {
-    const currCount = get(countState)
-    set(countState, currCount - 1)
-  },
+  set: ({ set }) => set(countState, (currCount) => currCount - 1),
 })
