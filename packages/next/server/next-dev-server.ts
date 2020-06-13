@@ -9,6 +9,7 @@ import { join, relative, resolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
+import { SemVer, satisfies, minVersion } from 'semver'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import checkCustomRoutes from '../lib/check-custom-routes'
@@ -31,6 +32,19 @@ import { Telemetry } from '../telemetry/storage'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
+
+const packageJson = require(resolve(__dirname, '../../package.json'))
+
+const currentNodeVersion: string = process.versions.node
+const supportedNodeRange: string = packageJson.engines.node
+
+if (!satisfies(currentNodeVersion, supportedNodeRange)) {
+  const minNodeVersion: SemVer | null = minVersion(supportedNodeRange)
+  throw new Error(
+    `Your current node version ${currentNodeVersion} is not supported!\n` +
+      `The minimum supported version is ${minNodeVersion} and above!`
+  )
+}
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
