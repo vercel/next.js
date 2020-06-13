@@ -15,8 +15,6 @@ export function normalizePagePath(page: string): string {
   if (!page.startsWith('/')) {
     page = `/${page}`
   }
-  // remove trailing slash
-  page = page.replace(/(?!^)\/$/, '')
   // Throw when using ../ etc in the pathname
   const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {
