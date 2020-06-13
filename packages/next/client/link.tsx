@@ -10,6 +10,7 @@ import {
 } from '../next-server/lib/utils'
 import Router from './router'
 import { addBasePath } from '../next-server/lib/router/router'
+import { normalizeTrailingSlash } from '../next-server/lib/router/normalize-trailing-slash'
 
 function isLocal(href: string): boolean {
   const url = parse(href, false, true)
@@ -40,25 +41,20 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
-function normalizeTrailingSlash(url: UrlObject): UrlObject {
-  if (!url.pathname || url.pathname === '/') {
-    return url
+function formatTrailingSlash(url: UrlObject): UrlObject {
+  return {
+    ...url,
+    pathname:
+      url.pathname &&
+      normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
   }
-
-  let { pathname, ...rest } = url
-  pathname = pathname.replace(/\/$/, '')
-  // Append a trailing slash if this path does not have an extension
-  if (process.env.__NEXT_TRAILING_SLASH && !/\.[^/]+$/.test(pathname)) {
-    pathname += `/`
-  }
-  return { pathname, ...rest }
 }
 
 function formatUrl(url: Url): string {
   return (
     url &&
     formatWithValidation(
-      normalizeTrailingSlash(typeof url === 'object' ? url : parse(url))
+      formatTrailingSlash(typeof url === 'object' ? url : parse(url))
     )
   )
 }

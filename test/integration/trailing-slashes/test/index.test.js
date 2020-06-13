@@ -93,6 +93,23 @@ function testLinkShouldRewriteTo(expectations) {
       }
     }
   )
+
+  it.each(expectations)(
+    '%s should push route to %s',
+    async (href, expectedHref) => {
+      let browser
+      try {
+        browser = await webdriver(appPort, `/linker?href=${href}`)
+        await browser.elementByCss('#route-pusher').click()
+
+        await browser.waitForElementByCss('#hydration-marker')
+        const { pathname } = new URL(await browser.eval('window.location.href'))
+        expect(pathname).toBe(expectedHref)
+      } finally {
+        if (browser) await browser.close()
+      }
+    }
+  )
 }
 
 function testWithTrailingSlash() {
