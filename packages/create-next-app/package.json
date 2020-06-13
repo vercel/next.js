@@ -30,6 +30,7 @@
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/rimraf": "3.0.0",
+    "@types/semver": "7.2.0",
     "@types/tar": "4.0.3",
     "@types/validate-npm-package-name": "3.0.0",
     "@zeit/ncc": "^0.20.4",
@@ -41,9 +42,13 @@
     "make-dir": "3.0.0",
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
+    "semver": "7.3.2",
     "tar": "4.4.10",
     "typescript": "3.8.3",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
+  },
+  "engines": {
+    "node": ">=10.13.0"
   }
 }

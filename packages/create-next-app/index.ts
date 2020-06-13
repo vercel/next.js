@@ -4,6 +4,7 @@ import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
+import { SemVer, satisfies, minVersion } from 'semver'
 
 import { createApp } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
@@ -44,6 +45,20 @@ const program = new Commander.Command(packageJson.name)
   .parse(process.argv)
 
 async function run(): Promise<void> {
+  const currentNodeVersion: string = process.versions.node
+  const supportedNodeRange: string = packageJson.engines.node
+
+  if (!satisfies(currentNodeVersion, supportedNodeRange)) {
+    const minNodeVersion: SemVer | null = minVersion(supportedNodeRange)
+    console.error(
+      chalk.red(
+        `Your current node version ${currentNodeVersion} is not supported!\n` +
+          `The minimum supported version is ${minNodeVersion} and above!`
+      )
+    )
+    process.exit()
+  }
+
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
