@@ -44,6 +44,11 @@ export class DropClientPage implements Plugin {
           .for('javascript/auto')
           .tap(PLUGIN_NAME, handler)
 
+        // @ts-ignore Additional property just for Next.js
+        compilation.__NEXTJS = {}
+        // @ts-ignore Additional property just for Next.js
+        compilation.__NEXTJS._ampFirstEntryNames = []
+
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
           // Remove preparedEntrypoint that has bundle drop marker
           // This will ensure webpack does not create chunks/bundles for this particular entrypoint
@@ -54,6 +59,8 @@ export class DropClientPage implements Plugin {
           ) {
             const entrypoint = compilation._preparedEntrypoints[i]
             if (entrypoint?.module?.buildInfo?.NEXT_ampFirst) {
+              // @ts-ignore Additional property just for Next.js
+              compilation.__NEXTJS._ampFirstEntryNames.push(entrypoint.name)
               compilation._preparedEntrypoints.splice(i, 1)
             }
           }

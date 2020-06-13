@@ -63,6 +63,17 @@ export default class BuildManifestPlugin {
           devFiles: [],
           lowPriorityFiles: [],
           pages: { '/_app': [] },
+          ampFirstPages: [],
+        }
+
+        // @ts-ignore Additional property just for Next.js
+        for (const entryName of compilation.__NEXTJS._ampFirstEntryNames) {
+          const pagePath = getRouteFromEntrypoint(entryName)
+          if (!pagePath) {
+            continue
+          }
+
+          assetMap.ampFirstPages.push(pagePath)
         }
 
         const mainJsChunk = chunks.find(
