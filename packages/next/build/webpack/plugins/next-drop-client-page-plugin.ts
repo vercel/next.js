@@ -1,6 +1,5 @@
 import { Compiler, Plugin } from 'webpack'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
-import Entrypoint from 'webpack/lib/Entrypoint'
 
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
@@ -17,7 +16,7 @@ function handler(parser: any) {
   function markAsAmpFirst() {
     const entryModule = findEntryModule(parser.state.module)
 
-    entryModule.buildMeta.NEXT_ampFirst = true
+    entryModule.buildInfo.NEXT_ampFirst = true
   }
 
   parser.hooks.varDeclarationConst
@@ -45,23 +44,25 @@ export class DropClientPage implements Plugin {
           .for('javascript/auto')
           .tap(PLUGIN_NAME, handler)
 
-        compilation.hooks.optimizeChunksBasic.tap(PLUGIN_NAME, (chunks) => {
-          for (let i = chunks.length - 1; i >= 0; i--) {
-            const chunk = chunks[i]
-            if (!chunk?.entryModule?.buildMeta?.NEXT_ampFirst) {
-              continue
+        compilation.hooks.seal.tap(PLUGIN_NAME, () => {
+          // Remove preparedEntrypoint that has bundle drop marker
+          // This will ensure webpack does not create chunks/bundles for this particular entrypoint
+          for (
+            let i = compilation._preparedEntrypoints.length - 1;
+            i >= 0;
+            i--
+          ) {
+            const entrypoint = compilation._preparedEntrypoints[i]
+            if (entrypoint?.module?.buildInfo?.NEXT_ampFirst) {
+              compilation._preparedEntrypoints.splice(i, 1)
             }
+          }
 
-            for (const group of chunk.groupsIterable) {
-              if (!(group instanceof Entrypoint)) {
-                continue
-              }
-
-              group.NEXT_ampFirst = true
+          for (let i = compilation.entries.length - 1; i >= 0; i--) {
+            const entryModule = compilation.entries[i]
+            if (entryModule?.buildInfo?.NEXT_ampFirst) {
+              compilation.entries.splice(i, 1)
             }
-
-            chunk.remove('AMP First page')
-            chunks.splice(i, 1)
           }
         })
       }
