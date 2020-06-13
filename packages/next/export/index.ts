@@ -33,7 +33,10 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  normalizePagePath,
+  denormalizePagePath,
+} from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
@@ -198,7 +201,7 @@ export default async function exportApp(
 
   if (outDir === join(dir, 'public')) {
     throw new Error(
-      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/zeit/next.js/can-not-output-to-public`
+      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-public`
     )
   }
 
@@ -248,7 +251,6 @@ export default async function exportApp(
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
-    staticMarkup: false,
     hotReloader: null,
     basePath: nextConfig.experimental.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
@@ -277,12 +279,22 @@ export default async function exportApp(
     distDir,
     buildId,
   })
+
   if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
     exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
-  const exportPaths = Object.keys(exportPathMap)
+
+  // make sure to prevent duplicates
+  const exportPaths = [
+    ...new Set(
+      Object.keys(exportPathMap).map((path) =>
+        denormalizePagePath(normalizePagePath(path))
+      )
+    ),
+  ]
+
   const filteredPaths = exportPaths.filter(
     // Remove API routes
     (route) => !exportPathMap[route].page.match(API_ROUTE)
@@ -318,7 +330,7 @@ export default async function exportApp(
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.bold.red(`Attention`) +
+      chalk.bold.red(`Warning`) +
         ': ' +
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
@@ -333,7 +345,7 @@ export default async function exportApp(
         chalk.yellow(
           `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
         ) +
-        `\nLearn more: https://err.sh/zeit/next.js/api-routes-static-export`
+        `\nLearn more: https://err.sh/vercel/next.js/api-routes-static-export`
     )
   }
 
@@ -368,6 +380,7 @@ export default async function exportApp(
   worker.getStderr().pipe(process.stderr)
 
   let renderError = false
+  const errorPaths: string[] = []
 
   await Promise.all(
     filteredPaths.map(async (path) => {
@@ -386,13 +399,15 @@ export default async function exportApp(
       })
 
       for (const validation of result.ampValidations || []) {
-        const { page, result } = validation
-        ampValidations[page] = result
+        const { page, result: ampValidationResult } = validation
+        ampValidations[page] = ampValidationResult
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result?.errors) && result.errors.length > 0)
+          (Array.isArray(ampValidationResult?.errors) &&
+            ampValidationResult.errors.length > 0)
       }
       renderError = renderError || !!result.error
+      if (!!result.error) errorPaths.push(path)
 
       if (
         options.buildExport &&
@@ -443,12 +458,16 @@ export default async function exportApp(
   }
   if (hadValidationError) {
     throw new Error(
-      `AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`
+      `AMP Validation caused the export to fail. https://err.sh/vercel/next.js/amp-export-validation`
     )
   }
 
   if (renderError) {
-    throw new Error(`Export encountered errors`)
+    throw new Error(
+      `Export encountered errors on following paths:\n\t${errorPaths
+        .sort()
+        .join('\n\t')}`
+    )
   }
   // Add an empty line to the console for the better readability.
   log('')

@@ -3,6 +3,7 @@
 import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
+import url from 'url'
 
 export default function (render, fetch) {
   async function get$(path, query) {
@@ -15,6 +16,18 @@ export default function (render, fetch) {
       const html = await render('/stateless')
       expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
       expect(html.includes('My component!')).toBeTruthy()
+    })
+
+    it('should should not contain scripts that are not js', async () => {
+      const $ = await get$('/')
+      $('script[src]').each((_index, element) => {
+        const parsedUrl = url.parse($(element).attr('src'))
+        if (!parsedUrl.pathname.endsWith('.js')) {
+          throw new Error(
+            `Page includes script that is not a javascript file ${parsedUrl.pathname}`
+          )
+        }
+      })
     })
 
     it('should handle undefined prop in head server-side', async () => {
@@ -213,7 +226,7 @@ export default function (render, fetch) {
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage =
-        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
       expect(
         $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
       ).toBeTruthy()
@@ -293,8 +306,6 @@ export default function (render, fetch) {
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = 'development'
-
       // build dynamic page
       await fetch('/dynamic/ssr')
 
@@ -305,13 +316,9 @@ export default function (render, fetch) {
       ))
       const resources = []
 
-      // test a regular page
-      resources.push(`/_next/static/${buildId}/pages/index.js`)
-
       // test dynamic chunk
       resources.push(
-        '/_next/' +
-          reactLoadableManifest['../../components/hello1'][0].publicPath
+        '/_next/' + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc
