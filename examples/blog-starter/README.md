@@ -10,6 +10,12 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 
 [https://next-blog-starter.now.sh/](https://next-blog-starter.now.sh/)
 
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/blog-starter)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
