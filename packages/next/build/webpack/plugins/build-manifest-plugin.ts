@@ -10,6 +10,7 @@ import {
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
@@ -66,14 +67,16 @@ export default class BuildManifestPlugin {
           ampFirstPages: [],
         }
 
-        // @ts-ignore Additional property just for Next.js
-        for (const entryName of compilation.__NEXTJS._ampFirstEntryNames) {
-          const pagePath = getRouteFromEntrypoint(entryName)
-          if (!pagePath) {
-            continue
-          }
+        const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
+        if (ampFirstEntryNames) {
+          for (const entryName of ampFirstEntryNames) {
+            const pagePath = getRouteFromEntrypoint(entryName)
+            if (!pagePath) {
+              continue
+            }
 
-          assetMap.ampFirstPages.push(pagePath)
+            assetMap.ampFirstPages.push(pagePath)
+          }
         }
 
         const mainJsChunk = chunks.find(
