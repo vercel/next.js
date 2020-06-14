@@ -134,6 +134,7 @@ export function useRouter(): NextRouter {
 // This should **not** use inside the server.
 export const createRouter = (...args: RouterArgs): Router => {
   singletonRouter.router = new Router(...args)
+  singletonRouter.router.isReady = true
   singletonRouter.readyCallbacks.forEach((cb) => cb())
   singletonRouter.readyCallbacks = []
 

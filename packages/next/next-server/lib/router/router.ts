@@ -227,7 +227,6 @@ export default class Router implements BaseRouter {
     this.pageLoader = pageLoader
     this.pathname = pathname
     this.query = query
-    this.isReady = true
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
     this.asPath =
