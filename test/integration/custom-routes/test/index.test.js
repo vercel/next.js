@@ -303,10 +303,9 @@ const runTests = (isDev = false) => {
     await renderViaHTTP(appPort, '/hello')
     const data = await renderViaHTTP(
       appPort,
-      `/hidden/_next/static/${buildId}/pages/hello.js`
+      `/hidden/_next/static/${buildId}/_buildManifest.js`
     )
-    expect(data).toContain('Hello')
-    expect(data).toContain('createElement')
+    expect(data).toContain('/hello')
   })
 
   it('should allow redirecting to external resource', async () => {

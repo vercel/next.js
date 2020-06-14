@@ -357,11 +357,7 @@ describe('CSS Support', () => {
               browser.eval(
                 `window.getComputedStyle(document.querySelector('.red-text')).color`
               ),
-            {
-              test(content) {
-                return content === 'rgb(128, 0, 128)'
-              },
-            }
+            'rgb(128, 0, 128)'
           )
 
           // ensure text remained
@@ -817,6 +813,23 @@ describe('CSS Support', () => {
       await killApp(app)
     })
 
+    it('should not execute scripts in any order', async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      let asyncCount = 0
+      let totalCount = 0
+      for (const script of $('script').toArray()) {
+        ++totalCount
+        if ('async' in script.attribs) {
+          ++asyncCount
+        }
+      }
+
+      expect(asyncCount).toBe(0)
+      expect(totalCount).not.toBe(0)
+    })
+
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
 
@@ -831,24 +844,32 @@ describe('CSS Support', () => {
       try {
         browser = await webdriver(appPort, '/')
 
-        const currentColor = await browser.eval(
+        const blueColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#blueText')).color`
         )
-        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        const yellowColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#yellowText')).color`
+        )
+        expect(yellowColor).toMatchInlineSnapshot(`"rgb(255, 255, 0)"`)
 
         const cssFile = new File(join(appDir, 'pages/index.module.css'))
         try {
-          cssFile.replace('color: blue;', 'color: blue; ')
+          cssFile.replace('color: yellow;', 'color: rgb(1, 1, 1);')
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('#yellowText')).color`
+              ),
+            'rgb(1, 1, 1)'
+          )
           await check(
             () =>
               browser.eval(
                 `window.getComputedStyle(document.querySelector('#blueText')).color`
               ),
-            {
-              test(content) {
-                return content === 'rgb(0, 0, 255)'
-              },
-            }
+            'rgb(0, 0, 255)'
           )
         } finally {
           cssFile.restore()

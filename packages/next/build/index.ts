@@ -1,4 +1,3 @@
-import '../next-server/server/node-polyfill-fetch'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
@@ -10,21 +9,19 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import checkCustomRoutes, {
-  getRedirectStatus,
-  Header,
-  Redirect,
-  Rewrite,
-  RouteType,
-} from '../lib/check-custom-routes'
 import {
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
+import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
+import loadCustomRoutes, {
+  getRedirectStatus,
+  Redirect,
+  RouteType,
+} from '../lib/load-custom-routes'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { recursiveDelete } from '../lib/recursive-delete'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
@@ -48,6 +45,7 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { BuildManifest } from '../next-server/server/get-page-files'
+import '../next-server/server/node-polyfill-fetch'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -112,32 +110,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const headers: Header[] = []
-  const rewrites: Rewrite[] = []
-  const redirects: Redirect[] = []
 
-  if (typeof config.experimental.redirects === 'function') {
-    const _redirects = await config.experimental.redirects()
-    checkCustomRoutes(_redirects, 'redirect')
-    redirects.push(..._redirects)
-  }
-  if (typeof config.experimental.rewrites === 'function') {
-    const _rewrites = await config.experimental.rewrites()
-    checkCustomRoutes(_rewrites, 'rewrite')
-    rewrites.push(..._rewrites)
-  }
-  if (typeof config.experimental.headers === 'function') {
-    const _headers = await config.experimental.headers()
-    checkCustomRoutes(_headers, 'header')
-    headers.push(..._headers)
-  }
+  const { headers, rewrites, redirects } = await loadCustomRoutes(config)
 
   if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
     const cacheDir = path.join(distDir, 'cache')
-    const hasCache = await promises
-      .access(cacheDir)
-      .then(() => true)
-      .catch(() => false)
+    const hasCache = await fileExists(cacheDir)
 
     if (!hasCache) {
       // Intentionally not piping to stderr in case people fail in CI when
@@ -160,8 +138,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
-  let publicFiles: string[] = []
-  let hasPublicDir = false
+  const hasPublicDir = await fileExists(publicDir)
 
   telemetry.record(
     eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
@@ -176,15 +153,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
   await verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
-
-  try {
-    await promises.stat(publicDir)
-    hasPublicDir = true
-  } catch (_) {}
-
-  if (hasPublicDir) {
-    publicFiles = await recursiveReadDir(publicDir, /.*/)
-  }
 
   let tracer: any = null
   if (config.experimental.profiling) {
@@ -231,23 +199,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let hasNonStaticErrorPage: boolean
 
   if (hasPublicDir) {
-    try {
-      await promises.stat(path.join(publicDir, '_next'))
+    const hasPublicUnderScoreNextDir = await fileExists(
+      path.join(publicDir, '_next')
+    )
+    if (hasPublicUnderScoreNextDir) {
       throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-    } catch (err) {}
-  }
-
-  for (let file of publicFiles) {
-    file = file
-      .replace(/\\/g, '/')
-      .replace(/\/index$/, '')
-      .split(publicDir)
-      .pop()!
-
-    if (mappedPages[file]) {
-      conflictingPublicFiles.push(file)
     }
   }
+
+  // Check if pages conflict with files in `public`
+  // Only a page of public file can be served, not both.
+  for (const page in mappedPages) {
+    const hasPublicPageFile = await fileExists(
+      path.join(publicDir, page === '/' ? '/index' : page),
+      'file'
+    )
+    if (hasPublicPageFile) {
+      conflictingPublicFiles.push(page)
+    }
+  }
+
   const numConflicting = conflictingPublicFiles.length
 
   if (numConflicting) {
@@ -528,7 +499,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
-        buildId,
         buildManifest,
         config.experimental.modern
       )
@@ -600,30 +570,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
-          }
-
-          if (workerResult.isAmpOnly) {
-            // ensure all AMP only bundles got removed
-            try {
-              const clientBundle = path.join(
-                distDir,
-                'static',
-                buildId,
-                'pages',
-                actualPage + '.js'
-              )
-              await promises.unlink(clientBundle)
-
-              if (config.experimental.modern) {
-                await promises.unlink(
-                  clientBundle.replace(/\.js$/, '.module.js')
-                )
-              }
-            } catch (err) {
-              if (err.code !== 'ENOENT') {
-                throw err
-              }
-            }
           }
 
           if (workerResult.hasStaticProps) {
@@ -747,19 +693,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           '\n'
         )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
     )
-  }
-
-  if (Array.isArray(configs[0].plugins)) {
-    configs[0].plugins.some((plugin: any) => {
-      if (!plugin.ampPages) {
-        return false
-      }
-
-      plugin.ampPages.forEach((pg: any) => {
-        pageInfos.get(pg)!.isAmp = true
-      })
-      return true
-    })
   }
 
   await writeBuildId(distDir, buildId)
@@ -1018,8 +951,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
-    // No need to call this fn as we already emitted a default SSG manifest:
-    // await generateClientSsgManifest(prerenderManifest, { distDir, buildId })
   }
 
   await promises.writeFile(
