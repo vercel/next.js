@@ -116,8 +116,9 @@ export const getStaticProps = async () => {
   let result = await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
   )
+
   if (result.errors) {
-    console.log('Failed to fetch todolist. ', result.errors)
+    console.log('Failed to fetch todolist.', result.errors)
     throw new Error(result.errors[0].message)
   }
   if (result.data.getTodoList !== null) {
