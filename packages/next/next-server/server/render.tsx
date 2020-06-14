@@ -652,12 +652,17 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
-  const files = [
-    ...new Set([
-      ...getPageFiles(buildManifest, '/_app'),
-      ...(pathname !== '/_error' ? getPageFiles(buildManifest, pathname) : []),
-    ]),
-  ]
+  // AMP First pages do not have client-side JavaScript files
+  const files = ampState.ampFirst
+    ? []
+    : [
+        ...new Set([
+          ...getPageFiles(buildManifest, '/_app'),
+          ...(pathname !== '/_error'
+            ? getPageFiles(buildManifest, pathname)
+            : []),
+        ]),
+      ]
 
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}

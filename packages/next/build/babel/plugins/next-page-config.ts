@@ -1,7 +1,6 @@
 import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 import { PageConfig } from 'next/types'
-
-const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes): void {
@@ -10,12 +9,8 @@ function replaceBundle(path: any, t: typeof BabelTypes): void {
       [
         t.variableDeclaration('const', [
           t.variableDeclarator(
-            t.identifier('config'),
-            t.assignmentExpression(
-              '=',
-              t.identifier(STRING_LITERAL_DROP_BUNDLE),
-              t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
-            )
+            t.identifier(STRING_LITERAL_DROP_BUNDLE),
+            t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
           ),
         ]),
       ],

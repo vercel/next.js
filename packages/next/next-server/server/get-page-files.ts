@@ -8,6 +8,7 @@ export type BuildManifest = {
     '/_app': string[]
     [page: string]: string[]
   }
+  ampFirstPages: string[]
 }
 
 export function getPageFiles(
