@@ -14,13 +14,14 @@ async function fetchAPI(query, { variables, preview } = {}) {
       variables,
     }),
   })
-
   const json = await res.json()
+
   if (json.errors) {
     console.log(process.env.NEXT_EXAMPLE_CMS_GCMS_PROJECT_ID)
     console.error(json.errors)
     throw new Error('Failed to fetch API')
   }
+
   return json.data
 }
 
@@ -40,18 +41,18 @@ export async function getPreviewPostBySlug(slug) {
       },
     }
   )
-  return data?.post
+  return data.post
 }
 
 export async function getAllPostsWithSlug() {
-  const data = fetchAPI(`
+  const data = await fetchAPI(`
     {
       posts {
         slug
       }
     }
   `)
-  return data?.allPosts
+  return data.posts
 }
 
 export async function getAllPostsForHome(preview) {
@@ -89,11 +90,11 @@ export async function getAllPostsForHome(preview) {
           }
         }
       }
-}
+    }
   `,
     { preview }
   )
-  return data?.posts
+  return data.posts
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -147,5 +148,3 @@ export async function getPostAndMorePosts(slug, preview) {
   )
   return data
 }
-
-export default () => ({})
