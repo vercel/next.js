@@ -12,6 +12,7 @@ export default class CaseSensitivePathsPlugin implements ResolvePlugin {
     this._lastPurge = Date.now()
   }
   async checkIsTrueCasePath(file: string) {
+    console.log(file)
     const segments = normalize(file).split(pathSeparator).filter(Boolean)
 
     const segmentExistsPromises = segments.map(async (segment, i) => {
