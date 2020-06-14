@@ -1,14 +1,11 @@
 {
   "name": "with-aws-amplify",
   "version": "1.0.0",
-  "description": "",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "aws-amplify": "2.1.0",
@@ -17,6 +14,5 @@
     "next": "^latest",
     "react": "16.13.1",
     "react-dom": "16.13.1"
-  },
-  "devDependencies": {}
+  }
 }
