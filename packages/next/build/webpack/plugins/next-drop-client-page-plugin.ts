@@ -10,17 +10,11 @@ const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule(mod: any): CompilationType.Module | null {
-  if (mod.reasons) {
-    for (const reason of mod.reasons) {
-      // Top level modules don't have reasons including a module
-      if (!reason.module) {
-        return mod
-      }
-
-      const foundEntryModule = findEntryModule(reason.module)
-      if (foundEntryModule) {
-        return foundEntryModule
-      }
+  const queue = new Set([mod])
+  for (const module of queue) {
+    for (const reason of module.reasons) {
+      if (!reason.module) return module
+      queue.add(reason.module)
     }
   }
 
