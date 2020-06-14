@@ -1,30 +1,27 @@
 async function fetchAPI(query, { variables, preview } = {}) {
-  const res = await fetch(
-    process.env.NEXT_EXAMPLE_CMS_GCMS_PROJECT_API,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${
-          preview
-            ? process.env.NEXT_EXAMPLE_CMS_GCMS_DEV_AUTH_TOKEN
-            : process.env.NEXT_EXAMPLE_CMS_GCMS_PROD_AUTH_TOKEN
-        }`,
-      },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
-    }
-  );
+  const res = await fetch(process.env.GRAPHCMS_PROJECT_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${
+        preview
+          ? process.env.GRAPHCMS_DEV_AUTH_TOKEN
+          : process.env.GRAPHCMS_PROD_AUTH_TOKEN
+      }`,
+    },
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  })
 
-  const json = await res.json();
+  const json = await res.json()
   if (json.errors) {
-    console.log(process.env.NEXT_EXAMPLE_CMS_GCMS_PROJECT_ID);
-    console.error(json.errors);
-    throw new Error("Failed to fetch API");
+    console.log(process.env.NEXT_EXAMPLE_CMS_GCMS_PROJECT_ID)
+    console.error(json.errors)
+    throw new Error('Failed to fetch API')
   }
-  return json.data;
+  return json.data
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -38,12 +35,12 @@ export async function getPreviewPostBySlug(slug) {
     {
       preview: true,
       variables: {
-        stage: "DRAFT",
+        stage: 'DRAFT',
         slug,
       },
     }
-  );
-  return data?.post;
+  )
+  return data?.post
 }
 
 export async function getAllPostsWithSlug() {
@@ -53,8 +50,8 @@ export async function getAllPostsWithSlug() {
         slug
       }
     }
-  `);
-  return data?.allPosts;
+  `)
+  return data?.allPosts
 }
 
 export async function getAllPostsForHome(preview) {
@@ -95,8 +92,8 @@ export async function getAllPostsForHome(preview) {
 }
   `,
     { preview }
-  );
-  return data?.posts;
+  )
+  return data?.posts
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -143,12 +140,12 @@ export async function getPostAndMorePosts(slug, preview) {
     {
       preview,
       variables: {
-        stage: preview ? "DRAFT" : "PUBLISHED",
+        stage: preview ? 'DRAFT' : 'PUBLISHED',
         slug,
       },
     }
-  );
-  return data;
+  )
+  return data
 }
 
-export default () => ({});
+export default () => ({})

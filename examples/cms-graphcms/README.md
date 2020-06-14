@@ -43,33 +43,32 @@ First, [create an account in GraphCMS](https://app.graphcms.com).
 
 ### Step 2. Create a new GraphCMS project
 
-After creating an account, create a new project from the "Blog Starter template" - be sure to include the example content.
+After creating an account, create a new project from the **Blog Starter template** - be sure to include the example content.
 
 ### Step 3. Copy your environment variables
 
-Copy the `.env.example` file in this directory to `.env.local` (which will be ignored by Git):
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-cp .env.example .env.local
+cp .env.local.example .env.local
 ```
+
+Inside your project dashboard, navigate to **Settings > API Access page**.
 
 Then set each variable in `.env.local`:
 
-- `NEXT_EXAMPLE_CMS_GCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
-- `NEXT_EXAMPLE_CMS_GCMS_PROJECT_API`: Get the `Project API` endpoint value from the Settings > API Access page.
-- `NEXT_EXAMPLE_CMS_GCMS_PROD_AUTH_TOKEN`: Copy the API token from your project API Access Settings. This will only query content that is published.
-- `NEXT_EXAMPLE_CMS_GCMS_DEV_AUTH_TOKEN`: Copy the API token from your project API Access Settings. This will only query content that is in draft.
-
-You can find all of these tokens under Settings > API Access (lefthand menu, bottom group of icons.)
+- `GRAPHCMS_PROJECT_API`: Set it to the API endpoint under **Endpoints**, at the top of the page.
+- `GRAPHCMS_PROD_AUTH_TOKEN`: Copy the `NEXT_EXAMPLE_CMS_GCMS_PROD_AUTH_TOKEN` token under **Existing tokens**, at the bottom of the page. This will only query content that is published.
+- `GRAPHCMS_DEV_AUTH_TOKEN`: Copy the `NEXT_EXAMPLE_CMS_GCMS_DEV_AUTH_TOKEN` token under **Existing tokens**, at the bottom of the page. This will only query content that is in draft.
+- `GRAPHCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Your `.env.local` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_GCMS_PREVIEW_SECRET=...
-NEXT_EXAMPLE_CMS_GCMS_PROJECT_API=...
-NEXT_EXAMPLE_CMS_GCMS_PROD_AUTH_TOKEN=...
-NEXT_EXAMPLE_CMS_GCMS_DEV_AUTH_TOKEN=...
-
+GRAPHCMS_PREVIEW_SECRET=...
+GRAPHCMS_PROJECT_API=...
+GRAPHCMS_PROD_AUTH_TOKEN=...
+GRAPHCMS_DEV_AUTH_TOKEN=...
 ```
 
 ### Step 4. Run Next.js in development mode
@@ -88,14 +87,14 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 5. Try preview mode
 
-In GraphCMS, go to one of the posts you've created and:
+In GraphCMS, go to one of the posts in your project and:
 
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - After you edit the document save the article as a draft, but **DO NOT** click **Publish**. By doing this, the post will be in the draft stage.
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
-To view the preview, transform the url to the following format: `http://localhost:3000/api/preview?secret=[YOUR_SECRET_TOKEN]&slug=[SLUG_TO_PREVIEW]` where \[YOUR_SECRET_TOKEN]\ is the same secret you defined in the `.env` file and \[SLUG_TO_PREVIEW]\ is the slug of one of the posts you want to preview.
+To view the preview, transform the url to the following format: `http://localhost:3000/api/preview?secret=<YOUR_SECRET_TOKEN>&slug=<SLUG_TO_PREVIEW>` where `<YOUR_SECRET_TOKEN>` is the same secret you defined in the `.env.local` file and `<SLUG_TO_PREVIEW>` is the slug of one of the posts you want to preview.
 
 You should now be able to see the updated title. To exit the preview mode, you can click on _"Click here to exit preview mode"_ at the top.
 
@@ -122,7 +121,7 @@ vercel secrets add my-secret "my value"
 Run that command for each of the entries in our .env.local file. For example, adding the secret would look like
 
 ```bash
-vercel secrets add NEXT_EXAMPLE_CMS_GCMS_PREVIEW_SECRET "12345token"
+vercel secrets add GRAPHCMS_PREVIEW_SECRET "12345token"
 ```
 
 Once all th secrets hav been added, you can re-run the vercel deploy with `vercel`.
