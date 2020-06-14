@@ -2,21 +2,42 @@ import { ResolvePlugin } from 'webpack'
 import { join, sep as pathSeparator, normalize } from 'path'
 import { promises as fs } from 'fs'
 
-async function checkIsTrueCasePath(file: string, readdir: typeof fs.readdir) {
-  const segments = normalize(file).split(pathSeparator).filter(Boolean)
-
-  const segmentExistsPromises = segments.map(async (segment, i) => {
-    const segmentParentDir = join('/', ...segments.slice(0, i))
-    const parentDirEntries = await readdir(segmentParentDir)
-    return parentDirEntries.includes(segment)
-  })
-
-  return (await Promise.all(segmentExistsPromises)).every(Boolean)
-}
-
 // webpack resolver plugin to verify the casing of resolved files in case it's
 // run on a case-insesnitive filesystem
 export default class CaseSensitivePathsPlugin implements ResolvePlugin {
+  _cache: Map<string, string[]>
+  _lastPurge: number
+  constructor() {
+    this._cache = new Map()
+    this._lastPurge = Date.now()
+  }
+  async checkIsTrueCasePath(file: string) {
+    const segments = normalize(file).split(pathSeparator).filter(Boolean)
+
+    const segmentExistsPromises = segments.map(async (segment, i) => {
+      const segmentParentDir = join('/', ...segments.slice(0, i))
+      const cachedEntries = this._cache.get(segmentParentDir)
+      const isFromCache = !!cachedEntries
+      const parentDirEntries =
+        cachedEntries || (await fs.readdir(segmentParentDir))
+      if (!isFromCache) {
+        this._cache.set(segmentParentDir, parentDirEntries)
+      }
+      const segmentExists = parentDirEntries.includes(segment)
+      if (segmentExists) {
+        return true
+      }
+      if (!segmentExists && isFromCache) {
+        // revalidate when the cached value was used
+        const freshParentDirEntries = await fs.readdir(segmentParentDir)
+        this._cache.set(segmentParentDir, freshParentDirEntries)
+        return freshParentDirEntries.includes(segment)
+      }
+      return false
+    })
+
+    return (await Promise.all(segmentExistsPromises)).every(Boolean)
+  }
   apply(resolver: any) {
     resolver.getHook(`existing-file`).intercept({
       register: (tapInfo: any) => {
@@ -31,11 +52,19 @@ export default class CaseSensitivePathsPlugin implements ResolvePlugin {
         return tapInfo
       },
     })
+    const resolvedHook = resolver.getHook('resolved')
     resolver
       .getHook('existing-file')
       .tapAsync(
         'CaseSensitivePathsPlugin',
         (request: any, resolveContext: any, callback: any) => {
+          // purge cache when it's out of date
+          const now = Date.now()
+          if (now - this._lastPurge > 2000) {
+            this._cache = new Map()
+            this._lastPurge = now
+          }
+
           // Don't check anything coming from node_modules, we assume these are
           // published with the correct casing
           const isIgnored =
@@ -44,22 +73,24 @@ export default class CaseSensitivePathsPlugin implements ResolvePlugin {
           const file = request.path
           if (!file || isIgnored) {
             return resolver.doResolve(
-              resolver.hooks.resolved,
+              resolvedHook,
               request,
-              `true case path ${file}`,
+              null,
               resolveContext,
               callback
             )
           }
-          checkIsTrueCasePath(file, fs.readdir).then((isTrueCasePath) => {
+          this.checkIsTrueCasePath(file).then((isTrueCasePath) => {
             if (!isTrueCasePath) {
-              // Can't resolve these
-              return callback()
+              if (resolveContext.missing) resolveContext.missing.add(file)
+              if (resolveContext.log)
+                resolveContext.log(`${file} doesn't exist`)
+              return callback(null, null)
             }
             resolver.doResolve(
-              resolver.hooks.resolved,
+              resolvedHook,
               request,
-              null,
+              `true case path: ${file}`,
               resolveContext,
               callback
             )
