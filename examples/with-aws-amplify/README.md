@@ -6,8 +6,8 @@ This example shows how to build a server rendered web application with NextJS an
 
 Two routes are implemented :
 
-- `/` : A static route that uses getInitialProps to load data from AppSync and renders it on the server (Code in [pages/index.js](/pages/index.js))
-- `/todo/[id]` : A dynamic route that uses getInitialProps and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].js](/pages/todo/[id].js))
+- `/` : A static route that uses `getStaticProps` to load data from AppSync and renders it on the server (Code in [pages/index.js](/pages/index.js))
+- `/todo/[id]` : A dynamic route that uses `getServerSideProps` and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].js](/pages/todo/[id].js))
 
 ## How to use
 
