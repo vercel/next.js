@@ -4,6 +4,9 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
+- **Live**: [https://next-blog-graphcms.now.sh/](https://next-blog-graphcms.now.sh/)
+- **Preview Mode**: [https://next-blog-graphcms.now.sh/api/preview...](https://next-blog-graphcms.now.sh/api/preview?secret=PHHsT9YmZjHxjxuzt8Jie2XkieME&slug=technical-seo-with-graphcms)
+
 ### [https://next-blog-graphcms.now.sh/](https://next-blog-graphcms.now.sh/)
 
 ### Related examples
