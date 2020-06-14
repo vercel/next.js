@@ -22,6 +22,8 @@ import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
+import { denormalizePagePath } from '../next-server/server/normalize-page-path'
+import { BuildManifest } from '../next-server/server/get-page-files'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -41,7 +43,6 @@ export function collectPages(
 }
 
 export interface PageInfo {
-  isAmp?: boolean
   isHybridAmp?: boolean
   size: number
   totalSize: number
@@ -69,7 +70,7 @@ export async function printTreeView(
     buildId: string
     pagesDir: string
     pageExtensions: string[]
-    buildManifest: BuildManifestShape
+    buildManifest: BuildManifest
     isModern: boolean
     useStatic404: boolean
   }
@@ -113,7 +114,6 @@ export async function printTreeView(
   const sizeData = await computeFromManifest(
     buildManifest,
     distPath,
-    buildId,
     isModern,
     pageInfos
   )
@@ -141,6 +141,7 @@ export async function printTreeView(
         : '├'
 
     const pageInfo = pageInfos.get(item)
+    const ampFirst = buildManifest.ampFirstPages.includes(item)
 
     messages.push([
       `${symbol} ${
@@ -153,14 +154,14 @@ export async function printTreeView(
           : 'λ'
       } ${item}`,
       pageInfo
-        ? pageInfo.isAmp
+        ? ampFirst
           ? chalk.cyan('AMP')
           : pageInfo.size >= 0
           ? prettyBytes(pageInfo.size)
           : ''
         : '',
       pageInfo
-        ? pageInfo.isAmp
+        ? ampFirst
           ? chalk.cyan('AMP')
           : pageInfo.size >= 0
           ? getPrettySize(pageInfo.totalSize)
@@ -348,7 +349,6 @@ export function printCustomRoutes({
   }
 }
 
-type BuildManifestShape = { pages: { [k: string]: string[] } }
 type ComputeManifestShape = {
   commonFiles: string[]
   uniqueFiles: string[]
@@ -357,16 +357,15 @@ type ComputeManifestShape = {
   sizeCommonFiles: number
 }
 
-let cachedBuildManifest: BuildManifestShape | undefined
+let cachedBuildManifest: BuildManifest | undefined
 
 let lastCompute: ComputeManifestShape | undefined
 let lastComputeModern: boolean | undefined
 let lastComputePageInfo: boolean | undefined
 
 async function computeFromManifest(
-  manifest: BuildManifestShape,
+  manifest: BuildManifest,
   distPath: string,
-  buildId: string,
   isModern: boolean,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
@@ -384,7 +383,8 @@ async function computeFromManifest(
     if (pageInfos) {
       const pageInfo = pageInfos.get(key)
       // don't include AMP pages since they don't rely on shared bundles
-      if (pageInfo?.isHybridAmp || pageInfo?.isAmp) {
+      // AMP First pages are not under the pageInfos key
+      if (pageInfo?.isHybridAmp) {
         return
       }
     }
@@ -407,15 +407,6 @@ async function computeFromManifest(
       }
     })
   })
-
-  // Add well-known shared file
-  files.set(
-    path.posix.join(
-      `static/${buildId}/pages/`,
-      `/_app${isModern ? '.module' : ''}.js`
-    ),
-    Infinity
-  )
 
   const commonFiles = [...files.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
@@ -490,21 +481,17 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string,
-  buildManifest: BuildManifestShape,
+  buildManifest: BuildManifest,
   isModern: boolean
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(
-    buildManifest,
-    distPath,
-    buildId,
-    isModern
-  )
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
 
   const fnFilterModern = (entry: string) =>
     entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
 
-  const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
+  const pageFiles = (
+    buildManifest.pages[denormalizePagePath(page)] || []
+  ).filter(fnFilterModern)
   const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
 
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
@@ -517,27 +504,12 @@ export async function getJsPageSizeInKb(
     data.commonFiles
   ).map(fnMapRealPath)
 
-  const clientBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `${page}${isModern ? '.module' : ''}.js`
-  )
-  const appBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `/_app${isModern ? '.module' : ''}.js`
-  )
-  selfFilesReal.push(clientBundle)
-  allFilesReal.push(clientBundle)
-  if (clientBundle !== appBundle) {
-    allFilesReal.push(appBundle)
-  }
-
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
     const allFilesSize = sum(await Promise.all(allFilesReal.map(fsStatGzip)))
     const selfFilesSize = sum(await Promise.all(selfFilesReal.map(fsStatGzip)))
+
     return [selfFilesSize, allFilesSize]
   } catch (_) {}
   return [-1, -1]

@@ -708,7 +708,7 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry')
-  await task.watch('next-server/server/**/*.+(js|ts|tsx)', 'nextserver')
+  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver')
 }
 
 export async function nextserver(task, opts) {
