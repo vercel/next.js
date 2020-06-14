@@ -78,15 +78,6 @@ Then set each variable in `.env.local`:
 - `GRAPHCMS_DEV_AUTH_TOKEN`: Copy the `NEXT_EXAMPLE_CMS_GCMS_DEV_AUTH_TOKEN` token under **Existing tokens**, at the bottom of the page. This will only query content that is in draft.
 - `GRAPHCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
-Your `.env.local` file should look like this:
-
-```bash
-GRAPHCMS_PREVIEW_SECRET=...
-GRAPHCMS_PROJECT_API=...
-GRAPHCMS_PROD_AUTH_TOKEN=...
-GRAPHCMS_DEV_AUTH_TOKEN=...
-```
-
 ### Step 4. Run Next.js in development mode
 
 ```bash
