@@ -52,6 +52,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { codeFrameColumns } from '@babel/code-frame'
+import FontStylesheetGatheringPlugin from './webpack/plugins/font-stylesheet-gathering-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -939,6 +940,7 @@ export default async function getBaseWebpackConfig(
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
         }),
+      !dev && !isServer && new FontStylesheetGatheringPlugin(),
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
