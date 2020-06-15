@@ -388,7 +388,6 @@ export default async function exportApp(
         path,
         pathMap: exportPathMap[path],
         distDir,
-        buildId,
         outDir,
         pagesDataDir,
         renderOpts,
