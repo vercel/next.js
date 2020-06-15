@@ -11,9 +11,9 @@ export default class SequentialIDGenerator {
   constructor(prefix: string = '') {
     // ensure start with "ae" so "ad" is never produced
     this.count = 0
-    this.msb = 1295
-    this.offset = 374
-    this.power = 2
+    this.msb = 35
+    this.offset = 10
+    this.power = 1
     this.prefix = prefix
   }
 
