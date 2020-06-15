@@ -27,6 +27,9 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [Strapi](/examples/cms-strapi)
 - [Agility CMS](/examples/cms-agilitycms)
 - [Cosmic](/examples/cms-cosmic)
+- [ButterCMS](/examples/cms-buttercms)
+- [Storyblok](/examples/cms-storyblok)
+- [GraphCMS](/examples/cms-graphcms)
 
 ## How to use
 
