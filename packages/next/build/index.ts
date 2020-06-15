@@ -497,8 +497,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
         config.experimental.modern
       )
 
-      const serverBundle = getPagePath(page, distDir, isLikeServerless)
-
       let isSsg = false
       let isStatic = false
       let isHybridAmp = false
@@ -507,36 +505,38 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-      if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomGetInitialProps(
-          isLikeServerless
-            ? serverBundle
-            : getPagePath('/_app', distDir, isLikeServerless),
-          runtimeEnvConfig,
-          true
-        )
-
-        namedExports = getNamedExports(
-          isLikeServerless
-            ? serverBundle
-            : getPagePath('/_app', distDir, isLikeServerless),
-          runtimeEnvConfig
-        )
-
-        if (customAppGetInitialProps) {
-          console.warn(
-            chalk.bold.yellow(`Warning: `) +
-              chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
-              )
-          )
-          console.warn(
-            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
-          )
-        }
-      }
-
       if (nonReservedPage) {
+        const serverBundle = getPagePath(page, distDir, isLikeServerless)
+
+        if (customAppGetInitialProps === undefined) {
+          customAppGetInitialProps = hasCustomGetInitialProps(
+            isLikeServerless
+              ? serverBundle
+              : getPagePath('/_app', distDir, isLikeServerless),
+            runtimeEnvConfig,
+            true
+          )
+
+          namedExports = getNamedExports(
+            isLikeServerless
+              ? serverBundle
+              : getPagePath('/_app', distDir, isLikeServerless),
+            runtimeEnvConfig
+          )
+
+          if (customAppGetInitialProps) {
+            console.warn(
+              chalk.bold.yellow(`Warning: `) +
+                chalk.yellow(
+                  `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
+                )
+            )
+            console.warn(
+              'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+            )
+          }
+        }
+
         try {
           let workerResult = await staticCheckWorkers.isPageStatic(
             page,
@@ -590,7 +590,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       pageInfos.set(page, {
         size: selfSize,
         totalSize: allSize,
-        serverBundle,
         static: isStatic,
         isSsg,
         isHybridAmp,
@@ -739,7 +738,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     // remove server bundles that were exported
     for (const page of staticPages) {
-      const { serverBundle } = pageInfos.get(page)!
+      const serverBundle = getPagePath(page, distDir, isLikeServerless)
       await promises.unlink(serverBundle)
     }
 
