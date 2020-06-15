@@ -149,6 +149,15 @@ describe('Has CSS Module in computed styles in Development', () => {
     )
     expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
   })
+
+  it('emits verbose class names in Development', async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
+      `"index_redText__2VIiM"`
+    )
+  })
 })
 
 describe('Has CSS Module in computed styles in Production', () => {
@@ -182,6 +191,13 @@ describe('Has CSS Module in computed styles in Production', () => {
       `window.getComputedStyle(document.querySelector('#verify-red')).color`
     )
     expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+  })
+
+  it('emits optimized class names in Production', async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(`"a"`)
   })
 })
 
