@@ -1,5 +1,5 @@
 import { ResolvePlugin } from 'webpack'
-import { join, sep as pathSeparator, normalize } from 'path'
+import { sep as pathSeparator, normalize } from 'path'
 import { promises as fs } from 'fs'
 
 // webpack resolver plugin to verify the casing of resolved files in case it's
@@ -12,11 +12,14 @@ export default class CaseSensitivePathsPlugin implements ResolvePlugin {
     this._lastPurge = Date.now()
   }
   async checkIsTrueCasePath(file: string) {
-    console.log(file)
-    const segments = normalize(file).split(pathSeparator).filter(Boolean)
+    const segments = normalize(file).split(pathSeparator)
 
     const segmentExistsPromises = segments.map(async (segment, i) => {
-      const segmentParentDir = join('/', ...segments.slice(0, i))
+      if (i <= 0) {
+        return true
+      }
+      const segmentParentDir =
+        segments.slice(0, i).join(pathSeparator) + pathSeparator
       const cachedEntries = this._cache.get(segmentParentDir)
       const isFromCache = !!cachedEntries
       const parentDirEntries =
