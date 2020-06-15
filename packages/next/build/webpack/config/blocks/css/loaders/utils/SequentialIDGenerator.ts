@@ -9,7 +9,6 @@ export default class SequentialIDGenerator {
   prefix: string
 
   constructor(prefix: string = '') {
-    // ensure start with "ae" so "ad" is never produced
     this.count = 0
     this.msb = 35
     this.offset = 10
@@ -17,13 +16,18 @@ export default class SequentialIDGenerator {
     this.prefix = prefix
   }
 
-  next() {
+  next(): string {
     const id = this.increment().toString(36)
     return this.prefix ? `${this.prefix}${id}` : id
   }
 
-  increment() {
+  increment(): number {
     const id = this.count + this.offset
+    // ensure "ad" is never produced just in case it conflicts with adblockers
+    if (id === 373) {
+      this.count++
+      return this.increment()
+    }
     if (id === this.msb) {
       this.offset += (this.msb + 1) * 9
       this.msb = Math.pow(36, ++this.power) - 1
