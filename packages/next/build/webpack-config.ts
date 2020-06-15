@@ -265,13 +265,10 @@ export default async function getBaseWebpackConfig(
 
   function getReactProfilingInProduction() {
     if (config.reactProductionProfiling) {
-      return Object.assign(
-        {},
-        {
-          'react-dom$': 'react-dom/profiling',
-          'scheduler/tracing': 'scheduler/tracing-profiling',
-        }
-      )
+      return {
+        'react-dom$': 'react-dom/profiling',
+        'scheduler/tracing': 'scheduler/tracing-profiling',
+      }
     }
   }
 
