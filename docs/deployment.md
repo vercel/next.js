@@ -70,6 +70,8 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 `next build` builds the production application in the `.next` folder. After building, `next start` starts a Node.js server that supports [hybrid pages](/docs/basic-features/pages.md), serving both statically generated and server-side rendered pages.
 
+All Next.js assets are hashed by default. This means if you use a CDN, with every new deployment, a CDN purge wouldn't be required.
+
 ### Static HTML Export
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md). By default, `next export` will generate an `out` directory, which can be served by any static hosting service or CDN.
