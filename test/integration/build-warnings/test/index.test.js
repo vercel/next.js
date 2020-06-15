@@ -8,7 +8,7 @@ jest.setTimeout(1000 * 60 * 1)
 const appDir = join(__dirname, '../')
 
 describe('Build warnings', () => {
-  it('should not shown warning about minification withou any modification', async () => {
+  it('should not shown warning about minification without any modification', async () => {
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
     expect(stderr).not.toContain('optimization has been disabled')
   })

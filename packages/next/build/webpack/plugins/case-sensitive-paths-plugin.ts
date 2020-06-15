@@ -32,7 +32,8 @@ export default class CaseSensitivePathsPlugin implements ResolvePlugin {
         return true
       }
       if (!segmentExists && isFromCache) {
-        // revalidate when the cached value was used
+        // revalidate when the cached value was used, it might have updated since
+        // the cache was last written
         const freshParentDirEntries = await fs.readdir(segmentParentDir)
         this._cache.set(segmentParentDir, freshParentDirEntries)
         return freshParentDirEntries.includes(segment)
