@@ -1,0 +1,17 @@
+{
+  "name": "next-auth-example",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "next": "^9.4.0",
+    "next-auth": "^2.0.0-beta.67",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "sqlite3": "^4.2.0"
+  }
+}
