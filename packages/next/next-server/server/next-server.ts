@@ -865,7 +865,6 @@ export default class Server {
       try {
         const components = await loadComponents(
           this.distDir,
-          this.buildId,
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless
         )
@@ -909,7 +908,6 @@ export default class Server {
       const __getStaticPaths = async () => {
         const paths = await this.staticPathsWorker!.loadStaticPaths(
           this.distDir,
-          this.buildId,
           pathname,
           !this.renderOpts.dev && this._isLikeServerless
         )
