@@ -24,7 +24,6 @@ export function createPagesMapping(
       let page = `${pagePath
         .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
-      page = page === '/index' ? '/' : page
 
       const pageKey = page === '' ? '/' : page
 
@@ -62,7 +61,6 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
-  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
@@ -102,7 +100,7 @@ export function createEntrypoints(
     const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
 
-    const bundlePath = join('static', buildId, 'pages', bundleFile)
+    const bundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -141,7 +139,7 @@ export function createEntrypoints(
         pageLoaderOpts
       )}!`
 
-      // Make sure next/router is a dependency of _app or else granularChunks
+      // Make sure next/router is a dependency of _app or else chunk splitting
       // might cause the router to not be able to load causing hydration
       // to fail
 

@@ -50,7 +50,7 @@ const externals = {
   'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
   'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',
   chokidar: 'chokidar',
-  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader, terser-webpack-plugin
+  // dependents: babel-loader, async-retry, cache-loader, terser-webpack-plugin
   'find-cache-dir': 'find-cache-dir',
   // dependents: thread-loader
   'loader-runner': 'loader-runner',
@@ -104,15 +104,7 @@ export async function ncc_async_sema(task, opts) {
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
 }
-// eslint-disable-next-line camelcase
-externals['autodll-webpack-plugin'] =
-  'next/dist/compiled/autodll-webpack-plugin'
-export async function ncc_autodll_webpack_plugin(task, opts) {
-  await task
-    .source(opts.src || 'build/bundles/autodll-webpack-plugin.js')
-    .ncc({ packageName: 'autodll-webpack-plugin', externals })
-    .target('compiled/autodll-webpack-plugin')
-}
+
 // eslint-disable-next-line camelcase
 externals['babel-loader'] = 'next/dist/compiled/babel-loader'
 export async function ncc_babel_loader(task, opts) {
@@ -552,7 +544,6 @@ export async function ncc(task) {
       'ncc_arg',
       'ncc_async_retry',
       'ncc_async_sema',
-      'ncc_autodll_webpack_plugin',
       'ncc_babel_loader',
       'ncc_cache_loader',
       'ncc_chalk',
@@ -616,8 +607,7 @@ export async function compile(task) {
     'lib',
     'client',
     'telemetry',
-    'nextserverserver',
-    'nextserverlib',
+    'nextserver',
   ])
 }
 
@@ -690,7 +680,7 @@ export async function pages_document(task) {
   await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
-export async function pages(task, opts) {
+export async function pages(task, _opts) {
   await task.parallel(['pages_app', 'pages_error', 'pages_document'])
 }
 
@@ -718,33 +708,19 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry')
-  await task.watch('next-server/server/**/*.+(js|ts|tsx)', 'nextserverserver')
-  await task.watch('next-server/lib/**/*.+(js|ts|tsx)', 'nextserverlib')
+  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver')
 }
 
-export async function nextserverlib(task, opts) {
+export async function nextserver(task, opts) {
   await task
-    .source(opts.src || 'next-server/lib/**/*.+(js|ts|tsx)')
+    .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
     .babel('server')
-    .target('dist/next-server/lib')
-  notify('Compiled lib files')
-}
-
-export async function nextserverserver(task, opts) {
-  await task
-    .source(opts.src || 'next-server/server/**/*.+(js|ts|tsx)')
-    .babel('server')
-    .target('dist/next-server/server')
+    .target('dist/next-server')
   notify('Compiled server files')
-}
-
-export async function nextserverbuild(task) {
-  await task.parallel(['nextserverserver', 'nextserverlib'])
 }
 
 export async function release(task) {
   await task.clear('dist').start('build')
-  await task.clear('dist/next-server').start('nextserverbuild')
 }
 
 // notification helper

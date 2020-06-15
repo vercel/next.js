@@ -47,25 +47,6 @@ yarn dev
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-### Notes
-
-The main problem with integrating Redux, Redux-Observable and Next.js is
-probably making initial requests on a server. That's because, the
-`getInitialProps` hook runs on the server-side before epics have been made available by just dispatching actions.
-
-However, we can access and execute epics directly. In order to do so, we need to
-pass them an Observable of an action together with StateObservable and they will return an Observable:
-
-```js
-static async getInitialProps({ store, isServer }) {
-  const state$ = new StateObservable(new Subject(), store.getState());
-  const resultAction = await rootEpic(
-    of(actions.fetchCharacter(isServer)),
-    state$
-  ).toPromise(); // we need to convert Observable to Promise
-  store.dispatch(resultAction)};
-```
-
 Note: we are not using `AjaxObservable` from the `rxjs` library; as of rxjs
 v5.5.6, it will not work on both the server- and client-side. Instead we call
 the default export from

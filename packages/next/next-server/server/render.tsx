@@ -18,9 +18,10 @@ import {
   STATIC_PROPS_ID,
   SERVER_PROPS_ID,
 } from '../lib/constants'
-import Head, { defaultHead } from '../lib/head'
+import { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
+import { HeadManagerContext } from '../lib/head-manager-context'
 import mitt, { MittEmitter } from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
@@ -118,25 +119,7 @@ function enhanceComponents(
   }
 }
 
-function render(
-  renderElementToString: (element: React.ReactElement<any>) => string,
-  element: React.ReactElement<any>,
-  ampMode: any
-): { html: string; head: React.ReactElement[] } {
-  let html
-  let head
-
-  try {
-    html = renderElementToString(element)
-  } finally {
-    head = Head.rewind() || defaultHead(isInAmpMode(ampMode))
-  }
-
-  return { html, head }
-}
-
 export type RenderOptsPartial = {
-  staticMarkup: boolean
   buildId: string
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
@@ -165,6 +148,7 @@ export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 function renderDocument(
   Document: DocumentType,
   {
+    buildManifest,
     props,
     docProps,
     pathname,
@@ -184,14 +168,8 @@ function renderDocument(
     ampState,
     inAmpMode,
     hybridAmp,
-    staticMarkup,
-    devFiles,
     files,
-    lowPriorityFiles,
-    polyfillFiles,
     dynamicImports,
-    htmlProps,
-    bodyTags,
     headTags,
     gsp,
     gssp,
@@ -211,12 +189,7 @@ function renderDocument(
     hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
-    devFiles: string[]
     files: string[]
-    lowPriorityFiles: string[]
-    polyfillFiles: string[]
-    htmlProps: any
-    bodyTags: any
     headTags: any
     isFallback?: boolean
     gsp?: boolean
@@ -250,21 +223,16 @@ function renderDocument(
             gip, // whether the page has getInitialProps
             appGip, // whether the _app has getInitialProps
           },
+          buildManifest,
           dangerousAsPath,
           canonicalBase,
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
           hybridAmp,
-          staticMarkup,
-          devFiles,
           files,
-          lowPriorityFiles,
-          polyfillFiles,
           dynamicImports,
           assetPrefix,
-          htmlProps,
-          bodyTags,
           headTags,
           unstable_runtimeJS,
           ...docProps,
@@ -290,11 +258,9 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
-  pathname = pathname === '/index' ? '/' : pathname
   const {
     err,
     dev = false,
-    staticMarkup = false,
     ampPath = '',
     App,
     Document,
@@ -335,8 +301,6 @@ export async function renderToHTML(
   }
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
-  const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
-  const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
   const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
@@ -383,9 +347,7 @@ export async function renderToHTML(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
       }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client${
-          isFallback ? ' for the fallback page ' : ''
-        }`
+        `Using this will cause the page to fail to parse the params on the client`
     )
   }
 
@@ -486,16 +448,29 @@ export async function renderToHTML(
     hybrid: pageConfig.amp === 'hybrid',
   }
 
+  const inAmpMode = isInAmpMode(ampState)
+
   const reactLoadableModules: string[] = []
+
+  let head: JSX.Element[] = defaultHead(inAmpMode)
 
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
-        <LoadableContext.Provider
-          value={(moduleName) => reactLoadableModules.push(moduleName)}
+        <HeadManagerContext.Provider
+          value={{
+            updateHead: (state) => {
+              head = state
+            },
+            mountedInstances: new Set(),
+          }}
         >
-          {children}
-        </LoadableContext.Provider>
+          <LoadableContext.Provider
+            value={(moduleName) => reactLoadableModules.push(moduleName)}
+          >
+            {children}
+          </LoadableContext.Provider>
+        </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
@@ -677,27 +652,23 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
-  const devFiles = buildManifest.devFiles
-  const files = [
-    ...new Set([
-      ...getPageFiles(buildManifest, '/_app'),
-      ...getPageFiles(buildManifest, pathname),
-    ]),
-  ]
-  const lowPriorityFiles = buildManifest.lowPriorityFiles
-  const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
+  // AMP First pages do not have client-side JavaScript files
+  const files = ampState.ampFirst
+    ? []
+    : [
+        ...new Set([
+          ...getPageFiles(buildManifest, '/_app'),
+          ...(pathname !== '/_error'
+            ? getPageFiles(buildManifest, pathname)
+            : []),
+        ]),
+      ]
 
-  const renderElementToString = staticMarkup
-    ? renderToStaticMarkup
-    : renderToString
-
-  const renderPageError = (): { html: string; head: any } | void => {
+  const renderPage: RenderPage = (
+    options: ComponentsEnhancer = {}
+  ): { html: string; head: any } => {
     if (ctx.err && ErrorDebug) {
-      return render(
-        renderElementToString,
-        <ErrorDebug error={ctx.err} />,
-        ampState
-      )
+      return { html: renderToString(<ErrorDebug error={ctx.err} />), head }
     }
 
     if (dev && (props.router || props.Component)) {
@@ -705,26 +676,19 @@ export async function renderToHTML(
         `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
       )
     }
-  }
-
-  let renderPage: RenderPage = (
-    options: ComponentsEnhancer = {}
-  ): { html: string; head: any } => {
-    const renderError = renderPageError()
-    if (renderError) return renderError
 
     const {
       App: EnhancedApp,
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    return render(
-      renderElementToString,
+    const html = renderToString(
       <AppContainer>
         <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
-      </AppContainer>,
-      ampState
+      </AppContainer>
     )
+
+    return { html, head }
   }
   const documentCtx = { ...ctx, renderPage }
   const docProps: DocumentInitialProps = await loadGetInitialProps(
@@ -756,7 +720,6 @@ export async function renderToHTML(
   }
 
   const dynamicImportsIds = [...dynamicImportIdsSet]
-  const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
   // update renderOpts so export knows current state
@@ -774,8 +737,6 @@ export async function renderToHTML(
     ampState,
     props,
     headTags: await headTags(documentCtx),
-    bodyTags: await bodyTags(documentCtx),
-    htmlProps: await htmlProps(documentCtx),
     isFallback,
     docProps,
     pathname,
@@ -785,10 +746,7 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImportsIds,
     dynamicImports,
-    devFiles,
     files,
-    lowPriorityFiles,
-    polyfillFiles,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,

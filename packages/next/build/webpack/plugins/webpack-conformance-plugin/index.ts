@@ -49,7 +49,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildStartedHandler = (
-    compilation: CompilationType.Compilation,
+    _compilation: CompilationType.Compilation,
     callback: () => void
   ) => {
     const buildStartedResults: IConformanceTestResult[] = this.tests.map(

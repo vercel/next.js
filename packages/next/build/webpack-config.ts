@@ -332,13 +332,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool =
-    process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL
-      ? false
-      : dev
-      ? 'cheap-module-source-map'
-      : false
-
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
       // mini-css-extract-plugin
@@ -698,6 +691,14 @@ export default async function getBaseWebpackConfig(
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
+
+        if (chunk.name.includes('BUILD_ID')) {
+          return escapePathVariables(chunk.name).replace(
+            'BUILD_ID',
+            isServer || dev ? buildId : '[contenthash]'
+          )
+        }
+
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
@@ -814,7 +815,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(crossOrigin),
+        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
@@ -831,7 +832,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(!dev),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
@@ -902,27 +902,8 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            // Webpack 5 has the ability to cache packages persistently, so we
-            // do not need this DLL plugin:
+            // Webpack 5 enables HMR automatically in the development mode
             if (!isServer && !isWebpack5) {
-              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
-                distDir
-              )
-              devPlugins.push(
-                new AutoDllPlugin({
-                  filename: '[name]_[hash].js',
-                  path: './static/development/dll',
-                  context: dir,
-                  entry: {
-                    dll: ['react', 'react-dom'],
-                  },
-                  config: {
-                    devtool,
-                    mode: webpackMode,
-                    resolve: resolveConfig,
-                  },
-                })
-              )
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
             }
 
