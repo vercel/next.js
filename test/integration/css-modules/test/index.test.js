@@ -54,7 +54,7 @@ describe('Basic CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_redText__3CwEB{color:red}"`
+      `".a{color:red}"`
     )
   })
 
@@ -70,9 +70,7 @@ describe('Basic CSS Module Support', () => {
     expect(cssSheet.length).toBe(1)
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
-    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-      `"index_redText__3CwEB"`
-    )
+    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(`"a"`)
   })
 })
 
@@ -110,7 +108,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_foo__29BAH{position:relative}.index_foo__29BAH .bar,.index_foo__29BAH .baz{height:100%;overflow:hidden}.index_foo__29BAH .lol,.index_foo__29BAH>.lel{width:80%}"`
+      `".a{position:relative}.a .bar,.a .baz{height:100%;overflow:hidden}.a .lol,.a>.lel{width:80%}"`
     )
   })
 
@@ -126,9 +124,7 @@ describe('3rd Party CSS Module Support', () => {
     expect(cssSheet.length).toBe(1)
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
-    expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-      `"index_foo__29BAH"`
-    )
+    expect($('#verify-div').attr('class')).toMatchInlineSnapshot(`"a"`)
   })
 })
 
@@ -312,7 +308,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__1rb5g\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"a\\"}"`
     )
   })
 
@@ -326,7 +322,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".example_redText__1rb5g{color:red}"`
+      `".a{color:red}"`
     )
   })
 })
@@ -365,7 +361,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__2YUgj other_className__bt_-E\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"a b\\"}"`
     )
   })
 
@@ -379,7 +375,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.other2_other2__2PUfY{color:red}.example_subClass__2YUgj{background:#00f}"`
+      `".d{color:violet}.b{background:red;color:#ff0}.c{color:red}.a{background:#00f}"`
     )
   })
 })
@@ -412,7 +408,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_className__3gr_q{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+      `".a{background:red;color:#ff0}.b{background:#00f}"`
     )
   })
 })
@@ -445,7 +441,7 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other_className__21NIP{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+      `".b{background:red;color:#ff0}.a{background:#00f}"`
     )
   })
 })
@@ -493,7 +489,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__2Cy-L{background:red}"`
+      `".a{background:red}"`
     )
   })
 })
@@ -543,7 +539,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".___post__home__38gR-{background:red}.__55css_home__qxXcH{color:green}"`
+      `".a{background:red}.b{color:green}"`
     )
   })
 })
