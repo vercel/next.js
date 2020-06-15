@@ -289,7 +289,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
-    version: 1,
+    version: 3,
     pages404: true,
     basePath: config.experimental.basePath,
     redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),

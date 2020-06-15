@@ -44,11 +44,12 @@ export function getRouteRegex(
   )
 
   let namedParameterizedRoute: string | undefined
-  const routeKeys: { [named: string]: string } = {}
 
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
+    const routeKeys: { [named: string]: string } = {}
+
     namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {

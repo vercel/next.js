@@ -530,7 +530,7 @@ function runTests(dev) {
       }
 
       expect(manifest).toEqual({
-        version: 1,
+        version: 3,
         pages404: true,
         basePath: '',
         headers: [],
