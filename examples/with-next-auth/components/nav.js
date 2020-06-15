@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { signin, signout, useSession } from 'next-auth/client'
 import styles from './nav.module.css'
 
@@ -7,7 +6,7 @@ import styles from './nav.module.css'
  * component that works on pages which support both client and server side
  * rendering, and avoids any flash incorrect content on initial page load.
  **/
-export default () => {
+const Nav = () => {
   const [session, loading] = useSession()
 
   return (
@@ -25,7 +24,7 @@ export default () => {
             <span className={styles.notSignedIn}>Not signed in</span>
             <a
               href={`/api/auth/signin`}
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault()
                 signin()
               }}
@@ -45,7 +44,7 @@ export default () => {
             </span>
             <a
               href={`/api/auth/signout`}
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault()
                 signout()
               }}
@@ -58,3 +57,5 @@ export default () => {
     </nav>
   )
 }
+
+export default Nav

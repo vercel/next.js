@@ -1,7 +1,7 @@
 import Nav from '../components/nav'
 import Footer from '../components/footer'
 
-export default () => (
+const NextAuth = () => (
   <>
     <Nav />
     <main>
@@ -26,3 +26,5 @@ export default () => (
     <Footer />
   </>
 )
+
+export default NextAuth

@@ -1,6 +1,6 @@
 import styles from './footer.module.css'
 
-export default () => (
+const Footer = () => (
   <div className={styles.footer}>
     <hr />
     <ul className={styles.navigation}>
@@ -13,3 +13,5 @@ export default () => (
     </ul>
   </div>
 )
+
+export default Footer
