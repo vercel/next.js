@@ -38,7 +38,7 @@ export function getCssModuleLoader(
         // development.
         // TODO: Consider making production reduce this to a single
         // character?
-        getLocalIdent: getCssModuleLocalIdent,
+        getLocalIdent: getCssModuleLocalIdent(ctx.isDevelopment),
       },
     },
   })

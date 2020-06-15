@@ -1,10 +1,31 @@
 import loaderUtils from 'loader-utils'
 import path from 'path'
 import webpack from 'webpack'
+import SequentialIDGenerator from './utils/SequentialIDGenerator'
+
+const classnameGenerator = new SequentialIDGenerator()
+const minifiedClassnameCache = new Map<string, string>()
 
 const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
 
-export function getCssModuleLocalIdent(
+export function getCssModuleLocalIdent(isDevelopment: boolean) {
+  return isDevelopment
+    ? getVerboseCssModuleLocalIdent
+    : getOptimizedCssModuleLocalIdent
+}
+
+function getOptimizedCssModuleLocalIdent(
+  context: webpack.loader.LoaderContext,
+  _: any,
+  exportName: string,
+  options: object
+) {
+  return getMinifiedClassname(
+    getVerboseCssModuleLocalIdent(context, _, exportName, options)
+  )
+}
+
+function getVerboseCssModuleLocalIdent(
   context: webpack.loader.LoaderContext,
   _: any,
   exportName: string,
@@ -50,4 +71,17 @@ export function getCssModuleLocalIdent(
       // https://www.w3.org/TR/CSS21/syndata.html#characters
       .replace(/^(\d|--|-\d)/, '__$1')
   )
+}
+
+function getMinifiedClassname(classname: string) {
+  // ensure we don't generate a new minified classname for an already minified one.
+  const cachedClassname = minifiedClassnameCache.get(classname)
+  if (cachedClassname) {
+    return cachedClassname
+  }
+
+  const minifiedClassname = classnameGenerator.next()
+  minifiedClassnameCache.set(classname, minifiedClassname)
+
+  return minifiedClassname
 }
