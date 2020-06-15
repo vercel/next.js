@@ -79,6 +79,7 @@ type Middleware = (
 ) => void
 
 type FindComponentsResult = {
+  errors: Error[]
   components: LoadComponentsReturnType
   query: ParsedUrlQuery
 }
