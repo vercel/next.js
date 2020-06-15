@@ -37,11 +37,10 @@ export async function findUser({ email }) {
 
 // Compare the password of an already fetched user (using `findUser`) and compare the
 // password for a potential match
-export async function validatePassword(user, inputPassword) {
-  const password = crypto
-    .pbkdf2Sync(user.hash, user.salt, 1000, 64, 'sha512')
+export const validatePassword = (user, inputPassword) => {
+  const inputHash = crypto
+    .pbkdf2Sync(inputPassword, user.salt, 1000, 64, 'sha512')
     .toString('hex')
-  const passwordsMatch = password === inputPassword
-
+  const passwordsMatch = user.hash === inputHash
   return passwordsMatch
 }
