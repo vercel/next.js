@@ -18,7 +18,9 @@ module.exports = function (context) {
         ) &&
         attributes.find(
           (attr) =>
-            attr.name.name === 'href' && !/^https?/.test(attr.value.value)
+            attr.name.name === 'href' &&
+            attr.value.type === 'Literal' &&
+            !/^https?/.test(attr.value.value)
         )
       ) {
         context.report({
