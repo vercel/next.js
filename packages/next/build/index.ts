@@ -572,30 +572,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
             hybridAmpPages.add(page)
           }
 
-          if (workerResult.isAmpOnly) {
-            // ensure all AMP only bundles got removed
-            try {
-              const clientBundle = path.join(
-                distDir,
-                'static',
-                buildId,
-                'pages',
-                actualPage + '.js'
-              )
-              await promises.unlink(clientBundle)
-
-              if (config.experimental.modern) {
-                await promises.unlink(
-                  clientBundle.replace(/\.js$/, '.module.js')
-                )
-              }
-            } catch (err) {
-              if (err.code !== 'ENOENT') {
-                throw err
-              }
-            }
-          }
-
           if (workerResult.hasStaticProps) {
             ssgPages.add(page)
             isSsg = true
@@ -717,19 +693,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           '\n'
         )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
     )
-  }
-
-  if (Array.isArray(configs[0].plugins)) {
-    configs[0].plugins.some((plugin: any) => {
-      if (!plugin.ampPages) {
-        return false
-      }
-
-      plugin.ampPages.forEach((pg: any) => {
-        pageInfos.get(pg)!.isAmp = true
-      })
-      return true
-    })
   }
 
   await writeBuildId(distDir, buildId)
