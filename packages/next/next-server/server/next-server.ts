@@ -869,6 +869,9 @@ export default class Server {
           !this.renderOpts.dev && this._isLikeServerless
         )
         return {
+          errors: components.buildManifest.errors.map((props) =>
+            Object.assign(new Error(), props)
+          ),
           components,
           query: {
             ...(components.getStaticProps
@@ -1166,8 +1169,8 @@ export default class Server {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
-        if (result.components.buildManifest.errors.length > 0) {
-          const err = result.components.buildManifest.errors[0]
+        if (result.errors.length > 0) {
+          const err = result.errors[0]
           this.logError(err)
           res.statusCode = 500
           return await this.renderErrorToHTML(err, req, res, pathname, query)
@@ -1200,6 +1203,18 @@ export default class Server {
             params
           )
           if (dynamicRouteResult) {
+            if (dynamicRouteResult.errors.length > 0) {
+              const err = dynamicRouteResult.errors[0]
+              this.logError(err)
+              res.statusCode = 500
+              return await this.renderErrorToHTML(
+                err,
+                req,
+                res,
+                pathname,
+                query
+              )
+            }
             try {
               return await this.renderToHTMLWithComponents(
                 req,
