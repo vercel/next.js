@@ -1166,6 +1166,12 @@ export default class Server {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
+        if (result.components.buildManifest.errors.length > 0) {
+          const err = result.components.buildManifest.errors[0]
+          this.logError(err)
+          res.statusCode = 500
+          return await this.renderErrorToHTML(err, req, res, pathname, query)
+        }
         try {
           return await this.renderToHTMLWithComponents(
             req,
