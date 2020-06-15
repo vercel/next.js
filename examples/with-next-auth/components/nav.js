@@ -25,7 +25,7 @@ export default () => {
             <span className={styles.notSignedIn}>Not signed in</span>
             <a
               href={`/api/auth/signin`}
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault()
                 signin()
               }}
@@ -45,7 +45,7 @@ export default () => {
             </span>
             <a
               href={`/api/auth/signout`}
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault()
                 signout()
               }}

@@ -1,5 +1,6 @@
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
   line-height: 1.4rem;
   padding: 0 1rem 1rem 1rem;
   max-width: 680px;
@@ -15,7 +16,7 @@ h1 {
 }
 
 h4 {
-  margin-bottom: .5rem;
+  margin-bottom: 0.5rem;
   text-transform: uppercase;
 }
 
