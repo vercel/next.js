@@ -73,7 +73,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-
+import { getPagePath } from '../next-server/server/require'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -481,13 +481,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   hasNonStaticErrorPage =
     hasCustomErrorPage &&
     (await hasCustomGetInitialProps(
-      path.join(
-        distDir,
-        ...(isLikeServerless
-          ? ['serverless', 'pages']
-          : ['server', 'static', buildId, 'pages']),
-        '_error.js'
-      ),
+      getPagePath('/_error', distDir, isLikeServerless),
       runtimeEnvConfig,
       false
     ))
@@ -502,15 +496,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         buildManifest,
         config.experimental.modern
       )
-      const bundleRelative = path.join(
-        isLikeServerless ? 'pages' : `static/${buildId}/pages`,
-        actualPage + '.js'
-      )
-      const serverBundle = path.join(
-        distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        bundleRelative
-      )
+
+      const serverBundle = getPagePath(page, distDir, isLikeServerless)
 
       let isSsg = false
       let isStatic = false
@@ -518,19 +505,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let ssgPageRoutes: string[] | null = null
       let hasSsgFallback: boolean = false
 
-      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
-
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomGetInitialProps(
           isLikeServerless
             ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
+            : getPagePath('/_app', distDir, isLikeServerless),
           runtimeEnvConfig,
           true
         )
@@ -538,11 +519,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         namedExports = getNamedExports(
           isLikeServerless
             ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
+            : getPagePath('/_app', distDir, isLikeServerless),
           runtimeEnvConfig
         )
 
