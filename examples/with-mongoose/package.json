@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "fixtures:load": "node ./load-fixtures",
     "dev": "next",
     "build": "next build",
     "start": "next start"
@@ -24,5 +25,9 @@
     "react-mde": "^10.0.3",
     "use-effect-reducer": "^0.6.0"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@jackfranklin/test-data-bot": "^1.3.0",
+    "node-mongodb-fixtures": "^3.2.4"
+  }
 }
