@@ -21,7 +21,7 @@ const Profile = (props) => {
   )
 }
 
-Profile.getInitialProps = async (ctx) => {
+export async function getServerSideProps(ctx) {
   if (typeof window === 'undefined') {
     const { req, res } = ctx
     const cookies = cookie.parse(req.headers.cookie ?? '')
