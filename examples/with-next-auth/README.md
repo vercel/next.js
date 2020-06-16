@@ -12,7 +12,7 @@ Deploy the example using [Vercel](https://vercel.com/now):
 
 A Prerequisite here is that you provide some sort of authentication mechanism, be that in the form of OAuth keys/secrets from a provider (Google, Twitter, etc.) or an SMTP connection string to enable email authentication.
 
-You must copy the `example.env` file and create your own `.env` file and fill out at least one of the authentication provider variables.
+You must copy the `.env.example.local` file and create your own `.env.local` file and fill out at least one of the authentication provider variables.
 
 More details about the providers can be found [here](https://next-auth.js.org/configuration/providers)
 
