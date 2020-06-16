@@ -28,8 +28,12 @@ export default async function handler(
       const line_items = validateCartItems(inventory, cartItems)
       // Create Checkout Sessions from body params.
       const params: Stripe.Checkout.SessionCreateParams = {
-        submit_type: 'donate',
+        submit_type: 'pay',
         payment_method_types: ['card'],
+        billing_address_collection: 'auto',
+        shipping_address_collection: {
+          allowed_countries: ['US', 'CA'],
+        },
         line_items,
         success_url: `${req.headers.origin}/result?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/use-shopping-cart`,
