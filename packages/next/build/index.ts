@@ -757,22 +757,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const orig = path.join(exportOptions.outdir, file)
       const pagePath = getPagePath(originPage, distDir, isLikeServerless)
 
-      const relativeDest = path.relative(
-        serverOutputDir,
-        path.join(
+      const relativeDest = path
+        .relative(
+          serverOutputDir,
           path.join(
-            pagePath,
-            // strip leading / and then recurse number of nested dirs
-            // to place from base folder
-            originPage
-              .substr(1)
-              .split('/')
-              .map(() => '..')
-              .join('/')
-          ),
-          file
+            path.join(
+              pagePath,
+              // strip leading / and then recurse number of nested dirs
+              // to place from base folder
+              originPage
+                .substr(1)
+                .split('/')
+                .map(() => '..')
+                .join('/')
+            ),
+            file
+          )
         )
-      )
+        .replace(/\\/g, '/')
 
       const dest = path.join(
         distDir,
