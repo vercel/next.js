@@ -11,11 +11,13 @@ import Category from 'models/category'
 
 const IndexPage = (props) => (
   <Layout categories={props.categories} title="Home">
-    <ArticleFeatured
-      slug={props.featured.slug}
-      title={props.featured.title}
-      abstract={props.featured.abstract}
-    />
+    {props.featured && (
+      <ArticleFeatured
+        slug={props.featured.slug}
+        title={props.featured.title}
+        abstract={props.featured.abstract}
+      />
+    )}
     <div className="row mb-2">
       {props.latest.map((article) => (
         <ArticleCard key={article._id} {...article} />
@@ -54,13 +56,17 @@ export async function getServerSideProps(context) {
     limit,
     sort,
   })
+  if (articles.length === 0) {
+    context.res.writeHead(302, { Location: '/article/editor' })
+    context.res.end()
+  }
 
   return {
     props: {
       categories: categories.map((category) => category.toJSON()),
       articles: articles.map((article) => article.toJSON()),
       latest: latest.map((article) => article.toJSON()),
-      featured: featured.toJSON(),
+      featured: featured && featured.toJSON(),
       pagination,
       archives,
     },
