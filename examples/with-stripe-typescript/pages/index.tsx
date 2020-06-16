@@ -26,7 +26,7 @@ const IndexPage: NextPage = () => {
           <Link href="/use-shopping-cart">
             <a className="card cart-style-background">
               <h2 className="bottom">Use Shopping Cart</h2>
-              <img src="https://use-shopping-cart.netlify.app/banner.png" />
+              <img src="/use-shopping-cart.png" />
             </a>
           </Link>
         </li>
