@@ -22,9 +22,13 @@ function getOptimizedCssModuleLocalIdent(
   exportName: string,
   options: object
 ) {
-  return getMinifiedClassname(
-    getVerboseCssModuleLocalIdent(context, _, exportName, options)
+  const verboseClassname = getVerboseCssModuleLocalIdent(
+    context,
+    _,
+    exportName,
+    options
   )
+  return getMinifiedClassname(verboseClassname)
 }
 
 function getVerboseCssModuleLocalIdent(
@@ -84,11 +88,10 @@ function getMinifiedClassname(classname: string): string {
 
   const minifiedClassname = classnameGenerator.next()
 
-  if (regexLikeAds.test(minifiedClassname)) {
-    return getMinifiedClassname(classname)
+  if (!regexLikeAds.test(minifiedClassname)) {
+    minifiedClassnameCache.set(classname, minifiedClassname)
+    return minifiedClassname
   }
 
-  minifiedClassnameCache.set(classname, minifiedClassname)
-
-  return minifiedClassname
+  return getMinifiedClassname(classname)
 }
