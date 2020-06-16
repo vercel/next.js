@@ -515,14 +515,22 @@ function runTests(dev) {
 
       for (const route of manifest.dynamicRoutes) {
         route.regex = normalizeRegEx(route.regex)
+
+        // ensure regexes are valid
+        new RegExp(route.regex)
+        new RegExp(route.namedRegex)
       }
 
       for (const route of manifest.dataRoutes) {
         route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+
+        // ensure regexes are valid
+        new RegExp(route.dataRouteRegex)
+        new RegExp(route.namedDataRouteRegex)
       }
 
       expect(manifest).toEqual({
-        version: 1,
+        version: 3,
         pages404: true,
         basePath: '',
         headers: [],
@@ -539,7 +547,9 @@ function runTests(dev) {
               )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/all-ssg/[...rest]',
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -551,7 +561,9 @@ function runTests(dev) {
               )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/nested-all-ssg/[...rest]',
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -563,7 +575,9 @@ function runTests(dev) {
               )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/predefined-ssg/[...rest]',
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
         ],
         dynamicRoutes: [
@@ -573,25 +587,50 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
             ),
-            routeKeys: ['name', 'id'],
+            routeKeys: {
+              name: 'name',
+              id: 'id',
+            },
+          },
+          {
+            namedRegex: '^/catchall\\-dash/(?<helloworld>.+?)(?:/)?$',
+            page: '/catchall-dash/[...hello-world]',
+            regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
+            routeKeys: {
+              helloworld: 'hello-world',
+            },
+          },
+          {
+            namedRegex: '^/dash/(?<helloworld>[^/]+?)(?:/)?$',
+            page: '/dash/[hello-world]',
+            regex: normalizeRegEx('^\\/dash\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              helloworld: 'hello-world',
+            },
           },
           {
             namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['post'],
+            routeKeys: {
+              post: 'post',
+            },
           },
           {
             namedRegex: `^/p1/p2/all\\-ssg/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssg/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/p1/p2/all\\-ssr/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssr/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)(?:/)?$`,
@@ -599,7 +638,9 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
             ),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/p1/p2/predefined\\-ssg/(?<rest>.+?)(?:/)?$`,
@@ -607,19 +648,25 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
             ),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)(?:/)?$`,
             page: '/[name]',
             regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['name'],
+            routeKeys: {
+              name: 'name',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)/comments(?:/)?$`,
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
-            routeKeys: ['name'],
+            routeKeys: {
+              name: 'name',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
@@ -627,13 +674,18 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
             ),
-            routeKeys: ['name'],
+            routeKeys: {
+              name: 'name',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)/(?<comment>[^/]+?)(?:/)?$`,
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['name', 'comment'],
+            routeKeys: {
+              name: 'name',
+              comment: 'comment',
+            },
           },
         ],
       })

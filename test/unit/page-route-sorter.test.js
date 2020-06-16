@@ -204,4 +204,13 @@ describe('getSortedRoutes', () => {
       `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
     )
   })
+
+  it('catches param names differing only by non-word characters', () => {
+    expect(() =>
+      getSortedRoutes([
+        '/blog/[helloworld]',
+        '/blog/[helloworld]/[hello-world]',
+      ])
+    ).toThrowError(/differ only by non-word/)
+  })
 })

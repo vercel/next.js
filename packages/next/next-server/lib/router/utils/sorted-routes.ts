@@ -127,11 +127,19 @@ class UrlNode {
           }
         }
 
-        if (slugNames.indexOf(nextSlug) !== -1) {
-          throw new Error(
-            `You cannot have the same slug name "${nextSlug}" repeat within a single dynamic path`
-          )
-        }
+        slugNames.forEach((slug) => {
+          if (slug === nextSlug) {
+            throw new Error(
+              `You cannot have the same slug name "${nextSlug}" repeat within a single dynamic path`
+            )
+          }
+
+          if (slug.replace(/\W/g, '') === nextSegment.replace(/\W/g, '')) {
+            throw new Error(
+              `You cannot have the slug names "${slug}" and "${nextSlug}" differ only by non-word symbols within a single dynamic path`
+            )
+          }
+        })
 
         slugNames.push(nextSlug)
       }
