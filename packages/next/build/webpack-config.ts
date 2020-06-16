@@ -1006,6 +1006,7 @@ export default async function getBaseWebpackConfig(
     productionBrowserSourceMaps,
   })
 
+  let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
       dir,
@@ -1017,6 +1018,19 @@ export default async function getBaseWebpackConfig(
       totalPages,
       webpack,
     })
+
+    if (
+      dev &&
+      isServer &&
+      webpackConfig.devtool &&
+      originalDevtool !== webpackConfig.devtool
+    ) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          chalk.bold(`Reverting webpack devtool to '${originalDevtool}'.\n`) +
+          'Changing the webpack devtool in development mode may cause severe performance regressions.\n'
+      )
+    }
 
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
