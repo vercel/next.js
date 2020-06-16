@@ -33,6 +33,15 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
+// In development mode routes and HMR needs to be set up. While this function
+// returns a promise, it is fine not to await it, since a delay in the preparation
+// is handled gracefully
+app.prepare().catch((err) => {
+  // if the prepare call fails, there is no way to recover
+  console.error('Error during preparation of dev server', err)
+  process.exit(1)
+})
+
 createServer((req, res) => {
   // Be sure to pass `true` as the second argument to `url.parse`.
   // This tells it to parse the query portion of the URL.
