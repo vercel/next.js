@@ -13,7 +13,7 @@ const DonatePage: NextPage = () => {
         <p>
           Powered by the{' '}
           <a href="https://use-shopping-cart.netlify.app/">use-shopping-cart</a>{' '}
-          React hook library.
+          React hooks library.
         </p>
         <Cart>
           <CartSummary />
