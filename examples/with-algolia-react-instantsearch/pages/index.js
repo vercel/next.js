@@ -1,4 +1,9 @@
-import { Head, App, findResultsState } from '../components'
+import { Head, App } from '../components'
+import {
+  findResultsState,
+  indexName,
+  searchClient,
+} from '../components/instantsearch'
 import { Component } from 'react'
 import PropTypes from 'prop-types'
 import Router from 'next/router'
@@ -9,6 +14,16 @@ const updateAfter = 700
 const searchStateToUrl = (searchState) =>
   searchState ? `${window.location.pathname}?${qs.stringify(searchState)}` : ''
 
+export async function getServerSideProps({ req }) {
+  const path = req.url
+  const searchState = qs.parse(path.substring(path.indexOf('?') + 1))
+  let resultsState = await findResultsState(App, { indexName, searchClient })
+  resultsState.state = JSON.stringify(resultsState.state)
+  return {
+    props: { resultsState, searchState },
+  }
+}
+
 export default class Home extends Component {
   static propTypes = {
     resultsState: PropTypes.object,
@@ -18,19 +33,6 @@ export default class Home extends Component {
   constructor(props) {
     super(props)
     this.onSearchStateChange = this.onSearchStateChange.bind(this)
-  }
-
-  /*
-     nextjs params.query doesn't handle nested objects
-     once it does, params.query could be used directly here, but also inside the constructor
-     to initialize the searchState.
-  */
-  static async getInitialProps(params) {
-    const searchState = qs.parse(
-      params.asPath.substring(params.asPath.indexOf('?') + 1)
-    )
-    const resultsState = await findResultsState(App, { searchState })
-    return { resultsState, searchState }
   }
 
   onSearchStateChange = (searchState) => {
