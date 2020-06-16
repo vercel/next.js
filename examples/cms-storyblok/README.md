@@ -24,6 +24,7 @@ Once you have access to [the environment variables you'll need](#step-6-set-up-e
 - [Cosmic](/examples/cms-cosmic)
 - [Strapi](/examples/cms-strapi)
 - [ButterCMS](/examples/cms-buttercms)
+- [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use

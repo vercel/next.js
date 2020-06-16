@@ -9,6 +9,7 @@ export function getRouteRegex(
 ): {
   re: RegExp
   namedRegex?: string
+  routeKeys?: { [named: string]: string }
   groups: {
     [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
   }
@@ -47,6 +48,8 @@ export function getRouteRegex(
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
+    const routeKeys: { [named: string]: string } = {}
+
     namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {
@@ -56,18 +59,28 @@ export function getRouteRegex(
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
           .replace(/^\.{3}/, '')
 
+        // replace any non-word characters since they can break
+        // the named regex
+        const cleanedKey = key.replace(/\W/g, '')
+
+        routeKeys[cleanedKey] = key
+
         return isCatchAll
-          ? `/(?<${escapeRegex(key)}>.+?)`
-          : `/(?<${escapeRegex(key)}>[^/]+?)`
+          ? `/(?<${cleanedKey}>.+?)`
+          : `/(?<${cleanedKey}>[^/]+?)`
       }
     )
+
+    return {
+      re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+      groups,
+      routeKeys,
+      namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
+    }
   }
 
   return {
     re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
     groups,
-    namedRegex: namedParameterizedRoute
-      ? `^${namedParameterizedRoute}(?:/)?$`
-      : undefined,
   }
 }

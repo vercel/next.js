@@ -73,7 +73,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-
+import { getPagePath } from '../next-server/server/require'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -289,7 +289,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
-    version: 1,
+    version: 3,
     pages404: true,
     basePath: config.experimental.basePath,
     redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),
@@ -302,8 +302,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         return {
           page,
           regex: routeRegex.re.source,
+          routeKeys: routeRegex.routeKeys,
           namedRegex: routeRegex.namedRegex,
-          routeKeys: Object.keys(routeRegex.groups),
         }
       }),
   }
@@ -481,13 +481,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   hasNonStaticErrorPage =
     hasCustomErrorPage &&
     (await hasCustomGetInitialProps(
-      path.join(
-        distDir,
-        ...(isLikeServerless
-          ? ['serverless', 'pages']
-          : ['server', 'static', buildId, 'pages']),
-        '_error.js'
-      ),
+      getPagePath('/_error', distDir, isLikeServerless),
       runtimeEnvConfig,
       false
     ))
@@ -502,15 +496,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
         buildManifest,
         config.experimental.modern
       )
-      const bundleRelative = path.join(
-        isLikeServerless ? 'pages' : `static/${buildId}/pages`,
-        actualPage + '.js'
-      )
-      const serverBundle = path.join(
-        distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        bundleRelative
-      )
 
       let isSsg = false
       let isStatic = false
@@ -518,48 +503,40 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let ssgPageRoutes: string[] | null = null
       let hasSsgFallback: boolean = false
 
-      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
-
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-      if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomGetInitialProps(
-          isLikeServerless
-            ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
-          runtimeEnvConfig,
-          true
-        )
-
-        namedExports = getNamedExports(
-          isLikeServerless
-            ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
-          runtimeEnvConfig
-        )
-
-        if (customAppGetInitialProps) {
-          console.warn(
-            chalk.bold.yellow(`Warning: `) +
-              chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
-              )
-          )
-          console.warn(
-            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
-          )
-        }
-      }
-
       if (nonReservedPage) {
+        const serverBundle = getPagePath(page, distDir, isLikeServerless)
+
+        if (customAppGetInitialProps === undefined) {
+          customAppGetInitialProps = hasCustomGetInitialProps(
+            isLikeServerless
+              ? serverBundle
+              : getPagePath('/_app', distDir, isLikeServerless),
+            runtimeEnvConfig,
+            true
+          )
+
+          namedExports = getNamedExports(
+            isLikeServerless
+              ? serverBundle
+              : getPagePath('/_app', distDir, isLikeServerless),
+            runtimeEnvConfig
+          )
+
+          if (customAppGetInitialProps) {
+            console.warn(
+              chalk.bold.yellow(`Warning: `) +
+                chalk.yellow(
+                  `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
+                )
+            )
+            console.warn(
+              'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+            )
+          }
+        }
+
         try {
           let workerResult = await staticCheckWorkers.isPageStatic(
             page,
@@ -570,30 +547,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
-          }
-
-          if (workerResult.isAmpOnly) {
-            // ensure all AMP only bundles got removed
-            try {
-              const clientBundle = path.join(
-                distDir,
-                'static',
-                buildId,
-                'pages',
-                actualPage + '.js'
-              )
-              await promises.unlink(clientBundle)
-
-              if (config.experimental.modern) {
-                await promises.unlink(
-                  clientBundle.replace(/\.js$/, '.module.js')
-                )
-              }
-            } catch (err) {
-              if (err.code !== 'ENOENT') {
-                throw err
-              }
-            }
           }
 
           if (workerResult.hasStaticProps) {
@@ -637,7 +590,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       pageInfos.set(page, {
         size: selfSize,
         totalSize: allSize,
-        serverBundle,
         static: isStatic,
         isSsg,
         isHybridAmp,
@@ -663,8 +615,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       let dataRouteRegex: string
-      let routeKeys: string[] | undefined
       let namedDataRouteRegex: string | undefined
+      let routeKeys: { [named: string]: string } | undefined
 
       if (isDynamicRoute(page)) {
         const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
@@ -677,7 +629,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           /\(\?:\/\)\?\$$/,
           '\\.json$'
         )
-        routeKeys = Object.keys(routeRegex.groups)
+        routeKeys = routeRegex.routeKeys
       } else {
         dataRouteRegex = new RegExp(
           `^${path.posix.join(
@@ -717,19 +669,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           '\n'
         )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
     )
-  }
-
-  if (Array.isArray(configs[0].plugins)) {
-    configs[0].plugins.some((plugin: any) => {
-      if (!plugin.ampPages) {
-        return false
-      }
-
-      plugin.ampPages.forEach((pg: any) => {
-        pageInfos.get(pg)!.isAmp = true
-      })
-      return true
-    })
   }
 
   await writeBuildId(distDir, buildId)
@@ -799,7 +738,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     // remove server bundles that were exported
     for (const page of staticPages) {
-      const { serverBundle } = pageInfos.get(page)!
+      const serverBundle = getPagePath(page, distDir, isLikeServerless)
       await promises.unlink(serverBundle)
     }
 
