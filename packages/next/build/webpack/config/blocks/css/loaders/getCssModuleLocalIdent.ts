@@ -6,6 +6,8 @@ import SequentialIDGenerator from './utils/SequentialIDGenerator'
 const classnameGenerator = new SequentialIDGenerator()
 const minifiedClassnameCache = new Map<string, string>()
 
+// https://easylist-downloads.adblockplus.org/easylist.txt
+const regexLikeAds = /^ad(s|v)?[0-9]*$/i
 const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
 
 export function getCssModuleLocalIdent(isDevelopment: boolean) {
@@ -73,7 +75,7 @@ function getVerboseCssModuleLocalIdent(
   )
 }
 
-function getMinifiedClassname(classname: string) {
+function getMinifiedClassname(classname: string): string {
   // ensure we don't generate a new minified classname for an already minified one.
   const cachedClassname = minifiedClassnameCache.get(classname)
   if (cachedClassname) {
@@ -81,6 +83,11 @@ function getMinifiedClassname(classname: string) {
   }
 
   const minifiedClassname = classnameGenerator.next()
+
+  if (regexLikeAds.test(minifiedClassname)) {
+    return getMinifiedClassname(classname)
+  }
+
   minifiedClassnameCache.set(classname, minifiedClassname)
 
   return minifiedClassname
