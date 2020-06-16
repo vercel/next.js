@@ -4,7 +4,7 @@ import { createIntl, createIntlCache, RawIntlProvider } from 'react-intl'
 // since it prevents memory leak
 const cache = createIntlCache()
 
-function MyApp({ Component, pageProps, locale = '', messages = {} }) {
+function MyApp({ Component, pageProps, locale, messages }) {
   const intl = createIntl(
     {
       locale,
