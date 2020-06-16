@@ -806,7 +806,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-        const ampPage = `${normalizePagePath(page)}.amp`
+        const ampPage = `${file}.amp`
         await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
 
         if (isSsg) {
@@ -836,7 +836,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             await moveExportedPage(page, route, route, true, 'json')
 
             if (hasAmp) {
-              const ampPage = `${normalizePagePath(page)}.amp`
+              const ampPage = `${normalizePagePath(route)}.amp`
               await moveExportedPage(page, ampPage, ampPage, true, 'html')
               await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
