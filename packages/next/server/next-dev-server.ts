@@ -33,13 +33,16 @@ import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 
+const packageJson = require(pathResolve(__dirname, '../../package.json'))
 // NodeJs Version Validation
-const currentNodeVersion: Number = parseFloat(process.versions.node)
-
+const currentNodeVersion: number = parseFloat(process.versions.node)
+const supportedNodeVersion: number = parseFloat(
+  (packageJson?.engines.node).slice(2)
+)
 // Throws an Error if NodeJs Version is less than 10.13.x
-if (currentNodeVersion < 10.13) {
+if (currentNodeVersion < supportedNodeVersion) {
   throw new Error(
-    `Your current node version ${currentNodeVersion} is not supported! The minimum supported version is 10.13 and above!`
+    `Your current node version ${currentNodeVersion} is not supported! The minimum supported version is ${supportedNodeVersion} and above!`
   )
 }
 
