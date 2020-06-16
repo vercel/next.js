@@ -199,7 +199,7 @@ describe('CSS Modules: Import Global CSS', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"a .a{all:initial}"`
+      `"a .A{all:initial}"`
     )
   })
 })
