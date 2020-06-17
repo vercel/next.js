@@ -35,7 +35,7 @@ export async function getServerSideProps(ctx) {
 
     const profileInfo = await profileApi(faunaSecret)
 
-    return { props: { userId: data.userId } }
+    return { props: { userId: profileInfo } }
   }
 
   const response = await fetch('/api/profile')
