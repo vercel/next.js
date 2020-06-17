@@ -1,18 +1,17 @@
-import fetch from 'node-fetch'
-import qs from 'querystring'
-import http from 'http'
-import express from 'express'
-import path from 'path'
-import getPort from 'get-port'
 import spawn from 'cross-spawn'
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
-import treeKill from 'tree-kill'
-
+import express from 'express'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import getPort from 'get-port'
+import http from 'http'
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
+import fetch from 'node-fetch'
+import path from 'path'
+import qs from 'querystring'
+import treeKill from 'tree-kill'
 
 export const nextServer = server
 export const pkg = _pkg
@@ -60,7 +59,7 @@ export function initNextServerScript(
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', err => {
+    instance.on('error', (err) => {
       reject(err)
     })
   })
@@ -72,7 +71,7 @@ export function renderViaAPI(app, pathname, query) {
 }
 
 export function renderViaHTTP(appPort, pathname, query) {
-  return fetchViaHTTP(appPort, pathname, query).then(res => res.text())
+  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
@@ -113,19 +112,28 @@ export function runNextCommand(argv, options = {}) {
 
     let stderrOutput = ''
     if (options.stderr) {
-      instance.stderr.on('data', function(chunk) {
+      instance.stderr.on('data', function (chunk) {
         stderrOutput += chunk
       })
     }
 
     let stdoutOutput = ''
     if (options.stdout) {
-      instance.stdout.on('data', function(chunk) {
+      instance.stdout.on('data', function (chunk) {
         stdoutOutput += chunk
       })
     }
 
-    instance.on('close', code => {
+    instance.on('close', (code) => {
+      if (
+        !options.stderr &&
+        !options.stdout &&
+        !options.ignoreFail &&
+        code !== 0
+      ) {
+        return reject(new Error(`command failed with code ${code}`))
+      }
+
       resolve({
         code,
         stdout: stdoutOutput,
@@ -133,7 +141,7 @@ export function runNextCommand(argv, options = {}) {
       })
     })
 
-    instance.on('error', err => {
+    instance.on('error', (err) => {
       err.stdout = stdoutOutput
       err.stderr = stderrOutput
       reject(err)
@@ -201,7 +209,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       }
     })
 
-    instance.on('error', err => {
+    instance.on('error', (err) => {
       reject(err)
     })
   })
@@ -243,14 +251,14 @@ export function buildTS(args = [], cwd, env = {}) {
     )
     let output = ''
 
-    const handleData = chunk => {
+    const handleData = (chunk) => {
       output += chunk.toString()
     }
 
     instance.stdout.on('data', handleData)
     instance.stderr.on('data', handleData)
 
-    instance.on('exit', code => {
+    instance.on('exit', (code) => {
       if (code) {
         return reject(new Error('exited with code: ' + code + '\n' + output))
       }
@@ -262,7 +270,7 @@ export function buildTS(args = [], cwd, env = {}) {
 // Kill a launched app
 export async function killApp(instance) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, err => {
+    treeKill(instance.pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -306,7 +314,7 @@ export function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
-      function(err, res) {
+      function (err, res) {
         if (err) return reject(err)
         resolve(res)
       },
@@ -317,7 +325,7 @@ export function promiseCall(obj, method, ...args) {
 }
 
 export function waitFor(millis) {
-  return new Promise(resolve => setTimeout(resolve, millis))
+  return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
 export async function startStaticServer(dir) {
@@ -342,29 +350,29 @@ export async function startCleanStaticServer(dir) {
 // 30 seconds
 export async function check(contentFn, regex, hardError = true) {
   let content
+  let lastErr
 
   for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (regex.test(content)) {
+      if (typeof regex === 'string') {
+        if (regex === content) {
+          return true
+        }
+      } else if (regex.test(content)) {
         // found the content
         return true
       }
       await waitFor(1000)
     } catch (err) {
-      if (tries === 30) {
-        console.error('Error while getting content', { regex }, err)
-      }
+      await waitFor(1000)
+      lastErr = err
     }
   }
-  console.error('TIMED OUT CHECK: ', { regex, content })
+  console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    // maintain previous behavior where the error is thrown in a timeout
-    // and isn't caught when wrapped in a try/catch
-    setTimeout(() => {
-      throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
-    }, 1)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }
   return false
 }
@@ -385,6 +393,24 @@ export class File {
   }
 
   replace(pattern, newValue) {
+    if (pattern instanceof RegExp) {
+      if (!pattern.test(this.originalContent)) {
+        throw new Error(
+          `Failed to replace content.\n\nPattern: ${pattern.toString()}\n\nContent: ${
+            this.originalContent
+          }`
+        )
+      }
+    } else if (typeof pattern === 'string') {
+      if (!this.originalContent.includes(pattern)) {
+        throw new Error(
+          `Failed to replace content.\n\nPattern: ${pattern}\n\nContent: ${this.originalContent}`
+        )
+      }
+    } else {
+      throw new Error(`Unknown replacement attempt type: ${pattern}`)
+    }
+
     const newContent = this.originalContent.replace(pattern, newValue)
     this.write(newContent)
   }
@@ -398,36 +424,65 @@ export class File {
   }
 }
 
-// react-error-overlay uses an iframe so we have to read the contents from the frame
-export async function getReactErrorOverlayContent(browser) {
-  let found = false
-  setTimeout(() => {
-    if (found) {
-      return
-    }
-    console.error('TIMED OUT CHECK FOR IFRAME')
-    throw new Error('TIMED OUT CHECK FOR IFRAME')
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      await browser.waitForElementByCss('iframe', 10000)
-
-      const hasIframe = await browser.hasElementByCssSelector('iframe')
-      if (!hasIframe) {
-        throw new Error('Waiting for iframe')
-      }
-
-      found = true
-      return browser.eval(
-        `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-      )
-    } catch (ex) {
-      await waitFor(1000)
-    }
+export async function evaluate(browser, input) {
+  if (typeof input === 'function') {
+    const result = await browser.executeScript(input)
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    return result
+  } else {
+    throw new Error(`You must pass a function to be evaluated in the browser.`)
   }
-  return browser.eval(
-    `document.querySelector('iframe').contentWindow.document.body.innerHTML`
-  )
+}
+
+export async function hasRedbox(browser, expected = true) {
+  let attempts = 30
+  do {
+    const has = await evaluate(browser, () => {
+      return Boolean(
+        [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+            )
+          )
+      )
+    })
+    if (has) {
+      return true
+    }
+    if (--attempts < 0) {
+      break
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  } while (expected)
+  return false
+}
+
+export async function getRedboxHeader(browser) {
+  return evaluate(browser, () => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+    const root = portal.shadowRoot
+    return root.querySelector('[data-nextjs-dialog-header]').innerText
+  })
+}
+
+export async function getRedboxSource(browser) {
+  return evaluate(browser, () => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) =>
+        p.shadowRoot.querySelector(
+          '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+        )
+      )
+    const root = portal.shadowRoot
+    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+      .innerText
+  })
 }
 
 export function getBrowserBodyText(browser) {
@@ -436,4 +491,51 @@ export function getBrowserBodyText(browser) {
 
 export function normalizeRegEx(src) {
   return new RegExp(src).source.replace(/\^\//g, '^\\/')
+}
+
+export function getBuildManifest(dir) {
+  return require(path.join(dir, '.next/build-manifest.json'))
+}
+
+export function getPageFileFromBuildManifest(dir, page) {
+  const buildManifest = getBuildManifest(dir)
+  const pageFiles = buildManifest.pages[page]
+  if (!pageFiles) {
+    throw new Error(`No files for page ${page}`)
+  }
+
+  const pageFile = pageFiles.find(
+    (file) =>
+      file.endsWith('.js') &&
+      file.includes(`pages${page === '' ? '/index' : page}`)
+  )
+  if (!pageFile) {
+    throw new Error(`No page file for page ${page}`)
+  }
+
+  return pageFile
+}
+
+export function readNextBuildClientPageFile(appDir, page) {
+  const pageFile = getPageFileFromBuildManifest(appDir, page)
+  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+}
+
+export function getPagesManifest(dir) {
+  return require(path.join(dir, '.next/server/pages-manifest.json'))
+}
+
+export function getPageFileFromPagesManifest(dir, page) {
+  const pagesManifest = getPagesManifest(dir)
+  const pageFile = pagesManifest[page]
+  if (!pageFile) {
+    throw new Error(`No file for page ${page}`)
+  }
+
+  return pageFile
+}
+
+export function readNextBuildServerPageFile(appDir, page) {
+  const pageFile = getPageFileFromPagesManifest(appDir, page)
+  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
 }

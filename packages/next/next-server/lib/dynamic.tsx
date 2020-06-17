@@ -25,6 +25,7 @@ export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
     error?: Error | null
     isLoading?: boolean
     pastDelay?: boolean
+    retry?: () => void
     timedOut?: boolean
   }) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
@@ -52,7 +53,7 @@ export type LoadableComponent<P = {}> = React.ComponentType<P>
 export function noSSR<P = {}>(
   LoadableInitializer: LoadableFn<P>,
   loadableOptions: LoadableOptions<P>
-) {
+): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
@@ -124,7 +125,7 @@ export default function dynamic<P = {}>(
     if (process.env.NODE_ENV !== 'production') {
       if (dynamicOptions.modules) {
         console.warn(
-          'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
+          'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/vercel/next.js/next-dynamic-modules'
         )
       }
     }
@@ -138,7 +139,7 @@ export default function dynamic<P = {}>(
       loadableFn = Loadable.Map
       const loadModules: LoaderMap = {}
       const modules = dynamicOptions.modules()
-      Object.keys(modules).forEach(key => {
+      Object.keys(modules).forEach((key) => {
         const value: any = modules[key]
         if (typeof value.then === 'function') {
           loadModules[key] = () => value.then((mod: any) => mod.default || mod)

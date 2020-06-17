@@ -19,13 +19,11 @@ import { getRouteRegex } from './utils/route-regex'
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return path.indexOf(basePath) !== 0 ? basePath + path : path
+  return `${basePath}${path}`
 }
 
 export function delBasePath(path: string): string {
-  return path.indexOf(basePath) === 0
-    ? path.substr(basePath.length) || '/'
-    : path
+  return path.substr(basePath.length)
 }
 
 function toRoute(path: string): string {
@@ -36,6 +34,21 @@ const prepareRoute = (path: string) =>
   toRoute(!path || path === '/' ? '/index' : path)
 
 type Url = UrlObject | string
+
+function prepareUrlAs(url: Url, as: Url) {
+  // If url and as provided as an object representation,
+  // we'll format them into the string version here.
+  url = typeof url === 'object' ? formatWithValidation(url) : url
+  as = typeof as === 'object' ? formatWithValidation(as) : as
+
+  url = addBasePath(url)
+  as = as ? addBasePath(as) : as
+
+  return {
+    url,
+    as,
+  }
+}
 
 type ComponentRes = { page: ComponentType; mod: any }
 
@@ -73,7 +86,7 @@ type RouteInfo = {
   error?: any
 }
 
-type Subscription = (data: RouteInfo, App?: ComponentType) => void
+type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
 
 type BeforePopStateCallback = (state: any) => boolean
 
@@ -111,7 +124,7 @@ function fetchNextData(
         // https://github.com/github/fetch#caveats
         credentials: 'same-origin',
       }
-    ).then(res => {
+    ).then((res) => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
           return getResponse()
@@ -123,7 +136,7 @@ function fetchNextData(
   }
 
   return getResponse()
-    .then(data => {
+    .then((data) => {
       return cb ? cb(data) : data
     })
     .catch((err: Error) => {
@@ -216,7 +229,9 @@ export default class Router implements BaseRouter {
     // until after mount to prevent hydration mismatch
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport
+        ? pathname
+        : delBasePath(as)
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -235,7 +250,7 @@ export default class Router implements BaseRouter {
         // we have to register the initial route upon initialization
         this.changeState(
           'replaceState',
-          formatWithValidation({ pathname, query }),
+          formatWithValidation({ pathname: addBasePath(pathname), query }),
           as
         )
       }
@@ -269,7 +284,7 @@ export default class Router implements BaseRouter {
       const { pathname, query } = this
       this.changeState(
         'replaceState',
-        formatWithValidation({ pathname, query }),
+        formatWithValidation({ pathname: addBasePath(pathname), query }),
         getURL()
       )
       return
@@ -296,11 +311,11 @@ export default class Router implements BaseRouter {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof url === 'undefined' || typeof as === 'undefined') {
         console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/zeit/next.js/popstate-state-empty'
+          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
         )
       }
     }
-    this.replace(url, as, options)
+    this.change('replaceState', url, as, options)
   }
 
   update(route: string, mod: any) {
@@ -310,12 +325,11 @@ export default class Router implements BaseRouter {
       throw new Error(`Cannot update unavailable route: ${route}`)
     }
 
-    const newData = {
-      ...data,
+    const newData = Object.assign({}, data, {
       Component,
       __N_SSG: mod.__N_SSG,
       __N_SSP: mod.__N_SSP,
-    }
+    })
     this.components[route] = newData
 
     // pages/_app.js updated
@@ -347,6 +361,7 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as: Url = url, options = {}) {
+    ;({ url, as } = prepareUrlAs(url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -357,13 +372,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as: Url = url, options = {}) {
+    ;({ url, as } = prepareUrlAs(url, as))
     return this.change('replaceState', url, as, options)
   }
 
   change(
     method: HistoryMethod,
-    _url: Url,
-    _as: Url,
+    url: string,
+    as: string,
     options: any
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
@@ -374,14 +390,6 @@ export default class Router implements BaseRouter {
       if (ST) {
         performance.mark('routeChange')
       }
-
-      // If url and as provided as an object representation,
-      // we'll format them into the string version here.
-      let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
-      let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
-
-      url = addBasePath(url)
-      as = addBasePath(as)
 
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
@@ -411,12 +419,17 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      const { pathname, query, protocol } = parse(url, true)
+      let { pathname, query, protocol } = parse(url, true)
+
+      // url and as should always be prefixed with basePath by this
+      // point by either next/link or router.push/replace so strip the
+      // basePath from the pathname to match the pages dir 1-to-1
+      pathname = pathname ? delBasePath(pathname) : pathname
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return resolve(false)
@@ -437,10 +450,12 @@ export default class Router implements BaseRouter {
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
         const routeRegex = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+        const routeMatch = getRouteMatcher(routeRegex)(
+          delBasePath(asPathname || '')
+        )
         if (!routeMatch) {
           const missingParams = Object.keys(routeRegex.groups).filter(
-            param => !query[param]
+            (param) => !query[param]
           )
 
           if (missingParams.length > 0) {
@@ -456,7 +471,7 @@ export default class Router implements BaseRouter {
             return reject(
               new Error(
                 `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+                  `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
               )
             )
           }
@@ -469,33 +484,38 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
-      this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
-        const { error } = routeInfo
+      this.getRouteInfo(route, pathname, query, as, shallow).then(
+        (routeInfo) => {
+          const { error } = routeInfo
 
-        if (error && error.cancelled) {
-          return resolve(false)
-        }
+          if (error && error.cancelled) {
+            return resolve(false)
+          }
 
-        Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, as, options)
+          Router.events.emit('beforeHistoryChange', as)
+          this.changeState(method, url, as, options)
 
-        if (process.env.NODE_ENV !== 'production') {
-          const appComp: any = this.components['/_app'].Component
-          ;(window as any).next.isPrerendered =
-            appComp.getInitialProps === appComp.origGetInitialProps &&
-            !(routeInfo.Component as any).getInitialProps
-        }
+          if (process.env.NODE_ENV !== 'production') {
+            const appComp: any = this.components['/_app'].Component
+            ;(window as any).next.isPrerendered =
+              appComp.getInitialProps === appComp.origGetInitialProps &&
+              !(routeInfo.Component as any).getInitialProps
+          }
 
-        this.set(route, pathname, query, as, routeInfo)
+          this.set(route, pathname!, query, delBasePath(as), routeInfo).then(
+            () => {
+              if (error) {
+                Router.events.emit('routeChangeError', error, as)
+                throw error
+              }
 
-        if (error) {
-          Router.events.emit('routeChangeError', error, as)
-          throw error
-        }
-
-        Router.events.emit('routeChangeComplete', as)
-        return resolve(true)
-      }, reject)
+              Router.events.emit('routeChangeComplete', as)
+              return resolve(true)
+            }
+          )
+        },
+        reject
+      )
     })
   }
 
@@ -552,7 +572,7 @@ export default class Router implements BaseRouter {
       err: Error & { code: any; cancelled: boolean },
       loadErrorFail?: boolean
     ) => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
           // If we can't load the page it could be one of following reasons
           //  1. Page doesn't exists
@@ -576,33 +596,33 @@ export default class Router implements BaseRouter {
 
         resolve(
           this.fetchComponent('/_error')
-            .then(res => {
+            .then((res) => {
               const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
-              return new Promise(resolve => {
+              return new Promise((resolveRouteInfo) => {
                 this.getInitialProps(Component, {
                   err,
                   pathname,
                   query,
                 } as any).then(
-                  props => {
+                  (props) => {
                     routeInfo.props = props
                     routeInfo.error = err
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   },
-                  gipErr => {
+                  (gipErr) => {
                     console.error(
                       'Error in error page `getInitialProps`: ',
                       gipErr
                     )
                     routeInfo.error = err
                     routeInfo.props = {}
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   }
                 )
               }) as Promise<RouteInfo>
             })
-            .catch(err => handleError(err, true))
+            .catch((routeInfoErr) => handleError(routeInfoErr, true))
         )
       }) as Promise<RouteInfo>
     }
@@ -613,7 +633,7 @@ export default class Router implements BaseRouter {
       }
 
       this.fetchComponent(route).then(
-        res =>
+        (res) =>
           resolve({
             Component: res.page,
             __N_SSG: res.mod.__N_SSG,
@@ -648,7 +668,7 @@ export default class Router implements BaseRouter {
                   asPath: as,
                 } as any
               )
-        ).then(props => {
+        ).then((props) => {
           routeInfo.props = props
           this.components[route] = routeInfo
           return routeInfo
@@ -663,14 +683,14 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     data: RouteInfo
-  ): void {
+  ): Promise<void> {
     this.isFallback = false
 
     this.route = route
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.notify(data)
+    return this.notify(data)
   }
 
   /**
@@ -746,7 +766,7 @@ export default class Router implements BaseRouter {
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return
@@ -756,9 +776,9 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-      const route = delBasePath(toRoute(pathname))
+      const route = toRoute(pathname)
       Promise.all([
-        this.pageLoader.prefetchData(url, delBasePath(asPath)),
+        this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
@@ -769,7 +789,6 @@ export default class Router implements BaseRouter {
     const cancel = (this.clc = () => {
       cancelled = true
     })
-    route = delBasePath(route)
 
     const componentResult = await this.pageLoader.loadPage(route)
 
@@ -794,7 +813,7 @@ export default class Router implements BaseRouter {
       cancelled = true
     }
     this.clc = cancel
-    return fn().then(data => {
+    return fn().then((data) => {
       if (cancel === this.clc) {
         this.clc = null
       }
@@ -818,7 +837,7 @@ export default class Router implements BaseRouter {
           pathname,
           null,
           this.isSsr,
-          data => (this.sdc[pathname] = data)
+          (data) => (this.sdc[pathname] = data)
         )
   }
 
@@ -853,7 +872,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: RouteInfo): void {
-    this.sub(data, this.components['/_app'].Component)
+  notify(data: RouteInfo): Promise<void> {
+    return this.sub(data, this.components['/_app'].Component)
   }
 }

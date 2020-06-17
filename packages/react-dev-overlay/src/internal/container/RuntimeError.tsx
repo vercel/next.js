@@ -5,7 +5,7 @@ import { noop as css } from '../helpers/noop-template'
 import { getFrameSource, OriginalStackFrame } from '../helpers/stack-frame'
 import { ReadyRuntimeError } from './Errors'
 
-export type RuntimeErrorProps = { className?: string; error: ReadyRuntimeError }
+export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
@@ -34,23 +34,7 @@ const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h6>
-        {frame.expanded ? (
-          undefined
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-          </svg>
-        )}
+      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
         {f.methodName}
       </h6>
       <div
@@ -80,12 +64,11 @@ const CallStackFrame: React.FC<{
 }
 
 const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  className,
   error,
 }) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
     return error.frames.findIndex(
-      entry =>
+      (entry) =>
         entry.expanded &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
@@ -105,11 +88,11 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
   const [all, setAll] = React.useState(firstFrame == null)
   const toggleAll = React.useCallback(() => {
-    setAll(v => !v)
+    setAll((v) => !v)
   }, [])
 
   const leadingFrames = React.useMemo(
-    () => allLeadingFrames.filter(f => f.expanded || all),
+    () => allLeadingFrames.filter((f) => f.expanded || all),
     [all, allLeadingFrames]
   )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
@@ -117,7 +100,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [error.frames, firstFirstPartyFrameIndex]
   )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => allCallStackFrames.filter(f => f.expanded || all),
+    () => allCallStackFrames.filter((f) => f.expanded || all),
     [all, allCallStackFrames]
   )
 
@@ -134,7 +117,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   ])
 
   return (
-    <div className={className}>
+    <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
           <h5>Source</h5>
@@ -149,9 +132,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             codeFrame={firstFrame.originalCodeFrame}
           />
         </React.Fragment>
-      ) : (
-        undefined
-      )}
+      ) : undefined}
       {visibleCallStackFrames.length ? (
         <React.Fragment>
           <h5>Call Stack</h5>
@@ -159,9 +140,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
           ))}
         </React.Fragment>
-      ) : (
-        undefined
-      )}
+      ) : undefined}
       {canShowMore ? (
         <React.Fragment>
           <button
@@ -173,10 +152,8 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             {all ? 'Hide' : 'Show'} collapsed frames
           </button>
         </React.Fragment>
-      ) : (
-        undefined
-      )}
-    </div>
+      ) : undefined}
+    </React.Fragment>
   )
 }
 
@@ -185,30 +162,35 @@ export const styles = css`
     background: none;
     border: none;
     padding: 0;
-    color: rgba(25, 25, 25, 0.6);
+    font-size: var(--size-font-small);
+    line-height: var(--size-font-bigger);
+    color: var(--color-accents-3);
+  }
+
+  [data-nextjs-call-stack-frame]:not(:last-child) {
+    margin-bottom: var(--size-gap-double);
   }
 
   [data-nextjs-call-stack-frame] > h6 {
+    margin-top: 0;
+    margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
-    color: rgba(25, 25, 25, 1);
+    color: #222;
   }
-  [data-nextjs-call-stack-frame] > h6 > svg {
-    width: auto;
-    height: 0.875rem;
-    margin-right: 0.5rem;
+  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > div {
     display: flex;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-left: 0.75rem;
-    font-size: 0.875rem;
-    color: rgba(25, 25, 25, 0.5);
+    padding-left: calc(var(--size-gap) + var(--size-gap-half));
+    font-size: var(--size-font-small);
+    color: #999;
   }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;
-    height: 0.875rem;
-    margin-left: 0.5rem;
+    height: var(--size-font-small);
+    margin-left: var(--size-gap);
 
     display: none;
   }

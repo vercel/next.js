@@ -1,5 +1,3 @@
-import React from 'react'
-import { withTheme } from 'emotion-theming'
 import {
   Link as ChakraLink,
   Text,
@@ -54,4 +52,4 @@ const Index = () => (
   </Container>
 )
 
-export default withTheme(Index)
+export default Index

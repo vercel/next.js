@@ -1,4 +1,3 @@
-import React from 'react'
 import useUser from '../lib/useUser'
 import Layout from '../components/Layout'
 
@@ -18,7 +17,7 @@ const SgProfile = () => {
           Static Generation (SG)
         </a>{' '}
         and the <a href="/api/user">/api/user</a> route (using{' '}
-        <a href="https://github.com/zeit/swr">zeit/SWR</a>)
+        <a href="https://github.com/zeit/swr">SWR</a>)
       </h2>
 
       <p style={{ fontStyle: 'italic' }}>
@@ -32,7 +31,7 @@ const SgProfile = () => {
 }
 
 function githubUrl(login) {
-  return `https://api.github.com/${login}`
+  return `https://api.github.com/users/${login}`
 }
 
 export default SgProfile

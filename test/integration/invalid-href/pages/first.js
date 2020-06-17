@@ -10,7 +10,7 @@ export default () => {
   return method ? (
     <a
       id="click-me"
-      onClick={e => {
+      onClick={(e) => {
         e.preventDefault()
         router[method](invalidLink)
       }}

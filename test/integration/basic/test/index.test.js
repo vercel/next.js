@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
@@ -12,12 +12,14 @@ import publicFolder from './public-folder'
 import security from './security'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('Basic Features', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
 
     // pre-build all pages at the start
     await Promise.all([

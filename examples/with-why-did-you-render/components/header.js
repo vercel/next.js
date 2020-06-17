@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 const Header = () => {
   const [objState, setObjState] = useState({ name: 'World' })

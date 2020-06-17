@@ -32,8 +32,8 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
             <footer>
               <p id="nextjs__container_build_error_desc">
                 <small>
-                  This error occured during the build process and cannot be
-                  dismissed.
+                  This error occured during the build process and can only be
+                  dismissed by fixing the error.
                 </small>
               </p>
             </footer>
@@ -48,12 +48,14 @@ export const styles = css`
   .nextjs-container-build-error-header > h4 {
     line-height: 1.5;
     margin: 0;
-    margin-top: 1rem;
+    padding: 0;
   }
 
-  .nextjs-container-build-error-body,
   .nextjs-container-build-error-body footer {
-    margin-top: 1.5rem;
+    margin-top: var(--size-gap);
+  }
+  .nextjs-container-build-error-body footer p {
+    margin: 0;
   }
 
   .nextjs-container-build-error-body small {

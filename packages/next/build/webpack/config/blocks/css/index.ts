@@ -28,6 +28,8 @@ export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: Configuration
 ) {
+  const { prependData: sassPrependData, ...sassOptions } = ctx.sassOptions
+
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
@@ -37,7 +39,8 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions: ctx.sassOptions,
+        sassOptions,
+        prependData: sassPrependData,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead
@@ -86,7 +89,7 @@ export const css = curry(async function css(
           test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
-          issuer: { test: /pages[\\/]_document\./ },
+          issuer: /pages[\\/]_document\./,
           use: {
             loader: 'error-loader',
             options: {
@@ -114,8 +117,8 @@ export const css = curry(async function css(
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
           issuer: {
-            include: [ctx.rootDirectory],
-            exclude: /node_modules/,
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, postCssPlugins),
         },
@@ -137,8 +140,8 @@ export const css = curry(async function css(
           // Sass Modules are only supported in the user's application. We're
           // not yet allowing Sass imports _within_ `node_modules`.
           issuer: {
-            include: [ctx.rootDirectory],
-            exclude: /node_modules/,
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
         },
@@ -185,7 +188,7 @@ export const css = curry(async function css(
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
             test: regexCssGlobal,
-            issuer: { include: ctx.customAppFile },
+            issuer: { and: [ctx.customAppFile] },
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
@@ -201,7 +204,7 @@ export const css = curry(async function css(
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
             test: regexSassGlobal,
-            issuer: { include: ctx.customAppFile },
+            issuer: { and: [ctx.customAppFile] },
             use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
           },
         ],
@@ -215,7 +218,7 @@ export const css = curry(async function css(
       oneOf: [
         {
           test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
-          issuer: { include: [/node_modules/] },
+          issuer: { and: [/node_modules/] },
           use: {
             loader: 'error-loader',
             options: {
@@ -255,7 +258,7 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: regexLikeCss },
+            issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {

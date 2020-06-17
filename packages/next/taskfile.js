@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
@@ -49,7 +50,7 @@ const externals = {
   'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
   'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',
   chokidar: 'chokidar',
-  // dependents: babel-loader, async-retry, autodll-webpack-plugin, cache-loader, terser-webpack-plugin
+  // dependents: babel-loader, async-retry, cache-loader, terser-webpack-plugin
   'find-cache-dir': 'find-cache-dir',
   // dependents: thread-loader
   'loader-runner': 'loader-runner',
@@ -103,15 +104,7 @@ export async function ncc_async_sema(task, opts) {
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
 }
-// eslint-disable-next-line camelcase
-externals['autodll-webpack-plugin'] =
-  'next/dist/compiled/autodll-webpack-plugin'
-export async function ncc_autodll_webpack_plugin(task, opts) {
-  await task
-    .source(opts.src || 'build/bundles/autodll-webpack-plugin.js')
-    .ncc({ packageName: 'autodll-webpack-plugin', externals })
-    .target('compiled/autodll-webpack-plugin')
-}
+
 // eslint-disable-next-line camelcase
 externals['babel-loader'] = 'next/dist/compiled/babel-loader'
 export async function ncc_babel_loader(task, opts) {
@@ -129,7 +122,7 @@ export async function ncc_cache_loader(task, opts) {
     .target('compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
@@ -410,7 +403,7 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['resolve'] = 'next/dist/compiled/resolve'
 export async function ncc_resolve(task, opts) {
@@ -428,7 +421,7 @@ export async function ncc_send(task, opts) {
     .target('compiled/send')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Zeit version is a duplicate
+// NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map'] = 'next/dist/compiled/source-map'
 export async function ncc_source_map(task, opts) {
@@ -517,28 +510,23 @@ export async function ncc_terser_webpack_plugin(task, opts) {
     .target('compiled/terser-webpack-plugin')
 }
 
+externals['comment-json'] = 'next/dist/compiled/comment-json'
+export async function ncc_comment_json(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('comment-json')))
+    .ncc({ packageName: 'comment-json', externals })
+    .target('compiled/comment-json')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('path-to-regexp')))
     .target('dist/compiled/path-to-regexp')
 }
-externals['react-error-overlay'] = 'next/dist/compiled/react-error-overlay'
-export async function react_error_overlay(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('react-error-overlay'))
-    )
-    .target('dist/compiled/react-error-overlay')
-}
 
 export async function precompile(task) {
-  await task.parallel([
-    'browser_polyfills',
-    'path_to_regexp',
-    'react_error_overlay',
-    'copy_ncced',
-  ])
+  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
 }
 
 // eslint-disable-next-line camelcase
@@ -556,7 +544,6 @@ export async function ncc(task) {
       'ncc_arg',
       'ncc_async_retry',
       'ncc_async_sema',
-      'ncc_autodll_webpack_plugin',
       'ncc_babel_loader',
       'ncc_cache_loader',
       'ncc_chalk',
@@ -605,6 +592,7 @@ export async function ncc(task) {
       'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
+      'ncc_comment_json',
     ])
 }
 
@@ -619,8 +607,7 @@ export async function compile(task) {
     'lib',
     'client',
     'telemetry',
-    'nextserverserver',
-    'nextserverlib',
+    'nextserver',
   ])
 }
 
@@ -682,27 +669,18 @@ export async function nextbuildstatic(task, opts) {
 }
 
 export async function pages_app(task) {
-  await task
-    .source('pages/_app.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_app.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_error(task) {
-  await task
-    .source('pages/_error.tsx')
-    .babel('client')
-    .target('dist/pages')
+  await task.source('pages/_error.tsx').babel('client').target('dist/pages')
 }
 
 export async function pages_document(task) {
-  await task
-    .source('pages/_document.tsx')
-    .babel('server')
-    .target('dist/pages')
+  await task.source('pages/_document.tsx').babel('server').target('dist/pages')
 }
 
-export async function pages(task, opts) {
+export async function pages(task, _opts) {
   await task.parallel(['pages_app', 'pages_error', 'pages_document'])
 }
 
@@ -718,7 +696,7 @@ export async function build(task) {
   await task.serial(['precompile', 'compile'])
 }
 
-export default async function(task) {
+export default async function (task) {
   await task.clear('dist')
   await task.start('build')
   await task.watch('bin/*', 'bin')
@@ -730,33 +708,19 @@ export default async function(task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry')
-  await task.watch('next-server/server/**/*.+(js|ts|tsx)', 'nextserverserver')
-  await task.watch('next-server/lib/**/*.+(js|ts|tsx)', 'nextserverlib')
+  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver')
 }
 
-export async function nextserverlib(task, opts) {
+export async function nextserver(task, opts) {
   await task
-    .source(opts.src || 'next-server/lib/**/*.+(js|ts|tsx)')
-    .typescript({ module: 'commonjs' })
-    .target('dist/next-server/lib')
-  notify('Compiled lib files')
-}
-
-export async function nextserverserver(task, opts) {
-  await task
-    .source(opts.src || 'next-server/server/**/*.+(js|ts|tsx)')
-    .typescript({ module: 'commonjs' })
-    .target('dist/next-server/server')
+    .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
+    .babel('server')
+    .target('dist/next-server')
   notify('Compiled server files')
-}
-
-export async function nextserverbuild(task) {
-  await task.parallel(['nextserverserver', 'nextserverlib'])
 }
 
 export async function release(task) {
   await task.clear('dist').start('build')
-  await task.clear('dist/next-server').start('nextserverbuild')
 }
 
 // notification helper

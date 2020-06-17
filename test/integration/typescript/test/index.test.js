@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { writeFile, remove } from 'fs-extra'
@@ -12,14 +12,14 @@ import {
   File,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let appPort
 let app
 let output
 
-const handleOutput = msg => {
+const handleOutput = (msg) => {
   output += msg
 }
 
@@ -51,7 +51,8 @@ describe('TypeScript Features', () => {
       expect($('#imported-value').text()).toBe('OK')
     })
 
-    it('should report type checking to stdout', async () => {
+    // old behavior:
+    it.skip('should report type checking to stdout', async () => {
       expect(output).toContain('waiting for typecheck results...')
     })
 
@@ -91,6 +92,7 @@ export default function EvilPage(): JSX.Element {
   it('should build the app', async () => {
     const output = await nextBuild(appDir, [], { stdout: true })
     expect(output.stdout).toMatch(/Compiled successfully/)
+    expect(output.code).toBe(0)
   })
 
   describe('should compile with different types', () => {

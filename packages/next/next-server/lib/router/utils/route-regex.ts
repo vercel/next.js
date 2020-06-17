@@ -9,26 +9,37 @@ export function getRouteRegex(
 ): {
   re: RegExp
   namedRegex?: string
-  groups: { [groupName: string]: { pos: number; repeat: boolean } }
+  routeKeys?: { [named: string]: string }
+  groups: {
+    [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
+  }
 } {
   // Escape all characters that could be considered RegEx
   const escapedRoute = escapeRegex(normalizedRoute.replace(/\/$/, '') || '/')
 
-  const groups: { [groupName: string]: { pos: number; repeat: boolean } } = {}
+  const groups: {
+    [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
+  } = {}
   let groupIndex = 1
 
   const parameterizedRoute = escapedRoute.replace(
     /\/\\\[([^/]+?)\\\](?=\/|$)/g,
     (_, $1) => {
+      const isOptional = /^\\\[.*\\\]$/.test($1)
+      if (isOptional) {
+        $1 = $1.slice(2, -2)
+      }
       const isCatchAll = /^(\\\.){3}/.test($1)
+      if (isCatchAll) {
+        $1 = $1.slice(6)
+      }
       groups[
         $1
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-          .replace(/^\.{3}/, '')
         // eslint-disable-next-line no-sequences
-      ] = { pos: groupIndex++, repeat: isCatchAll }
-      return isCatchAll ? '/(.+?)' : '/([^/]+?)'
+      ] = { pos: groupIndex++, repeat: isCatchAll, optional: isOptional }
+      return isCatchAll ? (isOptional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
     }
   )
 
@@ -37,6 +48,8 @@ export function getRouteRegex(
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
+    const routeKeys: { [named: string]: string } = {}
+
     namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {
@@ -46,20 +59,28 @@ export function getRouteRegex(
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
           .replace(/^\.{3}/, '')
 
+        // replace any non-word characters since they can break
+        // the named regex
+        const cleanedKey = key.replace(/\W/g, '')
+
+        routeKeys[cleanedKey] = key
+
         return isCatchAll
-          ? `/(?<${escapeRegex(key)}>.+?)`
-          : `/(?<${escapeRegex(key)}>[^/]+?)`
+          ? `/(?<${cleanedKey}>.+?)`
+          : `/(?<${cleanedKey}>[^/]+?)`
       }
     )
+
+    return {
+      re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+      groups,
+      routeKeys,
+      namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
+    }
   }
 
   return {
     re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
     groups,
-    ...(namedParameterizedRoute
-      ? {
-          namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
-        }
-      : {}),
   }
 }

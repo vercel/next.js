@@ -48,13 +48,13 @@ function ReactDevOverlay({ children }) {
 
   React.useEffect(() => {
     Bus.on(dispatch)
-    return function() {
+    return function () {
       Bus.off(dispatch)
     }
   }, [dispatch])
 
   const onComponentError = React.useCallback(
-    (error: Error, componentStack: string | null) => {
+    (_error: Error, _componentStack: string | null) => {
       // TODO: special handling
     },
     []
@@ -79,13 +79,9 @@ function ReactDevOverlay({ children }) {
             <BuildError message={state.buildError} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
-          ) : (
-            undefined
-          )}
+          ) : undefined}
         </ShadowPortal>
-      ) : (
-        undefined
-      )}
+      ) : undefined}
     </React.Fragment>
   )
 }

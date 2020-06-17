@@ -2,7 +2,7 @@
 import webdriver from 'next-webdriver'
 import { check, getBrowserBodyText } from 'next-test-utils'
 
-export default function(context) {
+export default function (context) {
   describe('Render via browser', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')
@@ -26,6 +26,24 @@ export default function(context) {
       const link = await browser.elementByCss('#hash-link').getAttribute('href')
 
       expect(link).toMatch(/\/hash-link\/#hash$/)
+    })
+
+    it('should preserve hash symbol on empty hash Link', async () => {
+      const browser = await webdriver(context.port, '/empty-hash-link')
+      const link = await browser
+        .elementByCss('#empty-hash-link')
+        .getAttribute('href')
+
+      expect(link).toMatch(/\/hello\/#$/)
+    })
+
+    it('should preserve question mark on empty query Link', async () => {
+      const browser = await webdriver(context.port, '/empty-query-link')
+      const link = await browser
+        .elementByCss('#empty-query-link')
+        .getAttribute('href')
+
+      expect(link).toMatch(/\/hello\/\?$/)
     })
 
     it('should not add trailing slash on Link when disabled', async () => {
@@ -165,7 +183,7 @@ export default function(context) {
           .elementByCss('#dynamic-page p')
           .text()
 
-        expect(text).toBe('zeit is awesome')
+        expect(text).toBe('Vercel is awesome')
 
         await check(() => browser.elementByCss('#hash').text(), /cool/)
       } finally {

@@ -5,7 +5,7 @@ import { FAUNA_SECRET_COOKIE } from '../utils/fauna-auth'
 import { profileApi } from './api/profile'
 import Layout from '../components/layout'
 
-const Profile = props => {
+const Profile = (props) => {
   const { userId } = props
 
   return (
@@ -21,7 +21,7 @@ const Profile = props => {
   )
 }
 
-Profile.getInitialProps = async ctx => {
+export async function getServerSideProps(ctx) {
   if (typeof window === 'undefined') {
     const { req, res } = ctx
     const cookies = cookie.parse(req.headers.cookie ?? '')
@@ -35,7 +35,7 @@ Profile.getInitialProps = async ctx => {
 
     const profileInfo = await profileApi(faunaSecret)
 
-    return { userId: profileInfo }
+    return { props: { userId: profileInfo } }
   }
 
   const response = await fetch('/api/profile')
@@ -50,7 +50,7 @@ Profile.getInitialProps = async ctx => {
 
   const data = await response.json()
 
-  return { userId: data.userId }
+  return { props: { userId: data.userId } }
 }
 
 export default withAuthSync(Profile)

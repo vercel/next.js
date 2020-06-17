@@ -28,6 +28,14 @@
             {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
+            },
+            {
+              "title": "Environment Variables",
+              "path": "/docs/basic-features/environment-variables.md"
+            },
+            {
+              "title": "Supported Browsers and Features",
+              "path": "/docs/basic-features/supported-browsers-features.md"
             }
           ]
         },
@@ -156,6 +164,14 @@
             {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
+            },
+            {
+              "title": "Measuring performance",
+              "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Debugging",
+              "path": "/docs/advanced-features/debugging.md"
             }
           ]
         },
@@ -262,6 +278,10 @@
             {
               "title": "exportPathMap",
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
+            },
+            {
+              "title": "React Strict Mode",
+              "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
             }
           ]
         }

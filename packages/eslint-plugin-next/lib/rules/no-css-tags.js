@@ -1,4 +1,4 @@
-module.exports = function(context) {
+module.exports = function (context) {
   return {
     JSXOpeningElement(node) {
       if (node.name.name !== 'link') {
@@ -8,12 +8,19 @@ module.exports = function(context) {
         return
       }
 
+      const attributes = node.attributes.filter(
+        (attr) => attr.type === 'JSXAttribute'
+      )
       if (
-        node.attributes.find(
-          attr => attr.name.name === 'rel' && attr.value.value === 'stylesheet'
+        attributes.find(
+          (attr) =>
+            attr.name.name === 'rel' && attr.value.value === 'stylesheet'
         ) &&
-        node.attributes.find(
-          attr => attr.name.name === 'href' && !/^https?/.test(attr.value.value)
+        attributes.find(
+          (attr) =>
+            attr.name.name === 'href' &&
+            attr.value.type === 'Literal' &&
+            !/^https?/.test(attr.value.value)
         )
       ) {
         context.report({

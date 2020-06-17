@@ -8,6 +8,7 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { LoadedEnvFiles } from '../lib/load-env-config'
 
 type PagesMapping = {
   [page: string]: string
@@ -23,7 +24,6 @@ export function createPagesMapping(
       let page = `${pagePath
         .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
-      page = page === '/index' ? '/' : page
 
       const pageKey = page === '' ? '/' : page
 
@@ -61,12 +61,12 @@ type Entrypoints = {
 }
 
 export function createEntrypoints(
-  dev: boolean,
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: any
+  config: any,
+  loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
@@ -92,14 +92,15 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
+    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
   }
 
-  Object.keys(pages).forEach(page => {
+  Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
 
-    const bundlePath = join('static', buildId, 'pages', bundleFile)
+    const bundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -133,18 +134,12 @@ export function createEntrypoints(
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-        hotRouterUpdates:
-          // Hot router updates only apply in development mode
-          dev &&
-          // However, React Refresh has its own hot module runtime, so we can't
-          // let them collide.
-          config.experimental.reactRefresh !== true,
       }
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts
       )}!`
 
-      // Make sure next/router is a dependency of _app or else granularChunks
+      // Make sure next/router is a dependency of _app or else chunk splitting
       // might cause the router to not be able to load causing hydration
       // to fail
 

@@ -1,13 +1,6 @@
 import { buildStaticPaths } from '../build/utils'
 import { loadComponents } from '../next-server/server/load-components'
-import fetch from 'next/dist/compiled/node-fetch'
-
-// @ts-ignore fetch exists globally
-if (!global.fetch) {
-  // Polyfill fetch() in the Node.js environment
-  // @ts-ignore fetch exists globally
-  global.fetch = fetch
-}
+import '../next-server/server/node-polyfill-fetch'
 
 let workerWasUsed = false
 
@@ -16,7 +9,6 @@ let workerWasUsed = false
 // during a production build
 export async function loadStaticPaths(
   distDir: string,
-  buildId: string,
   pathname: string,
   serverless: boolean
 ) {
@@ -26,12 +18,7 @@ export async function loadStaticPaths(
     process.exit(1)
   }
 
-  const components = await loadComponents(
-    distDir,
-    buildId,
-    pathname,
-    serverless
-  )
+  const components = await loadComponents(distDir, pathname, serverless)
 
   if (!components.getStaticPaths) {
     // we shouldn't get to this point since the worker should
