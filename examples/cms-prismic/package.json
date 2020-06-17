@@ -9,7 +9,7 @@
   "dependencies": {
     "classnames": "2.2.6",
     "date-fns": "2.10.0",
-    "next": "9.2.3-canary.26",
+    "next": "latest",
     "prismic-javascript": "2.2.0",
     "prismic-reactjs": "1.2.0",
     "react": "^16.13.0",
