@@ -4,7 +4,6 @@ import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
-import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -301,7 +300,7 @@ export default async function getBaseWebpackConfig(
     plugins: isWebpack5
       ? // webpack 5+ has the PnP resolver built-in by default:
         []
-      : [PnpWebpackPlugin],
+      : [require('pnp-webpack-plugin')],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -346,6 +345,8 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        // In webpack 5 vendors was renamed to defaultVendors
+        defaultVendors: false,
       },
     },
     prodGranular: {
@@ -353,6 +354,8 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        // In webpack 5 vendors was renamed to defaultVendors
+        defaultVendors: false,
         framework: {
           chunks: 'all',
           name: 'framework',
@@ -735,7 +738,7 @@ export default async function getBaseWebpackConfig(
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
-      plugins: [PnpWebpackPlugin],
+      plugins: isWebpack5 ? [] : [require('pnp-webpack-plugin')],
     },
     module: {
       rules: [
@@ -880,7 +883,10 @@ export default async function getBaseWebpackConfig(
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
       config.future.excludeDefaultMomentLocales &&
-        new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^\.\/locale$/,
+          contextRegExp: /moment$/,
+        }),
       ...(dev
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations
