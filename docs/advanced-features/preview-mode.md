@@ -20,6 +20,7 @@ description: Next.js has the preview mode for statically generated pages. You ca
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-cosmic">Cosmic Example</a> (<a href="https://next-blog-cosmic.now.sh/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-buttercms">ButterCMS Example</a> (<a href="https://next-blog-buttercms.now.sh/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.now.sh/">Demo</a>)</li>
   </ul>
 </details>
 
@@ -205,7 +206,8 @@ The preview mode works on `getServerSideProps` as well. It will also be availabl
 
 ### Unique per `next build`
 
-The bypass cookie value and private key for encrypting the `previewData` changes when a `next build` is ran, this ensures that the bypass cookie can’t be guessed.
+Both the bypass cookie value and the private key for encrypting the `previewData` change when `next build` is completed.
+This ensures that the bypass cookie can’t be guessed.
 
 ## Learn more
 
