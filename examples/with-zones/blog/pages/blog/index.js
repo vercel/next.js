@@ -16,7 +16,7 @@ export default function Blog() {
           </Link>
         </li>
       </ul>
-      <a href="/">Home</a>
+      <a href="http://localhost:3000/">Home</a>
       <div>
         <img
           width={200}

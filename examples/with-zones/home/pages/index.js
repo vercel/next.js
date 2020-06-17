@@ -9,7 +9,7 @@ export default function Home() {
       <Header />
       <p>This is our homepage</p>
       <div>
-        <a href="/blog">Blog</a>
+        <a href="http://localhost:4000/blog">Blog</a>
       </div>
       <div>
         <Link href="/about">
