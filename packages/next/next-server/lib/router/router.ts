@@ -274,11 +274,15 @@ export default class Router implements BaseRouter {
 
           scrollDebounceTimeout = setTimeout(() => {
             const { url, as: curAs, options } = history.state
-            this.changeState('replaceState', url, curAs, {
-              ...options,
-              _N_X: window.scrollX,
-              _N_Y: window.scrollY,
-            })
+            this.changeState(
+              'replaceState',
+              url,
+              curAs,
+              Object.assign({}, options, {
+                _N_X: window.scrollX,
+                _N_Y: window.scrollY,
+              })
+            )
           }, 10)
         }
 
