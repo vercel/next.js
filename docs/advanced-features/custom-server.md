@@ -7,15 +7,17 @@ description: Start a Next.js app programmatically using a custom server.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server">Basic custom server</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server-express">Express integration</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server-hapi">Hapi integration</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/ssr-caching">SSR Caching</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server">Basic custom server</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-express">Express integration</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-hapi">Hapi integration</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-koa">Koa integration</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/ssr-caching">SSR Caching</a></li>
   </ul>
 </details>
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to use custom route patterns.
+
+> A custom server **can not** be deployed on [Vercel](https://vercel.com/solutions/nextjs), the platform Next.js was made for.
 
 > Before deciding to use a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
 

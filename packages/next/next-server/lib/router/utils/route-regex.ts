@@ -9,12 +9,17 @@ export function getRouteRegex(
 ): {
   re: RegExp
   namedRegex?: string
-  groups: { [groupName: string]: { pos: number; repeat: boolean } }
+  routeKeys?: { [named: string]: string }
+  groups: {
+    [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
+  }
 } {
   // Escape all characters that could be considered RegEx
   const escapedRoute = escapeRegex(normalizedRoute.replace(/\/$/, '') || '/')
 
-  const groups: { [groupName: string]: { pos: number; repeat: boolean } } = {}
+  const groups: {
+    [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
+  } = {}
   let groupIndex = 1
 
   const parameterizedRoute = escapedRoute.replace(
@@ -33,7 +38,7 @@ export function getRouteRegex(
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
         // eslint-disable-next-line no-sequences
-      ] = { pos: groupIndex++, repeat: isCatchAll }
+      ] = { pos: groupIndex++, repeat: isCatchAll, optional: isOptional }
       return isCatchAll ? (isOptional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
     }
   )
@@ -43,6 +48,8 @@ export function getRouteRegex(
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
+    const routeKeys: { [named: string]: string } = {}
+
     namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {
@@ -52,18 +59,28 @@ export function getRouteRegex(
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
           .replace(/^\.{3}/, '')
 
+        // replace any non-word characters since they can break
+        // the named regex
+        const cleanedKey = key.replace(/\W/g, '')
+
+        routeKeys[cleanedKey] = key
+
         return isCatchAll
-          ? `/(?<${escapeRegex(key)}>.+?)`
-          : `/(?<${escapeRegex(key)}>[^/]+?)`
+          ? `/(?<${cleanedKey}>.+?)`
+          : `/(?<${cleanedKey}>[^/]+?)`
       }
     )
+
+    return {
+      re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+      groups,
+      routeKeys,
+      namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
+    }
   }
 
   return {
     re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
     groups,
-    namedRegex: namedParameterizedRoute
-      ? `^${namedParameterizedRoute}(?:/)?$`
-      : undefined,
   }
 }

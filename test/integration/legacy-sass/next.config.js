@@ -1,2 +1,2 @@
 const withSass = require('@zeit/next-sass')
-module.exports = withSass({ experimental: { reactRefresh: true } })
+module.exports = withSass()

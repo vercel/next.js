@@ -1,6 +1,5 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
@@ -64,9 +63,9 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
-function parseJsonFile(path: string) {
+function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
-  const contents = readFileSync(path, 'utf8')
+  const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file
   if (contents.trim() === '') {
@@ -81,7 +80,7 @@ function parseJsonFile(path: string) {
       { start: { line: err.lineNumber, column: err.columnNumber } },
       { message: err.message, highlightCode: true }
     )
-    throw new Error(`Failed to parse "${path}":\n${codeFrame}`)
+    throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
   }
 }
 
@@ -247,8 +246,6 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
-  const ignoreTypeScriptErrors =
-    dev || Boolean(config.typescript?.ignoreBuildErrors)
 
   let jsConfig
   // jsconfig is a subset of tsconfig
@@ -319,7 +316,7 @@ export default async function getBaseWebpackConfig(
       warnings: false,
       // The following two options are known to break valid JavaScript code
       comparisons: false,
-      inline: 2, // https://github.com/zeit/next.js/issues/7178#issuecomment-493048965
+      inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
     },
     mangle: { safari10: true },
     output: {
@@ -330,8 +327,6 @@ export default async function getBaseWebpackConfig(
       ascii_only: true,
     },
   }
-
-  const devtool = dev ? 'cheap-module-source-map' : false
 
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
@@ -354,23 +349,6 @@ export default async function getBaseWebpackConfig(
         vendors: false,
       },
     },
-    prod: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-        },
-        react: {
-          name: 'commons',
-          chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-subscription)[\\/]/,
-        },
-      },
-    },
     prodGranular: {
       chunks: 'all',
       cacheGroups: {
@@ -381,7 +359,7 @@ export default async function getBaseWebpackConfig(
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
-          // https://github.com/zeit/next.js/pull/9012
+          // https://github.com/vercel/next.js/pull/9012
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
           // Don't let webpack eliminate this chunk (prevents this chunk from
@@ -455,9 +433,7 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
   } else {
-    splitChunksConfig = config.experimental.granularChunks
-      ? splitChunksConfigs.prodGranular
-      : splitChunksConfigs.prod
+    splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
   const crossOrigin =
@@ -711,6 +687,14 @@ export default async function getBaseWebpackConfig(
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
+
+        if (chunk.name.includes('BUILD_ID')) {
+          return escapePathVariables(chunk.name).replace(
+            'BUILD_ID',
+            isServer || dev ? buildId : '[contenthash]'
+          )
+        }
+
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
@@ -759,11 +743,11 @@ export default async function getBaseWebpackConfig(
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
-          exclude: (path: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(path))) {
+          exclude: (excludePath: string) => {
+            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
             }
-            return /node_modules/.test(path)
+            return /node_modules/.test(excludePath)
           },
           use: config.experimental.babelMultiThread
             ? [
@@ -817,7 +801,7 @@ export default async function getBaseWebpackConfig(
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
+              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/vercel/next.js/env-key-not-allowed`
             )
           }
 
@@ -827,7 +811,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(crossOrigin),
+        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
@@ -843,9 +827,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
-        ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
-          config.experimental.granularChunks && !dev
         ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
@@ -917,27 +898,8 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            // Webpack 5 has the ability to cache packages persistently, so we
-            // do not need this DLL plugin:
+            // Webpack 5 enables HMR automatically in the development mode
             if (!isServer && !isWebpack5) {
-              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
-                distDir
-              )
-              devPlugins.push(
-                new AutoDllPlugin({
-                  filename: '[name]_[hash].js',
-                  path: './static/development/dll',
-                  context: dir,
-                  entry: {
-                    dll: ['react', 'react-dom'],
-                  },
-                  config: {
-                    devtool,
-                    mode: webpackMode,
-                    resolve: resolveConfig,
-                  },
-                })
-              )
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
             }
 
@@ -960,30 +922,12 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new BuildManifestPlugin({
           buildId,
-          clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
       tracer &&
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
-        !isServer &&
-        useTypeScript &&
-        !ignoreTypeScriptErrors &&
-        new ForkTsCheckerWebpackPlugin(
-          PnpWebpackPlugin.forkTsCheckerOptions({
-            typescript: typeScriptPath,
-            async: false,
-            useTypescriptIncrementalApi: true,
-            checkSyntacticErrors: true,
-            tsconfig: tsConfigPath,
-            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-            compilerOptions: { isolatedModules: true, noEmit: true },
-            silent: true,
-            formatter: 'codeframe',
-          })
-        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
@@ -1024,7 +968,6 @@ export default async function getBaseWebpackConfig(
                     .BlockedAPIToBePolyfilled,
               }),
             !isServer &&
-              config.experimental.granularChunks &&
               conformanceConfig.GranularChunksConformanceCheck.enabled &&
               new GranularChunksConformanceCheck(
                 splitChunksConfigs.prodGranular
@@ -1077,7 +1020,7 @@ export default async function getBaseWebpackConfig(
 
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
       )
     }
   }

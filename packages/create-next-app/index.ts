@@ -1,15 +1,14 @@
 #!/usr/bin/env node
+/* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
-
-import { createApp } from './create-app'
+import { createApp, DownloadError } from './create-app'
+import { shouldUseYarn } from './helpers/should-use-yarn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
-import { shouldUseYarn } from './helpers/should-use-yarn'
-import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -99,79 +98,41 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  if (!program.example) {
-    const template = await prompts({
-      type: 'select',
-      name: 'value',
-      message: 'Pick a template',
-      choices: [
-        { title: 'Default starter app', value: 'default' },
-        { title: 'Example from the Next.js repo', value: 'example' },
-      ],
-    })
-
-    if (!template.value) {
-      console.log()
-      console.log('Please specify the template')
-      process.exit(1)
-    }
-
-    if (template.value === 'example') {
-      let examplesJSON: any
-
-      try {
-        examplesJSON = await listExamples()
-      } catch (error) {
-        console.log()
-        console.log(
-          'Failed to fetch the list of examples with the following error:'
-        )
-        console.error(error)
-        console.log()
-        console.log('Switching to the default starter app')
-        console.log()
-      }
-
-      if (examplesJSON) {
-        const choices = examplesJSON.map((example: any) => ({
-          title: example.name,
-          value: example.name,
-        }))
-        // The search function built into `prompts` isn’t very helpful:
-        // someone searching for `styled-components` would get no results since
-        // the example is called `with-styled-components`, and `prompts` searches
-        // the beginnings of titles.
-        const nameRes = await prompts({
-          type: 'autocomplete',
-          name: 'exampleName',
-          message: 'Pick an example',
-          choices,
-          suggest: (input: any, choices: any) => {
-            const regex = new RegExp(input, 'i')
-            return choices.filter((choice: any) => regex.test(choice.title))
-          },
-        })
-
-        if (!nameRes.exampleName) {
-          console.log()
-          console.log(
-            'Please specify an example or use the default starter app.'
-          )
-          process.exit(1)
-        }
-
-        program.example = nameRes.exampleName
-      }
-    }
+  if (program.example === true) {
+    console.error(
+      'Please provide an example name or url, otherwise remove the example option.'
+    )
+    process.exit(1)
+    return
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
-  await createApp({
-    appPath: resolvedProjectPath,
-    useNpm: !!program.useNpm,
-    example: example && example !== 'default' ? example : undefined,
-    examplePath: program.examplePath,
-  })
+  try {
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      example: example && example !== 'default' ? example : undefined,
+      examplePath: program.examplePath,
+    })
+  } catch (reason) {
+    if (!(reason instanceof DownloadError)) {
+      throw reason
+    }
+
+    const res = await prompts({
+      type: 'confirm',
+      name: 'builtin',
+      message:
+        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+        `Do you want to use the default template instead?`,
+      initial: true,
+    })
+    if (!res.builtin) {
+      throw reason
+    }
+
+    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+  }
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)

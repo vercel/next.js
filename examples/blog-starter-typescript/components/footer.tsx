@@ -1,8 +1,7 @@
-import React from 'react'
 import Container from './container'
 import { EXAMPLE_PATH } from '../lib/constants'
 
-const Footer: React.FC = () => {
+const Footer = () => {
   return (
     <footer className="bg-accent-1 border-t border-accent-2">
       <Container>
@@ -18,7 +17,7 @@ const Footer: React.FC = () => {
               Read Documentation
             </a>
             <a
-              href={`https://github.com/zeit/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
+              href={`https://github.com/vercel/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
               className="mx-3 font-bold hover:underline"
             >
               View on GitHub

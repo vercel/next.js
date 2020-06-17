@@ -16,23 +16,23 @@ const AboutPage = () => (
       </p>
       <p>
         In this simple example, we integrate Apollo seamlessly with{' '}
-        <a href="https://github.com/zeit/next.js">Next</a> by wrapping our Page
-        component inside a{' '}
-        <a href="https://facebook.github.io/react/docs/higher-order-components.html">
-          higher-order component (HOC)
-        </a>
-        . Using the HOC pattern we're able to pass down a central store of query
-        result data created by Apollo into our React component hierarchy defined
-        inside a page of our Next application.
+        <a href="https://github.com/vercel/next.js">Next</a> by calling{' '}
+        <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
+          getStaticProps
+        </a>{' '}
+        at our Page component. This approach lets us opt out of getInitialProps
+        and let us use all the niceties provided by{' '}
+        <a href="https://github.com/vercel/next.js">Next</a>.
       </p>
       <p>
-        On initial page load, while on the server and inside getInitialProps, we
-        invoke the Apollo method,{' '}
-        <a href="https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree">
-          getDataFromTree
+        On initial page load, while on the server and inside{' '}
+        <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
+          getStaticProps
         </a>
-        . This method returns a promise; at the point in which the promise
-        resolves, our Apollo Client store is completely initialized.
+        , we fetch the query used to get the list of posts. At the point in
+        which the query promise resolves, our Apollo Client store is completely
+        initialized. Then we serve the initial HTML with the fetched data and
+        hydrate Apollo in the browser.
       </p>
       <p>
         This example relies on <a href="http://graph.cool">graph.cool</a> for

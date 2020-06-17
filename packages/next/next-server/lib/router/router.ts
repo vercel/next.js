@@ -19,13 +19,11 @@ import { getRouteRegex } from './utils/route-regex'
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return path.indexOf(basePath) !== 0 ? basePath + path : path
+  return `${basePath}${path}`
 }
 
 export function delBasePath(path: string): string {
-  return path.indexOf(basePath) === 0
-    ? path.substr(basePath.length) || '/'
-    : path
+  return path.substr(basePath.length)
 }
 
 function toRoute(path: string): string {
@@ -36,6 +34,21 @@ const prepareRoute = (path: string) =>
   toRoute(!path || path === '/' ? '/index' : path)
 
 type Url = UrlObject | string
+
+function prepareUrlAs(url: Url, as: Url) {
+  // If url and as provided as an object representation,
+  // we'll format them into the string version here.
+  url = typeof url === 'object' ? formatWithValidation(url) : url
+  as = typeof as === 'object' ? formatWithValidation(as) : as
+
+  url = addBasePath(url)
+  as = as ? addBasePath(as) : as
+
+  return {
+    url,
+    as,
+  }
+}
 
 type ComponentRes = { page: ComponentType; mod: any }
 
@@ -216,7 +229,9 @@ export default class Router implements BaseRouter {
     // until after mount to prevent hydration mismatch
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport
+        ? pathname
+        : delBasePath(as)
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -235,7 +250,7 @@ export default class Router implements BaseRouter {
         // we have to register the initial route upon initialization
         this.changeState(
           'replaceState',
-          formatWithValidation({ pathname, query }),
+          formatWithValidation({ pathname: addBasePath(pathname), query }),
           as
         )
       }
@@ -269,7 +284,7 @@ export default class Router implements BaseRouter {
       const { pathname, query } = this
       this.changeState(
         'replaceState',
-        formatWithValidation({ pathname, query }),
+        formatWithValidation({ pathname: addBasePath(pathname), query }),
         getURL()
       )
       return
@@ -296,11 +311,11 @@ export default class Router implements BaseRouter {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof url === 'undefined' || typeof as === 'undefined') {
         console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/zeit/next.js/popstate-state-empty'
+          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
         )
       }
     }
-    this.replace(url, as, options)
+    this.change('replaceState', url, as, options)
   }
 
   update(route: string, mod: any) {
@@ -346,6 +361,7 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as: Url = url, options = {}) {
+    ;({ url, as } = prepareUrlAs(url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -356,13 +372,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as: Url = url, options = {}) {
+    ;({ url, as } = prepareUrlAs(url, as))
     return this.change('replaceState', url, as, options)
   }
 
   change(
     method: HistoryMethod,
-    _url: Url,
-    _as: Url,
+    url: string,
+    as: string,
     options: any
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
@@ -373,14 +390,6 @@ export default class Router implements BaseRouter {
       if (ST) {
         performance.mark('routeChange')
       }
-
-      // If url and as provided as an object representation,
-      // we'll format them into the string version here.
-      let url = typeof _url === 'object' ? formatWithValidation(_url) : _url
-      let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
-
-      url = addBasePath(url)
-      as = addBasePath(as)
 
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
@@ -410,12 +419,17 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      const { pathname, query, protocol } = parse(url, true)
+      let { pathname, query, protocol } = parse(url, true)
+
+      // url and as should always be prefixed with basePath by this
+      // point by either next/link or router.push/replace so strip the
+      // basePath from the pathname to match the pages dir 1-to-1
+      pathname = pathname ? delBasePath(pathname) : pathname
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return resolve(false)
@@ -436,7 +450,9 @@ export default class Router implements BaseRouter {
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
         const routeRegex = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+        const routeMatch = getRouteMatcher(routeRegex)(
+          delBasePath(asPathname || '')
+        )
         if (!routeMatch) {
           const missingParams = Object.keys(routeRegex.groups).filter(
             (param) => !query[param]
@@ -455,7 +471,7 @@ export default class Router implements BaseRouter {
             return reject(
               new Error(
                 `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+                  `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
               )
             )
           }
@@ -486,15 +502,17 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname, query, as, routeInfo).then(() => {
-            if (error) {
-              Router.events.emit('routeChangeError', error, as)
-              throw error
-            }
+          this.set(route, pathname!, query, delBasePath(as), routeInfo).then(
+            () => {
+              if (error) {
+                Router.events.emit('routeChangeError', error, as)
+                throw error
+              }
 
-            Router.events.emit('routeChangeComplete', as)
-            return resolve(true)
-          })
+              Router.events.emit('routeChangeComplete', as)
+              return resolve(true)
+            }
+          )
         },
         reject
       )
@@ -581,7 +599,7 @@ export default class Router implements BaseRouter {
             .then((res) => {
               const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolve) => {
+              return new Promise((resolveRouteInfo) => {
                 this.getInitialProps(Component, {
                   err,
                   pathname,
@@ -590,7 +608,7 @@ export default class Router implements BaseRouter {
                   (props) => {
                     routeInfo.props = props
                     routeInfo.error = err
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   },
                   (gipErr) => {
                     console.error(
@@ -599,12 +617,12 @@ export default class Router implements BaseRouter {
                     )
                     routeInfo.error = err
                     routeInfo.props = {}
-                    resolve(routeInfo)
+                    resolveRouteInfo(routeInfo)
                   }
                 )
               }) as Promise<RouteInfo>
             })
-            .catch((err) => handleError(err, true))
+            .catch((routeInfoErr) => handleError(routeInfoErr, true))
         )
       }) as Promise<RouteInfo>
     }
@@ -748,7 +766,7 @@ export default class Router implements BaseRouter {
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
           )
         }
         return
@@ -758,9 +776,9 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-      const route = delBasePath(toRoute(pathname))
+      const route = toRoute(pathname)
       Promise.all([
-        this.pageLoader.prefetchData(url, delBasePath(asPath)),
+        this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
       ]).then(() => resolve(), reject)
     })
@@ -771,7 +789,6 @@ export default class Router implements BaseRouter {
     const cancel = (this.clc = () => {
       cancelled = true
     })
-    route = delBasePath(route)
 
     const componentResult = await this.pageLoader.loadPage(route)
 

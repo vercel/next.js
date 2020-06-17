@@ -5,7 +5,8 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../lib/constants'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
+import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -23,10 +24,13 @@ export function getPagePath(
     distDir,
     serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
-  const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
+  const pagesManifest = require(join(
+    serverBuildPath,
+    PAGES_MANIFEST
+  )) as PagesManifest
 
   try {
-    page = normalizePagePath(page)
+    page = denormalizePagePath(normalizePagePath(page))
   } catch (err) {
     // tslint:disable-next-line
     console.error(err)
@@ -34,12 +38,7 @@ export function getPagePath(
   }
 
   if (!pagesManifest[page]) {
-    const cleanedPage = page.replace(/^\/index$/, '') || '/'
-    if (!pagesManifest[cleanedPage]) {
-      throw pageNotFoundError(page)
-    } else {
-      page = cleanedPage
-    }
+    throw pageNotFoundError(page)
   }
   return join(serverBuildPath, pagesManifest[page])
 }
