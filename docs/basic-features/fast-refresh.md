@@ -27,7 +27,7 @@ state**.
   might have a file which renders a React component but also exports a value
   that is imported by a **non-React component**. For example, maybe your
   component also exports a constant, and a non-React utility file imports it. In
-  that case, consider migrating the query to a separate file and importing it
+  that case, consider migrating the constant to a separate file and importing it
   into both files. This will re-enable Fast Refresh to work. Other cases can
   usually be solved in a similar way.
 
@@ -105,6 +105,6 @@ screen!
 
 Sometimes, this can lead to unexpected results. For example, even a `useEffect`
 with an empty array of dependencies would still re-run once during Fast Refresh.
-However, writing code resilient to an occasional re-running of `useEffect` is a
+However, writing code resilient to occasional re-running of `useEffect` is a
 good practice even without Fast Refresh. This makes it easier for you to later
 introduce new dependencies to it.
