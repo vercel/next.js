@@ -206,7 +206,8 @@ The preview mode works on `getServerSideProps` as well. It will also be availabl
 
 ### Unique per `next build`
 
-Both of the bypass cookie value and the private key for encrypting the `previewData` change when a `next build` is running, this ensures that the bypass cookie can’t be guessed.
+Both the bypass cookie value and the private key for encrypting the `previewData` change when `next build` is completed.
+This ensures that the bypass cookie can’t be guessed.
 
 ## Learn more
 
