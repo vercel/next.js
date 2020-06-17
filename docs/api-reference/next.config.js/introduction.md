@@ -44,6 +44,29 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
+You could also use some [JSDoc](https://jsdoc.app/) features to help you with some in-editor autocompletion.
+
+```js
+/**
+ * @type {import("next").NextConfig}
+ */
+module.exports = {
+  /* config options here should be autocompleted depending
+  on your preferred editor */
+}
+```
+
+```js
+/**
+ * @type {import("next").NextConfig}
+ */
+module.exports = (phase, { defaultConfig }) => {
+  return {
+    /* autocompleted config options here */
+  }
+}
+```
+
 The commented lines are the place where you can put the configs allowed by `next.config.js`, which are defined [here](https://github.com/vercel/next.js/blob/canary/packages/next/next-server/server/config.ts#L12-L63).
 
 However, none of the configs are required, and it's not necessary to understand what each config does, instead, search for the features you need to enable or modify in this section and they will show you what to do.

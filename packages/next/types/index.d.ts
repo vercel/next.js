@@ -1,3 +1,5 @@
+/* eslint-disable import/no-extraneous-dependencies */
+
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
@@ -5,6 +7,8 @@
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
+import { Configuration as WebpackConfig } from 'webpack'
+import { Options as WebpackDevOptions } from 'webpack-dev-middleware'
 
 import {
   NextPageContext,
@@ -135,5 +139,133 @@ export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
     ) => Promise<GetServerSidePropsResult<infer P>>
   ? P
   : never
+
+interface NextConfigObject {
+  env?: Record<string, string>
+  webpack?: (
+    config: WebpackConfig,
+    info: {
+      buildId: string
+      dev: boolean
+      isServer: boolean
+      defaultLoaders: object
+    }
+  ) => WebpackConfig
+  webpackDevMiddleware?: (config: WebpackDevOptions) => WebpackDevOptions
+  distDir?: string
+  assetPrefix?: string
+  configOrigin?: string
+  useFileSystemPublicRoutes?: boolean
+  generateBuildId?: () => Promise<string> | string
+  generateEtags?: boolean
+  pageExtensions?: string[]
+  target?: 'server' | 'serverless'
+  poweredByHeader?: boolean
+  compress?: boolean
+  devIndicators?: {
+    autoPrerender?: boolean
+    buildActivity?: boolean
+  }
+  onDemandEntries?: { maxInactiveAge?: number; pagesBufferLength?: number }
+  amp?: {
+    canonicalBase?: string
+  }
+  exportTrailingSlash?: boolean
+  sassOptions?: Record<string, any>
+  experimental?: {
+    cpus?: number
+    modern?: boolean
+    plugins?: boolean
+    profiling?: boolean
+    sprFlushToDisk?: boolean
+    reactMode?: 'legacy' | 'blocking' | 'concurrent'
+    workerThreads?: false
+    basePath?: string
+    pageEnv?: boolean
+    productionBrowserSourceMaps?: boolean
+    optionalCatchAll?: boolean
+  }
+  future?: {
+    excludeDefaultMomentLocales?: boolean
+  }
+  serverRuntimeConfig?: Record<string, any>
+  publicRuntimeConfig?: Record<string, any>
+  reactStrictMode?: boolean
+  typescript?: {
+    ignoreBuildErrors?: boolean
+  }
+  exportPathMap?: (
+    defaultPathMap: Record<
+      string,
+      { page: string; query?: Record<string, string> }
+    >,
+    info: {
+      dev: boolean
+      dir: string
+      outDir: string
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<Record<string, { page: string; query?: Record<string, string> }>>
+}
+
+export type NextConfig =
+  | NextConfigObject
+  | ((
+      phase:
+        | 'phase-export'
+        | 'phase-production-build'
+        | 'phase-production-server'
+        | 'phase-development-server',
+      defaultConfig: {
+        defaultConfig: {
+          env: []
+          webpack: null
+          webpackDevMiddleware: null
+          distDir: '.next'
+          assetPrefix: ''
+          configOrigin: 'default'
+          useFileSystemPublicRoutes: true
+          generateBuildId: () => null
+          generateEtags: true
+          pageExtensions: ['tsx', 'ts', 'jsx', 'js']
+          target: 'server'
+          poweredByHeader: true
+          compress: true
+          devIndicators: {
+            buildActivity: true
+            autoPrerender: true
+          }
+          onDemandEntries: {
+            maxInactiveAge: 60000
+            pagesBufferLength: 2
+          }
+          amp: {
+            canonicalBase: ''
+          }
+          exportTrailingSlash: false
+          sassOptions: {}
+          experimental: {
+            cpus: number
+            modern: false
+            plugins: false
+            profiling: false
+            sprFlushToDisk: true
+            reactMode: 'legacy'
+            workerThreads: false
+            basePath: ''
+            pageEnv: false
+            productionBrowserSourceMaps: false
+            optionalCatchAll: false
+          }
+          future: {
+            excludeDefaultMomentLocales: false
+          }
+          serverRuntimeConfig: {}
+          publicRuntimeConfig: {}
+          reactStrictMode: false
+        }
+      }
+    ) => NextConfigObject)
 
 export default next
