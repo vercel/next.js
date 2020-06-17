@@ -34,7 +34,7 @@ export type ServerlessLoaderQuery = {
 
 const vercelHeader = 'x-vercel-id'
 
-const nextServerlessLoader: loader.Loader = function() {
+const nextServerlessLoader: loader.Loader = function () {
   const {
     distDir,
     absolutePagePath,
