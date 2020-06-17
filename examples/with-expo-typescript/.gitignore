@@ -10,9 +10,6 @@ npm-debug.*
 web-build/
 web-report/
 
-# macOS
-.DS_Store
-
 # @generated: @expo/next-adapter@2.1.9
 /.expo/*
 # Expo Web
