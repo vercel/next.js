@@ -741,8 +741,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const serverBundle = getPagePath(page, distDir, isLikeServerless)
       await promises.unlink(serverBundle)
     }
+    const serverOutputDir = path.join(
+      distDir,
+      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
 
     const moveExportedPage = async (
+      originPage: string,
       page: string,
       file: string,
       isSsg: boolean,
@@ -750,10 +755,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
     ) => {
       file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
-      const relativeDest = (isLikeServerless
-        ? path.join('pages', file)
-        : path.join('static', buildId, 'pages', file)
-      ).replace(/\\/g, '/')
+      const pagePath = getPagePath(originPage, distDir, isLikeServerless)
+
+      const relativeDest = path
+        .relative(
+          serverOutputDir,
+          path.join(
+            path.join(
+              pagePath,
+              // strip leading / and then recurse number of nested dirs
+              // to place from base folder
+              originPage
+                .substr(1)
+                .split('/')
+                .map(() => '..')
+                .join('/')
+            ),
+            file
+          )
+        )
+        .replace(/\\/g, '/')
 
       const dest = path.join(
         distDir,
@@ -762,11 +783,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       if (!isSsg) {
-        if (page === '/.amp') {
-          pagesManifest['/index.amp'] = relativeDest
-        } else {
-          pagesManifest[page] = relativeDest
-        }
+        pagesManifest[page] = relativeDest
       }
       await promises.mkdir(path.dirname(dest), { recursive: true })
       await promises.rename(orig, dest)
@@ -774,7 +791,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
     if (!hasPages404 && useStatic404) {
-      await moveExportedPage('/404', '/404', false, 'html')
+      await moveExportedPage('/_error', '/404', '/404', false, 'html')
     }
 
     for (const page of combinedPages) {
@@ -787,21 +804,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
       if (!(isSsg && isDynamic && !isSsgFallback)) {
-        await moveExportedPage(page, file, isSsg, 'html')
+        await moveExportedPage(page, page, file, isSsg, 'html')
       }
 
       if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-        await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
+        const ampPage = `${file}.amp`
+        await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
 
         if (isSsg) {
-          await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'json')
+          await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
         }
       }
 
       if (isSsg) {
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
-          await moveExportedPage(page, file, true, 'json')
+          await moveExportedPage(page, page, file, true, 'json')
 
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
@@ -816,22 +834,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
-            await moveExportedPage(route, route, true, 'html')
-            await moveExportedPage(route, route, true, 'json')
+            await moveExportedPage(page, route, route, true, 'html')
+            await moveExportedPage(page, route, route, true, 'json')
 
             if (hasAmp) {
-              await moveExportedPage(
-                `${route}.amp`,
-                `${route}.amp`,
-                true,
-                'html'
-              )
-              await moveExportedPage(
-                `${route}.amp`,
-                `${route}.amp`,
-                true,
-                'json'
-              )
+              const ampPage = `${normalizePagePath(route)}.amp`
+              await moveExportedPage(page, ampPage, ampPage, true, 'html')
+              await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
 
             finalPrerenderRoutes[route] = {
