@@ -213,6 +213,26 @@ button:disabled {
   max-width: 100%;
 }
 
+/* Test card number */
+.test-card-notice {
+  display: block;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+}
+.card-number {
+  display: inline;
+  white-space: nowrap;
+  font-family: Menlo, Consolas, monospace;
+  color: #3c4257;
+  font-weight: 500;
+}
+.card-number span {
+  display: inline-block;
+  width: 4px;
+}
+
 /* Code block */
 code,
 pre {
