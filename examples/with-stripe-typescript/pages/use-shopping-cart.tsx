@@ -12,8 +12,8 @@ const DonatePage: NextPage = () => {
         <h1>Shopping Cart</h1>
         <p>
           Powered by the{' '}
-          <a href="https://useshoppingcart.com">use-shopping-cart</a>{' '}
-          React hooks library.
+          <a href="https://useshoppingcart.com">use-shopping-cart</a> React
+          hooks library.
         </p>
         <Cart>
           <CartSummary />
