@@ -50,7 +50,6 @@ export interface PageInfo {
   isSsg: boolean
   ssgPageRoutes: string[] | null
   hasSsgFallback: boolean
-  serverBundle: string
 }
 
 export async function printTreeView(
