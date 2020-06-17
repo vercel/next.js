@@ -34,7 +34,7 @@ function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
 export function runCompiler(
   config: Configuration | Configuration[]
 ): Promise<CompilerResult> {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const compiler = webpack(config)
     compiler.run(
       (err: Error, statsOrMultiStats: { stats: Stats[] } | Stats) => {
