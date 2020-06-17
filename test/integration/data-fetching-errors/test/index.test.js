@@ -96,11 +96,11 @@ const runTests = (isDev = false) => {
     await fs.writeFile(
       indexPage,
       `
-      export function getStaticProps() {}
-      export default function Page() {
-        return <div />;
-      }
-    `
+        export function getStaticProps() {}
+        export default function Page() {
+          return <div />;
+        }
+      `
     )
     expect(await getStderr()).toContain(GSP_NO_RETURNED_VALUE)
   })
@@ -110,11 +110,11 @@ const runTests = (isDev = false) => {
       await fs.writeFile(
         indexPage,
         `
-      export function getServerSideProps() {}
-      export default function Page() {
-        return <div />;
-      }
-    `
+          export function getServerSideProps() {}
+          export default function Page() {
+            return <div />;
+          }
+        `
       )
       expect(await getStderr()).toContain(GSSP_NO_RETURNED_VALUE)
     })
