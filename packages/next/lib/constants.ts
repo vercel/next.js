@@ -34,6 +34,11 @@ export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have get
 
 export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gssp-export`
 
+export const GSP_NO_RETURNED_VALUE =
+  'Your `getStaticProps` function did not return an object. Did you forget to add a `return`?'
+export const GSSP_NO_RETURNED_VALUE =
+  'Your `getServerSideProps` function did not return an object. Did you forget to add a `return`?'
+
 export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'The `revalidate` property is not yet available for general use.\n' +
   'To try the experimental implementation, please use `unstable_revalidate` instead.\n' +

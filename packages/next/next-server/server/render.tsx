@@ -2,26 +2,30 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
+  GSP_NO_RETURNED_VALUE,
+  GSSP_COMPONENT_MEMBER_ERROR,
+  GSSP_NO_RETURNED_VALUE,
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
-  GSSP_COMPONENT_MEMBER_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
+import { GetServerSideProps, GetStaticProps } from '../../types'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
   AMP_RENDER_TARGET,
-  STATIC_PROPS_ID,
   SERVER_PROPS_ID,
+  STATIC_PROPS_ID,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
+import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
-import { HeadManagerContext } from '../lib/head-manager-context'
 import mitt, { MittEmitter } from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
@@ -41,8 +45,6 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
-import { UnwrapPromise } from '../../lib/coalesced-function'
-import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
@@ -515,6 +517,10 @@ export async function renderToHTML(
         throw staticPropsError
       }
 
+      if (data == null) {
+        throw new Error(GSP_NO_RETURNED_VALUE)
+      }
+
       const invalidKeys = Object.keys(data).filter(
         (key) => key !== 'unstable_revalidate' && key !== 'props'
       )
@@ -599,6 +605,10 @@ export async function renderToHTML(
           delete serverSidePropsError.code
         }
         throw serverSidePropsError
+      }
+
+      if (data == null) {
+        throw new Error(GSSP_NO_RETURNED_VALUE)
       }
 
       const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
