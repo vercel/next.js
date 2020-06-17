@@ -117,28 +117,21 @@ The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECR
 
 ### Deploy
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-stripe-typescript)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/import/select-scope?s=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-stripe-typescript&c=1&id=70107786&env=NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY&envDescription=Enter%20your%20Stripe%20Keys&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-stripe-typescript%23required-configuration)
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+The "Deploy to Vercel" button will take you through the project import flow and prompt you to enter your Stripe API keys which you can find in your [Stripe Dashboard](https://dashboard.stripe.com/apikeys).
 
-**Note**: You must add your Stripe secrets using the Vercel CLI ([Download here](https://vercel.com/download)):
-
-```bash
-vercel secrets add stripe_publishable_key pk_***
-vercel secrets add stripe_secret_key sk_***
-vercel secrets add stripe_webhook_secret whsec_***
-```
+### Setting up a live webhook endpoint
 
 After deploying, copy the deployment URL with the webhook path (`https://your-url.now.sh/api/webhooks`) and create a live webhook endpoint [in your Stripe dashboard](https://stripe.com/docs/webhooks/setup#configure-webhook-settings).
 
-**Note**: Your live webhook will have a different secret. To update it in your deployed application you will need to first remove the existing secret and then add the new secret:
+Once created, you can click to reveal your webhook's signing secret. Copy the webhook secret (`whsec_***`) and add it as a new environment variable in your [Vercel Dashboard](https://vercel.com/dashboard):
 
-```bash
-vercel secrets rm stripe_webhook_secret
-vercel secrets add stripe_webhook_secret whsec_***
-```
+- Select your newly created project.
+- Navigate to the Settings tab.
+- In the general settings scroll to the "Environment Variables" section.
 
-As the secrets are set as env vars in the project at deploy time, we will need to redeploy our app after we made changes to the secrets.
+After adding an environment variable you will need to rebuild your project for it to become within your code. Within your project Dashboard, navigate to the "Deployments" tab, select the most recent deployment, click the overflow menu button (next to the "Visit" button) and select "Redeploy".
 
 ### Authors
 
