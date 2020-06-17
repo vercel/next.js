@@ -264,29 +264,31 @@ export default class Router implements BaseRouter {
 
       // enable custom scroll restoration handling when available
       // otherwise fallback to browser's default handling
-      if (manualScrollRestoration) {
-        window.history.scrollRestoration = 'manual'
+      if (process.env.__NEXT_SCROLL_RESTORATION) {
+        if (manualScrollRestoration) {
+          window.history.scrollRestoration = 'manual'
 
-        let scrollDebounceTimeout: undefined | NodeJS.Timeout
+          let scrollDebounceTimeout: undefined | NodeJS.Timeout
 
-        const debouncedScrollSave = () => {
-          if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
+          const debouncedScrollSave = () => {
+            if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
 
-          scrollDebounceTimeout = setTimeout(() => {
-            const { url, as: curAs, options } = history.state
-            this.changeState(
-              'replaceState',
-              url,
-              curAs,
-              Object.assign({}, options, {
-                _N_X: window.scrollX,
-                _N_Y: window.scrollY,
-              })
-            )
-          }, 10)
+            scrollDebounceTimeout = setTimeout(() => {
+              const { url, as: curAs, options } = history.state
+              this.changeState(
+                'replaceState',
+                url,
+                curAs,
+                Object.assign({}, options, {
+                  _N_X: window.scrollX,
+                  _N_Y: window.scrollY,
+                })
+              )
+            }, 10)
+          }
+
+          window.addEventListener('scroll', debouncedScrollSave)
         }
-
-        window.addEventListener('scroll', debouncedScrollSave)
       }
     }
   }
@@ -543,8 +545,10 @@ export default class Router implements BaseRouter {
 
               Router.events.emit('routeChangeComplete', as)
 
-              if (manualScrollRestoration && '_N_X' in options) {
-                window.scrollTo(options._N_X, options._N_Y)
+              if (process.env.__NEXT_SCROLL_RESTORATION) {
+                if (manualScrollRestoration && '_N_X' in options) {
+                  window.scrollTo(options._N_X, options._N_Y)
+                }
               }
               return resolve(true)
             }
