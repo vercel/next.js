@@ -37,7 +37,6 @@ import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
-import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -931,22 +930,25 @@ export default async function getBaseWebpackConfig(
       config.experimental.modern &&
         !isServer &&
         !dev &&
-        new NextEsmPlugin({
-          filename: (getFileName: Function | string) => (...args: any[]) => {
-            const name =
-              typeof getFileName === 'function'
-                ? getFileName(...args)
-                : getFileName
+        (() => {
+          const { NextEsmPlugin } = require('./webpack/plugins/next-esm-plugin')
+          return new NextEsmPlugin({
+            filename: (getFileName: Function | string) => (...args: any[]) => {
+              const name =
+                typeof getFileName === 'function'
+                  ? getFileName(...args)
+                  : getFileName
 
-            return name.includes('.js')
-              ? name.replace(/\.js$/, '.module.js')
-              : escapePathVariables(
-                  args[0].chunk.name.replace(/\.js$/, '.module.js')
-                )
-          },
-          chunkFilename: (inputChunkName: string) =>
-            inputChunkName.replace(/\.js$/, '.module.js'),
-        }),
+              return name.includes('.js')
+                ? name.replace(/\.js$/, '.module.js')
+                : escapePathVariables(
+                    args[0].chunk.name.replace(/\.js$/, '.module.js')
+                  )
+            },
+            chunkFilename: (inputChunkName: string) =>
+              inputChunkName.replace(/\.js$/, '.module.js'),
+          })
+        })(),
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
