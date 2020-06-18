@@ -117,7 +117,7 @@ The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECR
 
 ### Deploy
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/import/select-scope?s=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-stripe-typescript&c=1&id=70107786&env=NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY&envDescription=Enter%20your%20Stripe%20Keys&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-stripe-typescript%23required-configuration)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/import/select-scope?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-stripe-typescript&id=70107786&env=NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY&envDescription=Enter%20your%20Stripe%20Keys&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-stripe-typescript%23required-configuration)
 
 The "Deploy to Vercel" button will take you through the project import flow and prompt you to enter your Stripe API keys which you can find in your [Stripe Dashboard](https://dashboard.stripe.com/apikeys).
 
