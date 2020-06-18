@@ -119,9 +119,11 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
       // Replace: full URL polyfill with platform-based polyfill
       url: require.resolve('native-url'),
 
-      // use a patched version of querystring that allows using
-      // custom decodeURIComponent logic for handling invalid values
-      querystring: require.resolve('../client/querystring'),
+      // use a patched version of querystring that ensures
+      // matching parsing betweeen client/server
+      querystring: isServer
+        ? require.resolve('next/dist/next-server/lib/querystring')
+        : require.resolve('../client/querystring'),
     }
   )
 }
@@ -499,6 +501,7 @@ export default async function getBaseWebpackConfig(
               'next/error',
               'string-hash',
               'next/constants',
+              'querystring',
             ]
 
             if (notExternalModules.indexOf(request) !== -1) {

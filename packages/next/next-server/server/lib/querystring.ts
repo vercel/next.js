@@ -21,270 +21,15 @@
 
 // Query String Utilities
 
+// This applies a patch to the original node querystring to ensure the
+// query parsing behavior matches the whatwg standard
+// https://github.com/nodejs/node/issues/33892
+
 const hexTable = new Array(256)
 for (let i = 0; i < 256; ++i)
   hexTable[i] = '%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase()
 
-const isHexTable = [
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 0 - 15
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 16 - 31
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 32 - 47
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 48 - 63
-  0,
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 64 - 79
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 80 - 95
-  0,
-  1,
-  1,
-  1,
-  1,
-  1,
-  1,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 96 - 111
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 112 - 127
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // 128 ...
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0, // ... 256
-]
-
-function encodeStr(str, noEscapeTable, curHexTable) {
+function encodeStr(str: string, noEscapeTable: any, curHexTable: any) {
   const len = str.length
   if (len === 0) return ''
 
@@ -327,7 +72,7 @@ function encodeStr(str, noEscapeTable, curHexTable) {
     // completion's sake anyway.
     if (i >= len) {
       const error = new Error('URI malformed')
-      error.code = 'ERR_INVALID_URI'
+      ;(error as any).code = 'ERR_INVALID_URI'
       throw error
     }
 
@@ -361,274 +106,25 @@ const QueryString = (module.exports = {
   decode: parse,
 })
 
-const unhexTable = [
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 0 - 15
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 16 - 31
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 32 - 47
-  +0,
-  +1,
-  +2,
-  +3,
-  +4,
-  +5,
-  +6,
-  +7,
-  +8,
-  +9,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 48 - 63
-  -1,
-  10,
-  11,
-  12,
-  13,
-  14,
-  15,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 64 - 79
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 80 - 95
-  -1,
-  10,
-  11,
-  12,
-  13,
-  14,
-  15,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 96 - 111
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 112 - 127
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // 128 ...
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1, // ... 255
-]
+const isHexChar = (charCode: number) => {
+  return (
+    // 0 - 9
+    (charCode >= 48 && charCode <= 57) ||
+    // A - F
+    (charCode >= 65 && charCode <= 70) ||
+    // a - f
+    (charCode >= 97 && charCode <= 102)
+  )
+}
+
 // A safe fast alternative to decodeURIComponent
-function unescapeBuffer(s, decodeSpaces) {
+function unescapeBuffer(s: string, decodeSpaces?: boolean) {
   const out = Buffer.allocUnsafe(s.length)
   let index = 0
   let outIndex = 0
   let currentChar
-  let nextChar
-  let hexHigh
-  let hexLow
   const maxLength = s.length - 2
+
   // Flag to know if some hex chars have been decoded
   let hasHex = false
   while (index < s.length) {
@@ -639,21 +135,18 @@ function unescapeBuffer(s, decodeSpaces) {
       continue
     }
     if (currentChar === 37 /* '%' */ && index < maxLength) {
-      currentChar = s.charCodeAt(++index)
-      hexHigh = unhexTable[currentChar]
-      if (!(hexHigh >= 0)) {
-        out[outIndex++] = 37 // '%'
-      } else {
-        nextChar = s.charCodeAt(++index)
-        hexLow = unhexTable[nextChar]
-        if (!(hexLow >= 0)) {
-          out[outIndex++] = 37 // '%'
-          out[outIndex++] = currentChar
-          currentChar = nextChar
-        } else {
-          hasHex = true
-          currentChar = hexHigh * 16 + hexLow
-        }
+      const charN1 = s.charCodeAt(index + 1)
+      const charN2 = s.charCodeAt(index + 2)
+
+      if (isHexChar(charN1) && isHexChar(charN2)) {
+        const decodedChar = parseInt(
+          String.fromCharCode(charN1) + String.fromCharCode(charN2),
+          16
+        )
+        hasHex = true
+        index += 3
+        out[outIndex++] = decodedChar // decoded hex value
+        continue
       }
     }
     out[outIndex++] = currentChar
@@ -662,10 +155,10 @@ function unescapeBuffer(s, decodeSpaces) {
   return hasHex ? out.slice(0, outIndex) : out
 }
 
-function qsUnescape(s, decodeSpaces) {
+function qsUnescape(s: string, decodeSpaces?: boolean) {
   try {
     return decodeURIComponent(s)
-  } catch {
+  } catch (err) {
     return QueryString.unescapeBuffer(s, decodeSpaces).toString()
   }
 }
@@ -808,7 +301,7 @@ const noEscape = [
 ]
 // QueryString.escape() replaces encodeURIComponent()
 // http://www.ecma-international.org/ecma-262/5.1/#sec-15.1.3.4
-function qsEscape(str) {
+function qsEscape(str: any) {
   if (typeof str !== 'string') {
     if (typeof str === 'object') str = String(str)
     else str += ''
@@ -817,14 +310,19 @@ function qsEscape(str) {
   return encodeStr(str, noEscape, hexTable)
 }
 
-function stringifyPrimitive(v) {
+function stringifyPrimitive(v: any) {
   if (typeof v === 'string') return v
   if (typeof v === 'number' && isFinite(v)) return '' + v
   if (typeof v === 'boolean') return v ? 'true' : 'false'
   return ''
 }
 
-function stringify(obj, sep, eq, options) {
+function stringify(
+  obj: any,
+  sep: string,
+  eq: string,
+  options: import('querystring').StringifyOptions
+) {
   sep = sep || '&'
   eq = eq || '='
 
@@ -865,7 +363,7 @@ function stringify(obj, sep, eq, options) {
   return ''
 }
 
-function charCodes(str) {
+function charCodes(str: string) {
   if (str.length === 0) return []
   if (str.length === 1) return [str.charCodeAt(0)]
   const ret = new Array(str.length)
@@ -875,7 +373,14 @@ function charCodes(str) {
 const defSepCodes = [38] // &
 const defEqCodes = [61] // =
 
-function addKeyVal(obj, key, value, keyEncoded, valEncoded, decode) {
+function addKeyVal(
+  obj: any,
+  key: string,
+  value: string,
+  keyEncoded: boolean,
+  valEncoded: boolean,
+  decode: any
+) {
   if (key.length > 0 && keyEncoded) key = decodeStr(key, decode)
   if (value.length > 0 && valEncoded) value = decodeStr(value, decode)
 
@@ -892,7 +397,12 @@ function addKeyVal(obj, key, value, keyEncoded, valEncoded, decode) {
 }
 
 // Parse a key/val string.
-function parse(qs, sep, eq, options) {
+function parse(
+  qs: string,
+  sep: string,
+  eq: string,
+  options: import('querystring').ParseOptions
+) {
   const obj = Object.create(null)
 
   if (typeof qs !== 'string' || qs.length === 0) {
@@ -985,7 +495,7 @@ function parse(qs, sep, eq, options) {
               encodeCheck = 1
               continue
             } else if (encodeCheck > 0) {
-              if (isHexTable[code] === 1) {
+              if (isHexChar(code)) {
                 if (++encodeCheck === 3) keyEncoded = true
                 continue
               } else {
@@ -1011,7 +521,7 @@ function parse(qs, sep, eq, options) {
         if (code === 37 /* % */) {
           encodeCheck = 1
         } else if (encodeCheck > 0) {
-          if (isHexTable[code] === 1) {
+          if (isHexChar(code)) {
             if (++encodeCheck === 3) valEncoded = true
           } else {
             encodeCheck = 0
@@ -1038,10 +548,10 @@ function parse(qs, sep, eq, options) {
 // v8 does not optimize functions with try-catch blocks, so we isolate them here
 // to minimize the damage (Note: no longer true as of V8 5.4 -- but still will
 // not be inlined).
-function decodeStr(s, decoder) {
+function decodeStr(s: string, decoder: any) {
   try {
     return decoder(s)
-  } catch {
+  } catch (err) {
     return QueryString.unescape(s, true)
   }
 }

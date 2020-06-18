@@ -4,7 +4,8 @@ import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+// @ts-ignore
+import { parse as parseQs, ParsedUrlQuery } from './lib/querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { PrerenderManifest } from '../../build'
 import {
@@ -250,12 +251,14 @@ export default class Server {
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
       const url: any = req.url
-      parsedUrl = parseUrl(url, true)
+      // avoid parsing query here as we will parse it in the next check
+      parsedUrl = (parseUrl(url) as any) as UrlWithParsedQuery
     }
 
-    // Parse the querystring ourselves if the user doesn't handle querystring parsing
-    if (typeof parsedUrl.query === 'string') {
-      parsedUrl.query = parseQs(parsedUrl.query)
+    // Parse the querystring ourselves if the user doesn't handle querystring
+    // parsing using our patched version https://github.com/nodejs/node/issues/33892
+    if (!parsedUrl.query || typeof parsedUrl.query !== 'object') {
+      parsedUrl.query = parseQs(parsedUrl.search?.substr(1) || '')
     }
 
     const { basePath } = this.nextConfig

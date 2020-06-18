@@ -403,13 +403,15 @@ describe('Production Usage', () => {
 
   // The below tests fail on safari from an invalid URL error
   if (browserName !== 'safari') {
+    // https://github.com/web-platform-tests/wpt/pull/24152
     const queryResults = [
       ['id=0&value=%', { id: '0', value: '%' }],
       ['b=%2sf%2a', { b: '%2sf*' }],
-      ['b=%2%2af%2a', { b: '%2%2af*' }],
-      ['b=%2%2a%2af%2a', { b: '%2%2a*f*' }],
-      ['b=%%2a', { b: '%%2a' }],
-      ['b=%%2a%2a', { b: '%%2a*' }],
+      ['b=%2%2af%2a', { b: '%2*f*' }],
+      ['b=%2%2a%2af%2a', { b: '%2**f*' }],
+      ['b=%%2a', { b: '%*' }],
+      ['b=%%2a%2a', { b: '%**' }],
+      ['b=%%2a%2a%', { b: '%**%' }],
     ]
 
     it('should handle non-encoded query value server side with hydration', async () => {
