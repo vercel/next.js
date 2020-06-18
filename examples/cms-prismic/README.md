@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Prismic
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [Prismic](https://prismic.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Prismic](https://prismic.io/) as the data source.
 
 ## Demo
 
@@ -15,6 +15,7 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 - [Contentful](/examples/cms-contentful)
 - [Strapi](/examples/cms-strapi)
 - [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use

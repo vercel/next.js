@@ -3,7 +3,6 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { delBasePath } from './../next-server/lib/router/router'
 
 function hasRel(rel, link) {
   try {
@@ -28,16 +27,23 @@ function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
-  route = route.replace(/\/index$/, '/')
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
 }
 
+export function getAssetPath(route) {
+  return route === '/'
+    ? '/index'
+    : /^\/index(\/|$)/.test(route)
+    ? `/index${route}`
+    : `${route}`
+}
+
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
     link = document.createElement('link')
-    link.crossOrigin = process.crossOrigin
+    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     link.href = href
     link.rel = rel
     if (as) link.as = as
@@ -98,10 +104,8 @@ export default class PageLoader {
    */
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
-      path = delBasePath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${
-        path === '/' ? '/index' : path
-      }.json`
+      const dataRoute = getAssetPath(path)
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}.json`
     }
 
     const { pathname: hrefPathname, query } = parse(href, true)
@@ -245,11 +249,11 @@ export default class PageLoader {
 
   loadRoute(route) {
     route = normalizeRoute(route)
-    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    let scriptRoute = getAssetPath(route)
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
-    )}/pages${encodeURI(scriptRoute)}`
+    )}/pages${encodeURI(scriptRoute)}.js`
     this.loadScript(url, route, true)
   }
 
@@ -261,7 +265,7 @@ export default class PageLoader {
       // dependencies already have it added during build manifest creation
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
-    script.crossOrigin = process.crossOrigin
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     script.src = url
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
@@ -327,14 +331,13 @@ export default class PageLoader {
     } else {
       route = normalizeRoute(route)
 
-      let scriptRoute = `${route === '/' ? '/index' : route}.js`
-      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
-        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
-      }
+      const scriptRoute = getAssetPath(route)
+      const ext =
+        process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
 
       url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
-      )}/pages${encodeURI(scriptRoute)}`
+      )}/pages${encodeURI(scriptRoute)}${ext}`
     }
 
     return Promise.all(
