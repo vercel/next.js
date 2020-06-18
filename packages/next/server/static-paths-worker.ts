@@ -9,7 +9,6 @@ let workerWasUsed = false
 // during a production build
 export async function loadStaticPaths(
   distDir: string,
-  buildId: string,
   pathname: string,
   serverless: boolean
 ) {
@@ -19,12 +18,7 @@ export async function loadStaticPaths(
     process.exit(1)
   }
 
-  const components = await loadComponents(
-    distDir,
-    buildId,
-    pathname,
-    serverless
-  )
+  const components = await loadComponents(distDir, pathname, serverless)
 
   if (!components.getStaticPaths) {
     // we shouldn't get to this point since the worker should

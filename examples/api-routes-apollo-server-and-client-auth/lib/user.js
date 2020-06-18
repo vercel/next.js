@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import uuidv4 from 'uuid/v4'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * User methods. The example doesn't contain a DB, but for real applications you must use a
@@ -38,10 +38,9 @@ export async function findUser({ email }) {
 // Compare the password of an already fetched user (using `findUser`) and compare the
 // password for a potential match
 export async function validatePassword(user, inputPassword) {
-  const password = crypto
-    .pbkdf2Sync(user.hash, user.salt, 1000, 64, 'sha512')
+  const inputHash = crypto
+    .pbkdf2Sync(inputPassword, user.salt, 1000, 64, 'sha512')
     .toString('hex')
-  const passwordsMatch = password === inputPassword
-
+  const passwordsMatch = user.hash === inputHash
   return passwordsMatch
 }

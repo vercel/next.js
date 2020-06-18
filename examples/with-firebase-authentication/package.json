@@ -7,17 +7,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "cookie-session": "1.4.0",
     "firebase": "^7.6.1",
     "firebase-admin": "^8.9.0",
-    "lodash": "4.17.15",
+    "js-cookie": "2.2.1",
     "next": "latest",
+    "next-cookies": "2.0.3",
     "prop-types": "15.7.2",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
-    "react-firebaseui": "4.0.0"
-  },
-  "devDependencies": {
-    "dotenv": "8.2.0"
+    "react-firebaseui": "4.0.0",
+    "swr": "0.2.2"
   }
 }

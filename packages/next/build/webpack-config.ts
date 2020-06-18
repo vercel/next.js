@@ -4,7 +4,6 @@ import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
-import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
 import {
   DOT_NEXT_ALIAS,
@@ -37,7 +36,6 @@ import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
-import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -302,7 +300,7 @@ export default async function getBaseWebpackConfig(
     plugins: isWebpack5
       ? // webpack 5+ has the PnP resolver built-in by default:
         []
-      : [PnpWebpackPlugin],
+      : [require('pnp-webpack-plugin')],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -347,6 +345,8 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        // In webpack 5 vendors was renamed to defaultVendors
+        defaultVendors: false,
       },
     },
     prodGranular: {
@@ -354,6 +354,8 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        // In webpack 5 vendors was renamed to defaultVendors
+        defaultVendors: false,
         framework: {
           chunks: 'all',
           name: 'framework',
@@ -736,7 +738,7 @@ export default async function getBaseWebpackConfig(
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
-      plugins: [PnpWebpackPlugin],
+      plugins: isWebpack5 ? [] : [require('pnp-webpack-plugin')],
     },
     module: {
       rules: [
@@ -881,7 +883,10 @@ export default async function getBaseWebpackConfig(
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
       config.future.excludeDefaultMomentLocales &&
-        new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^\.\/locale$/,
+          contextRegExp: /moment$/,
+        }),
       ...(dev
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations
@@ -931,22 +936,25 @@ export default async function getBaseWebpackConfig(
       config.experimental.modern &&
         !isServer &&
         !dev &&
-        new NextEsmPlugin({
-          filename: (getFileName: Function | string) => (...args: any[]) => {
-            const name =
-              typeof getFileName === 'function'
-                ? getFileName(...args)
-                : getFileName
+        (() => {
+          const { NextEsmPlugin } = require('./webpack/plugins/next-esm-plugin')
+          return new NextEsmPlugin({
+            filename: (getFileName: Function | string) => (...args: any[]) => {
+              const name =
+                typeof getFileName === 'function'
+                  ? getFileName(...args)
+                  : getFileName
 
-            return name.includes('.js')
-              ? name.replace(/\.js$/, '.module.js')
-              : escapePathVariables(
-                  args[0].chunk.name.replace(/\.js$/, '.module.js')
-                )
-          },
-          chunkFilename: (inputChunkName: string) =>
-            inputChunkName.replace(/\.js$/, '.module.js'),
-        }),
+              return name.includes('.js')
+                ? name.replace(/\.js$/, '.module.js')
+                : escapePathVariables(
+                    args[0].chunk.name.replace(/\.js$/, '.module.js')
+                  )
+            },
+            chunkFilename: (inputChunkName: string) =>
+              inputChunkName.replace(/\.js$/, '.module.js'),
+          })
+        })(),
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
