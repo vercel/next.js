@@ -80,7 +80,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/:buildId/pages/:path*.js(\\.map|)'
+  '/_next/static/pages/:path*.js(\\.map|)'
 )
 
 // Recursively look up the issuer till it ends up at the root
