@@ -1028,7 +1028,7 @@ export default async function getBaseWebpackConfig(
       console.warn(
         chalk.yellow.bold('Warning: ') +
           chalk.bold(`Reverting webpack devtool to '${originalDevtool}'.\n`) +
-          'Changing the webpack devtool in development mode may cause severe performance regressions.\n'
+          'Changing the webpack devtool in development mode will cause severe performance regressions.\n'
       )
     }
 
