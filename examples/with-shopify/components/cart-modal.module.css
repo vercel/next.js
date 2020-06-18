@@ -1,0 +1,3 @@
+.modal {
+  @apply relative flex flex-col justify-center content-center;
+}

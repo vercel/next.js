@@ -1,0 +1,26 @@
+.imageContainer {
+  @apply relative overflow-hidden shadow-small max-h-104;
+}
+
+.imageContainer:hover .addToCart {
+  @apply translate-y-0 opacity-100 visible;
+}
+
+.addToCart {
+  @apply absolute
+    w-full
+    text-white
+    bg-black
+    bottom-0
+    px-8
+    py-4
+    transform
+    translate-y-3
+    invisible
+    opacity-0
+    transition-all
+    duration-300
+    ease-in-out
+    no-underline
+    outline-none;
+}
