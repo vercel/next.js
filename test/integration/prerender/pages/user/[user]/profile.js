@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 export async function getStaticPaths() {
-  return { paths: [], fallback: true }
+  return { paths: [], fallback: false }
 }
 
 export async function getStaticProps({ params }) {

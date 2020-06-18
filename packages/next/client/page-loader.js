@@ -1,6 +1,7 @@
 import { parse } from 'url'
 import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
+import { isOptionalCatchAllRoute } from './../next-server/lib/router/utils/is-optional-catch-all'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
 
@@ -138,7 +139,10 @@ export default class PageLoader {
         // Fall back to reading the values from the href
         // TODO: should this take priority; also need to change in the router.
         query
-
+      const isOptionalCatchAll = isOptionalCatchAllRoute(route)
+      const dynamicPattern = (isOptional, pattern) => {
+        return isOptional ? `[[${pattern}]]` : `[${pattern}]`
+      }
       interpolatedRoute = route
       if (
         !Object.keys(dynamicGroups).every((param) => {
@@ -153,7 +157,10 @@ export default class PageLoader {
             param in dynamicMatches &&
             // Interpolate group into data URL if present
             (interpolatedRoute = interpolatedRoute.replace(
-              `[${repeat ? '...' : ''}${param}]`,
+              dynamicPattern(
+                isOptionalCatchAll,
+                `${repeat ? '...' : ''}${param}`
+              ),
               repeat
                 ? value.map(encodeURIComponent).join('/')
                 : encodeURIComponent(value)

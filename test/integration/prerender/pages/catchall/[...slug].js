@@ -21,7 +21,7 @@ export async function getStaticPaths() {
       { params: { slug: ['another', 'value'] } },
       '/catchall/hello/another',
     ],
-    fallback: true,
+    fallback: false,
   }
 }
 

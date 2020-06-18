@@ -1,7 +1,7 @@
 module.exports = {
   // target: 'serverless',
   experimental: {
-    async rewrites() {
+    async rewritess() {
       return [
         {
           source: '/to-another',
@@ -61,7 +61,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+          destination: 'http://localhost:51000/:path*',
         },
         {
           source: '/api-hello',
@@ -97,7 +97,7 @@ module.exports = {
         },
       ]
     },
-    async redirects() {
+    async redirectsss() {
       return [
         {
           source: '/redirect/me/to-about/:lang',
@@ -197,7 +197,7 @@ module.exports = {
       ]
     },
 
-    async headers() {
+    async headerss() {
       return [
         {
           source: '/add-header',

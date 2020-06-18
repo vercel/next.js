@@ -7,7 +7,7 @@ export async function getStaticProps() {
 }
 
 export async function getStaticPaths() {
-  return { paths: [], fallback: true }
+  return { paths: [], fallback: false }
 }
 
 const Page = ({ time }) => {

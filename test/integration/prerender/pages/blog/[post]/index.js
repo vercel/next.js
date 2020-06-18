@@ -13,7 +13,7 @@ export async function getStaticPaths() {
       '/blog/post.1',
       '/blog/post.1', // handle duplicates
     ],
-    fallback: true,
+    fallback: false,
   }
 }
 
