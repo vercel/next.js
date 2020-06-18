@@ -3,25 +3,31 @@ import { denormalizePagePath } from './normalize-page-path'
 // matches static/<buildid>/pages/:page*.js
 const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
 const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
+const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)\.js$/
 
-export default function getRouteFromEntrypoint(
-  entryFile: string,
-  isServerlessLike: boolean = false
-): string | null {
-  const result = (isServerlessLike
-    ? SERVERLESS_ROUTE_NAME_REGEX
-    : ROUTE_NAME_REGEX
-  ).exec(entryFile)
+function matchBundle(regex: RegExp, input: string): string | null {
+  const result = regex.exec(input)
 
   if (!result) {
     return null
   }
 
-  const pagePath = result[1]
+  return denormalizePagePath(`/${result[1]}`)
+}
 
-  if (!pagePath) {
-    return null
+export default function getRouteFromEntrypoint(
+  entryFile: string,
+  isServerlessLike: boolean = false
+): string | null {
+  let pagePath = matchBundle(
+    isServerlessLike ? SERVERLESS_ROUTE_NAME_REGEX : ROUTE_NAME_REGEX,
+    entryFile
+  )
+
+  if (pagePath) {
+    return pagePath
   }
 
-  return denormalizePagePath(`/${pagePath}`)
+  // Potentially the passed item is a browser bundle so we try to match that also
+  return matchBundle(BROWSER_ROUTE_NAME_REGEX, entryFile)
 }
