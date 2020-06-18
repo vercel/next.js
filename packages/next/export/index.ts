@@ -252,7 +252,7 @@ export default async function exportApp(
     distDir,
     dev: false,
     hotReloader: null,
-    basePath: nextConfig.experimental.basePath,
+    basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,

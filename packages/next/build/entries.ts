@@ -84,7 +84,7 @@ export function createEntrypoints(
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     canonicalBase: config.canonicalBase,
-    basePath: config.experimental.basePath,
+    basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
           publicRuntimeConfig: config.publicRuntimeConfig,
