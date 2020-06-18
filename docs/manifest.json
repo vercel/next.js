@@ -22,6 +22,10 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
+            },
+            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
             },
