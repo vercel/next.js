@@ -1,9 +1,11 @@
 import { denormalizePagePath } from './normalize-page-path'
 
 // matches static/<buildid>/pages/:page*.js
-const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
-const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
-const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)\.js$/
+const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/
+// matches pages/:page*.js
+const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
+// matches static/pages/:page*.js
+const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)$/
 
 function matchBundle(regex: RegExp, input: string): string | null {
   const result = regex.exec(input)

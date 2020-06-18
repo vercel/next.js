@@ -683,9 +683,11 @@ export default async function getBaseWebpackConfig(
         ? ({ chunk }: { chunk: { name: string } }) => {
             // Use `[name]-[contenthash].js` in production
             if (chunk.name.includes('BUILD_ID')) {
-              return escapePathVariables(chunk.name).replace(
-                'BUILD_ID',
-                isServer || dev ? buildId : '[contenthash]'
+              return (
+                escapePathVariables(chunk.name).replace(
+                  'BUILD_ID',
+                  isServer || dev ? buildId : '[contenthash]'
+                ) + '.js'
               )
             }
 
@@ -693,8 +695,8 @@ export default async function getBaseWebpackConfig(
           }
         : // Client compilation only
         dev
-        ? '[name]'
-        : '[name]-[chunkhash]',
+        ? '[name].js'
+        : '[name]-[chunkhash].js',
       libraryTarget: isServer ? 'commonjs2' : 'var',
       hotUpdateChunkFilename: isWebpack5
         ? 'static/webpack/[id].[fullhash].hot-update.js'

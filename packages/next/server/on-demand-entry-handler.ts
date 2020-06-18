@@ -227,7 +227,7 @@ export default function onDemandEntryHandler(
 
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
-      const bundleFile = `${normalizePagePath(pageUrl)}.js`
+      const bundleFile = normalizePagePath(pageUrl)
       const serverBundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
       const clientBundlePath = join('static', 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
