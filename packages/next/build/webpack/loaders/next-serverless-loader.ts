@@ -206,13 +206,11 @@ const nextServerlessLoader: loader.Loader = function () {
 
           ${handleBasePath}
 
-          // We don't need to loop over rewrites to collect the query values
-          // on Vercel because the query values are already present
+          // We need to trust the dynamic route params from the proxy
+          // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parse(req.url, true))
 
-          // The dynamic route params are already provided in the query
-          // on Vercel
           const params = ${
             pageIsDynamicRoute
               ? `
@@ -321,9 +319,8 @@ const nextServerlessLoader: loader.Loader = function () {
       let parsedUrl
 
       try {
-        // We don't need to loop over rewrites to collect the query values
-        // on Vercel because the query values are already present except for
-        // iSSG currently
+        // We need to trust the dynamic route params from the proxy
+        // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
         const parsedUrl = handleRewrites(parse(req.url, true))
 
