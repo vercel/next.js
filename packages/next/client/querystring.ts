@@ -55,7 +55,15 @@ function hasOwnProperty(obj: any, prop: string) {
 const parse: typeof import('querystring').parse = (qs, sep, eq, options) => {
   // use URLSearchParams if no legacy options provided
   if (!sep && !eq && !options) {
-    return Object.fromEntries(new URLSearchParams(qs))
+    const parsed = new URLSearchParams(qs)
+    return Array.from(parsed.keys()).reduce((prev, key) => {
+      prev[key] = parsed.getAll(key)
+
+      if (prev[key].length === 1) {
+        prev[key] = prev[key].pop()
+      }
+      return prev
+    }, {} as any)
   }
 
   sep = sep || '&'

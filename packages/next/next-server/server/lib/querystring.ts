@@ -26,8 +26,10 @@
 // https://github.com/nodejs/node/issues/33892
 
 const hexTable = new Array(256)
-for (let i = 0; i < 256; ++i)
+
+for (let i = 0; i < 256; ++i) {
   hexTable[i] = '%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase()
+}
 
 function encodeStr(str: string, noEscapeTable: any, curHexTable: any) {
   const len = str.length
@@ -81,30 +83,15 @@ function encodeStr(str: string, noEscapeTable: any, curHexTable: any) {
     lastPos = i + 1
     c = 0x10000 + (((c & 0x3ff) << 10) | c2)
     out +=
-      hexTable[0xf0 | (c >> 18)] +
-      hexTable[0x80 | ((c >> 12) & 0x3f)] +
-      hexTable[0x80 | ((c >> 6) & 0x3f)] +
-      hexTable[0x80 | (c & 0x3f)]
+      curHexTable[0xf0 | (c >> 18)] +
+      curHexTable[0x80 | ((c >> 12) & 0x3f)] +
+      curHexTable[0x80 | ((c >> 6) & 0x3f)] +
+      curHexTable[0x80 | (c & 0x3f)]
   }
   if (lastPos === 0) return str
   if (lastPos < len) return out + str.slice(lastPos)
   return out
 }
-
-const QueryString = (module.exports = {
-  unescapeBuffer,
-  // `unescape()` is a JS global, so we need to use a different local name
-  unescape: qsUnescape,
-
-  // `escape()` is a JS global, so we need to use a different local name
-  escape: qsEscape,
-
-  stringify,
-  encode: stringify,
-
-  parse,
-  decode: parse,
-})
 
 const isHexChar = (charCode: number) => {
   return (
@@ -159,7 +146,7 @@ function qsUnescape(s: string, decodeSpaces?: boolean) {
   try {
     return decodeURIComponent(s)
   } catch (err) {
-    return QueryString.unescapeBuffer(s, decodeSpaces).toString()
+    return unescapeBuffer(s, decodeSpaces).toString()
   }
 }
 
@@ -299,7 +286,7 @@ const noEscape = [
   1,
   0, // 112 - 127
 ]
-// QueryString.escape() replaces encodeURIComponent()
+// escape() replaces encodeURIComponent()
 // http://www.ecma-international.org/ecma-262/5.1/#sec-15.1.3.4
 function qsEscape(str: any) {
   if (typeof str !== 'string') {
@@ -326,7 +313,7 @@ function stringify(
   sep = sep || '&'
   eq = eq || '='
 
-  let encode = QueryString.escape
+  let encode = qsEscape
   if (options && typeof options.encodeURIComponent === 'function') {
     encode = options.encodeURIComponent
   }
@@ -399,9 +386,9 @@ function addKeyVal(
 // Parse a key/val string.
 function parse(
   qs: string,
-  sep: string,
-  eq: string,
-  options: import('querystring').ParseOptions
+  sep?: string,
+  eq?: string,
+  options?: import('querystring').ParseOptions
 ) {
   const obj = Object.create(null)
 
@@ -425,7 +412,7 @@ function parse(
     pairs = options.maxKeys > 0 ? options.maxKeys : -1
   }
 
-  let decode = QueryString.unescape
+  let decode = qsUnescape
   if (options && typeof options.decodeURIComponent === 'function') {
     decode = options.decodeURIComponent
   }
@@ -552,6 +539,25 @@ function decodeStr(s: string, decoder: any) {
   try {
     return decoder(s)
   } catch (err) {
-    return QueryString.unescape(s, true)
+    return qsUnescape(s)
   }
 }
+
+export {
+  unescapeBuffer,
+  // `unescape()` is a JS global, so we need to use a different local name
+  qsUnescape as unescape,
+  // `escape()` is a JS global, so we need to use a different local name
+  qsEscape as escape,
+  stringify,
+  stringify as encode,
+  parse,
+  parse as decode,
+}
+
+export {
+  StringifyOptions,
+  ParseOptions,
+  ParsedUrlQuery,
+  ParsedUrlQueryInput,
+} from 'querystring'
