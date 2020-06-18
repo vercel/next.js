@@ -40,10 +40,6 @@ export function runCompiler(
       (err: Error, statsOrMultiStats: { stats: Stats[] } | Stats) => {
         closeCompiler(compiler).then(() => {
           if (err) {
-            const reason = err?.toString()
-            if (reason) {
-              return resolve({ errors: [reason], warnings: [] })
-            }
             return reject(err)
           }
 
