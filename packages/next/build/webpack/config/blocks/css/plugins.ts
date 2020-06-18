@@ -84,6 +84,12 @@ function getDefaultPlugins(
   } catch {}
 
   return [
+    [
+      require.resolve('next/dist/compiled/stylelint'),
+      {
+        configFile: 'node_modules/next/.stylelintrc.json',
+      },
+    ],
     require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     [
       require.resolve('next/dist/compiled/postcss-preset-env'),

@@ -447,6 +447,14 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+externals['stylelint'] = 'next/dist/compiled/stylelint'
+export async function ncc_stylelint(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('stylelint')))
+    .ncc({ packageName: 'stylelint', externals })
+    .target('compiled/stylelint')
+}
+// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -585,6 +593,7 @@ export async function ncc(task) {
       'ncc_source_map',
       'ncc_string_hash',
       'ncc_strip_ansi',
+      'ncc_stylelint',
       'ncc_terser',
       'ncc_text_table',
       'ncc_thread_loader',
