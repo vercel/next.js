@@ -122,6 +122,7 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
+    postProcess: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -174,6 +175,7 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.experimental.basePath,
+      postProcess: this.nextConfig.experimental.postProcessOptimization,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

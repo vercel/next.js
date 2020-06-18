@@ -42,6 +42,7 @@ import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { GetStaticProps, GetServerSideProps } from '../../types'
+import postProcess from '../lib/post-process'
 
 function noRouter() {
   const message =
@@ -151,6 +152,7 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
+  postProcess: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
@@ -769,6 +771,8 @@ export async function renderToHTML(
       await renderOpts.ampValidator(html, pathname)
     }
   }
+
+  html = await postProcess(html, { preloadImages: renderOpts.postProcess })
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
