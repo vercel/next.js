@@ -25,7 +25,7 @@ const Home = (props) => (
             <h3>Getting Started &rarr;</h3>
             <p>Learn more about Next</p>
           </a>
-          <a href="https://nextjs.org/docs#amp-support">
+          <a href="https://nextjs.org/docs/advanced-features/amp-support/introduction">
             <h3>AMP Support in Next.js &rarr;</h3>
             <p>Learn how to build AMP sites with Next.js</p>
           </a>

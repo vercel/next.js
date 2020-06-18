@@ -716,7 +716,7 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
         `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
-          `\nLearn more: https://nextjs.org/docs#dynamic-routing`
+          `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
       )
     }
 

@@ -6,6 +6,6 @@ You have a custom `pages/_document.js` that doesn't have the components required
 
 #### Possible Ways to Fix It
 
-Ensure that your `_document.js` is importing and rendering all of the [required components](https://nextjs.org/docs#custom-document).
+Ensure that your `_document.js` is importing and rendering all of the [required components](https://nextjs.org/docs/advanced-features/custom-document).
 
 In this case you are most likely not rendering the `<Head>` component imported from `next/document`.

@@ -35,4 +35,4 @@ components/
 
 ### Useful Links
 
-- [Static file serving docs](https://nextjs.org/docs#static-file-serving-eg-images)
+- [Static file serving docs](https://nextjs.org/docs/basic-features/static-file-serving)

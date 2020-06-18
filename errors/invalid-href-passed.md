@@ -16,4 +16,4 @@ Look for any usage of `next/link` or `next/router` that is being passed a non-in
 
 ### Useful Links
 
-- [Routing section in Documentation](https://nextjs.org/docs#routing)
+- [Routing section in Documentation](https://nextjs.org/docs/routing/introduction)

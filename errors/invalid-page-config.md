@@ -22,5 +22,5 @@ export const config = { amp: true }
 
 ### Useful Links
 
-- [Enabling AMP Support](https://nextjs.org/docs#enabling-amp-support)
-- [API Middlewares](https://nextjs.org/docs#api-middlewares)
+- [Enabling AMP Support](https://nextjs.org/docs/advanced-features/amp-support/introduction)
+- [API Middlewares](https://nextjs.org/docs/api-routes/api-middlewares)
