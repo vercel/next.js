@@ -9,10 +9,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
-import {
-  isDynamicRoute,
-  getRouteRegex,
-} from '../../../next-server/lib/router/utils'
+import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
 
 export type ServerlessLoaderQuery = {
@@ -70,9 +67,22 @@ const nextServerlessLoader: loader.Loader = function () {
   const collectDynamicRouteParams = pageIsDynamicRoute
     ? `
       function collectDynamicRouteParams(query) {
-        return ${JSON.stringify(Object.keys(getRouteRegex(page).groups))}
+        const routeRegex = getRouteRegex("${page}")
+
+        return Object.keys(routeRegex.groups)
           .reduce((prev, key) => {
-            prev[key] = query[key]
+            let value = query[key]
+
+            ${
+              ''
+              // query values from the proxy aren't already split into arrays
+              // so make sure to normalize catch-all values
+            }
+            if (routeRegex.groups[key].repeat) {
+              value = value.split('/')
+            }
+
+            prev[key] = value
             return prev
           }, {})
       }
