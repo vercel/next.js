@@ -625,7 +625,7 @@ describe('basePath serverless', () => {
 
   beforeAll(async () => {
     await nextConfig.write(
-      `module.exports = { target: 'serverless', experimental: { basePath: '/docs' } }`
+      `module.exports = { target: 'experimental-serverless-trace', basePath: '/docs' } `
     )
     await nextBuild(appDir)
     context.appPort = await findPort()
