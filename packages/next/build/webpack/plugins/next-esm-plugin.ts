@@ -59,7 +59,7 @@ const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
 // Matches Babel plugin paths that support the useBuiltIns option
 const PLUGINS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/
 
-export default class NextEsmPlugin implements Plugin {
+export class NextEsmPlugin implements Plugin {
   options: {
     filename: any
     chunkFilename: any
