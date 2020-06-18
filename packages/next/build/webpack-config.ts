@@ -899,6 +899,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/unlink-removed-pages-plugin')
             const devPlugins = [
               new UnlinkRemovedPagesPlugin(),
+              new webpack.NoEmitOnErrorsPlugin(),
               new NextJsRequireCacheHotReloader(),
             ]
 

@@ -60,11 +60,6 @@ export default class BuildManifestPlugin {
       (compilation, callback) => {
         const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
-          errors: compilation.errors.map(({ name, message, stack }) => ({
-            name,
-            message,
-            stack,
-          })),
           polyfillFiles: [],
           devFiles: [],
           lowPriorityFiles: [],
