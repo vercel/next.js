@@ -6,7 +6,7 @@ description:
 
 # Fast Refresh
 
-Fast Refresh is a Next.js feature that that gives you instantaneous feedback on
+Fast Refresh is a Next.js feature that gives you instantaneous feedback on
 edits made to your React components. Fast Refresh is enabled by default in all
 Next.js applications on **9.4 or newer**. With Next.js Fast Refresh enabled,
 most edits should be visible within a second, **without losing component
