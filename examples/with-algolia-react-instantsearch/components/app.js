@@ -63,9 +63,7 @@ export default class App extends React.Component {
           <menu>
             <RefinementList attribute="category" />
           </menu>
-          <results>
-            <Hits hitComponent={HitComponent} />
-          </results>
+          <Hits hitComponent={HitComponent} />
         </content>
         <footer>
           <Pagination />
