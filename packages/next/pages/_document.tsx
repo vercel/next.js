@@ -615,8 +615,8 @@ export class NextScript extends Component<OriginProps> {
       }
 
       const ampDevFiles = [
-        ...buildManifest.ampDevFiles,
         ...buildManifest.devFiles,
+        ...buildManifest.ampDevFiles,
       ]
 
       return (
