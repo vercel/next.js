@@ -199,10 +199,6 @@ export default class HotReloader {
         return {}
       }
 
-      if (params.buildId !== this.buildId) {
-        return {}
-      }
-
       const page = denormalizePagePath(`/${params.path.join('/')}`)
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
