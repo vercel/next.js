@@ -71,6 +71,7 @@ describe('On Demand Entries', () => {
 
   it('should dispose inactive pages', async () => {
     await renderViaHTTP(context.appPort, '/')
+    await doPing('/')
     const indexPage = getPageFileFromBuildManifest(appDir, '/')
 
     const indexPagePath = resolve(__dirname, join('../.next', indexPage))
@@ -78,10 +79,12 @@ describe('On Demand Entries', () => {
 
     // Render two pages after the index, since the server keeps at least two pages
     await renderViaHTTP(context.appPort, '/about')
+    await doPing('/about')
     const aboutPage = getPageFileFromBuildManifest(appDir, '/about')
     const aboutPagePath = resolve(__dirname, join('../.next', aboutPage))
 
     await renderViaHTTP(context.appPort, '/third')
+    await doPing('/third')
     const thirdPage = getPageFileFromBuildManifest(appDir, '/third')
     const thirdPagePath = resolve(__dirname, join('../.next', thirdPage))
 
