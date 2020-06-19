@@ -194,7 +194,9 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params = matchNextPageBundleRequest(pathname)
+      const params: { path: string[] } | null = matchNextPageBundleRequest(
+        pathname
+      )
       if (!params) {
         return {}
       }
