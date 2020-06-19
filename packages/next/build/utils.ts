@@ -149,7 +149,9 @@ export async function printTreeView(
           : pageInfo?.static
           ? '○'
           : pageInfo?.isSsg
-          ? '●'
+          ? pageInfo?.hasSsgFallback
+            ? '■'
+            : '●'
           : 'λ'
       } ${item}`,
       pageInfo
@@ -268,6 +270,11 @@ export async function printTreeView(
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
             'getStaticProps'
           )})`,
+        ],
+        [
+          '■',
+          '(ISG)',
+          `Incremental Static Generation of pages ( fallback: true )`,
         ],
       ] as [string, string, string][],
       {
