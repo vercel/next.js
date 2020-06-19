@@ -15,7 +15,6 @@ import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  IS_BUNDLED_PAGE_REGEX,
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
@@ -109,7 +108,7 @@ function erroredPages(
     }
 
     // Only pages have to be reloaded
-    if (!IS_BUNDLED_PAGE_REGEX.test(name)) {
+    if (!getRouteFromEntrypoint(name)) {
       continue
     }
 
@@ -415,7 +414,7 @@ export default class HotReloader {
         const chunkNames = new Set(
           compilation.chunks
             .map((c) => c.name)
-            .filter((name) => IS_BUNDLED_PAGE_REGEX.test(name))
+            .filter((name) => !!getRouteFromEntrypoint(name))
         )
 
         if (this.initialized) {
