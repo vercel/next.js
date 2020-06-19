@@ -1,11 +1,12 @@
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+import useSWR from 'swr'
 import { withAuthSync } from '../utils/auth'
 import Layout from '../components/layout'
-import useSWR from 'swr'
-import Router from 'next/router'
 
 const fetcher = (url) =>
   fetch(url).then((res) => {
-    if (res.status >= 400 && res.status <= 499) {
+    if (res.status >= 300) {
       throw new Error('API Client error')
     }
 
@@ -13,21 +14,28 @@ const fetcher = (url) =>
   })
 
 const Profile = () => {
+  const router = useRouter()
   const { data: user, error } = useSWR('/api/profile', fetcher)
-  if (error) Router.push('/')
+
+  useEffect(() => {
+    if (error) router.push('/')
+  }, [error, router])
+
   return (
-    <>
-      {user && (
-        <Layout>
-          <h1>Your user id is {user.userId} </h1>
-          <style jsx>{`
-            h1 {
-              margin-bottom: 0;
-            }
-          `}</style>
-        </Layout>
+    <Layout>
+      {error ? (
+        <h1>An error has ocurred: {error.message}</h1>
+      ) : user ? (
+        <h1>Your user id is {user.userId}</h1>
+      ) : (
+        <h1>Loading...</h1>
       )}
-    </>
+      <style jsx>{`
+        h1 {
+          margin-bottom: 0;
+        }
+      `}</style>
+    </Layout>
   )
 }
 
