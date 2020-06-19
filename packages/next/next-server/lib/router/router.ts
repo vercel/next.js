@@ -30,8 +30,10 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-const prepareRoute = (path: string) =>
-  toRoute(!path || delBasePath(path) === '/' ? '/index' : path)
+function prepareRoute(path: string) {
+  path = delBasePath(path || '')
+  return toRoute(!path || path === '/' ? '/index' : path)
+}
 
 type Url = UrlObject | string
 
