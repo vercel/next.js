@@ -2,11 +2,7 @@ import useSWR from 'swr'
 import { withAuthSync } from '../utils/auth'
 import Layout from '../components/layout'
 
-const fetcher = async () => {
-  let response = await fetch('/api/profile')
-  let data = await response.json()
-  return data
-}
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
 const Profile = () => {
   const { data, error } = useSWR('profile', fetcher)
