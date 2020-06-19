@@ -270,7 +270,10 @@ export default function (render, fetch) {
 
     test('should expose the compiled page file in development', async () => {
       await fetch('/stateless') // make sure the stateless page is built
-      const statelessPageFile = getPageFileFromBuildManifest(appDir, '/')
+      const statelessPageFile = getPageFileFromBuildManifest(
+        appDir,
+        '/stateless'
+      )
       const clientSideJsRes = await fetch(join('/_next', statelessPageFile))
       expect(clientSideJsRes.status).toBe(200)
       const clientSideJsBody = await clientSideJsRes.text()
