@@ -811,7 +811,13 @@ export default async function build(
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
       if (!(isSsg && isDynamic && !isStaticSsgFallback)) {
-        await moveExportedPage(page, page, file, isSsg, 'html')
+        // Move page file only if it doesn't have specific version
+        if (
+          !additionalSsgPaths.has(page) ||
+          additionalSsgPaths.get(page)!.indexOf(page) === -1
+        ) {
+          await moveExportedPage(page, page, file, isSsg, 'html')
+        }
       }
 
       if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
@@ -826,13 +832,40 @@ export default async function build(
       if (isSsg) {
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
-          await moveExportedPage(page, page, file, true, 'json')
+          if (additionalSsgPaths.has(page)) {
+            const extraRoutes = additionalSsgPaths.get(page) || []
 
-          finalPrerenderRoutes[page] = {
-            initialRevalidateSeconds:
-              exportConfig.initialPageRevalidationMap[page],
-            srcRoute: null,
-            dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
+            for (let route of extraRoutes) {
+              if (route === '/') {
+                route = 'index'
+              }
+
+              await moveExportedPage(page, route, route, true, 'html')
+              await moveExportedPage(page, route, route, true, 'json')
+              finalPrerenderRoutes[route] = {
+                initialRevalidateSeconds:
+                  exportConfig.initialPageRevalidationMap[route],
+                srcRoute: page,
+                dataRoute: path.posix.join(
+                  '/_next/data',
+                  buildId,
+                  `${normalizePagePath(route)}.json`
+                ),
+              }
+            }
+          } else {
+            await moveExportedPage(page, page, file, true, 'json')
+
+            finalPrerenderRoutes[page] = {
+              initialRevalidateSeconds:
+                exportConfig.initialPageRevalidationMap[page],
+              srcRoute: null,
+              dataRoute: path.posix.join(
+                '/_next/data',
+                buildId,
+                `${file}.json`
+              ),
+            }
           }
           // Set Page Revalidation Interval
           const pageInfo = pageInfos.get(page)
