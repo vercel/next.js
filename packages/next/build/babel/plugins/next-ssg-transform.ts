@@ -7,6 +7,7 @@ import {
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
+export const EXPORT_NAME_PERMUTE_STATIC_PATHS = 'permuteStaticPaths'
 export const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps'
 
 const ssgExports = new Set([

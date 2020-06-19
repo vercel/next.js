@@ -6,6 +6,7 @@ import { AppType, DocumentType } from '../lib/utils'
 import {
   PageConfig,
   GetStaticPaths,
+  PermuteStaticPaths,
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
@@ -31,6 +32,7 @@ export type LoadComponentsReturnType = {
   App: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
+  permuteStaticPaths?: PermuteStaticPaths
   getServerSideProps?: GetServerSideProps
 }
 
@@ -41,13 +43,19 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    const { getStaticProps, getStaticPaths, getServerSideProps } = Component
+    const {
+      getStaticProps,
+      getStaticPaths,
+      permuteStaticPaths,
+      getServerSideProps,
+    } = Component
 
     return {
       Component,
       pageConfig: Component.config || {},
       getStaticProps,
       getStaticPaths,
+      permuteStaticPaths,
       getServerSideProps,
     } as LoadComponentsReturnType
   }
@@ -70,7 +78,12 @@ export async function loadComponents(
     interopDefault(AppMod),
   ])
 
-  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  const {
+    getServerSideProps,
+    getStaticProps,
+    getStaticPaths,
+    permuteStaticPaths,
+  } = ComponentMod
 
   return {
     App,
@@ -82,5 +95,6 @@ export async function loadComponents(
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
+    permuteStaticPaths,
   }
 }

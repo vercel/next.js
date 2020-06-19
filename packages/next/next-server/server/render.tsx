@@ -289,6 +289,7 @@ export async function renderToHTML(
     ErrorDebug,
     getStaticProps,
     getStaticPaths,
+    permuteStaticPaths,
     getServerSideProps,
     isDataReq,
     params,
@@ -398,6 +399,12 @@ export async function renderToHTML(
     throw new Error(
       `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
         `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+    )
+  }
+
+  if (!!permuteStaticPaths && !isSSG) {
+    throw new Error(
+      `permuteStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, permuteStaticPaths does nothing`
     )
   }
 
@@ -530,7 +537,9 @@ export async function renderToHTML(
 
       try {
         data = await getStaticProps!({
-          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+          ...(pageIsDynamic
+            ? { params: query as ParsedUrlQuery }
+            : { params: { path: asPath } }),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
