@@ -252,7 +252,7 @@ export default async function exportApp(
     distDir,
     dev: false,
     hotReloader: null,
-    basePath: nextConfig.experimental.basePath,
+    basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
@@ -330,7 +330,7 @@ export default async function exportApp(
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.bold.red(`Attention`) +
+      chalk.bold.red(`Warning`) +
         ': ' +
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
@@ -388,7 +388,6 @@ export default async function exportApp(
         path,
         pathMap: exportPathMap[path],
         distDir,
-        buildId,
         outDir,
         pagesDataDir,
         renderOpts,

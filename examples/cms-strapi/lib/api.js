@@ -1,5 +1,5 @@
 async function fetchAPI(query, { variables } = {}) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/graphql`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_API_URL}/graphql`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

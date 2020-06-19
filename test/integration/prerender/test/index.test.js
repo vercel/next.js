@@ -860,7 +860,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
-          routeKeys: ['post'],
+          routeKeys: {
+            post: 'post',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -872,7 +874,10 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
-          routeKeys: ['post', 'comment'],
+          routeKeys: {
+            post: 'post',
+            comment: 'comment',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -884,7 +889,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -896,7 +903,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -916,7 +925,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             buildId
           )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
           page: '/fallback-only/[slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -928,7 +939,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
           ),
           page: '/lang/[lang]/about',
-          routeKeys: ['lang'],
+          routeKeys: {
+            lang: 'lang',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -940,7 +953,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
-          routeKeys: ['p'],
+          routeKeys: {
+            p: 'p',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -958,7 +973,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
-          routeKeys: ['user'],
+          routeKeys: {
+            user: 'user',
+          },
         },
       ])
     })
@@ -1488,6 +1505,9 @@ describe('SSG Prerender', () => {
       '/blog/[post]/index.js',
       '/fallback-only/[slug].js',
     ]
+
+    const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
+
     const fallbackTruePageContents = {}
 
     beforeAll(async () => {
@@ -1519,6 +1539,11 @@ describe('SSG Prerender', () => {
         )
       }
 
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(pagePath, `${pagePath}.bak`)
+      }
+
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
@@ -1533,6 +1558,11 @@ describe('SSG Prerender', () => {
         const pagePath = join(appDir, 'pages', page)
 
         await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
+
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(`${pagePath}.bak`, pagePath)
       }
     })
 

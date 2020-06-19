@@ -162,8 +162,8 @@ class Link extends Component<LinkProps> {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: addBasePath(formatUrl(href)),
-      as: asHref ? addBasePath(formatUrl(asHref)) : asHref,
+      href: formatUrl(href),
+      as: asHref ? formatUrl(asHref) : asHref,
     }
   })
 
@@ -237,7 +237,10 @@ class Link extends Component<LinkProps> {
 
   render() {
     let { children } = this.props
-    const { href, as } = this.formatUrls(this.props.href, this.props.as)
+    let { href, as } = this.formatUrls(this.props.href, this.props.as)
+    as = as ? addBasePath(as) : as
+    href = addBasePath(href)
+
     // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>

@@ -19,16 +19,13 @@ describe('AMP Validation on Export', () => {
       stdout: true,
       stderr: true,
     })
-    await nextExport(appDir, { outdir: outDir })
+    await nextExport(appDir, { outdir: outDir }, { ignoreFail: true })
     buildOutput = stdout + stderr
   })
 
   it('should have shown errors during build', async () => {
     expect(buildOutput).toMatch(
-      /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'\./
-    )
-    expect(buildOutput).toMatch(
-      /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
+      /error.*The parent tag of tag 'img' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'\./
     )
   })
 
@@ -85,7 +82,7 @@ describe('AMP Validation on Export', () => {
         stderr: true,
       })
       expect(stdout).toMatch(
-        /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
+        /error.*The parent tag of tag 'img' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'\./
       )
       await expect(access(join(outDir, 'dog.html'))).resolves.toBe(undefined)
       await expect(stderr).not.toMatch(
@@ -112,10 +109,7 @@ describe('AMP Validation on Export', () => {
         stderr: true,
       })
       expect(stdout).toMatch(
-        /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
-      )
-      expect(stdout).toMatch(
-        /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
+        /error.*The parent tag of tag 'img' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'\./
       )
       await expect(access(join(outDir, 'dog-cat.html'))).resolves.toBe(
         undefined
