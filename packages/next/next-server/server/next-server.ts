@@ -41,7 +41,7 @@ import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
@@ -412,13 +412,13 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path
-            // we need to re-encode the params since they are decoded
-            // by path-match and we are re-building the URL
-            .map((param: string) => encodeURIComponent(param))
-            .join('/')}`
-            .replace(/\.json$/, '')
-            .replace(/\/index$/, '/')
+          const pathname = denormalizePagePath(
+            `/${params.path
+              // we need to re-encode the params since they are decoded
+              // by path-match and we are re-building the URL
+              .map((param: string) => encodeURIComponent(param))
+              .join('/')}`.replace(/\.json$/, '')
+          )
 
           const parsedUrl = parseUrl(pathname, true)
 

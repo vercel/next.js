@@ -765,7 +765,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               pagePath,
               // strip leading / and then recurse number of nested dirs
               // to place from base folder
-              originPage
+              normalizePagePath(originPage)
                 .substr(1)
                 .split('/')
                 .map(() => '..')
