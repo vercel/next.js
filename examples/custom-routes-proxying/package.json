@@ -5,7 +5,7 @@
     "dev": "cross-env UPSTREAM_PORT=3001 next dev",
     "build": "next build",
     "start": "cross-env UPSTREAM_PORT=3001  next start",
-    "start-upstream": "cross-env UPSTREAM_PORT=3001 node server.js"
+    "start-upstream": "cross-env UPSTREAM_PORT=3001 node upstream-server.js"
   },
   "dependencies": {
     "cross-env": "7.0.2",
