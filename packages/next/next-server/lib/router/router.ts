@@ -31,8 +31,7 @@ function toRoute(path: string): string {
 }
 
 function prepareRoute(path: string) {
-  path = delBasePath(path || '')
-  return toRoute(!path || path === '/' ? '/index' : path)
+  return toRoute(delBasePath(path || '/'))
 }
 
 type Url = UrlObject | string
