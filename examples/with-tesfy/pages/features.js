@@ -1,4 +1,9 @@
-import { Feature } from 'react-tesfy';
+import { Feature } from 'react-tesfy'
+import { getTesfyProps } from '../utils'
+
+export const getServerSideProps = getTesfyProps(async () => {
+  return { props: {} }
+})
 
 const FeaturesPage = () => {
   return (
@@ -8,11 +13,11 @@ const FeaturesPage = () => {
       <section>
         <h2>Feature 1 - Allocation</h2>
         <Feature id="feature-1">
-          {isEnabled => isEnabled ? <p>Enabled</p> : <p>Disabled</p>}
+          {(isEnabled) => (isEnabled ? <p>Enabled</p> : <p>Disabled</p>)}
         </Feature>
       </section>
     </>
   )
-};
+}
 
-export default FeaturesPage;
+export default FeaturesPage

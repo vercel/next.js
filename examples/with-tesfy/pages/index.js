@@ -1,4 +1,9 @@
-import { Experiment, Variation } from 'react-tesfy';
+import { Experiment, Variation } from 'react-tesfy'
+import { getTesfyProps } from '../utils'
+
+export const getServerSideProps = getTesfyProps(async () => {
+  return { props: {} }
+})
 
 const IndexPage = () => {
   return (
@@ -33,6 +38,6 @@ const IndexPage = () => {
       </section>
     </>
   )
-};
+}
 
-export default IndexPage;
+export default IndexPage
