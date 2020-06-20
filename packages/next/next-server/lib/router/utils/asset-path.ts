@@ -9,6 +9,7 @@ export function getPageAssetPath(route: string, ext: string = ''): string {
 }
 
 export function getAssetPagePath(assetPath: string, ext: string = ''): string {
+  assetPath = assetPath.replace(/\\/g, '/')
   assetPath =
     ext && assetPath.endsWith(ext) ? assetPath.slice(0, -ext.length) : assetPath
   if (assetPath.startsWith('/index/')) {
