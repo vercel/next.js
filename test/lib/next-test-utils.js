@@ -494,7 +494,7 @@ export function normalizeRegEx(src) {
 }
 
 export function getBuildManifest(dir) {
-  return require(path.join(dir, '.next/build-manifest.json'))
+  return JSON.parse(readFileSync(path.join(dir, '.next/build-manifest.json')))
 }
 
 export function getPageFileFromBuildManifest(dir, page) {

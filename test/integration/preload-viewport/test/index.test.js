@@ -212,7 +212,7 @@ describe('Prefetching Links in viewport', () => {
     expect(hrefs).toEqual([...new Set(hrefs)])
 
     // Verify encoding
-    expect(hrefs.some((e) => e.includes(`%5Bhello%5D.js`))).toBe(true)
+    expect(hrefs.some((e) => e.includes(`%5Bhello%5D-`))).toBe(true)
   })
 
   it('should not add an another observer for a prefetched page', async () => {

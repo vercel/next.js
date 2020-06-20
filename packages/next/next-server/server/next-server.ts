@@ -372,6 +372,7 @@ export default class Server {
             params.path[0] === 'css' ||
             params.path[0] === 'media' ||
             params.path[0] === this.buildId ||
+            params.path[0] === 'pages' ||
             params.path[1] === 'pages'
           ) {
             this.setImmutableAssetCacheControl(res)

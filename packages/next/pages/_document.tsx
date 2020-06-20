@@ -1,12 +1,7 @@
 import PropTypes from 'prop-types'
 import React, { useContext, Component } from 'react'
 import flush from 'styled-jsx/server'
-import {
-  AMP_RENDER_TARGET,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-} from '../next-server/lib/constants'
+import { AMP_RENDER_TARGET } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
   DocumentContext,
@@ -619,10 +614,9 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
-      const AmpDevFiles = [
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-        CLIENT_STATIC_FILES_RUNTIME_AMP,
-        CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+      const ampDevFiles = [
+        ...buildManifest.devFiles,
+        ...buildManifest.ampDevFiles,
       ]
 
       return (
@@ -643,19 +637,17 @@ export class NextScript extends Component<OriginProps> {
               data-ampdevmode
             />
           )}
-          {AmpDevFiles
-            ? AmpDevFiles.map((file) => (
-                <script
-                  key={file}
-                  src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-                  nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
-                  data-ampdevmode
-                />
-              ))
-            : null}
+          {ampDevFiles.map((file) => (
+            <script
+              key={file}
+              src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+              nonce={this.props.nonce}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
+              data-ampdevmode
+            />
+          ))}
         </>
       )
     }

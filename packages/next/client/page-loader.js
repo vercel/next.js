@@ -248,9 +248,9 @@ export default class PageLoader {
           route = normalizeRoute(route)
           let scriptRoute = getAssetPath(route)
 
-          const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-            this.buildId
-          )}/pages${encodeURI(scriptRoute)}.js`
+          const url = `${this.assetPrefix}/_next/static/pages${encodeURI(
+            scriptRoute
+          )}.js`
           this.loadScript(url, route)
         }
       }

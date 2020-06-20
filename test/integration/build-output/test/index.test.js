@@ -52,10 +52,17 @@ describe('Build Output', () => {
           )
         )[1]
 
-      const parseSharedSize = (sharedPartName) =>
-        stdout.match(
+      const parseSharedSize = (sharedPartName) => {
+        const matches = stdout.match(
           new RegExp(`${sharedPartName} .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`)
-        )[1]
+        )
+
+        if (!matches) {
+          throw new Error(`Could not match ${sharedPartName}`)
+        }
+
+        return matches[1]
+      }
 
       const indexSize = parsePageSize('/')
       const indexFirstLoad = parsePageFirstLoad('/')
@@ -64,7 +71,7 @@ describe('Build Output', () => {
       const err404FirstLoad = parsePageFirstLoad('/404')
 
       const sharedByAll = parseSharedSize('shared by all')
-      const _appSize = parseSharedSize('_app\\.js')
+      const _appSize = parseSharedSize('_app\\..*?\\.js')
       const webpackSize = parseSharedSize('webpack\\..*?\\.js')
       const mainSize = parseSharedSize('main\\..*?\\.js')
       const frameworkSize = parseSharedSize('framework\\..*?\\.js')

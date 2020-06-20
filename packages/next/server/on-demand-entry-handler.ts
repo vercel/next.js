@@ -55,7 +55,15 @@ export default function onDemandEntryHandler(
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
-  let entries: any = {}
+  let entries: {
+    [page: string]: {
+      serverBundlePath: string
+      clientBundlePath: string
+      absolutePagePath: string
+      status?: typeof ADDED | typeof BUILDING | typeof BUILT
+      lastActiveTime?: number
+    }
+  } = {}
   let lastAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
@@ -65,11 +73,16 @@ export default function onDemandEntryHandler(
       (compilation: webpack.compilation.Compilation) => {
         invalidator.startBuilding()
 
+        const isClientCompilation = compiler.name === 'client'
         const allEntries = Object.keys(entries).map(async (page) => {
-          if (compiler.name === 'client' && page.match(API_ROUTE)) {
+          if (isClientCompilation && page.match(API_ROUTE)) {
             return
           }
-          const { name, absolutePagePath } = entries[page]
+          const {
+            serverBundlePath,
+            clientBundlePath,
+            absolutePagePath,
+          } = entries[page]
           const pageExists = await isWriteable(absolutePagePath)
           if (!pageExists) {
             // page was removed
@@ -82,11 +95,16 @@ export default function onDemandEntryHandler(
             page,
             absolutePagePath,
           }
-          return addEntry(compilation, compiler.context, name, [
-            compiler.name === 'client'
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath,
-          ])
+          return addEntry(
+            compilation,
+            compiler.context,
+            isClientCompilation ? clientBundlePath : serverBundlePath,
+            [
+              isClientCompilation
+                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                : absolutePagePath,
+            ]
+          )
         })
 
         return Promise.all(allEntries).catch((err) => console.error(err))
@@ -209,8 +227,9 @@ export default function onDemandEntryHandler(
 
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
-      const bundleFile = `${normalizePagePath(pageUrl)}.js`
-      const name = join('static', 'BUILD_ID', 'pages', bundleFile)
+      const bundleFile = normalizePagePath(pageUrl)
+      const serverBundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
+      const clientBundlePath = join('static', 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
@@ -236,7 +255,12 @@ export default function onDemandEntryHandler(
 
         Log.event(`build page: ${normalizedPage}`)
 
-        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        entries[normalizedPage] = {
+          serverBundlePath,
+          clientBundlePath,
+          absolutePagePath,
+          status: ADDED,
+        }
         doneCallbacks!.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()

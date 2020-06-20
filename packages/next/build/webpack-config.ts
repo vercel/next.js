@@ -679,26 +679,24 @@ export default async function getBaseWebpackConfig(
     },
     output: {
       path: outputPath,
-      filename: ({ chunk }: { chunk: { name: string } }) => {
-        // Use `[name]-[contenthash].js` in production
-        if (
-          !dev &&
-          (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
-            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK ||
-            chunk.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
-        ) {
-          return chunk.name.replace(/\.js$/, '-[contenthash].js')
-        }
+      filename: isServer
+        ? ({ chunk }: { chunk: { name: string } }) => {
+            // Use `[name]-[contenthash].js` in production
+            if (chunk.name.includes('BUILD_ID')) {
+              return (
+                escapePathVariables(chunk.name).replace(
+                  'BUILD_ID',
+                  isServer || dev ? buildId : '[contenthash]'
+                ) + '.js'
+              )
+            }
 
-        if (chunk.name.includes('BUILD_ID')) {
-          return escapePathVariables(chunk.name).replace(
-            'BUILD_ID',
-            isServer || dev ? buildId : '[contenthash]'
-          )
-        }
-
-        return '[name]'
-      },
+            return '[name].js'
+          }
+        : // Client compilation only
+        dev
+        ? '[name].js'
+        : '[name]-[chunkhash].js',
       libraryTarget: isServer ? 'commonjs2' : 'var',
       hotUpdateChunkFilename: isWebpack5
         ? 'static/webpack/[id].[fullhash].hot-update.js'

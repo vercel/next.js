@@ -1,8 +1,7 @@
 import { join } from 'path'
 import { promises } from 'fs'
-import { IS_BUNDLED_PAGE_REGEX } from '../../../next-server/lib/constants'
 import { Compiler } from 'webpack'
-
+import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 // Makes sure removed pages are removed from `.next` in development
 export class UnlinkRemovedPagesPlugin {
   prevAssets: any
@@ -15,7 +14,7 @@ export class UnlinkRemovedPagesPlugin {
       'NextJsUnlinkRemovedPages',
       (compilation, callback) => {
         const removed = Object.keys(this.prevAssets).filter(
-          (a) => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a]
+          (a) => getRouteFromEntrypoint(a) && !compilation.assets[a]
         )
 
         this.prevAssets = compilation.assets

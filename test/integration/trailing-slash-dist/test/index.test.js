@@ -1,7 +1,14 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { killApp, findPort, launchApp, fetchViaHTTP } from 'next-test-utils'
+import {
+  killApp,
+  findPort,
+  launchApp,
+  fetchViaHTTP,
+  getPageFileFromBuildManifest,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -12,10 +19,10 @@ let app
 
 const runTest = (mode = 'server') => {
   it('supports trailing slash', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/_next/static/development/pages/index.js'
-    )
+    // Make sure the page is built before getting the file
+    await renderViaHTTP(appPort, '/')
+    const file = getPageFileFromBuildManifest(appDir, '/')
+    const res = await fetchViaHTTP(appPort, join('/_next', file))
 
     expect(res.status).toBe(200)
   })

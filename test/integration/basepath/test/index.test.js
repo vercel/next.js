@@ -75,7 +75,7 @@ const runTests = (context, dev = false) => {
 
           for (const link of links) {
             const href = await link.getAttribute('href')
-            if (href.match(/(gsp|gssp|other-page)\.js$/)) {
+            if (href.match(/(gsp|gssp|other-page)-.*?\.js$/)) {
               found.add(href)
             }
             if (href.match(/gsp\.json$/)) {
