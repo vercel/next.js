@@ -4,7 +4,7 @@ In this example, we authenticate users and store a token in a secure (non-JS) co
 
 This example uses [Fauna](https://fauna.com/) as the auth service and DB.
 
-The repo includes a minimal auth backend built with the new [API Routes support](https://github.com/vercel/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro), [Fauna for Auth](https://app.fauna.com/tutorials/authentication) and [dotenv](https://github.com/vercel/next.js/tree/canary/examples/with-dotenv) for environment variables. The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
+The repo includes a minimal auth backend built with [API Routes](https://nextjs.org/docs/api-routes/introduction) and [Fauna for Auth](https://app.fauna.com/tutorials/authentication). The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
 
 Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
 
@@ -38,11 +38,16 @@ First, you'll need to create an account on [Fauna](https://fauna.com/), then fol
 1. In the [FaunaDB Console](https://dashboard.fauna.com/), click "New Database". Name it whatever you like and click "Save".
 2. Click "New Collection", name it `User`, leave "Create collection index" checked, and click "Save".
 3. Now go to "Indexes" in the left sidebar, and click "New Index". Select the `User` collection, call it `users_by_email`, and in the "terms" field type `data.email`. Select the "Unique" checkbox and click "Save". This will create an index that allows looking up users by their email, which we will use to log a user in.
-4. Next, go to "Security" in the sidebar, then click "New Key". Create a new key with the `Server` role, call it `server-key`, and click "Save". Your key's secret will be displayed, copy that value and paste it as the value for `FAUNA_SERVER_KEY` in the `.env` file at the project root. Keep this key safely as it has privileged access to your database.
+4. Next, go to "Security" in the sidebar, then click "New Key". Create a new key with the `Server` role, call it `server-key`, and click "Save". Your key's secret will be displayed, copy that value.
+5. Create the `.env.local` file (which will be ignored by Git) based on the `.env.local.example` file in this directory:
+
+```bash
+cp .env.local.example .env.local
+```
+
+6. Paste the secret you copied as the value for `FAUNA_SERVER_KEY` in the `.env.local` file. Keep this key safely as it has privileged access to your database.
 
 > For more information, read the [User Authentication Tutorial in Fauna](https://app.fauna.com/tutorials/authentication).
-
-> **Add `.env` to `.gitignore`**, files with secrets should never be in the cloud, we have it here for the sake of the example.
 
 Now, install it and run:
 
@@ -54,12 +59,18 @@ yarn
 yarn dev
 ```
 
-### Deploy
+### Deploy on Vercel
 
-We'll use [now](https://vercel.com/now) to deploy our app, first we need to add the server key as a secret using [now secrets](https://vercel.com/docs/v2/serverless-functions/env-and-secrets/?query=secrets#adding-secrets), like so:
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-```bash
-now secrets add fauna-secret-key "ENTER YOUR FAUNA SERVER KEY"
-```
+#### Deploy Your Local Project
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/select-scope?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-cookie-auth-fauna&id=70107786&env=FAUNA_SERVER_KEY&envDescription=API%20Keys%20required%20by%20Fauna%20CMS&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-cookie-auth-fauna%23run-locally)
