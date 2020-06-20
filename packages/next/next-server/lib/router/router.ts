@@ -15,6 +15,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { getPageAssetPath } from './utils/asset-path'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -31,7 +32,7 @@ function toRoute(path: string): string {
 }
 
 function prepareRoute(path: string) {
-  return toRoute(delBasePath(path || '/'))
+  return toRoute(delBasePath(path || '') || '/')
 }
 
 type Url = UrlObject | string
@@ -107,7 +108,9 @@ function fetchNextData(
       formatWithValidation({
         pathname: addBasePath(
           // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+          `/_next/data/${__NEXT_DATA__.buildId}${getPageAssetPath(
+            pathname
+          )}.json`
         ),
         query,
       }),
