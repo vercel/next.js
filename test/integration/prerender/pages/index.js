@@ -47,6 +47,9 @@ const Page = ({ world, time }) => {
       <Link href="/catchall/[...slug]" as="/catchall/first">
         <a id="to-catchall">to catchall</a>
       </Link>
+      <Link href="/index">
+        <a id="to-nested-index">to nested index</a>
+      </Link>
     </>
   )
 }
