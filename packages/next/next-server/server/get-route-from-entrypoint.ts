@@ -1,4 +1,4 @@
-import { denormalizePagePath } from './normalize-page-path'
+import { getAssetPagePath } from '../lib/router/utils/asset-path'
 
 // matches static/<buildid>/pages/:page*.js
 const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
@@ -23,5 +23,5 @@ export default function getRouteFromEntrypoint(
     return null
   }
 
-  return denormalizePagePath(`/${pagePath}`)
+  return getAssetPagePath(`/${pagePath}`)
 }

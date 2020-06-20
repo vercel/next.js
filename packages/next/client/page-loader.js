@@ -111,8 +111,8 @@ export default class PageLoader {
    */
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
-      const dataRoute = getPageAssetPath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}.json`
+      const dataRoute = getPageAssetPath(path, '.json')
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}`
     }
 
     const { pathname: hrefPathname, query } = parse(href, true)
@@ -239,11 +239,11 @@ export default class PageLoader {
         } else {
           // Development only. In production the page file is part of the build manifest
           route = normalizeRoute(route)
-          let scriptRoute = getPageAssetPath(route)
+          let scriptRoute = getPageAssetPath(route, '.js')
 
           const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
             this.buildId
-          )}/pages${encodeURI(scriptRoute)}.js`
+          )}/pages${encodeURI(scriptRoute)}`
           this.loadScript(url, route)
         }
       }
@@ -320,13 +320,13 @@ export default class PageLoader {
       if (process.env.NODE_ENV !== 'production') {
         route = normalizeRoute(route)
 
-        const scriptRoute = getPageAssetPath(route)
         const ext =
           process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
+        const scriptRoute = getPageAssetPath(route, ext)
 
         url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
           this.buildId
-        )}/pages${encodeURI(scriptRoute)}${ext}`
+        )}/pages${encodeURI(scriptRoute)}`
       }
     }
 

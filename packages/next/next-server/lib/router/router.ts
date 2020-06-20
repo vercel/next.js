@@ -109,8 +109,9 @@ function fetchNextData(
         pathname: addBasePath(
           // @ts-ignore __NEXT_DATA__
           `/_next/data/${__NEXT_DATA__.buildId}${getPageAssetPath(
-            pathname
-          )}.json`
+            pathname,
+            '.json'
+          )}`
         ),
         query,
       }),
