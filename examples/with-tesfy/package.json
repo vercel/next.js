@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
     "react-tesfy": "latest",
     "tesfy": "latest",
     "cookie": "0.4.1",

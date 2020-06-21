@@ -1,4 +1,4 @@
-# Tesfy example
+# Tesfy Example
 
 [Tesfy](https://tesfy.io/) allows you to create **unlimited** A/B Tests and Feature Flags for **free** using a [web app](https://app.tesfy.io/) or by your self.
 
@@ -23,7 +23,7 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-tesfy with-tesfy-app
+npx create-next-app --example with-tesfy with-tesfy-app
 # or
 yarn create next-app --example with-tesfy with-tesfy-app
 ```
