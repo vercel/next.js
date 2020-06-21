@@ -1,6 +1,6 @@
-# Example app with Storybook
+# Example app with Storybook and TypeScript.
 
-This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.
+This example shows a default set up of Storybook plus TypeScript, using [@storybook/preset-typescript](https://github.com/storybookjs/presets/tree/master/packages/preset-typescript). Also included in the example is a custom component included in both Storybook and the Next.js application.
 
 ## How to use
 
@@ -9,9 +9,9 @@ This example shows a default set up of Storybook. Also included in the example i
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-storybook with-storybook-app
+npx create-next-app --example with-storybook-typescript with-storybook-app
 # or
-yarn create next-app --example with-storybook with-storybook-app
+yarn create next-app --example with-storybook-typescript with-storybook-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example with-storybook with-storybook-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook
-cd with-storybook
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook-typescript
+cd with-storybook-typescript
 ```
 
 Install it and run:
