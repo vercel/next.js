@@ -5,8 +5,7 @@ const Nav = () => {
     <nav>
       <Link href="/">
         <a>Experiments</a>
-      </Link>
-      {' '}
+      </Link>{' '}
       <Link href="/features">
         <a>Features</a>
       </Link>
