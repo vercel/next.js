@@ -157,6 +157,7 @@ export default async function exportApp(
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
 
+  // TODO: Replace with same logic as build/index.ts for looking up pathname
   const distPagesDir = join(
     distDir,
     isLikeServerless
