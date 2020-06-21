@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -21,7 +22,6 @@ const nextConfig = join(appDir, 'next.config.js')
 const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
-let buildId
 let appPort
 let app
 
@@ -50,18 +50,8 @@ const runTests = (mode = 'server') => {
 
   if (mode !== 'dev') {
     it('should output 404.html during build', async () => {
-      expect(
-        await fs.exists(
-          join(
-            appDir,
-            '.next',
-            mode === 'serverless'
-              ? 'serverless/pages'
-              : `server/static/${buildId}/pages`,
-            '404.html'
-          )
-        )
-      ).toBe(true)
+      const page = getPageFileFromPagesManifest(appDir, '/404')
+      expect(page.endsWith('.html')).toBe(true)
     })
 
     it('should add /404 to pages-manifest correctly', async () => {
@@ -78,7 +68,6 @@ describe('404 Page Support', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -90,7 +79,6 @@ describe('404 Page Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 
@@ -111,7 +99,6 @@ describe('404 Page Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       await fs.writeFile(nextConfig, nextConfigContent)
