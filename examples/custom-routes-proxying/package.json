@@ -2,13 +2,11 @@
   "name": "custom-routes-proxying",
   "version": "1.0.0",
   "scripts": {
-    "dev": "cross-env UPSTREAM_PORT=3001 next dev",
+    "dev": "next dev",
     "build": "next build",
-    "start": "cross-env UPSTREAM_PORT=3001  next start",
-    "start-upstream": "cross-env UPSTREAM_PORT=3001 node upstream-server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "cross-env": "7.0.2",
     "next": "latest",
     "react": "16.8.6",
     "react-dom": "16.8.6"

@@ -10,7 +10,7 @@ module.exports = {
         },
         {
           source: '/:path*',
-          destination: `http://localhost:${process.env.UPSTREAM_PORT}/:path*`,
+          destination: `https://custom-routes-proxying-endpoint.vercel.app/:path*`,
         },
       ]
     },

@@ -25,28 +25,18 @@ curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=
 cd custom-routes-proxying
 ```
 
-Install it:
+### Step 4. Run Next.js in development mode
 
 ```bash
 npm install
-# or
-yarn
-```
-
-Start upstream server in one terminal
-
-```bash
-npm run start-upstream
-# or
-yarn start-upstream
-```
-
-Start Next.js in another terminal
-
-```bash
 npm run dev
+
 # or
+
+yarn install
 yarn dev
 ```
+
+Test out visiting one of the Next.js pages https://localhost:3000/ and then a non-Next.js page like http://localhost:3000/legacy-first.html or http://localhost:3000/another-legacy.html which will be proxied to the upstream server since it doesn't match any pages/assets in Next.js.
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)). Note: to deploy this example you will need to configure an existing upstream server.
