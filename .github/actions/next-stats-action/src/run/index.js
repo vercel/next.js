@@ -6,7 +6,7 @@ const logger = require('../util/logger')
 const getDirSize = require('./get-dir-size')
 const collectStats = require('./collect-stats')
 const collectDiffs = require('./collect-diffs')
-const { statsAppDir, diffRepoDir, mainRepoDir } = require('../constants')
+const { statsAppDir, diffRepoDir, yarnEnvValues } = require('../constants')
 
 async function runConfigs(
   configs = [],
@@ -32,12 +32,7 @@ async function runConfigs(
 
       // if stats-config is in root of project we're analyzing
       // the whole project so copy from each repo
-      const curStatsAppPath =
-        relativeStatsAppDir === './'
-          ? mainRepoStats
-            ? diffRepoDir
-            : mainRepoDir
-          : path.join(diffRepoDir, relativeStatsAppDir)
+      const curStatsAppPath = path.join(diffRepoDir, relativeStatsAppDir)
 
       // clean statsAppDir
       await fs.remove(statsAppDir)
@@ -61,7 +56,9 @@ async function runConfigs(
       }
 
       const buildStart = new Date().getTime()
-      await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`)
+      await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false, {
+        env: yarnEnvValues,
+      })
       curStats.General.buildDuration = new Date().getTime() - buildStart
 
       // apply renames to get deterministic output names
@@ -182,7 +179,11 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
     }
   }
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
-  await exec(`cd ${pkgDir} && yarn install`)
+
+  await fs.remove(yarnEnvValues.YARN_CACHE_FOLDER)
+  await exec(`cd ${pkgDir} && yarn install`, false, {
+    env: yarnEnvValues,
+  })
 }
 
 module.exports = runConfigs

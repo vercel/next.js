@@ -9,7 +9,7 @@ This example shows the usage of [Now Secrets](https://vercel.com/docs/v2/deploym
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example::
 
 ```bash
-npm init next-app --example with-now-env with-now-env-app
+npx create-next-app --example with-now-env with-now-env-app
 # or
 yarn create next-app --example with-now-env with-now-env-app
 ```
@@ -31,12 +31,12 @@ npm install
 yarn
 ```
 
-Start the development server with [now](https://vercel.com/now) ([download](https://vercel.com/download)):
+Start the development server with [Vercel](https://vercel.com/) ([download](https://vercel.com/download)):
 
 ```bash
-now dev
+vercel dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-Keep in mind that in order to deploy the app to Vercel the env [secrets](https://vercel.com/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
+Keep in mind that in order to deploy the app to Vercel the env [secrets](https://vercel.com/docs/getting-started/secrets) defined in `verel.json` should be listed in your account.

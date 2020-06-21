@@ -11,7 +11,7 @@ function webpack4(compiler: Compiler) {
     const hookRequire: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
       .mainTemplate.hooks as any).require
 
-    hookRequire.tap('ReactFreshWebpackPlugin', (source, chunk, hash) => {
+    hookRequire.tap('ReactFreshWebpackPlugin', (source, _chunk, _hash) => {
       // Webpack 4 evaluates module code on the following line:
       // ```
       // modules[moduleId].call(module.exports, module, module.exports, hotCreateRequire(moduleId));

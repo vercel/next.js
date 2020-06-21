@@ -25,7 +25,7 @@ export default {
           ttl: 60 * 1000,
         }),
         urlMiddleware({
-          url: (req) => process.env.RELAY_ENDPOINT,
+          url: (req) => process.env.NEXT_PUBLIC_RELAY_ENDPOINT,
         }),
       ]),
     })

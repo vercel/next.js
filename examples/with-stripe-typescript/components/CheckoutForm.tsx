@@ -1,19 +1,18 @@
 import React, { useState } from 'react'
 
 import CustomDonationInput from '../components/CustomDonationInput'
+import StripeTestCards from '../components/StripeTestCards'
 
+import getStripe from '../utils/get-stripejs'
 import { fetchPostJSON } from '../utils/api-helpers'
 import { formatAmountForDisplay } from '../utils/stripe-helpers'
 import * as config from '../config'
 
-import { useStripe } from '@stripe/react-stripe-js'
-
-const CheckoutForm: React.FunctionComponent = () => {
+const CheckoutForm = () => {
   const [loading, setLoading] = useState(false)
   const [input, setInput] = useState({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
   })
-  const stripe = useStripe()
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
     setInput({
@@ -35,6 +34,7 @@ const CheckoutForm: React.FunctionComponent = () => {
     }
 
     // Redirect to Checkout.
+    const stripe = await getStripe()
     const { error } = await stripe!.redirectToCheckout({
       // Make the id field from the Checkout Session creation API response
       // available to this file, so you can provide it as parameter here
@@ -60,10 +60,11 @@ const CheckoutForm: React.FunctionComponent = () => {
         currency={config.CURRENCY}
         onChange={handleInputChange}
       />
+      <StripeTestCards />
       <button
         className="checkout-style-background"
         type="submit"
-        disabled={!stripe || loading}
+        disabled={loading}
       >
         Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
       </button>

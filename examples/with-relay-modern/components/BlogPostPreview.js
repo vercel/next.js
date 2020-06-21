@@ -1,4 +1,3 @@
-import React from 'react'
 import { createFragmentContainer, graphql } from 'react-relay'
 
 const BlogPostPreview = ({ post }) => <li>{post.title}</li>

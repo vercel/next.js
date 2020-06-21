@@ -33,7 +33,10 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  normalizePagePath,
+  denormalizePagePath,
+} from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
@@ -248,9 +251,8 @@ export default async function exportApp(
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
-    staticMarkup: false,
     hotReloader: null,
-    basePath: nextConfig.experimental.basePath,
+    basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
@@ -287,8 +289,8 @@ export default async function exportApp(
   // make sure to prevent duplicates
   const exportPaths = [
     ...new Set(
-      Object.keys(exportPathMap).map(
-        (path) => normalizePagePath(path).replace(/^\/index$/, '') || '/'
+      Object.keys(exportPathMap).map((path) =>
+        denormalizePagePath(normalizePagePath(path))
       )
     ),
   ]
@@ -328,7 +330,7 @@ export default async function exportApp(
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.bold.red(`Attention`) +
+      chalk.bold.red(`Warning`) +
         ': ' +
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
@@ -386,7 +388,6 @@ export default async function exportApp(
         path,
         pathMap: exportPathMap[path],
         distDir,
-        buildId,
         outDir,
         pagesDataDir,
         renderOpts,
@@ -397,11 +398,12 @@ export default async function exportApp(
       })
 
       for (const validation of result.ampValidations || []) {
-        const { page, result } = validation
-        ampValidations[page] = result
+        const { page, result: ampValidationResult } = validation
+        ampValidations[page] = ampValidationResult
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result?.errors) && result.errors.length > 0)
+          (Array.isArray(ampValidationResult?.errors) &&
+            ampValidationResult.errors.length > 0)
       }
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)

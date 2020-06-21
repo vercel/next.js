@@ -19,7 +19,7 @@ export default function UserContextComp({ children }) {
           setUser({ uid, displayName, email, photoURL })
         } else setUser(null)
       } catch (error) {
-        // Most probably a connection error. Handle appropiately.
+        // Most probably a connection error. Handle appropriately.
       } finally {
         setLoadingUser(false)
       }
