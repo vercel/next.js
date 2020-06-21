@@ -18,8 +18,9 @@ function matchBundle(regex: RegExp, input: string): string | null {
 }
 
 export default function getRouteFromEntrypoint(
-  entryFile: string
-  // isServerlessLike: boolean = false
+  entryFile: string,
+  // TODO: Remove this parameter
+  _isServerlessLike: boolean = false
 ): string | null {
   let pagePath = matchBundle(SERVER_ROUTE_NAME_REGEX, entryFile)
 
