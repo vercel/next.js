@@ -25,7 +25,7 @@ async function checkInjected(browser) {
 }
 
 module.exports = (context) => {
-  describe.skip('With Security Related Issues', () => {
+  describe('With Security Related Issues', () => {
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
