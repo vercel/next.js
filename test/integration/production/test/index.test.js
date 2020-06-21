@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global browserName */
 import cheerio from 'cheerio'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync } from 'fs'
 import {
   nextServer,
   renderViaHTTP,
@@ -9,6 +9,7 @@ import {
   startApp,
   stopApp,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -23,7 +24,6 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 const appDir = join(__dirname, '../')
-let serverDir
 let appPort
 let server
 let app
@@ -43,9 +43,6 @@ describe('Production Usage', () => {
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
-
-    const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-    serverDir = join(appDir, '.next/server/static/', buildId, 'pages')
   })
   afterAll(() => stopApp(server))
 
@@ -641,18 +638,21 @@ describe('Production Usage', () => {
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['about', 'another', 'counter', 'dynamic', 'prefetch']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(false)
+    const pages = ['/about', '/another', '/counter', '/dynamic', '/prefetch']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['api', 'external-and-back', 'finish-response']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
+    const pages = ['/api', '/external-and-back', '/finish-response']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
 
