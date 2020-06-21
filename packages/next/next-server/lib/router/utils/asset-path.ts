@@ -1,4 +1,7 @@
-export function getPageAssetPath(route: string, ext: string = ''): string {
+// These functions translate between a pages asset path (relative froma  common prefix)
+// and its logical route. "asset path" being its javascript file, data file, prerendered html,...
+
+export function getAssetPathFromRoute(route: string, ext: string = ''): string {
   const path =
     route === '/'
       ? '/index'
@@ -8,7 +11,10 @@ export function getPageAssetPath(route: string, ext: string = ''): string {
   return path + ext
 }
 
-export function getAssetPagePath(assetPath: string, ext: string = ''): string {
+export function getRouteFromAssetPath(
+  assetPath: string,
+  ext: string = ''
+): string {
   assetPath = assetPath.replace(/\\/g, '/')
   assetPath =
     ext && assetPath.endsWith(ext) ? assetPath.slice(0, -ext.length) : assetPath

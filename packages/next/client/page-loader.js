@@ -3,7 +3,7 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { getPageAssetPath } from './../next-server/lib/router/utils/asset-path'
+import { getAssetPathFromRoute } from './../next-server/lib/router/utils/asset-path'
 
 function hasRel(rel, link) {
   try {
@@ -111,7 +111,7 @@ export default class PageLoader {
    */
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
-      const dataRoute = getPageAssetPath(path, '.json')
+      const dataRoute = getAssetPathFromRoute(path, '.json')
       return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}`
     }
 
@@ -239,7 +239,7 @@ export default class PageLoader {
         } else {
           // Development only. In production the page file is part of the build manifest
           route = normalizeRoute(route)
-          let scriptRoute = getPageAssetPath(route, '.js')
+          let scriptRoute = getAssetPathFromRoute(route, '.js')
 
           const url = `${this.assetPrefix}/_next/static/pages${encodeURI(
             scriptRoute
@@ -322,7 +322,7 @@ export default class PageLoader {
 
         const ext =
           process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
-        const scriptRoute = getPageAssetPath(route, ext)
+        const scriptRoute = getAssetPathFromRoute(route, ext)
 
         url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
           this.buildId

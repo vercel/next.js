@@ -67,7 +67,7 @@ import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { getAssetPagePath } from '../lib/router/utils/asset-path'
+import { getRouteFromAssetPath } from '../lib/router/utils/asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -414,7 +414,7 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = getAssetPagePath(
+          const pathname = getRouteFromAssetPath(
             `/${params.path
               // we need to re-encode the params since they are decoded
               // by path-match and we are re-building the URL

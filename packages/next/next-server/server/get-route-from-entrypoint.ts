@@ -1,4 +1,4 @@
-import { getAssetPagePath } from '../lib/router/utils/asset-path'
+import { getRouteFromAssetPath } from '../lib/router/utils/asset-path'
 
 // matches static/<buildid>/pages/:page*.js
 const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/
@@ -14,7 +14,7 @@ function matchBundle(regex: RegExp, input: string): string | null {
     return null
   }
 
-  return getAssetPagePath(`/${result[1]}`)
+  return getRouteFromAssetPath(`/${result[1]}`)
 }
 
 export default function getRouteFromEntrypoint(

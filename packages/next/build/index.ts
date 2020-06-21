@@ -74,7 +74,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { getPagePath } from '../next-server/server/require'
-import { getPageAssetPath } from '../next-server/lib/router/utils/asset-path'
+import { getAssetPathFromRoute } from '../next-server/lib/router/utils/asset-path'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -766,7 +766,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               pagePath,
               // strip leading / and then recurse number of nested dirs
               // to place from base folder
-              getPageAssetPath(originPage, `.${ext}`)
+              getAssetPathFromRoute(originPage, `.${ext}`)
                 .substr(1)
                 .split('/')
                 .map(() => '..')

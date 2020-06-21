@@ -15,7 +15,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { getPageAssetPath } from './utils/asset-path'
+import { getAssetPathFromRoute } from './utils/asset-path'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -108,7 +108,7 @@ function fetchNextData(
       formatWithValidation({
         pathname: addBasePath(
           // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${getPageAssetPath(
+          `/_next/data/${__NEXT_DATA__.buildId}${getAssetPathFromRoute(
             pathname,
             '.json'
           )}`
