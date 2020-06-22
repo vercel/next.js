@@ -42,12 +42,11 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
 }
 
 function formatTrailingSlash(url: UrlObject): UrlObject {
-  return {
-    ...url,
+  return Object.assign({}, url, {
     pathname:
       url.pathname &&
       normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
-  }
+  })
 }
 
 function formatUrl(url: Url): string {
