@@ -290,6 +290,11 @@ const navigateTest = (dev = false) => {
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello nested index/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
     // go to /catchall-optional
     await browser.elementByCss('#catchall-optional-root').click()
     await browser.waitForElementByCss('#home')
