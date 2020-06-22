@@ -942,7 +942,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
             buildId
-          )}/catchall\\-optional/(?<slug>.+?)\\.json$`,
+          )}/catchall\\-optional(?:/(?<slug>.+?))?\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
