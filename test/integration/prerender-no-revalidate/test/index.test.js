@@ -8,6 +8,7 @@ import {
   nextStart,
   renderViaHTTP,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -20,13 +21,14 @@ let buildId
 let stderr
 
 function runTests(route, routePath, serverless) {
+  const fileName = join(
+    appDir,
+    '.next',
+    serverless ? 'serverless' : 'server',
+    getPageFileFromPagesManifest(appDir, routePath)
+  )
+
   it(`[${route}] should not revalidate when set to false`, async () => {
-    const fileName = join(
-      appDir,
-      `.next`,
-      ...(serverless ? ['serverless'] : ['server', 'static', buildId]),
-      `pages/${routePath}.html`
-    )
     const initialHtml = await renderViaHTTP(appPort, route)
     const initialFileHtml = await fs.readFile(fileName, 'utf8')
 
@@ -51,12 +53,6 @@ function runTests(route, routePath, serverless) {
 
   it(`[${route}] should not revalidate /_next/data when set to false`, async () => {
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
-    const fileName = join(
-      appDir,
-      `.next`,
-      ...(serverless ? ['serverless'] : ['server', 'static', buildId]),
-      `pages/${routePath}.json`
-    )
 
     const initialData = JSON.parse(await renderViaHTTP(appPort, route))
     const initialFileJson = await fs.readFile(fileName, 'utf8')
@@ -99,7 +95,7 @@ describe('SSG Prerender No Revalidate', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests('/', '/index', true)
+    runTests('/', '/', true)
     runTests('/named', '/named', true)
     runTests('/nested', '/nested', true)
     runTests('/nested/named', '/nested/named', true)
@@ -121,7 +117,7 @@ describe('SSG Prerender No Revalidate', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests('/', '/index')
+    runTests('/', '/')
     runTests('/named', '/named')
     runTests('/nested', '/nested')
     runTests('/nested/named', '/nested/named')
