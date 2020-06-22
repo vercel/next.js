@@ -4,17 +4,20 @@ function escapeRegex(str: string) {
   return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 }
 
+function unescapeRegex(str: string) {
+  return str.replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
+}
+
 function parseParameter(param: string) {
-  const optional = /^\\\[.*\\\]$/.test(param)
+  let key = unescapeRegex(param)
+  const optional = key.startsWith('[') && key.endsWith(']')
   if (optional) {
-    param = param.slice(2, -2)
+    key = key.slice(1, -1)
   }
-  const repeat = /^(\\\.){3}/.test(param)
+  const repeat = key.startsWith('...')
   if (repeat) {
-    param = param.slice(6)
+    key = key.slice(3)
   }
-  // Un-escape key
-  const key = param.replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
   return { key, repeat, optional }
 }
 
@@ -45,14 +48,12 @@ export function getRouteRegex(
     }
   )
 
-  let namedParameterizedRoute: string | undefined
-
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
     const routeKeys: { [named: string]: string } = {}
 
-    namedParameterizedRoute = escapedRoute.replace(
+    const namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {
         const { key, repeat } = parseParameter($1)
