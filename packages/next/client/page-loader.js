@@ -143,17 +143,21 @@ export default class PageLoader {
       if (
         !Object.keys(dynamicGroups).every((param) => {
           let value = dynamicMatches[param]
-          const repeat = dynamicGroups[param].repeat
+          const { repeat, optional } = dynamicGroups[param]
 
           // support single-level catch-all
           // TODO: more robust handling for user-error (passing `/`)
           if (repeat && !Array.isArray(value)) value = [value]
+          let replaced = `[${repeat ? '...' : ''}${param}]`
+          if (optional) {
+            replaced = `[${replaced}]`
+          }
 
           return (
             param in dynamicMatches &&
             // Interpolate group into data URL if present
             (interpolatedRoute = interpolatedRoute.replace(
-              `[${repeat ? '...' : ''}${param}]`,
+              replaced,
               repeat
                 ? value.map(encodeURIComponent).join('/')
                 : encodeURIComponent(value)

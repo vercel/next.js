@@ -1,5 +1,6 @@
 module.exports = {
   experimental: {
+    optionalCatchAll: true,
     rewrites() {
       return [
         {
