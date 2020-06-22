@@ -11,16 +11,15 @@ function escapeRegex(str: string) {
 }
 
 function parseParameter(param: string) {
-  let key = param
-  const optional = key.startsWith('[') && key.endsWith(']')
+  const optional = param.startsWith('[') && param.endsWith(']')
   if (optional) {
-    key = key.slice(1, -1)
+    param = param.slice(1, -1)
   }
-  const repeat = key.startsWith('...')
+  const repeat = param.startsWith('...')
   if (repeat) {
-    key = key.slice(3)
+    param = param.slice(3)
   }
-  return { key, repeat, optional }
+  return { key: param, repeat, optional }
 }
 
 export function getRouteRegex(
