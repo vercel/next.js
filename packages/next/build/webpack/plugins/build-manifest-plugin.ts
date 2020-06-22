@@ -7,6 +7,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
@@ -62,6 +63,7 @@ export default class BuildManifestPlugin {
         const assetMap: BuildManifest = {
           polyfillFiles: [],
           devFiles: [],
+          ampDevFiles: [],
           lowPriorityFiles: [],
           pages: { '/_app': [] },
           ampFirstPages: [],
@@ -98,6 +100,19 @@ export default class BuildManifestPlugin {
         assetMap.devFiles = reactRefreshChunk?.files.filter(isJsFile) ?? []
 
         for (const entrypoint of compilation.entrypoints.values()) {
+          const isAmpRuntime =
+            entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
+
+          if (isAmpRuntime) {
+            for (const file of entrypoint.getFiles()) {
+              if (!(isJsFile(file) || file.endsWith('.css'))) {
+                continue
+              }
+
+              assetMap.ampDevFiles.push(file.replace(/\\/g, '/'))
+            }
+            continue
+          }
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
           if (!pagePath) {

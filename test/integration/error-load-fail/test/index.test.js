@@ -28,7 +28,26 @@ describe('Failing to load _error', () => {
     await browser.eval(`window.beforeNavigate = true`)
 
     await browser.elementByCss('#to-broken').moveTo()
-    await browser.waitForElementByCss('script[src*="broken.js"')
+    await check(
+      async () => {
+        const scripts = await browser.elementsByCss('script')
+        let found = false
+
+        for (const script of scripts) {
+          const src = await script.getAttribute('src')
+          if (src.includes('broken-')) {
+            found = true
+            break
+          }
+        }
+        return found
+      },
+      {
+        test(content) {
+          return content === true
+        },
+      }
+    )
 
     const errorPageFilePath = getPageFileFromBuildManifest(appDir, '/_error')
     // remove _error client bundle so that it can't be loaded
