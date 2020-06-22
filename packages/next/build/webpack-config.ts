@@ -1027,15 +1027,19 @@ export default async function getBaseWebpackConfig(
 
     if (
       dev &&
-      isServer &&
       webpackConfig.devtool &&
       originalDevtool !== webpackConfig.devtool
     ) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          chalk.bold(`Reverting webpack devtool to '${originalDevtool}'.\n`) +
-          'Changing the webpack devtool in development mode will cause severe performance regressions.\n'
-      )
+      webpackConfig.devtool = originalDevtool
+
+      // only show warning for one build
+      if (isServer) {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            chalk.bold(`Reverting webpack devtool to '${originalDevtool}'.\n`) +
+            'Changing the webpack devtool in development mode will cause severe performance regressions.\n'
+        )
+      }
     }
 
     if (typeof (webpackConfig as any).then === 'function') {
