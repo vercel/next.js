@@ -11,6 +11,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
   readNextBuildClientPageFile,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 
@@ -117,21 +118,23 @@ describe('Serverless Trace', () => {
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['abc', 'dynamic', 'dynamic-two', 'some-amp']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverlessDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverlessDir, file + '.js'))).toBe(false)
+    const pages = ['/abc', '/dynamic', '/dynamic-two', '/some-amp']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['fetch', '_error']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverlessDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverlessDir, file + '.html'))).toBe(false)
+    const pages = ['/fetch', '/_error']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
-
   it('should reply on API request successfully', async () => {
     const content = await renderViaHTTP(appPort, '/api/hello')
     expect(content).toMatch(/hello world/)

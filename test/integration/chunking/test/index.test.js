@@ -1,10 +1,14 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import express from 'express'
-import { access, readdir, readFile, unlink } from 'fs-extra'
-import http from 'http'
-import { nextBuild, nextServer, promiseCall, stopApp } from 'next-test-utils'
+import { readdir, readFile, unlink } from 'fs-extra'
+import {
+  nextBuild,
+  killApp,
+  nextStart,
+  findPort,
+  renderViaHTTP,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -12,10 +16,10 @@ jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '../')
 
-let buildId
 let chunks
 let stats
-
+let appPort
+let app
 const existsChunkNamed = (name) => {
   return chunks.some((chunk) => new RegExp(name).test(chunk))
 }
@@ -33,20 +37,19 @@ describe('Chunking', () => {
     } catch (e) {
       // Error here means old chunks don't exist, so we don't need to do anything
     }
-    const { stdout, stderr } = await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    console.log(stdout)
-    console.error(stderr)
+    await nextBuild(appDir, [])
+
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
       .replace(/"static\\(.*?":?)/g, (match) => match.replace(/\\/g, '\\\\'))
 
     stats = JSON.parse(stats)
-    buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
   })
+
+  afterAll(() => killApp(app))
 
   it('should use all url friendly names', () => {
     expect(chunks).toEqual(chunks.map((name) => encodeURIComponent(name)))
@@ -68,20 +71,9 @@ describe('Chunking', () => {
     expect(existsChunkNamed('react|react-dom')).toBe(false)
   })
 
-  it('should create a _buildManifest.js file', async () => {
-    expect(
-      await access(
-        join(appDir, '.next', 'static', buildId, '_buildManifest.js')
-      )
-    ).toBe(undefined) /* fs.access callback returns undefined if file exists */
-  })
-
   it('should not preload the build manifest', async () => {
-    const indexPage = await readFile(
-      join(appDir, '.next', 'server', 'static', buildId, 'pages', 'index.html')
-    )
-
-    const $ = cheerio.load(indexPage)
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
     expect(
       [].slice
         .call($('link[rel="preload"][as="script"]'))
@@ -91,11 +83,9 @@ describe('Chunking', () => {
   })
 
   it('should execute the build manifest', async () => {
-    const indexPage = await readFile(
-      join(appDir, '.next', 'server', 'static', buildId, 'pages', 'index.html')
-    )
-
-    const $ = cheerio.load(indexPage)
+    const html = await renderViaHTTP(appPort, '/')
+    console.log(html)
+    const $ = cheerio.load(html)
     expect(
       Array.from($('script'))
         .map((e) => e.attribs.src)
@@ -117,28 +107,6 @@ describe('Chunking', () => {
   })
 
   describe('Serving', () => {
-    let server
-    let appPort
-
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      const app = nextServer({
-        dir: join(__dirname, '../'),
-        dev: false,
-        quiet: true,
-      })
-
-      const expressApp = express()
-      await app.prepare()
-      expressApp.use('/foo/_next', express.static(join(__dirname, '../.next')))
-      expressApp.use(app.getRequestHandler())
-      server = http.createServer(expressApp)
-      await promiseCall(server, 'listen')
-      appPort = server.address().port
-    })
-
-    afterAll(() => stopApp(server))
-
     it('should hydrate with aggressive chunking', async () => {
       const browser = await webdriver(appPort, '/page2')
       const text = await browser.elementByCss('#padded-str').text()

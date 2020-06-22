@@ -101,7 +101,7 @@ export function createEntrypoints(
     const isApiRoute = page.match(API_ROUTE)
 
     const clientBundlePath = join('static', 'pages', bundleFile)
-    const serverBundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
+    const serverBundlePath = join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -111,7 +111,7 @@ export function createEntrypoints(
         absolutePagePath,
         ...defaultServerlessOptions,
       }
-      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
@@ -122,7 +122,7 @@ export function createEntrypoints(
         absolutePagePath,
         ...defaultServerlessOptions,
       }
-      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
     }

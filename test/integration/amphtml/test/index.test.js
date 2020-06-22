@@ -2,13 +2,7 @@
 
 import { validateAMP } from 'amp-test-utils'
 import cheerio from 'cheerio'
-import {
-  accessSync,
-  readFile,
-  readFileSync,
-  writeFile,
-  writeFileSync,
-} from 'fs-extra'
+import { readFile, readFileSync, writeFile, writeFileSync } from 'fs-extra'
 import {
   check,
   findPort,
@@ -72,31 +66,12 @@ describe('AMP Usage', () => {
       })
 
       it('should not output client pages for AMP only', async () => {
-        const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-        const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
-        for (const pg of ampOnly) {
-          expect(() =>
-            accessSync(
-              join(appDir, '.next/static', buildId, 'pages', pg + '.js')
-            )
-          ).toThrow()
-          expect(() =>
-            accessSync(
-              join(
-                appDir,
-                '.next/server/static',
-                buildId,
-                'pages',
-                pg + '.html'
-              )
-            )
-          ).not.toThrow()
-          expect(() =>
-            accessSync(
-              join(appDir, '.next/server/static', buildId, 'pages', pg + '.js')
-            )
-          ).toThrow()
-        }
+        const browser = await webdriver(appPort, '/nav')
+        await browser.elementByCss('#only-amp-link').click()
+
+        const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+        expect(result).toBe(null)
       })
 
       it('should add link preload for amp script', async () => {
@@ -285,51 +260,12 @@ describe('AMP Usage', () => {
     })
 
     it('should not output client pages for AMP only', async () => {
-      const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-      const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
-      for (const pg of ampOnly) {
-        expect(() =>
-          accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
-        ).toThrow()
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/server/static', buildId, 'pages', pg + '.html')
-          )
-        ).not.toThrow()
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/server/static', buildId, 'pages', pg + '.js')
-          )
-        ).toThrow()
-      }
-    })
+      const browser = await webdriver(appPort, '/nav')
+      await browser.elementByCss('#only-amp-link').click()
 
-    it('should not output modern client pages for AMP only', async () => {
-      const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-      const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
-      for (const pg of ampOnly) {
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/static', buildId, 'pages', pg + '.module.js')
-          )
-        ).toThrow()
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/server/static', buildId, 'pages', pg + '.html')
-          )
-        ).not.toThrow()
-        expect(() =>
-          accessSync(
-            join(
-              appDir,
-              '.next/server/static',
-              buildId,
-              'pages',
-              pg + '.module.js'
-            )
-          )
-        ).toThrow()
-      }
+      const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+      expect(result).toBe(null)
     })
   })
 

@@ -380,7 +380,7 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          (c) => c.name === normalize(`static/BUILD_ID/pages/_document`)
+          (c) => c.name === normalize(`pages/_document`)
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {

@@ -1541,7 +1541,8 @@ describe('SSG Prerender', () => {
         },
       })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
+      // TODO: Don't rely on this path
+      distPagesDir = join(appDir, '.next', 'server', 'pages')
     })
     afterAll(() => killApp(app))
 
