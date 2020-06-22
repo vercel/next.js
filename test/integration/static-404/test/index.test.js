@@ -58,9 +58,6 @@ describe('Static 404 page', () => {
       const html = await renderViaHTTP(appPort, '/non-existent')
       await killApp(app)
       expect(html).toContain('This page could not be found')
-      expect(
-        await fs.exists(join(appDir, '.next/serverless/pages/404.html'))
-      ).toBe(true)
     })
 
     it('should not export 404 page with custom _error GIP', async () => {
