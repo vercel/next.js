@@ -4,12 +4,8 @@ function escapeRegex(str: string) {
   return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 }
 
-function unescapeRegex(str: string) {
-  return str.replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-}
-
 function parseParameter(param: string) {
-  let key = unescapeRegex(param)
+  let key = param
   const optional = key.startsWith('[') && key.endsWith(']')
   if (optional) {
     key = key.slice(1, -1)
@@ -31,42 +27,53 @@ export function getRouteRegex(
     [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
   }
 } {
-  // Escape all characters that could be considered RegEx
-  const escapedRoute = escapeRegex(normalizedRoute.replace(/\/$/, '') || '/')
+  const segments = (normalizedRoute.replace(/\/$/, '') || '/')
+    .split('/')
+    .slice(1)
 
   const groups: {
     [groupName: string]: { pos: number; repeat: boolean; optional: boolean }
   } = {}
   let groupIndex = 1
 
-  const parameterizedRoute = escapedRoute.replace(
-    /\/\\\[([^/]+?)\\\](?=\/|$)/g,
-    (_, $1) => {
-      const { key, optional, repeat } = parseParameter($1)
-      groups[key] = { pos: groupIndex++, repeat, optional }
-      return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
-    }
-  )
+  const parameterizedRoute = segments
+    .map((seg) => {
+      if (seg.startsWith('[') && seg.endsWith(']')) {
+        const { key, optional, repeat } = parseParameter(seg.slice(1, -1))
+        groups[key] = { pos: groupIndex++, repeat, optional }
+        return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
+      } else {
+        return `/${escapeRegex(seg)}`
+      }
+    })
+    .join('')
 
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
     const routeKeys: { [named: string]: string } = {}
 
-    const namedParameterizedRoute = escapedRoute.replace(
-      /\/\\\[([^/]+?)\\\](?=\/|$)/g,
-      (_, $1) => {
-        const { key, repeat } = parseParameter($1)
-        // replace any non-word characters since they can break
-        // the named regex
-        const cleanedKey = key.replace(/\W/g, '')
-        routeKeys[cleanedKey] = key
-        return repeat ? `/(?<${cleanedKey}>.+?)` : `/(?<${cleanedKey}>[^/]+?)`
-      }
-    )
+    const namedParameterizedRoute = segments
+      .map((seg) => {
+        if (seg.startsWith('[') && seg.endsWith(']')) {
+          const { key, optional, repeat } = parseParameter(seg.slice(1, -1))
+          // replace any non-word characters since they can break
+          // the named regex
+          const cleanedKey = key.replace(/\W/g, '')
+          routeKeys[cleanedKey] = key
+          return repeat
+            ? optional
+              ? `(?:/(?<${cleanedKey}>.+?))?`
+              : `/(?<${cleanedKey}>.+?)`
+            : `/(?<${cleanedKey}>[^/]+?)`
+        } else {
+          return `/${escapeRegex(seg)}`
+        }
+      })
+      .join('')
 
     return {
-      re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+      re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
       groups,
       routeKeys,
       namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
@@ -74,7 +81,7 @@ export function getRouteRegex(
   }
 
   return {
-    re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+    re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
     groups,
   }
 }
