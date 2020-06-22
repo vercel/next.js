@@ -4,6 +4,20 @@ function escapeRegex(str: string) {
   return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 }
 
+function parseParameter(param: string) {
+  const optional = /^\\\[.*\\\]$/.test(param)
+  if (optional) {
+    param = param.slice(2, -2)
+  }
+  const repeat = /^(\\\.){3}/.test(param)
+  if (repeat) {
+    param = param.slice(6)
+  }
+  // Un-escape key
+  const key = param.replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
+  return { key, repeat, optional }
+}
+
 export function getRouteRegex(
   normalizedRoute: string
 ): {
@@ -25,21 +39,9 @@ export function getRouteRegex(
   const parameterizedRoute = escapedRoute.replace(
     /\/\\\[([^/]+?)\\\](?=\/|$)/g,
     (_, $1) => {
-      const isOptional = /^\\\[.*\\\]$/.test($1)
-      if (isOptional) {
-        $1 = $1.slice(2, -2)
-      }
-      const isCatchAll = /^(\\\.){3}/.test($1)
-      if (isCatchAll) {
-        $1 = $1.slice(6)
-      }
-      groups[
-        $1
-          // Un-escape key
-          .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-        // eslint-disable-next-line no-sequences
-      ] = { pos: groupIndex++, repeat: isCatchAll, optional: isOptional }
-      return isCatchAll ? (isOptional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
+      const { key, optional, repeat } = parseParameter($1)
+      groups[key] = { pos: groupIndex++, repeat, optional }
+      return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
     }
   )
 
@@ -53,21 +55,12 @@ export function getRouteRegex(
     namedParameterizedRoute = escapedRoute.replace(
       /\/\\\[([^/]+?)\\\](?=\/|$)/g,
       (_, $1) => {
-        const isCatchAll = /^(\\\.){3}/.test($1)
-        const key = $1
-          // Un-escape key
-          .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-          .replace(/^\.{3}/, '')
-
+        const { key, repeat } = parseParameter($1)
         // replace any non-word characters since they can break
         // the named regex
         const cleanedKey = key.replace(/\W/g, '')
-
         routeKeys[cleanedKey] = key
-
-        return isCatchAll
-          ? `/(?<${cleanedKey}>.+?)`
-          : `/(?<${cleanedKey}>[^/]+?)`
+        return repeat ? `/(?<${cleanedKey}>.+?)` : `/(?<${cleanedKey}>[^/]+?)`
       }
     )
 

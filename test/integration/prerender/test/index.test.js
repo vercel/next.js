@@ -116,6 +116,16 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall-explicit/[...slug]',
   },
+  '/catchall-optional': {
+    dataRoute: `/_next/data/${buildId}/catchall-optional.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/catchall-optional/[[...slug]]',
+  },
+  '/catchall-optional/value': {
+    dataRoute: `/_next/data/${buildId}/catchall-optional/value.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/catchall-optional/[[...slug]]',
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
@@ -280,6 +290,22 @@ const navigateTest = (dev = false) => {
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello nested index/)
+    // go to /catchall-optional
+    await browser.elementByCss('#catchall-optional-root').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Catch all: \[\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-optional/value
+    await browser.elementByCss('#catchall-optional-value').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Catch all: \[value\]/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
     // go to /
@@ -924,6 +950,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           },
         },
         {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall\\-optional/(?<slug>.+?)\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
+          ),
+          page: '/catchall-optional/[[...slug]]',
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
@@ -1076,12 +1116,23 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
           ),
         },
+
         '/catchall/[...slug]': {
           fallback: '/catchall/[...slug].html',
           routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+          ),
+        },
+        '/catchall-optional/[[...slug]]': {
+          dataRoute: `/_next/data/${buildId}/catchall-optional/[[...slug]].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(
+            '^\\/catchall\\-optional(?:\\/(.+?))?(?:\\/)?$'
           ),
         },
         '/catchall-explicit/[...slug]': {
@@ -1235,6 +1286,7 @@ describe('SSG Prerender', () => {
         `
         module.exports = {
           experimental: {
+            optionalCatchAll: true,
             rewrites() {
               return [
                 {
@@ -1275,7 +1327,7 @@ describe('SSG Prerender', () => {
         nextConfig,
         // we set cpus to 1 so that we make sure the requests
         // aren't being cached at the jest-worker level
-        `module.exports = { experimental: { cpus: 1 } }`,
+        `module.exports = { experimental: { optionalCatchAll: true, cpus: 1 } }`,
         'utf8'
       )
       await fs.remove(join(appDir, '.next'))
@@ -1343,6 +1395,7 @@ describe('SSG Prerender', () => {
         `module.exports = {
           target: 'serverless',
           experimental: {
+            optionalCatchAll: true,
             rewrites() {
               return [
                 {
@@ -1452,7 +1505,7 @@ describe('SSG Prerender', () => {
       origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace' }`,
+        `module.exports = { target: 'experimental-serverless-trace', experimental: { optionalCatchAll: true } }`,
         'utf8'
       )
       await fs.writeFile(
@@ -1538,6 +1591,7 @@ describe('SSG Prerender', () => {
       await fs.writeFile(
         nextConfig,
         `module.exports = {
+          experimental: { optionalCatchAll: true },
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
