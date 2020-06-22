@@ -67,7 +67,7 @@ import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { getRouteFromAssetPath } from '../lib/router/utils/asset-path'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 

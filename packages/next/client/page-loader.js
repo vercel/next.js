@@ -3,7 +3,7 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { getAssetPathFromRoute } from './../next-server/lib/router/utils/asset-path'
+import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
 
 function hasRel(rel, link) {
   try {

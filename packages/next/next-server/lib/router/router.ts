@@ -15,7 +15,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { getAssetPathFromRoute } from './utils/asset-path'
+import getAssetPathFromRoute from './utils/get-asset-path-from-route'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 

@@ -1,4 +1,4 @@
-import { getRouteFromAssetPath } from '../lib/router/utils/asset-path'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 // matches static/<buildid>/pages/:page*.js
 const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/

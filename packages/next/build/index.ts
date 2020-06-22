@@ -74,7 +74,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { getPagePath } from '../next-server/server/require'
-import { getAssetPathFromRoute } from '../next-server/lib/router/utils/asset-path'
+import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
