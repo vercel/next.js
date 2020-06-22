@@ -32,6 +32,12 @@ export default () => (
         <h1>catchall page</h1>
       </a>
     </Link>
+    <br />
+    <Link href="/">
+      <a id="index-gsp">
+        <h1>index getStaticProps</h1>
+      </a>
+    </Link>
     <div id="base-path">{useRouter().basePath}</div>
     <div id="pathname">{useRouter().pathname}</div>
   </>
