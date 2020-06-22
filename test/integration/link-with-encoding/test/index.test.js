@@ -122,4 +122,178 @@ describe('Link Component with Encoding', () => {
       }
     })
   })
+
+  describe('forward slash', () => {
+    it('should have correct query on SSR', async () => {
+      const browser = await webdriver(
+        appPort,
+        `/single/hello${encodeURIComponent('/')}world`
+      )
+      try {
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello/world\\"}"`)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on Router#push', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.eval(
+          `window.next.router.push(
+            { pathname: '/single/[slug]' },
+            { pathname: '/single/hello${encodeURIComponent('/')}world' }
+          )`
+        )
+        await check(() => browser.hasElementByCssSelector('#query-content'), {
+          test(val) {
+            return Boolean(val)
+          },
+        })
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello/world\\"}"`)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on simple client-side <Link>', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.elementByCss('#single-slash').click()
+        await check(() => browser.hasElementByCssSelector('#query-content'), {
+          test(val) {
+            return Boolean(val)
+          },
+        })
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello/world\\"}"`)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+
+  describe('double quote', () => {
+    it('should have correct query on SSR', async () => {
+      const browser = await webdriver(
+        appPort,
+        `/single/hello${encodeURIComponent('"')}world`
+      )
+      try {
+        const text = await browser.elementByCss('#query-content').text()
+        expect(JSON.parse(text)).toMatchInlineSnapshot(`
+          Object {
+            "slug": "hello\\"world",
+          }
+        `)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on Router#push', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.eval(
+          `window.next.router.push(
+            { pathname: '/single/[slug]' },
+            { pathname: '/single/hello${encodeURIComponent('"')}world' }
+          )`
+        )
+        await check(() => browser.hasElementByCssSelector('#query-content'), {
+          test(val) {
+            return Boolean(val)
+          },
+        })
+        const text = await browser.elementByCss('#query-content').text()
+        expect(JSON.parse(text)).toMatchInlineSnapshot(`
+          Object {
+            "slug": "hello\\"world",
+          }
+        `)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on simple client-side <Link>', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.elementByCss('#single-double-quote').click()
+        await check(() => browser.hasElementByCssSelector('#query-content'), {
+          test(val) {
+            return Boolean(val)
+          },
+        })
+        const text = await browser.elementByCss('#query-content').text()
+        expect(JSON.parse(text)).toMatchInlineSnapshot(`
+          Object {
+            "slug": "hello\\"world",
+          }
+        `)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+
+  describe('colon', () => {
+    it('should have correct query on SSR', async () => {
+      const browser = await webdriver(
+        appPort,
+        `/single/hello${encodeURIComponent(':')}world`
+      )
+      try {
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello:world\\"}"`)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on Router#push', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.eval(
+          `window.next.router.push(
+            { pathname: '/single/[slug]' },
+            { pathname: '/single/hello${encodeURIComponent(':')}world' }
+          )`
+        )
+        await check(() => browser.hasElementByCssSelector('#query-content'), {
+          test(val) {
+            return Boolean(val)
+          },
+        })
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello:world\\"}"`)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on simple client-side <Link>', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.elementByCss('#single-colon').click()
+        await check(() => browser.hasElementByCssSelector('#query-content'), {
+          test(val) {
+            return Boolean(val)
+          },
+        })
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello:world\\"}"`)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
 })
