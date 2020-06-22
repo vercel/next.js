@@ -21,14 +21,13 @@ let buildId
 let stderr
 
 function runTests(route, routePath, serverless) {
-  const fileName = join(
-    appDir,
-    '.next',
-    serverless ? 'serverless' : 'server',
-    getPageFileFromPagesManifest(appDir, routePath)
-  )
-
   it(`[${route}] should not revalidate when set to false`, async () => {
+    const fileName = join(
+      appDir,
+      '.next',
+      serverless ? 'serverless' : 'server',
+      getPageFileFromPagesManifest(appDir, routePath)
+    )
     const initialHtml = await renderViaHTTP(appPort, route)
     const initialFileHtml = await fs.readFile(fileName, 'utf8')
 
@@ -52,6 +51,12 @@ function runTests(route, routePath, serverless) {
   })
 
   it(`[${route}] should not revalidate /_next/data when set to false`, async () => {
+    const fileName = join(
+      appDir,
+      '.next',
+      serverless ? 'serverless' : 'server',
+      getPageFileFromPagesManifest(appDir, routePath)
+    )
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
 
     const initialData = JSON.parse(await renderViaHTTP(appPort, route))
