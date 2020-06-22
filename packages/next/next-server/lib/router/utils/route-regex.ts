@@ -36,44 +36,41 @@ export function getRouteRegex(
 
   const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
-  let parameterizedRoute = ''
-
-  for (const segment of segments) {
-    if (segment.startsWith('[') && segment.endsWith(']')) {
-      const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
-      groups[key] = { pos: groupIndex++, repeat, optional }
-      parameterizedRoute += repeat
-        ? optional
-          ? '(?:/(.+?))?'
-          : '/(.+?)'
-        : '/([^/]+?)'
-    } else {
-      parameterizedRoute += `/${escapeRegex(segment)}`
-    }
-  }
+  const parameterizedRoute = segments
+    .map((segment) => {
+      if (segment.startsWith('[') && segment.endsWith(']')) {
+        const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
+        groups[key] = { pos: groupIndex++, repeat, optional }
+        return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
+      } else {
+        return `/${escapeRegex(segment)}`
+      }
+    })
+    .join('')
 
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
     const routeKeys: { [named: string]: string } = {}
 
-    let namedParameterizedRoute = ''
-    for (const segment of segments) {
-      if (segment.startsWith('[') && segment.endsWith(']')) {
-        const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
-        // replace any non-word characters since they can break
-        // the named regex
-        const cleanedKey = key.replace(/\W/g, '')
-        routeKeys[cleanedKey] = key
-        namedParameterizedRoute += repeat
-          ? optional
-            ? `(?:/(?<${cleanedKey}>.+?))?`
-            : `/(?<${cleanedKey}>.+?)`
-          : `/(?<${cleanedKey}>[^/]+?)`
-      } else {
-        namedParameterizedRoute += `/${escapeRegex(segment)}`
-      }
-    }
+    let namedParameterizedRoute = segments
+      .map((segment) => {
+        if (segment.startsWith('[') && segment.endsWith(']')) {
+          const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
+          // replace any non-word characters since they can break
+          // the named regex
+          const cleanedKey = key.replace(/\W/g, '')
+          routeKeys[cleanedKey] = key
+          return repeat
+            ? optional
+              ? `(?:/(?<${cleanedKey}>.+?))?`
+              : `/(?<${cleanedKey}>.+?)`
+            : `/(?<${cleanedKey}>[^/]+?)`
+        } else {
+          return `/${escapeRegex(segment)}`
+        }
+      })
+      .join('')
 
     return {
       re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
