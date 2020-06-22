@@ -30,8 +30,10 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-const prepareRoute = (path: string) =>
-  toRoute(!path || path === '/' ? '/index' : path)
+function prepareRoute(path: string) {
+  path = delBasePath(path || '')
+  return toRoute(!path || path === '/' ? '/index' : path)
+}
 
 type Url = UrlObject | string
 
@@ -112,7 +114,7 @@ function fetchNextData(
       formatWithValidation({
         pathname: addBasePath(
           // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
+          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
         ),
         query,
       }),
@@ -452,13 +454,12 @@ export default class Router implements BaseRouter {
 
       const route = toRoute(pathname)
       const { shallow = false } = options
+      const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
-        const { pathname: asPathname } = parse(as)
+        const { pathname: asPathname } = parse(cleanedAs)
         const routeRegex = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(routeRegex)(
-          delBasePath(asPathname || '')
-        )
+        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
           const missingParams = Object.keys(routeRegex.groups).filter(
             (param) => !query[param]
@@ -508,17 +509,15 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname!, query, delBasePath(as), routeInfo).then(
-            () => {
-              if (error) {
-                Router.events.emit('routeChangeError', error, as)
-                throw error
-              }
-
-              Router.events.emit('routeChangeComplete', as)
-              return resolve(true)
+          this.set(route, pathname!, query, cleanedAs, routeInfo).then(() => {
+            if (error) {
+              Router.events.emit('routeChangeError', error, as)
+              throw error
             }
-          )
+
+            Router.events.emit('routeChangeComplete', as)
+            return resolve(true)
+          })
         },
         reject
       )

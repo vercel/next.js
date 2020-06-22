@@ -171,7 +171,7 @@ export default class Server {
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
-      basePath: this.nextConfig.experimental.basePath,
+      basePath: this.nextConfig.basePath,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -259,7 +259,7 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    const { basePath } = this.nextConfig.experimental
+    const { basePath } = this.nextConfig
 
     // if basePath is set require it be present
     if (basePath && !req.url!.startsWith(basePath)) {
@@ -373,6 +373,7 @@ export default class Server {
             params.path[0] === 'css' ||
             params.path[0] === 'media' ||
             params.path[0] === this.buildId ||
+            params.path[0] === 'pages' ||
             params.path[1] === 'pages'
           ) {
             this.setImmutableAssetCacheControl(res)

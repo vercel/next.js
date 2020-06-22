@@ -75,7 +75,7 @@ const runTests = (context, dev = false) => {
 
           for (const link of links) {
             const href = await link.getAttribute('href')
-            if (href.match(/(gsp|gssp|other-page)\.js$/)) {
+            if (href.match(/(gsp|gssp|other-page)-.*?\.js$/)) {
               found.add(href)
             }
             if (href.match(/gsp\.json$/)) {
@@ -92,6 +92,41 @@ const runTests = (context, dev = false) => {
       )
     })
   }
+
+  it('should navigate to index page with getStaticProps', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = "hi"')
+
+    await browser.elementByCss('#index-gsp').click()
+    await browser.waitForElementByCss('#prop')
+
+    expect(await browser.eval('window.beforeNavigate')).toBe('hi')
+
+    expect(await browser.elementByCss('#prop').text()).toBe('hello world')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+
+    expect(await browser.elementByCss('#pathname').text()).toBe('/')
+
+    if (!dev) {
+      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
+      let found = false
+
+      for (const prefetch of prefetches) {
+        const fullHref = await prefetch.getAttribute('href')
+        const href = url.parse(fullHref).pathname
+
+        if (
+          href.startsWith('/docs/_next/data') &&
+          href.endsWith('index.json')
+        ) {
+          found = true
+        }
+      }
+
+      expect(found).toBe(true)
+    }
+  })
 
   it('should work with nested folder with same name as basePath', async () => {
     const html = await renderViaHTTP(context.appPort, '/docs/docs/another')
@@ -625,7 +660,7 @@ describe('basePath serverless', () => {
 
   beforeAll(async () => {
     await nextConfig.write(
-      `module.exports = { target: 'serverless', experimental: { basePath: '/docs' } }`
+      `module.exports = { target: 'experimental-serverless-trace', basePath: '/docs' } `
     )
     await nextBuild(appDir)
     context.appPort = await findPort()

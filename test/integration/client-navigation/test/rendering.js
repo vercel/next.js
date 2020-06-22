@@ -4,6 +4,9 @@ import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 import url from 'url'
+import { getPageFileFromBuildManifest } from 'next-test-utils'
+
+const appDir = join(__dirname, '../')
 
 export default function (render, fetch) {
   async function get$(path, query) {
@@ -267,9 +270,11 @@ export default function (render, fetch) {
 
     test('should expose the compiled page file in development', async () => {
       await fetch('/stateless') // make sure the stateless page is built
-      const clientSideJsRes = await fetch(
-        '/_next/development/static/development/pages/stateless.js'
+      const statelessPageFile = getPageFileFromBuildManifest(
+        appDir,
+        '/stateless'
       )
+      const clientSideJsRes = await fetch(join('/_next', statelessPageFile))
       expect(clientSideJsRes.status).toBe(200)
       const clientSideJsBody = await clientSideJsRes.text()
       expect(clientSideJsBody).toMatch(/My component!/)

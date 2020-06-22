@@ -291,7 +291,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const routesManifest: any = {
     version: 3,
     pages404: true,
-    basePath: config.experimental.basePath,
+    basePath: config.basePath,
     redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map((r) => buildCustomRoute(r, 'rewrite')),
     headers: headers.map((r) => buildCustomRoute(r, 'header')),
@@ -415,7 +415,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('__next_polyfill__') > -1
     ) {
       throw new Error(
-        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/vercel/next.js/invalid-resolve-alias'
+        '> webpack config.resolve.alias was incorrectly overridden. https://err.sh/vercel/next.js/invalid-resolve-alias'
       )
     }
     throw new Error('> Build failed because of webpack errors')
