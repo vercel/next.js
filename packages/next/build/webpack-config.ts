@@ -50,6 +50,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { codeFrameColumns } from '@babel/code-frame'
+import { execOnce } from '../next-server/lib/utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -60,6 +61,16 @@ const escapePathVariables = (value: any) => {
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
 }
+
+const devtoolRevertWarning = execOnce(
+  (devtool: webpack.Configuration.devtool) => {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+        'Changing the webpack devtool in development mode will cause severe performance regressions.\n'
+    )
+  }
+)
 
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
@@ -1031,15 +1042,7 @@ export default async function getBaseWebpackConfig(
       originalDevtool !== webpackConfig.devtool
     ) {
       webpackConfig.devtool = originalDevtool
-
-      // only show warning for one build
-      if (isServer) {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            chalk.bold(`Reverting webpack devtool to '${originalDevtool}'.\n`) +
-            'Changing the webpack devtool in development mode will cause severe performance regressions.\n'
-        )
-      }
+      devtoolRevertWarning(originalDevtool)
     }
 
     if (typeof (webpackConfig as any).then === 'function') {
