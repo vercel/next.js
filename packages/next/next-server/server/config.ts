@@ -27,6 +27,7 @@ const defaultConfig: { [key: string]: any } = {
   devIndicators: {
     buildActivity: true,
     autoPrerender: true,
+    devServerActivity: true,
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,

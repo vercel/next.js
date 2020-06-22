@@ -1,4 +1,5 @@
 const eventCallbacks = []
+const connectionCallbacks = []
 
 function EventSourceWrapper(options) {
   var source
@@ -26,6 +27,7 @@ function EventSourceWrapper(options) {
   function handleOnline() {
     if (options.log) console.log('[HMR] connected')
     lastActivity = new Date()
+    connectionCallbacks.forEach((cb) => cb(true))
   }
 
   function handleMessage(event) {
@@ -42,6 +44,7 @@ function EventSourceWrapper(options) {
     clearInterval(timer)
     source.close()
     setTimeout(init, options.timeout)
+    connectionCallbacks.forEach((cb) => cb(false))
   }
 
   return {
@@ -60,6 +63,9 @@ export function getEventSourceWrapper(options) {
     return {
       addMessageListener: (cb) => {
         eventCallbacks.push(cb)
+      },
+      addConnectionListener: (cb) => {
+        connectionCallbacks.push(cb)
       },
     }
   }
