@@ -34,7 +34,7 @@ export default function initializeDevServerWatcher() {
   const closeEl = container.querySelector(`#${prefix}close`)
 
   // State
-  let isConnected = false
+  let showBanner = false
   const dismissKey = '__NEXT_DISMISS_DEV_SERVER_INDICATOR'
   const dismissUntil = parseInt(window.localStorage.getItem(dismissKey), 10)
   const dismissed = dismissUntil > new Date().getTime()
@@ -43,23 +43,22 @@ export default function initializeDevServerWatcher() {
   const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
 
   evtSource.addConnectionListener((online) => {
-    console.log({ isConnected: online })
-    isConnected = online
+    showBanner = !online
     updateContainer()
   })
 
   closeEl.addEventListener('click', () => {
     const oneHourAway = new Date().getTime() + 1 * 60 * 60 * 1000
     window.localStorage.setItem(dismissKey, oneHourAway + '')
-    isConnected = false
+    showBanner = false
     updateContainer()
   })
 
   function updateContainer() {
-    if (isConnected) {
-      container.classList.remove(`${prefix}visible`)
-    } else if (!dismissed) {
+    if (showBanner && !dismissed) {
       container.classList.add(`${prefix}visible`)
+    } else {
+      container.classList.remove(`${prefix}visible`)
     }
   }
 }
@@ -69,10 +68,10 @@ function createContainer(prefix) {
   container.id = `${prefix}container`
   container.innerHTML = `
     <div id="${prefix}wrapper">
+      <h1>Development server disconnected</h1>
       <button type="button" id="${prefix}close" title="Hide indicator for session">
         <span>×</span>
       </button>
-      <h1>Development server disconnected</h1>
     </div>
   `
 
@@ -113,20 +112,19 @@ function createCss(prefix) {
     }
 
     #${prefix}close {
-      top: 16px;
-      right: 45px;
+      margin-right: 2rem;
       border: none;
-      width: 18px;
-      height: 18px;
-      color: #333333;
-      font-size: 16px;
+      font-size: 32px;
       cursor: pointer;
-      position: absolute;
-      background: #ffffff;
-      border-radius: 100%;
+      background: transparent;
+      color: #fff;
+    }
+
+    #${prefix}wrapper {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      flex-direction: column;
-      justify-content: center;
+      width: 100%;
     }
 
     #${prefix}wrapper h1 {
