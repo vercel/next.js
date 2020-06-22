@@ -117,7 +117,8 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
       'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
       // Replace: full URL polyfill with platform-based polyfill
-      url: require.resolve('native-url'),
+      // blocked on: https://github.com/GoogleChromeLabs/native-url/issues/27
+      // url: require.resolve('native-url'),
     }
   )
 }
