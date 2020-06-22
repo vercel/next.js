@@ -399,6 +399,7 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
     // launch .exe files.
     p = child_process.spawn('cmd.exe', ['/C', editor].concat(args), {
       stdio: 'inherit',
+      detached: true,
     })
   } else if (isTerminalEditor(editor)) {
     if (process.platform === 'darwin') {
