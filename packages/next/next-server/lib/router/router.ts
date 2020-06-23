@@ -15,6 +15,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import getAssetPathFromRoute from './utils/get-asset-path-from-route'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -31,8 +32,7 @@ function toRoute(path: string): string {
 }
 
 function prepareRoute(path: string) {
-  path = delBasePath(path || '')
-  return toRoute(!path || path === '/' ? '/index' : path)
+  return toRoute(delBasePath(path || '') || '/')
 }
 
 type Url = UrlObject | string
@@ -108,7 +108,10 @@ function fetchNextData(
       formatWithValidation({
         pathname: addBasePath(
           // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+          `/_next/data/${__NEXT_DATA__.buildId}${getAssetPathFromRoute(
+            pathname,
+            '.json'
+          )}`
         ),
         query,
       }),
