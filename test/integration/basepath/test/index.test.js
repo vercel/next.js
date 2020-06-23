@@ -42,15 +42,17 @@ const runTests = (context, dev = false) => {
 
       const errorSource = await getRedboxSource(browser)
       expect(errorSource).toMatchInlineSnapshot(`
-        "pages/hello.js (46:14) @ onClick
+        "pages${
+          process.platform === 'win32' ? '\\' : '/'
+        }hello.js (52:14) @ onClick
 
-          44 |   id=\\"trigger-error\\"
-          45 |   onClick={() => {
-        > 46 |     throw new Error('oops heres an error')
+          50 |   id=\\"trigger-error\\"
+          51 |   onClick={() => {
+        > 52 |     throw new Error('oops heres an error')
              |          ^
-          47 |   }}
-          48 | >
-          49 |   click me for error"
+          53 |   }}
+          54 | >
+          55 |   click me for error"
       `)
     })
   } else {
