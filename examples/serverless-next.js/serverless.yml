@@ -1,0 +1,10 @@
+example:
+  component: serverless-next.js@1.14.0 # it's recommended to lock the component version as you would with a package.json
+  inputs: # inputs to configure the deployment
+    useServerlessTraceTarget: true # config used to minimize the output bundle size
+    bucketName: serverless-example-bucket # name of the S3 bucket
+    description: 'serverless-next.js example' # description used for the lambdas
+    name: # name for each type of lambda
+      defaultLambda: serverless-example-default
+      apiLambda: serverless-example-api
+    domain: ['${env.SUBDOMAIN}', '${env.DOMAIN}'] # deploy to a custom domain
