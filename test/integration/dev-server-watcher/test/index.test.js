@@ -54,7 +54,7 @@ describe('Dev Server Watcher Banner', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        'module.exports = { devIndicators: { devServerActivity: false } }',
+        'module.exports = { devIndicators: { devServerBanner: false } }',
         'utf8'
       )
       appPort = await findPort()
