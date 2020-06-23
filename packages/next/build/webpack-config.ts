@@ -1020,7 +1020,6 @@ export default async function getBaseWebpackConfig(
 
     if (
       dev &&
-      webpackConfig.devtool &&
       originalDevtool !== webpackConfig.devtool
     ) {
       webpackConfig.devtool = originalDevtool
