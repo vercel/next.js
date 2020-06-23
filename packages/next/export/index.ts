@@ -96,6 +96,7 @@ interface ExportOptions {
   threads?: number
   pages?: string[]
   buildExport?: boolean
+  nextExportCommand?: boolean
 }
 
 export default async function exportApp(
@@ -258,6 +259,7 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    nextExportCommand: options.nextExportCommand,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

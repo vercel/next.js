@@ -1,4 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
+import chalk from 'next/dist/compiled/chalk'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
@@ -129,6 +130,7 @@ export type RenderOptsPartial = {
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
+  nextExportCommand?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
@@ -278,6 +280,7 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
+    nextExportCommand,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -316,6 +319,20 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const pageIsDynamic = isDynamicRoute(pathname)
+
+  if (
+    nextExportCommand &&
+    (hasPageGetInitialProps || defaultAppGetInitialProps)
+  ) {
+    console.log()
+    console.warn(
+      chalk.bold.red(`Warning`) +
+        ': ' +
+        chalk.yellow(
+          `Rewrite your App using getStaticProps instead of getInitialProps before using "next export"  `
+        )
+    )
+  }
 
   const isAutoExport =
     !hasPageGetInitialProps &&

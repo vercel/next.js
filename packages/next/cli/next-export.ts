@@ -54,6 +54,7 @@ const nextExport: cliCommand = (argv) => {
     silent: args['--silent'] || false,
     threads: args['--threads'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
+    nextExportCommand: true,
   }
 
   exportApp(dir, options)
