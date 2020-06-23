@@ -67,7 +67,8 @@ const devtoolRevertWarning = execOnce(
     console.warn(
       chalk.yellow.bold('Warning: ') +
         chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
-        'Changing the webpack devtool in development mode will cause severe performance regressions.\n'
+        'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+        'Read more: https://err.sh/next.js/improper-devtool'
     )
   }
 )
@@ -1018,10 +1019,7 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
-    if (
-      dev &&
-      originalDevtool !== webpackConfig.devtool
-    ) {
+    if (dev && originalDevtool !== webpackConfig.devtool) {
       webpackConfig.devtool = originalDevtool
       devtoolRevertWarning(originalDevtool)
     }
