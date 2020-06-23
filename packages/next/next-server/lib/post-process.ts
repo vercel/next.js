@@ -15,7 +15,7 @@ type postProcessData = {
 type postProcessMiddleware = (
   htmlRoot: HTMLElement,
   data: postProcessData
-) => Promise<void>
+) => Promise<HTMLElement>
 type middlewareSignature = {
   name: string
   middleware: postProcessMiddleware
@@ -45,7 +45,7 @@ async function processHTML(
       images: [],
     },
   }
-  const root: HTMLElement = parse(html)
+  let root: HTMLElement = parse(html)
 
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(
@@ -53,7 +53,7 @@ async function processHTML(
     name: string
   ) {
     let timer = Date.now()
-    await middleware(root, data)
+    root = await middleware(root, data)
     timer = Date.now() - timer
     if (timer > MIDDLEWARE_TIME_BUDGET) {
       console.warn(
@@ -83,6 +83,32 @@ const findImages: postProcessMiddleware = async (htmlRoot, data) => {
   return
 }
 
+// Middleware
+const inlineFonts: postProcessMiddleware = async (htmlRoot) => {
+  const links = htmlRoot
+    .querySelectorAll('link')
+    .filter(
+      (tag) =>
+        tag.getAttribute('rel') === 'stylesheet' &&
+        tag.hasAttribute('href') &&
+        tag
+          .getAttribute('href')
+          .startsWith('https://fonts.googleapis.com/css2?')
+    )
+  links.forEach((link) => {
+    link.insertAdjacentHTML(
+      'afterend',
+      `<style data-optimized-fonts='${link.getAttribute('href')}'></style>`
+    )
+    /**
+     * Removing the actual element is not supported in node-html-parser
+     * so we just remove the href effectively making it inert.
+     */
+    link.removeAttribute('href')
+  })
+  return htmlRoot
+}
+
 const renderPreloads: postProcessMiddleware = async (htmlRoot, data) => {
   // TODO: Render preload tags from data
   console.log(htmlRoot, data)
@@ -95,6 +121,8 @@ registerPostProcessor(
   findImages,
   (options) => options.preloadImages
 )
+// Initialization
+registerPostProcessor('Inline-Fonts', inlineFonts, () => true)
 registerPostProcessor(
   'Render-Preloads',
   renderPreloads,
