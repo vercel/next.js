@@ -141,6 +141,11 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/index': {
+    dataRoute: `/_next/data/${buildId}/index/index.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: null,
+  },
   '/lang/de/about': {
     dataRoute: `/_next/data/${buildId}/lang/de/about.json`,
     initialRevalidateSeconds: false,
@@ -275,6 +280,16 @@ const navigateTest = (dev = false) => {
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/Post:.*?post-1/)
     expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /index
+    await browser.elementByCss('#to-nested-index').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello nested index/)
 
     // go to /
     await browser.elementByCss('#home').click()
@@ -974,6 +989,12 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           routeKeys: {
             slug: 'slug',
           },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index\\/index.json$`
+          ),
+          page: '/index',
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(

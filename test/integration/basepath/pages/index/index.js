@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 export const getStaticProps = () => {
   return {
     props: {
-      nested: false,
+      nested: true,
       hello: 'hello',
     },
   }
