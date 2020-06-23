@@ -634,6 +634,7 @@ export default async function getBaseWebpackConfig(
           '@ampproject/toolbox-optimizer', // except this one
         ],
     optimization: {
+      noEmitOnErrors: dev,
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer ? false : splitChunksConfig,
@@ -887,7 +888,6 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/unlink-removed-pages-plugin')
             const devPlugins = [
               new UnlinkRemovedPagesPlugin(),
-              new webpack.NoEmitOnErrorsPlugin(),
               new NextJsRequireCacheHotReloader(),
             ]
 
