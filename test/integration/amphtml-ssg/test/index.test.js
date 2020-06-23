@@ -117,13 +117,8 @@ describe('AMP SSG Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      builtServerPagesDir = join(
-        appDir,
-        '.next/server/static',
-        buildId,
-        'pages'
-      )
+      // TODO: use browser instead to do checks that now need filesystem access
+      builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
     })
     afterAll(() => killApp(app))
     runTests()
