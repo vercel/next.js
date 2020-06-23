@@ -149,9 +149,14 @@ export async function printTreeView(
           ? ' '
           : pageInfo?.static
           ? '○'
-          : pageInfo?.isSsg ? '●'
+          : pageInfo?.isSsg
+          ? '●'
           : 'λ'
-      } ${pageInfo?.initialRevalidateSeconds?`${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`:item }`,
+      } ${
+        pageInfo?.initialRevalidateSeconds
+          ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
+          : item
+      }`,
       pageInfo
         ? ampFirst
           ? chalk.cyan('AMP')

@@ -595,7 +595,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         isHybridAmp,
         ssgPageRoutes,
         hasSsgFallback,
-        initialRevalidateSeconds: false
+        initialRevalidateSeconds: false,
       })
     })
   )
@@ -830,9 +830,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
           // Set Page Revalidation Interval
           const pageInfo = pageInfos.get(page)
-          if(pageInfo){
-          pageInfo.initialRevalidateSeconds = exportConfig.initialPageRevalidationMap[page],
-          pageInfos.set(page, pageInfo)
+          if (pageInfo) {
+            pageInfo.initialRevalidateSeconds =
+              exportConfig.initialPageRevalidationMap[page]
+            pageInfos.set(page, pageInfo)
           }
         } else {
           // For a dynamic SSG page, we did not copy its data exports and only
@@ -861,12 +862,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
               ),
             }
 
-          // Set route Revalidation Interval
-          const pageInfo = pageInfos.get(route)
-          if(pageInfo){
-          pageInfo.initialRevalidateSeconds = exportConfig.initialPageRevalidationMap[route],
-          pageInfos.set(route, pageInfo)
-          }
+            // Set route Revalidation Interval
+            const pageInfo = pageInfos.get(route)
+            if (pageInfo) {
+              pageInfo.initialRevalidateSeconds =
+                exportConfig.initialPageRevalidationMap[route]
+              pageInfos.set(route, pageInfo)
+            }
           }
         }
       }
