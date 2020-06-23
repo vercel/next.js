@@ -393,9 +393,10 @@ export default async function getBaseWebpackConfig(
               hash.update(module.libIdent({ context: dir }))
             }
 
-            return isWebpack5
-              ? 'static/chunks/'
-              : '' + hash.digest('hex').substring(0, 8)
+            return (
+              (isWebpack5 ? 'static/chunks/' : '') +
+              hash.digest('hex').substring(0, 8)
+            )
           },
           priority: 30,
           minChunks: 1,
@@ -408,21 +409,21 @@ export default async function getBaseWebpackConfig(
         },
         shared: {
           name(module, chunks) {
-            return isWebpack5
-              ? 'static/chunks/'
-              : '' +
-                  (crypto
-                    .createHash('sha1')
-                    .update(
-                      chunks.reduce(
-                        (acc: string, chunk: webpack.compilation.Chunk) => {
-                          return acc + chunk.name
-                        },
-                        ''
-                      )
-                    )
-                    .digest('hex') +
-                    (isModuleCSS(module) ? '_CSS' : ''))
+            return (
+              (isWebpack5 ? 'static/chunks/' : '') +
+              (crypto
+                .createHash('sha1')
+                .update(
+                  chunks.reduce(
+                    (acc: string, chunk: webpack.compilation.Chunk) => {
+                      return acc + chunk.name
+                    },
+                    ''
+                  )
+                )
+                .digest('hex') +
+                (isModuleCSS(module) ? '_CSS' : ''))
+            )
           },
           priority: 10,
           minChunks: 2,
