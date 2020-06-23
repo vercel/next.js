@@ -101,11 +101,9 @@ const runTests = (context, dev = false) => {
     await browser.waitForElementByCss('#prop')
 
     expect(await browser.eval('window.beforeNavigate')).toBe('hi')
-
     expect(await browser.elementByCss('#prop').text()).toBe('hello world')
-
+    expect(await browser.elementByCss('#nested').text()).toBe('no')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
-
     expect(await browser.elementByCss('#pathname').text()).toBe('/')
 
     if (!dev) {
@@ -118,7 +116,41 @@ const runTests = (context, dev = false) => {
 
         if (
           href.startsWith('/docs/_next/data') &&
-          href.endsWith('index.json')
+          href.endsWith('index.json') &&
+          !href.endsWith('index/index.json')
+        ) {
+          found = true
+        }
+      }
+
+      expect(found).toBe(true)
+    }
+  })
+
+  it('should navigate to nested index page with getStaticProps', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = "hi"')
+
+    await browser.elementByCss('#nested-index-gsp').click()
+    await browser.waitForElementByCss('#prop')
+
+    expect(await browser.eval('window.beforeNavigate')).toBe('hi')
+    expect(await browser.elementByCss('#prop').text()).toBe('hello world')
+    expect(await browser.elementByCss('#nested').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss('#pathname').text()).toBe('/index')
+
+    if (!dev) {
+      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
+      let found = false
+
+      for (const prefetch of prefetches) {
+        const fullHref = await prefetch.getAttribute('href')
+        const href = url.parse(fullHref).pathname
+
+        if (
+          href.startsWith('/docs/_next/data') &&
+          href.endsWith('index/index.json')
         ) {
           found = true
         }

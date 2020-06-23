@@ -10,6 +10,7 @@ import {
   nextBuild,
   renderViaHTTP,
   fetchViaHTTP,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -18,7 +19,6 @@ const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
-let buildId
 let app
 
 const runTests = (mode) => {
@@ -47,21 +47,8 @@ const runTests = (mode) => {
     })
 
     it('should have output 404.html', async () => {
-      expect(
-        await fs
-          .access(
-            join(
-              appDir,
-              '.next',
-              ...(mode === 'server'
-                ? ['server', 'static', buildId, 'pages']
-                : ['serverless', 'pages']),
-              '404.html'
-            )
-          )
-          .then(() => true)
-          .catch(() => false)
-      ).toBe(true)
+      const page = getPageFileFromPagesManifest(appDir, '/404')
+      expect(page.endsWith('.html')).toBe(true)
     })
   }
 }
@@ -81,7 +68,6 @@ describe('Default 404 Page with custom _error', () => {
       appPort = await findPort()
 
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
 
     runTests('server')
@@ -109,7 +95,6 @@ describe('Default 404 Page with custom _error', () => {
 
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
 
     runTests('serverless')
