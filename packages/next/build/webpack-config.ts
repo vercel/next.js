@@ -771,7 +771,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       hasReactRefresh && new ReactRefreshWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
-      new ChunkNamesPlugin(),
+      !isWebpack5 && new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...Object.keys(process.env).reduce(
           (prev: { [key: string]: string }, key: string) => {
