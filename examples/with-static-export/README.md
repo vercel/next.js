@@ -8,10 +8,10 @@ When trying to run `npm start` it will build and export your pages into the `out
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-static-export with-static-export-app
+npx create-next-app --example with-static-export with-static-export-app
 # or
 yarn create next-app --example with-static-export with-static-export-app
 ```
@@ -21,12 +21,9 @@ yarn create next-app --example with-static-export with-static-export-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-static-export
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-static-export
 cd with-static-export
 ```
-
-> This example requires [Node.js 8](https://nodejs.org/en/download/current/) or a later version.<br>
-> (That's for the use of "async await" in the `next.config.js`.)
 
 Install it and run:
 

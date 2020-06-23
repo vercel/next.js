@@ -1,19 +1,25 @@
-import { NodePath, PluginObj } from '@babel/core'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
+import {
+  SERVER_PROPS_ID,
+  STATIC_PROPS_ID,
+} from '../../../next-server/lib/constants'
 
-const pageComponentVar = '__NEXT_COMP'
-const prerenderId = '__N_SSG'
-const serverPropsId = '__N_SSP'
-
-export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
-export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
-export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerProps'
+export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
+export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
+export const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps'
 
 const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
   EXPORT_NAME_GET_SERVER_PROPS,
+
+  // legacy methods added so build doesn't fail from importing
+  // server-side only methods
+  `unstable_getStaticProps`,
+  `unstable_getStaticPaths`,
+  `unstable_getServerProps`,
+  `unstable_getServerSideProps`,
 ])
 
 type PluginState = {
@@ -27,35 +33,43 @@ function decorateSsgExport(
   t: typeof BabelTypes,
   path: NodePath<BabelTypes.Program>,
   state: PluginState
-) {
-  path.traverse({
-    ExportDefaultDeclaration(path) {
-      if (state.done) {
-        return
-      }
-      state.done = true
+): void {
+  const gsspName = state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID
+  const gsspId = t.identifier(gsspName)
 
-      const prev = path.node.declaration
-      if (prev.type.endsWith('Declaration')) {
-        prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
-      }
+  const addGsspExport = (
+    exportPath: NodePath<
+      BabelTypes.ExportDefaultDeclaration | BabelTypes.ExportNamedDeclaration
+    >
+  ): void => {
+    if (state.done) {
+      return
+    }
+    state.done = true
 
-      // @ts-ignore invalid return type
-      const [pageCompPath] = path.replaceWithMultiple([
-        t.variableDeclaration('const', [
-          t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
-        ]),
-        t.assignmentExpression(
-          '=',
-          t.memberExpression(
-            t.identifier(pageComponentVar),
-            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
-          ),
-          t.booleanLiteral(true)
+    // @ts-ignore invalid return type
+    const [pageCompPath] = exportPath.replaceWithMultiple([
+      t.exportNamedDeclaration(
+        t.variableDeclaration(
+          // We use 'var' instead of 'let' or 'const' for ES5 support. Since
+          // this runs in `Program#exit`, no ES2015 transforms (preset env)
+          // will be ran against this code.
+          'var',
+          [t.variableDeclarator(gsspId, t.booleanLiteral(true))]
         ),
-        t.exportDefaultDeclaration(t.identifier(pageComponentVar)),
-      ])
-      path.scope.registerDeclaration(pageCompPath)
+        [t.exportSpecifier(gsspId, gsspId)]
+      ),
+      exportPath.node,
+    ])
+    exportPath.scope.registerDeclaration(pageCompPath)
+  }
+
+  path.traverse({
+    ExportDefaultDeclaration(exportDefaultPath) {
+      addGsspExport(exportDefaultPath)
+    },
+    ExportNamedDeclaration(exportNamedPath) {
+      addGsspExport(exportNamedPath)
     },
   })
 }
@@ -120,7 +134,19 @@ export default function nextTransformSsg({
     ident: NodePath<BabelTypes.Identifier>
   ): boolean {
     const b = ident.scope.getBinding(ident.node.name)
-    return b != null && b.referenced
+    if (b?.referenced) {
+      // Functions can reference themselves, so we need to check if there's a
+      // binding outside the function scope or not.
+      if (b.path.type === 'FunctionDeclaration') {
+        return !b.constantViolations
+          .concat(b.referencePaths)
+          // Check that every reference is contained within the function:
+          .every((ref) => ref.findParent((p) => p === b.path))
+      }
+
+      return true
+    }
+    return false
   }
 
   function markFunction(
@@ -130,7 +156,7 @@ export default function nextTransformSsg({
       | BabelTypes.ArrowFunctionExpression
     >,
     state: PluginState
-  ) {
+  ): void {
     const ident = getIdentifier(path)
     if (ident?.node && isIdentifierReferenced(ident)) {
       state.refs.add(ident)
@@ -144,7 +170,7 @@ export default function nextTransformSsg({
       | BabelTypes.ImportNamespaceSpecifier
     >,
     state: PluginState
-  ) {
+  ): void {
     const local = path.get('local')
     if (isIdentifierReferenced(local)) {
       state.refs.add(local)
@@ -154,13 +180,129 @@ export default function nextTransformSsg({
   return {
     visitor: {
       Program: {
-        enter(_, state) {
+        enter(path, state) {
           state.refs = new Set<NodePath<BabelTypes.Identifier>>()
           state.isPrerender = false
           state.isServerProps = false
           state.done = false
-        },
-        exit(path, state) {
+
+          path.traverse(
+            {
+              VariableDeclarator(variablePath, variableState) {
+                if (variablePath.node.id.type === 'Identifier') {
+                  const local = variablePath.get('id') as NodePath<
+                    BabelTypes.Identifier
+                  >
+                  if (isIdentifierReferenced(local)) {
+                    variableState.refs.add(local)
+                  }
+                } else if (variablePath.node.id.type === 'ObjectPattern') {
+                  const pattern = variablePath.get('id') as NodePath<
+                    BabelTypes.ObjectPattern
+                  >
+
+                  const properties = pattern.get('properties')
+                  properties.forEach((p) => {
+                    const local = p.get(
+                      p.node.type === 'ObjectProperty'
+                        ? 'value'
+                        : p.node.type === 'RestElement'
+                        ? 'argument'
+                        : (function () {
+                            throw new Error('invariant')
+                          })()
+                    ) as NodePath<BabelTypes.Identifier>
+                    if (isIdentifierReferenced(local)) {
+                      variableState.refs.add(local)
+                    }
+                  })
+                } else if (variablePath.node.id.type === 'ArrayPattern') {
+                  const pattern = variablePath.get('id') as NodePath<
+                    BabelTypes.ArrayPattern
+                  >
+
+                  const elements = pattern.get('elements')
+                  elements.forEach((e) => {
+                    let local: NodePath<BabelTypes.Identifier>
+                    if (e.node?.type === 'Identifier') {
+                      local = e as NodePath<BabelTypes.Identifier>
+                    } else if (e.node?.type === 'RestElement') {
+                      local = e.get('argument') as NodePath<
+                        BabelTypes.Identifier
+                      >
+                    } else {
+                      return
+                    }
+
+                    if (isIdentifierReferenced(local)) {
+                      variableState.refs.add(local)
+                    }
+                  })
+                }
+              },
+              FunctionDeclaration: markFunction,
+              FunctionExpression: markFunction,
+              ArrowFunctionExpression: markFunction,
+              ImportSpecifier: markImport,
+              ImportDefaultSpecifier: markImport,
+              ImportNamespaceSpecifier: markImport,
+              ExportNamedDeclaration(exportNamedPath, exportNamedState) {
+                const specifiers = exportNamedPath.get('specifiers')
+                if (specifiers.length) {
+                  specifiers.forEach((s) => {
+                    if (
+                      isDataIdentifier(s.node.exported.name, exportNamedState)
+                    ) {
+                      s.remove()
+                    }
+                  })
+
+                  if (exportNamedPath.node.specifiers.length < 1) {
+                    exportNamedPath.remove()
+                  }
+                  return
+                }
+
+                const decl = exportNamedPath.get('declaration') as NodePath<
+                  | BabelTypes.FunctionDeclaration
+                  | BabelTypes.VariableDeclaration
+                >
+                if (decl == null || decl.node == null) {
+                  return
+                }
+
+                switch (decl.node.type) {
+                  case 'FunctionDeclaration': {
+                    const name = decl.node.id!.name
+                    if (isDataIdentifier(name, exportNamedState)) {
+                      exportNamedPath.remove()
+                    }
+                    break
+                  }
+                  case 'VariableDeclaration': {
+                    const inner = decl.get('declarations') as NodePath<
+                      BabelTypes.VariableDeclarator
+                    >[]
+                    inner.forEach((d) => {
+                      if (d.node.id.type !== 'Identifier') {
+                        return
+                      }
+                      const name = d.node.id.name
+                      if (isDataIdentifier(name, exportNamedState)) {
+                        d.remove()
+                      }
+                    })
+                    break
+                  }
+                  default: {
+                    break
+                  }
+                }
+              },
+            },
+            state
+          )
+
           if (!state.isPrerender && !state.isServerProps) {
             return
           }
@@ -169,13 +311,13 @@ export default function nextTransformSsg({
           let count: number
 
           function sweepFunction(
-            path: NodePath<
+            sweepPath: NodePath<
               | BabelTypes.FunctionDeclaration
               | BabelTypes.FunctionExpression
               | BabelTypes.ArrowFunctionExpression
             >
-          ) {
-            const ident = getIdentifier(path)
+          ): void {
+            const ident = getIdentifier(sweepPath)
             if (
               ident?.node &&
               refs.has(ident) &&
@@ -184,32 +326,32 @@ export default function nextTransformSsg({
               ++count
 
               if (
-                t.isAssignmentExpression(path.parentPath) ||
-                t.isVariableDeclarator(path.parentPath)
+                t.isAssignmentExpression(sweepPath.parentPath) ||
+                t.isVariableDeclarator(sweepPath.parentPath)
               ) {
-                path.parentPath.remove()
+                sweepPath.parentPath.remove()
               } else {
-                path.remove()
+                sweepPath.remove()
               }
             }
           }
 
           function sweepImport(
-            path: NodePath<
+            sweepPath: NodePath<
               | BabelTypes.ImportSpecifier
               | BabelTypes.ImportDefaultSpecifier
               | BabelTypes.ImportNamespaceSpecifier
             >
-          ) {
-            const local = path.get('local')
+          ): void {
+            const local = sweepPath.get('local')
             if (refs.has(local) && !isIdentifierReferenced(local)) {
               ++count
-              path.remove()
+              sweepPath.remove()
               if (
-                (path.parent as BabelTypes.ImportDeclaration).specifiers
+                (sweepPath.parent as BabelTypes.ImportDeclaration).specifiers
                   .length === 0
               ) {
-                path.parentPath.remove()
+                sweepPath.parentPath.remove()
               }
             }
           }
@@ -220,15 +362,76 @@ export default function nextTransformSsg({
 
             path.traverse({
               // eslint-disable-next-line no-loop-func
-              VariableDeclarator(path) {
-                if (path.node.id.type !== 'Identifier') {
-                  return
-                }
+              VariableDeclarator(variablePath) {
+                if (variablePath.node.id.type === 'Identifier') {
+                  const local = variablePath.get('id') as NodePath<
+                    BabelTypes.Identifier
+                  >
+                  if (refs.has(local) && !isIdentifierReferenced(local)) {
+                    ++count
+                    variablePath.remove()
+                  }
+                } else if (variablePath.node.id.type === 'ObjectPattern') {
+                  const pattern = variablePath.get('id') as NodePath<
+                    BabelTypes.ObjectPattern
+                  >
 
-                const local = path.get('id') as NodePath<BabelTypes.Identifier>
-                if (refs.has(local) && !isIdentifierReferenced(local)) {
-                  ++count
-                  path.remove()
+                  const beforeCount = count
+                  const properties = pattern.get('properties')
+                  properties.forEach((p) => {
+                    const local = p.get(
+                      p.node.type === 'ObjectProperty'
+                        ? 'value'
+                        : p.node.type === 'RestElement'
+                        ? 'argument'
+                        : (function () {
+                            throw new Error('invariant')
+                          })()
+                    ) as NodePath<BabelTypes.Identifier>
+
+                    if (refs.has(local) && !isIdentifierReferenced(local)) {
+                      ++count
+                      p.remove()
+                    }
+                  })
+
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('properties').length < 1
+                  ) {
+                    variablePath.remove()
+                  }
+                } else if (variablePath.node.id.type === 'ArrayPattern') {
+                  const pattern = variablePath.get('id') as NodePath<
+                    BabelTypes.ArrayPattern
+                  >
+
+                  const beforeCount = count
+                  const elements = pattern.get('elements')
+                  elements.forEach((e) => {
+                    let local: NodePath<BabelTypes.Identifier>
+                    if (e.node?.type === 'Identifier') {
+                      local = e as NodePath<BabelTypes.Identifier>
+                    } else if (e.node?.type === 'RestElement') {
+                      local = e.get('argument') as NodePath<
+                        BabelTypes.Identifier
+                      >
+                    } else {
+                      return
+                    }
+
+                    if (refs.has(local) && !isIdentifierReferenced(local)) {
+                      ++count
+                      e.remove()
+                    }
+                  })
+
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('elements').length < 1
+                  ) {
+                    variablePath.remove()
+                  }
                 }
               },
               FunctionDeclaration: sweepFunction,
@@ -242,70 +445,6 @@ export default function nextTransformSsg({
 
           decorateSsgExport(t, path, state)
         },
-      },
-      VariableDeclarator(path, state) {
-        if (path.node.id.type !== 'Identifier') {
-          return
-        }
-
-        const local = path.get('id') as NodePath<BabelTypes.Identifier>
-        if (isIdentifierReferenced(local)) {
-          state.refs.add(local)
-        }
-      },
-      FunctionDeclaration: markFunction,
-      FunctionExpression: markFunction,
-      ArrowFunctionExpression: markFunction,
-      ImportSpecifier: markImport,
-      ImportDefaultSpecifier: markImport,
-      ImportNamespaceSpecifier: markImport,
-      ExportNamedDeclaration(path, state) {
-        const specifiers = path.get('specifiers')
-        if (specifiers.length) {
-          specifiers.forEach(s => {
-            if (isDataIdentifier(s.node.exported.name, state)) {
-              s.remove()
-            }
-          })
-
-          if (path.node.specifiers.length < 1) {
-            path.remove()
-          }
-          return
-        }
-
-        const decl = path.get('declaration')
-        if (decl == null || decl.node == null) {
-          return
-        }
-
-        switch (decl.node.type) {
-          case 'FunctionDeclaration': {
-            const name = decl.node.id!.name
-            if (isDataIdentifier(name, state)) {
-              path.remove()
-            }
-            break
-          }
-          case 'VariableDeclaration': {
-            const inner = decl.get('declarations') as NodePath<
-              BabelTypes.VariableDeclarator
-            >[]
-            inner.forEach(d => {
-              if (d.node.id.type !== 'Identifier') {
-                return
-              }
-              const name = d.node.id.name
-              if (isDataIdentifier(name, state)) {
-                d.remove()
-              }
-            })
-            break
-          }
-          default: {
-            break
-          }
-        }
       },
     },
   }

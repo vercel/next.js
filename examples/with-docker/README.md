@@ -1,6 +1,6 @@
 # With Docker
 
-This example show how to set custom environment variables for your **docker application** at runtime.
+This example shows how to set custom environment variables for your **docker application** at runtime.
 
 The `dockerfile` is the simplest way to run Next.js app in docker, and the size of output image is `173MB`. However, for an even smaller build, you can do multi-stage builds with `dockerfile.multistage`. The size of output image is `85MB`.
 
@@ -10,10 +10,10 @@ You can check the [Example Dockerfile for your own Node.js project](https://gith
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-docker with-docker-app
+npx create-next-app --example with-docker with-docker-app
 # or
 yarn create next-app --example with-docker with-docker-app
 ```
@@ -23,7 +23,7 @@ yarn create next-app --example with-docker with-docker-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-docker
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-docker
 cd with-docker
 ```
 
@@ -47,14 +47,7 @@ Run the docker image:
 ```bash
 docker run --rm -it \
   -p 3000:3000 \
-  -e "API_URL=https://example.com" \
   next-app
 ```
 
 or use `yarn build-docker-multistage`
-
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now --docker -e API_URL="https://example.com"
-```

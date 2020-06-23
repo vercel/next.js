@@ -36,7 +36,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 The Next.js router allows you to do client-side route transitions between pages, similarly to a single-page application.
 
-A special React component called `Link` is provided to do this client-side route transition.
+A React component called `Link` is provided to do this client-side route transition.
 
 ```jsx
 import Link from 'next/link'
@@ -84,12 +84,30 @@ function Home() {
 export default Home
 ```
 
+The `as` prop can also be generated dynamically. For example, to show a list of posts which have been passed to the page as a prop:
+
+```jsx
+function Home({ posts }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>
+          <Link href="/blog/[slug]" as={`/blog/${post.slug}`}>
+            <a>{post.title}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
 ## Injecting the router
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
 

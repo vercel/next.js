@@ -1,12 +1,14 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { join } from 'path'
 import { stringify } from 'querystring'
-
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { isTargetLikeServerless } from '../next-server/server/config'
-import { warn } from './output/log'
-import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { warn } from './output/log'
+import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
+import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { LoadedEnvFiles } from '../lib/load-env-config'
 
 type PagesMapping = {
   [page: string]: string
@@ -22,7 +24,6 @@ export function createPagesMapping(
       let page = `${pagePath
         .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
-      page = page === '/index' ? '/' : page
 
       const pageKey = page === '' ? '/' : page
 
@@ -63,7 +64,9 @@ export function createEntrypoints(
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
-  config: any
+  previewMode: __ApiPreviewProps,
+  config: any,
+  loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
@@ -81,21 +84,24 @@ export function createEntrypoints(
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     canonicalBase: config.canonicalBase,
-    basePath: config.experimental.basePath,
+    basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
           publicRuntimeConfig: config.publicRuntimeConfig,
           serverRuntimeConfig: config.serverRuntimeConfig,
         })
       : '',
+    previewProps: JSON.stringify(previewMode),
+    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
   }
 
-  Object.keys(pages).forEach(page => {
+  Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
-    const bundleFile = `${normalizePagePath(page)}.js`
+    const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
 
-    const bundlePath = join('static', buildId, 'pages', bundleFile)
+    const clientBundlePath = join('static', 'pages', bundleFile)
+    const serverBundlePath = join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -105,18 +111,18 @@ export function createEntrypoints(
         absolutePagePath,
         ...defaultServerlessOptions,
       }
-      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      server[bundlePath] = [absolutePagePath]
+      server[serverBundlePath] = [absolutePagePath]
     } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
         ...defaultServerlessOptions,
       }
-      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
     }
@@ -126,16 +132,19 @@ export function createEntrypoints(
     }
 
     if (!isApiRoute) {
-      const pageLoader = `next-client-pages-loader?${stringify({
+      const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
-      })}!`
+      }
+      const pageLoader = `next-client-pages-loader?${stringify(
+        pageLoaderOpts
+      )}!`
 
-      // Make sure next/router is a dependency of _app or else granularChunks
+      // Make sure next/router is a dependency of _app or else chunk splitting
       // might cause the router to not be able to load causing hydration
       // to fail
 
-      client[bundlePath] =
+      client[clientBundlePath] =
         page === '/_app'
           ? [pageLoader, require.resolve('../client/router')]
           : pageLoader

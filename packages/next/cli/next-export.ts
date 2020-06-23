@@ -6,7 +6,7 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextExport: cliCommand = argv => {
+const nextExport: cliCommand = (argv) => {
   const args = arg(
     {
       // Types
@@ -32,8 +32,8 @@ const nextExport: cliCommand = argv => {
       Usage
         $ next export [options] <dir>
 
-      <dir> represents where the compiled dist folder should go.
-      If no directory is provided, the 'out' folder will be created in the current directory.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         -h - list this help
@@ -60,7 +60,7 @@ const nextExport: cliCommand = argv => {
     .then(() => {
       printAndExit('Export successful', 0)
     })
-    .catch(err => {
+    .catch((err) => {
       printAndExit(err)
     })
 }

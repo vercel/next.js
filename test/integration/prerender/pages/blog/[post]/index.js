@@ -1,9 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import 'firebase/firestore'
 
-// eslint-disable-next-line camelcase
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   return {
     paths: [
       '/blog/post-1',
@@ -13,13 +13,15 @@ export async function unstable_getStaticPaths() {
       '/blog/post.1',
       '/blog/post.1', // handle duplicates
     ],
+    fallback: true,
   }
 }
 
-// eslint-disable-next-line camelcase
-export async function unstable_getStaticProps({ params }) {
+let counter = 0
+
+export async function getStaticProps({ params }) {
   if (params.post === 'post-10') {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(() => resolve(), 1000)
     })
   }
@@ -28,13 +30,19 @@ export async function unstable_getStaticProps({ params }) {
     throw new Error('such broken..')
   }
 
+  if (params.post === 'post-999') {
+    if (++counter < 3) {
+      throw new Error('try again..')
+    }
+  }
+
   return {
     props: {
       params,
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
-    revalidate: 10,
+    unstable_revalidate: 10,
   }
 }
 

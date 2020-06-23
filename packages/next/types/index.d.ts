@@ -3,12 +3,15 @@
 /// <reference types="react-dom" />
 
 import React from 'react'
+import { ParsedUrlQuery } from 'querystring'
+import { IncomingMessage, ServerResponse } from 'http'
 
 import {
   NextPageContext,
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
+  NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
@@ -50,9 +53,87 @@ export type PageConfig = {
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
     bodyParser?: { sizeLimit?: number | string } | false
+    /**
+     * Flag to disable warning "API page resolved
+     * without sending a response", due to explicitly
+     * using an external API resolver, like express
+     */
+    externalResolver?: true
   }
+  env?: Array<string>
+  unstable_runtimeJS?: false
 }
 
-export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  NextApiHandler,
+}
+
+export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
+  params?: Q
+  preview?: boolean
+  previewData?: any
+}
+
+export type GetStaticPropsResult<P> = {
+  props: P
+  unstable_revalidate?: number | boolean
+}
+
+export type GetStaticProps<
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (context: GetStaticPropsContext<Q>) => Promise<GetStaticPropsResult<P>>
+
+export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
+  ? P
+  : T extends (
+      context?: GetStaticPropsContext<any>
+    ) => Promise<GetStaticPropsResult<infer P>>
+  ? P
+  : never
+
+export type GetStaticPaths<
+  P extends ParsedUrlQuery = ParsedUrlQuery
+> = () => Promise<{
+  paths: Array<string | { params: P }>
+  fallback: boolean
+}>
+
+export type GetServerSidePropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = {
+  req: IncomingMessage
+  res: ServerResponse
+  params?: Q
+  query: ParsedUrlQuery
+  preview?: boolean
+  previewData?: any
+}
+
+export type GetServerSidePropsResult<P> = {
+  props: P
+}
+
+export type GetServerSideProps<
+  P extends { [key: string]: any } = { [key: string]: any },
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (
+  context: GetServerSidePropsContext<Q>
+) => Promise<GetServerSidePropsResult<P>>
+
+export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
+  infer P,
+  any
+>
+  ? P
+  : T extends (
+      context?: GetServerSidePropsContext<any>
+    ) => Promise<GetServerSidePropsResult<infer P>>
+  ? P
+  : never
 
 export default next

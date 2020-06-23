@@ -6,10 +6,10 @@ This example shows how to import WebAssembly files (`.wasm`) and use them inside
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-webassembly with-webassembly-app
+npx create-next-app --example with-webassembly with-webassembly-app
 # or
 yarn create next-app --example with-webassembly with-webassembly-app
 ```
@@ -19,7 +19,7 @@ yarn create next-app --example with-webassembly with-webassembly-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-webassembly
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-webassembly
 cd with-webassembly
 ```
 
@@ -37,8 +37,4 @@ yarn dev
 
 To compile `src/add.rs` to `add.wasm` use `npm run build-rust`.
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
-
-```bash
-now
-```
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

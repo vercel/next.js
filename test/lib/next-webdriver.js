@@ -15,6 +15,7 @@ const {
   BROWSERSTACK_ACCESS_KEY,
   HEADLESS,
   CHROME_BIN,
+  LEGACY_SAFARI,
 } = process.env
 
 let capabilities = {}
@@ -36,6 +37,12 @@ if (isBrowserStack) {
     os: 'OS X',
     os_version: 'Mojave',
     browser: 'Safari',
+  }
+  const safariLegacyOpts = {
+    os: 'OS X',
+    os_version: 'Sierra',
+    browserName: 'Safari',
+    browser_version: '10.1',
   }
   const ieOpts = {
     os: 'Windows',
@@ -60,7 +67,7 @@ if (isBrowserStack) {
     ...sharedOpts,
 
     ...(isIE ? ieOpts : {}),
-    ...(isSafari ? safariOpts : {}),
+    ...(isSafari ? (LEGACY_SAFARI ? safariLegacyOpts : safariOpts) : {}),
     ...(isFirefox ? firefoxOpts : {}),
   }
 }
@@ -97,16 +104,6 @@ let browser = new Builder()
   .build()
 
 global.wd = browser
-
-/*
-  # Methods to match
-
-  - elementByCss
-  - elementsByCss
-  - waitForElementByCss
-  - elementByCss.text
-  - elementByCss.click
-*/
 
 let initialWindow
 let deviceIP = 'localhost'
@@ -151,7 +148,7 @@ const freshWindow = async () => {
   await newTabLink.click()
 
   allWindows = await browser.getAllWindowHandles()
-  const newWindow = allWindows.find(win => win !== initialWindow)
+  const newWindow = allWindows.find((win) => win !== initialWindow)
   await browser.switchTo().window(newWindow)
 }
 
@@ -159,7 +156,7 @@ export default async (appPort, path, waitHydration = true) => {
   if (!initialWindow) {
     initialWindow = await browser.getWindowHandle()
   }
-  if (isBrowserStack && deviceIP === 'localhost') {
+  if (isBrowserStack && deviceIP === 'localhost' && !LEGACY_SAFARI) {
     await getDeviceIP()
   }
   // browser.switchTo().window() fails with `missing field `handle``
@@ -178,7 +175,7 @@ export default async (appPort, path, waitHydration = true) => {
   // Wait for application to hydrate
   if (waitHydration) {
     console.log(`\n> Waiting hydration for ${url}\n`)
-    await browser.executeAsyncScript(function() {
+    await browser.executeAsyncScript(function () {
       var callback = arguments[arguments.length - 1]
 
       // if it's not a Next.js app return
@@ -190,7 +187,7 @@ export default async (appPort, path, waitHydration = true) => {
         callback()
       } else {
         var timeout = setTimeout(callback, 10 * 1000)
-        window.__NEXT_HYDRATED_CB = function() {
+        window.__NEXT_HYDRATED_CB = function () {
           clearTimeout(timeout)
           callback()
         }

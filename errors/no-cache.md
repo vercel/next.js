@@ -1,12 +1,12 @@
 # No Cache Detected
 
-#### Why This Error Occurred
+### Why This Error Occurred
 
 A Next.js build was triggered in a continuous integration environment, but no cache was detected.
 
 This results in slower builds and can hurt Next.js' persistent caching of client-side bundles across builds.
 
-#### Possible Ways to Fix It
+### Possible Ways to Fix It
 
 > **Note**: If this is a new project, or being built for the first time in your CI, you can ignore this error.
 > However, you'll want to make sure it doesn't continue to happen and fix it if it does!
@@ -15,11 +15,11 @@ Configure Next.js' cache to be persisted across builds. Next.js stores its cache
 
 Storing this folder across builds varies by CI provider. We've provided a list of a few common providers below.
 
-**ZEIT Now**
+#### Vercel
 
 Next.js caching is automatically configured for you. There's no action required on your part.
 
-**CircleCI**
+#### CircleCI
 
 Edit your `save_cache` step in `.circleci/config.yml` to include `.next/cache`:
 
@@ -34,7 +34,7 @@ steps:
 
 If you do not have a `save_cache` key, please follow CircleCI's [documentation on setting up build caching](https://circleci.com/docs/2.0/caching/).
 
-**Travis CI**
+#### Travis CI
 
 Add or merge the following into your `.travis.yml`:
 
@@ -46,7 +46,7 @@ cache:
     - .next/cache
 ```
 
-**GitLab CI**
+#### GitLab CI
 
 Add or merge the following into your `.gitlab-ci.yml`:
 
@@ -58,13 +58,11 @@ cache:
     - .next/cache/
 ```
 
-**Netlify CI**
+#### Netlify CI
 
-It is **not possible** to cache custom build files on Netlify. Please contact their support and request they support this behavior.
+Use [Netlify Plugins](https://www.netlify.com/products/build/plugins/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
 
-You can investigate using a 3rd party solution (e.g. [`cache-me-outside`](https://github.com/DavidWells/cache-me-outside)) to manually cache the Next.js output.
-
-**AWS CodeBuild**
+#### AWS CodeBuild
 
 Add (or merge in) the following to your `buildspec.yml`:
 
@@ -75,7 +73,7 @@ cache:
     - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
 ```
 
-**GitHub Actions**
+#### GitHub Actions
 
 Using GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
 
@@ -86,7 +84,7 @@ with:
   key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
 ```
 
-**Bitbucket Pipelines**
+#### Bitbucket Pipelines
 
 Add or merge the following into your `bitbucket-pipelines.yml` at the top level (same level as `pipelines`):
 
@@ -104,4 +102,12 @@ Then reference it in the `caches` section of your pipeline's `step`:
     caches:
       - node
       - nextcache
+```
+
+#### Heroku
+
+Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-support#custom-caching), add a `cacheDirectories` array in your top-level package.json:
+
+```javascript
+"cacheDirectories": [".next/cache"]
 ```

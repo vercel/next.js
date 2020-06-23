@@ -1,20 +1,16 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'strip-ansi'
-
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
-import forkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import { NormalizedMessage } from 'fork-ts-checker-webpack-plugin/lib/NormalizedMessage'
-import { createCodeframeFormatter } from 'fork-ts-checker-webpack-plugin/lib/formatter/codeframeFormatter'
 
 export function startedDevelopmentServer(appUrl: string) {
   consoleStore.setState({ appUrl })
 }
 
-let previousClient: any = null
-let previousServer: any = null
+let previousClient: import('webpack').Compiler | null = null
+let previousServer: import('webpack').Compiler | null = null
 
 type CompilerDiagnosticsWithFile = {
   errors: { file: string | undefined; message: string }[] | null
@@ -28,10 +24,7 @@ type CompilerDiagnostics = {
 
 type WebpackStatus =
   | { loading: true }
-  | ({
-      loading: false
-      typeChecking: boolean
-    } & CompilerDiagnostics)
+  | ({ loading: false } & CompilerDiagnostics)
 
 type AmpStatus = {
   message: string
@@ -54,7 +47,6 @@ type BuildStatusStore = {
 enum WebpackStatusPhase {
   COMPILING = 1,
   COMPILED_WITH_ERRORS = 2,
-  TYPE_CHECKING = 3,
   COMPILED_WITH_WARNINGS = 4,
   COMPILED = 5,
 }
@@ -65,9 +57,6 @@ function getWebpackStatusPhase(status: WebpackStatus): WebpackStatusPhase {
   }
   if (status.errors) {
     return WebpackStatusPhase.COMPILED_WITH_ERRORS
-  }
-  if (status.typeChecking) {
-    return WebpackStatusPhase.TYPE_CHECKING
   }
   if (status.warnings) {
     return WebpackStatusPhase.COMPILED_WITH_WARNINGS
@@ -131,7 +120,7 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 
 const buildStore = createStore<BuildStatusStore>()
 
-buildStore.subscribe(state => {
+buildStore.subscribe((state) => {
   const { amp, client, server } = state
 
   const [{ status }] = [
@@ -155,23 +144,9 @@ buildStore.subscribe(state => {
       true
     )
   } else {
-    let { errors, warnings, typeChecking } = status
+    let { errors, warnings } = status
 
     if (errors == null) {
-      if (typeChecking) {
-        consoleStore.setState(
-          {
-            ...partialState,
-            loading: false,
-            typeChecking: true,
-            errors,
-            warnings,
-          } as OutputState,
-          true
-        )
-        return
-      }
-
       if (Object.keys(amp).length > 0) {
         warnings = (warnings || []).concat(formatAmpMessages(amp) || [])
         if (!warnings.length) warnings = null
@@ -200,10 +175,10 @@ export function ampValidation(
   if (!(errors.length || warnings.length)) {
     buildStore.setState({
       amp: Object.keys(amp)
-        .filter(k => k !== page)
+        .filter((k) => k !== page)
         .sort()
         // eslint-disable-next-line no-sequences
-        .reduce((a, c) => ((a[c] = amp[c]), a), {} as any),
+        .reduce((a, c) => ((a[c] = amp[c]), a), {} as AmpPageStatus),
     })
     return
   }
@@ -213,15 +188,13 @@ export function ampValidation(
     amp: Object.keys(newAmp)
       .sort()
       // eslint-disable-next-line no-sequences
-      .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as any),
+      .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as AmpPageStatus),
   })
 }
 
 export function watchCompilers(
-  client: any,
-  server: any,
-  enableTypeCheckingOnClient: boolean,
-  onTypeChecked: (diagnostics: CompilerDiagnostics) => void
+  client: import('webpack').Compiler,
+  server: import('webpack').Compiler
 ) {
   if (previousClient === client && previousServer === server) {
     return
@@ -235,131 +208,37 @@ export function watchCompilers(
   function tapCompiler(
     key: string,
     compiler: any,
-    hasTypeChecking: boolean,
     onEvent: (status: WebpackStatus) => void
   ) {
-    let tsMessagesPromise: Promise<CompilerDiagnosticsWithFile> | undefined
-    let tsMessagesResolver: (diagnostics: CompilerDiagnosticsWithFile) => void
-
     compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
-      tsMessagesPromise = undefined
       onEvent({ loading: true })
     })
 
-    if (hasTypeChecking) {
-      const typescriptFormatter = createCodeframeFormatter({})
+    compiler.hooks.done.tap(
+      `NextJsDone-${key}`,
+      (stats: import('webpack').Stats) => {
+        buildStore.setState({ amp: {} })
 
-      compiler.hooks.beforeCompile.tap(`NextJs-${key}-StartTypeCheck`, () => {
-        tsMessagesPromise = new Promise(resolve => {
-          tsMessagesResolver = msgs => resolve(msgs)
-        })
-      })
-
-      forkTsCheckerWebpackPlugin
-        .getCompilerHooks(compiler)
-        .receive.tap(
-          `NextJs-${key}-afterTypeScriptCheck`,
-          (diagnostics: NormalizedMessage[], lints: NormalizedMessage[]) => {
-            const allMsgs = [...diagnostics, ...lints]
-            const format = (message: NormalizedMessage) =>
-              typescriptFormatter(message, true)
-
-            const errors = allMsgs
-              .filter(msg => msg.severity === 'error')
-              .map(d => ({
-                file: (d.file || '').replace(/\\/g, '/'),
-                message: format(d),
-              }))
-            const warnings = allMsgs
-              .filter(msg => msg.severity === 'warning')
-              .map(d => ({
-                file: (d.file || '').replace(/\\/g, '/'),
-                message: format(d),
-              }))
-
-            tsMessagesResolver({
-              errors: errors.length ? errors : null,
-              warnings: warnings.length ? warnings : null,
-            })
-          }
+        const { errors, warnings } = formatWebpackMessages(
+          stats.toJson({ all: false, warnings: true, errors: true })
         )
-    }
 
-    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: any) => {
-      buildStore.setState({ amp: {} })
+        const hasErrors = !!errors?.length
+        const hasWarnings = !!warnings?.length
 
-      const { errors, warnings } = formatWebpackMessages(
-        stats.toJson({ all: false, warnings: true, errors: true })
-      )
-
-      const hasErrors = !!errors?.length
-      const hasWarnings = !!warnings?.length
-
-      onEvent({
-        loading: false,
-        typeChecking: hasTypeChecking,
-        errors: hasErrors ? errors : null,
-        warnings: hasWarnings ? warnings : null,
-      })
-
-      const typePromise = tsMessagesPromise
-
-      if (!hasErrors && typePromise) {
-        typePromise.then(typeMessages => {
-          if (typePromise !== tsMessagesPromise) {
-            // a new compilation started so we don't care about this
-            return
-          }
-
-          const reportFiles = stats.compilation.modules
-            .map((m: any) => (m.resource || '').replace(/\\/g, '/'))
-            .filter(Boolean)
-
-          let filteredErrors = typeMessages.errors
-            ? typeMessages.errors
-                .filter(({ file }) => file && reportFiles.includes(file))
-                .map(({ message }) => message)
-            : null
-          if (filteredErrors && filteredErrors.length < 1) {
-            filteredErrors = null
-          }
-          let filteredWarnings = typeMessages.warnings
-            ? typeMessages.warnings
-                .filter(({ file }) => file && reportFiles.includes(file))
-                .map(({ message }) => message)
-            : null
-          if (filteredWarnings && filteredWarnings.length < 1) {
-            filteredWarnings = null
-          }
-
-          stats.compilation.errors.push(...(filteredErrors || []))
-          stats.compilation.warnings.push(...(filteredWarnings || []))
-          onTypeChecked({
-            errors: stats.compilation.errors.length
-              ? stats.compilation.errors
-              : null,
-            warnings: stats.compilation.warnings.length
-              ? stats.compilation.warnings
-              : null,
-          })
-
-          onEvent({
-            loading: false,
-            typeChecking: false,
-            errors: filteredErrors,
-            warnings: hasWarnings
-              ? [...warnings, ...(filteredWarnings || [])]
-              : filteredWarnings,
-          })
+        onEvent({
+          loading: false,
+          errors: hasErrors ? errors : null,
+          warnings: hasWarnings ? warnings : null,
         })
       }
-    })
+    )
   }
 
-  tapCompiler('client', client, enableTypeCheckingOnClient, status =>
+  tapCompiler('client', client, (status) =>
     buildStore.setState({ client: status })
   )
-  tapCompiler('server', server, false, status =>
+  tapCompiler('server', server, (status) =>
     buildStore.setState({ server: status })
   )
 

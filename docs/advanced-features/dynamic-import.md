@@ -7,7 +7,7 @@ description: Dynamically import JavaScript modules and React Components and spli
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-dynamic-import">Dynamic Import</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import">Dynamic Import</a></li>
   </ul>
 </details>
 
@@ -16,6 +16,8 @@ Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dy
 You can think of dynamic imports as another way to split your code into manageable chunks.
 
 ## Basic usage
+
+In the following example, the module `../components/hello` will be dynamically loaded by the page:
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -35,18 +37,25 @@ function Home() {
 export default Home
 ```
 
+`DynamicComponent` will be the default component returned by `../components/hello`. It works like a regular React Component, and you can pass props to it as you normally would.
+
 ## With named exports
 
+If the dynamic component is not the default export, you can use a named export too. Consider the module `../components/hello.js` which has a named export `Hello`:
+
 ```jsx
-// components/hello.js
 export function Hello() {
   return <p>Hello!</p>
 }
+```
 
+To dynamically import the `Hello` component, you can return it from the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) returned by [`import()`](https://github.com/tc39/proposal-dynamic-import#example), like so:
+
+```jsx
 import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() =>
-  import('../components/hello').then(mod => mod.Hello)
+  import('../components/hello').then((mod) => mod.Hello)
 )
 
 function Home() {
@@ -63,6 +72,8 @@ export default Home
 ```
 
 ## With custom loading component
+
+An optional `loading` component can be added to render a loading state while the dynamic component is being loaded. For example:
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -87,7 +98,7 @@ export default Home
 
 ## With no SSR
 
-You may not always want to include a module on server-side, For example, when the module includes a library that only works in the browser.
+You may not always want to include a module on server-side. For example, when the module includes a library that only works in the browser.
 
 Take a look at the following example:
 

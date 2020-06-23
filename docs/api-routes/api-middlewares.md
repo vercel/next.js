@@ -4,6 +4,14 @@ description: API Routes provide built-in middlewares that parse the incoming r
 
 # API Middlewares
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
+  </ul>
+</details>
+
 API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
 
 - `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
@@ -48,32 +56,63 @@ export const config = {
 }
 ```
 
-## Micro support
-
-As an added bonus, you can also use any [Micro](https://github.com/zeit/micro) compatible middleware.
-
-For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging [micro-cors](https://github.com/possibilities/micro-cors).
-
-First, install `micro-cors`:
-
-```bash
-npm i micro-cors
-# or
-yarn add micro-cors
-```
-
-Now, let's add `micro-cors` to the API route:
+`externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
 
 ```js
-import Cors from 'micro-cors'
+export const config = {
+  api: {
+    externalResolver: true,
+  },
+}
+```
 
+## Connect/Express middleware support
+
+You can also use [Connect](https://github.com/senchalabs/connect) compatible middleware.
+
+For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging the [cors](https://www.npmjs.com/package/cors) package.
+
+First, install `cors`:
+
+```bash
+npm i cors
+# or
+yarn add cors
+```
+
+Now, let's add `cors` to the API route:
+
+```js
+import Cors from 'cors'
+
+// Initializing the cors middleware
 const cors = Cors({
-  allowMethods: ['GET', 'HEAD'],
+  methods: ['GET', 'HEAD'],
 })
 
-function handler(req, res) {
+// Helper method to wait for a middleware to execute before continuing
+// And to throw an error when an error happens in a middleware
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result) => {
+      if (result instanceof Error) {
+        return reject(result)
+      }
+
+      return resolve(result)
+    })
+  })
+}
+
+async function handler(req, res) {
+  // Run the middleware
+  await runMiddleware(req, res, cors)
+
+  // Rest of the API logic
   res.json({ message: 'Hello Everyone!' })
 }
 
-export default cors(handler)
+export default handler
 ```
+
+> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app

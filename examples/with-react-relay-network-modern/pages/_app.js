@@ -1,56 +1,6 @@
-import React from 'react'
-import { QueryRenderer, fetchQuery } from 'react-relay'
-import NextApp from 'next/app'
+import { createEnvironment } from '../lib/createEnvironment'
 
-import { initEnvironment, createEnvironment } from '../lib/createEnvironment'
-
-export default class App extends NextApp {
-  static getInitialProps = async ({ Component, router, ctx }) => {
-    const { variables } = Component.getInitialProps
-      ? await Component.getInitialProps(ctx)
-      : {}
-
-    try {
-      if (initEnvironment && Component.query) {
-        const { environment, relaySSR } = initEnvironment()
-
-        await fetchQuery(environment, Component.query, variables)
-
-        return {
-          variables,
-          relayData: await relaySSR.getCache(),
-        }
-      }
-    } catch (e) {
-      console.log(e)
-    }
-
-    return {
-      variables,
-    }
-  }
-
-  render() {
-    const { Component, variables = {}, relayData } = this.props
-    const environment = createEnvironment(
-      relayData,
-      JSON.stringify({
-        queryID: Component.query ? Component.query().params.name : undefined,
-        variables,
-      })
-    )
-
-    return (
-      <QueryRenderer
-        environment={environment}
-        query={Component.query}
-        variables={variables}
-        render={({ error, props }) => {
-          if (error) return <div>{error.message}</div>
-          else if (props) return <Component {...props} />
-          return <div>Loading</div>
-        }}
-      />
-    )
-  }
+export default function App({ Component, pageProps }) {
+  const environment = createEnvironment(pageProps.records)
+  return <Component {...pageProps} environment={environment} />
 }

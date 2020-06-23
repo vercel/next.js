@@ -6,10 +6,10 @@
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-netlify-cms with-netlify-cms-app
+npx create-next-app --example with-netlify-cms with-netlify-cms-app
 # or
 yarn create next-app --example with-netlify-cms with-netlify-cms-app
 ```
@@ -19,7 +19,7 @@ yarn create next-app --example with-netlify-cms with-netlify-cms-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-netlify-cms
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-netlify-cms
 cd with-netlify-cms
 ```
 
@@ -33,11 +33,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## How it works
 
@@ -45,5 +41,4 @@ Sites take its content from markdown files in `/content`. Two of pages (`home` a
 
 Blog component loads all posts (during build!) and lists them out [How to load multiple md files](https://medium.com/@shawnstern/importing-multiple-markdown-files-into-a-react-component-with-webpack-7548559fce6f)
 
-Posts are separate static sites thanks to dynamically created export map. I took inspiration on how to do it from
-[here](https://medium.com/@joranquinten/for-my-own-website-i-used-next-js-725678e65b09)
+Updated to take advantange of the new `getStaticPaths` and `getStaticProps` data-fetching functions.

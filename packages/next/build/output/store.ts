@@ -1,5 +1,5 @@
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'strip-ansi'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 import * as Log from './log'
 
@@ -17,12 +17,14 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
-let lastStore: OutputState = {} as any
+let lastStore: OutputState = { appUrl: null, bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
-    [
+    ([
       ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-    ].every(key => Object.is((lastStore as any)[key], (nextStore as any)[key]))
+    ] as Array<keyof OutputState>).every((key) =>
+      Object.is(lastStore[key], nextStore[key])
+    )
   ) {
     return false
   }
@@ -31,21 +33,20 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
-store.subscribe(state => {
+store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
   }
 
   if (state.bootstrap) {
-    Log.wait('starting the development server ...')
     if (state.appUrl) {
-      Log.info(`waiting on ${state.appUrl} ...`)
+      Log.ready(`started server on ${state.appUrl}`)
     }
     return
   }
 
   if (state.loading) {
-    Log.wait('compiling ...')
+    Log.wait('compiling...')
     return
   }
 
@@ -59,7 +60,7 @@ store.subscribe(state => {
         for (const match of matches) {
           const prop = (match.split(']').shift() || '').substr(1)
           console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://err.sh/zeit/next.js/amp-bind-jsx-alt`
+            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://err.sh/vercel/next.js/amp-bind-jsx-alt`
           )
         }
         return
@@ -82,8 +83,5 @@ store.subscribe(state => {
     return
   }
 
-  Log.ready(
-    'compiled successfully' +
-      (state.appUrl ? ` - ready on ${state.appUrl}` : '')
-  )
+  Log.event('compiled successfully')
 })

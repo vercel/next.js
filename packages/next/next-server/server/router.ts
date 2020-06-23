@@ -1,5 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { UrlWithParsedQuery } from 'url'
+import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { ParsedUrlQuery } from 'querystring'
+import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
@@ -32,39 +34,126 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 
+export const prepareDestination = (
+  destination: string,
+  params: Params,
+  query: ParsedUrlQuery,
+  appendParamsToQuery?: boolean
+) => {
+  const parsedDestination = parseUrl(destination, true)
+  const destQuery = parsedDestination.query
+  let destinationCompiler = compilePathToRegex(
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
+    // we don't validate while compiling the destination since we should
+    // have already validated before we got to this point and validating
+    // breaks compiling destinations with named pattern params from the source
+    // e.g. /something:hello(.*) -> /another/:hello is broken with validation
+    // since compile validation is meant for reversing and not for inserting
+    // params from a separate path-regex into another
+    { validate: false }
+  )
+  let newUrl
+
+  // update any params in query values
+  for (const [key, strOrArray] of Object.entries(destQuery)) {
+    let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
+    if (value) {
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      value = `/${value}`
+      const queryCompiler = compilePathToRegex(value, { validate: false })
+      value = queryCompiler(params).substr(1)
+    }
+    destQuery[key] = value
+  }
+
+  // add path params to query if it's not a redirect and not
+  // already defined in destination query
+  if (appendParamsToQuery) {
+    for (const [name, value] of Object.entries(params)) {
+      if (!(name in destQuery)) {
+        destQuery[name] = value
+      }
+    }
+  }
+
+  try {
+    newUrl = encodeURI(destinationCompiler(params))
+
+    const [pathname, hash] = newUrl.split('#')
+    parsedDestination.pathname = pathname
+    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
+    parsedDestination.path = `${pathname}${parsedDestination.search}`
+    delete parsedDestination.search
+  } catch (err) {
+    if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
+      throw new Error(
+        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/vercel/next.js/invalid-multi-match`
+      )
+    }
+    throw err
+  }
+
+  // Query merge order lowest priority to highest
+  // 1. initial URL query values
+  // 2. path segment values
+  // 3. destination specified query values
+  parsedDestination.query = {
+    ...query,
+    ...parsedDestination.query,
+  }
+
+  return {
+    newUrl,
+    parsedDestination,
+  }
+}
+
 export default class Router {
-  routes: Route[]
+  headers: Route[]
   fsRoutes: Route[]
+  rewrites: Route[]
+  redirects: Route[]
   catchAllRoute: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
+  useFileSystemPublicRoutes: boolean
 
   constructor({
-    routes = [],
+    headers = [],
     fsRoutes = [],
+    rewrites = [],
+    redirects = [],
     catchAllRoute,
     dynamicRoutes = [],
     pageChecker,
+    useFileSystemPublicRoutes,
   }: {
-    routes: Route[]
+    headers: Route[]
     fsRoutes: Route[]
+    rewrites: Route[]
+    redirects: Route[]
     catchAllRoute: Route
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
   }) {
-    this.routes = routes
+    this.headers = headers
     this.fsRoutes = fsRoutes
+    this.rewrites = rewrites
+    this.redirects = redirects
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
     this.dynamicRoutes = dynamicRoutes
+    this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
     this.dynamicRoutes = routes
   }
 
-  add(route: Route) {
-    this.routes.unshift(route)
+  addFsRoute(fsRoute: Route) {
+    this.fsRoutes.unshift(fsRoute)
   }
 
   async execute(
@@ -73,29 +162,69 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
-    const pageChecks: { [name: string]: boolean } = {}
+    const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       if (pageChecks[p]) {
         return pageChecks[p]
       }
-      const result = await this.pageChecker(p)
+      const result = this.pageChecker(p)
       pageChecks[p] = result
       return result
     }
 
     let parsedUrlUpdated = parsedUrl
 
-    for (const route of [...this.fsRoutes, ...this.routes]) {
-      const newParams = route.match(parsedUrlUpdated.pathname)
+    /*
+      Desired routes order
+      - headers
+      - redirects
+      - Check filesystem (including pages), if nothing found continue
+      - User rewrites (checking filesystem and pages each match)
+    */
+
+    const allRoutes = [
+      ...this.headers,
+      ...this.redirects,
+      ...this.fsRoutes,
+      // We only check the catch-all route if public page routes hasn't been
+      // disabled
+      ...(this.useFileSystemPublicRoutes
+        ? [
+            {
+              type: 'route',
+              name: 'Page checker',
+              match: route('/:path*'),
+              fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
+                const { pathname } = parsedCheckerUrl
+
+                if (!pathname) {
+                  return { finished: false }
+                }
+                if (await memoizedPageChecker(pathname)) {
+                  return this.catchAllRoute.fn(
+                    checkerReq,
+                    checkerRes,
+                    params,
+                    parsedCheckerUrl
+                  )
+                }
+                return { finished: false }
+              },
+            } as Route,
+          ]
+        : []),
+      ...this.rewrites,
+      // We only check the catch-all route if public page routes hasn't been
+      // disabled
+      ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
+    ]
+
+    for (const testRoute of allRoutes) {
+      const newParams = testRoute.match(parsedUrlUpdated.pathname)
 
       // Check if the match function matched
       if (newParams) {
-        // Combine parameters and querystring
-        if (route.type === 'rewrite' || route.type === 'redirect') {
-          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
-        }
-
-        const result = await route.fn(req, res, newParams, parsedUrlUpdated)
+        const result = await testRoute.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled
         if (result.finished) {
@@ -114,19 +243,19 @@ export default class Router {
         }
 
         // check filesystem
-        if (route.check === true) {
+        if (testRoute.check === true) {
           for (const fsRoute of this.fsRoutes) {
             const fsParams = fsRoute.match(parsedUrlUpdated.pathname)
 
             if (fsParams) {
-              const result = await fsRoute.fn(
+              const fsResult = await fsRoute.fn(
                 req,
                 res,
                 fsParams,
                 parsedUrlUpdated
               )
 
-              if (result.finished) {
+              if (fsResult.finished) {
                 return true
               }
             }

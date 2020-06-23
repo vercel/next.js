@@ -1,10 +1,11 @@
-import babelLoader from 'babel-loader'
+import babelLoader from 'next/dist/compiled/babel-loader'
+import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
-import hash from 'string-hash'
+import * as Log from '../../output/log'
 
-// increment 'j' to invalidate cache
+// increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'j' + '-'
+const cacheKey = 'babel-cache-' + 'm' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -20,7 +21,7 @@ const getModernOptions = (babelOptions = {}) => {
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
-    // Blacklist accidental inclusions
+    // Block accidental inclusions
     'transform-regenerator',
     'transform-async-to-generator',
   ]
@@ -32,10 +33,10 @@ const getModernOptions = (babelOptions = {}) => {
   }
 }
 
-const nextBabelPresetModern = presetOptions => context =>
+const nextBabelPresetModern = (presetOptions) => (context) =>
   nextBabelPreset(context, getModernOptions(presetOptions))
 
-module.exports = babelLoader.custom(babel => {
+module.exports = babelLoader.custom((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -59,7 +60,7 @@ module.exports = babelLoader.custom(babel => {
         hasModern: opts.hasModern,
         babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
-        polyfillsOptimization: opts.polyfillsOptimization,
+        hasReactRefresh: opts.hasReactRefresh,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -72,8 +73,9 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
-                (opts.polyfillsOptimization ? '-new-polyfills' : '') +
+                '-new-polyfills' +
                 (opts.development ? '-development' : '-production') +
+                (opts.hasReactRefresh ? '-react-refresh' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -95,8 +97,8 @@ module.exports = babelLoader.custom(babel => {
       delete loader.hasModern
       delete loader.pagesDir
       delete loader.babelPresetPlugins
-      delete loader.polyfillsOptimization
       delete loader.development
+      delete loader.hasReactRefresh
       return { loader, custom }
     },
     config(
@@ -110,7 +112,7 @@ module.exports = babelLoader.custom(babel => {
           pagesDir,
           babelPresetPlugins,
           development,
-          polyfillsOptimization,
+          hasReactRefresh,
         },
       }
     ) {
@@ -123,8 +125,7 @@ module.exports = babelLoader.custom(babel => {
           // We only log for client compilation otherwise there will be double output
           if (file && !isServer && !configs.has(file)) {
             configs.add(file)
-            console.log(`> Using external babel configuration`)
-            console.log(`> Location: "${file}"`)
+            Log.info(`Using external babel configuration from ${file}`)
           }
         }
       } else {
@@ -134,10 +135,17 @@ module.exports = babelLoader.custom(babel => {
 
       options.caller.isServer = isServer
       options.caller.isModern = isModern
-      options.caller.polyfillsOptimization = polyfillsOptimization
       options.caller.isDev = development
 
       options.plugins = options.plugins || []
+
+      if (hasReactRefresh) {
+        const reactRefreshPlugin = babel.createConfigItem(
+          [require('react-refresh/babel'), { skipEnvCheck: true }],
+          { type: 'plugin' }
+        )
+        options.plugins.unshift(reactRefreshPlugin)
+      }
 
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
@@ -160,11 +168,11 @@ module.exports = babelLoader.custom(babel => {
 
       if (isModern) {
         const nextPreset = options.presets.find(
-          preset => preset && preset.value === nextBabelPreset
+          (preset) => preset && preset.value === nextBabelPreset
         ) || { options: {} }
 
         const additionalPresets = options.presets.filter(
-          preset => preset !== nextPreset
+          (preset) => preset !== nextPreset
         )
 
         const presetItemModern = babel.createConfigItem(

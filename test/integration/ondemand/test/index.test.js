@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
@@ -13,11 +13,13 @@ import {
   waitFor,
   check,
   getBrowserBodyText,
+  getPageFileFromBuildManifest,
 } from 'next-test-utils'
 
+const appDir = join(__dirname, '../')
 const context = {}
 
-const doPing = page => {
+const doPing = (page) => {
   const controller = new AbortController()
   const signal = controller.signal
   return fetchViaHTTP(
@@ -25,8 +27,8 @@ const doPing = page => {
     '/_next/webpack-hmr',
     { page },
     { signal }
-  ).then(res => {
-    res.body.on('data', chunk => {
+  ).then((res) => {
+    res.body.on('data', (chunk) => {
       try {
         const payload = JSON.parse(chunk.toString().split('data:')[1])
         if (payload.success || payload.invalid) {
@@ -37,13 +39,13 @@ const doPing = page => {
   })
 }
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 describe('On Demand Entries', () => {
   it('should pass', () => {})
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(appDir, context.appPort)
   })
   afterAll(() => {
     killApp(context.server)
@@ -58,36 +60,35 @@ describe('On Demand Entries', () => {
   })
 
   it('should compile pages for JSON page requests', async () => {
+    await renderViaHTTP(context.appPort, '/about')
+    const pageFile = getPageFileFromBuildManifest(appDir, '/about')
     const pageContent = await renderViaHTTP(
       context.appPort,
-      '/_next/static/development/pages/about.js'
+      join('/_next', pageFile)
     )
     expect(pageContent.includes('About Page')).toBeTruthy()
   })
 
   it('should dispose inactive pages', async () => {
-    const indexPagePath = resolve(
-      __dirname,
-      '../.next/static/development/pages/index.js'
-    )
+    await renderViaHTTP(context.appPort, '/')
+    await doPing('/')
+    const indexPage = getPageFileFromBuildManifest(appDir, '/')
+
+    const indexPagePath = resolve(__dirname, join('../.next', indexPage))
     expect(existsSync(indexPagePath)).toBeTruthy()
 
     // Render two pages after the index, since the server keeps at least two pages
     await renderViaHTTP(context.appPort, '/about')
     await doPing('/about')
-    const aboutPagePath = resolve(
-      __dirname,
-      '../.next/static/development/pages/about.js'
-    )
+    const aboutPage = getPageFileFromBuildManifest(appDir, '/about')
+    const aboutPagePath = resolve(__dirname, join('../.next', aboutPage))
 
     await renderViaHTTP(context.appPort, '/third')
     await doPing('/third')
-    const thirdPagePath = resolve(
-      __dirname,
-      '../.next/static/development/pages/third.js'
-    )
+    const thirdPage = getPageFileFromBuildManifest(appDir, '/third')
+    const thirdPagePath = resolve(__dirname, join('../.next', thirdPage))
 
-    // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
+    // Wait maximum of jest.setTimeout checking
     // for disposing /about
     while (true) {
       await waitFor(1000 * 1)

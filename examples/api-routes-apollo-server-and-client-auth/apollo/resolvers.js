@@ -1,76 +1,39 @@
 import { AuthenticationError, UserInputError } from 'apollo-server-micro'
-import cookie from 'cookie'
-import jwt from 'jsonwebtoken'
-import getConfig from 'next/config'
-import bcrypt from 'bcrypt'
-import v4 from 'uuid/v4'
-
-const JWT_SECRET = getConfig().serverRuntimeConfig.JWT_SECRET
-
-const users = []
-
-function createUser(data) {
-  const salt = bcrypt.genSaltSync()
-
-  return {
-    id: v4(),
-    email: data.email,
-    hashedPassword: bcrypt.hashSync(data.password, salt),
-  }
-}
-
-function validPassword(user, password) {
-  return bcrypt.compareSync(password, user.hashedPassword)
-}
+import { createUser, findUser, validatePassword } from '../lib/user'
+import { setLoginSession, getLoginSession } from '../lib/auth'
+import { removeTokenCookie } from '../lib/auth-cookies'
 
 export const resolvers = {
   Query: {
     async viewer(_parent, _args, context, _info) {
-      const { token } = cookie.parse(context.req.headers.cookie ?? '')
-      if (token) {
-        try {
-          const { id, email } = jwt.verify(token, JWT_SECRET)
+      try {
+        const session = await getLoginSession(context.req)
 
-          return users.find(user => user.id === id && user.email === email)
-        } catch {
-          throw new AuthenticationError(
-            'Authentication token is invalid, please log in'
-          )
+        if (session) {
+          return findUser({ email: session.email })
         }
+      } catch (error) {
+        throw new AuthenticationError(
+          'Authentication token is invalid, please log in'
+        )
       }
     },
   },
   Mutation: {
     async signUp(_parent, args, _context, _info) {
-      const user = createUser(args.input)
-
-      users.push(user)
-
+      const user = await createUser(args.input)
       return { user }
     },
-
     async signIn(_parent, args, context, _info) {
-      const user = users.find(user => user.email === args.input.email)
+      const user = await findUser({ email: args.input.email })
 
-      if (user && validPassword(user, args.input.password)) {
-        const token = jwt.sign(
-          { email: user.email, id: user.id, time: new Date() },
-          JWT_SECRET,
-          {
-            expiresIn: '6h',
-          }
-        )
+      if (user && (await validatePassword(user, args.input.password))) {
+        const session = {
+          id: user.id,
+          email: user.email,
+        }
 
-        context.res.setHeader(
-          'Set-Cookie',
-          cookie.serialize('token', token, {
-            httpOnly: true,
-            maxAge: 6 * 60 * 60,
-            path: '/',
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production',
-          })
-        )
+        await setLoginSession(context.res, session)
 
         return { user }
       }
@@ -78,17 +41,7 @@ export const resolvers = {
       throw new UserInputError('Invalid email and password combination')
     },
     async signOut(_parent, _args, context, _info) {
-      context.res.setHeader(
-        'Set-Cookie',
-        cookie.serialize('token', '', {
-          httpOnly: true,
-          maxAge: -1,
-          path: '/',
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
-        })
-      )
-
+      removeTokenCookie(context.res)
       return true
     },
   },

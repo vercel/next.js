@@ -1,4 +1,4 @@
-import curry from 'lodash.curry'
+import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
 import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
@@ -25,14 +25,10 @@ const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
 export const css = curry(async function css(
-  enabled: boolean,
-  scssEnabled: boolean,
   ctx: ConfigurationContext,
   config: Configuration
 ) {
-  if (!enabled) {
-    return config
-  }
+  const { prependData: sassPrependData, ...sassOptions } = ctx.sassOptions
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
@@ -43,6 +39,8 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
+        sassOptions,
+        prependData: sassPrependData,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead
@@ -91,7 +89,7 @@ export const css = curry(async function css(
           test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
-          issuer: { test: /pages[\\/]_document\./ },
+          issuer: /pages[\\/]_document\./,
           use: {
             loader: 'error-loader',
             options: {
@@ -119,49 +117,44 @@ export const css = curry(async function css(
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
           issuer: {
-            include: [ctx.rootDirectory],
-            exclude: /node_modules/,
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, postCssPlugins),
         },
       ],
     })
   )
-  if (scssEnabled) {
-    fns.push(
-      loader({
-        oneOf: [
-          // Opt-in support for Sass (using .scss or .sass extensions).
-          {
-            // Sass Modules should never have side effects. This setting will
-            // allow unused Sass to be removed from the production build.
-            // We ensure this by disallowing `:global()` Sass at the top-level
-            // via the `pure` mode in `css-loader`.
-            sideEffects: false,
-            // Sass Modules are activated via this specific extension.
-            test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              include: [ctx.rootDirectory],
-              exclude: /node_modules/,
-            },
-            use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
+  fns.push(
+    loader({
+      oneOf: [
+        // Opt-in support for Sass (using .scss or .sass extensions).
+        {
+          // Sass Modules should never have side effects. This setting will
+          // allow unused Sass to be removed from the production build.
+          // We ensure this by disallowing `:global()` Sass at the top-level
+          // via the `pure` mode in `css-loader`.
+          sideEffects: false,
+          // Sass Modules are activated via this specific extension.
+          test: regexSassModules,
+          // Sass Modules are only supported in the user's application. We're
+          // not yet allowing Sass imports _within_ `node_modules`.
+          issuer: {
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
           },
-        ],
-      })
-    )
-  }
+          use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
+        },
+      ],
+    })
+  )
 
   // Throw an error for CSS Modules used outside their supported scope
   fns.push(
     loader({
       oneOf: [
         {
-          test: [
-            regexCssModules,
-            (scssEnabled && regexSassModules) as RegExp,
-          ].filter(Boolean),
+          test: [regexCssModules, regexSassModules].filter(Boolean),
           use: {
             loader: 'error-loader',
             options: {
@@ -178,11 +171,8 @@ export const css = curry(async function css(
       loader({
         oneOf: [
           {
-            test: [
-              regexCssGlobal,
-              (scssEnabled && regexSassGlobal) as RegExp,
-            ].filter(Boolean),
-            use: require.resolve('ignore-loader'),
+            test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
+            use: require.resolve('next/dist/compiled/ignore-loader'),
           },
         ],
       })
@@ -198,30 +188,28 @@ export const css = curry(async function css(
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
             test: regexCssGlobal,
-            issuer: { include: ctx.customAppFile },
+            issuer: { and: [ctx.customAppFile] },
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
       })
     )
-    if (scssEnabled) {
-      fns.push(
-        loader({
-          oneOf: [
-            {
-              // A global Sass import always has side effects. Webpack will tree
-              // shake the Sass without this option if the issuer claims to have
-              // no side-effects.
-              // See https://github.com/webpack/webpack/issues/6571
-              sideEffects: true,
-              test: regexSassGlobal,
-              issuer: { include: ctx.customAppFile },
-              use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
-            },
-          ],
-        })
-      )
-    }
+    fns.push(
+      loader({
+        oneOf: [
+          {
+            // A global Sass import always has side effects. Webpack will tree
+            // shake the Sass without this option if the issuer claims to have
+            // no side-effects.
+            // See https://github.com/webpack/webpack/issues/6571
+            sideEffects: true,
+            test: regexSassGlobal,
+            issuer: { and: [ctx.customAppFile] },
+            use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
+          },
+        ],
+      })
+    )
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
@@ -229,11 +217,8 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [
-            regexCssGlobal,
-            (scssEnabled && regexSassGlobal) as RegExp,
-          ].filter(Boolean),
-          issuer: { include: [/node_modules/] },
+          test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
+          issuer: { and: [/node_modules/] },
           use: {
             loader: 'error-loader',
             options: {
@@ -250,10 +235,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [
-            regexCssGlobal,
-            (scssEnabled && regexSassGlobal) as RegExp,
-          ].filter(Boolean),
+          test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
           use: {
             loader: 'error-loader',
             options: {
@@ -276,13 +258,13 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: regexLikeCss },
+            issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {
               // `file-loader` always emits a URL reference, where `url-loader`
               // might inline the asset as a data URI
-              loader: require.resolve('file-loader'),
+              loader: require.resolve('next/dist/compiled/file-loader'),
               options: {
                 // Hash the file for immutable cacheability
                 name: 'static/media/[name].[hash].[ext]',

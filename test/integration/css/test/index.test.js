@@ -1,22 +1,22 @@
 /* eslint-env jest */
-/* global jasmine */
+import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
+  check,
+  File,
   findPort,
+  killApp,
+  launchApp,
   nextBuild,
   nextStart,
-  launchApp,
-  killApp,
-  File,
-  waitFor,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
+import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
@@ -40,7 +40,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
@@ -68,7 +68,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
@@ -96,7 +96,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -125,7 +125,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -156,14 +156,14 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}"`
+        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
       )
 
       // Contains a source map
@@ -174,7 +174,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
       const cssMapContent = (
@@ -184,12 +184,16 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
             color: green;
           }
+        }
+
+        .flex-parsing {
+          flex: 0 0 calc(50% - var(--vertical-gutter));
         }
         ",
           ],
@@ -219,7 +223,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -347,12 +351,14 @@ describe('CSS Support', () => {
         const cssFile = new File(join(appDir, 'styles/global1.css'))
         try {
           cssFile.replace('color: red', 'color: purple')
-          await waitFor(2000) // wait for HMR
 
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('.red-text')).color`
+              ),
+            'rgb(128, 0, 128)'
           )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
 
           // ensure text remained
           expect(await browser.elementById('text-input').getValue()).toBe(
@@ -545,7 +551,7 @@ describe('CSS Support', () => {
       const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -557,11 +563,8 @@ describe('CSS Support', () => {
       expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
-          .map(fileName =>
-            /^(.+?)\..{32}\.(.+?)$/
-              .exec(fileName)
-              .slice(1)
-              .join('.')
+          .map((fileName) =>
+            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -594,7 +597,7 @@ describe('CSS Support', () => {
       const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -606,11 +609,8 @@ describe('CSS Support', () => {
       expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
-          .map(fileName =>
-            /^(.+?)\..{32}\.(.+?)$/
-              .exec(fileName)
-              .slice(1)
-              .join('.')
+          .map((fileName) =>
+            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -643,7 +643,7 @@ describe('CSS Support', () => {
       const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -655,11 +655,8 @@ describe('CSS Support', () => {
       expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
-          .map(fileName =>
-            /^(.+?)\..{32}\.(.+?)$/
-              .exec(fileName)
-              .slice(1)
-              .join('.')
+          .map((fileName) =>
+            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -691,7 +688,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -718,7 +715,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -802,6 +799,123 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Ordering with Global CSS and Modules (dev)', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should not execute scripts in any order', async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      let asyncCount = 0
+      let totalCount = 0
+      for (const script of $('script').toArray()) {
+        ++totalCount
+        if ('async' in script.attribs) {
+          ++asyncCount
+        }
+      }
+
+      expect(asyncCount).toBe(0)
+      expect(totalCount).not.toBe(0)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+
+    it('should have the correct color (css ordering) during hot reloads', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#blueText')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        const yellowColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#yellowText')).color`
+        )
+        expect(yellowColor).toMatchInlineSnapshot(`"rgb(255, 255, 0)"`)
+
+        const cssFile = new File(join(appDir, 'pages/index.module.css'))
+        try {
+          cssFile.replace('color: yellow;', 'color: rgb(1, 1, 1);')
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('#yellowText')).color`
+              ),
+            'rgb(1, 1, 1)'
+          )
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('#blueText')).color`
+              ),
+            'rgb(0, 0, 255)'
+          )
+        } finally {
+          cssFile.restore()
+        }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Ordering with Global CSS and Modules (prod)', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
+
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+  })
+
   describe('Basic Tailwind CSS', () => {
     const appDir = join(fixturesDir, 'with-tailwindcss')
 
@@ -815,13 +929,14 @@ describe('CSS Support', () => {
       })
       expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toContain('.css')
     })
 
     it(`should've compiled and prefixed`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -837,7 +952,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
     })
@@ -862,7 +977,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssFiles = files.filter(f => /\.css$/.test(f))
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
@@ -879,7 +994,7 @@ describe('CSS Support', () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
     })

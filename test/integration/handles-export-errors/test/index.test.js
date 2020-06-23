@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 const appDir = path.join(__dirname, '..')
 
 describe('Handles Errors During Export', () => {
@@ -14,5 +14,11 @@ describe('Handles Errors During Export', () => {
     })
 
     expect(stdout + stderr).not.toMatch(/ERR_IPC_CHANNEL_CLOSED/)
+    expect(stderr).toContain('Export encountered errors on following paths')
+    expect(stderr).toContain('/page')
+    expect(stderr).toContain('/page-1')
+    expect(stderr).toContain('/page-2')
+    expect(stderr).toContain('/page-3')
+    expect(stderr).toContain('/page-13')
   })
 })

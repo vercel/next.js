@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -11,7 +11,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../app')
 let appPort
@@ -43,7 +43,7 @@ function runTests() {
 
   it('should render styles during SSR (AMP)', async () => {
     const html = await renderViaHTTP(appPort, '/amp')
-    expect(html).toMatch(/color:.*?cyan/)
+    expect(html).toMatch(/color:.*?#0ff/)
   })
 }
 

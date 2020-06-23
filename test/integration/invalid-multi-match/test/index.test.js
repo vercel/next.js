@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   launchApp,
@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 let stderr = ''
@@ -19,20 +19,22 @@ let app
 
 const runTests = () => {
   it('should show error for invalid mulit-match', async () => {
-    await renderViaHTTP(appPort, '/hello')
+    await renderViaHTTP(appPort, '/random')
     expect(stderr).toContain(
       'To use a multi-match in the destination you must add'
     )
-    expect(stderr).toContain('https://err.sh/zeit/next.js/invalid-multi-match')
+    expect(stderr).toContain(
+      'https://err.sh/vercel/next.js/invalid-multi-match'
+    )
   })
 }
 
-describe('Custom routes', () => {
+describe('Custom routes invalid multi-match', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -46,7 +48,7 @@ describe('Custom routes', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })

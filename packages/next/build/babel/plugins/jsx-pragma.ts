@@ -1,7 +1,6 @@
-import { NodePath, PluginObj } from '@babel/core'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 
-export default function({
+export default function ({
   types: t,
 }: {
   types: typeof BabelTypes
@@ -9,13 +8,13 @@ export default function({
   return {
     inherits: require('babel-plugin-syntax-jsx'),
     visitor: {
-      JSXElement(path, state) {
+      JSXElement(_path, state) {
         state.set('jsx', true)
       },
 
       // Fragment syntax is still JSX since it compiles to createElement(),
       // but JSXFragment is not a JSXElement
-      JSXFragment(path, state) {
+      JSXFragment(_path, state) {
         state.set('jsx', true)
       },
 

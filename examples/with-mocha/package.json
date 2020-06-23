@@ -2,7 +2,7 @@
   "name": "with-mocha",
   "version": "1.0.0",
   "scripts": {
-    "test": "NODE_ENV=test mocha",
+    "test": "cross-env NODE_ENV=test mocha",
     "dev": "next",
     "build": "next build",
     "start": "next start"
@@ -15,9 +15,10 @@
   "devDependencies": {
     "@babel/core": "^7.0.1",
     "@babel/register": "^7.0.0",
-    "enzyme": "^3.6.0",
-    "enzyme-adapter-react-16": "^1.5.0",
+    "cross-env": "7.0.2",
+    "enzyme": "^3.11.0",
+    "enzyme-adapter-react-16": "^1.15.2",
     "expect.js": "^0.3.1",
-    "mocha": "^5.2.0"
+    "mocha": "^7.1.1"
   }
 }

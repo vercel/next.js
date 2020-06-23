@@ -1,0 +1,7 @@
+__generated__/
+schema/schema.graphql
+lib/
+.merlin
+*.bs.js
+node_modules
+.next

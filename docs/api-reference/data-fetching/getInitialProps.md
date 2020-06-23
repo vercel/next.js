@@ -4,10 +4,17 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
+> **Recommended: [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)**
+>
+> If you're using Next.js 9.3 or newer, we recommend that you use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
+>
+> These new data fetching methods allow you to have a granular choice between static generation and server-side rendering.
+> Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data fetching](/docs/basic-features/data-fetching.md):
+
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
   </ul>
 </details>
 
@@ -15,17 +22,15 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 > `getInitialProps` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
-`getInitialProps` is an [`async`](https://zeit.co/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
+`getInitialProps` is an [`async`](https://vercel.com/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
 
 ```jsx
-import fetch from 'isomorphic-unfetch'
-
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
 
-Page.getInitialProps = async ctx => {
-  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+Page.getInitialProps = async (ctx) => {
+  const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const json = await res.json()
   return { stars: json.stargazers_count }
 }
@@ -37,11 +42,10 @@ Or using a class component:
 
 ```jsx
 import React from 'react'
-import fetch from 'isomorphic-unfetch'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const res = await fetch('https://api.github.com/repos/vercel/next.js')
     const json = await res.json()
     return { stars: json.stargazers_count }
   }
@@ -58,7 +62,7 @@ export default Page
 
 Data returned from `getInitialProps` is serialized when server rendering, similar to what [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) does. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using [`next/router`](/docs/api-reference/next/router.md).
+For the initial page load, `getInitialProps` will run on the server only. `getInitialProps` will then run on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using [`next/router`](/docs/api-reference/next/router.md).
 
 ## Context Object
 
@@ -76,9 +80,62 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 - `getInitialProps` can **not** be used in children components, only in the default export of every page
 - If you are using server-side only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
 
+## TypeScript
+
+If you're using TypeScript, you can use the `NextPage` type for function components:
+
+```jsx
+import { NextPage } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
+)
+
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
+}
+
+export default Page
+```
+
+And for `React.Component`, you can use `NextPageContext`:
+
+```jsx
+import React from 'react'
+import { NextPageContext } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+export default class Page extends React.Component<Props> {
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
+  }
+
+  render() {
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
+  }
+}
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/data-fetching.md">
+    <b>Data Fetching:</b>
+    <small>Learn more about data fetching in Next.js.</small>
+  </a>
+</div>
 
 <div class="card">
   <a href="/docs/basic-features/pages.md">
@@ -88,8 +145,8 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching.md">
-    <b>Data Fetching:</b>
-    <small>Learn more about data fetching in Next.js.</small>
+  <a href="/docs/advanced-features/automatic-static-optimization.md">
+    <b>Automatic Static Optimization:</b>
+    <small>Learn about how Nextjs automatically optimizes your pages.</small>
   </a>
 </div>

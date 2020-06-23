@@ -7,7 +7,7 @@ description: Extend the babel preset added by Next.js with your own configs.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-custom-babel-config">Customizing babel configuration</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-custom-babel-config">Customizing babel configuration</a></li>
   </ul>
 </details>
 
@@ -24,17 +24,9 @@ Here's an example `.babelrc` file:
 }
 ```
 
-The `next/babel` presets includes:
+You can [take a look at this file](https://github.com/vercel/next.js/blob/canary/packages/next/build/babel/preset.ts) to learn about the presets included by `next/babel`.
 
-- preset-env
-- preset-react
-- preset-typescript
-- plugin-proposal-class-properties
-- plugin-proposal-object-rest-spread
-- plugin-transform-runtime
-- styled-jsx
-
-These presets/plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset, like so:
+To configure these presets/plugins, **do not** add them to `presets` or `plugins` in your custom `.babelrc`. Instead, configure them on the `next/babel` preset, like so:
 
 ```json
 {
@@ -57,4 +49,4 @@ To learn more about the available options for each config, visit their documenta
 
 > Next.js uses the **current** Node.js version for server-side compilations.
 
-> The `modules` option on `"preset-env"` should be kept to `false`, otherwise webpack code splitting is disabled.
+> The `modules` option on `"preset-env"` should be kept to `false`, otherwise webpack code splitting is turned off.

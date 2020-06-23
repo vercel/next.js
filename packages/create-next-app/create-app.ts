@@ -1,35 +1,94 @@
+/* eslint-disable import/no-extraneous-dependencies */
+import retry from 'async-retry'
 import chalk from 'chalk'
 import cpy from 'cpy'
 import fs from 'fs'
 import makeDir from 'make-dir'
 import os from 'os'
 import path from 'path'
-
-import { downloadAndExtractExample, hasExample } from './helpers/examples'
+import {
+  downloadAndExtractExample,
+  downloadAndExtractRepo,
+  getRepoInfo,
+  hasExample,
+  hasRepo,
+  RepoInfo,
+} from './helpers/examples'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 
+export class DownloadError extends Error {}
+
 export async function createApp({
   appPath,
   useNpm,
   example,
+  examplePath,
 }: {
   appPath: string
   useNpm: boolean
   example?: string
-}) {
+  examplePath?: string
+}): Promise<void> {
+  let repoInfo: RepoInfo | undefined
+
   if (example) {
-    const found = await hasExample(example)
-    if (!found) {
-      console.error(
-        `Could not locate an example named ${chalk.red(
-          `"${example}"`
-        )}. Please check your spelling and try again.`
-      )
-      process.exit(1)
+    let repoUrl: URL | undefined
+
+    try {
+      repoUrl = new URL(example)
+    } catch (error) {
+      if (error.code !== 'ERR_INVALID_URL') {
+        console.error(error)
+        process.exit(1)
+      }
+    }
+
+    if (repoUrl) {
+      if (repoUrl.origin !== 'https://github.com') {
+        console.error(
+          `Invalid URL: ${chalk.red(
+            `"${example}"`
+          )}. Only GitHub repositories are supported. Please use a GitHub URL and try again.`
+        )
+        process.exit(1)
+      }
+
+      repoInfo = await getRepoInfo(repoUrl, examplePath)
+
+      if (!repoInfo) {
+        console.error(
+          `Found invalid GitHub URL: ${chalk.red(
+            `"${example}"`
+          )}. Please fix the URL and try again.`
+        )
+        process.exit(1)
+      }
+
+      const found = await hasRepo(repoInfo)
+
+      if (!found) {
+        console.error(
+          `Could not locate the repository for ${chalk.red(
+            `"${example}"`
+          )}. Please check that the repository exists and try again.`
+        )
+        process.exit(1)
+      }
+    } else if (example !== '__internal-testing-retry') {
+      const found = await hasExample(example)
+
+      if (!found) {
+        console.error(
+          `Could not locate an example named ${chalk.red(
+            `"${example}"`
+          )}. Please check your spelling and try again.`
+        )
+        process.exit(1)
+      }
     }
   }
 
@@ -53,14 +112,32 @@ export async function createApp({
   process.chdir(root)
 
   if (example) {
-    console.log(
-      `Downloading files for example ${chalk.cyan(
-        example
-      )}. This might take a moment.`
-    )
-    console.log()
-    await downloadAndExtractExample(root, example)
-
+    try {
+      if (repoInfo) {
+        const repoInfo2 = repoInfo
+        console.log(
+          `Downloading files from repo ${chalk.cyan(
+            example
+          )}. This might take a moment.`
+        )
+        console.log()
+        await retry(() => downloadAndExtractRepo(root, repoInfo2), {
+          retries: 3,
+        })
+      } else {
+        console.log(
+          `Downloading files for example ${chalk.cyan(
+            example
+          )}. This might take a moment.`
+        )
+        console.log()
+        await retry(() => downloadAndExtractExample(root, example), {
+          retries: 3,
+        })
+      }
+    } catch (reason) {
+      throw new DownloadError(reason)
+    }
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
     if (!fs.existsSync(ignorePath)) {
@@ -100,10 +177,15 @@ export async function createApp({
     await cpy('**', root, {
       parents: true,
       cwd: path.join(__dirname, 'templates', 'default'),
-      rename: name => {
+      rename: (name) => {
         switch (name) {
           case 'gitignore': {
             return '.'.concat(name)
+          }
+          // README.md is ignored by webpack-asset-relocator-loader used by ncc:
+          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+          case 'README-template.md': {
+            return 'README.md'
           }
           default: {
             return name

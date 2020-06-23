@@ -1,23 +1,22 @@
-import { NextPage } from 'next'
+import { GetStaticProps } from 'next'
 import Link from 'next/link'
 
+import { User } from '../../interfaces'
+import { sampleUserData } from '../../utils/sample-data'
 import Layout from '../../components/Layout'
 import List from '../../components/List'
-import { User } from '../../interfaces'
-import { sampleFetchWrapper } from '../../utils/sample-api'
 
 type Props = {
   items: User[]
-  pathname: string
 }
 
-const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
+const WithStaticProps = ({ items }: Props) => (
   <Layout title="Users List | Next.js + TypeScript Example">
     <h1>Users List</h1>
     <p>
-      Example fetching data from inside <code>getInitialProps()</code>.
+      Example fetching data from inside <code>getStaticProps()</code>.
     </p>
-    <p>You are currently on: {pathname}</p>
+    <p>You are currently on: /users</p>
     <List items={items} />
     <p>
       <Link href="/">
@@ -27,15 +26,12 @@ const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
   </Layout>
 )
 
-WithInitialProps.getInitialProps = async ({ pathname }) => {
-  // Example for including initial props in a Next.js function component page.
+export const getStaticProps: GetStaticProps = async () => {
+  // Example for including static props in a Next.js function component page.
   // Don't forget to include the respective types for any props passed into
   // the component.
-  const items: User[] = await sampleFetchWrapper(
-    'http://localhost:3000/api/users'
-  )
-
-  return { items, pathname }
+  const items: User[] = sampleUserData
+  return { props: { items } }
 }
 
-export default WithInitialProps
+export default WithStaticProps

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { writeFile, remove } from 'fs-extra'
@@ -12,14 +12,14 @@ import {
   File,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let appPort
 let app
 let output
 
-const handleOutput = msg => {
+const handleOutput = (msg) => {
   output += msg
 }
 
@@ -43,10 +43,27 @@ describe('TypeScript Features', () => {
     it('should render the page', async () => {
       const $ = await get$('/hello')
       expect($('body').text()).toMatch(/Hello World/)
+      expect($('body').text()).toMatch(/1000000000000/)
     })
 
-    it('should report type checking to stdout', async () => {
+    it('should resolve files in correct order', async () => {
+      const $ = await get$('/hello')
+      expect($('#imported-value').text()).toBe('OK')
+    })
+
+    // old behavior:
+    it.skip('should report type checking to stdout', async () => {
       expect(output).toContain('waiting for typecheck results...')
+    })
+
+    it('should respond to sync API route correctly', async () => {
+      const data = JSON.parse(await renderViaHTTP(appPort, '/api/sync'))
+      expect(data).toEqual({ code: 'ok' })
+    })
+
+    it('should respond to async API route correctly', async () => {
+      const data = JSON.parse(await renderViaHTTP(appPort, '/api/async'))
+      expect(data).toEqual({ code: 'ok' })
     })
 
     it('should not fail to render when an inactive page has an error', async () => {
@@ -72,9 +89,10 @@ export default function EvilPage(): JSX.Element {
     })
   })
 
-  it('should compile the app', async () => {
+  it('should build the app', async () => {
     const output = await nextBuild(appDir, [], { stdout: true })
     expect(output.stdout).toMatch(/Compiled successfully/)
+    expect(output.code).toBe(0)
   })
 
   describe('should compile with different types', () => {

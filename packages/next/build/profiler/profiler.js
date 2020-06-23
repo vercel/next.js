@@ -1,10 +1,9 @@
-import path from 'path'
-import mkdirp from 'mkdirp'
 import fs from 'fs'
+import path from 'path'
 
-let inspector
+let maybeInspector
 try {
-  inspector = require('inspector')
+  maybeInspector = require('inspector')
 } catch (e) {
   console.log('Unable to CPU profile in < node 8.0')
 }
@@ -25,7 +24,7 @@ class Profiler {
     }
 
     try {
-      this.session = new inspector.Session()
+      this.session = new maybeInspector.Session()
       this.session.connect()
     } catch (_) {
       this.session = undefined
@@ -44,11 +43,11 @@ class Profiler {
   sendCommand(method, params) {
     if (this.hasSession()) {
       return new Promise((resolve, reject) => {
-        return this.session.post(method, params, (err, params) => {
+        return this.session.post(method, params, (err, sessionParams) => {
           if (err !== null) {
             reject(err)
           } else {
-            resolve(params)
+            resolve(sessionParams)
           }
         })
       })
@@ -70,6 +69,7 @@ class Profiler {
   }
 }
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { Tracer } = require('chrome-trace-event')
 
 /**
@@ -85,14 +85,14 @@ const { Tracer } = require('chrome-trace-event')
  * @param {string} outputPath The location where to write the log.
  * @returns {Trace} The trace object
  */
-export const createTrace = outputPath => {
+export const createTrace = (outputPath) => {
   const trace = new Tracer({
     noStream: true,
   })
-  const profiler = new Profiler(inspector)
+  const profiler = new Profiler(maybeInspector)
   if (/\/|\\/.test(outputPath)) {
     const dirPath = path.dirname(outputPath)
-    mkdirp.sync(dirPath)
+    fs.mkdirSync(dirPath, { recursive: true })
   }
   const fsStream = fs.createWriteStream(outputPath)
 
@@ -135,7 +135,7 @@ export const createTrace = outputPath => {
     trace,
     counter,
     profiler,
-    end: callback => {
+    end: (callback) => {
       // Wait until the write stream finishes.
       fsStream.on('finish', () => {
         callback()

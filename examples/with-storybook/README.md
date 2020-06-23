@@ -6,10 +6,10 @@ This example shows a default set up of Storybook. Also included in the example i
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-storybook with-storybook-app
+npx create-next-app --example with-storybook with-storybook-app
 # or
 yarn create next-app --example with-storybook with-storybook-app
 ```
@@ -19,7 +19,7 @@ yarn create next-app --example with-storybook with-storybook-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook
 cd with-storybook
 ```
 
@@ -49,13 +49,4 @@ npm run build-storybook
 yarn build-storybook
 ```
 
-Deploy Storybook to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-npm run build-storybook
-# or
-yarn build-storybook
-# then
-cd storybook-static
-now
-```
+You can use [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.

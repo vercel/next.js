@@ -1,29 +1,28 @@
-import { NodePath, PluginObj } from '@babel/core'
-import * as BabelTypes from '@babel/types'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 import { PageConfig } from 'next/types'
-
-const configKeys = new Set(['amp'])
-const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
 // replace program path with just a variable with the drop identifier
-function replaceBundle(path: any, t: typeof BabelTypes) {
+function replaceBundle(path: any, t: typeof BabelTypes): void {
   path.parentPath.replaceWith(
     t.program(
       [
         t.variableDeclaration('const', [
           t.variableDeclarator(
-            t.identifier('config'),
-            t.assignmentExpression(
-              '=',
-              t.identifier(STRING_LITERAL_DROP_BUNDLE),
-              t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
-            )
+            t.identifier(STRING_LITERAL_DROP_BUNDLE),
+            t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
           ),
         ]),
       ],
       []
     )
   )
+}
+
+function errorMessage(state: any, details: string): string {
+  const pageName =
+    (state.filename || '').split(state.cwd || '').pop() || 'unknown'
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/vercel/next.js/invalid-page-config`
 }
 
 interface ConfigState {
@@ -43,50 +42,83 @@ export default function nextPageConfig({
           path.traverse(
             {
               ExportNamedDeclaration(
-                path: NodePath<BabelTypes.ExportNamedDeclaration>,
-                state: any
+                exportPath: NodePath<BabelTypes.ExportNamedDeclaration>,
+                exportState: any
               ) {
-                if (state.bundleDropped || !path.node.declaration) {
+                if (exportState.bundleDropped || !exportPath.node.declaration) {
                   return
                 }
 
-                const { declarations } = path.node.declaration as any
+                if (
+                  !BabelTypes.isVariableDeclaration(exportPath.node.declaration)
+                ) {
+                  return
+                }
+
+                const { declarations } = exportPath.node.declaration
                 const config: PageConfig = {}
 
-                if (!declarations) {
-                  return
-                }
                 for (const declaration of declarations) {
-                  if (declaration.id.name !== 'config') {
+                  if (
+                    !BabelTypes.isIdentifier(declaration.id, { name: 'config' })
+                  ) {
                     continue
                   }
 
-                  if (declaration.init.type !== 'ObjectExpression') {
-                    const pageName =
-                      (state.filename || '').split(state.cwd || '').pop() ||
-                      'unknown'
-
+                  if (!BabelTypes.isObjectExpression(declaration.init)) {
+                    const got = declaration.init
+                      ? declaration.init.type
+                      : 'undefined'
                     throw new Error(
-                      `Invalid page config export found. Expected object but got ${declaration.init.type} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                      errorMessage(
+                        exportState,
+                        `Expected object but got ${got}`
+                      )
                     )
                   }
 
                   for (const prop of declaration.init.properties) {
+                    if (BabelTypes.isSpreadElement(prop)) {
+                      throw new Error(
+                        errorMessage(
+                          exportState,
+                          `Property spread is not allowed`
+                        )
+                      )
+                    }
                     const { name } = prop.key
-                    if (configKeys.has(name)) {
-                      // @ts-ignore
-                      config[name] = prop.value.value
+                    if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
+                      if (!BabelTypes.isObjectProperty(prop)) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Invalid property "${name}"`
+                          )
+                        )
+                      }
+                      if (
+                        !BabelTypes.isBooleanLiteral(prop.value) &&
+                        !BabelTypes.isStringLiteral(prop.value)
+                      ) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Invalid value for "${name}"`
+                          )
+                        )
+                      }
+                      config.amp = prop.value.value as PageConfig['amp']
                     }
                   }
                 }
 
                 if (config.amp === true) {
-                  if (!state.file?.opts?.caller.isDev) {
+                  if (!exportState.file?.opts?.caller.isDev) {
                     // don't replace bundle in development so HMR can track
                     // dependencies and trigger reload when they are changed
-                    replaceBundle(path, t)
+                    replaceBundle(exportPath, t)
                   }
-                  state.bundleDropped = true
+                  exportState.bundleDropped = true
                   return
                 }
               },

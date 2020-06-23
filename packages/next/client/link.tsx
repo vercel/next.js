@@ -1,15 +1,18 @@
 declare const __NEXT_DATA__: any
 
-import { resolve, parse, UrlObject } from 'url'
-import React, { Component, Children } from 'react'
-import Router from './router'
+import React, { Children, Component } from 'react'
+import { parse, resolve, UrlObject } from 'url'
+import { PrefetchOptions } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
+import Router from './router'
+import { addBasePath } from '../next-server/lib/router/router'
+import { normalizeTrailingSlash } from '../next-server/lib/router/normalize-trailing-slash'
 
-function isLocal(href: string) {
+function isLocal(href: string): boolean {
   const url = parse(href, false, true)
   const origin = parse(getLocationOrigin(), false, true)
 
@@ -38,8 +41,21 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
-function formatUrl(url: Url) {
-  return url && typeof url === 'object' ? formatWithValidation(url) : url
+function formatTrailingSlash(url: UrlObject): UrlObject {
+  return Object.assign({}, url, {
+    pathname:
+      url.pathname &&
+      normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
+  })
+}
+
+function formatUrl(url: Url): string {
+  return (
+    url &&
+    formatWithValidation(
+      formatTrailingSlash(typeof url === 'object' ? url : parse(url))
+    )
+  )
 }
 
 export type LinkProps = {
@@ -52,16 +68,16 @@ export type LinkProps = {
   prefetch?: boolean
 }
 
-let observer: IntersectionObserver
-const listeners = new Map()
+let cachedObserver: IntersectionObserver
+const listeners = new Map<Element, () => void>()
 const IntersectionObserver =
-  typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
-const prefetched: { [href: string]: boolean } = {}
+  typeof window !== 'undefined' ? window.IntersectionObserver : null
+const prefetched: { [cacheKey: string]: boolean } = {}
 
-function getObserver() {
+function getObserver(): IntersectionObserver | undefined {
   // Return shared instance of IntersectionObserver if already created
-  if (observer) {
-    return observer
+  if (cachedObserver) {
+    return cachedObserver
   }
 
   // Only create shared IntersectionObserver if supported in browser
@@ -69,16 +85,16 @@ function getObserver() {
     return undefined
   }
 
-  return (observer = new IntersectionObserver(
-    (entries: any) => {
-      entries.forEach((entry: any) => {
+  return (cachedObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
         if (!listeners.has(entry.target)) {
           return
         }
 
-        const cb = listeners.get(entry.target)
+        const cb = listeners.get(entry.target)!
         if (entry.isIntersecting || entry.intersectionRatio > 0) {
-          observer.unobserve(entry.target)
+          cachedObserver.unobserve(entry.target)
           listeners.delete(entry.target)
           cb()
         }
@@ -88,7 +104,7 @@ function getObserver() {
   ))
 }
 
-const listenToIntersections = (el: any, cb: any) => {
+const listenToIntersections = (el: Element, cb: () => void) => {
   const observer = getObserver()
   if (!observer) {
     return () => {}
@@ -114,7 +130,7 @@ class Link extends Component<LinkProps> {
     if (process.env.NODE_ENV !== 'production') {
       if (props.prefetch) {
         console.warn(
-          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/zeit/next.js/prefetch-true-deprecated'
+          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/vercel/next.js/prefetch-true-deprecated'
         )
       }
     }
@@ -123,21 +139,31 @@ class Link extends Component<LinkProps> {
 
   cleanUpListeners = () => {}
 
-  componentWillUnmount() {
+  componentWillUnmount(): void {
     this.cleanUpListeners()
   }
 
-  getHref() {
+  getPaths(): string[] {
     const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    return resolve(pathname, parsedHref)
+    const { href: parsedHref, as: parsedAs } = this.formatUrls(
+      this.props.href,
+      this.props.as
+    )
+    const resolvedHref = resolve(pathname, parsedHref)
+    return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
 
-  handleRef(ref: Element) {
-    const isPrefetched = prefetched[this.getHref()]
+  handleRef(ref: Element): void {
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
+      const isPrefetched =
+        prefetched[
+          this.getPaths().join(
+            // Join on an invalid URI character
+            '%'
+          )
+        ]
       if (!isPrefetched) {
         this.cleanUpListeners = listenToIntersections(ref, () => {
           this.prefetch()
@@ -155,9 +181,8 @@ class Link extends Component<LinkProps> {
     }
   })
 
-  linkClicked = (e: React.MouseEvent) => {
-    // @ts-ignore target exists on currentTarget
-    const { nodeName, target } = e.currentTarget
+  linkClicked = (e: React.MouseEvent): void => {
+    const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
       ((target && target !== '_self') ||
@@ -201,17 +226,35 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch() {
+  prefetch(options?: PrefetchOptions): void {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    const href = this.getHref()
-    Router.prefetch(href)
-    prefetched[href] = true
+    const paths = this.getPaths()
+    // We need to handle a prefetch error here since we may be
+    // loading with priority which can reject but we don't
+    // want to force navigation since this is only a prefetch
+    Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
+      (err) => {
+        if (process.env.NODE_ENV !== 'production') {
+          // rethrow to show invalid URL errors
+          throw err
+        }
+      }
+    )
+    prefetched[
+      paths.join(
+        // Join on an invalid URI character
+        '%'
+      )
+    ] = true
   }
 
   render() {
     let { children } = this.props
-    const { href, as } = this.formatUrls(this.props.href, this.props.as)
+    let { href, as } = this.formatUrls(this.props.href, this.props.as)
+    as = as ? addBasePath(as) : as
+    href = addBasePath(href)
+
     // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>
@@ -239,7 +282,7 @@ class Link extends Component<LinkProps> {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
         }
-        this.prefetch()
+        this.prefetch({ priority: true })
       },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
