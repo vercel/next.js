@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 
 import CustomDonationInput from '../components/CustomDonationInput'
+import StripeTestCards from '../components/StripeTestCards'
 import PrintObject from '../components/PrintObject'
 
 import { fetchPostJSON } from '../utils/api-helpers'
@@ -130,6 +131,7 @@ const ElementsForm = () => {
           currency={config.CURRENCY}
           onChange={handleInputChange}
         />
+        <StripeTestCards />
         <fieldset className="elements-style">
           <legend>Your payment details:</legend>
           <input
