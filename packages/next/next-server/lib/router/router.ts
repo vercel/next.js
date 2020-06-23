@@ -15,6 +15,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { normalizeTrailingSlash } from './normalize-trailing-slash'
 import getAssetPathFromRoute from './utils/get-asset-path-from-route'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
@@ -43,8 +44,14 @@ function prepareUrlAs(url: Url, as: Url) {
   url = typeof url === 'object' ? formatWithValidation(url) : url
   as = typeof as === 'object' ? formatWithValidation(as) : as
 
-  url = addBasePath(url)
-  as = as ? addBasePath(as) : as
+  url = addBasePath(
+    normalizeTrailingSlash(url, !!process.env.__NEXT_TRAILING_SLASH)
+  )
+  as = as
+    ? addBasePath(
+        normalizeTrailingSlash(as, !!process.env.__NEXT_TRAILING_SLASH)
+      )
+    : as
 
   return {
     url,
