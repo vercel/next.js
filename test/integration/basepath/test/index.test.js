@@ -41,7 +41,17 @@ const runTests = (context, dev = false) => {
       expect(await hasRedbox(browser)).toBe(true)
 
       const errorSource = await getRedboxSource(browser)
-      expect(errorSource).toContain('oops heres an error')
+      expect(errorSource).toMatchInlineSnapshot(`
+        "pages/hello.js (46:14) @ onClick
+
+          44 |   id=\\"trigger-error\\"
+          45 |   onClick={() => {
+        > 46 |     throw new Error('oops heres an error')
+             |          ^
+          47 |   }}
+          48 | >
+          49 |   click me for error"
+      `)
     })
   } else {
     it('should add basePath to routes-manifest', async () => {
