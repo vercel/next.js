@@ -358,7 +358,7 @@ export default async function getBaseWebpackConfig(
         defaultVendors: false,
         framework: {
           chunks: 'all',
-          name: 'framework',
+          name: isWebpack5 ? 'static/chunks/framework' : 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
           // https://github.com/vercel/next.js/pull/9012
@@ -393,32 +393,36 @@ export default async function getBaseWebpackConfig(
               hash.update(module.libIdent({ context: dir }))
             }
 
-            return hash.digest('hex').substring(0, 8)
+            return isWebpack5
+              ? 'static/chunks/'
+              : '' + hash.digest('hex').substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
         },
         commons: {
-          name: 'commons',
+          name: (isWebpack5 ? 'static/chunks/' : '') + 'commons',
           minChunks: totalPages,
           priority: 20,
         },
         shared: {
           name(module, chunks) {
-            return (
-              crypto
-                .createHash('sha1')
-                .update(
-                  chunks.reduce(
-                    (acc: string, chunk: webpack.compilation.Chunk) => {
-                      return acc + chunk.name
-                    },
-                    ''
-                  )
-                )
-                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
-            )
+            return isWebpack5
+              ? 'static/chunks/'
+              : '' +
+                  (crypto
+                    .createHash('sha1')
+                    .update(
+                      chunks.reduce(
+                        (acc: string, chunk: webpack.compilation.Chunk) => {
+                          return acc + chunk.name
+                        },
+                        ''
+                      )
+                    )
+                    .digest('hex') +
+                    (isModuleCSS(module) ? '_CSS' : ''))
           },
           priority: 10,
           minChunks: 2,
