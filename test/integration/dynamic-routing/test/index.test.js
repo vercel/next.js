@@ -535,7 +535,7 @@ function runTests(dev) {
         basePath: '',
         headers: [],
         rewrites: [],
-        redirects: [],
+        redirects: expect.arrayContaining([]),
         dataRoutes: [
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(

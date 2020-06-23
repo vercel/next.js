@@ -8,8 +8,8 @@ import {
   findPort,
   nextBuild,
   nextStart,
-  fetchViaHTTP,
   renderViaHTTP,
+  fetchViaHTTP,
   readNextBuildClientPageFile,
   getPageFileFromPagesManifest,
 } from 'next-test-utils'
@@ -166,9 +166,22 @@ describe('Serverless Trace', () => {
     expect(param).toBe('val')
   })
 
-  it('should 404 on API request with trailing slash', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/hello/')
-    expect(res.status).toBe(404)
+  it('should reply with redirect on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    expect(res.headers.get('location')).toBe(
+      `http://localhost:${appPort}/api/hello`
+    )
+  })
+
+  it('should reply on API request with trailing slassh successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello/')
+    expect(content).toMatch(/hello world/)
   })
 
   describe('With basic usage', () => {

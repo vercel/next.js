@@ -345,6 +345,20 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
+  redirects.unshift(
+    config.experimental.trailingSlash
+      ? {
+          source: '/:path+',
+          destination: '/:path+/',
+          permanent: true,
+        }
+      : {
+          source: '/:path+/',
+          destination: '/:path+',
+          permanent: true,
+        }
+  )
+
   return {
     headers,
     rewrites,

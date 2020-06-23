@@ -236,9 +236,22 @@ describe('Serverless', () => {
     expect(param).toBe('val')
   })
 
-  it('should 404 on API request with trailing slash', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/hello/')
-    expect(res.status).toBe(404)
+  it('should reply with redirect on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    expect(res.headers.get('location')).toBe(
+      `http://localhost:${appPort}/api/hello`
+    )
+  })
+
+  it('should reply on API request with trailing slash successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello/')
+    expect(content).toMatch(/hello world/)
   })
 
   it('should have the correct query string for a dynamic route', async () => {

@@ -806,6 +806,9 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
+        'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
+          config.experimental.trailingSlash
+        ),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
