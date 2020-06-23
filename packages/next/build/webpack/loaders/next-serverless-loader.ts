@@ -29,6 +29,8 @@ export type ServerlessLoaderQuery = {
   loadedEnvFiles: string
 }
 
+const vercelHeader = 'x-vercel-id'
+
 const nextServerlessLoader: loader.Loader = function () {
   const {
     distDir,
@@ -62,6 +64,30 @@ const nextServerlessLoader: loader.Loader = function () {
     JSON.parse(previewProps) as __ApiPreviewProps
   )
 
+  const collectDynamicRouteParams = pageIsDynamicRoute
+    ? `
+      function collectDynamicRouteParams(query) {
+        const routeRegex = getRouteRegex("${page}")
+
+        return Object.keys(routeRegex.groups)
+          .reduce((prev, key) => {
+            let value = query[key]
+
+            ${
+              ''
+              // query values from the proxy aren't already split into arrays
+              // so make sure to normalize catch-all values
+            }
+            if (routeRegex.groups[key].repeat) {
+              value = value.split('/')
+            }
+
+            prev[key] = value
+            return prev
+          }, {})
+      }
+    `
+    : ''
   const envLoading = `
     const { processEnv } = require('next/dist/lib/load-env-config')
     processEnv(${loadedEnvFiles})
@@ -113,6 +139,7 @@ const nextServerlessLoader: loader.Loader = function () {
             params,
             parsedUrl.query
           )
+
           Object.assign(parsedUrl.query, parsedDestination.query, params)
           delete parsedDestination.query
 
@@ -142,6 +169,13 @@ const nextServerlessLoader: loader.Loader = function () {
     }
   `
 
+  const handleBasePath = basePath
+    ? `
+    // always strip the basePath if configured since it is required
+    req.url = req.url.replace(new RegExp('^${basePath}'), '')
+  `
+    : ''
+
   if (page.match(API_ROUTE)) {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
@@ -162,6 +196,7 @@ const nextServerlessLoader: loader.Loader = function () {
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
+      ${collectDynamicRouteParams}
 
       ${handleRewrites}
 
@@ -169,20 +204,20 @@ const nextServerlessLoader: loader.Loader = function () {
         try {
           await initServer()
 
-          ${
-            basePath
-              ? `
-          if(req.url.startsWith('${basePath}')) {
-            req.url = req.url.replace('${basePath}', '')
-          }
-          `
-              : ''
-          }
+          ${handleBasePath}
+
+          // We need to trust the dynamic route params from the proxy
+          // to ensure we are using the correct values
+          const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
             pageIsDynamicRoute
-              ? `dynamicRouteMatcher(parsedUrl.pathname)`
+              ? `
+              trustQuery
+                ? collectDynamicRouteParams(parsedUrl.query)
+                : dynamicRouteMatcher(parsedUrl.pathname)
+              `
               : `{}`
           }
 
@@ -193,18 +228,20 @@ const nextServerlessLoader: loader.Loader = function () {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
+            true,
             onError
           )
         } catch (err) {
           console.error(err)
           await onError(err)
 
+          // TODO: better error for DECODE_FAILED?
           if (err.code === 'DECODE_FAILED') {
             res.statusCode = 400
             res.end('Bad Request')
           } else {
-            res.statusCode = 500
-            res.end('Internal Server Error')
+            // Throw the error to crash the serverless function
+            throw err
           }
         }
       }
@@ -214,6 +251,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
     import 'next/dist/next-server/server/node-polyfill-fetch'
+    const {isResSent} = require('next/dist/next-server/lib/utils');
 
     ${envLoading}
     ${runtimeConfigImports}
@@ -250,21 +288,16 @@ const nextServerlessLoader: loader.Loader = function () {
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
+    ${collectDynamicRouteParams}
     ${handleRewrites}
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
-      ${
-        basePath
-          ? `
-      if(req.url.startsWith('${basePath}')) {
-        req.url = req.url.replace('${basePath}', '')
-      }
-      `
-          : ''
-      }
+
+      ${handleBasePath}
+
       const options = {
         App,
         Document,
@@ -286,7 +319,10 @@ const nextServerlessLoader: loader.Loader = function () {
       let parsedUrl
 
       try {
-        parsedUrl = handleRewrites(parse(req.url, true))
+        // We need to trust the dynamic route params from the proxy
+        // to ensure we are using the correct values
+        const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
+        const parsedUrl = handleRewrites(parse(req.url, true))
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           _nextData = true
@@ -317,7 +353,16 @@ const nextServerlessLoader: loader.Loader = function () {
 
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `
+            const params = (
+              fromExport &&
+              !getStaticProps &&
+              !getServerSideProps
+            ) ? {}
+              : trustQuery
+                ? collectDynamicRouteParams(parsedUrl.query)
+                : dynamicRouteMatcher(parsedUrl.pathname) || {};
+            `
             : `const params = {};`
         }
         ${
@@ -390,10 +435,36 @@ const nextServerlessLoader: loader.Loader = function () {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
         } else if (err.code === 'DECODE_FAILED') {
+          // TODO: better error?
           res.statusCode = 400
         } else {
-          console.error(err)
-          res.statusCode = 500
+          console.error('Unhandled error during request:', err)
+
+          // Backwards compat (call getInitialProps in custom error):
+          try {
+            await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+              getStaticProps: undefined,
+              getStaticPaths: undefined,
+              getServerSideProps: undefined,
+              Component: Error,
+              err: err,
+              // Short-circuit rendering:
+              isDataReq: true
+            }))
+          } catch (underErrorErr) {
+            console.error('Failed call /_error subroutine, continuing to crash function:', underErrorErr)
+          }
+
+          // Throw the error to crash the serverless function
+          if (isResSent(res)) {
+            console.error('!!! WARNING !!!')
+            console.error(
+              'Your function crashed, but closed the response before allowing the function to exit.\\n' +
+              'This may cause unexpected behavior for the next request.'
+            )
+            console.error('!!! WARNING !!!')
+          }
+          throw err
         }
 
         const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
@@ -414,10 +485,10 @@ const nextServerlessLoader: loader.Loader = function () {
           sendHTML(req, res, html, {generateEtags: ${generateEtags}})
         }
       } catch(err) {
-        await onError(err)
         console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
+        await onError(err)
+        // Throw the error to crash the serverless function
+        throw err
       }
     }
   `

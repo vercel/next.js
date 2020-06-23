@@ -3,13 +3,19 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { delBasePath } from './../next-server/lib/router/router'
+import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
 
 function hasRel(rel, link) {
   try {
     link = document.createElement('link')
     return link.relList.supports(rel)
   } catch {}
+}
+
+function pageLoadError(route) {
+  const error = new Error(`Error loading ${route}`)
+  error.code = 'PAGE_LOAD_ERROR'
+  return error
 }
 
 const relPrefetch =
@@ -28,7 +34,6 @@ function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
-  route = route.replace(/\/index$/, '/')
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
@@ -37,7 +42,7 @@ function normalizeRoute(route) {
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
     link = document.createElement('link')
-    link.crossOrigin = process.crossOrigin
+    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     link.href = href
     link.rel = rel
     if (as) link.as = as
@@ -50,14 +55,23 @@ function appendLink(href, rel, as) {
 }
 
 export default class PageLoader {
-  constructor(buildId, assetPrefix) {
+  constructor(buildId, assetPrefix, initialPage) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
     this.pageRegisterEvents = mitt()
-    this.loadingRoutes = {}
-    if (process.env.__NEXT_GRANULAR_CHUNKS) {
+    this.loadingRoutes = {
+      // By default these 2 pages are being loaded in the initial html
+      '/_app': true,
+    }
+
+    // TODO: get rid of this limitation for rendering the error page
+    if (initialPage !== '/_error') {
+      this.loadingRoutes[initialPage] = true
+    }
+
+    if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
@@ -82,14 +96,13 @@ export default class PageLoader {
 
   // Returns a promise for the dependencies for a particular route
   getDependencies(route) {
-    return this.promisedBuildManifest.then(
-      (man) =>
-        (man[route] &&
-          man[route].map(
-            (url) => `${this.assetPrefix}/_next/${encodeURI(url)}`
-          )) ||
-        []
-    )
+    return this.promisedBuildManifest.then((m) => {
+      return m[route]
+        ? m[route].map((url) => `${this.assetPrefix}/_next/${encodeURI(url)}`)
+        : this.pageRegisterEvents.emit(route, {
+            error: pageLoadError(route),
+          }) ?? []
+    })
   }
 
   /**
@@ -98,10 +111,8 @@ export default class PageLoader {
    */
   getDataHref(href, asPath) {
     const getHrefForSlug = (/** @type string */ path) => {
-      path = delBasePath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${
-        path === '/' ? '/index' : path
-      }.json`
+      const dataRoute = getAssetPathFromRoute(path, '.json')
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}`
     }
 
     const { pathname: hrefPathname, query } = parse(href, true)
@@ -125,17 +136,21 @@ export default class PageLoader {
       if (
         !Object.keys(dynamicGroups).every((param) => {
           let value = dynamicMatches[param]
-          const repeat = dynamicGroups[param].repeat
+          const { repeat, optional } = dynamicGroups[param]
 
           // support single-level catch-all
           // TODO: more robust handling for user-error (passing `/`)
           if (repeat && !Array.isArray(value)) value = [value]
+          let replaced = `[${repeat ? '...' : ''}${param}]`
+          if (optional) {
+            replaced = `[${replaced}]`
+          }
 
           return (
             param in dynamicMatches &&
             // Interpolate group into data URL if present
             (interpolatedRoute = interpolatedRoute.replace(
-              `[${repeat ? '...' : ''}${param}]`,
+              replaced,
               repeat
                 ? value.map(encodeURIComponent).join('/')
                 : encodeURIComponent(value)
@@ -178,13 +193,17 @@ export default class PageLoader {
   }
 
   loadPage(route) {
-    return this.loadPageScript(route)
-  }
-
-  loadPageScript(route) {
     route = normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
+      // If there's a cached version of the page, let's use it.
+      const cachedPage = this.pageCache[route]
+      if (cachedPage) {
+        const { error, page, mod } = cachedPage
+        error ? reject(error) : resolve({ page, mod })
+        return
+      }
+
       const fire = ({ error, page, mod }) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
@@ -196,36 +215,22 @@ export default class PageLoader {
         }
       }
 
-      // If there's a cached version of the page, let's use it.
-      const cachedPage = this.pageCache[route]
-      if (cachedPage) {
-        const { error, page, mod } = cachedPage
-        error ? reject(error) : resolve({ page, mod })
-        return
-      }
-
       // Register a listener to get the page
       this.pageRegisterEvents.on(route, fire)
 
-      // If the page is loading via SSR, we need to wait for it
-      // rather downloading it again.
-      if (document.querySelector(`script[data-next-page="${route}"]`)) {
-        return
-      }
-
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
-        if (process.env.__NEXT_GRANULAR_CHUNKS) {
+        if (process.env.NODE_ENV === 'production') {
           this.getDependencies(route).then((deps) => {
             deps.forEach((d) => {
               if (
-                /\.js$/.test(d) &&
+                d.endsWith('.js') &&
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
-                this.loadScript(d, route, false)
+                this.loadScript(d, route)
               }
               if (
-                /\.css$/.test(d) &&
+                d.endsWith('.css') &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
                 appendLink(d, 'stylesheet').catch(() => {
@@ -234,39 +239,30 @@ export default class PageLoader {
                 })
               }
             })
-            this.loadRoute(route)
           })
         } else {
-          this.loadRoute(route)
+          // Development only. In production the page file is part of the build manifest
+          route = normalizeRoute(route)
+          let scriptRoute = getAssetPathFromRoute(route, '.js')
+
+          const url = `${this.assetPrefix}/_next/static/pages${encodeURI(
+            scriptRoute
+          )}`
+          this.loadScript(url, route)
         }
       }
     })
   }
 
-  loadRoute(route) {
-    route = normalizeRoute(route)
-    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
-
-    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-      this.buildId
-    )}/pages${encodeURI(scriptRoute)}`
-    this.loadScript(url, route, true)
-  }
-
-  loadScript(url, route, isPage) {
+  loadScript(url, route) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
       script.type = 'module'
-      // Only page bundle scripts need to have .module added to url,
-      // dependencies already have it added during build manifest creation
-      if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
-    script.crossOrigin = process.crossOrigin
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
     script.src = url
     script.onerror = () => {
-      const error = new Error(`Error loading script ${url}`)
-      error.code = 'PAGE_LOAD_ERROR'
-      this.pageRegisterEvents.emit(route, { error })
+      this.pageRegisterEvents.emit(route, { error: pageLoadError(url) })
     }
     document.body.appendChild(script)
   }
@@ -325,33 +321,37 @@ export default class PageLoader {
     if (isDependency) {
       url = route
     } else {
-      route = normalizeRoute(route)
+      if (process.env.NODE_ENV !== 'production') {
+        route = normalizeRoute(route)
 
-      let scriptRoute = `${route === '/' ? '/index' : route}.js`
-      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
-        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+        const ext =
+          process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
+        const scriptRoute = getAssetPathFromRoute(route, ext)
+
+        url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+          this.buildId
+        )}/pages${encodeURI(scriptRoute)}`
       }
-
-      url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${encodeURI(scriptRoute)}`
     }
 
     return Promise.all(
-      document.querySelector(
-        `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
-      )
+      document.querySelector(`link[rel="${relPrefetch}"][href^="${url}"]`)
         ? []
         : [
-            appendLink(
-              url,
-              relPrefetch,
-              url.match(/\.css$/) ? 'style' : 'script'
-            ),
-            process.env.__NEXT_GRANULAR_CHUNKS &&
+            url &&
+              appendLink(
+                url,
+                relPrefetch,
+                url.endsWith('.css') ? 'style' : 'script'
+              ),
+            process.env.NODE_ENV === 'production' &&
               !isDependency &&
               this.getDependencies(route).then((urls) =>
-                Promise.all(urls.map((url) => this.prefetch(url, true)))
+                Promise.all(
+                  urls.map((dependencyUrl) =>
+                    this.prefetch(dependencyUrl, true)
+                  )
+                )
               ),
           ]
     ).then(

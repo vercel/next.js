@@ -12,6 +12,8 @@ import {
   nextBuild,
   nextStart,
   nextExport,
+  getPageFileFromBuildManifest,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -171,6 +173,17 @@ function runTests(dev = false) {
     })
 
     expect(data.status).toEqual(200)
+  })
+
+  it('should support etag spec', async () => {
+    const response = await fetchViaHTTP(appPort, '/api/blog')
+    const etag = response.headers.get('etag')
+
+    const unmodifiedResponse = await fetchViaHTTP(appPort, '/api/blog', null, {
+      headers: { 'If-None-Match': etag },
+    })
+
+    expect(unmodifiedResponse.status).toBe(304)
   })
 
   it('should parse urlencoded body', async () => {
@@ -344,31 +357,13 @@ function runTests(dev = false) {
 
   if (dev) {
     it('should compile only server code in development', async () => {
-      await fetchViaHTTP(appPort, '/')
       await fetchViaHTTP(appPort, '/api/users')
 
-      // Normal page
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/static/development/pages/index.js`)
-        )
-      ).toBeTruthy()
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/server/static/development/pages/index.js`)
-        )
-      ).toBeTruthy()
-      // API page
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/static/development/pages/api/users.js`)
-        )
-      ).toBeFalsy()
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/server/static/development/pages/api/users.js`)
-        )
-      ).toBeTruthy()
+      expect(() => getPageFileFromBuildManifest(appDir, '/api/users')).toThrow(
+        /No files for page/
+      )
+
+      expect(getPageFileFromPagesManifest(appDir, '/api/users')).toBeTruthy()
     })
 
     it('should show warning when the API resolves without ending the request in dev mode', async () => {

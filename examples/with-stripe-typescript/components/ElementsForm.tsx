@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 
 import CustomDonationInput from '../components/CustomDonationInput'
+import StripeTestCards from '../components/StripeTestCards'
 import PrintObject from '../components/PrintObject'
 
 import { fetchPostJSON } from '../utils/api-helpers'
@@ -33,7 +34,7 @@ const CARD_OPTIONS = {
   },
 }
 
-const ElementsForm: React.FunctionComponent = () => {
+const ElementsForm = () => {
   const [input, setInput] = useState({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
     cardholderName: '',
@@ -130,6 +131,7 @@ const ElementsForm: React.FunctionComponent = () => {
           currency={config.CURRENCY}
           onChange={handleInputChange}
         />
+        <StripeTestCards />
         <fieldset className="elements-style">
           <legend>Your payment details:</legend>
           <input

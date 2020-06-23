@@ -35,6 +35,7 @@ const defaultConfig: { [key: string]: any } = {
   amp: {
     canonicalBase: '',
   },
+  basePath: '',
   exportTrailingSlash: false,
   sassOptions: {},
   experimental: {
@@ -43,14 +44,12 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    granularChunks: true,
     modern: false,
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
     reactMode: 'legacy',
     workerThreads: false,
-    basePath: '',
     pageEnv: false,
     productionBrowserSourceMaps: false,
     optionalCatchAll: false,
@@ -74,11 +73,11 @@ const experimentalWarning = execOnce(() => {
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
-    (config, key) => {
+    (currentConfig, key) => {
       const value = userConfig[key]
 
       if (value === undefined || value === null) {
-        return config
+        return currentConfig
       }
 
       if (key === 'experimental' && value && value !== defaultConfig[key]) {
@@ -132,7 +131,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       if (!!value && value.constructor === Object) {
-        config[key] = {
+        currentConfig[key] = {
           ...defaultConfig[key],
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
@@ -143,10 +142,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           }, {}),
         }
       } else {
-        config[key] = value
+        currentConfig[key] = value
       }
 
-      return config
+      return currentConfig
     },
     {}
   )
@@ -159,35 +158,34 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
   if (result.experimental) {
-    if (typeof result.experimental.basePath !== 'string') {
+    if (typeof result.basePath !== 'string') {
       throw new Error(
-        `Specified basePath is not a string, found type "${typeof result
-          .experimental.basePath}"`
+        `Specified basePath is not a string, found type "${typeof result.basePath}"`
       )
     }
 
-    if (result.experimental.basePath !== '') {
-      if (result.experimental.basePath === '/') {
+    if (result.basePath !== '') {
+      if (result.basePath === '/') {
         throw new Error(
           `Specified basePath /. basePath has to be either an empty string or a path prefix"`
         )
       }
 
-      if (!result.experimental.basePath.startsWith('/')) {
+      if (!result.basePath.startsWith('/')) {
         throw new Error(
-          `Specified basePath has to start with a /, found "${result.experimental.basePath}"`
+          `Specified basePath has to start with a /, found "${result.basePath}"`
         )
       }
 
-      if (result.experimental.basePath !== '/') {
-        if (result.experimental.basePath.endsWith('/')) {
+      if (result.basePath !== '/') {
+        if (result.basePath.endsWith('/')) {
           throw new Error(
-            `Specified basePath should not end with /, found "${result.experimental.basePath}"`
+            `Specified basePath should not end with /, found "${result.basePath}"`
           )
         }
 
         if (result.assetPrefix === '') {
-          result.assetPrefix = result.experimental.basePath
+          result.assetPrefix = result.basePath
         }
       }
     }

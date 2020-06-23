@@ -11,12 +11,12 @@ import * as Log from '../build/output/log'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE } from '../lib/constants'
 import {
-  IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX,
-} from '../next-server/lib/constants'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+  normalizePagePath,
+  normalizePathSep,
+} from '../next-server/server/normalize-page-path'
 import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
+import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -42,16 +42,12 @@ export default function onDemandEntryHandler(
   devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
   multiCompiler: webpack.MultiCompiler,
   {
-    buildId,
     pagesDir,
-    reload,
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
   }: {
-    buildId: string
     pagesDir: string
-    reload: any
     pageExtensions: string[]
     maxInactiveAge: number
     pagesBufferLength: number
@@ -59,12 +55,17 @@ export default function onDemandEntryHandler(
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
-  let entries: any = {}
+  let entries: {
+    [page: string]: {
+      serverBundlePath: string
+      clientBundlePath: string
+      absolutePagePath: string
+      status?: typeof ADDED | typeof BUILDING | typeof BUILT
+      lastActiveTime?: number
+    }
+  } = {}
   let lastAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
-  let reloading = false
-  let stopped = false
-  let reloadCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise(
@@ -72,11 +73,16 @@ export default function onDemandEntryHandler(
       (compilation: webpack.compilation.Compilation) => {
         invalidator.startBuilding()
 
+        const isClientCompilation = compiler.name === 'client'
         const allEntries = Object.keys(entries).map(async (page) => {
-          if (compiler.name === 'client' && page.match(API_ROUTE)) {
+          if (isClientCompilation && page.match(API_ROUTE)) {
             return
           }
-          const { name, absolutePagePath } = entries[page]
+          const {
+            serverBundlePath,
+            clientBundlePath,
+            absolutePagePath,
+          } = entries[page]
           const pageExists = await isWriteable(absolutePagePath)
           if (!pageExists) {
             // page was removed
@@ -89,11 +95,16 @@ export default function onDemandEntryHandler(
             page,
             absolutePagePath,
           }
-          return addEntry(compilation, compiler.context, name, [
-            compiler.name === 'client'
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath,
-          ])
+          return addEntry(
+            compilation,
+            compiler.context,
+            isClientCompilation ? clientBundlePath : serverBundlePath,
+            [
+              isClientCompilation
+                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                : absolutePagePath,
+            ]
+          )
         })
 
         return Promise.all(allEntries).catch((err) => console.error(err))
@@ -101,44 +112,13 @@ export default function onDemandEntryHandler(
     )
   }
 
-  function findHardFailedPages(errors: any[]) {
-    return errors
-      .filter((e) => {
-        // Make sure to only pick errors which marked with missing modules
-        const hasNoModuleFoundError =
-          /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-        if (!hasNoModuleFoundError) return false
-
-        // The page itself is missing. So this is a failed page.
-        if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
-
-        // No dependencies means this is a top level page.
-        // So this is a failed page.
-        return e.module.dependencies.length === 0
-      })
-      .map((e) => e.module.chunks)
-      .reduce((a, b) => [...a, ...b], [])
-      .map((c: any) => {
-        const pageName = ROUTE_NAME_REGEX.exec(c.name)![1]
-        return normalizePage(`/${pageName}`)
-      })
-  }
-
-  function getPagePathsFromEntrypoints(entrypoints: any) {
+  function getPagePathsFromEntrypoints(entrypoints: any): string[] {
     const pagePaths = []
-    for (const [, entrypoint] of entrypoints.entries()) {
-      const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
-      if (!result) {
-        continue
+    for (const entrypoint of entrypoints.values()) {
+      const page = getRouteFromEntrypoint(entrypoint.name)
+      if (page) {
+        pagePaths.push(page)
       }
-
-      const pagePath = result[1]
-
-      if (!pagePath) {
-        continue
-      }
-
-      pagePaths.push(pagePath)
     }
 
     return pagePaths
@@ -146,21 +126,12 @@ export default function onDemandEntryHandler(
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats] = multiStats.stats
-    const hardFailedPages = [
-      ...new Set([
-        ...findHardFailedPages(clientStats.compilation.errors),
-        ...findHardFailedPages(serverStats.compilation.errors),
-      ]),
-    ]
     const pagePaths = new Set([
       ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
       ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
     ])
 
-    // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
-    for (const pagePath of pagePaths) {
-      const page = normalizePage('/' + pagePath)
-
+    for (const page of pagePaths) {
       const entry = entries[page]
       if (!entry) {
         continue
@@ -176,30 +147,9 @@ export default function onDemandEntryHandler(
     }
 
     invalidator.doneBuilding()
-
-    if (hardFailedPages.length > 0 && !reloading) {
-      console.log(
-        `> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(
-          ', '
-        )}`
-      )
-      reloading = true
-      reload()
-        .then(() => {
-          console.log('> Webpack reloaded.')
-          reloadCallbacks!.emit('done')
-          stop()
-        })
-        .catch((err: Error) => {
-          console.error(`> Webpack reloading failed: ${err.message}`)
-          console.error(err.stack)
-          process.exit(1)
-        })
-    }
   })
 
   const disposeHandler = setInterval(function () {
-    if (stopped) return
     disposeInactiveEntries(
       devMiddleware,
       entries,
@@ -210,15 +160,8 @@ export default function onDemandEntryHandler(
 
   disposeHandler.unref()
 
-  function stop() {
-    clearInterval(disposeHandler)
-    stopped = true
-    doneCallbacks = null
-    reloadCallbacks = null
-  }
-
   function handlePing(pg: string) {
-    const page = normalizePage(pg)
+    const page = normalizePathSep(pg)
     const entryInfo = entries[page]
     let toSend
 
@@ -252,17 +195,7 @@ export default function onDemandEntryHandler(
   }
 
   return {
-    waitUntilReloaded() {
-      if (!reloading) return Promise.resolve(true)
-      return new Promise((resolve) => {
-        reloadCallbacks!.once('done', function () {
-          resolve()
-        })
-      })
-    },
-
     async ensurePage(page: string) {
-      await this.waitUntilReloaded()
       let normalizedPagePath: string
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -294,8 +227,9 @@ export default function onDemandEntryHandler(
 
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
-      const bundleFile = `${normalizePagePath(pageUrl)}.js`
-      const name = join('static', buildId, 'pages', bundleFile)
+      const bundleFile = normalizePagePath(pageUrl)
+      const serverBundlePath = join('pages', bundleFile)
+      const clientBundlePath = join('static', 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
@@ -304,7 +238,7 @@ export default function onDemandEntryHandler(
 
       return new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-        const normalizedPage = normalizePage(page)
+        const normalizedPage = normalizePathSep(page)
         const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
@@ -321,7 +255,12 @@ export default function onDemandEntryHandler(
 
         Log.event(`build page: ${normalizedPage}`)
 
-        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        entries[normalizedPage] = {
+          serverBundlePath,
+          clientBundlePath,
+          absolutePagePath,
+          status: ADDED,
+        }
         doneCallbacks!.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
@@ -335,40 +274,23 @@ export default function onDemandEntryHandler(
 
     middleware() {
       return (req: IncomingMessage, res: ServerResponse, next: Function) => {
-        if (stopped) {
-          // If this handler is stopped, we need to reload the user's browser.
-          // So the user could connect to the actually running handler.
-          res.statusCode = 302
-          res.setHeader('Location', req.url!)
-          res.end('302')
-        } else if (reloading) {
-          // Webpack config is reloading. So, we need to wait until it's done and
-          // reload user's browser.
-          // So the user could connect to the new handler and webpack setup.
-          this.waitUntilReloaded().then(() => {
-            res.statusCode = 302
-            res.setHeader('Location', req.url!)
-            res.end('302')
-          })
-        } else {
-          if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
+        if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
 
-          const { query } = parse(req.url!, true)
-          const page = query.page
-          if (!page) return next()
+        const { query } = parse(req.url!, true)
+        const page = query.page
+        if (!page) return next()
 
-          const runPing = () => {
-            const data = handlePing(query.page as string)
-            if (!data) return
-            res.write('data: ' + JSON.stringify(data) + '\n\n')
-          }
-          const pingInterval = setInterval(() => runPing(), 5000)
-
-          req.on('close', () => {
-            clearInterval(pingInterval)
-          })
-          next()
+        const runPing = () => {
+          const data = handlePing(query.page as string)
+          if (!data) return
+          res.write('data: ' + JSON.stringify(data) + '\n\n')
         }
+        const pingInterval = setInterval(() => runPing(), 5000)
+
+        req.on('close', () => {
+          clearInterval(pingInterval)
+        })
+        next()
       }
     },
   }
@@ -406,16 +328,6 @@ function disposeInactiveEntries(
     // disposing inactive page(s)
     devMiddleware.invalidate()
   }
-}
-
-// /index and / is the same. So, we need to identify both pages as the same.
-// This also applies to sub pages as well.
-export function normalizePage(page: string) {
-  const unixPagePath = page.replace(/\\/g, '/')
-  if (unixPagePath === '/index' || unixPagePath === '/') {
-    return '/'
-  }
-  return unixPagePath.replace(/\/index$/, '')
 }
 
 // Make sure only one invalidation happens at a time

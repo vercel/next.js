@@ -11,6 +11,7 @@ declare module 'styled-jsx/server'
 declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
 declare module 'webpack/lib/DynamicEntryPlugin'
+declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -224,27 +225,6 @@ declare module 'next/dist/compiled/terser-webpack-plugin' {
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m
-}
-
-declare module 'autodll-webpack-plugin' {
-  import webpack from 'webpack'
-  class AutoDllPlugin implements webpack.Plugin {
-    constructor(settings?: {
-      inject?: boolean
-      plugins?: webpack.Configuration['plugins']
-      context?: string
-      debug?: boolean
-      filename?: string
-      path?: string
-      inherit?: boolean
-      entry?: webpack.Entry
-      config?: webpack.Configuration
-    })
-    apply: webpack.Plugin['apply'];
-    [k: string]: any
-  }
-
-  export = AutoDllPlugin
 }
 
 declare module 'pnp-webpack-plugin' {

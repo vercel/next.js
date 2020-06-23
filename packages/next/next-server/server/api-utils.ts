@@ -1,8 +1,10 @@
+import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import { IncomingMessage, ServerResponse } from 'http'
-import { PageConfig } from 'next/types'
+import generateETag from 'next/dist/compiled/etag'
+import fresh from 'next/dist/compiled/fresh'
 import getRawBody from 'next/dist/compiled/raw-body'
+import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
@@ -24,6 +26,7 @@ export async function apiResolver(
   params: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
+  propagateError: boolean,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -54,7 +57,7 @@ export async function apiResolver(
     }
 
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
-    apiRes.send = (data) => sendData(apiRes, data)
+    apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
@@ -87,6 +90,9 @@ export async function apiResolver(
     } else {
       console.error(err)
       if (onError) await onError({ err })
+      if (propagateError) {
+        throw err
+      }
       sendError(apiRes, 500, 'Internal Server Error')
     }
   }
@@ -185,8 +191,8 @@ export function getCookieParser(req: IncomingMessage) {
       return {}
     }
 
-    const { parse } = require('next/dist/compiled/cookie')
-    return parse(Array.isArray(header) ? header.join(';') : header)
+    const { parse: parseCookieFn } = require('next/dist/compiled/cookie')
+    return parseCookieFn(Array.isArray(header) ? header.join(';') : header)
   }
 }
 
@@ -203,18 +209,55 @@ export function sendStatusCode(
   return res
 }
 
+function sendEtagResponse(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  body: string | Buffer
+): boolean {
+  const etag = generateETag(body)
+
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return true
+  }
+
+  res.setHeader('ETag', etag)
+  return false
+}
+
 /**
  * Send `any` body to response
+ * @param req request object
  * @param res response object
  * @param body of response
  */
-export function sendData(res: NextApiResponse, body: any): void {
+export function sendData(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  body: any
+): void {
   if (body === null) {
     res.end()
     return
   }
 
   const contentType = res.getHeader('Content-Type')
+
+  if (body instanceof Stream) {
+    if (!contentType) {
+      res.setHeader('Content-Type', 'application/octet-stream')
+    }
+    body.pipe(res)
+    return
+  }
+
+  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
+  const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
+
+  if (sendEtagResponse(req, res, stringifiedBody)) {
+    return
+  }
 
   if (Buffer.isBuffer(body)) {
     if (!contentType) {
@@ -225,28 +268,12 @@ export function sendData(res: NextApiResponse, body: any): void {
     return
   }
 
-  if (body instanceof Stream) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    body.pipe(res)
-    return
-  }
-
-  let str = body
-
-  // Stringify JSON body
-  if (
-    typeof body === 'object' ||
-    typeof body === 'number' ||
-    typeof body === 'boolean'
-  ) {
-    str = JSON.stringify(body)
+  if (isJSONLike) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
 
-  res.setHeader('Content-Length', Buffer.byteLength(str))
-  res.end(str)
+  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
+  res.end(stringifiedBody)
 }
 
 /**
