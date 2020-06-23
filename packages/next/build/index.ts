@@ -595,6 +595,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         isHybridAmp,
         ssgPageRoutes,
         hasSsgFallback,
+        initialRevalidateSeconds: false
       })
     })
   )
@@ -827,6 +828,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
             srcRoute: null,
             dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
+          // Set Page Revalidation Interval
+          const pageInfo = pageInfos.get(page)
+          if(pageInfo){
+          pageInfo.initialRevalidateSeconds = exportConfig.initialPageRevalidationMap[page],
+          pageInfos.set(page, pageInfo)
+          }
         } else {
           // For a dynamic SSG page, we did not copy its data exports and only
           // copy the fallback HTML file (if present).
@@ -853,6 +860,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 `${normalizePagePath(route)}.json`
               ),
             }
+
+          // Set route Revalidation Interval
+          const pageInfo = pageInfos.get(route)
+          if(pageInfo){
+          pageInfo.initialRevalidateSeconds = exportConfig.initialPageRevalidationMap[route],
+          pageInfos.set(route, pageInfo)
+          }
           }
         }
       }
