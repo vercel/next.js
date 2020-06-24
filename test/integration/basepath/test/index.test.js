@@ -18,6 +18,8 @@ import {
   File,
   nextStart,
   initNextServerScript,
+  getRedboxSource,
+  hasRedbox,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -32,7 +34,28 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 
 const runTests = (context, dev = false) => {
-  if (!dev) {
+  if (dev) {
+    it('should render error in dev overlay correctly', async () => {
+      const browser = await webdriver(context.appPort, '/docs/hello')
+      await browser.elementByCss('#trigger-error').click()
+      expect(await hasRedbox(browser)).toBe(true)
+
+      const errorSource = await getRedboxSource(browser)
+      expect(errorSource).toMatchInlineSnapshot(`
+        "pages${
+          process.platform === 'win32' ? '\\' : '/'
+        }hello.js (52:14) @ onClick
+
+          50 |   id=\\"trigger-error\\"
+          51 |   onClick={() => {
+        > 52 |     throw new Error('oops heres an error')
+             |          ^
+          53 |   }}
+          54 | >
+          55 |   click me for error"
+      `)
+    })
+  } else {
     it('should add basePath to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
@@ -349,7 +372,9 @@ describe('basePath development', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    server = await launchApp(join(__dirname, '..'), context.appPort)
+    server = await launchApp(join(__dirname, '..'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
   })
   afterAll(async () => {
     await killApp(server)
