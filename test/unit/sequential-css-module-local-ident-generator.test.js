@@ -1,4 +1,4 @@
-import SequentialCSSModuleLocalIdentGenerator from 'next/dist/build/webpack/config/blocks/css/loaders/utils/SequentialCSSModuleLocalIdentGenerator'
+import SequentialCSSModuleLocalIdentGenerator from 'next/dist/build/webpack/config/blocks/css/loaders/helpers/SequentialCSSModuleLocalIdentGenerator'
 
 describe('', () => {
   let generator
