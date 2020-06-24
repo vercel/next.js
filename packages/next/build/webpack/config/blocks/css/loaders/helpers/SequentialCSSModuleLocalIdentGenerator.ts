@@ -68,7 +68,7 @@ const cssCharacterSet = [
 ]
 
 /**
- * Helper class used to minify CSS classnames
+ * Helper class used to generate minified CSS classnames
  * down to 1 character each in production builds.
  */
 export default class SequentialCSSModuleLocalIdentGenerator {
