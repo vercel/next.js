@@ -2,7 +2,7 @@ import NextAuth from 'next-auth'
 import Providers from 'next-auth/providers'
 
 const options = {
-  site: process.env.SITE,
+  site: process.env.VERCEL_URL,
   providers: [
     Providers.Email({
       // SMTP connection string or nodemailer configuration object https://nodemailer.com/
