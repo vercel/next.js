@@ -15,6 +15,14 @@ const Index = () => {
     user ? ['/api/getFood', user.token] : null,
     fetcher
   )
+  
+  if (!data) {
+    return (
+      <div>
+          loading
+      </div>
+    )
+  }
 
   if (!user) {
     return (
