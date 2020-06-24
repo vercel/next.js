@@ -2,14 +2,9 @@ import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import { join, posix } from 'path'
-import { stringify } from 'querystring'
 import { parse } from 'url'
 import webpack from 'webpack'
-import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
-import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
-import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
-import { API_ROUTE } from '../lib/constants'
 import {
   normalizePagePath,
   normalizePathSep,
@@ -21,22 +16,6 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
-
-// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
-// function addEntry(
-//   compilation: webpack.compilation.Compilation,
-//   context: string,
-//   name: string,
-//   entry: string[]
-// ) {
-//   return new Promise((resolve, reject) => {
-//     const dep = DynamicEntryPlugin.createDependency(entry, name)
-//     compilation.addEntry(context, dep, name, (err: Error) => {
-//       if (err) return reject(err)
-//       resolve()
-//     })
-//   })
-// }
 
 export let entries: {
   [page: string]: {
@@ -70,46 +49,10 @@ export default function onDemandEntryHandler(
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
-    compiler.hooks.make.tapPromise(
+    compiler.hooks.make.tap(
       'NextJsOnDemandEntries',
-      (compilation: webpack.compilation.Compilation) => {
+      (_compilation: webpack.compilation.Compilation) => {
         invalidator.startBuilding()
-
-        // const isClientCompilation = compiler.name === 'client'
-        // const allEntries = Object.keys(entries).map(async (page) => {
-        //   if (isClientCompilation && page.match(API_ROUTE)) {
-        //     return
-        //   }
-        //   const {
-        //     serverBundlePath,
-        //     clientBundlePath,
-        //     absolutePagePath,
-        //   } = entries[page]
-        //   const pageExists = await isWriteable(absolutePagePath)
-        //   if (!pageExists) {
-        //     // page was removed
-        //     delete entries[page]
-        //     return
-        //   }
-
-        //   entries[page].status = BUILDING
-        //   const pageLoaderOpts: ClientPagesLoaderOptions = {
-        //     page,
-        //     absolutePagePath,
-        //   }
-        //   return addEntry(
-        //     compilation,
-        //     compiler.context,
-        //     isClientCompilation ? clientBundlePath : serverBundlePath,
-        //     [
-        //       isClientCompilation
-        //         ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-        //         : absolutePagePath,
-        //     ]
-        //   )
-        // })
-
-        // return Promise.all(allEntries).catch((err) => console.error(err))
       }
     )
   }
@@ -152,12 +95,7 @@ export default function onDemandEntryHandler(
   })
 
   const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(
-      devMiddleware,
-      entries,
-      lastAccessPages,
-      maxInactiveAge
-    )
+    disposeInactiveEntries(devMiddleware, lastAccessPages, maxInactiveAge)
   }, 5000)
 
   disposeHandler.unref()
@@ -300,7 +238,6 @@ export default function onDemandEntryHandler(
 
 function disposeInactiveEntries(
   devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
-  entries: any,
   lastAccessPages: any,
   maxInactiveAge: number
 ) {

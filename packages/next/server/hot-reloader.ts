@@ -326,37 +326,36 @@ export default class HotReloader {
 
         const isClientCompilation = config.name === 'client'
 
-        console.log(entries)
-        Object.keys(entries).map(async (page) => {
-          if (isClientCompilation && page.match(API_ROUTE)) {
-            return
-          }
-          const {
-            serverBundlePath,
-            clientBundlePath,
-            absolutePagePath,
-          } = entries[page]
-          const pageExists = await isWriteable(absolutePagePath)
-          if (!pageExists) {
-            // page was removed
-            delete entries[page]
-            return
-          }
+        await Promise.all(
+          Object.keys(entries).map(async (page) => {
+            if (isClientCompilation && page.match(API_ROUTE)) {
+              return
+            }
+            const {
+              serverBundlePath,
+              clientBundlePath,
+              absolutePagePath,
+            } = entries[page]
+            const pageExists = await isWriteable(absolutePagePath)
+            if (!pageExists) {
+              // page was removed
+              delete entries[page]
+              return
+            }
 
-          entries[page].status = BUILDING
-          const pageLoaderOpts: ClientPagesLoaderOptions = {
-            page,
-            absolutePagePath,
-          }
+            entries[page].status = BUILDING
+            const pageLoaderOpts: ClientPagesLoaderOptions = {
+              page,
+              absolutePagePath,
+            }
 
-          entrypoints[
-            isClientCompilation ? clientBundlePath : serverBundlePath
-          ] = isClientCompilation
-            ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-            : absolutePagePath
-
-          console.log(entrypoints)
-        })
+            entrypoints[
+              isClientCompilation ? clientBundlePath : serverBundlePath
+            ] = isClientCompilation
+              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+              : absolutePagePath
+          })
+        )
 
         return entrypoints
       }
