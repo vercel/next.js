@@ -589,7 +589,7 @@ export async function ncc(task) {
       'ncc_text_table',
       'ncc_thread_loader',
       'ncc_unistore',
-      'ncc_webpack_dev_middleware',
+      // 'ncc_webpack_dev_middleware',
       'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
