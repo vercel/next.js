@@ -20,8 +20,9 @@ describe('', () => {
     result = generator.next()
 
     expect(generator.count).toBe(52)
-    expect(generator.msb).toBe(3843)
     expect(generator.offset).toBe(568)
+    expect(generator.msb).toBe(3843)
+    expect(generator.power).toBe(2)
     expect(result).not.toMatch(/^[0-9].*/)
   })
 })
