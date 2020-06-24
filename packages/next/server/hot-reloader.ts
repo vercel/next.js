@@ -322,6 +322,7 @@ export default class HotReloader {
     for (const config of configs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
+        // @ts-ignore entry is always a functon
         const entrypoints = await defaultEntry(...args)
 
         const isClientCompilation = config.name === 'client'

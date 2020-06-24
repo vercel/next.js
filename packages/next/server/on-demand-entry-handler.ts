@@ -255,7 +255,7 @@ function disposeInactiveEntries(
     // In that case, we should not dispose the current viewing page
     if (lastAccessPages.includes(page)) return
 
-    if (Date.now() - lastActiveTime > maxInactiveAge) {
+    if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
     }
   })
