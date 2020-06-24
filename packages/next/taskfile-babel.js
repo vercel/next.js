@@ -109,7 +109,7 @@ module.exports = function (task) {
             ]
           : false,
       ].filter(Boolean),
-      compact: true,
+      compact: false,
       babelrc: false,
       configFile: false,
       cwd: __dirname,

@@ -1,7 +1,7 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import { join, normalize, relative as relativePath, sep } from 'path'
 import { UrlObject } from 'url'
@@ -20,12 +20,20 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
-import onDemandEntryHandler from './on-demand-entry-handler'
+import onDemandEntryHandler, {
+  entries,
+  // ADDED,
+  BUILDING,
+  // BUILT,
+} from './on-demand-entry-handler'
 import {
   denormalizePagePath,
   normalizePathSep,
 } from '../next-server/server/normalize-page-path'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
+import { isWriteable } from '../build/is-writeable'
+import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
+import { stringify } from 'querystring'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -311,6 +319,49 @@ export default class HotReloader {
 
     const configs = await this.getWebpackConfig()
 
+    for (const config of configs) {
+      const defaultEntry = config.entry
+      config.entry = async (...args) => {
+        const entrypoints = await defaultEntry(...args)
+
+        const isClientCompilation = config.name === 'client'
+
+        console.log(entries)
+        Object.keys(entries).map(async (page) => {
+          if (isClientCompilation && page.match(API_ROUTE)) {
+            return
+          }
+          const {
+            serverBundlePath,
+            clientBundlePath,
+            absolutePagePath,
+          } = entries[page]
+          const pageExists = await isWriteable(absolutePagePath)
+          if (!pageExists) {
+            // page was removed
+            delete entries[page]
+            return
+          }
+
+          entries[page].status = BUILDING
+          const pageLoaderOpts: ClientPagesLoaderOptions = {
+            page,
+            absolutePagePath,
+          }
+
+          entrypoints[
+            isClientCompilation ? clientBundlePath : serverBundlePath
+          ] = isClientCompilation
+            ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+            : absolutePagePath
+
+          console.log(entrypoints)
+        })
+
+        return entrypoints
+      }
+    }
+
     const multiCompiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(multiCompiler)
@@ -442,18 +493,12 @@ export default class HotReloader {
       }
     )
 
-    // We don’t watch .git/ .next/ and node_modules for changes
-    const ignored = [
-      /[\\/]\.git[\\/]/,
-      /[\\/]\.next[\\/]/,
-      /[\\/]node_modules[\\/]/,
-    ]
-
     let webpackDevMiddlewareConfig = {
       publicPath: `/_next/static/webpack`,
       noInfo: true,
       logLevel: 'silent',
-      watchOptions: { ignored },
+      // We don’t watch .git/ .next/ and node_modules for changes
+      watchOptions: { ignored: /[\\/](\.git|\.next|node_modules)[\\/]/ },
       writeToDisk: true,
     }
 

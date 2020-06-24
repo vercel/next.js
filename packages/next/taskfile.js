@@ -479,16 +479,16 @@ export async function ncc_unistore(task, opts) {
     .target('compiled/unistore')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-dev-middleware'] =
-  'next/dist/compiled/webpack-dev-middleware'
-export async function ncc_webpack_dev_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
-    )
-    .ncc({ packageName: 'webpack-dev-middleware', externals })
-    .target('compiled/webpack-dev-middleware')
-}
+// externals['webpack-dev-middleware'] =
+//   'next/dist/compiled/webpack-dev-middleware'
+// export async function ncc_webpack_dev_middleware(task, opts) {
+//   await task
+//     .source(
+//       opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
+//     )
+//     .ncc({ packageName: 'webpack-dev-middleware', externals })
+//     .target('compiled/webpack-dev-middleware')
+// }
 // eslint-disable-next-line camelcase
 externals['webpack-hot-middleware'] =
   'next/dist/compiled/webpack-hot-middleware'

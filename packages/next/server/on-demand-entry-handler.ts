@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
 import { join, posix } from 'path'
 import { stringify } from 'querystring'
 import { parse } from 'url'
@@ -18,25 +18,35 @@ import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
-const ADDED = Symbol('added')
-const BUILDING = Symbol('building')
-const BUILT = Symbol('built')
+export const ADDED = Symbol('added')
+export const BUILDING = Symbol('building')
+export const BUILT = Symbol('built')
 
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
-function addEntry(
-  compilation: webpack.compilation.Compilation,
-  context: string,
-  name: string,
-  entry: string[]
-) {
-  return new Promise((resolve, reject) => {
-    const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, (err: Error) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
-}
+// function addEntry(
+//   compilation: webpack.compilation.Compilation,
+//   context: string,
+//   name: string,
+//   entry: string[]
+// ) {
+//   return new Promise((resolve, reject) => {
+//     const dep = DynamicEntryPlugin.createDependency(entry, name)
+//     compilation.addEntry(context, dep, name, (err: Error) => {
+//       if (err) return reject(err)
+//       resolve()
+//     })
+//   })
+// }
+
+export let entries: {
+  [page: string]: {
+    serverBundlePath: string
+    clientBundlePath: string
+    absolutePagePath: string
+    status?: typeof ADDED | typeof BUILDING | typeof BUILT
+    lastActiveTime?: number
+  }
+} = {}
 
 export default function onDemandEntryHandler(
   devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
@@ -55,15 +65,7 @@ export default function onDemandEntryHandler(
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
-  let entries: {
-    [page: string]: {
-      serverBundlePath: string
-      clientBundlePath: string
-      absolutePagePath: string
-      status?: typeof ADDED | typeof BUILDING | typeof BUILT
-      lastActiveTime?: number
-    }
-  } = {}
+
   let lastAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
@@ -73,41 +75,41 @@ export default function onDemandEntryHandler(
       (compilation: webpack.compilation.Compilation) => {
         invalidator.startBuilding()
 
-        const isClientCompilation = compiler.name === 'client'
-        const allEntries = Object.keys(entries).map(async (page) => {
-          if (isClientCompilation && page.match(API_ROUTE)) {
-            return
-          }
-          const {
-            serverBundlePath,
-            clientBundlePath,
-            absolutePagePath,
-          } = entries[page]
-          const pageExists = await isWriteable(absolutePagePath)
-          if (!pageExists) {
-            // page was removed
-            delete entries[page]
-            return
-          }
+        // const isClientCompilation = compiler.name === 'client'
+        // const allEntries = Object.keys(entries).map(async (page) => {
+        //   if (isClientCompilation && page.match(API_ROUTE)) {
+        //     return
+        //   }
+        //   const {
+        //     serverBundlePath,
+        //     clientBundlePath,
+        //     absolutePagePath,
+        //   } = entries[page]
+        //   const pageExists = await isWriteable(absolutePagePath)
+        //   if (!pageExists) {
+        //     // page was removed
+        //     delete entries[page]
+        //     return
+        //   }
 
-          entries[page].status = BUILDING
-          const pageLoaderOpts: ClientPagesLoaderOptions = {
-            page,
-            absolutePagePath,
-          }
-          return addEntry(
-            compilation,
-            compiler.context,
-            isClientCompilation ? clientBundlePath : serverBundlePath,
-            [
-              isClientCompilation
-                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-                : absolutePagePath,
-            ]
-          )
-        })
+        //   entries[page].status = BUILDING
+        //   const pageLoaderOpts: ClientPagesLoaderOptions = {
+        //     page,
+        //     absolutePagePath,
+        //   }
+        //   return addEntry(
+        //     compilation,
+        //     compiler.context,
+        //     isClientCompilation ? clientBundlePath : serverBundlePath,
+        //     [
+        //       isClientCompilation
+        //         ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+        //         : absolutePagePath,
+        //     ]
+        //   )
+        // })
 
-        return Promise.all(allEntries).catch((err) => console.error(err))
+        // return Promise.all(allEntries).catch((err) => console.error(err))
       }
     )
   }
