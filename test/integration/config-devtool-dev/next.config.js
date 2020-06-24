@@ -1,6 +1,6 @@
 module.exports = {
   webpack: (config) => {
-    config.devtool = 'source-map'
+    config.devtool = false
     return config
   },
 }

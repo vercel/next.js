@@ -14,6 +14,7 @@ describe('devtool set in developmemt mode in next config', () => {
 
     const appPort = await findPort()
     const app = await launchApp(join(__dirname, '..'), appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: true },
       onStderr(msg) {
         stderr += msg || ''
       },
@@ -33,7 +34,9 @@ describe('devtool set in developmemt mode in next config', () => {
   // frames, which is a more robust test
   it('should revert to the original devtool when user set in development mode', async () => {
     const appPort = await findPort()
-    const app = await launchApp(join(__dirname, '..'), appPort)
+    const app = await launchApp(join(__dirname, '..'), appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: true },
+    })
     const browserFiles = await recursiveReadDir(
       join(appDir, '.next', 'static'),
       /.*/
