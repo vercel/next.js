@@ -12,7 +12,7 @@ Please remove the custom `devtool` override or only apply it to production build
 module.exports = {
   webpack: (config, options) => {
     if (!options.dev) {
-      config.devtool = 'your-custom-devtool'
+      config.devtool = options.isServer ? false : 'your-custom-devtool'
     }
     return config
   },
