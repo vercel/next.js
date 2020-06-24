@@ -16,14 +16,6 @@ const Index = () => {
     fetcher
   )
   
-  if (!data) {
-    return (
-      <div>
-          loading
-      </div>
-    )
-  }
-
   if (!user) {
     return (
       <>
@@ -60,7 +52,11 @@ const Index = () => {
         </Link>
       </div>
       {error && <div>Failed to fetch food!</div>}
-      {data && <div>Your favorite food is {data.food}.</div>}
+      {data ? (
+        <div>Your favorite food is {data.food}.</div>
+      ) : (
+        <div>Loading...</div>
+      )}
     </div>
   )
 }
