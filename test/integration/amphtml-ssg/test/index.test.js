@@ -53,6 +53,13 @@ const runTests = (isDev = false) => {
     expect($('#hello').text()).toContain('hello')
   })
 
+  it('should load dynamic hybrid SSG/AMP page with trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1/')
+    const $ = cheerio.load(html)
+    expect($('#use-amp').text()).toContain('no')
+    expect($('#hello').text()).toContain('hello')
+  })
+
   it('should load dynamic hybrid SSG/AMP page with query', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?amp=1')
     const $ = cheerio.load(html)

@@ -369,7 +369,7 @@ export default async function getBaseWebpackConfig(
         defaultVendors: false,
         framework: {
           chunks: 'all',
-          name: 'framework',
+          name: isWebpack5 ? 'static/chunks/framework' : 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
           // https://github.com/vercel/next.js/pull/9012
@@ -404,21 +404,25 @@ export default async function getBaseWebpackConfig(
               hash.update(module.libIdent({ context: dir }))
             }
 
-            return hash.digest('hex').substring(0, 8)
+            return (
+              (isWebpack5 ? 'static/chunks/' : '') +
+              hash.digest('hex').substring(0, 8)
+            )
           },
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
         },
         commons: {
-          name: 'commons',
+          name: (isWebpack5 ? 'static/chunks/' : '') + 'commons',
           minChunks: totalPages,
           priority: 20,
         },
         shared: {
           name(module, chunks) {
             return (
-              crypto
+              (isWebpack5 ? 'static/chunks/' : '') +
+              (crypto
                 .createHash('sha1')
                 .update(
                   chunks.reduce(
@@ -428,7 +432,8 @@ export default async function getBaseWebpackConfig(
                     ''
                   )
                 )
-                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
+                .digest('hex') +
+                (isModuleCSS(module) ? '_CSS' : ''))
             )
           },
           priority: 10,
@@ -640,6 +645,7 @@ export default async function getBaseWebpackConfig(
           '@ampproject/toolbox-optimizer', // except this one
         ],
     optimization: {
+      noEmitOnErrors: dev,
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer ? false : splitChunksConfig,
@@ -782,7 +788,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       hasReactRefresh && new ReactRefreshWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
-      new ChunkNamesPlugin(),
+      !isWebpack5 && new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...Object.keys(process.env).reduce(
           (prev: { [key: string]: string }, key: string) => {
@@ -817,6 +823,9 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
+        'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
+          config.experimental.trailingSlash
+        ),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
@@ -890,7 +899,6 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/unlink-removed-pages-plugin')
             const devPlugins = [
               new UnlinkRemovedPagesPlugin(),
-              new webpack.NoEmitOnErrorsPlugin(),
               new NextJsRequireCacheHotReloader(),
             ]
 
