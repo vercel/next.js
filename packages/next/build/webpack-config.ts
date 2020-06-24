@@ -902,8 +902,7 @@ export default async function getBaseWebpackConfig(
               new NextJsRequireCacheHotReloader(),
             ]
 
-            // Webpack 5 enables HMR automatically in the development mode
-            if (!isServer && !isWebpack5) {
+            if (!isServer) {
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
             }
 
