@@ -53,6 +53,13 @@ const runTests = (isDev = false) => {
     expect($('#hello').text()).toContain('hello')
   })
 
+  it('should load dynamic hybrid SSG/AMP page with trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1/')
+    const $ = cheerio.load(html)
+    expect($('#use-amp').text()).toContain('no')
+    expect($('#hello').text()).toContain('hello')
+  })
+
   it('should load dynamic hybrid SSG/AMP page with query', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?amp=1')
     const $ = cheerio.load(html)
@@ -117,13 +124,8 @@ describe('AMP SSG Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      builtServerPagesDir = join(
-        appDir,
-        '.next/server/static',
-        buildId,
-        'pages'
-      )
+      // TODO: use browser instead to do checks that now need filesystem access
+      builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
     })
     afterAll(() => killApp(app))
     runTests()

@@ -41,6 +41,7 @@ import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import { getPagePath } from '../next-server/server/require'
 
 const exists = promisify(existsOrig)
 
@@ -157,14 +158,6 @@ export default async function exportApp(
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
 
-  const distPagesDir = join(
-    distDir,
-    isLikeServerless
-      ? SERVERLESS_DIRECTORY
-      : join(SERVER_DIRECTORY, 'static', buildId),
-    'pages'
-  )
-
   const excludedPrerenderRoutes = new Set<string>()
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
@@ -252,7 +245,7 @@ export default async function exportApp(
     distDir,
     dev: false,
     hotReloader: null,
-    basePath: nextConfig.experimental.basePath,
+    basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
@@ -388,7 +381,6 @@ export default async function exportApp(
         path,
         pathMap: exportPathMap[path],
         distDir,
-        buildId,
         outDir,
         pagesDataDir,
         renderOpts,
@@ -426,7 +418,21 @@ export default async function exportApp(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async (route) => {
+        const { srcRoute } = prerenderManifest!.routes[route]
+        const pageName = srcRoute || route
+        const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+        const distPagesDir = join(
+          pagePath,
+          // strip leading / and then recurse number of nested dirs
+          // to place from base folder
+          pageName
+            .substr(1)
+            .split('/')
+            .map(() => '..')
+            .join('/')
+        )
         route = normalizePagePath(route)
+
         const orig = join(distPagesDir, route)
         const htmlDest = join(
           outDir,

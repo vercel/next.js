@@ -8,7 +8,7 @@ Deployed Demo: [https://next-userbase.now.sh](https://next-userbase.now.sh)
 
 Once you have access to [the environment variables you'll need](#step-2-setting-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
 
 ## How to use
 
@@ -95,4 +95,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
