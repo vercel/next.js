@@ -21,7 +21,7 @@ import getAssetPathFromRoute from './utils/get-asset-path-from-route'
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return path.startsWith(basePath) ? path : `${basePath}${path}`;
+  return path.startsWith(basePath) ? path : `${basePath}${path}`
 }
 
 export function delBasePath(path: string): string {
