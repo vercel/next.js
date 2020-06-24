@@ -698,7 +698,7 @@ export default async function getBaseWebpackConfig(
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: dev || isServer ? '[name].js' : '[name]-[chunkhash].js',
-      library: isServer ? undefined : 'INTERNAL_NEXT_APP',
+      library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
       hotUpdateChunkFilename: isWebpack5
         ? 'static/webpack/[id].[fullhash].hot-update.js'
