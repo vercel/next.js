@@ -35,6 +35,8 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
+> The code above is the default `Document` added by Next.js. Feel free to remove it if you don't need to change it.
+
 `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
 
 Custom attributes are allowed as props, like `lang`:
