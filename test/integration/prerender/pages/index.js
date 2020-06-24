@@ -48,6 +48,10 @@ const Page = ({ world, time }) => {
         <a id="to-catchall">to catchall</a>
       </Link>
       <br />
+      <Link href="/index">
+        <a id="to-nested-index">to nested index</a>
+      </Link>
+      <br />
       <Link href="/catchall-optional/[[...slug]]" as="/catchall-optional">
         <a id="catchall-optional-root">to optional catchall root</a>
       </Link>
