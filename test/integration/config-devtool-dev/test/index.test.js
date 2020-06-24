@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
-import { join } from 'path'
-import { launchApp, findPort, killApp, waitFor } from 'next-test-utils'
+import { check, findPort, killApp, launchApp } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 30)
 
@@ -18,12 +18,19 @@ describe('devtool set in developmemt mode in next config', () => {
         stderr += msg || ''
       },
     })
-    await waitFor(1000)
-    await killApp(app)
 
-    expect(stderr).toMatch(/Reverting webpack devtool to /)
+    const found = await check(
+      () => stderr,
+      /Reverting webpack devtool to /,
+      false
+    )
+
+    await killApp(app)
+    expect(found).toBeTruthy()
   })
 
+  // TODO: update test to check the error overlay correctly resolves source
+  // frames, which is a more robust test
   it('should revert to the original devtool when user set in development mode', async () => {
     const appPort = await findPort()
     const app = await launchApp(join(__dirname, '..'), appPort)
