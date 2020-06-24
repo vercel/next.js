@@ -265,23 +265,6 @@ export default function (render, fetch) {
       expect(res.status).toBe(200)
     })
 
-    test('should expose the compiled page file in development', async () => {
-      await fetch('/stateless') // make sure the stateless page is built
-      const clientSideJsRes = await fetch(
-        '/_next/development/static/development/pages/stateless.js'
-      )
-      expect(clientSideJsRes.status).toBe(200)
-      const clientSideJsBody = await clientSideJsRes.text()
-      expect(clientSideJsBody).toMatch(/My component!/)
-
-      const serverSideJsRes = await fetch(
-        '/_next/development/server/static/development/pages/stateless.js'
-      )
-      expect(serverSideJsRes.status).toBe(200)
-      const serverSideJsBody = await serverSideJsRes.text()
-      expect(serverSideJsBody).toMatch(/My component!/)
-    })
-
     test('allows to import .json files', async () => {
       const html = await render('/json')
       expect(html.includes('Vercel')).toBeTruthy()
@@ -380,10 +363,9 @@ export default function (render, fetch) {
         expect($('h2').text()).toBe('This page could not be found.')
       })
 
-      it('should 404 for <page>/', async () => {
+      it('should not 404 for <page>/', async () => {
         const $ = await get$('/nav/about/')
-        expect($('h1').text()).toBe('404')
-        expect($('h2').text()).toBe('This page could not be found.')
+        expect($('.nav-about p').text()).toBe('This is the about page.')
       })
 
       it('should should not contain a page script in a 404 page', async () => {
