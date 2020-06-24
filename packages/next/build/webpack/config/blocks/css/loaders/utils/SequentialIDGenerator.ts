@@ -24,7 +24,7 @@ export default class SequentialIDGenerator {
 
   next(): string {
     const id = base62(this.increment())
-    return this.prefix ? `${this.prefix}${id}` : id
+    return this.prefix ? this.prefix + id : id
   }
 
   increment(): number {
