@@ -2,12 +2,6 @@
 
 Example with [`next-auth`](https://github.com/iaincollins/next-auth) integration.
 
-## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com/now):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-next-auth)
-
 ## How to use
 
 A Prerequisite here is that you provide some sort of authentication mechanism, be that in the form of OAuth keys/secrets from a provider (Google, Twitter, etc.) or an SMTP connection string to enable email authentication.
@@ -17,6 +11,8 @@ You must copy the `example.env` file and create your own `.env` file and fill ou
 More details about the providers can be found [here](https://next-auth.js.org/configuration/providers)
 
 More 'Getting Started' details can be found [here](https://next-auth.js.org/getting-started/example).
+
+It is vital that you know the deployment URL and define it in the environment file.
 
 ### Using `create-next-app`
 
