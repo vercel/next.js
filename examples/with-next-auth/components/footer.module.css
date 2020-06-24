@@ -1,0 +1,14 @@
+.footer {
+  margin-top: 2rem;
+}
+
+.navigation {
+  margin-bottom: 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.navigationItem {
+  display: inline-block;
+  margin-right: 1rem;
+}
