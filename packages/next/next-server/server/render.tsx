@@ -153,11 +153,13 @@ export type RenderOptsPartial = {
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
   postProcess: boolean
+  optimizeFonts: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  getFontDefinition?: (url: string) => string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -293,6 +295,7 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
+    getFontDefinition,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -772,7 +775,16 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(html, { preloadImages: renderOpts.postProcess })
+  html = await postProcess(
+    html,
+    {
+      getFontDefinition,
+    },
+    {
+      preloadImages: renderOpts.postProcess,
+      optimizeFonts: renderOpts.optimizeFonts,
+    }
+  )
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
