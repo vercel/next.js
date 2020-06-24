@@ -71,7 +71,7 @@ const cssCharacterSet = [
  * Helper class used to minify CSS classnames
  * down to 1 character each in production builds.
  */
-export default class SequentialIDGenerator {
+export default class SequentialCSSModuleLocalIdentGenerator {
   count: number
   msb: number
   offset: number

@@ -1,9 +1,9 @@
 import loaderUtils from 'loader-utils'
 import path from 'path'
 import webpack from 'webpack'
-import SequentialIDGenerator from './utils/SequentialIDGenerator'
+import SequentialCSSModuleLocalIdentGenerator from './helpers/SequentialCSSModuleLocalIdentGenerator'
 
-const classnameGenerator = new SequentialIDGenerator()
+const classnameGenerator = new SequentialCSSModuleLocalIdentGenerator()
 const minifiedClassnameCache = new Map<string, string>()
 
 // https://easylist-downloads.adblockplus.org/easylist.txt
