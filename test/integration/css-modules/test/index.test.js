@@ -377,7 +377,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"A B\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"a b\\"}"`
     )
   })
 
