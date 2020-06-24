@@ -401,7 +401,6 @@ export default class HotReloader {
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
     this.middlewares = [
-      webpackDevMiddleware,
       // must come before hotMiddleware
       onDemandEntries.middleware(),
       webpackHotMiddleware,
