@@ -1,16 +1,18 @@
-# next-auth
+# NextAuth.js Example
 
-Example with [`next-auth`](https://github.com/iaincollins/next-auth) integration.
+Next.js example with [`next-auth`](https://github.com/iaincollins/next-auth), an open source, easy to use, and secure by default authentication library.
 
 ## How to use
 
-A Prerequisite here is that you provide some sort of authentication mechanism, be that in the form of OAuth keys/secrets from a provider (Google, Twitter, etc.) or an SMTP connection string to enable email authentication.
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
-You must copy the `example.env` file and create your own `.env` file and fill out at least one of the authentication provider variables.
+```bash
+cp .env.local.example .env.local
+```
 
-More details about the providers can be found [here](https://next-auth.js.org/configuration/providers)
+Then, you'll need to fill at least one of the authentication providers by adding the required secrets for it, be that in the form of OAuth keys/secrets from a provider (Google, Twitter, etc.) or an SMTP connection string to enable email authentication.
 
-More 'Getting Started' details can be found [here](https://next-auth.js.org/getting-started/example).
+More details about the providers can be found [here](https://next-auth.js.org/configuration/providers), and for a more complete introduction to `next-auth` check out their [introduction guide](https://next-auth.js.org/getting-started/introduction)
 
 It is vital that you know the deployment URL and define it in the environment file.
 
@@ -44,3 +46,5 @@ yarn dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+**Note:** For production you need to know in advance the domain (deployment URL) of your application, as it would be required for OAuth to work, once you have it set it to the `VERCEL_URL` environment variable under the settings of your Vercel project.
