@@ -7,10 +7,17 @@ describe('', () => {
     generator = new SequentialCSSModuleLocalIdentGenerator()
   })
 
+  it('initializes with default initial props', () => {
+    expect(generator.count).toBe(0)
+    expect(generator.offset).toBe(10)
+    expect(generator.msb).toBe(61)
+    expect(generator.power).toBe(1)
+  })
+
   it('avoids classnames starting with digit characters', () => {
     let result = generator.next()
 
-    expect(generator.count).toBe(0)
+    expect(generator.count).toBe(1)
     expect(generator.offset).toBe(10)
     expect(generator.msb).toBe(61)
     expect(generator.power).toBe(1)
