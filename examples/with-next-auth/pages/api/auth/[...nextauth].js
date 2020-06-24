@@ -66,10 +66,10 @@ const options = {
     // encode: async ({ secret, key, token, maxAge }) => {},
     // decode: async ({ secret, key, token, maxAge }) => {},
     // Easily add custom to the JWT. It is updated every time it is accessed.
-    // This encrypted and signed by default and may contain sensitive information
+    // This is encrypted and signed by default and may contain sensitive information
     // as long as a reasonable secret is defined.
     /*
-    set: async (token) => { 
+    set: async (token) => {
       token.customJwtProperty = "ABC123"
       return token
     }
