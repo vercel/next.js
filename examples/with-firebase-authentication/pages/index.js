@@ -15,7 +15,6 @@ const Index = () => {
     user ? ['/api/getFood', user.token] : null,
     fetcher
   )
-  
   if (!user) {
     return (
       <>
