@@ -67,6 +67,8 @@ import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { normalizeTrailingSlash } from '../lib/router/normalize-trailing-slash'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -220,9 +222,7 @@ export default class Server {
       distDir: this.distDir,
       pagesDir: join(
         this.distDir,
-        this._isLikeServerless
-          ? SERVERLESS_DIRECTORY
-          : `${SERVER_DIRECTORY}/static/${this.buildId}`,
+        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
@@ -413,13 +413,14 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path
-            // we need to re-encode the params since they are decoded
-            // by path-match and we are re-building the URL
-            .map((param: string) => encodeURIComponent(param))
-            .join('/')}`
-            .replace(/\.json$/, '')
-            .replace(/\/index$/, '/')
+          const pathname = getRouteFromAssetPath(
+            `/${params.path
+              // we need to re-encode the params since they are decoded
+              // by path-match and we are re-building the URL
+              .map((param: string) => encodeURIComponent(param))
+              .join('/')}`,
+            '.json'
+          )
 
           const parsedUrl = parseUrl(pathname, true)
 
@@ -583,10 +584,13 @@ export default class Server {
       type: 'route',
       name: 'Catchall render',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
+
+        // next.js core assumes page path without trailing slash
+        pathname = normalizeTrailingSlash(pathname, false)
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(

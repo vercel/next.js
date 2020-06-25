@@ -38,7 +38,21 @@ export default () => (
         <h1>index getStaticProps</h1>
       </a>
     </Link>
+    <br />
+    <Link href="/index">
+      <a id="nested-index-gsp">
+        <h1>nested index getStaticProps</h1>
+      </a>
+    </Link>
     <div id="base-path">{useRouter().basePath}</div>
     <div id="pathname">{useRouter().pathname}</div>
+    <div
+      id="trigger-error"
+      onClick={() => {
+        throw new Error('oops heres an error')
+      }}
+    >
+      click me for error
+    </div>
   </>
 )

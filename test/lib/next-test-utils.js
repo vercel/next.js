@@ -493,8 +493,12 @@ export function normalizeRegEx(src) {
   return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }
 
+function readJson(path) {
+  return JSON.parse(readFileSync(path))
+}
+
 export function getBuildManifest(dir) {
-  return JSON.parse(readFileSync(path.join(dir, '.next/build-manifest.json')))
+  return readJson(path.join(dir, '.next/build-manifest.json'))
 }
 
 export function getPageFileFromBuildManifest(dir, page) {
@@ -522,7 +526,12 @@ export function readNextBuildClientPageFile(appDir, page) {
 }
 
 export function getPagesManifest(dir) {
-  return require(path.join(dir, '.next/server/pages-manifest.json'))
+  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+
+  if (existsSync(serverFile)) {
+    return readJson(serverFile)
+  }
+  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
 }
 
 export function getPageFileFromPagesManifest(dir, page) {
