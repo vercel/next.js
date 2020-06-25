@@ -432,7 +432,7 @@ export default class HotReloader {
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
         configs.map((config) => config.watchOptions!),
         // Errors are handled separately
-        (_err) => {
+        (_err: any) => {
           if (!booted) {
             booted = true
             resolve(watcher)
