@@ -342,16 +342,6 @@ export default class HotReloader {
 
     const multiCompiler = webpack(configs)
 
-    await this.prepareBuildTools(multiCompiler)
-  }
-
-  public async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
-    })
-  }
-
-  private async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
@@ -439,7 +429,8 @@ export default class HotReloader {
 
     this.watcher = await new Promise((resolve) => {
       const watcher = multiCompiler.watch(
-        { ignored: /[\\/](\.git|\.next|node_modules)[\\/]/ },
+        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        configs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err) => {
           if (!booted) {
@@ -470,6 +461,12 @@ export default class HotReloader {
         serverStats: () => this.serverStats,
       }),
     ]
+  }
+
+  public async stop(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
+    })
   }
 
   public async getCompilationErrors(page: string) {
