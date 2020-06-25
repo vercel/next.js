@@ -143,7 +143,6 @@ export default class HotReloader {
   private webpackHotMiddleware:
     | (NextHandleFunction & WebpackHotMiddleware.EventStream)
     | null
-  private initialized: boolean
   private config: any
   private stats: any
   private serverStats: any
@@ -172,7 +171,6 @@ export default class HotReloader {
     this.pagesDir = pagesDir
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
-    this.initialized = false
     this.stats = null
     this.serverStats = null
     this.serverPrevDocumentHash = null
@@ -370,10 +368,10 @@ export default class HotReloader {
     this.assignBuildTools(buildTools)
 
     // [Client, Server]
-    ;[
-      this.stats,
-      this.serverStats,
-    ] = ((await this.waitUntilValid()) as any).stats
+    // ;[
+    //   this.stats,
+    //   this.serverStats,
+    // ] = ((await this.waitUntilValid()) as any).stats
   }
 
   public async stop(
@@ -423,9 +421,6 @@ export default class HotReloader {
       'NextjsHotReloaderForServer',
       (stats) => {
         this.serverStats = stats
-        if (!this.initialized) {
-          return
-        }
 
         const { compilation } = stats
 
@@ -467,7 +462,7 @@ export default class HotReloader {
             .filter((name) => !!getRouteFromEntrypoint(name))
         )
 
-        if (this.initialized) {
+        if (this.prevChunkNames) {
           // detect chunks which have to be replaced with a new template
           // e.g, pages/index.js <-> pages/_error.js
           const addedPages = diff(chunkNames, this.prevChunkNames!)
@@ -488,7 +483,6 @@ export default class HotReloader {
           }
         }
 
-        this.initialized = true
         this.stats = stats
         this.prevChunkNames = chunkNames
       }
