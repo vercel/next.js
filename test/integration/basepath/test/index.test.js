@@ -17,6 +17,9 @@ import {
   renderViaHTTP,
   File,
   nextStart,
+  initNextServerScript,
+  getRedboxSource,
+  hasRedbox,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -31,7 +34,28 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 
 const runTests = (context, dev = false) => {
-  if (!dev) {
+  if (dev) {
+    it('should render error in dev overlay correctly', async () => {
+      const browser = await webdriver(context.appPort, '/docs/hello')
+      await browser.elementByCss('#trigger-error').click()
+      expect(await hasRedbox(browser)).toBe(true)
+
+      const errorSource = await getRedboxSource(browser)
+      expect(errorSource).toMatchInlineSnapshot(`
+        "pages${
+          process.platform === 'win32' ? '\\\\' : '/'
+        }hello.js (52:14) @ onClick
+
+          50 |   id=\\"trigger-error\\"
+          51 |   onClick={() => {
+        > 52 |     throw new Error('oops heres an error')
+             |          ^
+          53 |   }}
+          54 | >
+          55 |   click me for error"
+      `)
+    })
+  } else {
     it('should add basePath to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
@@ -74,7 +98,7 @@ const runTests = (context, dev = false) => {
 
           for (const link of links) {
             const href = await link.getAttribute('href')
-            if (href.match(/(gsp|gssp|other-page)\.js$/)) {
+            if (href.match(/(gsp|gssp|other-page)-.*?\.js$/)) {
               found.add(href)
             }
             if (href.match(/gsp\.json$/)) {
@@ -92,6 +116,79 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should update dynamic params after mount correctly', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
+    const text = await browser.elementByCss('#slug').text()
+    expect(text).toContain('slug: hello-dynamic')
+  })
+
+  it('should navigate to index page with getStaticProps', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = "hi"')
+
+    await browser.elementByCss('#index-gsp').click()
+    await browser.waitForElementByCss('#prop')
+
+    expect(await browser.eval('window.beforeNavigate')).toBe('hi')
+    expect(await browser.elementByCss('#prop').text()).toBe('hello world')
+    expect(await browser.elementByCss('#nested').text()).toBe('no')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss('#pathname').text()).toBe('/')
+
+    if (!dev) {
+      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
+      let found = false
+
+      for (const prefetch of prefetches) {
+        const fullHref = await prefetch.getAttribute('href')
+        const href = url.parse(fullHref).pathname
+
+        if (
+          href.startsWith('/docs/_next/data') &&
+          href.endsWith('index.json') &&
+          !href.endsWith('index/index.json')
+        ) {
+          found = true
+        }
+      }
+
+      expect(found).toBe(true)
+    }
+  })
+
+  it('should navigate to nested index page with getStaticProps', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = "hi"')
+
+    await browser.elementByCss('#nested-index-gsp').click()
+    await browser.waitForElementByCss('#prop')
+
+    expect(await browser.eval('window.beforeNavigate')).toBe('hi')
+    expect(await browser.elementByCss('#prop').text()).toBe('hello world')
+    expect(await browser.elementByCss('#nested').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss('#pathname').text()).toBe('/index')
+
+    if (!dev) {
+      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
+      let found = false
+
+      for (const prefetch of prefetches) {
+        const fullHref = await prefetch.getAttribute('href')
+        const href = url.parse(fullHref).pathname
+
+        if (
+          href.startsWith('/docs/_next/data') &&
+          href.endsWith('index/index.json')
+        ) {
+          found = true
+        }
+      }
+
+      expect(found).toBe(true)
+    }
+  })
+
   it('should work with nested folder with same name as basePath', async () => {
     const html = await renderViaHTTP(context.appPort, '/docs/docs/another')
     expect(html).toContain('hello from another')
@@ -100,6 +197,24 @@ const runTests = (context, dev = false) => {
     await browser.eval('window.next.router.push("/docs/another")')
 
     await check(() => browser.elementByCss('p').text(), /hello from another/)
+  })
+
+  it('should work with normal dynamic page', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#dynamic-link').click()
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /slug: first/
+    )
+  })
+
+  it('should work with catch-all page', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#catchall-link').click()
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /parts: hello\/world/
+    )
   })
 
   it('should 404 when manually adding basePath with <Link>', async () => {
@@ -185,7 +300,9 @@ const runTests = (context, dev = false) => {
     expect(props.hello).toBe('world')
 
     const pathname = await browser.elementByCss('#pathname').text()
+    const asPath = await browser.elementByCss('#asPath').text()
     expect(pathname).toBe('/gssp')
+    expect(asPath).toBe('/gssp')
   })
 
   it('should have correct href for a link', async () => {
@@ -261,7 +378,9 @@ describe('basePath development', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    server = await launchApp(join(__dirname, '..'), context.appPort)
+    server = await launchApp(join(__dirname, '..'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
   })
   afterAll(async () => {
     await killApp(server)
@@ -604,7 +723,7 @@ describe('basePath serverless', () => {
 
   beforeAll(async () => {
     await nextConfig.write(
-      `module.exports = { target: 'serverless', experimental: { basePath: '/docs' } }`
+      `module.exports = { target: 'experimental-serverless-trace', basePath: '/docs' } `
     )
     await nextBuild(appDir)
     context.appPort = await findPort()
@@ -616,4 +735,24 @@ describe('basePath serverless', () => {
   })
 
   runTests(context)
+
+  it('should always strip basePath in serverless-loader', async () => {
+    const appPort = await findPort()
+    const app = await initNextServerScript(
+      join(appDir, 'server.js'),
+      /ready on/,
+      {
+        ...process.env,
+        PORT: appPort,
+      }
+    )
+
+    const html = await renderViaHTTP(appPort, '/docs/gssp')
+    await killApp(app)
+
+    const $ = cheerio.load(html)
+
+    expect($('#pathname').text()).toBe('/gssp')
+    expect($('#asPath').text()).toBe('/gssp')
+  })
 })

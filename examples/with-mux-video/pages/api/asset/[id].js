@@ -1,7 +1,7 @@
 import Mux from '@mux/mux-node'
 const { Video } = new Mux()
 
-export default async function uploadHandler(req, res) {
+export default async function assetHandler(req, res) {
   const { method } = req
 
   switch (method) {
