@@ -43,7 +43,7 @@ const runTests = (context, dev = false) => {
       const errorSource = await getRedboxSource(browser)
       expect(errorSource).toMatchInlineSnapshot(`
         "pages${
-          process.platform === 'win32' ? '\\' : '/'
+          process.platform === 'win32' ? '\\\\' : '/'
         }hello.js (52:14) @ onClick
 
           50 |   id=\\"trigger-error\\"
