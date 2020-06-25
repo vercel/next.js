@@ -351,10 +351,10 @@ export default class HotReloader {
     this.assignBuildTools(buildTools)
 
     // [Client, Server]
-    // ;[
-    //   this.stats,
-    //   this.serverStats,
-    // ] = ((await this.waitUntilValid()) as any).stats
+    ;[
+      this.stats,
+      this.serverStats,
+    ] = ((await this.waitUntilValid()) as any).stats
   }
 
   public async stop(
