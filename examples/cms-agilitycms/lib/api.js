@@ -7,14 +7,14 @@ import { requireComponentDependancyByName } from './dependancies'
 
 // Our LIVE API client
 const liveClient = agility.getApi({
-  guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
-  apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_FETCH_KEY,
+  guid: process.env.AGILITY_CMS_GUID,
+  apiKey: process.env.AGILITY_CMS_API_FETCH_KEY,
 })
 
 // Our PREVIEW API client
 const previewClient = agility.getApi({
-  guid: process.env.NEXT_EXAMPLE_CMS_AGILITY_GUID,
-  apiKey: process.env.NEXT_EXAMPLE_CMS_AGILITY_API_PREVIEW_KEY,
+  guid: process.env.AGILITY_CMS_GUID,
+  apiKey: process.env.AGILITY_CMS_API_PREVIEW_KEY,
   isPreview: true,
 })
 

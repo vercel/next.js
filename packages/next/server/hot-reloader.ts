@@ -15,7 +15,6 @@ import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  IS_BUNDLED_PAGE_REGEX,
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
@@ -80,7 +79,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/:buildId/pages/:path*.js(\\.map|)'
+  '/_next/static/pages/:path*.js(\\.map|)'
 )
 
 // Recursively look up the issuer till it ends up at the root
@@ -109,7 +108,7 @@ function erroredPages(
     }
 
     // Only pages have to be reloaded
-    if (!IS_BUNDLED_PAGE_REGEX.test(name)) {
+    if (!getRouteFromEntrypoint(name)) {
       continue
     }
 
@@ -195,12 +194,10 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params = matchNextPageBundleRequest(pathname)
+      const params: { path: string[] } | null = matchNextPageBundleRequest(
+        pathname
+      )
       if (!params) {
-        return {}
-      }
-
-      if (params.buildId !== this.buildId) {
         return {}
       }
 
@@ -383,8 +380,7 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          (c) =>
-            c.name === normalize(`static/${this.buildId}/pages/_document.js`)
+          (c) => c.name === normalize(`pages/_document`)
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
@@ -416,7 +412,7 @@ export default class HotReloader {
         const chunkNames = new Set(
           compilation.chunks
             .map((c) => c.name)
-            .filter((name) => IS_BUNDLED_PAGE_REGEX.test(name))
+            .filter((name) => !!getRouteFromEntrypoint(name))
         )
 
         if (this.initialized) {
@@ -488,7 +484,6 @@ export default class HotReloader {
       webpackDevMiddleware,
       multiCompiler,
       {
-        buildId: this.buildId,
         pagesDir: this.pagesDir,
         pageExtensions: this.config.pageExtensions,
         ...(this.config.onDemandEntries as {

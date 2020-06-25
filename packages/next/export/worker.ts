@@ -34,11 +34,10 @@ interface PathMap {
   query?: { [key: string]: string | string[] }
 }
 
-interface ExortPageInput {
+interface ExportPageInput {
   path: string
   pathMap: PathMap
   distDir: string
-  buildId: string
   outDir: string
   pagesDataDir: string
   renderOpts: RenderOpts
@@ -74,7 +73,6 @@ export default async function exportPage({
   path,
   pathMap,
   distDir,
-  buildId,
   outDir,
   pagesDataDir,
   renderOpts,
@@ -82,7 +80,7 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
-}: ExortPageInput): Promise<ExportPageResults> {
+}: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
   }
@@ -183,7 +181,6 @@ export default async function exportPage({
       })
       const { Component: mod, getServerSideProps } = await loadComponents(
         distDir,
-        buildId,
         page,
         serverless
       )
@@ -228,12 +225,7 @@ export default async function exportPage({
         throw new Error(`Failed to render serverless page`)
       }
     } else {
-      const components = await loadComponents(
-        distDir,
-        buildId,
-        page,
-        serverless
-      )
+      const components = await loadComponents(distDir, page, serverless)
 
       if (components.getServerSideProps) {
         throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)

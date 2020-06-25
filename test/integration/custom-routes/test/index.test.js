@@ -303,10 +303,9 @@ const runTests = (isDev = false) => {
     await renderViaHTTP(appPort, '/hello')
     const data = await renderViaHTTP(
       appPort,
-      `/hidden/_next/static/${buildId}/pages/hello.js`
+      `/hidden/_next/static/${buildId}/_buildManifest.js`
     )
-    expect(data).toContain('Hello')
-    expect(data).toContain('createElement')
+    expect(data).toContain('/hello')
   })
 
   it('should allow redirecting to external resource', async () => {
@@ -492,10 +491,18 @@ const runTests = (isDev = false) => {
       }
 
       expect(manifest).toEqual({
-        version: 1,
+        version: 3,
         pages404: true,
         basePath: '',
         redirects: [
+          {
+            destination: '/:path+',
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$'
+            ),
+            source: '/:path+/',
+            statusCode: 308,
+          },
           {
             destination: '/:lang/about',
             regex: normalizeRegEx(
@@ -873,19 +880,25 @@ const runTests = (isDev = false) => {
             namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['id'],
+            routeKeys: {
+              id: 'id',
+            },
           },
           {
             namedRegex: '^/api/dynamic/(?<slug>[^/]+?)(?:/)?$',
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['slug'],
+            routeKeys: {
+              slug: 'slug',
+            },
           },
           {
             namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['post'],
+            routeKeys: {
+              post: 'post',
+            },
           },
         ],
       })
