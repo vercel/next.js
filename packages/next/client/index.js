@@ -9,6 +9,7 @@ import { RouterContext } from '../next-server/lib/router-context'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import { delBasePath } from '../next-server/lib/router/router'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -48,7 +49,7 @@ envConfig.setConfig({
   publicRuntimeConfig: runtimeConfig || {},
 })
 
-const asPath = getURL()
+const asPath = delBasePath(getURL())
 
 const pageLoader = new PageLoader(buildId, prefix, page)
 const register = ([r, f]) => pageLoader.registerPage(r, f)

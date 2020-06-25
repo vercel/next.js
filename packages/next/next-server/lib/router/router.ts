@@ -263,7 +263,7 @@ export default class Router implements BaseRouter {
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
-          as
+          addBasePath(as)
         )
       }
 
