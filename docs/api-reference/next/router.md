@@ -67,7 +67,7 @@ router.push(url, as, options)
 - `options` - Optional object with the following configuration options:
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
-> You don't need to use `router.push` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
+> You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
 #### Usage
 
@@ -155,7 +155,7 @@ Similar to the `replace` prop in [`next/link`](/docs/api-reference/next/link.md)
 router.replace(url, as, options)
 ```
 
-- The API for `router.replace` is exactly the same as that used for [`router.push`](#router.push).
+- The API for `router.replace` is exactly the same as the API for [`router.push`](#router.push).
 
 #### Usage
 
@@ -228,7 +228,7 @@ export default function Login() {
 In some cases (for example, if using a [Custom Server](/docs/advanced-features/custom-server.md)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
 
 ```jsx
-router.beforePopState((cb: () => boolean))
+router.beforePopState(cb)
 ```
 
 - `cb` - The function to run on incoming `popstate` events. The function receives the state of the event as an object with the following props:
@@ -236,7 +236,7 @@ router.beforePopState((cb: () => boolean))
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [router.push](#router.push)
 
-If the function you pass into `beforePopState` returns `false`, The Next.js router will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
+If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 
 #### Usage
 
@@ -321,7 +321,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 
 #### Usage
 
-For example, to listen to the router event `routeChangeStart`, Open or create `pages/_app.js` and subscribe to the event, like so:
+For example, to listen to the router event `routeChangeStart`, open or create `pages/_app.js` and subscribe to the event, like so:
 
 ```jsx
 import { useEffect } from 'react'
@@ -348,7 +348,7 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
-> We use a [Custom App](/docs/advanced-features/custom-app) (`pages/_app.js`) for this example to subscribe to the event because it's not unmounted on page navigations, but you can subscribe to router events on any component in your application.
+> We use a [Custom App](/docs/advanced-features/custom-app.md) (`pages/_app.js`) for this example to subscribe to the event because it's not unmounted on page navigations, but you can subscribe to router events on any component in your application.
 
 Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens.
 
