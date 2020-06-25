@@ -11,6 +11,8 @@ import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
+// @ts-ignore NodeOutputFileSystem is available in webpack
+import NodeOutputFileSystem from 'webpack/lib/node/NodeOutputFileSystem'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -498,7 +500,7 @@ export default class HotReloader {
       logLevel: 'silent',
       // We don’t watch .git/ .next/ and node_modules for changes
       watchOptions: { ignored: /[\\/](\.git|\.next|node_modules)[\\/]/ },
-      writeToDisk: true,
+      writeToDisk: false,
     }
 
     if (this.config.webpackDevMiddleware) {
@@ -514,6 +516,9 @@ export default class HotReloader {
       multiCompiler,
       webpackDevMiddlewareConfig
     )
+
+    // @ts-ignore outputFileSystem exists on multiCompiler
+    multiCompiler.outputFileSystem = new NodeOutputFileSystem()
 
     const webpackHotMiddleware = WebpackHotMiddleware(
       multiCompiler.compilers[0],
