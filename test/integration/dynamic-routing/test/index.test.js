@@ -240,6 +240,21 @@ function runTests(dev) {
     }
   })
 
+  it("[catch-all] shouldn't fail on colon followed by double digits in the path", async () => {
+    // https://github.com/GoogleChromeLabs/native-url/issues/27
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-colonnumber').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":[":42"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('[ssg: catch all] should pass param in getStaticProps during SSR', async () => {
     const data = await renderViaHTTP(
       appPort,
