@@ -116,6 +116,12 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should update dynamic params after mount correctly', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
+    const text = await browser.elementByCss('#slug').text()
+    expect(text).toContain('slug: hello-dynamic')
+  })
+
   it('should navigate to index page with getStaticProps', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.eval('window.beforeNavigate = "hi"')
