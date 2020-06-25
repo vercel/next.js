@@ -101,10 +101,7 @@ function findEntryModule(issuer: any): any {
   return issuer
 }
 
-function erroredPages(
-  compilation: webpack.compilation.Compilation,
-  options = { enhanceName: (name: string) => name }
-) {
+function erroredPages(compilation: webpack.compilation.Compilation) {
   const failedPages: { [page: string]: any[] } = {}
   for (const error of compilation.errors) {
     if (!error.origin) {
@@ -122,7 +119,11 @@ function erroredPages(
       continue
     }
 
-    const enhancedName = options.enhanceName(name)
+    const enhancedName = getRouteFromEntrypoint(name)
+
+    if (!enhancedName) {
+      continue
+    }
 
     if (!failedPages[enhancedName]) {
       failedPages[enhancedName] = []
@@ -537,11 +538,7 @@ export default class HotReloader {
 
     if (this.stats.hasErrors()) {
       const { compilation } = this.stats
-      const failedPages = erroredPages(compilation, {
-        enhanceName(name) {
-          return getRouteFromEntrypoint(name) as string
-        },
-      })
+      const failedPages = erroredPages(compilation)
 
       // If there is an error related to the requesting page we display it instead of the first error
       if (
