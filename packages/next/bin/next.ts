@@ -110,7 +110,10 @@ commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
-  const { watchFile } = require('fs')
+  const { watchFile, readdirSync } = require('fs')
+  const typescriptConfigs = readdirSync(`${process.cwd()}`).filter(
+    (_: string) => _ === 'jsconfig.json' || _ === 'tsconfig.json'
+  )
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
       // tslint:disable-next-line
@@ -119,4 +122,22 @@ if (command === 'dev') {
       )
     }
   })
+  watchFile(`${process.cwd()}/`, (cur: any, prev: any) => {
+    if (cur.size > 0 || prev.size > 0) {
+      // tslint:disable-next-line
+      console.log(
+        `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
+      )
+    }
+  })
+  typescriptConfigs.forEach((config: string) =>
+    watchFile(`${process.cwd()}/`, (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        // tslint:disable-next-line
+        console.log(
+          `\n> Found a change in ${config}. Restart the server to see the changes in effect.`
+        )
+      }
+    })
+  )
 }
