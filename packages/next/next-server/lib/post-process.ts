@@ -149,7 +149,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       result = result.replace(
         '</head>',
         `<style data-href="${key}">${this.fontDefinitions[key].replace(
-          /\n/g,
+          /(\n|\s)/g,
           ''
         )}</style>`
       )
