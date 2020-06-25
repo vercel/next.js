@@ -218,23 +218,6 @@ export default class HotReloader {
           return { finished: true }
         }
 
-        const bundlePath = join(
-          this.dir,
-          this.config.distDir,
-          'server/static/development/pages',
-          page + '.js'
-        )
-
-        // Make sure to 404 for AMP first pages
-        try {
-          const mod = require(bundlePath)
-          if (mod?.config?.amp === true) {
-            pageBundleRes.statusCode = 404
-            pageBundleRes.end()
-            return { finished: true }
-          }
-        } catch (_) {}
-
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
           await renderScriptError(pageBundleRes, errors[0])
