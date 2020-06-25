@@ -694,6 +694,9 @@ export default async function getBaseWebpackConfig(
           : {}),
       }
     },
+    watchOptions: {
+      ignored: /[\\/](\.git|\.next|node_modules)[\\/]/,
+    },
     output: {
       path: outputPath,
       // On the server we don't use the chunkhash
@@ -1035,6 +1038,16 @@ export default async function getBaseWebpackConfig(
       console.warn(
         '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
       )
+    }
+  }
+
+  // Backwards compat with webpack-dev-middleware options object
+  if (typeof config.webpackDevMiddleware === 'function') {
+    const options = config.webpackDevMiddleware({
+      watchOptions: webpackConfig.watchOptions,
+    })
+    if (options.watchOptions) {
+      webpackConfig.watchOptions = options.watchOptions
     }
   }
 
