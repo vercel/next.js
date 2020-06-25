@@ -43,7 +43,6 @@ const externals = {
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
   'webpack-sources': 'webpack-sources',
-  // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
   // dependents: terser-webpack-plugin
@@ -478,17 +477,7 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('compiled/unistore')
 }
-// eslint-disable-next-line camelcase
-// externals['webpack-dev-middleware'] =
-//   'next/dist/compiled/webpack-dev-middleware'
-// export async function ncc_webpack_dev_middleware(task, opts) {
-//   await task
-//     .source(
-//       opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
-//     )
-//     .ncc({ packageName: 'webpack-dev-middleware', externals })
-//     .target('compiled/webpack-dev-middleware')
-// }
+
 // eslint-disable-next-line camelcase
 externals['webpack-hot-middleware'] =
   'next/dist/compiled/webpack-hot-middleware'

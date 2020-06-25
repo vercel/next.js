@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackDevMiddleware from 'webpack-dev-middleware'
 import { join, posix } from 'path'
 import { parse } from 'url'
 import webpack from 'webpack'
@@ -28,7 +27,7 @@ export let entries: {
 } = {}
 
 export default function onDemandEntryHandler(
-  devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
+  watcher: any,
   multiCompiler: webpack.MultiCompiler,
   {
     pagesDir,
@@ -43,7 +42,7 @@ export default function onDemandEntryHandler(
   }
 ) {
   const { compilers } = multiCompiler
-  const invalidator = new Invalidator(devMiddleware, multiCompiler)
+  const invalidator = new Invalidator(watcher, multiCompiler)
 
   let lastAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
@@ -95,7 +94,7 @@ export default function onDemandEntryHandler(
   })
 
   const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(devMiddleware, lastAccessPages, maxInactiveAge)
+    disposeInactiveEntries(watcher, lastAccessPages, maxInactiveAge)
   }, 5000)
 
   disposeHandler.unref()
@@ -237,7 +236,7 @@ export default function onDemandEntryHandler(
 }
 
 function disposeInactiveEntries(
-  devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
+  watcher: any,
   lastAccessPages: any,
   maxInactiveAge: number
 ) {
@@ -265,7 +264,7 @@ function disposeInactiveEntries(
       delete entries[page]
     })
     // disposing inactive page(s)
-    devMiddleware.invalidate()
+    watcher.invalidate()
   }
 }
 
@@ -273,16 +272,13 @@ function disposeInactiveEntries(
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler
-  private devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
+  private watcher: any
   private building: boolean
   private rebuildAgain: boolean
 
-  constructor(
-    devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
-    multiCompiler: webpack.MultiCompiler
-  ) {
+  constructor(watcher: any, multiCompiler: webpack.MultiCompiler) {
     this.multiCompiler = multiCompiler
-    this.devMiddleware = devMiddleware
+    this.watcher = watcher
     // contains an array of types of compilers currently building
     this.building = false
     this.rebuildAgain = false
@@ -304,7 +300,7 @@ class Invalidator {
     for (const compiler of this.multiCompiler.compilers) {
       compiler.hooks.invalid.call()
     }
-    this.devMiddleware.invalidate()
+    this.watcher.invalidate()
   }
 
   startBuilding() {

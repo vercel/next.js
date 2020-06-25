@@ -1,7 +1,6 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import { join, normalize, relative as relativePath, sep } from 'path'
 import { UrlObject } from 'url'
@@ -11,8 +10,6 @@ import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
-// @ts-ignore NodeOutputFileSystem is available in webpack
-import NodeOutputFileSystem from 'webpack/lib/node/NodeOutputFileSystem'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -24,9 +21,7 @@ import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
-  // ADDED,
   BUILDING,
-  // BUILT,
 } from './on-demand-entry-handler'
 import {
   denormalizePagePath,
@@ -140,7 +135,6 @@ export default class HotReloader {
   private buildId: string
   private middlewares: any[]
   private pagesDir: string
-  private webpackDevMiddleware: WebpackDevMiddleware.WebpackDevMiddleware | null
   private webpackHotMiddleware:
     | (NextHandleFunction & WebpackHotMiddleware.EventStream)
     | null
@@ -151,6 +145,7 @@ export default class HotReloader {
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
+  private watcher: any
 
   constructor(
     dir: string,
@@ -170,7 +165,6 @@ export default class HotReloader {
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
-    this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
     this.stats = null
     this.serverStats = null
@@ -348,53 +342,13 @@ export default class HotReloader {
 
     const multiCompiler = webpack(configs)
 
-    const buildTools = await this.prepareBuildTools(multiCompiler)
-    this.assignBuildTools(buildTools)
-
-    // [Client, Server]
-    ;[
-      this.stats,
-      this.serverStats,
-    ] = ((await this.waitUntilValid()) as any).stats
+    await this.prepareBuildTools(multiCompiler)
   }
 
-  public async stop(
-    webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware
-  ): Promise<void> {
-    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
-    if (middleware) {
-      return new Promise((resolve, reject) => {
-        ;(middleware.close as any)((err: any) => {
-          if (err) return reject(err)
-          resolve()
-        })
-      })
-    }
-  }
-
-  private assignBuildTools({
-    webpackDevMiddleware,
-    webpackHotMiddleware,
-    onDemandEntries,
-  }: {
-    webpackDevMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
-    webpackHotMiddleware: NextHandleFunction & WebpackHotMiddleware.EventStream
-    onDemandEntries: any
-  }): void {
-    this.webpackDevMiddleware = webpackDevMiddleware
-    this.webpackHotMiddleware = webpackHotMiddleware
-    this.onDemandEntries = onDemandEntries
-    this.middlewares = [
-      // must come before hotMiddleware
-      onDemandEntries.middleware(),
-      webpackHotMiddleware,
-      errorOverlayMiddleware({ dir: this.dir }),
-      getOverlayMiddleware({
-        rootDirectory: this.dir,
-        stats: () => this.stats,
-        serverStats: () => this.serverStats,
-      }),
-    ]
+  public async stop(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
+    })
   }
 
   private async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
@@ -472,33 +426,7 @@ export default class HotReloader {
       }
     )
 
-    let webpackDevMiddlewareConfig = {
-      publicPath: `/_next/static/webpack`,
-      noInfo: true,
-      logLevel: 'silent',
-      // We don’t watch .git/ .next/ and node_modules for changes
-      watchOptions: { ignored: /[\\/](\.git|\.next|node_modules)[\\/]/ },
-      writeToDisk: false,
-    }
-
-    if (this.config.webpackDevMiddleware) {
-      console.log(
-        `> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`
-      )
-      webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(
-        webpackDevMiddlewareConfig
-      )
-    }
-
-    const webpackDevMiddleware = WebpackDevMiddleware(
-      multiCompiler,
-      webpackDevMiddlewareConfig
-    )
-
-    // @ts-ignore outputFileSystem exists on multiCompiler
-    multiCompiler.outputFileSystem = new NodeOutputFileSystem()
-
-    const webpackHotMiddleware = WebpackHotMiddleware(
+    this.webpackHotMiddleware = WebpackHotMiddleware(
       multiCompiler.compilers[0],
       {
         path: '/_next/webpack-hmr',
@@ -507,30 +435,41 @@ export default class HotReloader {
       }
     )
 
-    const onDemandEntries = onDemandEntryHandler(
-      webpackDevMiddleware,
-      multiCompiler,
-      {
-        pagesDir: this.pagesDir,
-        pageExtensions: this.config.pageExtensions,
-        ...(this.config.onDemandEntries as {
-          maxInactiveAge: number
-          pagesBufferLength: number
-        }),
-      }
-    )
+    let booted = false
 
-    return {
-      webpackDevMiddleware,
-      webpackHotMiddleware,
-      onDemandEntries,
-    }
-  }
-
-  private waitUntilValid(): Promise<webpack.Stats> {
-    return new Promise((resolve) => {
-      this.webpackDevMiddleware!.waitUntilValid(resolve)
+    this.watcher = await new Promise((resolve) => {
+      const watcher = multiCompiler.watch(
+        { ignored: /[\\/](\.git|\.next|node_modules)[\\/]/ },
+        // Errors are handled separately
+        (_err) => {
+          if (!booted) {
+            booted = true
+            resolve(watcher)
+          }
+        }
+      )
     })
+
+    this.onDemandEntries = onDemandEntryHandler(this.watcher, multiCompiler, {
+      pagesDir: this.pagesDir,
+      pageExtensions: this.config.pageExtensions,
+      ...(this.config.onDemandEntries as {
+        maxInactiveAge: number
+        pagesBufferLength: number
+      }),
+    })
+
+    this.middlewares = [
+      // must come before hotMiddleware
+      this.onDemandEntries.middleware(),
+      this.webpackHotMiddleware,
+      errorOverlayMiddleware({ dir: this.dir }),
+      getOverlayMiddleware({
+        rootDirectory: this.dir,
+        stats: () => this.stats,
+        serverStats: () => this.serverStats,
+      }),
+    ]
   }
 
   public async getCompilationErrors(page: string) {
