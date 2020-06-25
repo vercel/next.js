@@ -136,6 +136,14 @@ function reduceComponents(
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
+      if (
+        c.type === 'link' &&
+        c.props['href'] &&
+        c.props['href'].startsWith('https://fonts.googleapis.com/css2?')
+      ) {
+        c.props['data-href'] = c.props['href']
+        delete c.props['href']
+      }
       return React.cloneElement(c, { key })
     })
 }

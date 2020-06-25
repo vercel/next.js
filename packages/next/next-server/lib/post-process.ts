@@ -17,16 +17,22 @@ type postProcessData = {
   }
 }
 
-type postProcessMiddleware = (
-  htmlRoot: HTMLElement,
-  rawString: string,
-  data: postProcessData,
-  options: renderOpts
-) => Promise<string>
+interface PostProcessMiddleware {
+  inspect: (
+    originalDom: HTMLElement,
+    data: postProcessData,
+    options: renderOpts
+  ) => void
+  mutate: (
+    markup: string,
+    data: postProcessData,
+    options: renderOpts
+  ) => Promise<string>
+}
 
 type middlewareSignature = {
   name: string
-  middleware: postProcessMiddleware
+  middleware: PostProcessMiddleware
   condition: ((options: postProcessOptions) => boolean) | null
 }
 
@@ -34,7 +40,7 @@ const middlewareRegistry: Array<middlewareSignature> = []
 
 function registerPostProcessor(
   name: string,
-  middleware: postProcessMiddleware,
+  middleware: PostProcessMiddleware,
   condition?: (options: postProcessOptions) => boolean
 ) {
   middlewareRegistry.push({ name, middleware, condition: condition || null })
@@ -58,11 +64,12 @@ async function processHTML(
   let document = html
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(
-    middleware: postProcessMiddleware,
+    middleware: PostProcessMiddleware,
     name: string
   ) {
     let timer = Date.now()
-    document = await middleware(root, document, postProcessData, data)
+    middleware.inspect(root, postProcessData, data)
+    document = await middleware.mutate(document, postProcessData, data)
     timer = Date.now() - timer
     if (timer > MIDDLEWARE_TIME_BUDGET) {
       console.warn(
@@ -85,80 +92,144 @@ async function processHTML(
   return document
 }
 
-// Middleware
-const findImages: postProcessMiddleware = async (htmlRoot, document, data) => {
-  // TODO: Image preload finding logic here--adds to data
-  console.log(htmlRoot, data)
-  return document
-}
-
-// Middleware
-const inlineFonts: postProcessMiddleware = async (
-  htmlRoot,
-  document,
-  _data,
-  options
-) => {
-  if (!options.getFontDefinition) {
-    return htmlRoot
+class FindImages implements PostProcessMiddleware {
+  inspect(
+    _originalDom: HTMLElement,
+    _data: postProcessData,
+    _options: renderOpts
+  ) {
+    return
   }
-
-  const getFontDefinition = options.getFontDefinition
-  const links = htmlRoot
-    .querySelectorAll('link')
-    .filter(
-      (tag) =>
-        tag.getAttribute('rel') === 'stylesheet' &&
-        tag.hasAttribute('href') &&
-        tag
-          .getAttribute('href')
-          .startsWith('https://fonts.googleapis.com/css2?')
-    )
-  links.forEach((link) => {
-    const url = link.getAttribute('href')
-    console.log(document, '...', `<link href="${url}"`)
-    document = document.replace(
-      `<link href="${url}"`,
-      `<link data-href="${url}"`
-    )
-    document = document.replace(
-      '</head>',
-      `<style data-font-url='${url}'>${getFontDefinition(url)}</style></head>`
-    )
-    /**
-     * Removing the actual element is not supported in node-html-parser
-     * so we just remove the href effectively making it inert.
-     */
-    //link.removeAttribute('href')
-  })
-  return document
+  mutate = async (
+    markup: string,
+    _data: postProcessData,
+    _options: renderOpts
+  ) => {
+    return markup
+  }
 }
 
-const renderPreloads: postProcessMiddleware = async (
-  htmlRoot,
-  document,
-  data
-) => {
-  // TODO: Render preload tags from data
-  console.log(htmlRoot, data)
-  return document
+class FontOptimizerMiddleware implements PostProcessMiddleware {
+  fontDefinitions: {
+    [key: string]: string
+  } = {}
+
+  inspect(
+    originalDom: HTMLElement,
+    _data: postProcessData,
+    options: renderOpts
+  ) {
+    if (!options.getFontDefinition) {
+      return
+    }
+    const getFontDefinition = options.getFontDefinition
+    // collecting all the requested font definitions
+    originalDom
+      .querySelectorAll('link')
+      .filter(
+        (tag: HTMLElement) =>
+          tag.getAttribute('rel') === 'stylesheet' &&
+          tag.hasAttribute('data-href') &&
+          tag
+            .getAttribute('data-href')
+            .startsWith('https://fonts.googleapis.com/css2?')
+      )
+      .forEach((element: HTMLElement) => {
+        const url = element.getAttribute('data-href')
+        this.fontDefinitions[url] = getFontDefinition(url)
+      })
+  }
+  mutate = async (
+    markup: string,
+    _data: postProcessData,
+    _options: renderOpts
+  ) => {
+    let result = markup
+    for (const key in this.fontDefinitions) {
+      result = result.replace(
+        '</head>',
+        `<style data-href="${key}">${this.fontDefinitions[key].replace(
+          /\n/g,
+          ''
+        )}</style>`
+      )
+    }
+    return result
+  }
+}
+
+// Middleware
+// const inlineFonts: postProcessMiddleware = async (
+//   htmlRoot,
+//   document,
+//   _data,
+//   options
+// ) => {
+//   if (!options.getFontDefinition) {
+//     return htmlRoot
+//   }
+
+//   const getFontDefinition = options.getFontDefinition
+//   const links = htmlRoot
+//     .querySelectorAll('link')
+//     .filter(
+//       (tag) =>
+//         tag.getAttribute('rel') === 'stylesheet' &&
+//         tag.hasAttribute('href') &&
+//         tag
+//           .getAttribute('href')
+//           .startsWith('https://fonts.googleapis.com/css2?')
+//     )
+//   links.forEach((link) => {
+//     const url = link.getAttribute('href')
+//     console.log(document, '...', `<link href="${url}"`)
+//     document = document.replace(
+//       `<link href="${url}"`,
+//       `<link data-href="${url}"`
+//     )
+//     document = document.replace(
+//       '</head>',
+//       `<style data-font-url='${url}'>${getFontDefinition(url)}</style></head>`
+//     )
+//     /**
+//      * Removing the actual element is not supported in node-html-parser
+//      * so we just remove the href effectively making it inert.
+//      */
+//     //link.removeAttribute('href')
+//   })
+//   return document
+// }
+
+class RenderPreloads implements PostProcessMiddleware {
+  inspect = (
+    _originalDom: HTMLElement,
+    _data: postProcessData,
+    _options: renderOpts
+  ) => {}
+  mutate = async (
+    markup: string,
+    _data: postProcessData,
+    _options: renderOpts
+  ) => {
+    return markup
+  }
 }
 
 // Initialization
 registerPostProcessor(
   'Find-Images',
-  findImages,
+  new FindImages(),
   (options) => options.preloadImages
 )
 // Initialization
 registerPostProcessor(
   'Inline-Fonts',
-  inlineFonts,
+  new FontOptimizerMiddleware(),
   (options) => options.optimizeFonts || true
 )
 registerPostProcessor(
   'Render-Preloads',
-  renderPreloads,
+  new RenderPreloads(),
   (options) => options.preloadImages
 )
 
