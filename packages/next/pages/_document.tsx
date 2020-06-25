@@ -182,8 +182,6 @@ export class Head extends Component<
     const cssFiles =
       files && files.length ? files.filter((f) => f.endsWith('.css')) : []
 
-    // cssFiles.push(...this.getDynamicCssLinks())
-
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       cssLinkElements.push(
@@ -224,7 +222,9 @@ export class Head extends Component<
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           as="style"
-          data-jsimports={Object.keys(jsImports).join(';')}
+          data-jsimports={Object.keys(jsImports)
+            .map((jsFile) => `${assetPrefix}/_next/${encodeURI(jsFile)}`)
+            .join(';')}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
@@ -236,7 +236,9 @@ export class Head extends Component<
           href={`${assetPrefix}/_next/${encodeURI(
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
-          data-jsimports={Object.keys(jsImports).join(';')}
+          data-jsimports={Object.keys(jsImports)
+            .map((jsFile) => `${assetPrefix}/_next/${encodeURI(jsFile)}`)
+            .join(';')}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }

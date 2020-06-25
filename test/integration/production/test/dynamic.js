@@ -16,14 +16,18 @@ export default (context, render) => {
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
-      it('should render dynamic import components and load their css files', async () => {
+      it('should render one dynamically imported component and load its css files', async () => {
         const $ = await get$('/dynamic/with-css')
-        expect($.html()).toMatch(/rel="stylesheet"/)
+        const jsimports = $('link[rel="stylesheet"][data-jsimports]').attr(
+          'data-jsimports'
+        )
+        const dynamicChunks = $(`link[rel="preload"][href="${jsimports}"]`)
+        expect(dynamicChunks.length).toBe(1)
       })
 
-      it('should render dynamic import components without any css files', async () => {
+      it('should render one dynamically imported component without any css files', async () => {
         const $ = await get$('/dynamic/without-css')
-        expect($.html()).not.toMatch(/rel="stylesheet"/)
+        expect($('link[rel="stylesheet"][data-jsimports]').length).toBe(0)
       })
 
       it('should render even there are no physical chunk exists', async () => {
