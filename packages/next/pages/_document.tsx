@@ -152,18 +152,28 @@ export class Head extends Component<
 
   getDynamicCssLinks() {
     const { dynamicImports } = this.context._documentProps
-
-    return Object.keys(
-      dynamicImports
-        .map(({ css }: { css: string[] }) => css)
-        .reduce((accum: Record<string, boolean>, css: string[]) => {
-          const result = { ...accum }
-          if (css) {
-            css.forEach((link: string) => (result[link] = true))
-          }
-          return result
-        }, {})
+    const orderedCssFiles = new Set<string>()
+    const cssDependantChunks = dynamicImports.reduce(
+      (
+        accum: Record<string, Record<string, boolean>>,
+        { file, css }: { file: string; css: string[] }
+      ) => {
+        const result = { ...accum }
+        if (css) {
+          css.forEach((link: string) => {
+            orderedCssFiles.add(link)
+            if (!result[link]) {
+              result[link] = { [file]: true }
+              return
+            }
+            result[link][file] = true
+          })
+        }
+        return result
+      },
+      {}
     )
+    return { orderedCssFiles, cssDependantChunks }
   }
 
   getCssLinks(): JSX.Element[] | null {
@@ -172,7 +182,7 @@ export class Head extends Component<
     const cssFiles =
       files && files.length ? files.filter((f) => f.endsWith('.css')) : []
 
-    cssFiles.push(...this.getDynamicCssLinks())
+    // cssFiles.push(...this.getDynamicCssLinks())
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
@@ -202,7 +212,37 @@ export class Head extends Component<
         />
       )
     })
-
+    const { orderedCssFiles, cssDependantChunks } = this.getDynamicCssLinks()
+    orderedCssFiles.forEach((file) => {
+      const jsImports = cssDependantChunks[file]
+      cssLinkElements.push(
+        <link
+          key={`${file}-preload`}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
+          as="style"
+          data-jsimports={Object.keys(jsImports).join(';')}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />,
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="stylesheet"
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
+          data-jsimports={Object.keys(jsImports).join(';')}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )
+    })
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
