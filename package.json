@@ -130,5 +130,8 @@
   },
   "engines": {
     "node": ">= 10.13.0"
+  },
+  "dependencies": {
+    "yarn": "1.22.4"
   }
 }

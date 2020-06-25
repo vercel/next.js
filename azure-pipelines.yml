@@ -24,7 +24,7 @@ jobs:
         displayName: 'Install dependencies'
 
       - script: |
-          yarn testie --forceExit test/integration/production/
+          yarn testie test/integration/production/
         displayName: 'Run tests'
 
   - job: test_chrome
