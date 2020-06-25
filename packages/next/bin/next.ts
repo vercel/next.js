@@ -131,7 +131,7 @@ if (command === 'dev') {
     }
   })
   typescriptConfigs.forEach((config: string) =>
-    watchFile(`${process.cwd()}/`, (cur: any, prev: any) => {
+    watchFile(`${process.cwd()}/${config}`, (cur: any, prev: any) => {
       if (cur.size > 0 || prev.size > 0) {
         // tslint:disable-next-line
         console.log(
