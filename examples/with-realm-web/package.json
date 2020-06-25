@@ -19,8 +19,5 @@
     "react-dom": "^16.7.0",
     "realm-web": "0.4.0"
   },
-  "devDependencies": {
-    "babel-plugin-graphql-tag": "^2.5.0"
-  },
   "license": "ISC"
 }

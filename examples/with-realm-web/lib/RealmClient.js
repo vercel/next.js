@@ -8,7 +8,7 @@ import { setContext } from 'apollo-link-context'
 
 let apolloClient
 
-export const APP_ID = process.env.REALM_APP_ID
+export const APP_ID = process.env.REALM_APP_ID ?? 'realm-example-bspbt'
 
 const app = new App({
   id: APP_ID,
