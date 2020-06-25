@@ -898,13 +898,7 @@ export default async function getBaseWebpackConfig(
             const {
               NextJsRequireCacheHotReloader,
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
-            const {
-              UnlinkRemovedPagesPlugin,
-            } = require('./webpack/plugins/unlink-removed-pages-plugin')
-            const devPlugins = [
-              new UnlinkRemovedPagesPlugin(),
-              new NextJsRequireCacheHotReloader(),
-            ]
+            const devPlugins = [new NextJsRequireCacheHotReloader()]
 
             if (!isServer) {
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
