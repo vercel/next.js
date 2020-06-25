@@ -24,7 +24,7 @@ jobs:
         displayName: 'Install dependencies'
 
       - script: |
-          yarn testie test/integration/production/
+          yarn testie --bail test/integration/production/
         displayName: 'Run tests'
 
   - job: test_chrome
