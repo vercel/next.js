@@ -1,9 +1,9 @@
-import { denormalizePagePath } from './normalize-page-path'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 // matches static/<buildid>/pages/:page*.js
-const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/
+// const SERVER_ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/
 // matches pages/:page*.js
-const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
+const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
 // matches static/pages/:page*.js
 const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)$/
 
@@ -14,17 +14,15 @@ function matchBundle(regex: RegExp, input: string): string | null {
     return null
   }
 
-  return denormalizePagePath(`/${result[1]}`)
+  return getRouteFromAssetPath(`/${result[1]}`)
 }
 
 export default function getRouteFromEntrypoint(
   entryFile: string,
-  isServerlessLike: boolean = false
+  // TODO: Remove this parameter
+  _isServerlessLike: boolean = false
 ): string | null {
-  let pagePath = matchBundle(
-    isServerlessLike ? SERVERLESS_ROUTE_NAME_REGEX : ROUTE_NAME_REGEX,
-    entryFile
-  )
+  let pagePath = matchBundle(SERVER_ROUTE_NAME_REGEX, entryFile)
 
   if (pagePath) {
     return pagePath

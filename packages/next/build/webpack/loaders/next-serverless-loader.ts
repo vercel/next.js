@@ -29,6 +29,8 @@ export type ServerlessLoaderQuery = {
   loadedEnvFiles: string
 }
 
+const vercelHeader = 'x-vercel-id'
+
 const nextServerlessLoader: loader.Loader = function () {
   const {
     distDir,
@@ -62,6 +64,30 @@ const nextServerlessLoader: loader.Loader = function () {
     JSON.parse(previewProps) as __ApiPreviewProps
   )
 
+  const collectDynamicRouteParams = pageIsDynamicRoute
+    ? `
+      function collectDynamicRouteParams(query) {
+        const routeRegex = getRouteRegex("${page}")
+
+        return Object.keys(routeRegex.groups)
+          .reduce((prev, key) => {
+            let value = query[key]
+
+            ${
+              ''
+              // query values from the proxy aren't already split into arrays
+              // so make sure to normalize catch-all values
+            }
+            if (routeRegex.groups[key].repeat) {
+              value = value.split('/')
+            }
+
+            prev[key] = value
+            return prev
+          }, {})
+      }
+    `
+    : ''
   const envLoading = `
     const { processEnv } = require('next/dist/lib/load-env-config')
     processEnv(${loadedEnvFiles})
@@ -113,6 +139,7 @@ const nextServerlessLoader: loader.Loader = function () {
             params,
             parsedUrl.query
           )
+
           Object.assign(parsedUrl.query, parsedDestination.query, params)
           delete parsedDestination.query
 
@@ -169,6 +196,7 @@ const nextServerlessLoader: loader.Loader = function () {
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
+      ${collectDynamicRouteParams}
 
       ${handleRewrites}
 
@@ -177,11 +205,19 @@ const nextServerlessLoader: loader.Loader = function () {
           await initServer()
 
           ${handleBasePath}
+
+          // We need to trust the dynamic route params from the proxy
+          // to ensure we are using the correct values
+          const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
             pageIsDynamicRoute
-              ? `dynamicRouteMatcher(parsedUrl.pathname)`
+              ? `
+              trustQuery
+                ? collectDynamicRouteParams(parsedUrl.query)
+                : dynamicRouteMatcher(parsedUrl.pathname)
+              `
               : `{}`
           }
 
@@ -252,6 +288,7 @@ const nextServerlessLoader: loader.Loader = function () {
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
+    ${collectDynamicRouteParams}
     ${handleRewrites}
 
     export const config = ComponentInfo['confi' + 'g'] || {}
@@ -282,7 +319,10 @@ const nextServerlessLoader: loader.Loader = function () {
       let parsedUrl
 
       try {
-        parsedUrl = handleRewrites(parse(req.url, true))
+        // We need to trust the dynamic route params from the proxy
+        // to ensure we are using the correct values
+        const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
+        const parsedUrl = handleRewrites(parse(req.url, true))
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           _nextData = true
@@ -313,7 +353,16 @@ const nextServerlessLoader: loader.Loader = function () {
 
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `
+            const params = (
+              fromExport &&
+              !getStaticProps &&
+              !getServerSideProps
+            ) ? {}
+              : trustQuery
+                ? collectDynamicRouteParams(parsedUrl.query)
+                : dynamicRouteMatcher(parsedUrl.pathname) || {};
+            `
             : `const params = {};`
         }
         ${
