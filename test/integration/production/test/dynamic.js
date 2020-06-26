@@ -17,7 +17,7 @@ export default (context, render) => {
       })
 
       it('should render one dynamically imported component and load its css files', async () => {
-        const $ = await get$('/dynamic/with-css')
+        const $ = await get$('/dynamic/css')
         const jsimports = $('link[rel="stylesheet"][data-jsimports]').attr(
           'data-jsimports'
         )
@@ -25,8 +25,39 @@ export default (context, render) => {
         expect(dynamicChunks.length).toBe(1)
       })
 
+      it('should render three dynamically imported components and load their css files in proper order', async () => {
+        const $ = await get$('/dynamic/many-dynamic-css')
+        const jsimports = $('link[rel="stylesheet"][data-jsimports]').map(
+          function (index, element) {
+            console.log($(element).attr('data-jsimports'))
+
+            return $(element).attr('data-jsimports')
+          }
+        )
+        const firstDynamicChunk = $(
+          `link[rel="preload"][href="${jsimports[0]}"]`
+        )
+        const secondDynamicChunk = firstDynamicChunk.next()
+        expect(secondDynamicChunk.attr('href')).toBe(jsimports[1])
+        const thirdDynamicChunk = secondDynamicChunk.next()
+        expect(thirdDynamicChunk.attr('href')).toBe(jsimports[2])
+      })
+
+      it('should bundle two css modules for one dynamically imported component into one css file', async () => {
+        const $ = await get$('/dynamic/many-css-modules')
+        const jsimports = $('link[rel="stylesheet"][data-jsimports]')
+        expect(jsimports.length).toBe(2)
+      })
+
+      // It seem to be abnormal, dynamic CSS modules are completely self-sufficient, so shared styles are copied across files
+      it('should output two css files even in case of three css module files while one is shared across files', async () => {
+        const $ = await get$('/dynamic/shared-css-module')
+        const jsimports = $('link[rel="stylesheet"][data-jsimports]')
+        expect(jsimports.length).toBe(2)
+      })
+
       it('should render one dynamically imported component without any css files', async () => {
-        const $ = await get$('/dynamic/without-css')
+        const $ = await get$('/dynamic/no-css')
         expect($('link[rel="stylesheet"][data-jsimports]').length).toBe(0)
       })
 
