@@ -1,0 +1,16 @@
+{
+  "name": "custom-server-polkadot",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node ./server.js",
+    "build": "next build",
+    "start": "cross-env NODE_ENV=production node ./server.js"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.2",
+    "next": "latest",
+    "polkadot": "1.0.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  }
+}
