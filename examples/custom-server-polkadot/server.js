@@ -9,11 +9,11 @@ const handle = app.getRequestHandler()
 app.prepare().then(() => {
   polkadot(async (req, res) => {
     if (req.path === '/a') {
-      return app.render(req, res, '/a', req.query);
+      return app.render(req, res, '/a', req.query)
     } else if (req.path === '/b') {
-      return app.render(req, res, '/b', req.query);
+      return app.render(req, res, '/b', req.query)
     }
-    return handle(req, res);
+    return handle(req, res)
   }).listen(port, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
