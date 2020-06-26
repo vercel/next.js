@@ -43,7 +43,6 @@ const externals = {
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
   'webpack-sources': 'webpack-sources',
-  // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
   // dependents: terser-webpack-plugin
@@ -478,17 +477,7 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('compiled/unistore')
 }
-// eslint-disable-next-line camelcase
-externals['webpack-dev-middleware'] =
-  'next/dist/compiled/webpack-dev-middleware'
-export async function ncc_webpack_dev_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
-    )
-    .ncc({ packageName: 'webpack-dev-middleware', externals })
-    .target('compiled/webpack-dev-middleware')
-}
+
 // eslint-disable-next-line camelcase
 externals['webpack-hot-middleware'] =
   'next/dist/compiled/webpack-hot-middleware'
@@ -537,63 +526,61 @@ export async function copy_ncced(task) {
 }
 
 export async function ncc(task) {
-  await task
-    .clear('compiled')
-    .parallel([
-      'ncc_amphtml_validator',
-      'ncc_arg',
-      'ncc_async_retry',
-      'ncc_async_sema',
-      'ncc_babel_loader',
-      'ncc_cache_loader',
-      'ncc_chalk',
-      'ncc_ci_info',
-      'ncc_compression',
-      'ncc_conf',
-      'ncc_content_type',
-      'ncc_cookie',
-      'ncc_cssnano_simple',
-      'ncc_debug',
-      'ncc_devalue',
-      'ncc_dotenv',
-      'ncc_dotenv_expand',
-      'ncc_escape_string_regexp',
-      'ncc_etag',
-      'ncc_file_loader',
-      'ncc_find_up',
-      'ncc_fresh',
-      'ncc_gzip_size',
-      'ncc_http_proxy',
-      'ncc_ignore_loader',
-      'ncc_is_docker',
-      'ncc_is_wsl',
-      'ncc_json5',
-      'ncc_jsonwebtoken',
-      'ncc_launch_editor',
-      'ncc_lodash_curry',
-      'ncc_lru_cache',
-      'ncc_nanoid',
-      'ncc_node_fetch',
-      'ncc_ora',
-      'ncc_postcss_flexbugs_fixes',
-      'ncc_postcss_loader',
-      'ncc_postcss_preset_env',
-      'ncc_raw_body',
-      'ncc_recast',
-      'ncc_resolve',
-      'ncc_send',
-      'ncc_source_map',
-      'ncc_string_hash',
-      'ncc_strip_ansi',
-      'ncc_terser',
-      'ncc_text_table',
-      'ncc_thread_loader',
-      'ncc_unistore',
-      'ncc_webpack_dev_middleware',
-      'ncc_webpack_hot_middleware',
-      'ncc_terser_webpack_plugin',
-      'ncc_comment_json',
-    ])
+  await task.clear('compiled').parallel([
+    'ncc_amphtml_validator',
+    'ncc_arg',
+    'ncc_async_retry',
+    'ncc_async_sema',
+    'ncc_babel_loader',
+    'ncc_cache_loader',
+    'ncc_chalk',
+    'ncc_ci_info',
+    'ncc_compression',
+    'ncc_conf',
+    'ncc_content_type',
+    'ncc_cookie',
+    'ncc_cssnano_simple',
+    'ncc_debug',
+    'ncc_devalue',
+    'ncc_dotenv',
+    'ncc_dotenv_expand',
+    'ncc_escape_string_regexp',
+    'ncc_etag',
+    'ncc_file_loader',
+    'ncc_find_up',
+    'ncc_fresh',
+    'ncc_gzip_size',
+    'ncc_http_proxy',
+    'ncc_ignore_loader',
+    'ncc_is_docker',
+    'ncc_is_wsl',
+    'ncc_json5',
+    'ncc_jsonwebtoken',
+    'ncc_launch_editor',
+    'ncc_lodash_curry',
+    'ncc_lru_cache',
+    'ncc_nanoid',
+    'ncc_node_fetch',
+    'ncc_ora',
+    'ncc_postcss_flexbugs_fixes',
+    'ncc_postcss_loader',
+    'ncc_postcss_preset_env',
+    'ncc_raw_body',
+    'ncc_recast',
+    'ncc_resolve',
+    'ncc_send',
+    'ncc_source_map',
+    'ncc_string_hash',
+    'ncc_strip_ansi',
+    'ncc_terser',
+    'ncc_text_table',
+    'ncc_thread_loader',
+    'ncc_unistore',
+    // 'ncc_webpack_dev_middleware',
+    'ncc_webpack_hot_middleware',
+    'ncc_terser_webpack_plugin',
+    'ncc_comment_json',
+  ])
 }
 
 export async function compile(task) {
