@@ -82,7 +82,7 @@ describe('On Demand Entries', () => {
 
     // Wait maximum of jest.setTimeout checking
     // for disposing /about
-    for (let i = 0; i < 30; ) {
+    for (let i = 0; i < 30; ++i) {
       await waitFor(1000 * 1)
       try {
         const buildManifest = getBuildManifest(appDir)
