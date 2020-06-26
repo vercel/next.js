@@ -1,0 +1,12 @@
+{
+  "fileServerFolder": ".",
+  "fixturesFolder": "./src/fixtures",
+  "integrationFolder": "./src/integration",
+  "modifyObstructiveCode": false,
+  "pluginsFile": "./src/plugins/index",
+  "supportFile": "./src/support/index.ts",
+  "video": true,
+  "videosFolder": "../../dist/cypress/apps/demo-next-nx-e2e/videos",
+  "screenshotsFolder": "../../dist/cypress/apps/demo-next-nx-e2e/screenshots",
+  "chromeWebSecurity": false
+}
