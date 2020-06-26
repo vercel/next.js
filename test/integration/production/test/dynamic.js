@@ -29,8 +29,6 @@ export default (context, render) => {
         const $ = await get$('/dynamic/many-dynamic-css')
         const jsimports = $('link[rel="stylesheet"][data-jsimports]').map(
           function (index, element) {
-            console.log($(element).attr('data-jsimports'))
-
             return $(element).attr('data-jsimports')
           }
         )
