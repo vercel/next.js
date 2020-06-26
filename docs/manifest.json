@@ -284,6 +284,10 @@
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
             },
             {
+              "title": "Trailing Slash",
+              "path": "/docs/api-reference/next.config.js/trailing-slash.md"
+            },
+            {
               "title": "React Strict Mode",
               "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
             }

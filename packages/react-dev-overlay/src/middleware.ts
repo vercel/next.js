@@ -27,6 +27,20 @@ export type OriginalStackFrameResponse = {
 
 type Source = { map: () => RawSourceMap } | null
 
+function getSourcePath(source: string) {
+  // Webpack prefixes certain source paths with this path
+  if (source.startsWith('webpack:///')) {
+    return source.substring(11)
+  }
+
+  // Make sure library name is filtered out as well
+  if (source.startsWith('webpack://_N_E/')) {
+    return source.substring(15)
+  }
+
+  return source
+}
+
 function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
   async function getSourceById(
     isServerSide: boolean,
@@ -162,9 +176,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
       const filePath = path.resolve(
         options.rootDirectory,
-        pos.source.startsWith('webpack:///')
-          ? pos.source.substring(11)
-          : pos.source
+        getSourcePath(pos.source)
       )
 
       const originalFrame: StackFrame = {
