@@ -1,7 +1,7 @@
 //Realm
 import { Credentials, App } from 'realm-web'
 
-const APP_ID = process.env.REALM_APP_ID
+const APP_ID = process.env.NEXT_PUBLIC_REALM_APP_ID
 export const REALM_GRAPHQL_ENDPOINT = `https://realm.mongodb.com/api/client/v2.0/app/${APP_ID}/graphql`
 
 const app = new App({
