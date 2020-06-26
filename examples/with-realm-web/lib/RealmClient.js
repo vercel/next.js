@@ -1,4 +1,3 @@
-//Realm
 import { Credentials, App } from 'realm-web'
 
 const APP_ID = process.env.NEXT_PUBLIC_REALM_APP_ID
