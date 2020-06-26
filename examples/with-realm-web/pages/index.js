@@ -1,30 +1,33 @@
+import useSWR from 'swr'
+import { generateAuthHeader, REALM_GRAPHQL_ENDPOINT } from '../lib/RealmClient'
 import { FIND_MOVIES } from '../lib/graphql-operations'
-import { APP_ID } from '../lib/RealmClient'
-import { useQuery } from '@apollo/react-hooks'
+
+const fetcher = async (url) =>
+  fetch(url, {
+    method: 'POST',
+    headers: await generateAuthHeader(),
+    body: JSON.stringify({
+      query: FIND_MOVIES,
+    }),
+  }).then((res) => res.json())
 
 const IndexPage = () => {
-  const { loading, error, data } = useQuery(FIND_MOVIES, {
-    query: { year: 2014, rated: 'PG' },
-  })
+  const { data, error } = useSWR(REALM_GRAPHQL_ENDPOINT, fetcher)
+
+  const movies = data ? data.data.movies : null
 
   if (error) {
     console.log(error.message)
   }
-
-  const movies = data ? data.movies : null
 
   return (
     <>
       <div className="App">
         <h1>"PG" Rated Movies - 2014</h1>
 
-        {APP_ID === 'realm-example-bspbt' ? (
-          <div className="status">Replace REALM_APP_ID with your App ID</div>
-        ) : (
-          !loading && !movies && <div className="status">No data Found!</div>
-        )}
+        {data && !movies && <div className="status">No movies Found</div>}
 
-        {movies && (
+        {data && (
           <table>
             <thead>
               <tr>
@@ -34,15 +37,16 @@ const IndexPage = () => {
               </tr>
             </thead>
             <tbody>
-              {movies.map((movie, index) => {
-                return (
-                  <tr key={index}>
-                    <td>{index + 1}</td>
-                    <td>{movie.title}</td>
-                    <td>{movie.runtime}</td>
-                  </tr>
-                )
-              })}
+              {data &&
+                movies.map((movie, index) => {
+                  return (
+                    <tr key={index}>
+                      <td>{index + 1}</td>
+                      <td>{movie.title}</td>
+                      <td>{movie.runtime}</td>
+                    </tr>
+                  )
+                })}
             </tbody>
           </table>
         )}

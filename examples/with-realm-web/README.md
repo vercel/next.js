@@ -1,8 +1,6 @@
 # Realm-Web SDK Example
 
-This example uses [Realm-Web SDK](https://docs.mongodb.com/realm/web/) to query a realm graphql endpoint using apollo.
-
-[Apollo](https://www.apollographql.com/client/) is a GraphQL client that allows you to easily query the exact data you need from a GraphQL endpoint. In addition to fetching and mutating data, Apollo analyzes your queries and their results to construct a client-side cache of your data, which is kept up to date as further queries and mutations are run.
+This example uses [Realm-Web SDK](https://docs.mongodb.com/realm/web/) to query a realm graphql endpoint using [swr](https://swr.now.sh/).
 
 This example relies on [MongoDB Realm](https://www.mongodb.com/realm) for its GraphQL backend.
 

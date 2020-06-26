@@ -1,8 +1,6 @@
-import gql from 'graphql-tag'
-
-export const FIND_MOVIES = gql`
-  query FindMovies($query: MovieQueryInput) {
-    movies(query: $query) {
+export const FIND_MOVIES = `
+  query FindMovies{
+    movies(query: { year: 2014, rated: "PG" } ) {
       title
       year
       runtime
