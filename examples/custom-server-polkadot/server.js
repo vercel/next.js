@@ -8,9 +8,31 @@ const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   polkadot(async (req, res) => {
+    if (req.path.startsWith('/api/')) {
+      if (!dev) {
+        const buildId = require('fs').readFileSync('./.next/BUILD_ID')
+        const callback = require('./.next/server/static/' +
+          buildId +
+          '/pages' +
+          req.path).default
+        return callback(req, res)
+      } else {
+        let callback
+        try {
+          callback = require('./.next/server/static/development/pages' +
+            req.path).default
+        } catch (err) {
+          await handle(req, res)
+          callback = require('./.next/server/static/development/pages' +
+            req.path).default
+        }
+        return callback(req, res)
+      }
+    }
     if (req.path === '/a') {
       return app.render(req, res, '/a', req.query)
-    } else if (req.path === '/b') {
+    }
+    if (req.path === '/b') {
       return app.render(req, res, '/b', req.query)
     }
     return handle(req, res)

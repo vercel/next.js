@@ -4,7 +4,7 @@ Most of the times the default Next server will be enough but sometimes you want 
 
 Because the Next.js server is just a node.js module you can combine it with any other part of the node.js ecosystem. in this case we are using [Polkadot](https://github.com/lukeed/polkadot) to build a custom router on top of Next.
 
-The example shows a server that serves the component living in `pages/a.js` when the route `/b` is requested and `pages/b.js` when the route `/a` is accessed. This is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.js`.
+The example shows a server that serves the component living in `pages/a.js` when the route `/b` is requested and `pages/b.js` when the route `/a` is accessed. This is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.js`. Also included is a tricky way of relaying the API requests directly to polkadot.
 
 ## How to use
 
