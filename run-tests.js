@@ -126,7 +126,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
         [
           jestPath,
           '--runInBand',
-          '--bail',
+          '--detectOpenHandles',
           '--verbose',
           ...(isTestJob
             ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
