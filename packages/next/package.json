@@ -151,7 +151,6 @@
     "@types/styled-jsx": "2.2.8",
     "@types/terser-webpack-plugin": "2.2.0",
     "@types/text-table": "0.2.1",
-    "@types/webpack-dev-middleware": "2.0.3",
     "@types/webpack-hot-middleware": "2.16.5",
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.22.0",
@@ -213,7 +212,6 @@
     "typescript": "3.8.3",
     "unfetch": "4.1.0",
     "unistore": "3.4.1",
-    "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0"
   },
   "engines": {
