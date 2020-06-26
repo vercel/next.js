@@ -471,6 +471,7 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ): Promise<string | null> {
+    await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -520,6 +521,7 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ): Promise<string | null> {
+    await this.devReady
     if (res.statusCode === 404 && (await this.hasPage('/404'))) {
       await this.hotReloader!.ensurePage('/404')
     } else {
