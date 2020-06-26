@@ -13,6 +13,11 @@ export default function Home() {
           <a>b</a>
         </Link>
       </li>
+      <li>
+        <Link href="/c" as="/c">
+          <a>b</a>
+        </Link>
+      </li>
     </ul>
   )
 }
