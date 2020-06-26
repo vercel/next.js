@@ -44,7 +44,7 @@ export default Home
 
 - `href` - The path inside `pages` directory. This is the only required prop
 - `as` - The path that will be rendered in the browser URL bar. Used for dynamic routes
-- [`passHref`](#forcing-Link-to-expose-href-to-its-child) - Forces `Link` to send the `href` property to its child. Defaults to `false`
+- [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
 - `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages using [Static Generation](/docs/basic-features/data-fetching#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions.
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
 - [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
