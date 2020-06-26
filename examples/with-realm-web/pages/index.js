@@ -1,24 +1,31 @@
 import useSWR from 'swr'
 import { generateAuthHeader, REALM_GRAPHQL_ENDPOINT } from '../lib/RealmClient'
-import { FIND_MOVIES } from '../lib/graphql-operations'
 
-const fetcher = async (url) =>
-  fetch(url, {
+const FIND_MOVIES = `
+  query FindMovies{
+    movies(query: { year: 2014, rated: "PG" } ) {
+      title
+      year
+      runtime
+    }
+  }
+`
+
+const fetcher = async (query) =>
+  fetch(REALM_GRAPHQL_ENDPOINT, {
     method: 'POST',
     headers: await generateAuthHeader(),
-    body: JSON.stringify({
-      query: FIND_MOVIES,
-    }),
+    body: JSON.stringify({ query }),
   }).then((res) => res.json())
 
 const IndexPage = () => {
-  const { data, error } = useSWR(REALM_GRAPHQL_ENDPOINT, fetcher)
+  const { data } = useSWR(FIND_MOVIES, fetcher)
 
-  const movies = data ? data.data.movies : null
-
-  if (error) {
-    console.log(error.message)
+  if (data && data.error) {
+    console.error(data.error)
+    return `An Error occurred while trying to fetch data from the realm endpoint :  ${data.error}`
   }
+  const movies = data ? data.data.movies : null
 
   return (
     <>
