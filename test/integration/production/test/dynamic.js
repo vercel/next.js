@@ -46,7 +46,13 @@ export default (context, render) => {
       it('should bundle two css modules for one dynamically imported component into one css file', async () => {
         const $ = await get$('/dynamic/many-css-modules')
         const jsimports = $('link[rel="stylesheet"][data-jsimports]')
-        expect(jsimports.length).toBe(2)
+        expect(jsimports.length).toBe(1)
+      })
+
+      it('should bundle two css modules for nested components into one css file', async () => {
+        const $ = await get$('/dynamic/nested-css')
+        const jsimports = $('link[rel="stylesheet"][data-jsimports]')
+        expect(jsimports.length).toBe(1)
       })
 
       // It seem to be abnormal, dynamic CSS modules are completely self-sufficient, so shared styles are copied across files
