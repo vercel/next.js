@@ -46,5 +46,13 @@ export default () => (
     </Link>
     <div id="base-path">{useRouter().basePath}</div>
     <div id="pathname">{useRouter().pathname}</div>
+    <div
+      id="trigger-error"
+      onClick={() => {
+        throw new Error('oops heres an error')
+      }}
+    >
+      click me for error
+    </div>
   </>
 )
