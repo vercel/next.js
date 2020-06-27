@@ -13,13 +13,11 @@ Make sure to return an array that contains the routes.
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
-    async rewrites() {
-      return {
-        source: '/feedback',
-        destination: '/feedback/general',
-      }
-    },
+  async rewrites() {
+    return {
+      source: '/feedback',
+      destination: '/feedback/general',
+    }
   },
 }
 ```
@@ -28,15 +26,13 @@ module.exports = {
 
 ```js
 module.exports = {
-  experimental: {
-    async rewrites() {
-      return [
-        {
-          source: '/feedback',
-          destination: '/feedback/general',
-        },
-      ]
-    },
+  async rewrites() {
+    return [
+      {
+        source: '/feedback',
+        destination: '/feedback/general',
+      },
+    ]
   },
 }
 ```

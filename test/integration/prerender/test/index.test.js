@@ -608,7 +608,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       const item = Math.round(Math.random() * 100)
       const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
       expect(html).toContain(
-        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client`
+        `Rewrites don't support dynamic pages with getStaticProps yet`
       )
     })
 
@@ -1292,18 +1292,18 @@ describe('SSG Prerender', () => {
         module.exports = {
           experimental: {
             optionalCatchAll: true,
-            rewrites() {
-              return [
-                {
-                  source: "/some-rewrite/:item",
-                  destination: "/blog/post-:item"
-                },
-                {
-                  source: '/about',
-                  destination: '/lang/en/about'
-                }
-              ]
-            }
+          },
+          rewrites() {
+            return [
+              {
+                source: "/some-rewrite/:item",
+                destination: "/blog/post-:item"
+              },
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }
       `
@@ -1401,14 +1401,14 @@ describe('SSG Prerender', () => {
           target: 'serverless',
           experimental: {
             optionalCatchAll: true,
-            rewrites() {
-              return [
-                {
-                  source: '/about',
-                  destination: '/lang/en/about'
-                }
-              ]
-            }
+          },
+          rewrites() {
+            return [
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }`,
         'utf8'

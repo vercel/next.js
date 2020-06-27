@@ -14,10 +14,8 @@ const writeConfig = async (routes, type = 'redirects') => {
     nextConfigPath,
     `
     module.exports = {
-      experimental: {
-        async ${type}() {
-          return ${JSON.stringify(routes)}
-        }
+      async ${type}() {
+        return ${JSON.stringify(routes)}
       }
     }
   `
