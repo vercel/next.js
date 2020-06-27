@@ -160,7 +160,3 @@ module.exports = async (markdown, metadata) => {
 
   return changelog
 }
-
-module.exports.config = {
-  skipQuestions: true,
-}
