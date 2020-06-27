@@ -11,6 +11,7 @@ declare module 'styled-jsx/server'
 declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
 declare module 'webpack/lib/DynamicEntryPlugin'
+declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -209,10 +210,7 @@ declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
   export = m
 }
-declare module 'next/dist/compiled/webpack-dev-middleware' {
-  import m from 'webpack-dev-middleware'
-  export = m
-}
+
 declare module 'next/dist/compiled/webpack-hot-middleware' {
   import m from 'webpack-hot-middleware'
   export = m
@@ -247,6 +245,7 @@ declare module 'watchpack' {
   import { EventEmitter } from 'events'
 
   class Watchpack extends EventEmitter {
+    constructor(options?: any)
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 

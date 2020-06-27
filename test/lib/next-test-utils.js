@@ -1,18 +1,17 @@
-import fetch from 'node-fetch'
-import qs from 'querystring'
-import http from 'http'
-import express from 'express'
-import path from 'path'
-import getPort from 'get-port'
 import spawn from 'cross-spawn'
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
-import treeKill from 'tree-kill'
-
+import express from 'express'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import getPort from 'get-port'
+import http from 'http'
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
+import fetch from 'node-fetch'
+import path from 'path'
+import qs from 'querystring'
+import treeKill from 'tree-kill'
 
 export const nextServer = server
 export const pkg = _pkg
@@ -126,6 +125,15 @@ export function runNextCommand(argv, options = {}) {
     }
 
     instance.on('close', (code) => {
+      if (
+        !options.stderr &&
+        !options.stdout &&
+        !options.ignoreFail &&
+        code !== 0
+      ) {
+        return reject(new Error(`command failed with code ${code}`))
+      }
+
       resolve({
         code,
         stdout: stdoutOutput,
@@ -347,7 +355,11 @@ export async function check(contentFn, regex, hardError = true) {
   for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (regex.test(content)) {
+      if (typeof regex === 'string') {
+        if (regex === content) {
+          return true
+        }
+      } else if (regex.test(content)) {
         // found the content
         return true
       }
@@ -381,6 +393,24 @@ export class File {
   }
 
   replace(pattern, newValue) {
+    if (pattern instanceof RegExp) {
+      if (!pattern.test(this.originalContent)) {
+        throw new Error(
+          `Failed to replace content.\n\nPattern: ${pattern.toString()}\n\nContent: ${
+            this.originalContent
+          }`
+        )
+      }
+    } else if (typeof pattern === 'string') {
+      if (!this.originalContent.includes(pattern)) {
+        throw new Error(
+          `Failed to replace content.\n\nPattern: ${pattern}\n\nContent: ${this.originalContent}`
+        )
+      }
+    } else {
+      throw new Error(`Unknown replacement attempt type: ${pattern}`)
+    }
+
     const newContent = this.originalContent.replace(pattern, newValue)
     this.write(newContent)
   }
@@ -461,4 +491,60 @@ export function getBrowserBodyText(browser) {
 
 export function normalizeRegEx(src) {
   return new RegExp(src).source.replace(/\^\//g, '^\\/')
+}
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path))
+}
+
+export function getBuildManifest(dir) {
+  return readJson(path.join(dir, '.next/build-manifest.json'))
+}
+
+export function getPageFileFromBuildManifest(dir, page) {
+  const buildManifest = getBuildManifest(dir)
+  const pageFiles = buildManifest.pages[page]
+  if (!pageFiles) {
+    throw new Error(`No files for page ${page}`)
+  }
+
+  const pageFile = pageFiles.find(
+    (file) =>
+      file.endsWith('.js') &&
+      file.includes(`pages${page === '' ? '/index' : page}`)
+  )
+  if (!pageFile) {
+    throw new Error(`No page file for page ${page}`)
+  }
+
+  return pageFile
+}
+
+export function readNextBuildClientPageFile(appDir, page) {
+  const pageFile = getPageFileFromBuildManifest(appDir, page)
+  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+}
+
+export function getPagesManifest(dir) {
+  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+
+  if (existsSync(serverFile)) {
+    return readJson(serverFile)
+  }
+  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+}
+
+export function getPageFileFromPagesManifest(dir, page) {
+  const pagesManifest = getPagesManifest(dir)
+  const pageFile = pagesManifest[page]
+  if (!pageFile) {
+    throw new Error(`No file for page ${page}`)
+  }
+
+  return pageFile
+}
+
+export function readNextBuildServerPageFile(appDir, page) {
+  const pageFile = getPageFileFromPagesManifest(appDir, page)
+  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
 }

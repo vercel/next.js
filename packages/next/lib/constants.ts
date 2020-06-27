@@ -28,11 +28,16 @@ export const SSG_GET_INITIAL_PROPS_CONFLICT = `You can not use getInitialProps w
 
 export const SERVER_PROPS_GET_INIT_PROPS_CONFLICT = `You can not use getInitialProps with getServerSideProps. Please remove getInitialProps.`
 
-export const SERVER_PROPS_SSG_CONFLICT = `You can not use getStaticProps with getServerSideProps. To use SSG, please remove getServerSideProps`
+export const SERVER_PROPS_SSG_CONFLICT = `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
 
 export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/next.js/404-get-initial-props`
 
 export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gssp-export`
+
+export const GSP_NO_RETURNED_VALUE =
+  'Your `getStaticProps` function did not return an object. Did you forget to add a `return`?'
+export const GSSP_NO_RETURNED_VALUE =
+  'Your `getServerSideProps` function did not return an object. Did you forget to add a `return`?'
 
 export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'The `revalidate` property is not yet available for general use.\n' +

@@ -7,11 +7,10 @@
   },
   "dependencies": {
     "cookie": "^0.4.0",
-    "dotenv": "8.2.0",
     "faunadb": "2.10.0",
-    "js-cookie": "^2.2.0",
-    "next": "^9.0.1",
+    "next": "^latest",
     "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "react-dom": "^16.8.6",
+    "swr": "0.2.3"
   }
 }

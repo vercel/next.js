@@ -1,5 +1,5 @@
 import devalue from 'next/dist/compiled/devalue'
-import { Compiler } from 'webpack'
+import { Compiler, compilation as CompilationType } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {
   BUILD_MANIFEST,
@@ -7,22 +7,23 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  IS_BUNDLED_PAGE_REGEX,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
-const generateClientManifest = (
+function generateClientManifest(
   assetMap: BuildManifest,
   isModern: boolean
-): string => {
+): string {
   const clientManifest: { [s: string]: string[] } = {}
   const appDependencies = new Set(assetMap.pages['/_app'])
 
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
-    if (page === '/_app' || page === '/_polyfills') return
+    if (page === '/_app') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
     const filteredDeps = dependencies.filter(
@@ -37,6 +38,11 @@ const generateClientManifest = (
     }
   })
   return devalue(clientManifest)
+}
+
+function isJsFile(file: string): boolean {
+  // We don't want to include `.hot-update.js` files into the initial page
+  return !file.endsWith('.hot-update.js') && file.endsWith('.js')
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
@@ -54,33 +60,60 @@ export default class BuildManifestPlugin {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
       (compilation, callback) => {
-        const { chunks } = compilation
+        const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
           polyfillFiles: [],
           devFiles: [],
+          ampDevFiles: [],
           lowPriorityFiles: [],
           pages: { '/_app': [] },
+          ampFirstPages: [],
+        }
+
+        const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
+        if (ampFirstEntryNames) {
+          for (const entryName of ampFirstEntryNames) {
+            const pagePath = getRouteFromEntrypoint(entryName)
+            if (!pagePath) {
+              continue
+            }
+
+            assetMap.ampFirstPages.push(pagePath)
+          }
         }
 
         const mainJsChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
         )
-        const mainJsFiles: string[] =
-          mainJsChunk && mainJsChunk.files.length > 0
-            ? mainJsChunk.files.filter((file: string) => /\.js$/.test(file))
-            : []
+
+        const mainJsFiles: string[] = mainJsChunk?.files.filter(isJsFile) ?? []
 
         const polyfillChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
-        const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
+
+        // Create a separate entry  for polyfills
+        assetMap.polyfillFiles = polyfillChunk?.files.filter(isJsFile) ?? []
 
         const reactRefreshChunk = chunks.find(
           (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
         )
-        assetMap.devFiles.push(...(reactRefreshChunk?.files ?? []))
+        assetMap.devFiles = reactRefreshChunk?.files.filter(isJsFile) ?? []
 
         for (const entrypoint of compilation.entrypoints.values()) {
+          const isAmpRuntime =
+            entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
+
+          if (isAmpRuntime) {
+            for (const file of entrypoint.getFiles()) {
+              if (!(isJsFile(file) || file.endsWith('.css'))) {
+                continue
+              }
+
+              assetMap.ampDevFiles.push(file.replace(/\\/g, '/'))
+            }
+            continue
+          }
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
           if (!pagePath) {
@@ -91,32 +124,15 @@ export default class BuildManifestPlugin {
 
           // getFiles() - helper function to read the files for an entrypoint from stats object
           for (const file of entrypoint.getFiles()) {
-            if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file)) {
-              continue
-            }
-
-            // Only `.js` and `.css` files are added for now. In the future we can also handle other file types.
-            if (!/\.js$/.test(file) && !/\.css$/.test(file)) {
-              continue
-            }
-
-            // The page bundles are manually added to _document.js as they need extra properties
-            if (IS_BUNDLED_PAGE_REGEX.exec(file)) {
+            if (!(isJsFile(file) || file.endsWith('.css'))) {
               continue
             }
 
             filesForEntry.push(file.replace(/\\/g, '/'))
           }
 
-          assetMap.pages[pagePath] = [...filesForEntry, ...mainJsFiles]
+          assetMap.pages[pagePath] = [...mainJsFiles, ...filesForEntry]
         }
-
-        if (typeof assetMap.pages['/index'] !== 'undefined') {
-          assetMap.pages['/'] = assetMap.pages['/index']
-        }
-
-        // Create a separate entry  for polyfills
-        assetMap.polyfillFiles = polyfillFiles
 
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be

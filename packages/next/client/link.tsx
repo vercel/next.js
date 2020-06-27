@@ -10,6 +10,7 @@ import {
 } from '../next-server/lib/utils'
 import Router from './router'
 import { addBasePath } from '../next-server/lib/router/router'
+import { normalizeTrailingSlash } from '../next-server/lib/router/normalize-trailing-slash'
 
 function isLocal(href: string): boolean {
   const url = parse(href, false, true)
@@ -40,8 +41,21 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
+function formatTrailingSlash(url: UrlObject): UrlObject {
+  return Object.assign({}, url, {
+    pathname:
+      url.pathname &&
+      normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
+  })
+}
+
 function formatUrl(url: Url): string {
-  return url && typeof url === 'object' ? formatWithValidation(url) : url
+  return (
+    url &&
+    formatWithValidation(
+      formatTrailingSlash(typeof url === 'object' ? url : parse(url))
+    )
+  )
 }
 
 export type LinkProps = {
@@ -162,8 +176,8 @@ class Link extends Component<LinkProps> {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: addBasePath(formatUrl(href)),
-      as: asHref ? addBasePath(formatUrl(asHref)) : asHref,
+      href: formatUrl(href),
+      as: asHref ? formatUrl(asHref) : asHref,
     }
   })
 
@@ -237,7 +251,10 @@ class Link extends Component<LinkProps> {
 
   render() {
     let { children } = this.props
-    const { href, as } = this.formatUrls(this.props.href, this.props.as)
+    let { href, as } = this.formatUrls(this.props.href, this.props.as)
+    as = as ? addBasePath(as) : as
+    href = addBasePath(href)
+
     // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>

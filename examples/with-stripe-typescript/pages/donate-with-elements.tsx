@@ -1,6 +1,9 @@
 import { NextPage } from 'next'
-import Layout from '../components/Layout'
 
+import { Elements } from '@stripe/react-stripe-js'
+import getStripe from '../utils/get-stripejs'
+
+import Layout from '../components/Layout'
 import ElementsForm from '../components/ElementsForm'
 
 const DonatePage: NextPage = () => {
@@ -9,7 +12,9 @@ const DonatePage: NextPage = () => {
       <div className="page-container">
         <h1>Donate with Elements</h1>
         <p>Donate to our project 💖</p>
-        <ElementsForm />
+        <Elements stripe={getStripe()}>
+          <ElementsForm />
+        </Elements>
       </div>
     </Layout>
   )
