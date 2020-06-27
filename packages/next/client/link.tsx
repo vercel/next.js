@@ -22,7 +22,6 @@ function isLocal(href: string): boolean {
 }
 
 type Url = string | UrlObject
-type FormatResult = { href: string; as?: string }
 
 function formatTrailingSlash(url: UrlObject): UrlObject {
   return Object.assign({}, url, {
@@ -130,7 +129,8 @@ function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
 
 function linkClicked(
   e: React.MouseEvent,
-  formatted: FormatResult,
+  href: string,
+  as?: string,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean
@@ -147,8 +147,6 @@ function linkClicked(
     // ignore click for new tab / new window behavior
     return
   }
-
-  let { href, as } = formatted
 
   if (!isLocal(href)) {
     // ignore click if it's outside our scope (e.g. https://google.com)
@@ -194,31 +192,28 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   const [childElm, setChildElm] = React.useState<Element>()
 
-  let formatted = React.useMemo(() => {
-    return {
+  const { href, as } = React.useMemo(
+    () => ({
       href: formatUrl(props.href),
       as: props.as ? formatUrl(props.as) : props.as,
-    }
-  }, [props.href, props.as])
+    }),
+    [props.href, props.as]
+  )
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
       const isPrefetched =
         prefetched[
           // Join on an invalid URI character
-          getPaths(formatted.href, formatted.as).join('%')
+          getPaths(href, as).join('%')
         ]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
-          prefetch(formatted.href, formatted.as)
+          prefetch(href, as)
         })
       }
     }
-  }, [p, childElm, formatted])
-
-  let { href, as } = formatted
-  as = as ? addBasePath(as) : as
-  href = addBasePath(href)
+  }, [p, childElm, href, as])
 
   let { children, replace, shallow, scroll } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
@@ -249,7 +244,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, formatted, replace, shallow, scroll)
+        linkClicked(e, href, as, replace, shallow, scroll)
       }
     },
   }
@@ -259,14 +254,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       if (child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }
-      prefetch(formatted.href, formatted.as, { priority: true })
+      prefetch(href, as, { priority: true })
     }
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = as || href
+    childProps.href = addBasePath(as || href)
   }
 
   // Add the ending slash to the paths. So, we can serve the
