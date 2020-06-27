@@ -22,10 +22,7 @@ function isLocal(href: string): boolean {
 }
 
 type Url = string | UrlObject
-interface Formatted {
-  href: string
-  as?: string
-}
+type FormatResult = { href: string; as?: string }
 
 function formatTrailingSlash(url: UrlObject): UrlObject {
   return Object.assign({}, url, {
@@ -117,27 +114,23 @@ function getPaths(parsedHref: string, parsedAs?: string): string[] {
 function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
   if (typeof window === 'undefined') return
   // Prefetch the JSON page if asked (only in the client)
-  const paths = getPaths(href, as)
+  const [resolvedHref, resolvedAs] = getPaths(href, as)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
-    (err) => {
-      if (process.env.NODE_ENV !== 'production') {
-        // rethrow to show invalid URL errors
-        throw err
-      }
+  Router.prefetch(resolvedHref, resolvedAs, options).catch((err) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // rethrow to show invalid URL errors
+      throw err
     }
-  )
-  prefetched[
-    // Join on an invalid URI character
-    paths.join('%')
-  ] = true
+  })
+  // Join on an invalid URI character
+  prefetched[resolvedHref + '%' + resolvedAs] = true
 }
 
 function linkClicked(
   e: React.MouseEvent,
-  formatted: Formatted,
+  formatted: FormatResult,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean
@@ -169,13 +162,15 @@ function linkClicked(
   e.preventDefault()
 
   //  avoid scroll for urls with anchor refs
-  const doScroll = scroll == null ? as.indexOf('#') < 0 : scroll
+  if (scroll == null) {
+    scroll = as.indexOf('#') < 0
+  }
 
   // replace state instead of push if prop is present
   Router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
     (success: boolean) => {
       if (!success) return
-      if (doScroll) {
+      if (scroll) {
         window.scrollTo(0, 0)
         document.body.focus()
       }
