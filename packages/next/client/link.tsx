@@ -22,6 +22,10 @@ function isLocal(href: string): boolean {
 }
 
 type Url = string | UrlObject
+interface Formatted {
+  href: string
+  as?: string
+}
 
 function formatTrailingSlash(url: UrlObject): UrlObject {
   return Object.assign({}, url, {
@@ -131,6 +135,54 @@ function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
   ] = true
 }
 
+function linkClicked(
+  e: React.MouseEvent,
+  formatted: Formatted,
+  replace?: boolean,
+  shallow?: boolean,
+  scroll?: boolean
+): void {
+  const { nodeName, target } = e.currentTarget as HTMLAnchorElement
+  if (
+    nodeName === 'A' &&
+    ((target && target !== '_self') ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.shiftKey ||
+      (e.nativeEvent && e.nativeEvent.which === 2))
+  ) {
+    // ignore click for new tab / new window behavior
+    return
+  }
+
+  let { href, as } = formatted
+
+  if (!isLocal(href)) {
+    // ignore click if it's outside our scope (e.g. https://google.com)
+    return
+  }
+
+  const { pathname } = window.location
+  href = resolve(pathname, href)
+  as = as ? resolve(pathname, as) : href
+
+  e.preventDefault()
+
+  //  avoid scroll for urls with anchor refs
+  const doScroll = scroll == null ? as.indexOf('#') < 0 : scroll
+
+  // replace state instead of push if prop is present
+  Router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+    (success: boolean) => {
+      if (!success) return
+      if (doScroll) {
+        window.scrollTo(0, 0)
+        document.body.focus()
+      }
+    }
+  )
+}
+
 function Link(props: React.PropsWithChildren<LinkProps>) {
   if (process.env.NODE_ENV !== 'production') {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
@@ -144,7 +196,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }
   const p = props.prefetch !== false
-  let { children, scroll, replace, shallow } = props
 
   const [childElm, setChildElm] = React.useState<Element>()
 
@@ -154,51 +205,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       as: props.as ? formatUrl(props.as) : props.as,
     }
   }, [props.href, props.as])
-
-  const linkClicked = React.useCallback(
-    (e: React.MouseEvent): void => {
-      const { nodeName, target } = e.currentTarget as HTMLAnchorElement
-      if (
-        nodeName === 'A' &&
-        ((target && target !== '_self') ||
-          e.metaKey ||
-          e.ctrlKey ||
-          e.shiftKey ||
-          (e.nativeEvent && e.nativeEvent.which === 2))
-      ) {
-        // ignore click for new tab / new window behavior
-        return
-      }
-
-      let { href, as } = formatted
-
-      if (!isLocal(href)) {
-        // ignore click if it's outside our scope (e.g. https://google.com)
-        return
-      }
-
-      const { pathname } = window.location
-      href = resolve(pathname, href)
-      as = as ? resolve(pathname, as) : href
-
-      e.preventDefault()
-
-      //  avoid scroll for urls with anchor refs
-      const doScroll = scroll == null ? as.indexOf('#') < 0 : scroll
-
-      // replace state instead of push if prop is present
-      Router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
-        (success: boolean) => {
-          if (!success) return
-          if (doScroll) {
-            window.scrollTo(0, 0)
-            document.body.focus()
-          }
-        }
-      )
-    },
-    [formatted, scroll, replace, shallow]
-  )
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
@@ -219,6 +225,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   as = as ? addBasePath(as) : as
   href = addBasePath(href)
 
+  let { children, replace, shallow, scroll } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -247,7 +254,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e)
+        linkClicked(e, formatted, replace, shallow, scroll)
       }
     },
   }
