@@ -1,12 +1,10 @@
 module.exports = {
-  experimental: {
-    rewrites() {
-      return [
-        {
-          source: '/:hello*',
-          destination: '/:hello',
-        },
-      ]
-    },
+  rewrites() {
+    return [
+      {
+        source: '/:hello*',
+        destination: '/:hello',
+      },
+    ]
   },
 }
