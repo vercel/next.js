@@ -110,6 +110,27 @@ function getPaths(parsedHref: string, parsedAs?: string): string[] {
   return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
 }
 
+function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
+  if (typeof window === 'undefined') return
+  // Prefetch the JSON page if asked (only in the client)
+  const paths = getPaths(href, as)
+  // We need to handle a prefetch error here since we may be
+  // loading with priority which can reject but we don't
+  // want to force navigation since this is only a prefetch
+  Router.prefetch(paths[/* href */ 0], paths[/* asPath */ 1], options).catch(
+    (err) => {
+      if (process.env.NODE_ENV !== 'production') {
+        // rethrow to show invalid URL errors
+        throw err
+      }
+    }
+  )
+  prefetched[
+    // Join on an invalid URI character
+    paths.join('%')
+  ] = true
+}
+
 function Link(props: React.PropsWithChildren<LinkProps>) {
   if (process.env.NODE_ENV !== 'production') {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
@@ -125,7 +146,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const p = props.prefetch !== false
   let { children, scroll, replace, shallow } = props
 
-  const childRef = React.useRef<Element>()
+  const [childElm, setChildElm] = React.useState<Element>()
 
   let formatted = React.useMemo(() => {
     return {
@@ -179,54 +200,20 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     [formatted, scroll, replace, shallow]
   )
 
-  const prefetch = React.useCallback(
-    function prefetch(options?: PrefetchOptions): void {
-      if (!p || typeof window === 'undefined') return
-      // Prefetch the JSON page if asked (only in the client)
-      const paths = getPaths(formatted.href, formatted.as)
-      // We need to handle a prefetch error here since we may be
-      // loading with priority which can reject but we don't
-      // want to force navigation since this is only a prefetch
-      Router.prefetch(
-        paths[/* href */ 0],
-        paths[/* asPath */ 1],
-        options
-      ).catch((err) => {
-        if (process.env.NODE_ENV !== 'production') {
-          // rethrow to show invalid URL errors
-          throw err
-        }
-      })
-      prefetched[
-        paths.join(
-          // Join on an invalid URI character
-          '%'
-        )
-      ] = true
-    },
-    [p, formatted]
-  )
-
   React.useEffect(() => {
-    if (
-      p &&
-      IntersectionObserver &&
-      childRef.current &&
-      childRef.current.tagName
-    ) {
+    if (p && IntersectionObserver && childElm && childElm.tagName) {
       const isPrefetched =
         prefetched[
           // Join on an invalid URI character
           getPaths(formatted.href, formatted.as).join('%')
         ]
       if (!isPrefetched) {
-        const cleanupListeners = listenToIntersections(childRef.current, () => {
-          prefetch()
+        return listenToIntersections(childElm, () => {
+          prefetch(formatted.href, formatted.as)
         })
-        return cleanupListeners
       }
     }
-  }, [p, childRef, formatted, prefetch])
+  }, [p, childElm, formatted])
 
   let { href, as } = formatted
   as = as ? addBasePath(as) : as
@@ -240,13 +227,13 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // This will return the first child, if multiple are provided it will throw an error
   const child: any = Children.only(children)
   const childProps: {
-    onMouseEnter: React.MouseEventHandler
+    onMouseEnter?: React.MouseEventHandler
     onClick: React.MouseEventHandler
     href?: string
     ref?: any
   } = {
     ref: (el: any) => {
-      childRef.current = el
+      setChildElm(el)
 
       if (child && typeof child === 'object' && child.ref) {
         if (typeof child.ref === 'function') child.ref(el)
@@ -254,12 +241,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
           child.ref.current = el
         }
       }
-    },
-    onMouseEnter: (e: React.MouseEvent) => {
-      if (child.props && typeof child.props.onMouseEnter === 'function') {
-        child.props.onMouseEnter(e)
-      }
-      prefetch({ priority: true })
     },
     onClick: (e: React.MouseEvent) => {
       if (child.props && typeof child.props.onClick === 'function') {
@@ -269,6 +250,15 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         linkClicked(e)
       }
     },
+  }
+
+  if (p) {
+    childProps.onMouseEnter = (e: React.MouseEvent) => {
+      if (child.props && typeof child.props.onMouseEnter === 'function') {
+        child.props.onMouseEnter(e)
+      }
+      prefetch(formatted.href, formatted.as, { priority: true })
+    }
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
