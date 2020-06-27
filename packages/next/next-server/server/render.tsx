@@ -341,15 +341,14 @@ export async function renderToHTML(
     pageIsDynamic &&
     didRewrite
   ) {
-    // TODO: add err.sh when rewrites go stable
-    // Behavior might change before then (prefer SSR in this case).
-    // If we decide to ship rewrites to the client we could solve this
-    // by running over the rewrites and getting the params.
+    // TODO: If we decide to ship rewrites to the client we could
+    // solve this by running over the rewrites and getting the params.
     throw new Error(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client`
+      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
+        `Using this will cause the page to fail to parse the params on the client\n` +
+        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
     )
   }
 
