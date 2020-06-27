@@ -5558,18 +5558,20 @@ cssnano-preset-default@^4.0.7:
     postcss-svgo "^4.0.2"
     postcss-unique-selectors "^4.0.1"
 
-cssnano-preset-simple@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/cssnano-preset-simple/-/cssnano-preset-simple-1.1.0.tgz#f7ce3224456e3043fc2942bf2e0f6fb4040f9e9f"
+cssnano-preset-simple@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/cssnano-preset-simple/-/cssnano-preset-simple-1.1.1.tgz#9cbf7208e9743f57c17719545ca9e5263601b9fa"
+  integrity sha512-Hs8sUuzepCyA4dA1/bj6RLFjo4L3OgX1VZV3nkQ2siFrEMTrpD+NCNS3AbjMf5N/srmbLWHX9RMtbJP4j6+BwQ==
   dependencies:
-    postcss "^7.0.18"
+    postcss "^7.0.32"
 
-cssnano-simple@1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/cssnano-simple/-/cssnano-simple-1.0.2.tgz#64d6e8c5d1a3ccec42065f021a6c0f59d892d40a"
+cssnano-simple@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/cssnano-simple/-/cssnano-simple-1.0.3.tgz#8c3f5e286a984bec2a5d679ad391f8808d9d2d71"
+  integrity sha512-hRVSYRryqSrCGb9HCm/YwPWYng6BPjDNdQdeVg0uus6CA4Q1y4/s98+x+V/Uw3LCGKv/WBZkAjIgreUDCXzifQ==
   dependencies:
-    cssnano-preset-simple "^1.1.0"
-    postcss "^7.0.29"
+    cssnano-preset-simple "^1.1.1"
+    postcss "^7.0.32"
 
 cssnano-util-get-arguments@^4.0.0:
   version "4.0.0"
@@ -12666,15 +12668,7 @@ postcss@7.0.21:
     source-map "^0.6.1"
     supports-color "^6.1.0"
 
-postcss@7.0.29, postcss@^7.0.29:
-  version "7.0.29"
-  resolved "https://registry.yarnpkg.com/postcss/-/postcss-7.0.29.tgz#d3a903872bd52280b83bce38cdc83ce55c06129e"
-  dependencies:
-    chalk "^2.4.2"
-    source-map "^0.6.1"
-    supports-color "^6.1.0"
-
-postcss@7.0.32:
+postcss@7.0.32, postcss@^7.0.32:
   version "7.0.32"
   resolved "https://registry.yarnpkg.com/postcss/-/postcss-7.0.32.tgz#4310d6ee347053da3433db2be492883d62cec59d"
   integrity sha512-03eXong5NLnNCD05xscnGKGDZ98CyzoqPSMjOe6SuoQY7Z2hIj0Ld1g/O/UQRuOle2aRtiIRDg9tDcTGAkLfKw==
