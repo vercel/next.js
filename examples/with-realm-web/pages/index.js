@@ -23,7 +23,7 @@ const IndexPage = () => {
 
   if (data && data.error) {
     console.error(data.error)
-    return `An Error occurred while trying to fetch data from the realm endpoint :  ${data.error}`
+    return <p>An error occurred: ${data.error}</p>
   }
   const movies = data ? data.data.movies : null
 
