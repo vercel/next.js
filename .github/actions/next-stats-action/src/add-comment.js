@@ -102,7 +102,13 @@ module.exports = async function addComment(
             if (change !== 0) {
               const absChange = Math.abs(change)
               const warnIfNegative = isBenchmark && itemKey.match(/req\/sec/)
-              const warn = warnIfNegative && change < 0 ? '⚠️ ' : ''
+              const warn = warnIfNegative
+                ? change < 0
+                  ? '⚠️ '
+                  : ''
+                : change > 0
+                ? '⚠️ '
+                : ''
               change = `${warn}${change < 0 ? '-' : '+'}${
                 useRawValue ? absChange : prettify(absChange, prettyType)
               }`
