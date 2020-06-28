@@ -47,12 +47,11 @@ function formatTrailingSlash(url: UrlObject): UrlObject {
 }
 
 function formatUrl(url: Url): string {
-  return (
-    url &&
-    formatWithValidation(
-      formatTrailingSlash(typeof url === 'object' ? url : parse(url))
-    )
-  )
+  return url
+    ? formatWithValidation(
+        formatTrailingSlash(typeof url === 'object' ? url : parse(url))
+      )
+    : url
 }
 
 function prepareUrlAs(url: Url, as: Url) {
@@ -60,7 +59,7 @@ function prepareUrlAs(url: Url, as: Url) {
   // we'll format them into the string version here.
   return {
     url: addBasePath(formatUrl(url)),
-    as: as ? addBasePath(formatUrl(url)) : as,
+    as: as ? addBasePath(formatUrl(as)) : as,
   }
 }
 
