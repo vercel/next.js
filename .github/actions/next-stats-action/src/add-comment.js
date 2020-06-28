@@ -101,7 +101,15 @@ module.exports = async function addComment(
             // check if there is still a change after rounding
             if (change !== 0) {
               const absChange = Math.abs(change)
-              change = `${change < 0 ? '-' : '⚠️ +'}${
+              const warnIfNegative = isBenchmark && itemKey.match(/req\/sec/)
+              const warn = warnIfNegative
+                ? change < 0
+                  ? '⚠️ '
+                  : ''
+                : change > 0
+                ? '⚠️ '
+                : ''
+              change = `${warn}${change < 0 ? '-' : '+'}${
                 useRawValue ? absChange : prettify(absChange, prettyType)
               }`
             }
