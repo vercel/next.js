@@ -44,7 +44,7 @@ The pages will then be exported as HTML files, for example, `/about` will become
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
 - `dir` - Absolute path to the project directory
-- `outDir` - Absolute path to the `out/` directory (configurable with `-o`). When `dev` is `true` the value of `outDir` will be `null`.
+- `outDir` - Absolute path to the `out/` directory ([configurable with `-o`](#customizing-the-output-directory)). When `dev` is `true` the value of `outDir` will be `null`.
 - `distDir` - Absolute path to the `.next/` directory (configurable with the [`distDir`](/docs/api-reference/next.config.js/setting-a-custom-build-directory.md) config)
 - `buildId` - The generated build id
 
@@ -65,6 +65,14 @@ To switch back and add a trailing slash, open `next.config.js` and enable the `e
 module.exports = {
   exportTrailingSlash: true,
 }
+```
+
+## Customizing the output directory
+
+[`next export`](/docs/advanced-features/static-html-export.md#how-to-use-it) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
+
+```bash
+next export -o outdir
 ```
 
 ## Related

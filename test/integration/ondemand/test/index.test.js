@@ -1,8 +1,7 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import { join, resolve } from 'path'
-import { existsSync } from 'fs'
+import { join } from 'path'
 import AbortController from 'abort-controller'
 import {
   renderViaHTTP,
@@ -14,6 +13,7 @@ import {
   check,
   getBrowserBodyText,
   getPageFileFromBuildManifest,
+  getBuildManifest,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -72,30 +72,28 @@ describe('On Demand Entries', () => {
   it('should dispose inactive pages', async () => {
     await renderViaHTTP(context.appPort, '/')
     await doPing('/')
-    const indexPage = getPageFileFromBuildManifest(appDir, '/')
-
-    const indexPagePath = resolve(__dirname, join('../.next', indexPage))
-    expect(existsSync(indexPagePath)).toBeTruthy()
 
     // Render two pages after the index, since the server keeps at least two pages
     await renderViaHTTP(context.appPort, '/about')
     await doPing('/about')
-    const aboutPage = getPageFileFromBuildManifest(appDir, '/about')
-    const aboutPagePath = resolve(__dirname, join('../.next', aboutPage))
 
     await renderViaHTTP(context.appPort, '/third')
     await doPing('/third')
-    const thirdPage = getPageFileFromBuildManifest(appDir, '/third')
-    const thirdPagePath = resolve(__dirname, join('../.next', thirdPage))
 
     // Wait maximum of jest.setTimeout checking
     // for disposing /about
-    while (true) {
+    for (let i = 0; i < 30; ++i) {
       await waitFor(1000 * 1)
-      // Assert that the two lastly demanded page are not disposed
-      expect(existsSync(aboutPagePath)).toBeTruthy()
-      expect(existsSync(thirdPagePath)).toBeTruthy()
-      if (!existsSync(indexPagePath)) return
+      try {
+        const buildManifest = getBuildManifest(appDir)
+        // Assert that the two lastly demanded page are not disposed
+        expect(buildManifest.pages['/']).toBeUndefined()
+        expect(buildManifest.pages['/about']).toBeDefined()
+        expect(buildManifest.pages['/third']).toBeDefined()
+        return
+      } catch (err) {
+        continue
+      }
     }
   })
 
