@@ -48,16 +48,15 @@ const IndexPage = () => {
               </tr>
             </thead>
             <tbody>
-              {data &&
-                movies.map((movie, index) => {
-                  return (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{movie.title}</td>
-                      <td>{movie.runtime}</td>
-                    </tr>
-                  )
-                })}
+              {movies.map((movie, index) => {
+                return (
+                  <tr key={index}>
+                    <td>{index + 1}</td>
+                    <td>{movie.title}</td>
+                    <td>{movie.runtime}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
