@@ -690,7 +690,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...config,
       initialPageRevalidationMap: {},
       // Default map will be the collection of automatic statically exported
-      // pages and SPR pages.
+      // pages and incremental pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {

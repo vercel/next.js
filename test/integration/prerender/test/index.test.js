@@ -345,7 +345,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR SPR page correctly', async () => {
+  it('should SSR incremental page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
     const $ = cheerio.load(html)
@@ -1601,7 +1601,7 @@ describe('SSG Prerender', () => {
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
-              throw new Error('Found SPR page in the default export path map')
+              throw new Error('Found Incremental page in the default export path map')
             }
             return defaultPathMap
           },
