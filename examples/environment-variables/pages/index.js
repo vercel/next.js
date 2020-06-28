@@ -85,7 +85,7 @@ const IndexPage = () => (
   </div>
 )
 
-//  `getStaticProps`, and similar Next.js methods like `getStaticPaths` and `getServerSideProps`
+// `getStaticProps`, and similar Next.js methods like `getStaticPaths` and `getServerSideProps`
 // only run in the server. Check the terminal to see the environment variables
 export async function getStaticProps() {
   // Using the variables below in the browser will return `undefined`. Next.js doesn't
