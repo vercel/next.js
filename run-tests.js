@@ -1,12 +1,16 @@
 const path = require('path')
 const _glob = require('glob')
+const fs = require('fs').promises
 const fetch = require('node-fetch')
 const { promisify } = require('util')
-const { spawn } = require('child_process')
+const { Sema } = require('async-sema')
+const { spawn, exec: execOrig } = require('child_process')
 
 const glob = promisify(_glob)
+const exec = promisify(execOrig)
 
 const timings = []
+const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
@@ -107,46 +111,105 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
   }
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
+  const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
     path.dirname(require.resolve('jest-cli/package')),
     'bin/jest.js'
   )
   const children = new Set()
 
-  await new Promise((resolve, reject) => {
-    const start = new Date().getTime()
-    const child = spawn(
-      'node',
-      [
-        jestPath,
-        '--forceExit',
-        '--verbose',
-        `--maxWorkers=${concurrency}`,
-        ...(isTestJob
-          ? ['--json', `--outputFile=test-output${RESULTS_EXT}`]
-          : []),
-        ...testNames,
-      ],
-      {
-        stdio: 'inherit',
-        env: {
-          JEST_RETRY_TIMES: 3,
-          ...process.env,
-          ...(isAzure
-            ? {
-                HEADLESS: 'true',
-              }
-            : {}),
-        },
-      }
-    )
-    children.add(child)
-    child.on('exit', (code) => {
-      children.delete(child)
-      if (code) reject(new Error(`failed with code: ${code}`))
-      resolve(new Date().getTime() - start)
+  const runTest = (test = '', usePolling) =>
+    new Promise((resolve, reject) => {
+      const start = new Date().getTime()
+      const child = spawn(
+        'node',
+        [
+          jestPath,
+          '--runInBand',
+          '--forceExit',
+          '--verbose',
+          ...(isTestJob
+            ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
+            : []),
+          test,
+        ],
+        {
+          stdio: 'inherit',
+          env: {
+            ...process.env,
+            ...(isAzure
+              ? {
+                  HEADLESS: 'true',
+                }
+              : {}),
+            ...(usePolling
+              ? {
+                  // Events can be finicky in CI. This switches to a more
+                  // reliable polling method.
+                  CHOKIDAR_USEPOLLING: 'true',
+                  CHOKIDAR_INTERVAL: 500,
+                }
+              : {}),
+          },
+        }
+      )
+      children.add(child)
+      child.on('exit', (code) => {
+        children.delete(child)
+        if (code) reject(new Error(`failed with code: ${code}`))
+        resolve(new Date().getTime() - start)
+      })
     })
-  })
+
+  await Promise.all(
+    testNames.map(async (test) => {
+      await sema.acquire()
+      let passed = false
+
+      for (let i = 0; i < NUM_RETRIES + 1; i++) {
+        try {
+          const time = await runTest(test, i > 0)
+          timings.push({
+            file: test,
+            time,
+          })
+          passed = true
+          break
+        } catch (err) {
+          if (i < NUM_RETRIES) {
+            try {
+              const testDir = path.dirname(path.join(__dirname, test))
+              console.log('Cleaning test files at', testDir)
+              await exec(`git clean -fdx "${testDir}"`)
+              await exec(`git checkout "${testDir}"`)
+            } catch (err) {}
+          }
+        }
+      }
+      if (!passed) {
+        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+        children.forEach((child) => child.kill())
+
+        if (isTestJob) {
+          try {
+            const testsOutput = await fs.readFile(
+              `${test}${RESULTS_EXT}`,
+              'utf8'
+            )
+            console.log(
+              `--test output start--`,
+              testsOutput,
+              `--test output end--`
+            )
+          } catch (err) {
+            console.log(`Failed to load test output`, err)
+          }
+        }
+        process.exit(1)
+      }
+      sema.release()
+    })
+  )
 
   if (outputTimings) {
     const curTimings = {}
