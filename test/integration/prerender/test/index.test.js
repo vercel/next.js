@@ -345,7 +345,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR SPR page correctly', async () => {
+  it('should SSR incremental page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
     const $ = cheerio.load(html)
@@ -608,7 +608,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       const item = Math.round(Math.random() * 100)
       const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
       expect(html).toContain(
-        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client`
+        `Rewrites don't support dynamic pages with getStaticProps yet`
       )
     })
 
@@ -1292,18 +1292,18 @@ describe('SSG Prerender', () => {
         module.exports = {
           experimental: {
             optionalCatchAll: true,
-            rewrites() {
-              return [
-                {
-                  source: "/some-rewrite/:item",
-                  destination: "/blog/post-:item"
-                },
-                {
-                  source: '/about',
-                  destination: '/lang/en/about'
-                }
-              ]
-            }
+          },
+          rewrites() {
+            return [
+              {
+                source: "/some-rewrite/:item",
+                destination: "/blog/post-:item"
+              },
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }
       `
@@ -1401,14 +1401,14 @@ describe('SSG Prerender', () => {
           target: 'serverless',
           experimental: {
             optionalCatchAll: true,
-            rewrites() {
-              return [
-                {
-                  source: '/about',
-                  destination: '/lang/en/about'
-                }
-              ]
-            }
+          },
+          rewrites() {
+            return [
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }`,
         'utf8'
@@ -1601,7 +1601,7 @@ describe('SSG Prerender', () => {
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
-              throw new Error('Found SPR page in the default export path map')
+              throw new Error('Found Incremental page in the default export path map')
             }
             return defaultPathMap
           },

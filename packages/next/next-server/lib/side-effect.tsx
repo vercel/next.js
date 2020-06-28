@@ -15,31 +15,42 @@ type SideEffectProps = {
 }
 
 export default class extends Component<SideEffectProps> {
+  private _hasHeadManager: boolean
+
   emitChange = (): void => {
-    this.props.headManager.updateHead(
-      this.props.reduceComponentsToState(
-        [...this.props.headManager.mountedInstances],
-        this.props
+    if (this._hasHeadManager) {
+      this.props.headManager.updateHead(
+        this.props.reduceComponentsToState(
+          [...this.props.headManager.mountedInstances],
+          this.props
+        )
       )
-    )
+    }
   }
 
   constructor(props: any) {
     super(props)
-    if (isServer) {
+    this._hasHeadManager =
+      this.props.headManager && this.props.headManager.mountedInstances
+
+    if (isServer && this._hasHeadManager) {
       this.props.headManager.mountedInstances.add(this)
       this.emitChange()
     }
   }
   componentDidMount() {
-    this.props.headManager.mountedInstances.add(this)
+    if (this._hasHeadManager) {
+      this.props.headManager.mountedInstances.add(this)
+    }
     this.emitChange()
   }
   componentDidUpdate() {
     this.emitChange()
   }
   componentWillUnmount() {
-    this.props.headManager.mountedInstances.delete(this)
+    if (this._hasHeadManager) {
+      this.props.headManager.mountedInstances.delete(this)
+    }
     this.emitChange()
   }
 

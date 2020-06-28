@@ -1,3 +1,4 @@
+import { codeFrameColumns } from '@babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import { readFileSync } from 'fs'
@@ -5,6 +6,7 @@ import chalk from 'next/dist/compiled/chalk'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import webpack from 'webpack'
+import type { Configuration } from 'webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -21,6 +23,7 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
+import { execOnce } from '../next-server/lib/utils'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import {
@@ -44,12 +47,11 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
+  GranularChunksConformanceCheck,
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
-  GranularChunksConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { codeFrameColumns } from '@babel/code-frame'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -60,6 +62,15 @@ const escapePathVariables = (value: any) => {
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
 }
+
+const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
+  console.warn(
+    chalk.yellow.bold('Warning: ') +
+      chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+      'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+      'Read more: https://err.sh/next.js/improper-devtool'
+  )
+})
 
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
@@ -261,6 +272,15 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
   }
 
+  function getReactProfilingInProduction() {
+    if (config.reactProductionProfiling) {
+      return {
+        'react-dom$': 'react-dom/profiling',
+        'scheduler/tracing': 'scheduler/tracing-profiling',
+      }
+    }
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
@@ -295,6 +315,7 @@ export default async function getBaseWebpackConfig(
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
+      ...getReactProfilingInProduction(),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: isWebpack5
@@ -634,6 +655,7 @@ export default async function getBaseWebpackConfig(
           '@ampproject/toolbox-optimizer', // except this one
         ],
     optimization: {
+      noEmitOnErrors: dev,
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer ? false : splitChunksConfig,
@@ -682,11 +704,15 @@ export default async function getBaseWebpackConfig(
           : {}),
       }
     },
+    watchOptions: {
+      ignored: ['.git/**', 'node_modules/**', '.git/**'],
+    },
     output: {
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: dev || isServer ? '[name].js' : '[name]-[chunkhash].js',
-      libraryTarget: isServer ? 'commonjs2' : 'var',
+      library: isServer ? undefined : '_N_E',
+      libraryTarget: isServer ? 'commonjs2' : 'assign',
       hotUpdateChunkFilename: isWebpack5
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
@@ -882,17 +908,9 @@ export default async function getBaseWebpackConfig(
             const {
               NextJsRequireCacheHotReloader,
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
-            const {
-              UnlinkRemovedPagesPlugin,
-            } = require('./webpack/plugins/unlink-removed-pages-plugin')
-            const devPlugins = [
-              new UnlinkRemovedPagesPlugin(),
-              new webpack.NoEmitOnErrorsPlugin(),
-              new NextJsRequireCacheHotReloader(),
-            ]
+            const devPlugins = [new NextJsRequireCacheHotReloader()]
 
-            // Webpack 5 enables HMR automatically in the development mode
-            if (!isServer && !isWebpack5) {
+            if (!isServer) {
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
             }
 
@@ -1002,6 +1020,7 @@ export default async function getBaseWebpackConfig(
     productionBrowserSourceMaps,
   })
 
+  let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
       dir,
@@ -1014,10 +1033,25 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
+    if (dev && originalDevtool !== webpackConfig.devtool) {
+      webpackConfig.devtool = originalDevtool
+      devtoolRevertWarning(originalDevtool)
+    }
+
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
         '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
       )
+    }
+  }
+
+  // Backwards compat with webpack-dev-middleware options object
+  if (typeof config.webpackDevMiddleware === 'function') {
+    const options = config.webpackDevMiddleware({
+      watchOptions: webpackConfig.watchOptions,
+    })
+    if (options.watchOptions) {
+      webpackConfig.watchOptions = options.watchOptions
     }
   }
 
@@ -1243,17 +1277,6 @@ export default async function getBaseWebpackConfig(
   if (!dev) {
     // entry is always a function
     webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
-  }
-
-  // In webpack 5, the 'var' libraryTarget output requires a name.
-  // TODO: this should be revisited as 'var' was only used to not have the
-  // initial variable exposed. In webpack 4, not setting the library option
-  // would result in the bundle being a self-executing function without the
-  // variable.
-  if (isWebpack5 && !isServer) {
-    webpackConfig.output!.library = webpackConfig.output?.library
-      ? webpackConfig.output.library
-      : 'INTERNAL_NEXT_APP'
   }
 
   return webpackConfig
