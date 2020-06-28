@@ -55,12 +55,7 @@ import Router, {
 import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
-import {
-  getFallback,
-  getIncrementalCache,
-  initializeIncrementalCache,
-  setIncrementalCache,
-} from './incremental-cache'
+import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
@@ -128,6 +123,7 @@ export default class Server {
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
+  private incrementalCache: IncrementalCache
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
@@ -217,7 +213,7 @@ export default class Server {
       initServer()
     }
 
-    initializeIncrementalCache({
+    this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,
       pagesDir: join(
@@ -995,7 +991,7 @@ export default class Server {
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
-      ? await getIncrementalCache(ssgCacheKey)
+      ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
     if (cachedData) {
@@ -1119,7 +1115,7 @@ export default class Server {
 
       // Production already emitted the fallback as static HTML.
       if (isProduction) {
-        html = await getFallback(pathname)
+        html = await this.incrementalCache.getFallback(pathname)
       }
       // We need to generate the fallback on-demand for development.
       else {
@@ -1158,7 +1154,7 @@ export default class Server {
 
     // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      await setIncrementalCache(
+      await this.incrementalCache.set(
         ssgCacheKey,
         { html: html!, pageData },
         sprRevalidate
