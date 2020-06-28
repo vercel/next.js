@@ -272,6 +272,15 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
   }
 
+  function getReactProfilingInProduction() {
+    if (config.reactProductionProfiling) {
+      return {
+        'react-dom$': 'react-dom/profiling',
+        'scheduler/tracing': 'scheduler/tracing-profiling',
+      }
+    }
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
@@ -306,6 +315,7 @@ export default async function getBaseWebpackConfig(
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
+      ...getReactProfilingInProduction(),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: isWebpack5
