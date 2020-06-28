@@ -9,7 +9,7 @@ function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
 }
 
-type SprCacheValue = {
+type IncrementalCacheValue = {
   html: string
   pageData: any
   isStale?: boolean
@@ -18,9 +18,9 @@ type SprCacheValue = {
   revalidateAfter: number | false
 }
 
-let cache: LRUCache<string, SprCacheValue>
+let cache: LRUCache<string, IncrementalCacheValue>
 let prerenderManifest: PrerenderManifest
-let sprOptions: {
+let incrementalOptions: {
   flushToDisk?: boolean
   pagesDir?: string
   distDir?: string
@@ -28,7 +28,7 @@ let sprOptions: {
 } = {}
 
 const getSeedPath = (pathname: string, ext: string): string => {
-  return path.join(sprOptions.pagesDir!, `${pathname}.${ext}`)
+  return path.join(incrementalOptions.pagesDir!, `${pathname}.${ext}`)
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
@@ -37,7 +37,7 @@ export const calculateRevalidate = (pathname: string): number | false => {
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
-  if (sprOptions.dev) return curTime - 1000
+  if (incrementalOptions.dev) return curTime - 1000
 
   const { initialRevalidateSeconds } = prerenderManifest.routes[pathname] || {
     initialRevalidateSeconds: 1,
@@ -50,8 +50,8 @@ export const calculateRevalidate = (pathname: string): number | false => {
   return revalidateAfter
 }
 
-// initialize the SPR cache
-export function initializeSprCache({
+// initialize the cache
+export function initializeIncrementalCache({
   max,
   dev,
   distDir,
@@ -64,7 +64,7 @@ export function initializeSprCache({
   pagesDir: string
   flushToDisk?: boolean
 }) {
-  sprOptions = {
+  incrementalOptions = {
     dev,
     distDir,
     pagesDir,
@@ -100,14 +100,14 @@ export async function getFallback(page: string): Promise<string> {
   return promises.readFile(getSeedPath(page, 'html'), 'utf8')
 }
 
-// get data from SPR cache if available
-export async function getSprCache(
+// get data from cache if available
+export async function getIncrementalCache(
   pathname: string
-): Promise<SprCacheValue | undefined> {
-  if (sprOptions.dev) return
+): Promise<IncrementalCacheValue | undefined> {
+  if (incrementalOptions.dev) return
   pathname = normalizePagePath(pathname)
 
-  let data: SprCacheValue | undefined = cache.get(pathname)
+  let data: IncrementalCacheValue | undefined = cache.get(pathname)
 
   // let's check the disk for seed data
   if (!data) {
@@ -146,8 +146,8 @@ export async function getSprCache(
   return data
 }
 
-// populate the SPR cache with new data
-export async function setSprCache(
+// populate the incremental cache with new data
+export async function setIncrementalCache(
   pathname: string,
   data: {
     html: string
@@ -155,7 +155,7 @@ export async function setSprCache(
   },
   revalidateSeconds?: number | false
 ) {
-  if (sprOptions.dev) return
+  if (incrementalOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
     // TODO: Update this to not mutate the manifest from the
     // build.
@@ -177,7 +177,7 @@ export async function setSprCache(
 
   // TODO: This option needs to cease to exist unless it stops mutating the
   // `next build` output's manifest.
-  if (sprOptions.flushToDisk) {
+  if (incrementalOptions.flushToDisk) {
     try {
       const seedPath = getSeedPath(pathname, 'html')
       await promises.mkdir(path.dirname(seedPath), { recursive: true })

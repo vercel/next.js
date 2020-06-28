@@ -57,10 +57,10 @@ import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import {
   getFallback,
-  getSprCache,
-  initializeSprCache,
-  setSprCache,
-} from './spr-cache'
+  getIncrementalCache,
+  initializeIncrementalCache,
+  setIncrementalCache,
+} from './incremental-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
@@ -217,7 +217,7 @@ export default class Server {
       initServer()
     }
 
-    initializeSprCache({
+    initializeIncrementalCache({
       dev,
       distDir: this.distDir,
       pagesDir: join(
@@ -994,7 +994,9 @@ export default class Server {
         : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
-    const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+    const cachedData = ssgCacheKey
+      ? await getIncrementalCache(ssgCacheKey)
+      : undefined
 
     if (cachedData) {
       const data = isDataReq
@@ -1154,9 +1156,13 @@ export default class Server {
       resHtml = null
     }
 
-    // Update the SPR cache if the head request and cacheable
+    // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
+      await setIncrementalCache(
+        ssgCacheKey,
+        { html: html!, pageData },
+        sprRevalidate
+      )
     }
 
     return resHtml
