@@ -283,6 +283,9 @@ export async function killApp(instance) {
           // Command failed: taskkill /pid 6924 /T /F
           // ERROR: The process with PID 6924 (child process of PID 6736) could not be terminated.
           // Reason: There is no running instance of the task.
+
+          process.close()
+          process.quit()
           return resolve()
         }
         return reject(err)
