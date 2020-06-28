@@ -1,3 +1,54 @@
+.overlay {
+  @apply fixed
+    inset-0
+    bg-white
+    bg-opacity-75
+    flex
+    justify-center
+    items-center;
+}
+
 .modal {
-  @apply relative flex flex-col justify-center content-center;
+  @apply relative
+    bg-white
+    max-w-2xl
+    shadow-lg
+    border
+    border-accent-2
+    p-8
+    outline-none;
+}
+
+.buttons {
+  @apply grid grid-cols-2 gap-4 mt-8;
+}
+
+.closeButton,
+.submitButton {
+  @apply font-medium
+    py-2
+    px-12
+    duration-200
+    transition-colors;
+}
+
+.closeButton {
+  @apply bg-accent-2
+    border
+    border-accent-2;
+}
+
+.submitButton {
+  @apply bg-black
+    text-white
+    border
+    border-black;
+}
+
+.submitButton:hover {
+  @apply bg-white text-black;
+}
+
+.closeButton:hover {
+  @apply bg-white;
 }

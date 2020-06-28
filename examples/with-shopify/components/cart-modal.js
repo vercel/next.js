@@ -13,10 +13,23 @@ export default function CartModal() {
       onRequestClose={closeCart}
       contentLabel="Example Modal"
       className={styles.modal}
+      overlayClassName={styles.overlay}
     >
       <div>
-        <h2>Cart Modal</h2>
-        <p>Hello there!</p>
+        <div className={styles.header}>
+          <h2>Shopping Cart</h2>
+          <span></span>
+        </div>
+        <form>
+          <div className={styles.buttons}>
+            <button type="button" className={styles.closeButton}>
+              Continue Shopping
+            </button>
+            <button type="submit" className={styles.submitButton}>
+              Check Out
+            </button>
+          </div>
+        </form>
       </div>
     </Modal>
   )
