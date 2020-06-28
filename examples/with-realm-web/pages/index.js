@@ -32,9 +32,13 @@ const IndexPage = () => {
       <div className="App">
         <h1>"PG" Rated Movies - 2014</h1>
 
-        {data && !movies && <div className="status">No movies Found</div>}
+        {data ? (
+          !movies && <div className="status">No movies Found</div>
+        ) : (
+          <div className="status"> Fetching data...</div>
+        )}
 
-        {data && (
+        {movies && (
           <table>
             <thead>
               <tr>
