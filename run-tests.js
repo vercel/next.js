@@ -132,7 +132,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
         env: {
           JEST_RETRY_TIMES: 3,
           ...process.env,
-          ...(isAzure || true
+          ...(isAzure
             ? {
                 HEADLESS: 'true',
               }
