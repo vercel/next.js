@@ -22,7 +22,7 @@ export const base = curry(function base(
   if (ctx.isDevelopment) {
     if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       config.devtool = false
-    } else if (isWindows) {
+    } else if (isWindows && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       // Non-eval based source maps are slow to rebuild, so we only enable
       // them for Windows. Unfortunately, eval source maps are flagged as
       // suspicious by Windows Defender and block HMR.
