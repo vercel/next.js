@@ -128,6 +128,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
           '--runInBand',
           '--forceExit',
           '--verbose',
+          '--detectOpenHandles',
           ...(isTestJob
             ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
             : []),
