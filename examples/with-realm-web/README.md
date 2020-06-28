@@ -53,5 +53,4 @@ To set up your app:
 3. Generate a collection schema for the `sample_mflix.movies` collection.
    Add a root-level "title" field to the schema with the value set to "movie".
 4. Enable anonymous authentication
-5. Deploy your changes
-   Once your app is set up, replace the value of REALM_APP_ID in `.env` file with your App ID
+5. Once your app is set up, replace the value of NEXT_PUBLIC_REALM_APP_ID in `.env` file with your App ID
