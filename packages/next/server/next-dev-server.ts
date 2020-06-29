@@ -210,21 +210,6 @@ export default class DevServer extends Server {
               match: getRouteMatcher(getRouteRegex(page)),
             }))
 
-          const firstOptionalCatchAllPage =
-            this.dynamicRoutes.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
-              ?.page ?? null
-          if (
-            this.nextConfig.experimental?.optionalCatchAll !== true &&
-            firstOptionalCatchAllPage
-          ) {
-            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-            if (resolved) {
-              console.warn(msg)
-            } else {
-              throw new Error(msg)
-            }
-          }
-
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
           if (!resolved) {
