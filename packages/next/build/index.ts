@@ -47,6 +47,7 @@ import loadConfig, {
 import { BuildManifest } from '../next-server/server/get-page-files'
 import '../next-server/server/node-polyfill-fetch'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { getPagePath } from '../next-server/server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
@@ -73,7 +74,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import { getPagePath } from '../next-server/server/require'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -275,16 +275,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
         : {}),
       regex: routeRegex.source,
     }
-  }
-
-  const firstOptionalCatchAllPage =
-    pageKeys.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f)) ?? null
-  if (
-    config.experimental?.optionalCatchAll !== true &&
-    firstOptionalCatchAllPage
-  ) {
-    const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-    throw new Error(msg)
   }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
