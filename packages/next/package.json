@@ -90,7 +90,7 @@
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.3",
-    "native-url": "0.3.3",
+    "native-url": "0.3.4",
     "neo-async": "2.6.1",
     "pnp-webpack-plugin": "1.6.4",
     "postcss": "7.0.29",
