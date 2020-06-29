@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 import { Canvas } from 'react-three-fiber'
 const Bird = dynamic(() => import('../components/Bird'), { ssr: false })
