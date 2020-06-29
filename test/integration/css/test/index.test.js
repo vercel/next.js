@@ -163,7 +163,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
       )
 
       // Contains a source map
@@ -184,7 +184,7 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,mDACE,WACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
@@ -194,6 +194,14 @@ describe('CSS Support', () => {
 
         .flex-parsing {
           flex: 0 0 calc(50% - var(--vertical-gutter));
+        }
+
+        .transform-parsing {
+          transform: translate3d(0px, 0px);
+        }
+
+        .g-docs-sidenav .filter::-webkit-input-placeholder {
+          opacity: 80%;
         }
         ",
           ],

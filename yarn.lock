@@ -5558,19 +5558,19 @@ cssnano-preset-default@^4.0.7:
     postcss-svgo "^4.0.2"
     postcss-unique-selectors "^4.0.1"
 
-cssnano-preset-simple@^1.1.1:
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/cssnano-preset-simple/-/cssnano-preset-simple-1.1.1.tgz#9cbf7208e9743f57c17719545ca9e5263601b9fa"
-  integrity sha512-Hs8sUuzepCyA4dA1/bj6RLFjo4L3OgX1VZV3nkQ2siFrEMTrpD+NCNS3AbjMf5N/srmbLWHX9RMtbJP4j6+BwQ==
+cssnano-preset-simple@^1.1.3:
+  version "1.1.3"
+  resolved "https://registry.yarnpkg.com/cssnano-preset-simple/-/cssnano-preset-simple-1.1.3.tgz#c185f915afcfb803e78e357df48cc77f949eb1d4"
+  integrity sha512-7iDiM+OSkDlTrH/xGw748mr7FdQtFAy6qFRlTjJevAsG536DPOMeaDucJMqWzyAhcem0VQkTGveUk3bo3ux6hA==
   dependencies:
     postcss "^7.0.32"
 
-cssnano-simple@1.0.3:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/cssnano-simple/-/cssnano-simple-1.0.3.tgz#8c3f5e286a984bec2a5d679ad391f8808d9d2d71"
-  integrity sha512-hRVSYRryqSrCGb9HCm/YwPWYng6BPjDNdQdeVg0uus6CA4Q1y4/s98+x+V/Uw3LCGKv/WBZkAjIgreUDCXzifQ==
+cssnano-simple@1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/cssnano-simple/-/cssnano-simple-1.0.4.tgz#2d56225795f4afbbb9c21df953cb43df6c589ae1"
+  integrity sha512-Em/QujEpiqfjT3wksbyHTYpBF2l7lfYuUiLjtCwurc6NqRFb4N/VZjC3djNuO7poFpO410tTcpJ38Qn8xWadcA==
   dependencies:
-    cssnano-preset-simple "^1.1.1"
+    cssnano-preset-simple "^1.1.3"
     postcss "^7.0.32"
 
 cssnano-util-get-arguments@^4.0.0:
