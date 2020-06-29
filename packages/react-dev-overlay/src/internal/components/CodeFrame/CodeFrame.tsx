@@ -54,8 +54,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       )
       .then(
         () => {},
-        () => {
+        (err) => {
           // TODO: report error
+          alert(`The editor failed to open: ${err}`)
         }
       )
   }, [stackFrame])

@@ -32,8 +32,9 @@ const CallStackFrame: React.FC<{
       )
       .then(
         () => {},
-        () => {
+        (err) => {
           // TODO: report error
+          alert(`The editor failed to open: ${err}`)
         }
       )
   }, [hasSource, f])
