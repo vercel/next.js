@@ -1,6 +1,6 @@
 export async function getStaticPaths() {
   return {
-    paths: ['/gssp/foo/'],
+    paths: ['/gssp/foo.bar', '/gssp/foo/'],
     fallback: false,
   }
 }

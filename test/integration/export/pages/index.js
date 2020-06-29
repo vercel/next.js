@@ -30,6 +30,9 @@ export default () => (
       <Link href="/dynamic?text=Vercel+is+awesome#cool">
         <a id="with-hash">With Hash</a>
       </Link>
+      <Link href="/gssp/[slug]" as="/gssp/foo.bar">
+        <a id="path-with-dot">Path with dot</a>
+      </Link>
       <Link href="/dynamic?text=this+file+has+an+extension" as="/file-name.md">
         <a id="path-with-extension">Path with extension</a>
       </Link>

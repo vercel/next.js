@@ -19,8 +19,10 @@ export default function (context) {
       const $ = cheerio.load(html)
       const dynamicLink = $('#dynamic-1').prop('href')
       const filePathLink = $('#path-with-extension').prop('href')
+      const dotPathLink = $('#path-with-dot').prop('href')
       expect(dynamicLink).toEqual('/dynamic/one/')
       expect(filePathLink).toEqual('/file-name.md')
+      expect(dotPathLink).toEqual('/gssp/foo.bar/')
     })
 
     it('should render a page with getInitialProps', async () => {
