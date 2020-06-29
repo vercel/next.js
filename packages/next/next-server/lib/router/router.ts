@@ -16,7 +16,6 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { normalizeTrailingSlash } from './normalize-trailing-slash'
-import getAssetPathFromRoute from './utils/get-asset-path-from-route'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -108,39 +107,26 @@ type ComponentLoadCancel = (() => void) | null
 type HistoryMethod = 'replaceState' | 'pushState'
 
 function fetchNextData(
-  pathname: string,
-  query: ParsedUrlQuery | null,
+  dataHref: string,
   isServerRender: boolean,
   cb?: (...args: any) => any
 ) {
   let attempts = isServerRender ? 3 : 1
   function getResponse(): Promise<any> {
-    return fetch(
-      formatWithValidation({
-        pathname: addBasePath(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${getAssetPathFromRoute(
-            pathname,
-            '.json'
-          )}`
-        ),
-        query,
-      }),
-      {
-        // Cookies are required to be present for Next.js' SSG "Preview Mode".
-        // Cookies may also be required for `getServerSideProps`.
-        //
-        // > `fetch` won’t send cookies, unless you set the credentials init
-        // > option.
-        // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-        //
-        // > For maximum browser compatibility when it comes to sending &
-        // > receiving cookies, always supply the `credentials: 'same-origin'`
-        // > option instead of relying on the default.
-        // https://github.com/github/fetch#caveats
-        credentials: 'same-origin',
-      }
-    ).then((res) => {
+    return fetch(dataHref, {
+      // Cookies are required to be present for Next.js' SSG "Preview Mode".
+      // Cookies may also be required for `getServerSideProps`.
+      //
+      // > `fetch` won’t send cookies, unless you set the credentials init
+      // > option.
+      // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+      //
+      // > For maximum browser compatibility when it comes to sending &
+      // > receiving cookies, always supply the `credentials: 'same-origin'`
+      // > option instead of relying on the default.
+      // https://github.com/github/fetch#caveats
+      credentials: 'same-origin',
+    }).then((res) => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
           return getResponse()
@@ -669,11 +655,21 @@ export default class Router implements BaseRouter {
           }
         }
 
+        let dataHref: string | undefined
+
+        if (__N_SSG || __N_SSP) {
+          dataHref = this.pageLoader.getDataHref(
+            formatWithValidation({ pathname, query }),
+            as,
+            __N_SSG
+          )
+        }
+
         return this._getData<RouteInfo>(() =>
           __N_SSG
-            ? this._getStaticData(as)
+            ? this._getStaticData(dataHref!)
             : __N_SSP
-            ? this._getServerData(as)
+            ? this._getServerData(dataHref!)
             : this.getInitialProps(
                 Component,
                 // we provide AppTree later so this needs to be `any`
@@ -843,23 +839,20 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<object> => {
-    const pathname = prepareRoute(parse(asPath).pathname!)
+  _getStaticData = (dataHref: string): Promise<object> => {
+    const pathname = prepareRoute(parse(dataHref).pathname!)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? Promise.resolve(this.sdc[pathname])
+      ? Promise.resolve(this.sdc[dataHref])
       : fetchNextData(
-          pathname,
-          null,
+          dataHref,
           this.isSsr,
           (data) => (this.sdc[pathname] = data)
         )
   }
 
-  _getServerData = (asPath: string): Promise<object> => {
-    let { pathname, query } = parse(asPath, true)
-    pathname = prepareRoute(pathname!)
-    return fetchNextData(pathname, query, this.isSsr)
+  _getServerData = (dataHref: string): Promise<object> => {
+    return fetchNextData(dataHref, this.isSsr)
   }
 
   getInitialProps(

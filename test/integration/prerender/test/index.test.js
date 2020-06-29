@@ -25,6 +25,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
+import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -600,6 +601,45 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     it('should allow rewriting to SSG page with fallback: false', async () => {
       const html = await renderViaHTTP(appPort, '/about')
       expect(html).toMatch(/About:.*?en/)
+    })
+
+    it('should fetch /_next/data correctly with mismatched href and as', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      if (!dev) {
+        await browser.eval(() =>
+          document.querySelector('#to-rewritten-ssg').scrollIntoView()
+        )
+
+        await check(
+          async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
+            let found = false
+
+            for (const link of links) {
+              const href = await link.getAttribute('href')
+              const { pathname } = url.parse(href)
+
+              if (pathname.endsWith('/lang/en/about.json')) {
+                found = true
+                break
+              }
+            }
+            return found
+          },
+          {
+            test(result) {
+              return result === true
+            },
+          }
+        )
+      }
+      await browser.eval('window.beforeNav = "hi"')
+      await browser.elementByCss('#to-rewritten-ssg').click()
+      await browser.waitForElementByCss('#about')
+
+      expect(await browser.eval('window.beforeNav')).toBe('hi')
+      expect(await browser.elementByCss('#about').text()).toBe('About: en')
     })
   }
 
