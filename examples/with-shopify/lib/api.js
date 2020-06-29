@@ -1,6 +1,6 @@
 import Cosmic from 'cosmicjs'
+import graphqlFetch from './graphql-fetch'
 
-const GRAPHQL_API_URL = process.env.SHOPIFY_GRAPHQL_API_URL
 const BUCKET_SLUG = process.env.NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG
 const READ_KEY = process.env.NEXT_EXAMPLE_CMS_COSMIC_READ_KEY
 
@@ -11,38 +11,8 @@ const bucket = Cosmic().bucket({
 
 const is404 = (error) => /not found/i.test(error.message)
 
-async function fetchAPI(query, { variables = {} } = {}) {
-  const res = await fetch(GRAPHQL_API_URL, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token':
-        process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN,
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  })
-
-  if (res.status !== 200) {
-    console.error(await res.text())
-    throw new Error('Failed to fetch API')
-  }
-
-  const json = await res.json()
-
-  if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
-  }
-
-  return json.data
-}
-
 export async function getShopDataForHome() {
-  const data = await fetchAPI(`
+  const data = await graphqlFetch(`
     {
       shop {
         name

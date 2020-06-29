@@ -1,10 +1,14 @@
 import Link from 'next/link'
 import cn from 'classnames'
-import { useCart } from '@/lib/cart'
 import styles from './product-image.module.css'
 
-export default function ProductImage({ image, title, slug, onClick }) {
-  const { openCart } = useCart()
+export default function ProductImage({
+  image,
+  title,
+  slug,
+  ctaText,
+  onCtaClick,
+}) {
   const img = (
     <img
       src={image.transformedSrc || image.originalSrc}
@@ -28,8 +32,8 @@ export default function ProductImage({ image, title, slug, onClick }) {
           img
         )}
 
-        <button type="button" className={styles.addToCart} onClick={openCart}>
-          Add to Cart
+        <button type="button" className={styles.addToCart} onClick={onCtaClick}>
+          {ctaText}
         </button>
       </div>
     </div>

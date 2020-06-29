@@ -1,7 +1,9 @@
 import Link from 'next/link'
+import { useCart } from '@/lib/cart'
 import ProductImage from './product-image'
 
 export default function Product({ product }) {
+  const { openCart } = useCart()
   const variant = product.variants.edges[0].node
   const { amount, currencyCode } = variant.priceV2
   const formatCurrency = new Intl.NumberFormat('en-US', {
@@ -9,8 +11,10 @@ export default function Product({ product }) {
     currency: currencyCode,
   })
   const price = formatCurrency.format(amount)
-
-  console.log(variant)
+  const onCtaClick = () => {
+    console.log(variant)
+    openCart()
+  }
 
   return (
     <div>
@@ -19,6 +23,8 @@ export default function Product({ product }) {
           image={variant.image}
           title={product.title}
           slug={product.handle}
+          ctaText="Add to Cart"
+          onCtaClick={onCtaClick}
         />
       </div>
       <h3 className="text-3xl mb-3 leading-snug">
