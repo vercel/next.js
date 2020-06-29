@@ -38,24 +38,28 @@ function prepareRoute(path: string) {
 
 type Url = UrlObject | string
 
+function formatTrailingSlash(url: UrlObject): UrlObject {
+  return Object.assign({}, url, {
+    pathname:
+      url.pathname &&
+      normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
+  })
+}
+
+function formatUrl(url: Url): string {
+  return url
+    ? formatWithValidation(
+        formatTrailingSlash(typeof url === 'object' ? url : parse(url))
+      )
+    : url
+}
+
 function prepareUrlAs(url: Url, as: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  url = typeof url === 'object' ? formatWithValidation(url) : url
-  as = typeof as === 'object' ? formatWithValidation(as) : as
-
-  url = addBasePath(
-    normalizeTrailingSlash(url, !!process.env.__NEXT_TRAILING_SLASH)
-  )
-  as = as
-    ? addBasePath(
-        normalizeTrailingSlash(as, !!process.env.__NEXT_TRAILING_SLASH)
-      )
-    : as
-
   return {
-    url,
-    as,
+    url: addBasePath(formatUrl(url)),
+    as: as ? addBasePath(formatUrl(as)) : as,
   }
 }
 
@@ -436,7 +440,9 @@ export default class Router implements BaseRouter {
       // url and as should always be prefixed with basePath by this
       // point by either next/link or router.push/replace so strip the
       // basePath from the pathname to match the pages dir 1-to-1
-      pathname = pathname ? delBasePath(pathname) : pathname
+      pathname = pathname
+        ? normalizeTrailingSlash(delBasePath(pathname), false)
+        : pathname
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
