@@ -5,7 +5,7 @@ import {
   AppContextType,
   AppInitialProps,
   AppPropsType,
-  NextWebVitalsMetricsType,
+  NextWebVitalsMetricType,
 } from '../next-server/lib/utils'
 import { Router } from '../client/router'
 
@@ -15,7 +15,7 @@ export type AppContext = AppContextType<Router>
 
 export type AppProps<P = {}> = AppPropsType<Router, P>
 
-export type NextWebVitalsMetrics = NextWebVitalsMetricsType
+export type NextWebVitalsMetric = NextWebVitalsMetricType
 /**
  * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
  * This allows for keeping state between navigation, custom error handling, injecting additional data.

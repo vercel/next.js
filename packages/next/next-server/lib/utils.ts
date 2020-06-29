@@ -49,7 +49,7 @@ export type AppTreeType = ComponentType<
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
  * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
  */
-export type NextWebVitalsMetricsType = {
+export type NextWebVitalsMetricType = {
   id: string
   label: string
   name: string
