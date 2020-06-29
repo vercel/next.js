@@ -171,14 +171,6 @@ export async function ncc_cookie(task, opts) {
     .target('compiled/cookie')
 }
 // eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('compiled/cssnano-simple')
-}
-// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -539,7 +531,6 @@ export async function ncc(task) {
     'ncc_conf',
     'ncc_content_type',
     'ncc_cookie',
-    'ncc_cssnano_simple',
     'ncc_debug',
     'ncc_devalue',
     'ncc_dotenv',
