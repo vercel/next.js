@@ -15,7 +15,7 @@ import {
 } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
+jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
