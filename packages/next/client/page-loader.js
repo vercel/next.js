@@ -29,7 +29,7 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
-window.requestIdleCallback =
+const requestIdleCallback =
   window.requestIdleCallback ||
   function (cb) {
     var start = Date.now()
@@ -42,6 +42,7 @@ window.requestIdleCallback =
       })
     }, 1)
   }
+
 /** @param {string} route */
 function normalizeRoute(route) {
   if (route[0] !== '/') {
@@ -190,7 +191,7 @@ export default class PageLoader {
   prefetchData(href, asPath) {
     const { pathname: hrefPathname } = parse(href, true)
     const route = normalizeRoute(hrefPathname)
-    window.requestIdleCallback(() => {
+    requestIdleCallback(() => {
       return this.promisedSsgManifest.then(
         (s, _dataHref) =>
           // Check if the route requires a data file
