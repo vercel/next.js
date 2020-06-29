@@ -56,30 +56,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = process.env.__NEXT_PLUGINS
-      ? await import(
-          // @ts-ignore loader syntax
-          'next-plugin-loader?middleware=unstable-enhance-app-server!'
-        ).then((mod) => mod.default(ctx))
-      : []
-
     const enhanceApp = (App: any) => {
-      for (const enhancer of enhancers) {
-        App = enhancer(App)
-      }
       return (props: any) => <App {...props} />
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [
-      ...flush(),
-      ...(process.env.__NEXT_PLUGINS
-        ? await import(
-            // @ts-ignore loader syntax
-            'next-plugin-loader?middleware=unstable-get-styles-server!'
-          ).then((mod) => mod.default(ctx))
-        : []),
-    ]
+    const styles = [...flush()]
     return { html, head, styles }
   }
 

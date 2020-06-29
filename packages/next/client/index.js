@@ -79,20 +79,6 @@ class Container extends React.Component {
   componentDidMount() {
     this.scrollToHash()
 
-    if (process.env.__NEXT_PLUGINS) {
-      // eslint-disable-next-line
-      import('next-plugin-loader?middleware=unstable-post-hydration!')
-        .then((mod) => {
-          return mod.default()
-        })
-        .catch((postHydrationErr) => {
-          console.error(
-            'Error calling post-hydration for plugins',
-            postHydrationErr
-          )
-        })
-    }
-
     // We need to replace the router state if:
     // - the page was (auto) exported and has a query string or search (hash)
     // - it was auto exported and is a dynamic route (to provide params)
