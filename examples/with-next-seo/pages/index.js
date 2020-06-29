@@ -5,9 +5,9 @@ export default function Home() {
   return (
     <div>
       <NextSeo
-        title='Page Meta Title'
-        description='This will be the page meta description'
-        canonical='https://www.canonicalurl.ie/'
+        title="Page Meta Title"
+        description="This will be the page meta description"
+        canonical="https://www.canonicalurl.ie/"
         openGraph={{
           url: 'https://www.canonicalurl.ie/',
           title: 'Open Graph Title',
