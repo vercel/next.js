@@ -2,10 +2,9 @@ import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
-
+import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
-import * as Log from '../../build/output/log'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -54,7 +53,6 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
-    optionalCatchAll: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

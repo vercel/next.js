@@ -1330,9 +1330,6 @@ describe('SSG Prerender', () => {
         nextConfig,
         `
         module.exports = {
-          experimental: {
-            optionalCatchAll: true,
-          },
           rewrites() {
             return [
               {
@@ -1372,7 +1369,7 @@ describe('SSG Prerender', () => {
         nextConfig,
         // we set cpus to 1 so that we make sure the requests
         // aren't being cached at the jest-worker level
-        `module.exports = { experimental: { optionalCatchAll: true, cpus: 1 } }`,
+        `module.exports = { experimental: { cpus: 1 } }`,
         'utf8'
       )
       await fs.remove(join(appDir, '.next'))
@@ -1439,9 +1436,6 @@ describe('SSG Prerender', () => {
         nextConfig,
         `module.exports = {
           target: 'serverless',
-          experimental: {
-            optionalCatchAll: true,
-          },
           rewrites() {
             return [
               {
@@ -1550,7 +1544,7 @@ describe('SSG Prerender', () => {
       origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace', experimental: { optionalCatchAll: true } }`,
+        `module.exports = { target: 'experimental-serverless-trace' }`,
         'utf8'
       )
       await fs.writeFile(
@@ -1637,7 +1631,6 @@ describe('SSG Prerender', () => {
       await fs.writeFile(
         nextConfig,
         `module.exports = {
-          experimental: { optionalCatchAll: true },
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
