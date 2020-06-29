@@ -2,6 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { spawn } from 'child_process'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -59,14 +60,11 @@ if (!foundCommand && args['--help']) {
   console.log(`
     Usage
       $ next <command>
-
     Available commands
       ${Object.keys(commands).join(', ')}
-
     Options
       --version, -v   Version number
       --help, -h      Displays this message
-
     For more information run a command with the --help flag
       $ next build --help
   `)
@@ -110,7 +108,10 @@ commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
-  const { watchFile } = require('fs')
+  const { watchFile, readdirSync } = require('fs')
+  const config_files = readdirSync(`${process.cwd()}`).filter(
+    (file: string) => file === 'jsconfig.json' || file === 'tsconfig.json'
+  )
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
       // tslint:disable-next-line
@@ -119,4 +120,34 @@ if (command === 'dev') {
       )
     }
   })
+  watchFile(`${process.cwd()}/`, (cur: any, prev: any) => {
+    if (cur.size > 0 || prev.size > 0) {
+      // tslint:disable-next-line
+      console.log(
+        `\n> Found a change in ${CONFIG_FILE}. Developer server is rebooting`
+      )
+      spawn(process.argv[0], process.argv.slice(1), {
+        stdio: 'inherit',
+        detached: true,
+        shell: true,
+      }).unref()
+      process.exit(0)
+    }
+  })
+  config_files.forEach((config_file: string) =>
+    watchFile(`${process.cwd()}/${config_file}`, (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        // tslint:disable-next-line
+        console.log(
+          `\n Found a change in ${config_file}. Developer server is rebooting`
+        )
+        spawn(process.argv[0], process.argv.slice(1), {
+          stdio: 'inherit',
+          detached: true,
+          shell: true,
+        }).unref()
+        process.exit(0)
+      }
+    })
+  )
 }
