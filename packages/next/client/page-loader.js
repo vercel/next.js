@@ -183,11 +183,10 @@ export default class PageLoader {
   prefetchData(href, asPath) {
     const { pathname: hrefPathname } = parse(href, true)
     const route = normalizeRoute(hrefPathname)
-    requestIdleCallback(() => {
-      return this.promisedSsgManifest.then(
-        (s, _dataHref) =>
-          // Check if the route requires a data file
-          s.has(route) &&
+    return this.promisedSsgManifest.then((s, _dataHref) => {
+      requestIdleCallback(() => {
+        // Check if the route requires a data file
+        s.has(route) &&
           // Try to generate data href, noop when falsy
           (_dataHref = this.getDataHref(href, asPath)) &&
           // noop when data has already been prefetched (dedupe)
@@ -196,7 +195,7 @@ export default class PageLoader {
           ) &&
           // Inject the `<link rel=prefetch>` tag for above computed `href`.
           appendLink(_dataHref, relPrefetch, 'fetch')
-      )
+      })
     })
   }
 
