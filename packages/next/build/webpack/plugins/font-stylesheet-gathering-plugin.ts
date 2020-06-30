@@ -4,8 +4,7 @@ import { visit } from 'next/dist/compiled/recast'
 import { compilation as CompilationType, Compiler } from 'webpack'
 import { namedTypes } from 'ast-types'
 import { RawSource } from 'webpack-sources'
-
-const https = require('https')
+import { getFontDefinitionFromNetwork } from '../../../next-server/server/font-utils'
 
 interface VisitorMap {
   [key: string]: (path: NodePath) => void
@@ -83,7 +82,9 @@ export default class FontStylesheetGatheringPlugin {
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (_, modulesFinished) => {
-          const allContent = this.gatheredStylesheets.map((url) => getFile(url))
+          const allContent = this.gatheredStylesheets.map((url) =>
+            getFontDefinitionFromNetwork(url)
+          )
           const manifestContent = (await Promise.allSettled(allContent)).map(
             (promise) => promise.value
           )
@@ -109,30 +110,4 @@ function isNodeCreatingLinkElement(node: namedTypes.CallExpression) {
   }
   // Next has pragma: __jsx.
   return callee.name === '__jsx' && componentNode.value === 'link'
-}
-
-function getFile(url: string): Promise<string> {
-  return new Promise((resolve) => {
-    let rawData: any = ''
-    https.get(
-      url,
-      {
-        headers: {
-          'user-agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
-        },
-      },
-      (res: any) => {
-        res.on('data', (chunk: any) => {
-          rawData += chunk
-        })
-        res.on('end', () => {
-          resolve({
-            url,
-            content: rawData.toString('utf8'),
-          })
-        })
-      }
-    )
-  })
 }
