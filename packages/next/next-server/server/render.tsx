@@ -800,7 +800,7 @@ export async function renderToHTML(
       getFontDefinition,
     },
     {
-      preloadImages: renderOpts.postProcess,
+      preloadImages: renderOpts.optimizeImages,
       optimizeFonts: renderOpts.optimizeFonts,
     }
   )
