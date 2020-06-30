@@ -310,28 +310,28 @@ export interface CustomRoutes {
 }
 
 async function loadRedirects(config: any) {
-  if (typeof config.experimental.redirects !== 'function') {
+  if (typeof config.redirects !== 'function') {
     return []
   }
-  const _redirects = await config.experimental.redirects()
+  const _redirects = await config.redirects()
   checkCustomRoutes(_redirects, 'redirect')
   return _redirects
 }
 
 async function loadRewrites(config: any) {
-  if (typeof config.experimental.rewrites !== 'function') {
+  if (typeof config.rewrites !== 'function') {
     return []
   }
-  const _rewrites = await config.experimental.rewrites()
+  const _rewrites = await config.rewrites()
   checkCustomRoutes(_rewrites, 'rewrite')
   return _rewrites
 }
 
 async function loadHeaders(config: any) {
-  if (typeof config.experimental.headers !== 'function') {
+  if (typeof config.headers !== 'function') {
     return []
   }
-  const _headers = await config.experimental.headers()
+  const _headers = await config.headers()
   checkCustomRoutes(_headers, 'header')
   return _headers
 }

@@ -1,5 +1,7 @@
-import { Compiler, Plugin } from 'webpack'
+import { Compiler, Plugin, version } from 'webpack'
 import { realpathSync } from 'fs'
+
+const isWebpack5 = parseInt(version!) === 5
 
 function deleteCache(path: string) {
   try {
@@ -11,30 +13,56 @@ function deleteCache(path: string) {
   }
 }
 
+const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
+
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
 export class NextJsRequireCacheHotReloader implements Plugin {
   prevAssets: any = null
+  previousOutputPathsWebpack5: Set<string> = new Set()
+  currentOutputPathsWebpack5: Set<string> = new Set()
 
   apply(compiler: Compiler) {
-    compiler.hooks.afterEmit.tapAsync(
-      'NextJsRequireCacheHotReloader',
-      (compilation, callback) => {
-        const { assets } = compilation
+    if (isWebpack5) {
+      // @ts-ignored Webpack has this hooks
+      compiler.hooks.assetEmitted.tap(
+        PLUGIN_NAME,
+        (_file: any, { targetPath }: any) => {
+          this.currentOutputPathsWebpack5.add(targetPath)
+          deleteCache(targetPath)
+        }
+      )
 
-        if (this.prevAssets) {
-          for (const f of Object.keys(assets)) {
-            deleteCache(assets[f].existsAt)
-          }
-          for (const f of Object.keys(this.prevAssets)) {
-            if (!assets[f]) {
-              deleteCache(this.prevAssets[f].existsAt)
-            }
+      compiler.hooks.afterEmit.tap(PLUGIN_NAME, () => {
+        for (const path of this.previousOutputPathsWebpack5) {
+          if (!this.currentOutputPathsWebpack5.has(path)) {
+            deleteCache(path)
           }
         }
-        this.prevAssets = assets
 
-        callback()
+        this.previousOutputPathsWebpack5 = new Set(
+          this.currentOutputPathsWebpack5
+        )
+        this.currentOutputPathsWebpack5.clear()
+      })
+      return
+    }
+
+    compiler.hooks.afterEmit.tapAsync(PLUGIN_NAME, (compilation, callback) => {
+      const { assets } = compilation
+
+      if (this.prevAssets) {
+        for (const f of Object.keys(assets)) {
+          deleteCache(assets[f].existsAt)
+        }
+        for (const f of Object.keys(this.prevAssets)) {
+          if (!assets[f]) {
+            deleteCache(this.prevAssets[f].existsAt)
+          }
+        }
       }
-    )
+      this.prevAssets = assets
+
+      callback()
+    })
   }
 }
