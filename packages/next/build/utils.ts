@@ -631,8 +631,10 @@ export async function buildStaticPaths(
           .replace(
             replaced,
             repeat
-              ? (paramValue as string[]).map(encodeURIComponent).join('/')
-              : encodeURIComponent(paramValue as string)
+              ? (paramValue as string[])
+                  .map((item) => decodeURI(encodeURIComponent(item)))
+                  .join('/')
+              : decodeURI(encodeURIComponent(paramValue as string))
           )
           .replace(/(?!^)\/$/, '')
       })

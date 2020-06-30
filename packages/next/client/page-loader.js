@@ -153,8 +153,10 @@ export default class PageLoader {
             (interpolatedRoute = interpolatedRoute.replace(
               replaced,
               repeat
-                ? value.map(encodeURIComponent).join('/')
-                : encodeURIComponent(value)
+                ? value
+                    .map((item) => decodeURI(encodeURIComponent(item)))
+                    .join('/')
+                : decodeURI(encodeURIComponent(value))
             ))
           )
         })
