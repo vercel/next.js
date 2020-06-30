@@ -144,7 +144,7 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  postProcess: boolean
+  optimizeImages: boolean
   optimizeFonts: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
