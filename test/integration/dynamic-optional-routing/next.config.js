@@ -1,1 +1,1 @@
-module.exports = { experimental: { optionalCatchAll: true } }
+module.exports = {}
