@@ -46,6 +46,11 @@ import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
 import postProcess from '../lib/post-process'
+import {
+  FontManifest,
+  getFontDefinitionFromManifest,
+  getFontDefinitionFromNetwork,
+} from './font-utils'
 
 function noRouter() {
   const message =
@@ -146,7 +151,7 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
-  getFontDefinition?: (url: string) => string
+  fontManifest?: FontManifest
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -273,6 +278,7 @@ export async function renderToHTML(
     pageConfig = {},
     Component,
     buildManifest,
+    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -282,8 +288,14 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
-    getFontDefinition,
   } = renderOpts
+
+  const getFontDefinition = (url: string): Promise<string> => {
+    if (fontManifest) {
+      return Promise.resolve(getFontDefinitionFromManifest(url, fontManifest))
+    }
+    return getFontDefinitionFromNetwork(url)
+  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []

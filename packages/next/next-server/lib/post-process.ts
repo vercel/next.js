@@ -7,8 +7,8 @@ type postProcessOptions = {
   optimizeFonts: boolean
 }
 
-type renderOpts = {
-  getFontDefinition?: (url: string) => string
+type renderOptions = {
+  getFontDefinition?: (url: string) => Promise<string>
 }
 
 type postProcessData = {
@@ -21,12 +21,12 @@ interface PostProcessMiddleware {
   inspect: (
     originalDom: HTMLElement,
     data: postProcessData,
-    options: renderOpts
+    options: renderOptions
   ) => void
   mutate: (
     markup: string,
     data: postProcessData,
-    options: renderOpts
+    options: renderOptions
   ) => Promise<string>
 }
 
@@ -48,7 +48,7 @@ function registerPostProcessor(
 
 async function processHTML(
   html: string,
-  data: renderOpts,
+  data: renderOptions,
   options: postProcessOptions
 ): Promise<string> {
   // Don't parse unless there's at least one processor middleware
@@ -96,34 +96,30 @@ class FindImages implements PostProcessMiddleware {
   inspect(
     _originalDom: HTMLElement,
     _data: postProcessData,
-    _options: renderOpts
+    _options: renderOptions
   ) {
     return
   }
   mutate = async (
     markup: string,
     _data: postProcessData,
-    _options: renderOpts
+    _options: renderOptions
   ) => {
     return markup
   }
 }
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
-  fontDefinitions: {
-    [key: string]: string
-  } = {}
+  fontDefinitions: Array<string> = []
 
   inspect(
     originalDom: HTMLElement,
     _data: postProcessData,
-    options: renderOpts
+    options: renderOptions
   ) {
     if (!options.getFontDefinition) {
-      console.log('early')
       return
     }
-    const getFontDefinition = options.getFontDefinition
     // collecting all the requested font definitions
     originalDom
       .querySelectorAll('link')
@@ -137,19 +133,24 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')
-        this.fontDefinitions[url] = getFontDefinition(url)
+        this.fontDefinitions.push(url)
       })
   }
   mutate = async (
     markup: string,
     _data: postProcessData,
-    _options: renderOpts
+    options: renderOptions
   ) => {
     let result = markup
+    if (!options.getFontDefinition) {
+      return markup
+    }
     for (const key in this.fontDefinitions) {
+      const url = this.fontDefinitions[key]
+      const fontContent = await options.getFontDefinition(url)
       result = result.replace(
         '</head>',
-        `<style data-href="${key}">${this.fontDefinitions[key].replace(
+        `<style data-href="${url}">${fontContent.replace(
           /(\n|\s)/g,
           ''
         )}</style>`
@@ -205,12 +206,12 @@ class RenderPreloads implements PostProcessMiddleware {
   inspect = (
     _originalDom: HTMLElement,
     _data: postProcessData,
-    _options: renderOpts
+    _options: renderOptions
   ) => {}
   mutate = async (
     markup: string,
     _data: postProcessData,
-    _options: renderOpts
+    _options: renderOptions
   ) => {
     return markup
   }

@@ -64,6 +64,7 @@ import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
+import { FontManifest } from './font-utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -122,7 +123,7 @@ export default class Server {
     basePath: string
     postProcess: boolean
     optimizeFonts: boolean
-    getFontDefinition: (url: string) => string
+    fontManifest: FontManifest
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -174,7 +175,7 @@ export default class Server {
       basePath: this.nextConfig.basePath,
       postProcess: this.nextConfig.experimental.postProcessOptimization,
       optimizeFonts: this.nextConfig.experimental.fontOptimization,
-      getFontDefinition: this.getFontDefinition,
+      fontManifest: requireFontManifest(this.distDir, false),
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -310,18 +311,6 @@ export default class Server {
     }
     const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
     return (this._cachedPreviewManifest = manifest)
-  }
-
-  protected getFontDefinition(fontURL: string): string {
-    const manifest = requireFontManifest(this.distDir, false)
-    let fontContent = ''
-    manifest.forEach((font: any) => {
-      if (font && font.url === fontURL) {
-        fontContent = font.content
-      }
-    })
-
-    return fontContent
   }
 
   protected getPreviewProps(): __ApiPreviewProps {

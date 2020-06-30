@@ -14,6 +14,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../next-server/server/require'
+import { FontManifest } from '../next-server/server/font-utils'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -61,7 +62,7 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
-  getFontDefinition?: (url: string) => string
+  fontManifest?: FontManifest
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -83,18 +84,6 @@ export default async function exportPage({
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
-  }
-
-  const getFontDefinition = (fontURL: string) => {
-    const manifest = requireFontManifest(distDir, serverless)
-    let fontContent = ''
-    manifest.forEach((font: any) => {
-      if (font && font.url === fontURL) {
-        fontContent = font.content
-      }
-    })
-
-    return fontContent
   }
 
   try {
@@ -229,7 +218,7 @@ export default async function exportPage({
           // @ts-ignore
           {
             ...params,
-            getFontDefinition,
+            fontManifest: requireFontManifest(distDir, serverless),
           }
         )
         curRenderOpts = result.renderOpts || {}
@@ -268,7 +257,7 @@ export default async function exportPage({
           ...renderOpts,
           ampPath,
           params,
-          getFontDefinition,
+          fontManifest: requireFontManifest(distDir, serverless),
         }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
