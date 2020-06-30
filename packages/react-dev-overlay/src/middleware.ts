@@ -32,7 +32,7 @@ const isWebpack5 = parseInt(webpack.version!) === 5
 function getModuleSource(compilation: any, module: any): any {
   if (isWebpack5) {
     return (
-      compilation.codeGenerationResults.get(module).sources.get('javascript') ??
+      module && compilation.codeGenerationResults.get(module)?.sources.get('javascript') ??
       null
     )
   }
