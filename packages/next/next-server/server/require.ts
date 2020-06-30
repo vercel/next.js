@@ -56,7 +56,11 @@ export function requirePage(
   return require(pagePath)
 }
 
-export function requireFontManifest(distDir: string) {
-  const manifest = require(join(distDir, FONT_MANIFEST))
-  return manifest
+export function requireFontManifest(distDir: string, serverless: boolean) {
+  const serverBuildPath = join(
+    distDir,
+    serverless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+  )
+  const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
+  return fontManifest
 }

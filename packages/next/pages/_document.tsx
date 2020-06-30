@@ -382,7 +382,21 @@ export class Head extends Component<
             </noscript>
           </>
         )}
-        {children}
+
+        {
+          /// @ts-ignore
+          children.map((c) => {
+            if (
+              c.type === 'link' &&
+              c.props['href'] &&
+              c.props['href'].startsWith('https://fonts.googleapis.com/css?')
+            ) {
+              c.props['data-href'] = c.props['href']
+              delete c.props['href']
+            }
+            return c
+          })
+        }
         {head}
         <meta
           name="next-head-count"

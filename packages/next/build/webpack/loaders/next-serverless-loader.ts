@@ -251,6 +251,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
     import 'next/dist/next-server/server/node-polyfill-fetch'
+    import { requireFontManifest } from 'next/dist/next-server/server/require'
     const {isResSent} = require('next/dist/next-server/lib/utils');
 
     ${envLoading}
@@ -401,7 +402,18 @@ const nextServerlessLoader: loader.Loader = function () {
         // make sure to set renderOpts to the correct params e.g. _params
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
+        renderOpts.getFontDefinition = (fontURL) => {
+          console.log('will dist dirrrr', "${distDir}", "${canonicalBase}", "${basePath}");
+          const manifest = requireFontManifest("${distDir}", true)
+          let fontContent = ''
+          manifest.forEach((font) => {
+            if (font && font.url === fontURL) {
+              fontContent = font.content
+            }
+          })
 
+          return fontContent
+        }
         const isFallback = parsedUrl.query.__nextFallback
 
         const previewData = tryGetPreviewData(req, res, options.previewProps)

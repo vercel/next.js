@@ -954,7 +954,7 @@ export default async function getBaseWebpackConfig(
               inputChunkName.replace(/\.js$/, '.module.js'),
           })
         })(),
-      !dev && !isServer && new FontStylesheetGatheringPlugin(),
+      !dev && isServer && new FontStylesheetGatheringPlugin(),
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({

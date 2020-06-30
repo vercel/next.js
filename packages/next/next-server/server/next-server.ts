@@ -317,7 +317,7 @@ export default class Server {
   }
 
   protected getFontDefinition(url: string): string {
-    requireFontManifest(this.distDir)
+    requireFontManifest(this.distDir, false)
     return url + 'server-blah'
   }
 

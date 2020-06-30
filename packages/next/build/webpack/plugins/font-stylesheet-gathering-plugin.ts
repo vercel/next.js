@@ -26,6 +26,10 @@ export default class FontStylesheetGatheringPlugin {
         .tap(this.constructor.name, (parser) => {
           var that = this
           parser.hooks.program.tap(this.constructor.name, (ast: any) => {
+            // We will only optimize fonts from first party code.
+            if (parser?.state?.module?.resource.includes('node_modules')) {
+              return
+            }
             visit(ast, {
               visitCallExpression: function (path) {
                 const { node }: { node: namedTypes.CallExpression } = path
@@ -50,7 +54,12 @@ export default class FontStylesheetGatheringPlugin {
                     {}
                   )
 
-                  if (!props.href) {
+                  if (
+                    !props.rel ||
+                    props.rel !== 'stylesheet' ||
+                    !props.href ||
+                    !props.href.startsWith('https://')
+                  ) {
                     return false
                   }
                   that.gatheredStylesheets.push(props.href)

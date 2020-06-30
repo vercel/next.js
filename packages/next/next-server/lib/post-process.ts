@@ -120,6 +120,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     options: renderOpts
   ) {
     if (!options.getFontDefinition) {
+      console.log('early')
       return
     }
     const getFontDefinition = options.getFontDefinition
@@ -132,7 +133,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           tag.hasAttribute('data-href') &&
           tag
             .getAttribute('data-href')
-            .startsWith('https://fonts.googleapis.com/css2?')
+            .startsWith('https://fonts.googleapis.com/css')
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')

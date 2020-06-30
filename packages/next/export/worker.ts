@@ -85,6 +85,18 @@ export default async function exportPage({
     ampValidations: [],
   }
 
+  const getFontDefinition = (fontURL: string) => {
+    const manifest = requireFontManifest(distDir, serverless)
+    let fontContent = ''
+    manifest.forEach((font: any) => {
+      if (font && font.url === fontURL) {
+        fontContent = font.content
+      }
+    })
+
+    return fontContent
+  }
+
   try {
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
@@ -215,7 +227,10 @@ export default async function exportPage({
           'export',
           { ampPath },
           // @ts-ignore
-          params
+          {
+            ...params,
+            getFontDefinition,
+          }
         )
         curRenderOpts = result.renderOpts || {}
         html = result.html
@@ -248,17 +263,6 @@ export default async function exportPage({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
-        const getFontDefinition = (fontURL: string) => {
-          const manifest = requireFontManifest(distDir)
-          let fontContent = ''
-          manifest.forEach((font: any) => {
-            if (font && font.url === fontURL) {
-              fontContent = font.content
-            }
-          })
-
-          return fontContent
-        }
         curRenderOpts = {
           ...components,
           ...renderOpts,
