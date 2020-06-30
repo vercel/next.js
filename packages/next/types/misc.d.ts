@@ -211,10 +211,6 @@ declare module 'next/dist/compiled/unistore' {
   export = m
 }
 
-declare module 'next/dist/compiled/webpack-hot-middleware' {
-  import m from 'webpack-hot-middleware'
-  export = m
-}
 declare module 'next/dist/compiled/terser-webpack-plugin' {
   import m from 'terser-webpack-plugin'
   export = m

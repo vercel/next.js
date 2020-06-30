@@ -478,17 +478,6 @@ export async function ncc_unistore(task, opts) {
     .target('compiled/unistore')
 }
 
-// eslint-disable-next-line camelcase
-externals['webpack-hot-middleware'] =
-  'next/dist/compiled/webpack-hot-middleware'
-export async function ncc_webpack_hot_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-hot-middleware'))
-    )
-    .ncc({ packageName: 'webpack-hot-middleware', externals })
-    .target('compiled/webpack-hot-middleware')
-}
 externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
 export async function ncc_terser_webpack_plugin(task, opts) {
   await task
