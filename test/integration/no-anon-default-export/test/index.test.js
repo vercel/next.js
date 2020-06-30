@@ -10,8 +10,8 @@ jest.setTimeout(1000 * 60 * 3)
 const appDir = join(__dirname, '../')
 
 describe('no anonymous default export warning', () => {
-  function getWarningsCount(text) {
-    return (text.match(/warn {2}-/g) || []).length
+  function getRegexCount(text, regex) {
+    return (text.match(regex) || []).length
   }
 
   beforeEach(async () => {
@@ -35,7 +35,7 @@ describe('no anonymous default export warning', () => {
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getWarningsCount(stdout)).toBe(1)
+    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(1)
 
     await killApp(app)
   })
@@ -57,7 +57,7 @@ describe('no anonymous default export warning', () => {
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getWarningsCount(stdout)).toBe(1)
+    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(1)
 
     await killApp(app)
   })
@@ -79,7 +79,7 @@ describe('no anonymous default export warning', () => {
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getWarningsCount(stdout)).toBe(2)
+    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(2)
 
     await killApp(app)
   })
