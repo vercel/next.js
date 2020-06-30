@@ -166,6 +166,17 @@ module.exports = babelLoader.custom((babel) => {
         }
       }
 
+      if (source.indexOf('next/head') !== -1) {
+        const noInvalidHeadImport = babel.createConfigItem(
+          [
+            require('../../babel/plugins/invalid-head-import'),
+            { key: basename(filename) },
+          ],
+          { type: 'plugin' }
+        )
+        options.plugins.push(noInvalidHeadImport)
+      }
+
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
           [require('../../babel/plugins/next-page-config')],
