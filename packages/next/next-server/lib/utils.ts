@@ -207,6 +207,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>
+  redirect: (url: string, statusCode?: number) => NextApiResponse<T>
 
   /**
    * Set preview data for Next.js' prerender mode
