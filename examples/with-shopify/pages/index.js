@@ -6,6 +6,7 @@ import MoreStories from '@/components/more-stories'
 import HeroPost from '@/components/hero-post'
 import Layout from '@/components/layout'
 import Container from '@/components/container'
+import Header from '@/components/header'
 import Intro from '@/components/intro'
 import Products from '@/components/products'
 import CartModal from '@/components/cart-modal'
@@ -25,6 +26,7 @@ export default function Index({ shop, products, allPosts }) {
         </Head>
         <Container>
           <CartProvider>
+            <Header />
             <Intro title={shop.name} />
             <Products products={products} />
             <CartModal />
