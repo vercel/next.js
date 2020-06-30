@@ -401,6 +401,7 @@ const nextServerlessLoader: loader.Loader = function () {
         // make sure to set renderOpts to the correct params e.g. _params
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
+
         const isFallback = parsedUrl.query.__nextFallback
 
         const previewData = tryGetPreviewData(req, res, options.previewProps)
