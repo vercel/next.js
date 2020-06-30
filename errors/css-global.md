@@ -10,7 +10,7 @@ Global CSS cannot be used in files other than your [Custom `<App>`](https://next
 
 Relocate all Global CSS imports to your [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app).
 
-Or consider using [CSS Modules](https://nextjs.org/blog/next-9-2#built-in-css-module-support-for-component-level-styles) instead.
+Or, [update your component to use local CSS (Component-Level CSS) via CSS Modules](https://nextjs.org/docs/basic-features/built-in-css-support#adding-component-level-css). This is the preferred approach.
 
 #### Example
 
