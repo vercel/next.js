@@ -312,9 +312,16 @@ export default class Server {
     return (this._cachedPreviewManifest = manifest)
   }
 
-  protected getFontDefinition(url: string): string {
-    requireFontManifest(this.distDir, false)
-    return url + 'server-blah'
+  protected getFontDefinition(fontURL: string): string {
+    const manifest = requireFontManifest(this.distDir, false)
+    let fontContent = ''
+    manifest.forEach((font: any) => {
+      if (font && font.url === fontURL) {
+        fontContent = font.content
+      }
+    })
+
+    return fontContent
   }
 
   protected getPreviewProps(): __ApiPreviewProps {
