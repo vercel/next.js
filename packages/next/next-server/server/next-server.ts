@@ -173,9 +173,11 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      postProcess: this.nextConfig.experimental.postProcessOptimization,
-      optimizeFonts: this.nextConfig.experimental.fontOptimization,
-      fontManifest: requireFontManifest(this.distDir, false),
+      postProcess: this.nextConfig.experimental.optimizeImages,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts,
+      fontManifest: this.nextConfig.experimental.optimizeFonts
+        ? requireFontManifest(this.distDir, false)
+        : undefined,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
