@@ -122,6 +122,27 @@ function MyApp({ Component, pageProps }: AppProps) {
 export default MyApp
 ```
 
+Similarly for [`reportWebVitals`](/docs/advanced-features/measuring-performance) you can use the built-in type `NextWebVitalsMetric`
+
+```ts
+// pages/_app.tsx
+
+import type {
+  AppProps /* AppContext */,
+  NextWebVitalsMetric /* Metric */,
+} from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export function reportWebVitals(metric) {
+  console.log(metric)
+}
+
+export default MyApp
+```
+
 ## Path aliases and baseUrl
 
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.

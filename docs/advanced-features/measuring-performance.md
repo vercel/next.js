@@ -39,6 +39,10 @@ There are two types of metrics that are tracked:
 - Web Vitals
 - Custom metrics
 
+#### TypeScript
+
+If you’re using TypeScript, take a look at [our TypeScript documentation](/docs/basic-features/typescript#custom-app).
+
 ## Web Vitals
 
 [Web Vitals](https://web.dev/vitals/) are a set of useful metrics that aim to capture the user
