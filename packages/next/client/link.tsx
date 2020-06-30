@@ -10,7 +10,7 @@ import {
 } from '../next-server/lib/utils'
 import Router from './router'
 import { addBasePath } from '../next-server/lib/router/router'
-import { normalizeTrailingSlash } from '../next-server/lib/router/normalize-trailing-slash'
+import { normalizeTrailingSlash } from './normalize-trailing-slash'
 
 function isLocal(href: string): boolean {
   const url = parse(href, false, true)
@@ -43,9 +43,7 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
 
 function formatTrailingSlash(url: UrlObject): UrlObject {
   return Object.assign({}, url, {
-    pathname:
-      url.pathname &&
-      normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
+    pathname: url.pathname && normalizeTrailingSlash(url.pathname),
   })
 }
 
