@@ -366,17 +366,17 @@ export class Head extends Component<
         )}
 
         {
+          // Remove the fonts stylesheet tag here, this content would be inlined by post process.
           /// @ts-ignore
-          children.map((c) => {
+          children.filter((c) => {
             if (
               c.type === 'link' &&
               c.props['href'] &&
-              c.props['href'].startsWith('https://fonts.googleapis.com/css?')
+              c.props['href'].startsWith('https://fonts.googleapis.com/css')
             ) {
-              c.props['data-href'] = c.props['href']
-              delete c.props['href']
+              return false
             }
-            return c
+            return true
           })
         }
         {head}
