@@ -118,6 +118,7 @@ function testWithoutTrailingSlash() {
   testShouldRedirect([
     ['/about/', '/about'],
     ['/catch-all/hello/world/', '/catch-all/hello/world'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 
   testShouldResolve([
@@ -138,6 +139,8 @@ function testWithoutTrailingSlash() {
     ['/about/', '/about'],
     ['/about?hello=world', '/about?hello=world'],
     ['/about/?hello=world', '/about?hello=world'],
+    ['/catch-all/hello/', '/catch-all/hello'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
@@ -145,6 +148,7 @@ function testWithTrailingSlash() {
   testShouldRedirect([
     ['/about', '/about/'],
     ['/catch-all/hello/world', '/catch-all/hello/world/'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 
   testShouldResolve([
@@ -165,6 +169,8 @@ function testWithTrailingSlash() {
     ['/about/', '/about/'],
     ['/about?hello=world', '/about/?hello=world'],
     ['/about/?hello=world', '/about/?hello=world'],
+    ['/catch-all/hello/', '/catch-all/hello/'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
@@ -273,8 +279,13 @@ describe('Trailing slashes', () => {
         expect.objectContaining({
           redirects: expect.arrayContaining([
             expect.objectContaining({
-              source: '/:path+',
-              destination: '/:path+/',
+              source: '/:path*/:file.:ext/',
+              destination: '/:path*/:file.:ext',
+              statusCode: 308,
+            }),
+            expect.objectContaining({
+              source: '/:path*/:notfile([^/.]+)',
+              destination: '/:path*/:notfile/',
               statusCode: 308,
             }),
           ]),

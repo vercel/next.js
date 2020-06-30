@@ -38,6 +38,7 @@ const babel = async (
         return callback
       },
       callback,
+      emitWarning() {},
       query: {
         // babel opts
         babelrc: false,
