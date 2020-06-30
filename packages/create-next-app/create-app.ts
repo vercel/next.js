@@ -165,10 +165,12 @@ export async function createApp({
     )
 
     // Copy Yarn.lock file
-    fs.copyFileSync(
-      path.resolve(__dirname, 'yarn.lock.cached'),
-      path.join(root, 'yarn.lock')
-    )
+    if (useYarn) {
+      fs.copyFileSync(
+        path.resolve(__dirname, 'yarn.lock.cached'),
+        path.join(root, 'yarn.lock')
+      )
+    }
 
     console.log(
       `Installing ${chalk.cyan('react')}, ${chalk.cyan(
