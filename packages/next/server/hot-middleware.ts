@@ -77,12 +77,10 @@ export class WebpackHotMiddleware {
 }
 
 class EventStream {
-  clientId: number
-  clients: { [id: string]: http.ServerResponse }
+  clients: Set<http.ServerResponse>
   interval: NodeJS.Timeout
   constructor() {
-    this.clientId = 0
-    this.clients = {}
+    this.clients = new Set()
 
     this.interval = setInterval(this.heartbeatTick, 2500).unref()
   }
@@ -94,9 +92,9 @@ class EventStream {
   }
 
   everyClient(fn: (client: http.ServerResponse) => void) {
-    Object.keys(this.clients).forEach((id) => {
-      fn(this.clients[id])
-    })
+    for (const client of this.clients) {
+      fn(client)
+    }
   }
 
   close() {
@@ -104,7 +102,7 @@ class EventStream {
     this.everyClient((client) => {
       if (!client.finished) client.end()
     })
-    this.clients = {}
+    this.clients.clear()
   }
 
   handler(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -127,11 +125,10 @@ class EventStream {
 
     res.writeHead(200, headers)
     res.write('\n')
-    const id = this.clientId++
-    this.clients[id] = res
+    this.clients.add(res)
     req.on('close', () => {
       if (!res.finished) res.end()
-      delete this.clients[id]
+      this.clients.delete(res)
     })
   }
 
