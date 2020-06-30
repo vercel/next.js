@@ -23,7 +23,7 @@ Once you have access to [the environment variables you'll need](#step-4-set-up-e
 - [Agility CMS](/examples/cms-agilitycms)
 - [Cosmic](/examples/cms-cosmic)
 - [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)f
+- [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
 
