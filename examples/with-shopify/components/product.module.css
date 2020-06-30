@@ -1,9 +1,10 @@
-.imageContainer {
-  @apply relative overflow-hidden shadow-small max-h-104;
+.imageContainer:hover .addToCart,
+.addToCart:disabled {
+  @apply translate-y-0 opacity-100 visible;
 }
 
-.imageContainer:hover .addToCart {
-  @apply translate-y-0 opacity-100 visible;
+.addToCart:disabled {
+  @apply cursor-default;
 }
 
 .addToCart {

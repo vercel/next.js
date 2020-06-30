@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import cn from 'classnames'
-import styles from './product-image.module.css'
 
 export default function ProductImage({
   image,
   title,
   slug,
-  ctaText,
-  onCtaClick,
+  containerClassName,
+  children,
 }) {
   const img = (
     <img
@@ -20,9 +19,11 @@ export default function ProductImage({
   return (
     <div className="w-full">
       <div
-        className={cn(styles.imageContainer, {
-          'hover:shadow-medium transition-shadow duration-200': slug,
-        })}
+        className={cn(
+          containerClassName,
+          'relative overflow-hidden shadow-small max-h-104',
+          { 'hover:shadow-medium transition-shadow duration-200': slug }
+        )}
       >
         {slug ? (
           <Link as={`/posts/${slug}`} href="/posts/[slug]">
@@ -32,9 +33,7 @@ export default function ProductImage({
           img
         )}
 
-        <button type="button" className={styles.addToCart} onClick={onCtaClick}>
-          {ctaText}
-        </button>
+        {children}
       </div>
     </div>
   )
