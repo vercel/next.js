@@ -92,7 +92,10 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
-    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
+    // base64 encode to make sure contents don't break webpack URL loading
+    loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
+      'base64'
+    ),
   }
 
   Object.keys(pages).forEach((page) => {

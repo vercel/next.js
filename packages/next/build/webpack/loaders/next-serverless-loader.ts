@@ -90,7 +90,7 @@ const nextServerlessLoader: loader.Loader = function () {
     : ''
   const envLoading = `
     const { processEnv } = require('next/dist/lib/load-env-config')
-    processEnv(${loadedEnvFiles})
+    processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
   `
 
   const runtimeConfigImports = runtimeConfig
