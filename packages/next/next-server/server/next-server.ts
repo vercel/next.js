@@ -62,7 +62,7 @@ import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { normalizeTrailingSlash } from '../lib/router/normalize-trailing-slash'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -586,7 +586,7 @@ export default class Server {
         }
 
         // next.js core assumes page path without trailing slash
-        pathname = normalizeTrailingSlash(pathname, false)
+        pathname = removePathTrailingSlash(pathname)
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(

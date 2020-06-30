@@ -15,7 +15,10 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { normalizeTrailingSlash } from './normalize-trailing-slash'
+import {
+  normalizeTrailingSlash,
+  removePathTrailingSlash,
+} from '../../../client/normalize-trailing-slash'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -37,18 +40,10 @@ function prepareRoute(path: string) {
 
 type Url = UrlObject | string
 
-function formatTrailingSlash(url: UrlObject): UrlObject {
-  return Object.assign({}, url, {
-    pathname:
-      url.pathname &&
-      normalizeTrailingSlash(url.pathname, !!process.env.__NEXT_TRAILING_SLASH),
-  })
-}
-
 function formatUrl(url: Url): string {
   return url
     ? formatWithValidation(
-        formatTrailingSlash(typeof url === 'object' ? url : parse(url))
+        normalizeTrailingSlash(typeof url === 'object' ? url : parse(url))
       )
     : url
 }
@@ -427,7 +422,7 @@ export default class Router implements BaseRouter {
       // point by either next/link or router.push/replace so strip the
       // basePath from the pathname to match the pages dir 1-to-1
       pathname = pathname
-        ? normalizeTrailingSlash(delBasePath(pathname), false)
+        ? removePathTrailingSlash(delBasePath(pathname))
         : pathname
 
       if (!pathname || protocol) {
