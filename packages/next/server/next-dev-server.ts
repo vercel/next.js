@@ -210,21 +210,6 @@ export default class DevServer extends Server {
               match: getRouteMatcher(getRouteRegex(page)),
             }))
 
-          const firstOptionalCatchAllPage =
-            this.dynamicRoutes.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
-              ?.page ?? null
-          if (
-            this.nextConfig.experimental?.optionalCatchAll !== true &&
-            firstOptionalCatchAllPage
-          ) {
-            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-            if (resolved) {
-              console.warn(msg)
-            } else {
-              throw new Error(msg)
-            }
-          }
-
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
           if (!resolved) {
@@ -471,6 +456,7 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ): Promise<string | null> {
+    await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -520,6 +506,7 @@ export default class DevServer extends Server {
     pathname: string,
     query: { [key: string]: string }
   ): Promise<string | null> {
+    await this.devReady
     if (res.statusCode === 404 && (await this.hasPage('/404'))) {
       await this.hotReloader!.ensurePage('/404')
     } else {
