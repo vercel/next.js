@@ -116,6 +116,12 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should not update URL for a 404', async () => {
+    const browser = await webdriver(context.appPort, '/missing')
+    const pathname = await browser.eval(() => window.location.pathname)
+    expect(pathname).toBe('/missing')
+  })
+
   it('should update dynamic params after mount correctly', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
     const text = await browser.elementByCss('#slug').text()
