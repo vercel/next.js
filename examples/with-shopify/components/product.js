@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import Link from 'next/link'
-import { useCart } from '@/lib/cart'
+import { useCart, useCheckout } from '@/lib/cart'
+import graphqlFetch from '@/lib/graphql-fetch'
 import ProductImage from './product-image'
 
 export default function Product({ product }) {
   const { openCart } = useCart()
+  const { setLineItems } = useCheckout()
+  const { errorMsg, setErrorMsg } = useState()
   const variant = product.variants.edges[0].node
   const { amount, currencyCode } = variant.priceV2
   const formatCurrency = new Intl.NumberFormat('en-US', {
@@ -13,7 +17,25 @@ export default function Product({ product }) {
   const price = formatCurrency.format(amount)
   const onCtaClick = () => {
     console.log(variant)
-    openCart()
+
+    setLineItems([
+      {
+        variantId: variant.id,
+        quantity: 1,
+      },
+    ])
+      .then((data) => {
+        const errors = data.checkoutUserErrors
+
+        if (errors.length) {
+          console.error('Checkout failed with:', errors.checkoutUserErrors)
+          throw errors[0]
+        }
+        openCart()
+      })
+      .catch((error) => {
+        setErrorMsg(error.message)
+      })
   }
 
   return (
