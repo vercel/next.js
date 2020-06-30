@@ -28,14 +28,18 @@
   @apply text-accent-5 font-medium uppercase mr-4;
 }
 
+.navItem:hover {
+  @apply text-black;
+}
+
+.navItem:focus {
+  @apply outline-none;
+}
+
 .navItem:last-child {
   @apply mr-0;
 }
 
 .navItem.active {
-  @apply text-black;
-}
-
-.navItem:hover {
   @apply text-black;
 }
