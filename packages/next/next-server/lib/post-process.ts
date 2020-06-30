@@ -160,48 +160,6 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
-// Middleware
-// const inlineFonts: postProcessMiddleware = async (
-//   htmlRoot,
-//   document,
-//   _data,
-//   options
-// ) => {
-//   if (!options.getFontDefinition) {
-//     return htmlRoot
-//   }
-
-//   const getFontDefinition = options.getFontDefinition
-//   const links = htmlRoot
-//     .querySelectorAll('link')
-//     .filter(
-//       (tag) =>
-//         tag.getAttribute('rel') === 'stylesheet' &&
-//         tag.hasAttribute('href') &&
-//         tag
-//           .getAttribute('href')
-//           .startsWith('https://fonts.googleapis.com/css2?')
-//     )
-//   links.forEach((link) => {
-//     const url = link.getAttribute('href')
-//     console.log(document, '...', `<link href="${url}"`)
-//     document = document.replace(
-//       `<link href="${url}"`,
-//       `<link data-href="${url}"`
-//     )
-//     document = document.replace(
-//       '</head>',
-//       `<style data-font-url='${url}'>${getFontDefinition(url)}</style></head>`
-//     )
-//     /**
-//      * Removing the actual element is not supported in node-html-parser
-//      * so we just remove the href effectively making it inert.
-//      */
-//     //link.removeAttribute('href')
-//   })
-//   return document
-// }
-
 class RenderPreloads implements PostProcessMiddleware {
   inspect = (
     _originalDom: HTMLElement,
