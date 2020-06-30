@@ -1,27 +1,24 @@
-.imageContainer:hover .addToCart,
-.addToCart:disabled {
+.ctaContainer {
+  @apply absolute w-full bottom-0;
+}
+
+.error {
+  @apply bg-error text-white px-6 py-2;
+}
+
+.hide {
+  @apply transform translate-y-3 invisible opacity-0 transition-all duration-300 ease-in-out;
+}
+
+.show,
+.imageContainer:hover .ctaContainer {
   @apply translate-y-0 opacity-100 visible;
+}
+
+.addToCart {
+  @apply relative w-full text-white bg-black bottom-0 z-10 px-6 py-4 no-underline outline-none;
 }
 
 .addToCart:disabled {
   @apply cursor-default;
-}
-
-.addToCart {
-  @apply absolute
-    w-full
-    text-white
-    bg-black
-    bottom-0
-    px-8
-    py-4
-    transform
-    translate-y-3
-    invisible
-    opacity-0
-    transition-all
-    duration-300
-    ease-in-out
-    no-underline
-    outline-none;
 }

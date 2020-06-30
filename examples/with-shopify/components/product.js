@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
+import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import ProductImage from './product-image'
 import styles from './product.module.css'
@@ -8,9 +9,7 @@ export default function Product({ product }) {
   const { openCart } = useCart()
   const { setLineItems } = useCheckout()
   const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState(
-    'very long error long long long long long long long'
-  )
+  const [errorMsg, setErrorMsg] = useState()
   const variant = product.variants.edges[0].node
   const { amount, currencyCode } = variant.priceV2
   const formatCurrency = new Intl.NumberFormat('en-US', {
@@ -32,8 +31,10 @@ export default function Product({ product }) {
       .then((data) => {
         const errors = data.checkoutUserErrors
 
+        console.log('SUCCESS', data)
+
         if (errors.length) {
-          console.error('Checkout failed with:', errors.checkoutUserErrors)
+          console.error('Checkout failed with:', errors)
           throw errors[0]
         }
         setLoading(false)
@@ -53,19 +54,28 @@ export default function Product({ product }) {
           image={variant.image}
           title={product.title}
           slug={product.handle}
-          ctaText="Add to Cart"
-          ctaLoading={loading}
-          ctaError={errorMsg}
-          onCtaClick={onCtaClick}
         >
-          <button
-            type="button"
-            className={styles.addToCart}
-            onClick={onCtaClick}
-            disabled={loading || !!errorMsg}
+          <div
+            className={cn(styles.ctaContainer, styles.hide, {
+              [styles.show]: loading || errorMsg,
+            })}
           >
-            {loading ? 'Loading...' : errorMsg || 'Add to Cart'}
-          </button>
+            <p
+              className={cn(styles.error, styles.hide, {
+                [styles.show]: errorMsg,
+              })}
+            >
+              {errorMsg}
+            </p>
+            <button
+              type="button"
+              className={styles.addToCart}
+              onClick={onCtaClick}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Add to Cart'}
+            </button>
+          </div>
         </ProductImage>
       </div>
       <h3 className="text-3xl mb-3 leading-snug">

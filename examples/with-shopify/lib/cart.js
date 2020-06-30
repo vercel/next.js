@@ -28,8 +28,8 @@ export const useCheckout = () => {
     if (!checkout) {
       const data = await graphqlFetch(
         `
-        mutation {
-          checkoutCreate(input: {}) {
+        mutation CreateCheckout($input: CheckoutCreateInput!) {
+          checkoutCreate(input: $input) {
             checkoutUserErrors {
               code
               field
@@ -37,11 +37,37 @@ export const useCheckout = () => {
             }
             checkout {
               id
+              lineItems(first: 200) {
+                edges {
+                  node {
+                    quantity
+                    variant {
+                      id
+                      title
+                      priceV2 {
+                        amount
+                        currencyCode
+                      }
+                      selectedOptions {
+                        name
+                        value
+                      }
+                      image {
+                        altText
+                        originalSrc
+                        transformedSrc(maxHeight: 416, maxWidth: 416, crop: CENTER)
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
       `,
-        { variables: { lineItems } }
+        {
+          variables: { input: { lineItems } },
+        }
       )
       const { checkout } = data.checkoutCreate
 

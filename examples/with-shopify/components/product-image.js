@@ -2,10 +2,10 @@ import Link from 'next/link'
 import cn from 'classnames'
 
 export default function ProductImage({
+  containerClassName,
   image,
   title,
   slug,
-  containerClassName,
   children,
 }) {
   const img = (
