@@ -24,7 +24,7 @@ import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
-import { normalizeTrailingSlash } from '../next-server/lib/router/normalize-trailing-slash'
+import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -574,7 +574,7 @@ export async function buildStaticPaths(
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
-      entry = normalizeTrailingSlash(entry)
+      entry = removePathTrailingSlash(entry)
       const result = _routeMatcher(entry)
       if (!result) {
         throw new Error(
