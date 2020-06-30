@@ -41,17 +41,11 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
   }
 }
 
-function formatTrailingSlash(url: UrlObject): UrlObject {
-  return Object.assign({}, url, {
-    pathname: url.pathname && normalizeTrailingSlash(url.pathname),
-  })
-}
-
 function formatUrl(url: Url): string {
   return (
     url &&
     formatWithValidation(
-      formatTrailingSlash(typeof url === 'object' ? url : parse(url))
+      normalizeTrailingSlash(typeof url === 'object' ? url : parse(url))
     )
   )
 }
