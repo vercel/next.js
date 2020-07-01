@@ -47,7 +47,7 @@ export class WebpackHotMiddleware {
     if (this.closed) return
     // Keep hold of latest stats so they can be propagated to new clients
     this.latestStats = statsResult
-    publishStats('built', this.latestStats, this.eventStream)
+    this.publishStats('built', this.latestStats, this.eventStream)
   }
   middleware = (
     req: http.IncomingMessage,
@@ -60,9 +60,26 @@ export class WebpackHotMiddleware {
     if (this.latestStats) {
       // Explicitly not passing in `log` fn as we don't want to log again on
       // the server
-      publishStats('sync', this.latestStats, this.eventStream)
+      this.publishStats('sync', this.latestStats)
     }
   }
+
+  publishStats = (action: string, statsResult: webpack.Stats) => {
+    const stats = statsResult.toJson({
+      all: false,
+      hash: true,
+      warnings: true,
+      errors: true,
+    })
+
+    this.eventStream.publish({
+      action: action,
+      hash: stats.hash,
+      warnings: stats.warnings || [],
+      errors: stats.errors || [],
+    })
+  }
+
   publish = (payload: any) => {
     if (this.closed) return
     this.eventStream.publish(payload)
@@ -137,24 +154,4 @@ class EventStream {
       client.write('data: ' + JSON.stringify(payload) + '\n\n')
     })
   }
-}
-
-function publishStats(
-  action: string,
-  statsResult: webpack.Stats,
-  eventStream: EventStream
-) {
-  const stats = statsResult.toJson({
-    all: false,
-    hash: true,
-    warnings: true,
-    errors: true,
-  })
-
-  eventStream.publish({
-    action: action,
-    hash: stats.hash,
-    warnings: stats.warnings || [],
-    errors: stats.errors || [],
-  })
 }
