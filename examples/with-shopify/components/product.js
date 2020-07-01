@@ -7,7 +7,7 @@ import styles from './product.module.css'
 
 export default function Product({ product }) {
   const { openCart } = useCart()
-  const { setLineItems } = useCheckout()
+  const { checkout, setLineItems } = useCheckout()
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState()
   const variant = product.variants.edges[0].node
@@ -18,18 +18,37 @@ export default function Product({ product }) {
   })
   const price = formatCurrency.format(amount)
   const onCtaClick = () => {
-    console.log(variant)
+    let found = false
+    // Get current items
+    const items =
+      checkout?.lineItems.edges.map(({ node }) => {
+        let { quantity } = node
+
+        if (node.variant.id === variant.id) {
+          // Update the current item in the checkout
+          found = true
+          quantity += 1
+        }
+
+        return {
+          variantId: node.variant.id,
+          quantity,
+        }
+      }) ?? []
+
+    if (!found) {
+      // Add the item to the checkout
+      items.push({
+        variantId: variant.id,
+        quantity: 1,
+      })
+    }
 
     setLoading(true)
     setErrorMsg()
-    setLineItems([
-      {
-        variantId: variant.id,
-        quantity: 1,
-      },
-    ])
+    setLineItems(items)
       .then((data) => {
-        const errors = data.checkoutUserErrors
+        const errors = data.checkoutUserErrors ?? data.userErrors
 
         if (errors.length) {
           console.error('Checkout failed with:', errors)

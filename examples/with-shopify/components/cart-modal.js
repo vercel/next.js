@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Modal from 'react-modal'
 import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
@@ -7,8 +8,30 @@ import styles from './cart-modal.module.css'
 Modal.setAppElement('#__next')
 
 export default function CartModal() {
+  const [loading, setLoading] = useState(false)
   const { isOpen, closeCart } = useCart()
   const { checkout, setLineItems } = useCheckout()
+  const lineItems = checkout?.lineItems.edges ?? []
+  const handleItemUpdate = (item) => {
+    const removeItem = ({ node }) => node.variant.id !== item.variantId
+    const updateItem = ({ node: { quantity, variant } }) =>
+      variant.id === item.variantId ? item : { variantId: variant.id, quantity }
+
+    const items =
+      item.quantity <= 0
+        ? lineItems.filter(removeItem)
+        : lineItems.map(updateItem)
+
+    setLoading(true)
+    setLineItems(items)
+      .then(() => {
+        setLoading(false)
+      })
+      .catch((error) => {
+        console.error(error)
+        setLoading(false)
+      })
+  }
 
   console.log('CHECKOUT', checkout)
 
@@ -25,17 +48,16 @@ export default function CartModal() {
       </div>
 
       <div className="p-8">
-        {checkout ? (
+        {lineItems.length ? (
           <form>
-            <div>
-              {checkout.lineItems.edges.map(({ node }) => (
-                <CartItem
-                  key={node.variant.id}
-                  item={node}
-                  setLineItems={setLineItems}
-                />
-              ))}
-            </div>
+            {lineItems.map(({ node }) => (
+              <CartItem
+                key={node.variant.id}
+                item={node}
+                loading={loading}
+                onItemUpdate={handleItemUpdate}
+              />
+            ))}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <button

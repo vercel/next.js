@@ -25,57 +25,95 @@ export const useCart = () => useContext(Cart)
 export const useCheckout = () => {
   const { checkout, setCheckout } = useContext(Checkout)
   const setLineItems = async (lineItems) => {
-    if (!checkout) {
-      const data = await graphqlFetch(
-        `
-        mutation CreateCheckout($input: CheckoutCreateInput!) {
-          checkoutCreate(input: $input) {
-            checkoutUserErrors {
-              code
-              field
-              message
-            }
-            checkout {
-              id
-              lineItems(first: 200) {
-                edges {
-                  node {
-                    quantity
-                    variant {
-                      id
-                      title
-                      priceV2 {
-                        amount
-                        currencyCode
-                      }
-                      selectedOptions {
-                        name
-                        value
-                      }
-                      image {
-                        altText
-                        originalSrc
-                        transformedSrc(maxHeight: 104, maxWidth: 104, crop: CENTER)
+    const data = checkout
+      ? await graphqlFetch(
+          `mutation ReplaceLineItems($checkoutId: ID!, $lineItems: [CheckoutLineItemInput!]!) {
+            checkoutLineItemsReplace(checkoutId: $checkoutId, lineItems: $lineItems) {
+              userErrors {
+                code
+                field
+                message
+              }
+              checkout {
+                id
+                lineItems(first: 200) {
+                  edges {
+                    node {
+                      quantity
+                      variant {
+                        id
+                        title
+                        priceV2 {
+                          amount
+                          currencyCode
+                        }
+                        selectedOptions {
+                          name
+                          value
+                        }
+                        image {
+                          altText
+                          originalSrc
+                          transformedSrc(maxHeight: 104, maxWidth: 104, crop: CENTER)
+                        }
                       }
                     }
                   }
                 }
               }
             }
+          }`,
+          {
+            variables: { checkoutId: checkout.id, lineItems },
           }
-        }
-      `,
-        {
-          variables: { input: { lineItems } },
-        }
-      )
-      const { checkout } = data.checkoutCreate
+        ).then((d) => d.checkoutLineItemsReplace)
+      : await graphqlFetch(
+          `mutation CreateCheckout($input: CheckoutCreateInput!) {
+            checkoutCreate(input: $input) {
+              checkoutUserErrors {
+                code
+                field
+                message
+              }
+              checkout {
+                id
+                lineItems(first: 200) {
+                  edges {
+                    node {
+                      quantity
+                      variant {
+                        id
+                        title
+                        priceV2 {
+                          amount
+                          currencyCode
+                        }
+                        selectedOptions {
+                          name
+                          value
+                        }
+                        image {
+                          altText
+                          originalSrc
+                          transformedSrc(maxHeight: 104, maxWidth: 104, crop: CENTER)
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }`,
+          {
+            variables: { input: { lineItems } },
+          }
+        ).then((d) => d.checkoutCreate)
 
-      console.log('DATA', data)
-      if (checkout) setCheckout(checkout)
+    const newCheckout = data.checkout
 
-      return data.checkoutCreate
-    }
+    if (newCheckout) setCheckout(newCheckout)
+
+    return data
   }
 
   return { checkout, setLineItems }

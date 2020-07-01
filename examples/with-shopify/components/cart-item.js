@@ -3,21 +3,12 @@ import Link from 'next/link'
 import cn from 'classnames'
 import styles from './cart-item.module.css'
 
-export default function CartItem({ item, setLineItems }) {
+export default function CartItem({ item, onItemUpdate, loading }) {
   const [quantity, setQuantity] = useState(item.quantity)
-  const [loading, setLoading] = useState(false)
   const { variant } = item
-  const { title, image } = variant
+  const { id, title, image } = variant
   const updateItem = (data) => {
-    setLoading(true)
-    // setLineItems(data)
-    //   .then(() => {
-    //     setLoading(false)
-    //   })
-    //   .catch((error) => {
-    //     console.error(error)
-    //     setLoading(false)
-    //   })
+    onItemUpdate({ variantId: id, ...data })
   }
   const handleQuantity = (e) => {
     const val = Number(e.target.value)

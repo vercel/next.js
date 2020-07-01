@@ -16,7 +16,6 @@ export default function Index({ shop, products, allPosts }) {
   const morePosts = allPosts.slice(1)
 
   console.log('SHOP', shop)
-  // console.log('PRODUCTS', products)
 
   return (
     <>
