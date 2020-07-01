@@ -1,12 +1,17 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import cn from 'classnames'
-import { useCart } from '@/lib/cart'
+import { useCart, useCheckout } from '@/lib/cart'
 import styles from './header.module.css'
 
 export default function Header() {
   const { pathname } = useRouter()
   const { openCart } = useCart()
+  const { checkout } = useCheckout()
+  const itemsCount = checkout?.lineItems.edges.reduce(
+    (count, { node }) => count + node.quantity,
+    0
+  )
 
   return (
     <header className={styles.header}>
@@ -29,7 +34,7 @@ export default function Header() {
           About
         </a>
         <button type="button" className={styles.navItem} onClick={openCart}>
-          🛒 Cart
+          🛒 Cart {itemsCount ? `(${itemsCount})` : ''}
         </button>
       </nav>
     </header>

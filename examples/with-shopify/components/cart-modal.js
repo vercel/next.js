@@ -13,14 +13,18 @@ export default function CartModal() {
   const { checkout, setLineItems } = useCheckout()
   const lineItems = checkout?.lineItems.edges ?? []
   const handleItemUpdate = (item) => {
-    const removeItem = ({ node }) => node.variant.id !== item.variantId
-    const updateItem = ({ node: { quantity, variant } }) =>
-      variant.id === item.variantId ? item : { variantId: variant.id, quantity }
-
-    const items =
-      item.quantity <= 0
-        ? lineItems.filter(removeItem)
-        : lineItems.map(updateItem)
+    const items = lineItems.flatMap(({ node }) => {
+      if (node.variant.id === item.variantId) {
+        // Remove or update the item
+        return item.quantity <= 0 ? [] : [item]
+      }
+      return [
+        {
+          variantId: node.variant.id,
+          quantity: node.quantity,
+        },
+      ]
+    })
 
     setLoading(true)
     setLineItems(items)
