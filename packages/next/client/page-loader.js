@@ -109,16 +109,17 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href, asPath) {
+  getDataHref(href, asPath, ssg) {
+    const { pathname: hrefPathname, query, search } = parse(href, true)
+    const { pathname: asPathname } = parse(asPath)
+    const route = normalizeRoute(hrefPathname)
+
     const getHrefForSlug = (/** @type string */ path) => {
       const dataRoute = getAssetPathFromRoute(path, '.json')
-      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}`
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}${
+        ssg ? '' : search || ''
+      }`
     }
-
-    const { pathname: hrefPathname, query } = parse(href, true)
-    const { pathname: asPathname } = parse(asPath)
-
-    const route = normalizeRoute(hrefPathname)
 
     let isDynamic = isDynamicRoute(route),
       interpolatedRoute
@@ -135,19 +136,19 @@ export default class PageLoader {
       interpolatedRoute = route
       if (
         !Object.keys(dynamicGroups).every((param) => {
-          let value = dynamicMatches[param]
+          let value = dynamicMatches[param] || ''
           const { repeat, optional } = dynamicGroups[param]
 
           // support single-level catch-all
           // TODO: more robust handling for user-error (passing `/`)
-          if (repeat && !Array.isArray(value)) value = [value]
           let replaced = `[${repeat ? '...' : ''}${param}]`
           if (optional) {
-            replaced = `[${replaced}]`
+            replaced = `${!value ? '/' : ''}[${replaced}]`
           }
+          if (repeat && !Array.isArray(value)) value = [value]
 
           return (
-            param in dynamicMatches &&
+            (optional || param in dynamicMatches) &&
             // Interpolate group into data URL if present
             (interpolatedRoute = interpolatedRoute.replace(
               replaced,
@@ -182,7 +183,7 @@ export default class PageLoader {
         // Check if the route requires a data file
         s.has(route) &&
         // Try to generate data href, noop when falsy
-        (_dataHref = this.getDataHref(href, asPath)) &&
+        (_dataHref = this.getDataHref(href, asPath, true)) &&
         // noop when data has already been prefetched (dedupe)
         !document.querySelector(
           `link[rel="${relPrefetch}"][href^="${_dataHref}"]`

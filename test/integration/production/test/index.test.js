@@ -79,6 +79,24 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should allow etag header support with getStaticProps', async () => {
+      const url = `http://localhost:${appPort}/fully-static`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getServerSideProps', async () => {
+      const url = `http://localhost:${appPort}/fully-dynamic`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
     it('should have X-Powered-By header support', async () => {
       const url = `http://localhost:${appPort}/`
       const header = (await fetch(url)).headers.get('X-Powered-By')
