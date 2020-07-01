@@ -4,7 +4,10 @@ import { visit } from 'next/dist/compiled/recast'
 import { compilation as CompilationType, Compiler } from 'webpack'
 import { namedTypes } from 'ast-types'
 import { RawSource } from 'webpack-sources'
-import { getFontDefinitionFromNetwork } from '../../../next-server/server/font-utils'
+import {
+  getFontDefinitionFromNetwork,
+  FontManifest,
+} from '../../../next-server/server/font-utils'
 
 interface VisitorMap {
   [key: string]: (path: NodePath) => void
@@ -85,9 +88,14 @@ export default class FontStylesheetGatheringPlugin {
           const allContent = this.gatheredStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
-          const manifestContent = (await Promise.allSettled(allContent)).map(
-            (promise) => promise.value
-          )
+          let manifestContent: FontManifest = []
+
+          for (let promiseIndex in allContent) {
+            manifestContent.push({
+              url: this.gatheredStylesheets[promiseIndex],
+              content: await allContent[promiseIndex],
+            })
+          }
           compilation.assets['font-manifest.json'] = new RawSource(
             JSON.stringify(manifestContent, null, '  ')
           )
