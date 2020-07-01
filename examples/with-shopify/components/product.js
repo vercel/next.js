@@ -31,8 +31,6 @@ export default function Product({ product }) {
       .then((data) => {
         const errors = data.checkoutUserErrors
 
-        console.log('SUCCESS', data)
-
         if (errors.length) {
           console.error('Checkout failed with:', errors)
           throw errors[0]

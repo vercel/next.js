@@ -55,7 +55,7 @@ export const useCheckout = () => {
                       image {
                         altText
                         originalSrc
-                        transformedSrc(maxHeight: 416, maxWidth: 416, crop: CENTER)
+                        transformedSrc(maxHeight: 104, maxWidth: 104, crop: CENTER)
                       }
                     }
                   }
