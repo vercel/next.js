@@ -1,15 +1,16 @@
 import { Compiler, Plugin, version } from 'webpack'
 import { realpathSync } from 'fs'
+import path from 'path'
 
 const isWebpack5 = parseInt(version!) === 5
 
-function deleteCache(path: string) {
+function deleteCache(filePath: string) {
   try {
-    delete require.cache[realpathSync(path)]
+    delete require.cache[realpathSync(filePath)]
   } catch (e) {
     if (e.code !== 'ENOENT') throw e
   } finally {
-    delete require.cache[path]
+    delete require.cache[filePath]
   }
 }
 
@@ -32,10 +33,17 @@ export class NextJsRequireCacheHotReloader implements Plugin {
         }
       )
 
-      compiler.hooks.afterEmit.tap(PLUGIN_NAME, () => {
-        for (const path of this.previousOutputPathsWebpack5) {
-          if (!this.currentOutputPathsWebpack5.has(path)) {
-            deleteCache(path)
+      compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
+        const runtimeChunkPath = path.join(
+          compilation.outputOptions.path,
+          'webpack-runtime.js'
+        )
+
+        deleteCache(runtimeChunkPath)
+
+        for (const outputPath of this.previousOutputPathsWebpack5) {
+          if (!this.currentOutputPathsWebpack5.has(outputPath)) {
+            deleteCache(outputPath)
           }
         }
 

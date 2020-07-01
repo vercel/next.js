@@ -145,7 +145,9 @@ export async function sandbox(id = nanoid(), initialFiles = new Map()) {
                   p.shadowRoot.querySelector('[data-nextjs-dialog-header')
                 )
               const root = portal.shadowRoot
-              return root.querySelector('[data-nextjs-dialog-header]').innerText
+              return root
+                .querySelector('[data-nextjs-dialog-header]')
+                .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
             })
           : ''
 
