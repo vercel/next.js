@@ -218,7 +218,7 @@ export function sendStatusCode(
  */
 export function redirect(
   res: NextApiResponse,
-  status: string | number, // If this is a number it's the URL
+  statusOrUrl: string | number,
   url?: string
 ): NextApiResponse<any> {
   if (typeof status === 'string') {
