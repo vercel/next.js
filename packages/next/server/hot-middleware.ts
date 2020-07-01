@@ -47,7 +47,7 @@ export class WebpackHotMiddleware {
     if (this.closed) return
     // Keep hold of latest stats so they can be propagated to new clients
     this.latestStats = statsResult
-    this.publishStats('built', this.latestStats, this.eventStream)
+    this.publishStats('built', this.latestStats)
   }
   middleware = (
     req: http.IncomingMessage,
