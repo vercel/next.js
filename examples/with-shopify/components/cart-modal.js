@@ -30,51 +30,55 @@ export default function CartModal() {
             <div>
               {checkout.lineItems.edges.map(({ node }) => (
                 <div key={node.variant.id}>
-                  <div className="flex">
-                    <Link href="/">
-                      <a aria-label={node.variant.title} className="mr-2">
-                        <img
-                          src={
-                            node.variant.image.transformedSrc ||
-                            node.variant.image.originalSrc
-                          }
-                          alt={node.variant.image.altText}
-                        />
-                      </a>
-                    </Link>
-
-                    <div className="flex flex-col text-left justify-center">
+                  <div className="flex flex-col sm:flex-row">
+                    <div className="flex mb-4 sm:mb-0">
                       <Link href="/">
-                        <a aria-label={node.variant.title}>
-                          <h3 className="text-lg hover:text-accent-5 font-medium mb-1">
-                            {node.variant.title}
-                          </h3>
+                        <a aria-label={node.variant.title} className="mr-2">
+                          <img
+                            src={
+                              node.variant.image.transformedSrc ||
+                              node.variant.image.originalSrc
+                            }
+                            alt={node.variant.image.altText}
+                          />
                         </a>
                       </Link>
-                      <p>Black</p>
+
+                      <div className="flex flex-col text-left justify-center">
+                        <Link href="/">
+                          <a aria-label={node.variant.title}>
+                            <h3 className="text-lg hover:text-accent-5 font-medium mb-1">
+                              {node.variant.title}
+                            </h3>
+                          </a>
+                        </Link>
+                        <p>Black</p>
+                      </div>
                     </div>
 
-                    <div className="flex flex-grow justify-center items-center">
-                      <button
-                        type="button"
-                        className="w-10 h-10 border border-accent-2 hover:border-accent-7"
-                      >
-                        -
-                      </button>
-                      <input
-                        className="w-12 h-10 bg-accent-2 border border-accent-2 text-center"
-                        type="text"
-                      />
-                      <button
-                        type="button"
-                        className="w-10 h-10 border border-accent-2 hover:border-accent-7"
-                      >
-                        +
-                      </button>
-                    </div>
+                    <div className="flex flex-grow">
+                      <div className="flex flex-grow justify-start sm:justify-center items-center">
+                        <button
+                          type="button"
+                          className="w-10 h-10 border border-accent-2 hover:border-accent-7"
+                        >
+                          -
+                        </button>
+                        <input
+                          className="w-12 h-10 bg-accent-2 border border-accent-2 text-center"
+                          type="text"
+                        />
+                        <button
+                          type="button"
+                          className="w-10 h-10 border border-accent-2 hover:border-accent-7"
+                        >
+                          +
+                        </button>
+                      </div>
 
-                    <div className="flex flex-col text-right justify-center">
-                      <span>$18.00</span>
+                      <div className="flex flex-col text-right justify-center">
+                        <span>$18.00</span>
+                      </div>
                     </div>
                   </div>
                   <hr className="my-4" />
@@ -82,7 +86,7 @@ export default function CartModal() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <button
                 type="button"
                 className={styles.closeButton}

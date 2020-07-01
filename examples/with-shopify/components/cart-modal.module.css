@@ -23,8 +23,7 @@
 .closeButton,
 .submitButton {
   @apply font-medium
-    py-2
-    px-12
+    p-2
     duration-200
     transition-colors;
 }
