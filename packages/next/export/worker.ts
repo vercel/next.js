@@ -46,6 +46,7 @@ interface ExportPageInput {
   serverRuntimeConfig: string
   subFolders: string
   serverless: boolean
+  optimizeFonts: boolean
 }
 
 interface ExportPageResults {
@@ -81,6 +82,7 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
+  optimizeFonts,
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
@@ -218,7 +220,9 @@ export default async function exportPage({
           // @ts-ignore
           {
             ...params,
-            fontManifest: requireFontManifest(distDir, serverless),
+            fontManifest: optimizeFonts
+              ? requireFontManifest(distDir, serverless)
+              : undefined,
           }
         )
         curRenderOpts = result.renderOpts || {}
@@ -257,7 +261,9 @@ export default async function exportPage({
           ...renderOpts,
           ampPath,
           params,
-          fontManifest: requireFontManifest(distDir, serverless),
+          fontManifest: optimizeFonts
+            ? requireFontManifest(distDir, serverless)
+            : undefined,
         }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)

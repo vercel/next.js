@@ -185,7 +185,7 @@ registerPostProcessor(
 registerPostProcessor(
   'Inline-Fonts',
   new FontOptimizerMiddleware(),
-  (options) => options.optimizeFonts || true
+  (options) => options.optimizeFonts
 )
 registerPostProcessor(
   'Render-Preloads',
