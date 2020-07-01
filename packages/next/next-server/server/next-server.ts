@@ -127,9 +127,6 @@ export default class Server {
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
-  protected staticPathsWorker?: import('jest-worker').default & {
-    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
-  }
 
   public constructor({
     dir = '.',
@@ -885,42 +882,20 @@ export default class Server {
     return null
   }
 
-  private async getStaticPaths(
+  protected async getStaticPaths(
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
     hasStaticFallback: boolean
   }> {
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-    let staticPaths: string[] | undefined
-    let hasStaticFallback = false
+    // `staticPaths` is intentionally set to `undefined` as it should've
+    // been caught when checking disk data.
+    const staticPaths = undefined
 
-    if (!this.renderOpts.dev) {
-      // `staticPaths` is intentionally set to `undefined` as it should've
-      // been caught when checking disk data.
-      staticPaths = undefined
-
-      // Read whether or not fallback should exist from the manifest.
-      hasStaticFallback =
-        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
-        'string'
-    } else {
-      const __getStaticPaths = async () => {
-        const paths = await this.staticPathsWorker!.loadStaticPaths(
-          this.distDir,
-          pathname,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return paths
-      }
-      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-        await withCoalescedInvoke(__getStaticPaths)(
-          `staticPaths-${pathname}`,
-          []
-        )
-      ).value)
-    }
+    // Read whether or not fallback should exist from the manifest.
+    const hasStaticFallback =
+      typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
+      'string'
 
     return { staticPaths, hasStaticFallback }
   }
@@ -1446,7 +1421,7 @@ export default class Server {
     }
   }
 
-  private get _isLikeServerless(): boolean {
+  protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
 }
