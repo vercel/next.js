@@ -481,7 +481,7 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendPayload(req, res, html, 'html', ${generateEtags}})
+          sendPayload(req, res, html, 'html', ${generateEtags})
         }
       } catch(err) {
         console.error(err)
