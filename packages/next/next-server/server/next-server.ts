@@ -1075,9 +1075,6 @@ export default class Server {
       ? await this.getStaticPaths(pathname)
       : { staticPaths: undefined, hasStaticFallback: false }
 
-    // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
-
     // When we did not respond from cache, we need to choose to block on
     // rendering or return a skeleton.
     //
