@@ -485,7 +485,6 @@ export default class DevServer extends Server {
     query: { [key: string]: string }
   ): Promise<string | null> {
     await this.devReady
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -563,6 +562,16 @@ export default class DevServer extends Server {
       res.statusCode = 500
       return super.renderErrorToHTML(err2, req, res, pathname, query)
     }
+  }
+
+  sendHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    html: string
+  ): Promise<void> {
+    // In dev, we should not cache pages for any reason.
+    res.setHeader('Cache-Control', 'no-store, must-revalidate')
+    return super.sendHTML(req, res, html)
   }
 
   protected setImmutableAssetCacheControl(res: ServerResponse): void {

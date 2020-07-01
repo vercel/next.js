@@ -263,6 +263,7 @@ const nextServerlessLoader: loader.Loader = function () {
     const {parse: parseQs} = require('querystring')
     const {renderToHTML} = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
+    const {sendHTML} = require('next/dist/next-server/server/send-html');
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -410,7 +411,9 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${generateEtags}, {
+            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
+              generateEtags === 'true' ? true : false
+            }, {
               private: isPreviewMode,
               stateful: !!getServerSideProps,
               revalidate: renderOpts.revalidate,
@@ -481,7 +484,9 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendPayload(req, res, html, 'html', ${generateEtags}})
+          sendHTML(req, res, html, {generateEtags: ${
+            generateEtags === 'true' ? true : false
+          }})
         }
       } catch(err) {
         console.error(err)

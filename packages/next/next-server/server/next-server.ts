@@ -52,6 +52,7 @@ import Router, {
   route,
   Route,
 } from './router'
+import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -789,6 +790,15 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
+  protected async sendHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    html: string
+  ): Promise<void> {
+    const { generateEtags, poweredByHeader } = this.renderOpts
+    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+  }
+
   public async render(
     req: IncomingMessage,
     res: ServerResponse,
@@ -836,7 +846,7 @@ export default class Server {
       return
     }
 
-    return sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
+    return this.sendHTML(req, res, html)
   }
 
   private async findPageComponents(
@@ -1216,7 +1226,7 @@ export default class Server {
     if (html === null) {
       return
     }
-    return sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
+    return this.sendHTML(req, res, html)
   }
 
   private customErrorNo404Warn = execOnce(() => {
