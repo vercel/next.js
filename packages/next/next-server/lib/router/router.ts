@@ -27,7 +27,7 @@ export function addBasePath(path: string): string {
 }
 
 export function delBasePath(path: string): string {
-  return path.slice(basePath.length)
+  return path.slice(basePath.length) || '/'
 }
 
 function toRoute(path: string): string {
