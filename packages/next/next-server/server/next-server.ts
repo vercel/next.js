@@ -127,9 +127,6 @@ export default class Server {
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
-  protected staticPathsWorker?: import('jest-worker').default & {
-    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
-  }
 
   public constructor({
     dir = '.',
@@ -885,42 +882,20 @@ export default class Server {
     return null
   }
 
-  private async getStaticPaths(
+  protected async getStaticPaths(
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
     hasStaticFallback: boolean
   }> {
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-    let staticPaths: string[] | undefined
-    let hasStaticFallback = false
+    // `staticPaths` is intentionally set to `undefined` as it should've
+    // been caught when checking disk data.
+    const staticPaths = undefined
 
-    if (!this.renderOpts.dev) {
-      // `staticPaths` is intentionally set to `undefined` as it should've
-      // been caught when checking disk data.
-      staticPaths = undefined
-
-      // Read whether or not fallback should exist from the manifest.
-      hasStaticFallback =
-        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
-        'string'
-    } else {
-      const __getStaticPaths = async () => {
-        const paths = await this.staticPathsWorker!.loadStaticPaths(
-          this.distDir,
-          pathname,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return paths
-      }
-      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-        await withCoalescedInvoke(__getStaticPaths)(
-          `staticPaths-${pathname}`,
-          []
-        )
-      ).value)
-    }
+    // Read whether or not fallback should exist from the manifest.
+    const hasStaticFallback =
+      typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
+      'string'
 
     return { staticPaths, hasStaticFallback }
   }
@@ -1000,9 +975,11 @@ export default class Server {
         : cachedData.html
 
       sendPayload(
+        req,
         res,
         data,
         isDataReq ? 'json' : 'html',
+        this.renderOpts.generateEtags,
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1029,43 +1006,51 @@ export default class Server {
           return { isOrigin: true, value }
         }
 
-    const doRender = maybeCoalesceInvoke(async function (): Promise<{
-      html: string | null
-      pageData: any
-      sprRevalidate: number | false
-    }> {
-      let pageData: any
-      let html: string | null
-      let sprRevalidate: number | false
+    const doRender = maybeCoalesceInvoke(
+      async (): Promise<{
+        html: string | null
+        pageData: any
+        sprRevalidate: number | false
+      }> => {
+        let pageData: any
+        let html: string | null
+        let sprRevalidate: number | false
 
-      let renderResult
-      // handle serverless
-      if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          'passthrough'
-        )
+        let renderResult
+        // handle serverless
+        if (isLikeServerless) {
+          renderResult = await (components.Component as any).renderReqToHTML(
+            req,
+            res,
+            'passthrough'
+          )
 
-        html = renderResult.html
-        pageData = renderResult.renderOpts.pageData
-        sprRevalidate = renderResult.renderOpts.revalidate
-      } else {
-        const renderOpts: RenderOpts = {
-          ...components,
-          ...opts,
-          isDataReq,
+          html = renderResult.html
+          pageData = renderResult.renderOpts.pageData
+          sprRevalidate = renderResult.renderOpts.revalidate
+        } else {
+          const renderOpts: RenderOpts = {
+            ...components,
+            ...opts,
+            isDataReq,
+          }
+          renderResult = await renderToHTML(
+            req,
+            res,
+            pathname,
+            query,
+            renderOpts
+          )
+
+          html = renderResult
+          // TODO: change this to a different passing mechanism
+          pageData = (renderOpts as any).pageData
+          sprRevalidate = (renderOpts as any).revalidate
         }
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
-        html = renderResult
-        // TODO: change this to a different passing mechanism
-        pageData = (renderOpts as any).pageData
-        sprRevalidate = (renderOpts as any).revalidate
+        return { html, pageData, sprRevalidate }
       }
-
-      return { html, pageData, sprRevalidate }
-    })
+    )
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
@@ -1074,9 +1059,6 @@ export default class Server {
     const { staticPaths, hasStaticFallback } = hasStaticPaths
       ? await this.getStaticPaths(pathname)
       : { staticPaths: undefined, hasStaticFallback: false }
-
-    // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
     // When we did not respond from cache, we need to choose to block on
     // rendering or return a skeleton.
@@ -1127,7 +1109,7 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(res, html, 'html')
+      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
       return null
     }
 
@@ -1138,9 +1120,11 @@ export default class Server {
     let resHtml = html
     if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
+        req,
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
+        this.renderOpts.generateEtags,
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
@@ -1441,7 +1425,7 @@ export default class Server {
     }
   }
 
-  private get _isLikeServerless(): boolean {
+  protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
 }
