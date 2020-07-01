@@ -293,4 +293,58 @@ describe('Trailing slashes', () => {
       )
     })
   })
+
+  describe('dev mode, with basepath, trailingSlash: true', () => {
+    let origNextConfig
+    beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(
+        nextConfig,
+        origNextConfig
+          .replace('// <placeholder>', 'trailingSlash: true')
+          .replace('// basePath:', 'basePath:')
+      )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
+
+    testShouldRedirect([
+      ['/docs/about', '/docs/about/'],
+      ['/docs', '/docs/'],
+      ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
+      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+    ])
+  })
+
+  describe('production mode, with basepath, trailingSlash: true', () => {
+    let origNextConfig
+    beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(
+        nextConfig,
+        origNextConfig
+          .replace('// <placeholder>', 'trailingSlash: true')
+          .replace('// basePath:', 'basePath:')
+      )
+      await nextBuild(appDir)
+
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
+
+    testShouldRedirect([
+      ['/docs/about', '/docs/about/'],
+      ['/docs', '/docs/'],
+      ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
+      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+    ])
+  })
 })

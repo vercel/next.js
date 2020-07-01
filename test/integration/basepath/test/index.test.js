@@ -20,6 +20,7 @@ import {
   initNextServerScript,
   getRedboxSource,
   hasRedbox,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -215,6 +216,18 @@ const runTests = (context, dev = false) => {
       () => browser.eval(() => document.documentElement.innerHTML),
       /parts: hello\/world/
     )
+  })
+
+  it('should redirect trailing slash correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    const { pathname } = new URL(res.headers.get('location'))
+    expect(pathname).toBe('/docs/hello')
   })
 
   it('should 404 when manually adding basePath with <Link>', async () => {

@@ -65,6 +65,10 @@ import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
+function addBasePath(path: string, basePath: string = ''): string {
+  return basePath ? (path === '/' ? basePath : basePath + path) : path
+}
+
 const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
@@ -509,7 +513,10 @@ export default class Server {
             params,
             parsedUrl.query
           )
-          const updatedDestination = formatUrl(parsedDestination)
+          const updatedDestination = addBasePath(
+            formatUrl(parsedDestination),
+            this.nextConfig.basePath
+          )
 
           res.setHeader('Location', updatedDestination)
           res.statusCode = getRedirectStatus(redirectRoute as Redirect)
