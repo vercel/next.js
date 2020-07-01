@@ -466,7 +466,9 @@ export async function getRedboxHeader(browser) {
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-dialog-header]').innerText
+    return root
+      .querySelector('[data-nextjs-dialog-header]')
+      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
   })
 }
 
@@ -480,8 +482,9 @@ export async function getRedboxSource(browser) {
         )
       )
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-      .innerText
+    return root
+      .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
   })
 }
 

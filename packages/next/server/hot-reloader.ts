@@ -1,7 +1,7 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
+import { WebpackHotMiddleware } from './hot-middleware'
 import { join, normalize, relative as relativePath, sep } from 'path'
 import { UrlObject } from 'url'
 import webpack from 'webpack'
@@ -135,9 +135,7 @@ export default class HotReloader {
   private buildId: string
   private middlewares: any[]
   private pagesDir: string
-  private webpackHotMiddleware:
-    | (NextHandleFunction & WebpackHotMiddleware.EventStream)
-    | null
+  private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: any
   private stats: any
   private serverStats: any
@@ -416,13 +414,8 @@ export default class HotReloader {
       }
     )
 
-    this.webpackHotMiddleware = WebpackHotMiddleware(
-      multiCompiler.compilers[0],
-      {
-        path: '/_next/webpack-hmr',
-        log: false,
-        heartbeat: 2500,
-      }
+    this.webpackHotMiddleware = new WebpackHotMiddleware(
+      multiCompiler.compilers[0]
     )
 
     let booted = false
@@ -452,8 +445,8 @@ export default class HotReloader {
 
     this.middlewares = [
       // must come before hotMiddleware
-      this.onDemandEntries.middleware(),
-      this.webpackHotMiddleware,
+      this.onDemandEntries.middleware,
+      this.webpackHotMiddleware.middleware,
       errorOverlayMiddleware({ dir: this.dir }),
       getOverlayMiddleware({
         rootDirectory: this.dir,

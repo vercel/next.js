@@ -32,7 +32,10 @@ export default class PagesManifestPlugin implements Plugin {
 
         const files = entrypoint
           .getFiles()
-          .filter((file: string) => file.endsWith('.js'))
+          .filter(
+            (file: string) =>
+              !file.includes('webpack-runtime') && file.endsWith('.js')
+          )
 
         if (files.length > 1) {
           console.log(
