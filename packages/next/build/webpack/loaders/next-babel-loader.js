@@ -1,7 +1,10 @@
+import Chalk from 'next/dist/compiled/chalk'
 import babelLoader from 'next/dist/compiled/babel-loader'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
 import * as Log from '../../output/log'
+
+const chalk = new Chalk.constructor({ enabled: true })
 
 // increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
@@ -166,15 +169,45 @@ module.exports = babelLoader.custom((babel) => {
         }
       }
 
-      if (source.indexOf('next/head') !== -1) {
-        const noInvalidHeadImport = babel.createConfigItem(
+      if (
+        source.indexOf('next/head') !== -1 ||
+        source.indexOf('next/document') !== -1
+      ) {
+        const noDisallowedImport = babel.createConfigItem(
           [
-            require('../../babel/plugins/invalid-head-import'),
-            { key: basename(filename) },
+            require('../../babel/plugins/disallow-imports'),
+            {
+              properties: [
+                {
+                  disallowedImport: 'next/head',
+                  disallowedImporters: ['_document'],
+                  message: `
+                    ${chalk.yellow.bold('Error: ')}
+                    ${chalk.cyan(
+                      'next/head'
+                    )} should not be imported inside ${chalk.cyan(`_document`)}.
+                    \nRead more: https://err.sh/next.js/document-import-next-head
+                  `,
+                },
+                {
+                  disallowedImport: 'next/document',
+                  allowedImporters: ['_document'],
+                  message: `
+                    ${chalk.yellow.bold('Error: ')}
+                    ${chalk.cyan(
+                      'next/document'
+                    )} should not be imported outside ${chalk.cyan(
+                    `_document`
+                  )}.
+                    \nRead more: https://err.sh/next.js/no-document-import-next-document
+                  `,
+                },
+              ],
+            },
           ],
           { type: 'plugin' }
         )
-        options.plugins.push(noInvalidHeadImport)
+        options.plugins.push(noDisallowedImport)
       }
 
       if (!isServer && isPageFile) {
