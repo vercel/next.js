@@ -41,7 +41,26 @@ There are two types of metrics that are tracked:
 
 #### TypeScript
 
-If you’re using TypeScript, take a look at [our TypeScript documentation](/docs/basic-features/typescript#custom-app).
+If you are using TypeScript, you can use the built-in type `NextWebVitalsMetric` for `reportWebVitals`
+
+```ts
+// pages/_app.tsx
+
+import type {
+  AppProps /* AppContext */,
+  NextWebVitalsMetric /* Metric */,
+} from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export function reportWebVitals(metric: NextWebVitalsMetric) {
+  console.log(metric)
+}
+
+export default MyApp
+```
 
 ## Web Vitals
 
