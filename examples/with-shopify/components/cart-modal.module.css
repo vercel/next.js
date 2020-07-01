@@ -12,15 +12,12 @@
   @apply relative
     bg-white
     max-w-2xl
+    w-full
+    text-center
     shadow-lg
     border
     border-accent-2
-    p-8
     outline-none;
-}
-
-.buttons {
-  @apply grid grid-cols-2 gap-4 mt-8;
 }
 
 .closeButton,

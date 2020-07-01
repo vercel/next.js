@@ -1,11 +1,12 @@
 import Modal from 'react-modal'
+import cn from 'classnames'
 import { useCart } from '@/lib/cart'
 import styles from './cart-modal.module.css'
 
 Modal.setAppElement('#__next')
 
 export default function CartModal() {
-  const { isOpen, closeCart } = useCart()
+  const { checkout, isOpen, closeCart } = useCart()
 
   return (
     <Modal
@@ -15,21 +16,39 @@ export default function CartModal() {
       className={styles.modal}
       overlayClassName={styles.overlay}
     >
-      <div>
-        <div className={styles.header}>
-          <h2>Shopping Cart</h2>
-          <span></span>
-        </div>
-        <form>
-          <div className={styles.buttons}>
-            <button type="button" className={styles.closeButton}>
+      <div className="bg-accent-2 px-8 py-4">
+        <h3 className="text-2xl">Shopping Cart</h3>
+      </div>
+
+      <div className="p-8">
+        <p className="text-lg">Your cart is currently empty.</p>
+
+        {checkout ? (
+          <form>
+            <div className="grid grid-cols-2 gap-4 mt-8">
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={closeCart}
+              >
+                Continue Shopping
+              </button>
+              <button type="submit" className={styles.submitButton}>
+                Check Out
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-8">
+            <button
+              type="button"
+              className={cn(styles.submitButton, 'w-full')}
+              onClick={closeCart}
+            >
               Continue Shopping
             </button>
-            <button type="submit" className={styles.submitButton}>
-              Check Out
-            </button>
           </div>
-        </form>
+        )}
       </div>
     </Modal>
   )
