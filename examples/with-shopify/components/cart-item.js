@@ -5,8 +5,8 @@ import styles from './cart-item.module.css'
 
 export default function CartItem({ item, onItemUpdate, loading }) {
   const [quantity, setQuantity] = useState(item.quantity)
-  const { variant } = item
-  const { id, title, image } = variant
+  const { variant, title } = item
+  const { id, image } = variant
   const updateItem = (data) => {
     onItemUpdate({ variantId: id, ...data })
   }
