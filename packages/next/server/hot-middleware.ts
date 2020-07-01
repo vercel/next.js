@@ -146,31 +146,15 @@ function publishStats(
 ) {
   const stats = statsResult.toJson({
     all: false,
-    cached: true,
-    children: true,
-    modules: true,
-    timings: true,
     hash: true,
     warnings: true,
     errors: true,
   })
 
   eventStream.publish({
-    // @ts-ignore compilation name exists
-    name: statsResult.compilation.name,
     action: action,
-    time: stats.time,
     hash: stats.hash,
     warnings: stats.warnings || [],
     errors: stats.errors || [],
-    modules: buildModuleMap(stats.modules),
   })
-}
-
-function buildModuleMap(modules: any) {
-  const map: { [moduleId: string]: string } = {}
-  modules.forEach((module: any) => {
-    map[module.id] = module.name
-  })
-  return map
 }
