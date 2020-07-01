@@ -211,26 +211,24 @@ export default function onDemandEntryHandler(
       })
     },
 
-    middleware() {
-      return (req: IncomingMessage, res: ServerResponse, next: Function) => {
-        if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
+    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
+      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
 
-        const { query } = parse(req.url!, true)
-        const page = query.page
-        if (!page) return next()
+      const { query } = parse(req.url!, true)
+      const page = query.page
+      if (!page) return next()
 
-        const runPing = () => {
-          const data = handlePing(query.page as string)
-          if (!data) return
-          res.write('data: ' + JSON.stringify(data) + '\n\n')
-        }
-        const pingInterval = setInterval(() => runPing(), 5000)
-
-        req.on('close', () => {
-          clearInterval(pingInterval)
-        })
-        next()
+      const runPing = () => {
+        const data = handlePing(query.page as string)
+        if (!data) return
+        res.write('data: ' + JSON.stringify(data) + '\n\n')
       }
+      const pingInterval = setInterval(() => runPing(), 5000)
+
+      req.on('close', () => {
+        clearInterval(pingInterval)
+      })
+      next()
     },
   }
 }
