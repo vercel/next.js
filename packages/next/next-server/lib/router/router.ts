@@ -23,11 +23,11 @@ import {
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return path === '/' ? basePath : `${basePath}${path}`
+  return basePath ? (path === '/' ? basePath : `${basePath}${path}`) : path
 }
 
 export function delBasePath(path: string): string {
-  return path.length === basePath.length ? '/' : path.substr(basePath.length)
+  return path.slice(basePath.length)
 }
 
 function toRoute(path: string): string {
