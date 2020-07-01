@@ -975,9 +975,11 @@ export default class Server {
         : cachedData.html
 
       sendPayload(
+        req,
         res,
         data,
         isDataReq ? 'json' : 'html',
+        this.renderOpts.generateEtags,
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1107,7 +1109,7 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(res, html, 'html')
+      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
       return null
     }
 
@@ -1118,9 +1120,11 @@ export default class Server {
     let resHtml = html
     if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
+        req,
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
+        this.renderOpts.generateEtags,
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
