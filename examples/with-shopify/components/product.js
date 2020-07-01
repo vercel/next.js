@@ -81,7 +81,7 @@ export default function Product({ product }) {
           <a className="hover:underline">{product.title}</a>
         </Link>
       </h3>
-      <p className="text-lg mb-4">{price}</p>
+      <p className="text-lg">{price}</p>
     </div>
   )
 }

@@ -1,0 +1,21 @@
+.quantity {
+  appearance: textfield;
+  @apply w-12 h-10 bg-accent-2 border border-accent-2 text-center;
+}
+
+.quantity::-webkit-outer-spin-button,
+.quantity::-webkit-inner-spin-button {
+  @apply appearance-none m-0;
+}
+
+.quantityControl {
+  @apply w-10 h-10 border border-accent-2;
+}
+
+.quantityControl:hover {
+  @apply border-accent-7;
+}
+
+.quantityControl:disabled {
+  @apply cursor-default border-accent-2;
+}
