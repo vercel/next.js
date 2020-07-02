@@ -57,8 +57,6 @@ export default function removeUselessGetInitialProps({
               }
             }
           }
-        } else {
-          return
         }
       },
     },
