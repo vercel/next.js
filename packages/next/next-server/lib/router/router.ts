@@ -241,10 +241,11 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
+
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
-          addBasePath(as)
+          getURL()
         )
       }
 
