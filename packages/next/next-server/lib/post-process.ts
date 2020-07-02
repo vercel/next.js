@@ -126,13 +126,18 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       .filter(
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
-          tag.hasAttribute('data-href') &&
-          tag
-            .getAttribute('data-href')
-            .startsWith('https://fonts.googleapis.com/css')
+          ((tag.hasAttribute('data-href') &&
+            tag
+              .getAttribute('data-href')
+              .startsWith('https://fonts.googleapis.com/css')) ||
+            (tag.hasAttribute('href') &&
+              tag
+                .getAttribute('href')
+                .startsWith('https://fonts.googleapis.com/css')))
       )
       .forEach((element: HTMLElement) => {
-        const url = element.getAttribute('data-href')
+        const url =
+          element.getAttribute('data-href') || element.getAttribute('href')
         this.fontDefinitions.push(url)
       })
   }
@@ -147,6 +152,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     for (const key in this.fontDefinitions) {
       const url = this.fontDefinitions[key]
+      result = result.replace(`href="${url}"`, `data-href="${url}"`)
       const fontContent = await options.getFontDefinition(url)
       result = result.replace(
         '</head>',
