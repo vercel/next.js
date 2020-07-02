@@ -166,6 +166,19 @@ module.exports = babelLoader.custom((babel) => {
         }
       }
 
+      if (isPageFile) {
+        const appConfigPlugin = babel.createConfigItem(
+          [
+            require.resolve(
+              '../../babel/plugins/remove-legacy-getinitialprops'
+            ),
+            {},
+          ],
+          { type: 'plugin' }
+        )
+        options.plugins.unshift(appConfigPlugin)
+      }
+
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
           [require('../../babel/plugins/next-page-config')],
