@@ -312,6 +312,13 @@ const runTests = (context, dev = false) => {
     expect(pathname).toBe('/docs/other-page')
   })
 
+  it('should have correct href for a link to /', async () => {
+    const browser = await webdriver(context.appPort, '/docs/link-to-root')
+    const href = await browser.elementByCss('#link-back').getAttribute('href')
+    const { pathname } = url.parse(href)
+    expect(pathname).toBe('/docs')
+  })
+
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(context.appPort, '/hello')
     expect(text).not.toContain('Hello World')
