@@ -214,6 +214,14 @@ const runTests = (context, dev = false) => {
     )
   })
 
+  it('should work with hash links', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#hashlink').click()
+    const url = new URL(await browser.eval(() => window.location.href))
+    expect(url.pathname).toBe('/docs/hello')
+    expect(url.hash).toBe('#hashlink')
+  })
+
   it('should work with catch-all page', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.elementByCss('#catchall-link').click()
