@@ -23,19 +23,15 @@ import {
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return `${basePath}${path}`
+  return basePath ? (path === '/' ? basePath : basePath + path) : path
 }
 
 export function delBasePath(path: string): string {
-  return path.substr(basePath.length)
-}
-
-function toRoute(path: string): string {
-  return path.replace(/\/$/, '') || '/'
+  return path.slice(basePath.length) || '/'
 }
 
 function prepareRoute(path: string) {
-  return toRoute(delBasePath(path || '') || '/')
+  return removePathTrailingSlash(delBasePath(path || '/'))
 }
 
 type Url = UrlObject | string
@@ -196,7 +192,7 @@ export default class Router implements BaseRouter {
     }
   ) {
     // represents the current component key
-    this.route = toRoute(pathname)
+    this.route = removePathTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -443,7 +439,7 @@ export default class Router implements BaseRouter {
         method = 'replaceState'
       }
 
-      const route = toRoute(pathname)
+      const route = removePathTrailingSlash(pathname)
       const { shallow = false } = options
       const cleanedAs = delBasePath(as)
 
@@ -782,7 +778,7 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-      const route = toRoute(pathname)
+      const route = removePathTrailingSlash(pathname)
       Promise.all([
         this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
