@@ -117,6 +117,12 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should not update URL for a 404', async () => {
+    const browser = await webdriver(context.appPort, '/missing')
+    const pathname = await browser.eval(() => window.location.pathname)
+    expect(pathname).toBe('/missing')
+  })
+
   it('should update dynamic params after mount correctly', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
     const text = await browser.elementByCss('#slug').text()
@@ -335,6 +341,13 @@ const runTests = (context, dev = false) => {
     const href = await browser.elementByCss('a').getAttribute('href')
     const { pathname } = url.parse(href)
     expect(pathname).toBe('/docs/other-page')
+  })
+
+  it('should have correct href for a link to /', async () => {
+    const browser = await webdriver(context.appPort, '/docs/link-to-root')
+    const href = await browser.elementByCss('#link-back').getAttribute('href')
+    const { pathname } = url.parse(href)
+    expect(pathname).toBe('/docs')
   })
 
   it('should show 404 for page not under the /docs prefix', async () => {
