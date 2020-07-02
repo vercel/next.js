@@ -44,15 +44,15 @@ const runTests = (context, dev = false) => {
       expect(errorSource).toMatchInlineSnapshot(`
         "pages${
           process.platform === 'win32' ? '\\\\' : '/'
-        }hello.js (52:14) @ onClick
+        }hello.js (56:14) @ onClick
 
-          50 |   id=\\"trigger-error\\"
-          51 |   onClick={() => {
-        > 52 |     throw new Error('oops heres an error')
+          54 |   id=\\"trigger-error\\"
+          55 |   onClick={() => {
+        > 56 |     throw new Error('oops heres an error')
              |          ^
-          53 |   }}
-          54 | >
-          55 |   click me for error"
+          57 |   }}
+          58 | >
+          59 |   click me for error"
       `)
     })
   } else {
