@@ -1,4 +1,10 @@
-import { Compiler, Template, version } from 'webpack'
+import {
+  Compiler,
+  Template,
+  RuntimeModule,
+  RuntimeGlobals,
+  version,
+} from 'webpack'
 
 function webpack4(compiler: Compiler) {
   // Webpack 4 does not have a method to handle interception of module
@@ -51,6 +57,61 @@ function webpack4(compiler: Compiler) {
   })
 }
 
+class ReactRefreshRuntimeModule extends RuntimeModule {
+  constructor() {
+    super('react refresh', 5)
+  }
+
+  generate() {
+    const { runtimeTemplate } = this.compilation
+    return Template.asString([
+      `${
+        RuntimeGlobals.interceptModuleExecution
+      }.push(${runtimeTemplate.basicFunction('options', [
+        `${
+          runtimeTemplate.supportsConst() ? 'const' : 'var'
+        } originalFactory = options.factory;`,
+        `options.factory = ${runtimeTemplate.basicFunction(
+          'moduleObject, moduleExports, webpackRequire',
+          [
+            // Legacy CSS implementations will `eval` browser code in a Node.js
+            // context to extract CSS. For backwards compatibility, we need to check
+            // we're in a browser context before continuing.
+            `${
+              runtimeTemplate.supportsConst() ? 'const' : 'var'
+            } hasRefresh = typeof self !== "undefined" && !!self.$RefreshInterceptModuleExecution$;`,
+            `${
+              runtimeTemplate.supportsConst() ? 'const' : 'var'
+            } cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleId) : ${
+              runtimeTemplate.supportsArrowFunction()
+                ? '() => {}'
+                : 'function() {}'
+            };`,
+            'try {',
+            Template.indent(
+              'originalFactory.call(this, moduleObject, moduleExports, webpackRequire);'
+            ),
+            '} finally {',
+            Template.indent(`cleanup();`),
+            '}',
+          ]
+        )}`,
+      ])})`,
+    ])
+  }
+}
+
+function webpack5(compiler) {
+  compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
+    compilation.hooks.additionalTreeRuntimeRequirements.tap(
+      'ReactFreshWebpackPlugin',
+      (chunk) => {
+        compilation.addRuntimeModule(chunk, new ReactRefreshRuntimeModule())
+      }
+    )
+  })
+}
+
 class ReactFreshWebpackPlugin {
   apply(compiler: Compiler) {
     const webpackMajorVersion = parseInt(version ?? '', 10)
@@ -61,6 +122,7 @@ class ReactFreshWebpackPlugin {
         break
       }
       case 5: {
+        webpack5(compiler)
         break
       }
       default: {
