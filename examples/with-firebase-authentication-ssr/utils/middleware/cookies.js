@@ -1,4 +1,8 @@
 import Cookies from 'cookies'
+import { encodeBase64, decodeBase64 } from 'src/utils/encoding'
+
+const serialize = (val) => encodeBase64(val)
+const deserialize = (val) => decodeBase64(val)
 
 // Adds a "cookie" getter/setter to the req object.
 export const withCookies = (req, res) => {
@@ -28,12 +32,30 @@ export const withCookies = (req, res) => {
 
     req.cookie = {
       get: (cookieName) => {
-        return cookies.get(cookieName, {
-          signed: true,
-        })
+        try {
+          return deserialize(
+            cookies.get(cookieName, {
+              signed: true,
+            })
+          )
+        } catch (e) {
+          return undefined
+        }
       },
       set: (cookieName, cookieVal, options = {}) => {
-        cookies.set(cookieName, cookieVal, {
+        let serializedVal
+        try {
+          // If the value is not defined, set the value to undefined
+          // so that the cookie will be deleted.
+          if (cookieVal == null) {
+            serializedVal = undefined
+          } else {
+            serializedVal = serialize(cookieVal)
+          }
+        } catch (e) {
+          throw e
+        }
+        cookies.set(cookieName, serializedVal, {
           httpOnly: true,
           maxAge: 604800000, // week
           overwrite: true,
