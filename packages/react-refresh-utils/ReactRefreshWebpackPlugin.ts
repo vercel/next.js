@@ -1,7 +1,9 @@
 import {
   Compiler,
   Template,
+  // @ts-ignore exists in webpack 5
   RuntimeModule,
+  // @ts-ignore exists in webpack 5
   RuntimeGlobals,
   version,
 } from 'webpack'
@@ -63,6 +65,7 @@ class ReactRefreshRuntimeModule extends RuntimeModule {
   }
 
   generate() {
+    // @ts-ignore This exists in webpack 5
     const { runtimeTemplate } = this.compilation
     return Template.asString([
       `${
