@@ -60,4 +60,7 @@ const Index = () => {
   )
 }
 
+// TODO: add withAuthUser HOC, getting the user from the
+// user token in the session cookie, then adding the AuthUser
+// to React context.
 export default Index
