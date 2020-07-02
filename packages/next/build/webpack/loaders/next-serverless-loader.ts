@@ -90,7 +90,7 @@ const nextServerlessLoader: loader.Loader = function () {
     : ''
   const envLoading = `
     const { processEnv } = require('next/dist/lib/load-env-config')
-    processEnv(${loadedEnvFiles})
+    processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
   `
 
   const runtimeConfigImports = runtimeConfig
@@ -411,7 +411,9 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            sendPayload(res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', {
+            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
+              generateEtags === 'true' ? true : false
+            }, {
               private: isPreviewMode,
               stateful: !!getServerSideProps,
               revalidate: renderOpts.revalidate,
@@ -482,7 +484,9 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendHTML(req, res, html, {generateEtags: ${generateEtags}})
+          sendHTML(req, res, html, {generateEtags: ${
+            generateEtags === 'true' ? true : false
+          }})
         }
       } catch(err) {
         console.error(err)
