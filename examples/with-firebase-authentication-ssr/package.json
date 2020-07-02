@@ -7,6 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "cookies": "0.8.0",
     "firebase": "^7.15.5",
     "firebase-admin": "^8.12.1",
     "js-cookie": "2.2.1",
