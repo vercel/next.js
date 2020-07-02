@@ -2,13 +2,13 @@ declare const __NEXT_DATA__: any
 
 import React, { Children } from 'react'
 import { parse, resolve, UrlObject } from 'url'
-import { PrefetchOptions } from '../next-server/lib/router/router'
+import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
-import Router, { useRouter } from './router'
+import { useRouter } from './router'
 import { addBasePath } from '../next-server/lib/router/router'
 import { normalizeTrailingSlash } from './normalize-trailing-slash'
 
@@ -96,13 +96,18 @@ const listenToIntersections = (el: Element, cb: () => void) => {
   }
 }
 
-function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
+function prefetch(
+  router: NextRouter,
+  href: string,
+  as?: string,
+  options?: PrefetchOptions
+): void {
   if (typeof window === 'undefined') return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Router.prefetch(href, as, options).catch((err) => {
+  router.prefetch(href, as, options).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
@@ -114,6 +119,7 @@ function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
 
 function linkClicked(
   e: React.MouseEvent,
+  router: NextRouter,
   href: string,
   as: string = href,
   replace?: boolean,
@@ -146,7 +152,7 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  Router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+  router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
     (success: boolean) => {
       if (!success) return
       if (scroll) {
@@ -189,11 +195,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
-          prefetch(href, as)
+          prefetch(router, href, as)
         })
       }
     }
-  }, [p, childElm, href, as])
+  }, [p, childElm, href, as, router])
 
   let { children, replace, shallow, scroll } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
@@ -224,7 +230,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll)
       }
     },
   }
@@ -234,7 +240,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       if (child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }
-      prefetch(href, as, { priority: true })
+      prefetch(router, href, as, { priority: true })
     }
   }
 
