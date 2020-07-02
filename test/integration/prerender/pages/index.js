@@ -69,6 +69,23 @@ const Page = ({ world, time }) => {
       <Link href="/dynamic/[slug]" as="/dynamic/[second]">
         <a id="dynamic-second">to dynamic [second] page</a>
       </Link>
+      <br />
+      <Link
+        href="/catchall-explicit/[...slug]"
+        as="/catchall-explicit/[first]/[second]"
+      >
+        <a id="catchall-explicit-string">
+          to catchall-explicit [first]/[second] page
+        </a>
+      </Link>
+      <Link
+        href="/catchall-explicit/[...slug]"
+        as="/catchall-explicit/[third]/[fourth]"
+      >
+        <a id="catchall-explicit-object">
+          to catchall-explicit [third]/[fourth] page
+        </a>
+      </Link>
     </>
   )
 }

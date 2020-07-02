@@ -117,6 +117,16 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall-explicit/[...slug]',
   },
+  '/catchall-explicit/[first]/[second]': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/[first]/[second].json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/[third]/[fourth]': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/[third]/[fourth].json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
   '/catchall-optional': {
     dataRoute: `/_next/data/${buildId}/catchall-optional.json`,
     initialRevalidateSeconds: false,
@@ -317,7 +327,7 @@ const navigateTest = (dev = false) => {
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#comment-1')
 
-    // go to /catchall-optional/value
+    // go to /dynamic/[first]
     await browser.elementByCss('#dynamic-first').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('#param').text()
@@ -328,11 +338,33 @@ const navigateTest = (dev = false) => {
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#comment-1')
 
-    // go to /catchall-optional/value
+    // go to /dynamic/[second]
     await browser.elementByCss('#dynamic-second').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('#param').text()
     expect(text).toMatch(/Hi \[second\]!/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-explicit/[first]/[second]
+    await browser.elementByCss('#catchall-explicit-string').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi \[first\] \[second\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-explicit/[first]/[second]
+    await browser.elementByCss('#catchall-explicit-object').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi \[third\] \[fourth\]/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
     // go to /
@@ -518,6 +550,40 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     await browser.waitForElementByCss('#param')
     const value = await browser.elementByCss('#param').text()
     expect(value).toMatch(/Hi \[second\]!/)
+  })
+
+  it('should SSR catch-all page with brackets in param as string', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/[first]/[second]'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi \[first\] \[second\]/)
+  })
+
+  it('should navigate to catch-all page with brackets in param as string', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#catchall-explicit-string').click()
+    await browser.waitForElementByCss('#catchall')
+    const value = await browser.elementByCss('#catchall').text()
+    expect(value).toMatch(/Hi \[first\] \[second\]/)
+  })
+
+  it('should SSR catch-all page with brackets in param as object', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/[third]/[fourth]'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi \[third\] \[fourth\]/)
+  })
+
+  it('should navigate to catch-all page with brackets in param as object', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#catchall-explicit-object').click()
+    await browser.waitForElementByCss('#catchall')
+    const value = await browser.elementByCss('#catchall').text()
+    expect(value).toMatch(/Hi \[third\] \[fourth\]/)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the

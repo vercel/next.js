@@ -3,6 +3,7 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
+import escapePathDelimiter from './../next-server/lib/router/utils/escape-path-delimiter'
 import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
 
 function hasRel(rel, link) {
@@ -153,10 +154,8 @@ export default class PageLoader {
             (interpolatedRoute = interpolatedRoute.replace(
               replaced,
               repeat
-                ? value
-                    .map((item) => decodeURI(encodeURIComponent(item)))
-                    .join('/')
-                : decodeURI(encodeURIComponent(value))
+                ? value.map(escapePathDelimiter).join('/')
+                : escapePathDelimiter(value)
             ))
           )
         })
