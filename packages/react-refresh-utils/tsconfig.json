@@ -2,7 +2,7 @@
   "compilerOptions": {
     "sourceMap": true,
     "esModuleInterop": true,
-    "target": "es3",
+    "target": "es2015",
     "lib": ["dom"],
     "downlevelIteration": true,
     "preserveWatchOutput": true
