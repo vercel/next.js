@@ -85,7 +85,7 @@ class ReactRefreshRuntimeModule extends RuntimeModule {
             } hasRefresh = typeof self !== "undefined" && !!self.$RefreshInterceptModuleExecution$;`,
             `${
               runtimeTemplate.supportsConst() ? 'const' : 'var'
-            } cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleId) : ${
+            } cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleObject.id) : ${
               runtimeTemplate.supportsArrowFunction()
                 ? '() => {}'
                 : 'function() {}'
