@@ -280,11 +280,6 @@ export default class Server {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
-  private addBasePath(path: string): string {
-    const { basePath } = this.nextConfig
-    return basePath ? (path === '/' ? basePath : basePath + path) : path
-  }
-
   // Backwards compatibility
   public async prepare(): Promise<void> {}
 
@@ -514,9 +509,9 @@ export default class Server {
             params,
             parsedUrl.query
           )
-          const updatedDestination = this.addBasePath(
-            formatUrl(parsedDestination)
-          )
+
+          const updatedDestination =
+            this.nextConfig.basePath + formatUrl(parsedDestination)
 
           res.setHeader('Location', updatedDestination)
           res.statusCode = getRedirectStatus(redirectRoute as Redirect)
