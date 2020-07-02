@@ -60,6 +60,9 @@ class ReactFreshWebpackPlugin {
         webpack4(compiler)
         break
       }
+      case 5: {
+        break
+      }
       default: {
         throw new Error(
           `ReactFreshWebpackPlugin does not support webpack v${webpackMajorVersion}.`
