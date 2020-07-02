@@ -8,7 +8,7 @@ import {
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
-import Router from './router'
+import Router, { useRouter } from './router'
 import { addBasePath } from '../next-server/lib/router/router'
 import { normalizeTrailingSlash } from './normalize-trailing-slash'
 
@@ -96,33 +96,26 @@ const listenToIntersections = (el: Element, cb: () => void) => {
   }
 }
 
-function getPaths(parsedHref: string, parsedAs?: string): string[] {
-  const { pathname } = window.location
-  const resolvedHref = resolve(pathname, parsedHref)
-  return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
-}
-
 function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
   if (typeof window === 'undefined') return
   // Prefetch the JSON page if asked (only in the client)
-  const [resolvedHref, resolvedAs] = getPaths(href, as)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Router.prefetch(resolvedHref, resolvedAs, options).catch((err) => {
+  Router.prefetch(href, as, options).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
     }
   })
   // Join on an invalid URI character
-  prefetched[resolvedHref + '%' + resolvedAs] = true
+  prefetched[href + '%' + as] = true
 }
 
 function linkClicked(
   e: React.MouseEvent,
   href: string,
-  as?: string,
+  as: string = href,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean
@@ -144,10 +137,6 @@ function linkClicked(
     // ignore click if it's outside our scope (e.g. https://google.com)
     return
   }
-
-  const { pathname } = window.location
-  href = resolve(pathname, href)
-  as = as ? resolve(pathname, as) : href
 
   e.preventDefault()
 
@@ -184,21 +173,20 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   const [childElm, setChildElm] = React.useState<Element>()
 
+  const router = useRouter()
+
   const { href, as } = React.useMemo(
     () => ({
-      href: formatUrl(props.href),
-      as: props.as ? formatUrl(props.as) : props.as,
+      href: resolve(router.pathname, formatUrl(props.href)),
+      as: props.as ? resolve(router.pathname, formatUrl(props.as)) : props.as,
     }),
-    [props.href, props.as]
+    [router.pathname, props.href, props.as]
   )
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
-      const isPrefetched =
-        prefetched[
-          // Join on an invalid URI character
-          getPaths(href, as).join('%')
-        ]
+      // Join on an invalid URI character
+      const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
           prefetch(href, as)
