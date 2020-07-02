@@ -350,19 +350,19 @@ export default async function loadCustomRoutes(
       ? [
           {
             source: '/:path*/:file.:ext/',
-            destination: config.basePath + '/:path*/:file.:ext',
+            destination: '/:path*/:file.:ext',
             permanent: true,
           },
           {
             source: '/:path*/:notfile([^/.]+)',
-            destination: config.basePath + '/:path*/:notfile/',
+            destination: '/:path*/:notfile/',
             permanent: true,
           },
         ]
       : [
           {
             source: '/:path+/',
-            destination: config.basePath + '/:path+',
+            destination: '/:path+',
             permanent: true,
           },
         ])
