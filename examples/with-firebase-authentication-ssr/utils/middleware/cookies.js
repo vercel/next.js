@@ -1,5 +1,5 @@
 import Cookies from 'cookies'
-import { encodeBase64, decodeBase64 } from 'src/utils/encoding'
+import { encodeBase64, decodeBase64 } from 'utils/encoding'
 
 const serialize = (val) => encodeBase64(val)
 const deserialize = (val) => decodeBase64(val)
