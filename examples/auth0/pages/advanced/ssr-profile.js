@@ -24,10 +24,7 @@ export async function getServerSideProps({ req, res }) {
   const session = await auth0.getSession(req)
 
   if (!session || !session.user) {
-    res.writeHead(302, {
-      Location: '/api/login',
-    })
-    res.end()
+    res.redirect('/api/login')
     return
   }
 
