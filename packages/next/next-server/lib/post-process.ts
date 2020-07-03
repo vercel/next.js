@@ -111,7 +111,7 @@ class FindImages implements PostProcessMiddleware {
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
   fontDefinitions: Array<string> = []
-
+  DOMAIN = 'https://fonts.googleapis.com/css'
   inspect(
     originalDom: HTMLElement,
     _data: postProcessData,
@@ -127,13 +127,9 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
           ((tag.hasAttribute('data-href') &&
-            tag
-              .getAttribute('data-href')
-              .startsWith('https://fonts.googleapis.com/css')) ||
+            tag.getAttribute('data-href').startsWith(this.DOMAIN)) ||
             (tag.hasAttribute('href') &&
-              tag
-                .getAttribute('href')
-                .startsWith('https://fonts.googleapis.com/css')))
+              tag.getAttribute('href').startsWith(this.DOMAIN)))
       )
       .forEach((element: HTMLElement) => {
         const url =
@@ -191,7 +187,7 @@ registerPostProcessor(
 registerPostProcessor(
   'Inline-Fonts',
   new FontOptimizerMiddleware(),
-  (options) => options.optimizeFonts
+  (options) => options.optimizeFonts || true
 )
 registerPostProcessor(
   'Render-Preloads',
