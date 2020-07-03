@@ -170,3 +170,23 @@ export function reportWebVitals(metric) {
 > ```
 >
 > Read more about sending results to Google Analytics [here](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
+
+## TypeScript
+
+If you are using TypeScript, you can use the built-in type `NextWebVitalsMetric`:
+
+```ts
+// pages/_app.tsx
+
+import type { AppProps, NextWebVitalsMetric } from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export function reportWebVitals(metric: NextWebVitalsMetric) {
+  console.log(metric)
+}
+
+export default MyApp
+```
