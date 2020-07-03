@@ -223,7 +223,7 @@ export function redirect(
 ): NextApiResponse<any> {
   if (typeof statusOrUrl === 'string') {
     url = statusOrUrl
-    statusOrUrl = 302
+    statusOrUrl = 307
   }
 
   res.writeHead(statusOrUrl, { Location: url }).end()

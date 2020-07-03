@@ -236,16 +236,16 @@ function runTests(dev = false) {
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
-  it('should redirect with status code 302', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/redirect-302', null, {
+  it('should redirect with status code 307', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {
       redirect: 'manual',
     })
 
-    expect(res.status).toEqual(302)
+    expect(res.status).toEqual(307)
   })
 
   it('should redirect to login', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/redirect-302', null, {})
+    const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {})
 
     expect(res.redirected).toBe(true)
     expect(res.url).toContain('/login')
