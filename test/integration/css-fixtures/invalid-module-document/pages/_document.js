@@ -1,4 +1,9 @@
-import Document, { Head, Html, Main, NextScript } from 'next/document'
+import Document, {
+  Head,
+  Html,
+  Main,
+  NextScript,
+} from '../integration/font-optimization/server/pages/next/document'
 import styles from '../styles.module.css'
 
 class MyDocument extends Document {

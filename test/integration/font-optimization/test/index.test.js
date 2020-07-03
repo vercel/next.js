@@ -12,7 +12,7 @@ import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 30)
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, '../server')
 let builtServerPagesDir
 let builtPage
 let appPort

@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from '../integration/font-optimization/server/pages/next/head'
 
 function Home({ stars }) {
   return (

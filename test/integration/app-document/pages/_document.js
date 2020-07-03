@@ -1,5 +1,10 @@
 import crypto from 'crypto'
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import Document, {
+  Html,
+  Head,
+  Main,
+  NextScript,
+} from '../integration/font-optimization/server/pages/next/document'
 
 const cspHashOf = (text) => {
   const hash = crypto.createHash('sha256')

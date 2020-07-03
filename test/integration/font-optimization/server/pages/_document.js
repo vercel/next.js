@@ -1,6 +1,10 @@
-import * as React from 'react'
+import * as React from '../integration/font-optimization/server/pages/react'
 /// @ts-ignore
-import Document, { Main, NextScript, Head } from 'next/document'
+import Document, {
+  Main,
+  NextScript,
+  Head,
+} from '../integration/font-optimization/server/pages/next/document'
 
 export default class MyDocument extends Document {
   constructor(props) {

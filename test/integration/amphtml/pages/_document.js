@@ -1,5 +1,10 @@
 import { useAmp } from 'next/amp'
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import Document, {
+  Html,
+  Head,
+  Main,
+  NextScript,
+} from '../integration/font-optimization/server/pages/next/document'
 
 const AmpTst = () => {
   const isAmp = useAmp()

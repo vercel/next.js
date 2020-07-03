@@ -1,4 +1,4 @@
-import React from 'react'
+import React from '../integration/font-optimization/server/pages/react'
 
 const Idk = React.createContext(null)
 

@@ -364,7 +364,6 @@ export class Head extends Component<
             </noscript>
           </>
         )}
-
         {children}
         {head}
         <meta
