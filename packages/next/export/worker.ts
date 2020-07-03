@@ -63,6 +63,7 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
+  optimizeFonts?: boolean
   fontManifest?: FontManifest
 }
 
@@ -220,6 +221,7 @@ export default async function exportPage({
           // @ts-ignore
           {
             ...params,
+            optimizeFonts,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : undefined,
@@ -261,6 +263,7 @@ export default async function exportPage({
           ...renderOpts,
           ampPath,
           params,
+          optimizeFonts,
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
             : undefined,
