@@ -21,9 +21,8 @@ export async function getShopDataForHome() {
         edges {
           node {
             id
-            title
-            description
             handle
+            title
             images(first: 3) {
               edges {
                 node {
@@ -89,6 +88,22 @@ export async function getPreviewPostBySlug(slug) {
   }
 }
 
+export async function getAllProductsWithSlug() {
+  const data = await graphqlFetch(`
+    {
+      products(first: 250) {
+        edges {
+          node {
+            handle
+          }
+        }
+      }
+    }
+  `)
+
+  return data.products
+}
+
 export async function getAllPostsWithSlug() {
   const params = {
     type: 'posts',
@@ -106,6 +121,69 @@ export async function getAllPostsForHome(preview) {
   }
   const data = await bucket.getObjects(params)
   return data.objects
+}
+
+export async function getProductAndMoreProducts(handle) {
+  const data = await graphqlFetch(
+    `
+    query ProductAndMoreProducts($handle: String!) {
+      shop {
+        name
+      }
+      productByHandle(handle: $handle) {
+        id
+        handle
+        title
+        description
+        images(first: 100) {
+          edges {
+            node {
+              altText
+              originalSrc
+            }
+          }
+        }
+        priceRange {
+          maxVariantPrice {
+            amount
+            currencyCode
+          }
+          minVariantPrice {
+            amount
+            currencyCode
+          }
+        }
+        variants(first: 10) {
+          edges {
+            node {
+              id
+              title
+              priceV2 {
+                amount
+                currencyCode
+              }
+              selectedOptions {
+                name
+                value
+              }
+              image {
+                altText
+                originalSrc
+                transformedSrc(maxHeight: 416, maxWidth: 416, crop: CENTER)
+              }
+            }
+          }
+        }
+      }
+    }
+  `,
+    { variables: { handle } }
+  )
+
+  return {
+    shop: data.shop,
+    product: data.productByHandle,
+  }
 }
 
 export async function getPostAndMorePosts(slug, preview) {

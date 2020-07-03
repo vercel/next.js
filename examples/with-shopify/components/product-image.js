@@ -26,7 +26,7 @@ export default function ProductImage({
         )}
       >
         {slug ? (
-          <Link as={`/posts/${slug}`} href="/posts/[slug]">
+          <Link as={`/p/${slug}`} href="/p/[slug]">
             <a aria-label={title}>{img}</a>
           </Link>
         ) : (

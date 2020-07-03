@@ -14,6 +14,9 @@ const CheckoutFields = `
           quantity
           variant {
             id
+            product {
+              handle
+            }
             priceV2 {
               amount
               currencyCode

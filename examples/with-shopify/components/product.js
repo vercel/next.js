@@ -96,7 +96,7 @@ export default function Product({ product }) {
         </ProductImage>
       </div>
       <h3 className="text-3xl mb-3 leading-snug">
-        <Link as={`/posts/${product.handle}`} href="/posts/[slug]">
+        <Link as={`/p/${product.handle}`} href="/p/[slug]">
           <a className="hover:underline">{product.title}</a>
         </Link>
       </h3>
