@@ -5,7 +5,6 @@ import {
   RuntimeModule,
   // @ts-ignore exists in webpack 5
   RuntimeGlobals,
-  Chunk,
   version,
 } from 'webpack'
 
@@ -110,7 +109,7 @@ function webpack5(compiler: Compiler) {
     // @ts-ignore Exists in webpack 5
     compilation.hooks.additionalTreeRuntimeRequirements.tap(
       'ReactFreshWebpackPlugin',
-      (chunk: Chunk) => {
+      (chunk: any) => {
         // @ts-ignore Exists in webpack 5
         compilation.addRuntimeModule(chunk, new ReactRefreshRuntimeModule())
       }
