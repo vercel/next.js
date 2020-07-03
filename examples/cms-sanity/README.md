@@ -81,6 +81,7 @@ Then set each variable on `.env.local`:
 - `SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - `SANITY_PROJECT_ID`: Get the `projectId` value from the `sanity.json` file created in step 2.
 - `SANITY_API_TOKEN`: Copy the API token generated in the previous step.
+- `NEXT_PUBLIC_SANITY_PROJECT_ID`: Same as `SANITY_PROJECT_ID` (Use `${SANITY_PROJECT_ID}` to reference). Necessary to run Next.js and Sanity locally [reference](https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser)
 
 Your `.env.local` file should look like this:
 
@@ -88,6 +89,7 @@ Your `.env.local` file should look like this:
 SANITY_PREVIEW_SECRET=...
 SANITY_PROJECT_ID=...
 SANITY_API_TOKEN=...
+NEXT_PUBLIC_SANITY_PROJECT_ID=${SANITY_PROJECT_ID}
 ```
 
 ### Step 5. Prepare project for previewing
