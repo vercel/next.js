@@ -12,6 +12,8 @@
   @apply relative
     bg-white
     max-w-2xl
+    max-h-screen
+    overflow-auto
     w-full
     text-center
     shadow-lg

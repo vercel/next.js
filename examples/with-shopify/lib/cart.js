@@ -25,7 +25,7 @@ const CheckoutFields = `
             image {
               altText
               originalSrc
-              transformedSrc(maxHeight: 104, maxWidth: 104, crop: CENTER)
+              transformedSrc(maxHeight: 96, maxWidth: 96, crop: CENTER)
             }
           }
         }

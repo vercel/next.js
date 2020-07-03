@@ -6,7 +6,7 @@ import styles from './cart-item.module.css'
 export default function CartItem({ item, onItemUpdate, loading }) {
   const [quantity, setQuantity] = useState(item.quantity)
   const { variant, title } = item
-  const { id, image } = variant
+  const { id, image, selectedOptions } = variant
   const updateItem = (data) => {
     onItemUpdate({ variantId: id, ...data })
   }
@@ -38,6 +38,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
     currency: currencyCode,
   })
   const price = formatCurrency.format(amount)
+  const size = selectedOptions.find((option) => option.name === 'Size')
 
   return (
     <>
@@ -46,6 +47,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
           <Link href="/">
             <a aria-label={title} className="mr-2">
               <img
+                className="w-24 h-24"
                 src={image.transformedSrc || image.originalSrc}
                 alt={image.altText}
               />
@@ -60,7 +62,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
                 </h3>
               </a>
             </Link>
-            <p>Black</p>
+            {size && <p>Size: {size.value}</p>}
           </div>
         </div>
 
