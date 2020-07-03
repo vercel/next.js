@@ -114,7 +114,7 @@ function prefetch(
     }
   })
   // Join on an invalid URI character
-  prefetched[href + '%' + as] = true
+  prefetched[href + '%' + (as || href)] = true
 }
 
 function linkClicked(
@@ -192,7 +192,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
       // Join on an invalid URI character
-      const isPrefetched = prefetched[href + '%' + as]
+      const isPrefetched = prefetched[href + '%' + (as || href)]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
           prefetch(router, href, as)
