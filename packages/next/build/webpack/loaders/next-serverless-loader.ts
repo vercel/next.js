@@ -208,7 +208,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
           // We need to trust the dynamic route params from the proxy
           // to ensure we are using the correct values
-          const trustQuery = req.headers['${vercelHeader}']
+          const trustQuery = false // req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
@@ -321,7 +321,7 @@ const nextServerlessLoader: loader.Loader = function () {
       try {
         // We need to trust the dynamic route params from the proxy
         // to ensure we are using the correct values
-        const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
+        const trustQuery = false // !getStaticProps && req.headers['${vercelHeader}']
         const parsedUrl = handleRewrites(parse(req.url, true))
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
