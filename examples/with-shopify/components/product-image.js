@@ -7,6 +7,7 @@ export default function ProductImage({
   title,
   slug,
   children,
+  large,
 }) {
   const img = (
     <img
@@ -21,8 +22,12 @@ export default function ProductImage({
       <div
         className={cn(
           containerClassName,
-          'relative overflow-hidden shadow-small max-h-104',
-          { 'hover:shadow-medium transition-shadow duration-200': slug }
+          'relative overflow-hidden shadow-small',
+          {
+            'hover:shadow-medium transition-shadow duration-200': slug,
+            'max-h-104': !large,
+            'max-w-lg': large,
+          }
         )}
       >
         {slug ? (

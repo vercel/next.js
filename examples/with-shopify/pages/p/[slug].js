@@ -32,7 +32,7 @@ export default function Index({ shop, product, moreProducts }) {
           {router.isFallback ? (
             <h1 className="text-5xl">Loading...</h1>
           ) : (
-            <ProductBody />
+            <ProductBody product={product} />
           )}
           <CartModal />
         </CartProvider>
