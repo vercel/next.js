@@ -4,6 +4,8 @@ This example features how you use a different styling solution than [styled-jsx]
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`, and also adding the `babel-plugin-styled-components` (which is required for server side rendering). Additionally we set up a global [theme](https://www.styled-components.com/docs/advanced#theming) for styled-components using NextJS custom [`<App>`](https://nextjs.org/docs/advanced-features/custom-app) component.
 
+> **Note:** The example uses `styled-components v4` and not the latest `v5` version due to an [issue with production builds in `styled-components`](https://github.com/styled-components/styled-components/issues/3026). More about this in [`pages/v5-test.js`](pages/v5-test.js).
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
