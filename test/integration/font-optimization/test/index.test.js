@@ -34,11 +34,25 @@ describe('Font optimization', () => {
   })
   afterAll(() => killApp(app))
 
-  it('should inline the google fonts', async () => {
+  it('should inline the google fonts for static pages', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
     expect(html).toContain(
       '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css?family=Voces"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css\?family=Voces">.*<\/style>/
+    )
+  })
+
+  it('should inline the google fonts for SSR pages', async () => {
+    const html = await renderViaHTTP(appPort, '/stars')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
     )
   })
 })
