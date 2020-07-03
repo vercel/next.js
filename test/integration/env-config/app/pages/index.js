@@ -18,6 +18,7 @@ const variables = [
   'ENV_FILE_EXPANDED',
   'ENV_FILE_EXPANDED_CONCAT',
   'ENV_FILE_EXPANDED_ESCAPED',
+  'ENV_FILE_KEY_EXCLAMATION',
 ]
 
 export async function getStaticProps() {

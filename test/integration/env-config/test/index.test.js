@@ -50,6 +50,7 @@ const runTests = (mode = 'dev') => {
     expect(data.ENV_FILE_EXPANDED).toBe('env')
     expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
     expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
+    expect(data.ENV_FILE_KEY_EXCLAMATION).toBe('hello!')
   }
 
   it('should have process environment override .env', async () => {
