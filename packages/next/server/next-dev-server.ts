@@ -32,6 +32,7 @@ import { Telemetry } from '../telemetry/storage'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
+import { withCoalescedInvoke } from '../lib/coalesced-function'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -45,6 +46,9 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  protected staticPathsWorker: import('jest-worker').default & {
+    loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+  }
 
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
@@ -209,21 +213,6 @@ export default class DevServer extends Server {
               page,
               match: getRouteMatcher(getRouteRegex(page)),
             }))
-
-          const firstOptionalCatchAllPage =
-            this.dynamicRoutes.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
-              ?.page ?? null
-          if (
-            this.nextConfig.experimental?.optionalCatchAll !== true &&
-            firstOptionalCatchAllPage
-          ) {
-            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-            if (resolved) {
-              console.warn(msg)
-            } else {
-              throw new Error(msg)
-            }
-          }
 
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
@@ -459,6 +448,30 @@ export default class DevServer extends Server {
     snippet = snippet.substring(0, snippet.indexOf('</script>'))
 
     return !snippet.includes('data-amp-development-mode-only')
+  }
+
+  protected async getStaticPaths(
+    pathname: string
+  ): Promise<{
+    staticPaths: string[] | undefined
+    hasStaticFallback: boolean
+  }> {
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+
+    const __getStaticPaths = async () => {
+      const paths = await this.staticPathsWorker.loadStaticPaths(
+        this.distDir,
+        pathname,
+        !this.renderOpts.dev && this._isLikeServerless
+      )
+      return paths
+    }
+    const { paths: staticPaths, fallback: hasStaticFallback } = (
+      await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
+    ).value
+
+    return { staticPaths, hasStaticFallback }
   }
 
   protected async ensureApiPage(pathname: string) {

@@ -63,16 +63,7 @@ const PetPage = ({ pet }) => {
   )
 }
 
-export async function getStaticPaths() {
-  await dbConnect()
-
-  const result = await Pet.find({})
-  const paths = result.map((doc) => ({ params: { id: doc._id.toString() } }))
-
-  return { paths, fallback: false }
-}
-
-export async function getStaticProps({ params }) {
+export async function getServerSideProps({ params }) {
   await dbConnect()
 
   const pet = await Pet.findById(params.id).lean()

@@ -73,10 +73,6 @@ declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
   export = m
 }
-declare module 'next/dist/compiled/cssnano-simple' {
-  import m from 'cssnano-simple'
-  export = m
-}
 declare module 'next/dist/compiled/debug' {
   import m from 'debug'
   export = m
@@ -211,10 +207,6 @@ declare module 'next/dist/compiled/unistore' {
   export = m
 }
 
-declare module 'next/dist/compiled/webpack-hot-middleware' {
-  import m from 'webpack-hot-middleware'
-  export = m
-}
 declare module 'next/dist/compiled/terser-webpack-plugin' {
   import m from 'terser-webpack-plugin'
   export = m
