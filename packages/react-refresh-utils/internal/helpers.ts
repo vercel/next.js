@@ -63,12 +63,12 @@ function registerExportsForReactRefresh(
     // (This is important for legacy environments.)
     return
   }
-  for (const key in moduleExports) {
+  for (var key in moduleExports) {
     if (isSafeExport(key)) {
       continue
     }
-    const exportValue = moduleExports[key]
-    const typeID = moduleID + ' %exports% ' + key
+    var exportValue = moduleExports[key]
+    var typeID = moduleID + ' %exports% ' + key
     RefreshRuntime.register(exportValue, typeID)
   }
 }
@@ -81,14 +81,14 @@ function isReactRefreshBoundary(moduleExports: unknown): boolean {
     // Exit if we can't iterate over exports.
     return false
   }
-  let hasExports = false
-  let areAllExportsComponents = true
-  for (const key in moduleExports) {
+  var hasExports = false
+  var areAllExportsComponents = true
+  for (var key in moduleExports) {
     hasExports = true
     if (isSafeExport(key)) {
       continue
     }
-    const exportValue = moduleExports[key]
+    var exportValue = moduleExports[key]
     if (!RefreshRuntime.isLikelyComponentType(exportValue)) {
       areAllExportsComponents = false
     }
@@ -100,12 +100,12 @@ function shouldInvalidateReactRefreshBoundary(
   prevExports: unknown,
   nextExports: unknown
 ): boolean {
-  const prevSignature = getRefreshBoundarySignature(prevExports)
-  const nextSignature = getRefreshBoundarySignature(nextExports)
+  var prevSignature = getRefreshBoundarySignature(prevExports)
+  var nextSignature = getRefreshBoundarySignature(nextExports)
   if (prevSignature.length !== nextSignature.length) {
     return true
   }
-  for (let i = 0; i < nextSignature.length; i++) {
+  for (var i = 0; i < nextSignature.length; i++) {
     if (prevSignature[i] !== nextSignature[i]) {
       return true
     }
@@ -114,25 +114,25 @@ function shouldInvalidateReactRefreshBoundary(
 }
 
 function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
-  const signature = []
+  var signature = []
   signature.push(RefreshRuntime.getFamilyByType(moduleExports))
   if (moduleExports == null || typeof moduleExports !== 'object') {
     // Exit if we can't iterate over exports.
     // (This is important for legacy environments.)
     return signature
   }
-  for (const key in moduleExports) {
+  for (var key in moduleExports) {
     if (isSafeExport(key)) {
       continue
     }
-    const exportValue = moduleExports[key]
+    var exportValue = moduleExports[key]
     signature.push(key)
     signature.push(RefreshRuntime.getFamilyByType(exportValue))
   }
   return signature
 }
 
-let isUpdateScheduled: boolean = false
+var isUpdateScheduled: boolean = false
 function scheduleUpdate() {
   if (isUpdateScheduled) {
     return
@@ -143,7 +143,7 @@ function scheduleUpdate() {
   }
 
   isUpdateScheduled = true
-  setTimeout(() => {
+  setTimeout(function () {
     isUpdateScheduled = false
 
     // Only trigger refresh if the webpack HMR state is idle

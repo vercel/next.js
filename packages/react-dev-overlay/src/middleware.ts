@@ -59,6 +59,10 @@ function getSourcePath(source: string) {
     return source.substring(15)
   }
 
+  if (source.startsWith('webpack://')) {
+    return source.substring(10)
+  }
+
   return source
 }
 

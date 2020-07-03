@@ -25,8 +25,8 @@ export default function () {
     // AMP / No-JS mode does not inject these helpers:
     '$RefreshHelpers$' in self
   ) {
-    const currentExports = module.__proto__.exports
-    const prevExports = module.hot.data?.prevExports ?? null
+    var currentExports = module.__proto__.exports
+    var prevExports = module.hot.data?.prevExports ?? null
 
     // This cannot happen in MainTemplate because the exports mismatch between
     // templating and execution.
@@ -40,7 +40,7 @@ export default function () {
     if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {
       // Save the previous exports on update so we can compare the boundary
       // signatures.
-      module.hot.dispose((data) => {
+      module.hot.dispose(function (data) {
         data.prevExports = currentExports
       })
       // Unconditionally accept an update to this module, we'll check if it's
@@ -74,7 +74,7 @@ export default function () {
       // new exports made it ineligible for being a boundary.
       // We only care about the case when we were _previously_ a boundary,
       // because we already accepted this update (accidental side effect).
-      const isNoLongerABoundary = prevExports !== null
+      var isNoLongerABoundary = prevExports !== null
       if (isNoLongerABoundary) {
         module.hot.invalidate()
       }
