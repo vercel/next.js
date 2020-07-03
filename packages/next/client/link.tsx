@@ -1,36 +1,23 @@
 declare const __NEXT_DATA__: any
 
 import React, { Children } from 'react'
-import { parse, resolve, UrlObject } from 'url'
+import { UrlObject } from 'url'
 import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
-import {
-  execOnce,
-  formatWithValidation,
-  getLocationOrigin,
-} from '../next-server/lib/utils'
+import { execOnce, getLocationOrigin } from '../next-server/lib/utils'
 import { useRouter } from './router'
-import { addBasePath } from '../next-server/lib/router/router'
-import { normalizeTrailingSlash } from './normalize-trailing-slash'
+import { addBasePath, resolveHref } from '../next-server/lib/router/router'
 
-function isLocal(href: string): boolean {
-  const url = parse(href, false, true)
-  const origin = parse(getLocationOrigin(), false, true)
-
-  return (
-    !url.host || (url.protocol === origin.protocol && url.host === origin.host)
-  )
+/**
+ * Detects whether a given url is from the same origin as the current page (browser only).
+ */
+function isLocal(url: string): boolean {
+  const locationOrigin = getLocationOrigin()
+  const resolved = new URL(url, locationOrigin)
+  // TODO: Investigate shouldn't we add: && resolved.pathname.startsWith(router.basePath) ?
+  return resolved.origin === locationOrigin
 }
 
 type Url = string | UrlObject
-
-function formatUrl(url: Url): string {
-  return (
-    url &&
-    formatWithValidation(
-      normalizeTrailingSlash(typeof url === 'object' ? url : parse(url))
-    )
-  )
-}
 
 export type LinkProps = {
   href: Url
@@ -182,14 +169,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const router = useRouter()
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolve(router.pathname, formatUrl(props.href))
+    const resolvedHref = resolveHref(router, props.href)
     return {
       href: resolvedHref,
-      as: props.as
-        ? resolve(router.pathname, formatUrl(props.as))
-        : resolvedHref,
+      as: props.as ? resolveHref(router, props.as) : resolvedHref,
     }
-  }, [router.pathname, props.href, props.as])
+  }, [router, props.href, props.as])
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
