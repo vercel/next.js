@@ -137,6 +137,7 @@ function reduceComponents(
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (
+        process.env.__OPTIMIZE_FONTS &&
         c.type === 'link' &&
         c.props['href'] &&
         c.props['href'].startsWith('https://fonts.googleapis.com/css')

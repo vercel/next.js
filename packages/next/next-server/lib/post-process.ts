@@ -187,7 +187,9 @@ registerPostProcessor(
 registerPostProcessor(
   'Inline-Fonts',
   new FontOptimizerMiddleware(),
-  (options) => options.optimizeFonts || true
+  // Using process.env because passing Experimental flag through loader is not possible.
+  // @ts-ignore
+  (options) => options.optimizeFonts || process.env.__OPTIMIZE_FONTS
 )
 registerPostProcessor(
   'Render-Preloads',

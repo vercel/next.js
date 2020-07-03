@@ -861,6 +861,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__OPTIMIZE_FONTS': JSON.stringify(
+          config.experimental.optimizeFonts
+        ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         ...(isServer
           ? {
