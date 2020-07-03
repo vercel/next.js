@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "classnames": "2.2.6",
-    "cosmicjs": "^3.2.43",
     "date-fns": "2.14.0",
     "lazysizes": "^5.2.1-rc2",
     "next": "latest",
