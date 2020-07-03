@@ -99,7 +99,7 @@ const listenToIntersections = (el: Element, cb: () => void) => {
 function prefetch(
   router: NextRouter,
   href: string,
-  as?: string,
+  as: string,
   options?: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') return
@@ -114,14 +114,14 @@ function prefetch(
     }
   })
   // Join on an invalid URI character
-  prefetched[href + '%' + (as || href)] = true
+  prefetched[href + '%' + as] = true
 }
 
 function linkClicked(
   e: React.MouseEvent,
   router: NextRouter,
   href: string,
-  as: string = href,
+  as: string,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean
@@ -181,18 +181,20 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   const router = useRouter()
 
-  const { href, as } = React.useMemo(
-    () => ({
-      href: resolve(router.pathname, formatUrl(props.href)),
-      as: props.as ? resolve(router.pathname, formatUrl(props.as)) : props.as,
-    }),
-    [router.pathname, props.href, props.as]
-  )
+  const { href, as } = React.useMemo(() => {
+    const resolvedHref = resolve(router.pathname, formatUrl(props.href))
+    return {
+      href: resolvedHref,
+      as: props.as
+        ? resolve(router.pathname, formatUrl(props.as))
+        : resolvedHref,
+    }
+  }, [router.pathname, props.href, props.as])
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
       // Join on an invalid URI character
-      const isPrefetched = prefetched[href + '%' + (as || href)]
+      const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
           prefetch(router, href, as)
@@ -247,7 +249,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = addBasePath(as || href)
+    childProps.href = addBasePath(as)
   }
 
   // Add the ending slash to the paths. So, we can serve the
