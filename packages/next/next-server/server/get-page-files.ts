@@ -1,24 +1,23 @@
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 
 export type BuildManifest = {
   devFiles: string[]
+  ampDevFiles: string[]
+  polyfillFiles: string[]
   lowPriorityFiles: string[]
   pages: {
     '/_app': string[]
     [page: string]: string[]
   }
+  ampFirstPages: string[]
 }
 
 export function getPageFiles(
   buildManifest: BuildManifest,
   page: string
 ): string[] {
-  const normalizedPage = normalizePagePath(page)
+  const normalizedPage = denormalizePagePath(normalizePagePath(page))
   let files = buildManifest.pages[normalizedPage]
-
-  if (!files) {
-    files = buildManifest.pages[normalizedPage.replace(/\/index$/, '') || '/']
-  }
 
   if (!files) {
     // tslint:disable-next-line

@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import 'core-js/features/array/copy-within'
 import 'core-js/features/array/fill'
 import 'core-js/features/array/find'

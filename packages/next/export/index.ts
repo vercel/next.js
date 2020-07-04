@@ -33,11 +33,15 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  normalizePagePath,
+  denormalizePagePath,
+} from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import { getPagePath } from '../next-server/server/require'
 
 const exists = promisify(existsOrig)
 
@@ -154,14 +158,6 @@ export default async function exportApp(
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch (_) {}
 
-  const distPagesDir = join(
-    distDir,
-    isLikeServerless
-      ? SERVERLESS_DIRECTORY
-      : join(SERVER_DIRECTORY, 'static', buildId),
-    'pages'
-  )
-
   const excludedPrerenderRoutes = new Set<string>()
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap: ExportPathMap = {}
@@ -248,9 +244,8 @@ export default async function exportApp(
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
-    staticMarkup: false,
     hotReloader: null,
-    basePath: nextConfig.experimental.basePath,
+    basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
@@ -287,8 +282,8 @@ export default async function exportApp(
   // make sure to prevent duplicates
   const exportPaths = [
     ...new Set(
-      Object.keys(exportPathMap).map(
-        (path) => normalizePagePath(path).replace(/^\/index$/, '') || '/'
+      Object.keys(exportPathMap).map((path) =>
+        denormalizePagePath(normalizePagePath(path))
       )
     ),
   ]
@@ -328,7 +323,7 @@ export default async function exportApp(
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
     log(
-      chalk.bold.red(`Attention`) +
+      chalk.bold.red(`Warning`) +
         ': ' +
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
@@ -386,7 +381,6 @@ export default async function exportApp(
         path,
         pathMap: exportPathMap[path],
         distDir,
-        buildId,
         outDir,
         pagesDataDir,
         renderOpts,
@@ -397,11 +391,12 @@ export default async function exportApp(
       })
 
       for (const validation of result.ampValidations || []) {
-        const { page, result } = validation
-        ampValidations[page] = result
+        const { page, result: ampValidationResult } = validation
+        ampValidations[page] = ampValidationResult
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result?.errors) && result.errors.length > 0)
+          (Array.isArray(ampValidationResult?.errors) &&
+            ampValidationResult.errors.length > 0)
       }
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
@@ -423,7 +418,21 @@ export default async function exportApp(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async (route) => {
+        const { srcRoute } = prerenderManifest!.routes[route]
+        const pageName = srcRoute || route
+        const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+        const distPagesDir = join(
+          pagePath,
+          // strip leading / and then recurse number of nested dirs
+          // to place from base folder
+          pageName
+            .substr(1)
+            .split('/')
+            .map(() => '..')
+            .join('/')
+        )
         route = normalizePagePath(route)
+
         const orig = join(distPagesDir, route)
         const htmlDest = join(
           outDir,

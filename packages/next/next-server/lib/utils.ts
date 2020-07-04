@@ -5,6 +5,7 @@ import { format, URLFormatOptions, UrlObject } from 'url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
+import { BuildManifest } from '../server/get-page-files'
 
 /**
  * Types used by both next and next-server
@@ -43,6 +44,18 @@ export type AppType = NextComponentType<
 export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
 >
+
+/**
+ * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
+ * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
+ */
+export type NextWebVitalsMetric = {
+  id: string
+  label: string
+  name: string
+  startTime: number
+  value: number
+}
 
 export type Enhancer<C> = (Component: C) => C
 
@@ -153,20 +166,15 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
   hybridAmp: boolean
-  staticMarkup: boolean
   isDevelopment: boolean
-  devFiles: string[]
   files: string[]
-  lowPriorityFiles: string[]
-  polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
-  htmlProps: any
-  bodyTags: any[]
   headTags: any[]
   unstable_runtimeJS?: false
 }

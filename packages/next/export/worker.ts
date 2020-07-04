@@ -33,11 +33,10 @@ interface PathMap {
   query?: { [key: string]: string | string[] }
 }
 
-interface ExortPageInput {
+interface ExportPageInput {
   path: string
   pathMap: PathMap
   distDir: string
-  buildId: string
   outDir: string
   pagesDataDir: string
   renderOpts: RenderOpts
@@ -72,7 +71,6 @@ export default async function exportPage({
   path,
   pathMap,
   distDir,
-  buildId,
   outDir,
   pagesDataDir,
   renderOpts,
@@ -80,7 +78,7 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
-}: ExortPageInput): Promise<ExportPageResults> {
+}: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
   }
@@ -181,7 +179,6 @@ export default async function exportPage({
       })
       const { Component: mod, getServerSideProps } = await loadComponents(
         distDir,
-        buildId,
         page,
         serverless
       )
@@ -226,12 +223,7 @@ export default async function exportPage({
         throw new Error(`Failed to render serverless page`)
       }
     } else {
-      const components = await loadComponents(
-        distDir,
-        buildId,
-        page,
-        serverless
-      )
+      const components = await loadComponents(distDir, page, serverless)
 
       if (components.getServerSideProps) {
         throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
@@ -261,18 +253,18 @@ export default async function exportPage({
     }
 
     const validateAmp = async (
-      html: string,
-      page: string,
+      rawAmpHtml: string,
+      ampPageName: string,
       validatorPath?: string
     ) => {
       const validator = await AmpHtmlValidator.getInstance(validatorPath)
-      const result = validator.validateString(html)
+      const result = validator.validateString(rawAmpHtml)
       const errors = result.errors.filter((e) => e.severity === 'ERROR')
       const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
       if (warnings.length || errors.length) {
         results.ampValidations.push({
-          page,
+          page: ampPageName,
           result: {
             errors,
             warnings,
@@ -348,7 +340,7 @@ export default async function exportPage({
   } catch (error) {
     console.error(
       `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
-        error
+        error.stack
     )
     return { ...results, error: true }
   }

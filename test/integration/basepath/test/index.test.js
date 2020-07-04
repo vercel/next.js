@@ -17,6 +17,9 @@ import {
   renderViaHTTP,
   File,
   nextStart,
+  initNextServerScript,
+  getRedboxSource,
+  hasRedbox,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -31,14 +34,242 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 
 const runTests = (context, dev = false) => {
-  if (!dev) {
+  if (dev) {
+    it('should render error in dev overlay correctly', async () => {
+      const browser = await webdriver(context.appPort, '/docs/hello')
+      await browser.elementByCss('#trigger-error').click()
+      expect(await hasRedbox(browser)).toBe(true)
+
+      const errorSource = await getRedboxSource(browser)
+      expect(errorSource).toMatchInlineSnapshot(`
+        "pages${
+          process.platform === 'win32' ? '\\\\' : '/'
+        }hello.js (52:14) @ onClick
+
+          50 |   id=\\"trigger-error\\"
+          51 |   onClick={() => {
+        > 52 |     throw new Error('oops heres an error')
+             |          ^
+          53 |   }}
+          54 | >
+          55 |   click me for error"
+      `)
+    })
+  } else {
     it('should add basePath to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
       expect(routesManifest.basePath).toBe('/docs')
     })
+
+    it('should prefetch pages correctly when manually called', async () => {
+      const browser = await webdriver(context.appPort, '/docs/other-page')
+      await browser.eval('window.next.router.prefetch("/gssp")')
+
+      await check(
+        async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
+
+          for (const link of links) {
+            const href = await link.getAttribute('href')
+            if (href.includes('gssp')) {
+              return true
+            }
+          }
+          return false
+        },
+        {
+          test(result) {
+            return result === true
+          },
+        }
+      )
+    })
+
+    it('should prefetch pages correctly in viewport with <Link>', async () => {
+      const browser = await webdriver(context.appPort, '/docs/hello')
+      await browser.eval('window.next.router.prefetch("/gssp")')
+
+      await check(
+        async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
+          let found = new Set()
+
+          for (const link of links) {
+            const href = await link.getAttribute('href')
+            if (href.match(/(gsp|gssp|other-page)-.*?\.js$/)) {
+              found.add(href)
+            }
+            if (href.match(/gsp\.json$/)) {
+              found.add(href)
+            }
+          }
+          return found
+        },
+        {
+          test(result) {
+            return result.size === 4
+          },
+        }
+      )
+    })
   }
+
+  it('should not update URL for a 404', async () => {
+    const browser = await webdriver(context.appPort, '/missing')
+    const pathname = await browser.eval(() => window.location.pathname)
+    expect(pathname).toBe('/missing')
+  })
+
+  it('should update dynamic params after mount correctly', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
+    const text = await browser.elementByCss('#slug').text()
+    expect(text).toContain('slug: hello-dynamic')
+  })
+
+  it('should navigate to index page with getStaticProps', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = "hi"')
+
+    await browser.elementByCss('#index-gsp').click()
+    await browser.waitForElementByCss('#prop')
+
+    expect(await browser.eval('window.beforeNavigate')).toBe('hi')
+    expect(await browser.elementByCss('#prop').text()).toBe('hello world')
+    expect(await browser.elementByCss('#nested').text()).toBe('no')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss('#pathname').text()).toBe('/')
+
+    if (!dev) {
+      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
+      let found = false
+
+      for (const prefetch of prefetches) {
+        const fullHref = await prefetch.getAttribute('href')
+        const href = url.parse(fullHref).pathname
+
+        if (
+          href.startsWith('/docs/_next/data') &&
+          href.endsWith('index.json') &&
+          !href.endsWith('index/index.json')
+        ) {
+          found = true
+        }
+      }
+
+      expect(found).toBe(true)
+    }
+  })
+
+  it('should navigate to nested index page with getStaticProps', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNavigate = "hi"')
+
+    await browser.elementByCss('#nested-index-gsp').click()
+    await browser.waitForElementByCss('#prop')
+
+    expect(await browser.eval('window.beforeNavigate')).toBe('hi')
+    expect(await browser.elementByCss('#prop').text()).toBe('hello world')
+    expect(await browser.elementByCss('#nested').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss('#pathname').text()).toBe('/index')
+
+    if (!dev) {
+      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
+      let found = false
+
+      for (const prefetch of prefetches) {
+        const fullHref = await prefetch.getAttribute('href')
+        const href = url.parse(fullHref).pathname
+
+        if (
+          href.startsWith('/docs/_next/data') &&
+          href.endsWith('index/index.json')
+        ) {
+          found = true
+        }
+      }
+
+      expect(found).toBe(true)
+    }
+  })
+
+  it('should work with nested folder with same name as basePath', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/docs/another')
+    expect(html).toContain('hello from another')
+
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.next.router.push("/docs/another")')
+
+    await check(() => browser.elementByCss('p').text(), /hello from another/)
+  })
+
+  it('should work with normal dynamic page', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#dynamic-link').click()
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /slug: first/
+    )
+  })
+
+  it('should work with catch-all page', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#catchall-link').click()
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /parts: hello\/world/
+    )
+  })
+
+  it('should 404 when manually adding basePath with <Link>', async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/docs/invalid-manual-basepath'
+    )
+    await browser.eval('window.beforeNav = "hi"')
+    await browser.elementByCss('#other-page-link').click()
+
+    await check(() => browser.eval('window.beforeNav'), {
+      test(content) {
+        return content !== 'hi'
+      },
+    })
+
+    const html = await browser.eval('document.documentElement.innerHTML')
+    expect(html).toContain('This page could not be found')
+  })
+
+  it('should 404 when manually adding basePath with router.push', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNav = "hi"')
+    await browser.eval('window.next.router.push("/docs/other-page")')
+
+    await check(() => browser.eval('window.beforeNav'), {
+      test(content) {
+        return content !== 'hi'
+      },
+    })
+
+    const html = await browser.eval('document.documentElement.innerHTML')
+    expect(html).toContain('This page could not be found')
+  })
+
+  it('should 404 when manually adding basePath with router.replace', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.eval('window.beforeNav = "hi"')
+    await browser.eval('window.next.router.replace("/docs/other-page")')
+
+    await check(() => browser.eval('window.beforeNav'), {
+      test(content) {
+        return content !== 'hi'
+      },
+    })
+
+    const html = await browser.eval('document.documentElement.innerHTML')
+    expect(html).toContain('This page could not be found')
+  })
 
   it('should show the hello page under the /docs prefix', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
@@ -59,17 +290,25 @@ const runTests = (context, dev = false) => {
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.hello).toBe('world')
+
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/gsp')
   })
 
   it('should fetch data for getServerSideProps without reloading', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.eval('window.beforeNavigate = true')
-    await browser.elementByCss('#gsp-link').click()
-    await browser.waitForElementByCss('#gsp')
+    await browser.elementByCss('#gssp-link').click()
+    await browser.waitForElementByCss('#gssp')
     expect(await browser.eval('window.beforeNavigate')).toBe(true)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.hello).toBe('world')
+
+    const pathname = await browser.elementByCss('#pathname').text()
+    const asPath = await browser.elementByCss('#asPath').text()
+    expect(pathname).toBe('/gssp')
+    expect(asPath).toBe('/gssp')
   })
 
   it('should have correct href for a link', async () => {
@@ -77,6 +316,13 @@ const runTests = (context, dev = false) => {
     const href = await browser.elementByCss('a').getAttribute('href')
     const { pathname } = url.parse(href)
     expect(pathname).toBe('/docs/other-page')
+  })
+
+  it('should have correct href for a link to /', async () => {
+    const browser = await webdriver(context.appPort, '/docs/link-to-root')
+    const href = await browser.elementByCss('#link-back').getAttribute('href')
+    const { pathname } = url.parse(href)
+    expect(pathname).toBe('/docs')
   })
 
   it('should show 404 for page not under the /docs prefix', async () => {
@@ -118,6 +364,24 @@ const runTests = (context, dev = false) => {
       await browser.close()
     }
   })
+
+  it('should allow URL query strings without refresh', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello?query=true')
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, 10000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/hello')
+    } finally {
+      await browser.close()
+    }
+  })
 }
 
 describe('basePath development', () => {
@@ -127,7 +391,9 @@ describe('basePath development', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    server = await launchApp(join(__dirname, '..'), context.appPort)
+    server = await launchApp(join(__dirname, '..'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
   })
   afterAll(async () => {
     await killApp(server)
@@ -470,7 +736,7 @@ describe('basePath serverless', () => {
 
   beforeAll(async () => {
     await nextConfig.write(
-      `module.exports = { target: 'serverless', experimental: { basePath: '/docs' } }`
+      `module.exports = { target: 'experimental-serverless-trace', basePath: '/docs' } `
     )
     await nextBuild(appDir)
     context.appPort = await findPort()
@@ -482,4 +748,24 @@ describe('basePath serverless', () => {
   })
 
   runTests(context)
+
+  it('should always strip basePath in serverless-loader', async () => {
+    const appPort = await findPort()
+    const app = await initNextServerScript(
+      join(appDir, 'server.js'),
+      /ready on/,
+      {
+        ...process.env,
+        PORT: appPort,
+      }
+    )
+
+    const html = await renderViaHTTP(appPort, '/docs/gssp')
+    await killApp(app)
+
+    const $ = cheerio.load(html)
+
+    expect($('#pathname').text()).toBe('/gssp')
+    expect($('#asPath').text()).toBe('/gssp')
+  })
 })

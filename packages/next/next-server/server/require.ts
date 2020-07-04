@@ -5,7 +5,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../lib/constants'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 export function pageNotFoundError(page: string): Error {
@@ -30,7 +30,7 @@ export function getPagePath(
   )) as PagesManifest
 
   try {
-    page = normalizePagePath(page)
+    page = denormalizePagePath(normalizePagePath(page))
   } catch (err) {
     // tslint:disable-next-line
     console.error(err)
@@ -38,12 +38,7 @@ export function getPagePath(
   }
 
   if (!pagesManifest[page]) {
-    const cleanedPage = page.replace(/^\/index$/, '') || '/'
-    if (!pagesManifest[cleanedPage]) {
-      throw pageNotFoundError(page)
-    } else {
-      page = cleanedPage
-    }
+    throw pageNotFoundError(page)
   }
   return join(serverBuildPath, pagesManifest[page])
 }

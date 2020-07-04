@@ -1,20 +1,20 @@
 /* eslint-env jest */
-
+import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
+  check,
+  File,
   findPort,
+  killApp,
+  launchApp,
   nextBuild,
   nextStart,
-  launchApp,
-  killApp,
-  File,
-  waitFor,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -132,7 +132,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
+        `".red-text{color:purple;color:red;font-weight:bolder}.blue-text{color:orange;color:#00f;font-weight:bolder}"`
       )
     })
   })
@@ -163,7 +163,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
       )
 
       // Contains a source map
@@ -184,7 +184,7 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,mDACE,WACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
@@ -194,6 +194,14 @@ describe('CSS Support', () => {
 
         .flex-parsing {
           flex: 0 0 calc(50% - var(--vertical-gutter));
+        }
+
+        .transform-parsing {
+          transform: translate3d(0px, 0px);
+        }
+
+        .g-docs-sidenav .filter::-webkit-input-placeholder {
+          opacity: 80%;
         }
         ",
           ],
@@ -351,12 +359,14 @@ describe('CSS Support', () => {
         const cssFile = new File(join(appDir, 'styles/global1.css'))
         try {
           cssFile.replace('color: red', 'color: purple')
-          await waitFor(2000) // wait for HMR
 
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('.red-text')).color`
+              ),
+            'rgb(128, 0, 128)'
           )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
 
           // ensure text remained
           expect(await browser.elementById('text-input').getValue()).toBe(
@@ -554,7 +564,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -600,7 +610,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -646,7 +656,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -811,6 +821,23 @@ describe('CSS Support', () => {
       await killApp(app)
     })
 
+    it('should not execute scripts in any order', async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      let asyncCount = 0
+      let totalCount = 0
+      for (const script of $('script').toArray()) {
+        ++totalCount
+        if ('async' in script.attribs) {
+          ++asyncCount
+        }
+      }
+
+      expect(asyncCount).toBe(0)
+      expect(totalCount).not.toBe(0)
+    })
+
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
 
@@ -825,20 +852,33 @@ describe('CSS Support', () => {
       try {
         browser = await webdriver(appPort, '/')
 
-        const currentColor = await browser.eval(
+        const blueColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#blueText')).color`
         )
-        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        const yellowColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#yellowText')).color`
+        )
+        expect(yellowColor).toMatchInlineSnapshot(`"rgb(255, 255, 0)"`)
 
         const cssFile = new File(join(appDir, 'pages/index.module.css'))
         try {
-          cssFile.replace('color: blue;', 'color: blue; ')
-          await waitFor(2000) // wait for HMR
-
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('#blueText')).color`
+          cssFile.replace('color: yellow;', 'color: rgb(1, 1, 1);')
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('#yellowText')).color`
+              ),
+            'rgb(1, 1, 1)'
           )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('#blueText')).color`
+              ),
+            'rgb(0, 0, 255)'
+          )
         } finally {
           cssFile.restore()
         }

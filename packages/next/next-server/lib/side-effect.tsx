@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 
 const isServer = typeof window === 'undefined'
 
-type State = Array<React.ReactElement<any>> | undefined
+type State = JSX.Element[] | undefined
 
 type SideEffectProps = {
   reduceComponentsToState: <T>(
@@ -10,53 +10,51 @@ type SideEffectProps = {
     props: T
   ) => State
   handleStateChange?: (state: State) => void
+  headManager: any
   inAmpMode?: boolean
 }
 
-export default () => {
-  const mountedInstances: Set<any> = new Set()
-  let state: State
+export default class extends Component<SideEffectProps> {
+  private _hasHeadManager: boolean
 
-  function emitChange(component: React.Component<SideEffectProps>): void {
-    state = component.props.reduceComponentsToState(
-      [...mountedInstances],
-      component.props
-    )
-    if (component.props.handleStateChange) {
-      component.props.handleStateChange(state)
+  emitChange = (): void => {
+    if (this._hasHeadManager) {
+      this.props.headManager.updateHead(
+        this.props.reduceComponentsToState(
+          [...this.props.headManager.mountedInstances],
+          this.props
+        )
+      )
     }
   }
 
-  return class extends Component<SideEffectProps> {
-    // Used when server rendering
-    static rewind() {
-      const recordedState = state
-      state = undefined
-      mountedInstances.clear()
-      return recordedState
-    }
+  constructor(props: any) {
+    super(props)
+    this._hasHeadManager =
+      this.props.headManager && this.props.headManager.mountedInstances
 
-    constructor(props: any) {
-      super(props)
-      if (isServer) {
-        mountedInstances.add(this)
-        emitChange(this)
-      }
+    if (isServer && this._hasHeadManager) {
+      this.props.headManager.mountedInstances.add(this)
+      this.emitChange()
     }
-    componentDidMount() {
-      mountedInstances.add(this)
-      emitChange(this)
+  }
+  componentDidMount() {
+    if (this._hasHeadManager) {
+      this.props.headManager.mountedInstances.add(this)
     }
-    componentDidUpdate() {
-      emitChange(this)
+    this.emitChange()
+  }
+  componentDidUpdate() {
+    this.emitChange()
+  }
+  componentWillUnmount() {
+    if (this._hasHeadManager) {
+      this.props.headManager.mountedInstances.delete(this)
     }
-    componentWillUnmount() {
-      mountedInstances.delete(this)
-      emitChange(this)
-    }
+    this.emitChange()
+  }
 
-    render() {
-      return null
-    }
+  render() {
+    return null
   }
 }

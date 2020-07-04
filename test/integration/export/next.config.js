@@ -13,10 +13,12 @@ module.exports = (phase) => {
     exportPathMap: function () {
       return {
         '/': { page: '/' },
-        '/index': { page: '/index' },
+        '/index': { page: '/' },
         '/about': { page: '/about' },
         '/button-link': { page: '/button-link' },
         '/hash-link': { page: '/hash-link' },
+        '/empty-hash-link': { page: '/empty-hash-link' },
+        '/empty-query-link': { page: '/empty-query-link' },
         '/get-initial-props-with-no-query': {
           page: '/get-initial-props-with-no-query',
         },

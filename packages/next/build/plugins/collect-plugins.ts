@@ -17,8 +17,6 @@ export type PluginMetaData = {
 // currently supported middleware
 export const VALID_MIDDLEWARE = [
   'document-head-tags-server',
-  'document-body-tags-server',
-  'document-html-props-server',
   'on-init-client',
   'on-init-server',
   'on-error-server',
@@ -26,9 +24,6 @@ export const VALID_MIDDLEWARE = [
   'on-error-client',
   'on-error-server',
   'babel-preset-build',
-  'unstable-post-hydration',
-  'unstable-get-styles-server',
-  'unstable-enhance-app-server',
 ]
 
 type ENV_OPTIONS = { [name: string]: string }

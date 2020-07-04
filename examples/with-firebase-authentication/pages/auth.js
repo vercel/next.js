@@ -11,6 +11,4 @@ const Auth = () => {
   )
 }
 
-Auth.propTypes = {}
-
 export default Auth

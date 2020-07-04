@@ -22,6 +22,10 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
+            },
+            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
             },
@@ -32,6 +36,10 @@
             {
               "title": "Environment Variables",
               "path": "/docs/basic-features/environment-variables.md"
+            },
+            {
+              "title": "Supported Browsers and Features",
+              "path": "/docs/basic-features/supported-browsers-features.md"
             }
           ]
         },
@@ -274,6 +282,14 @@
             {
               "title": "exportPathMap",
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
+            },
+            {
+              "title": "Trailing Slash",
+              "path": "/docs/api-reference/next.config.js/trailing-slash.md"
+            },
+            {
+              "title": "React Strict Mode",
+              "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
             }
           ]
         }

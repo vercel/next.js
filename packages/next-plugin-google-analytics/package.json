@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-google-analytics",
-  "version": "9.4.3",
+  "version": "9.4.5-canary.28",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-plugin-google-analytics"
@@ -12,6 +12,7 @@
     ]
   },
   "peerDependencies": {
-    "next": "*"
+    "next": "*",
+    "react": "*"
   }
 }
