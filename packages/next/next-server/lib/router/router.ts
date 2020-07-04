@@ -223,9 +223,7 @@ export default class Router implements BaseRouter {
     // until after mount to prevent hydration mismatch
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport
-        ? pathname
-        : delBasePath(as)
+      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -408,11 +406,11 @@ export default class Router implements BaseRouter {
       // WARNING: `_h` is an internal option for handing Next.js client-side
       // hydration. Your app should _never_ use this property. It may change at
       // any time without notice.
-      if (!options._h && this.onlyAHashChange(as)) {
-        this.asPath = as
+      if (!options._h && this.onlyAHashChange(cleanedAs)) {
+        this.asPath = cleanedAs
         Router.events.emit('hashChangeStart', cleanedAs)
         this.changeState(method, url, as, options)
-        this.scrollToHash(as)
+        this.scrollToHash(cleanedAs)
         Router.events.emit('hashChangeComplete', cleanedAs)
         return resolve(true)
       }

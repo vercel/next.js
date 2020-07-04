@@ -65,5 +65,10 @@ export default () => (
         <h1>Error route</h1>
       </a>
     </Link>
+    <Link href="/hello#some-hash">
+      <a id="hash-change">
+        <h1>Hash change</h1>
+      </a>
+    </Link>
   </>
 )

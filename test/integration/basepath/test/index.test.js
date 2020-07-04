@@ -383,6 +383,22 @@ const runTests = (context, dev = false) => {
     }
   })
 
+  it('should use urls without basepath in router events for hash changes', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#hash-change').click()
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['hashChangeStart', '/hello#some-hash'],
+        ['hashChangeComplete', '/hello#some-hash'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
   it('should use urls without basepath in router events for cancelled routes', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     try {
