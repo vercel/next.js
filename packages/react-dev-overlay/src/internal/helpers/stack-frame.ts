@@ -53,9 +53,14 @@ export function getOriginalStackFrame(
     const controller = new AbortController()
     const tm = setTimeout(() => controller.abort(), 3000)
     const res = await self
-      .fetch(`/__nextjs_original-stack-frame?${params.toString()}`, {
-        signal: controller.signal,
-      })
+      .fetch(
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_original-stack-frame?${params.toString()}`,
+        {
+          signal: controller.signal,
+        }
+      )
       .finally(() => {
         clearTimeout(tm)
       })
@@ -68,9 +73,10 @@ export function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded:
-        body.originalStackFrame?.file &&
-        !body.originalStackFrame.file.includes('node_modules'),
+      expanded: !Boolean(
+        /* collapsed */
+        body.originalStackFrame?.file?.includes('node_modules') ?? true
+      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,

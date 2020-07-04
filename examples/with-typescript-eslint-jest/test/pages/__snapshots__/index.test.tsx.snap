@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Home page clicking button triggers alert 1`] = `
+exports[`Home page matches snapshot 1`] = `
 <DocumentFragment>
   <div
     class="jsx-2250570153 container"
@@ -69,7 +69,7 @@ exports[`Home page clicking button triggers alert 1`] = `
         </a>
         <a
           class="jsx-2250570153 card"
-          href="https://github.com/zeit/next.js/tree/master/examples"
+          href="https://github.com/vercel/next.js/tree/master/examples"
         >
           <h3
             class="jsx-2250570153"

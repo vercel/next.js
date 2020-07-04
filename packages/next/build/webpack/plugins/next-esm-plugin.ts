@@ -32,7 +32,7 @@
 import {
   Compiler,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  compilation,
+  compilation as CompilationType,
   Plugin,
   RuleSetRule,
   RuleSetLoader,
@@ -59,7 +59,7 @@ const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
 // Matches Babel plugin paths that support the useBuiltIns option
 const PLUGINS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/
 
-export default class NextEsmPlugin implements Plugin {
+export class NextEsmPlugin implements Plugin {
   options: {
     filename: any
     chunkFilename: any
@@ -74,10 +74,7 @@ export default class NextEsmPlugin implements Plugin {
     additionalPlugins?: any
   }) {
     this.options = Object.assign(
-      {
-        excludedPlugins: [PLUGIN_NAME],
-        additionalPlugins: [],
-      },
+      { excludedPlugins: [], additionalPlugins: [] },
       options
     )
   }
@@ -85,7 +82,7 @@ export default class NextEsmPlugin implements Plugin {
   apply(compiler: Compiler) {
     compiler.hooks.make.tapAsync(
       PLUGIN_NAME,
-      (compilation: compilation.Compilation, callback) => {
+      (compilation: CompilationType.Compilation, callback) => {
         this.runBuild(compiler, compilation).then(callback)
       }
     )
@@ -200,8 +197,8 @@ export default class NextEsmPlugin implements Plugin {
   }
 
   updateAssets(
-    compilation: compilation.Compilation,
-    childCompilation: compilation.Compilation
+    compilation: CompilationType.Compilation,
+    childCompilation: CompilationType.Compilation
   ) {
     compilation.assets = Object.assign(
       childCompilation.assets,
@@ -213,11 +210,11 @@ export default class NextEsmPlugin implements Plugin {
       compilation.namedChunkGroups
     )
 
-    const unnamedChunks: compilation.Chunk[] = []
+    const unnamedChunks: CompilationType.Chunk[] = []
     const childChunkFileMap = childCompilation.chunks.reduce(
       (
-        chunkMap: { [key: string]: compilation.Chunk },
-        chunk: compilation.Chunk
+        chunkMap: { [key: string]: CompilationType.Chunk },
+        chunk: CompilationType.Chunk
       ) => {
         // Dynamic chunks may not have a name. It'll be null in such cases
         if (chunk.name === null) {
@@ -232,7 +229,7 @@ export default class NextEsmPlugin implements Plugin {
     )
 
     // Merge chunks - merge the files of chunks with the same name
-    compilation.chunks.forEach((chunk: compilation.Chunk) => {
+    compilation.chunks.forEach((chunk: CompilationType.Chunk) => {
       const childChunk = childChunkFileMap[chunk.name]
 
       // Do not merge null named chunks since they are different
@@ -254,7 +251,7 @@ export default class NextEsmPlugin implements Plugin {
     compilation.entrypoints.forEach((entryPoint, entryPointName) => {
       const childEntryPoint = childCompilation.entrypoints.get(entryPointName)
 
-      childEntryPoint.chunks.forEach((chunk: compilation.Chunk) => {
+      childEntryPoint.chunks.forEach((chunk: CompilationType.Chunk) => {
         if (
           // Add null named dynamic chunks since they weren't merged
           chunk.name === null ||
@@ -266,7 +263,7 @@ export default class NextEsmPlugin implements Plugin {
     })
   }
 
-  async runBuild(compiler: Compiler, compilation: compilation.Compilation) {
+  async runBuild(compiler: Compiler, compilation: CompilationType.Compilation) {
     const outputOptions: Output = { ...compiler.options.output }
 
     if (typeof this.options.filename === 'function') {
@@ -284,7 +281,11 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     let plugins = (compiler.options.plugins || []).filter(
-      (c) => !this.options.excludedPlugins.includes(c.constructor.name)
+      (c) =>
+        !(
+          this.options.excludedPlugins.includes(c.constructor.name) ||
+          c.constructor.name === PLUGIN_NAME
+        )
     )
 
     // Add the additionalPlugins
@@ -367,7 +368,7 @@ export default class NextEsmPlugin implements Plugin {
           setTimeout(() => {
             this.updateOptions(childCompiler)
 
-            childCompiler.runAsChild((err, entries, childCompilation) => {
+            childCompiler.runAsChild((err, _entries, childCompilation) => {
               if (err) {
                 return reject(err)
               }

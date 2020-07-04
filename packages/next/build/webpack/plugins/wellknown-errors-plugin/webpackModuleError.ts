@@ -1,14 +1,14 @@
 import { readFileSync } from 'fs'
 import * as path from 'path'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { compilation } from 'webpack'
+import { compilation as CompilationType } from 'webpack'
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function getFileData(
-  compilation: compilation.Compilation,
+  compilation: CompilationType.Compilation,
   m: any
 ): [string, string | null] {
   let resolved: string
@@ -41,7 +41,7 @@ function getFileData(
 }
 
 export function getModuleBuildError(
-  compilation: compilation.Compilation,
+  compilation: CompilationType.Compilation,
   input: any
 ): SimpleWebpackError | false {
   if (

@@ -247,7 +247,13 @@ export default (context, renderViaHTTP) => {
         )
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+        // TODO: Replace this when webpack 5 is the default
+        expect(
+          (await getRedboxHeader(browser)).replace(
+            '__WEBPACK_DEFAULT_EXPORT__',
+            'Unknown'
+          )
+        ).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
           Server Error
 
@@ -255,6 +261,7 @@ export default (context, renderViaHTTP) => {
               in Unknown
               in App
               in Unknown
+              in Context.Provider
               in Context.Provider
               in Context.Provider
               in Context.Provider

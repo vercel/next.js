@@ -30,11 +30,11 @@ describe('Conformance system', () => {
     )
   })
 
-  it('Should warn about changes to granularChunks config', async () => {
+  it('Should warn about changes to splitChunks config', async () => {
     const { stderr } = build
     expect(stderr).toContain(
-      '[BUILD CONFORMANCE ERROR]: The splitChunks config as part of the granularChunks flag has ' +
-        `been carefully crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
+      '[BUILD CONFORMANCE ERROR]: The splitChunks config has been carefully ' +
+        `crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
           'splitChunks.cacheGroups.vendors'
         )}`
     )
