@@ -13,7 +13,7 @@ export default function ProductImage({
     <img
       src={image.transformedSrc || image.originalSrc}
       alt={image.altText || `Product image for ${title}`}
-      className="w-full h-full"
+      className="absolute w-full h-full"
     />
   )
 
@@ -26,7 +26,7 @@ export default function ProductImage({
           {
             'hover:shadow-medium transition-shadow duration-200': slug,
             'max-h-104': !large,
-            'max-w-lg': large,
+            'pb-full': large,
           }
         )}
       >

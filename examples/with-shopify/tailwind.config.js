@@ -13,6 +13,7 @@ module.exports = {
       },
       spacing: {
         28: '7rem',
+        full: '100%',
       },
       maxHeight: {
         104: '26rem',
