@@ -365,6 +365,47 @@ const runTests = (context, dev = false) => {
     }
   })
 
+  it('should use urls without basepath in router events', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toContainEqual(['routeChangeStart', '/other-page'])
+      expect(eventLog).toContainEqual(['beforeHistoryChange', '/other-page'])
+      expect(eventLog).toContainEqual(['routeChangeComplete', '/other-page'])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls without basepath in router events for cancelled routes', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#slow-route')
+        .click()
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toContainEqual([
+        'routeChangeError',
+        'Route Cancelled',
+        true,
+        '/slow-route',
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
   it('should allow URL query strings without refresh', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello?query=true')
     try {

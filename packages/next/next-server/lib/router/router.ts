@@ -164,6 +164,7 @@ export default class Router implements BaseRouter {
   _wrapApp: (App: ComponentType) => any
   isSsr: boolean
   isFallback: boolean
+  _lastStarted?: string
 
   static events: MittEmitter = mitt()
 
@@ -396,7 +397,10 @@ export default class Router implements BaseRouter {
         }
       }
 
-      this.abortComponentLoad(as)
+      this.abortComponentLoad()
+
+      const cleanedAs = delBasePath(as)
+      this._lastStarted = cleanedAs
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
@@ -406,10 +410,10 @@ export default class Router implements BaseRouter {
       // any time without notice.
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
-        Router.events.emit('hashChangeStart', as)
+        Router.events.emit('hashChangeStart', cleanedAs)
         this.changeState(method, url, as, options)
         this.scrollToHash(as)
-        Router.events.emit('hashChangeComplete', as)
+        Router.events.emit('hashChangeComplete', cleanedAs)
         return resolve(true)
       }
 
@@ -442,7 +446,6 @@ export default class Router implements BaseRouter {
 
       const route = removePathTrailingSlash(pathname)
       const { shallow = false } = options
-      const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(cleanedAs)
@@ -476,7 +479,7 @@ export default class Router implements BaseRouter {
         }
       }
 
-      Router.events.emit('routeChangeStart', as)
+      Router.events.emit('routeChangeStart', cleanedAs)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
       this.getRouteInfo(route, pathname, query, as, shallow).then(
@@ -487,7 +490,7 @@ export default class Router implements BaseRouter {
             return resolve(false)
           }
 
-          Router.events.emit('beforeHistoryChange', as)
+          Router.events.emit('beforeHistoryChange', cleanedAs)
           this.changeState(method, url, as, options)
 
           if (process.env.NODE_ENV !== 'production') {
@@ -499,11 +502,11 @@ export default class Router implements BaseRouter {
 
           this.set(route, pathname!, query, cleanedAs, routeInfo).then(() => {
             if (error) {
-              Router.events.emit('routeChangeError', error, as)
+              Router.events.emit('routeChangeError', error, cleanedAs)
               throw error
             }
 
-            Router.events.emit('routeChangeComplete', as)
+            Router.events.emit('routeChangeComplete', cleanedAs)
             return resolve(true)
           })
         },
@@ -862,11 +865,11 @@ export default class Router implements BaseRouter {
     })
   }
 
-  abortComponentLoad(as: string): void {
+  abortComponentLoad(): void {
     if (this.clc) {
       const e = new Error('Route Cancelled')
       ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, as)
+      Router.events.emit('routeChangeError', e, this._lastStarted)
       this.clc()
       this.clc = null
     }

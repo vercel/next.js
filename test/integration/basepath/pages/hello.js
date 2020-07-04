@@ -54,5 +54,11 @@ export default () => (
     >
       click me for error
     </div>
+    <br />
+    <Link href="/slow-route">
+      <a id="slow-route">
+        <h1>Slow route</h1>
+      </a>
+    </Link>
   </>
 )
