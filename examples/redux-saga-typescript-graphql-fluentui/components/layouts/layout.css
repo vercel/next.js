@@ -1,0 +1,17 @@
+#__next {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  flex-shrink: 0;
+}
+
+main {
+  flex: 1 0 auto;
+}
+
+footer {
+  flex-shrink: 0;
+}

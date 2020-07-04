@@ -1,0 +1,37 @@
+{
+  "name": "redux-saga-typescript-graphql-fluentui",
+  "version": "1.0.0",
+  "license": "ISC",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc"
+  },
+  "dependencies": {
+    "graphql-request": "^2.0.0",
+    "immer": "^7.0.3",
+    "next": "latest",
+    "next-redux-wrapper": "^6.0.2",
+    "office-ui-fabric-react": "^7.121.0",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-redux": "7.2.0",
+    "redux": "4.0.5",
+    "redux-saga": "1.1.3",
+    "typescript-fsa": "^3.0.0",
+    "typescript-fsa-reducers": "^1.2.1"
+  },
+  "devDependencies": {
+    "@types/next-redux-wrapper": "^3.0.0",
+    "@types/node": "^14.0.13",
+    "@types/react": "^16.9.36",
+    "@types/react-dom": "^16.9.8",
+    "@types/react-redux": "^7.1.9",
+    "@types/redux": "^3.6.0",
+    "@types/redux-logger": "^3.0.8",
+    "redux-devtools-extension": "^2.13.8",
+    "redux-logger": "^3.0.6",
+    "typescript": "^3.9.5"
+  }
+}
