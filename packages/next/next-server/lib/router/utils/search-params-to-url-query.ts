@@ -1,6 +1,6 @@
 import { ParsedUrlQuery } from 'querystring'
 
-export default function searchParamsToUrlQuery(
+export function searchParamsToUrlQuery(
   searchParams: URLSearchParams
 ): ParsedUrlQuery {
   const query: ParsedUrlQuery = {}

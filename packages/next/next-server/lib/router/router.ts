@@ -15,7 +15,8 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import searchParamsToUrlQuery from './utils/search-params-to-url-query'
+import { searchParamsToUrlQuery } from './utils/search-params-to-url-query'
+import { parseRelativeUrl } from './utils/parse-relative-url'
 import {
   normalizeTrailingSlash,
   removePathTrailingSlash,
@@ -62,12 +63,19 @@ function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   }
 }
 
-function parseRelativeUrl(url: string) {
-  const parsed = new URL(url, 'http://n')
-  if (parsed.origin !== 'http://n') {
-    throw new Error(`Absolute URL not allowed: "${url}"`)
+function tryParseRelativeUrl(
+  url: string
+): null | ReturnType<typeof parseRelativeUrl> {
+  try {
+    return parseRelativeUrl(url)
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
+      )
+    }
+    return null
   }
-  return parsed
 }
 
 type ComponentRes = { page: ComponentType; mod: any }
@@ -302,7 +310,7 @@ export default class Router implements BaseRouter {
     }
 
     const { url, as, options } = e.state
-    const { pathname } = new URL(url, 'http://n')
+    const { pathname } = parseRelativeUrl(url)
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
@@ -427,18 +435,11 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      let pathname: string
-      let searchParams: URLSearchParams
-      try {
-        ;({ pathname, searchParams } = parseRelativeUrl(url))
-      } catch (err) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-          )
-        }
-        return
-      }
+      const parsed = tryParseRelativeUrl(url)
+
+      if (!parsed) return
+
+      let { pathname, searchParams } = parsed
       const query = searchParamsToUrlQuery(searchParams)
 
       // url and as should always be prefixed with basePath by this
@@ -462,7 +463,7 @@ export default class Router implements BaseRouter {
       const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
-        const { pathname: asPathname } = new URL(cleanedAs, 'http://n')
+        const { pathname: asPathname } = parseRelativeUrl(cleanedAs)
         const routeRegex = getRouteRegex(route)
         const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
@@ -781,17 +782,11 @@ export default class Router implements BaseRouter {
     options: PrefetchOptions = {}
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      let pathname: string
-      try {
-        ;({ pathname } = parseRelativeUrl(url))
-      } catch (err) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-          )
-        }
-        return
-      }
+      const parsed = tryParseRelativeUrl(url)
+
+      if (!parsed) return
+
+      const { pathname } = parsed
 
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') {
@@ -850,7 +845,7 @@ export default class Router implements BaseRouter {
   }
 
   _getStaticData = (dataHref: string): Promise<object> => {
-    let { pathname } = new URL(dataHref, 'http://n')
+    let { pathname } = parseRelativeUrl(dataHref)
     pathname = prepareRoute(pathname)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
