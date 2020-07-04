@@ -55,6 +55,7 @@ export default () => (
       click me for error
     </div>
     <br />
+    <div id="as-path">{useRouter().asPath}</div>
     <Link href="/slow-route">
       <a id="slow-route">
         <h1>Slow route</h1>
