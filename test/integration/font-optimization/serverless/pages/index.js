@@ -1,15 +1,7 @@
-import React from '../integration/font-optimization/server/pages/react'
-
-const Idk = React.createContext(null)
+import React from 'react'
 
 const Page = () => {
-  return (
-    <div>
-      <Idk.Provider value="hello world">
-        <Idk.Consumer>{(idk) => <p>Value: {idk}</p>}</Idk.Consumer>
-      </Idk.Provider>
-    </div>
-  )
+  return <div>Hi!</div>
 }
 
 export default Page

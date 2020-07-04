@@ -1,4 +1,4 @@
-import Head from '../integration/font-optimization/server/pages/next/head'
+import Head from 'next/head'
 
 function Home({ stars }) {
   return (
@@ -7,8 +7,8 @@ function Home({ stars }) {
         <title>Create Next App</title>
         <link rel="icon" href="/favicon.ico" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"
           rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"
         ></link>
       </Head>
 

@@ -176,7 +176,7 @@ export default class Server {
       postProcess: this.nextConfig.experimental.optimizeImages,
       optimizeFonts: this.nextConfig.experimental.optimizeFonts,
       fontManifest: this.nextConfig.experimental.optimizeFonts
-        ? requireFontManifest(this.distDir, false)
+        ? requireFontManifest(this.distDir, this._isLikeServerless)
         : undefined,
     }
 

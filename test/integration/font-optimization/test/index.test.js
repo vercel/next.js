@@ -12,12 +12,6 @@ import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 30)
 
-const appDir = join(__dirname, '../server')
-let builtServerPagesDir
-let builtPage
-let appPort
-let app
-
 const fsExists = (file) =>
   fs
     .access(file)
@@ -25,11 +19,16 @@ const fsExists = (file) =>
     .catch(() => false)
 
 describe('Font optimization for SSR apps', () => {
+  const appDir = join(__dirname, '../server')
+  let builtServerPagesDir
+  let builtPage
+  let appPort
+  let app
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    builtServerPagesDir = join(appDir, '.next/server')
+    builtServerPagesDir = join(appDir, '.next', 'server')
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(() => killApp(app))
@@ -58,15 +57,19 @@ describe('Font optimization for SSR apps', () => {
 })
 
 describe('Font optimization for serverless apps', () => {
+  const appDir = join(__dirname, '../serverless')
+  let builtServerPagesDir
+  let builtPage
+  let appPort
+  let app
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    builtServerPagesDir = join(appDir, '.next/serverless')
+    builtServerPagesDir = join(appDir, '.next', 'serverless')
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(() => killApp(app))
-
   it('should inline the google fonts for static pages', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
