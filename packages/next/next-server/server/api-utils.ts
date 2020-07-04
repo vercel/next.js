@@ -47,19 +47,15 @@ export async function apiResolver(
     // Parsing query string
     setLazyProp({ req: apiReq, params }, 'query', getQueryParser(req))
     // Parsing preview data
-    setLazyProp(
-      { req: apiReq },
-      'previewData',
-      getPreviewDataParser(apiReq, apiRes, apiContext)
+    setLazyProp({ req: apiReq }, 'previewData', () =>
+      tryGetPreviewData(req, res, apiContext)
     )
-    // Parsing preview
-    setLazyProp(
-      { req: apiReq },
-      'preview',
-      () => !!apiReq.previewData || undefined
+    // Checking if preview mode is enabled
+    setLazyProp({ req: apiReq }, 'preview', () =>
+      apiReq.previewData !== false ? true : undefined
     )
 
-    // // Parsing of body
+    // Parsing of body
     if (bodyParser) {
       apiReq.body = await parseBody(
         apiReq,
@@ -380,16 +376,6 @@ export function tryGetPreviewData(
     return data
   } catch {
     return false
-  }
-}
-
-function getPreviewDataParser(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  opts: __ApiPreviewProps
-): () => object | string | undefined {
-  return function () {
-    return tryGetPreviewData(req, res, opts) || undefined
   }
 }
 
