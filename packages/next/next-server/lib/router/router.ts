@@ -486,8 +486,12 @@ export default class Router implements BaseRouter {
         (routeInfo) => {
           const { error } = routeInfo
 
+          if (error && error.cancelled) {
+            // An event already has been fired
+            return resolve(false)
+          }
+
           if (error && error.aborted) {
-            error.cancelled = false
             Router.events.emit('routeChangeError', error, cleanedAs)
             return resolve(false)
           }
@@ -567,7 +571,7 @@ export default class Router implements BaseRouter {
     }
 
     const handleError = (
-      err: Error & { code: any; aborted: boolean },
+      err: Error & { code: any; cancelled: boolean; aborted: boolean },
       loadErrorFail?: boolean
     ) => {
       return new Promise((resolve) => {
@@ -581,13 +585,13 @@ export default class Router implements BaseRouter {
           window.location.href = as
 
           // Changing the URL doesn't block executing the current code path.
-          // So, we need to mark it as a cancelled error and stop the routing logic.
+          // So, we need to mark it as aborted and stop the routing logic.
           err.aborted = true
           // @ts-ignore TODO: fix the control flow here
           return resolve({ error: err })
         }
 
-        if (err.aborted) {
+        if (err.cancelled) {
           // @ts-ignore TODO: fix the control flow here
           return resolve({ error: err })
         }
@@ -804,7 +808,7 @@ export default class Router implements BaseRouter {
       const error: any = new Error(
         `Abort fetching component for route: "${route}"`
       )
-      error.aborted = true
+      error.cancelled = true
       throw error
     }
 
@@ -828,7 +832,7 @@ export default class Router implements BaseRouter {
 
       if (cancelled) {
         const err: any = new Error('Loading initial props cancelled')
-        err.aborted = true
+        err.cancelled = true
         throw err
       }
 

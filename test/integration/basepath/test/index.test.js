@@ -418,7 +418,7 @@ const runTests = (context, dev = false) => {
       expect(eventLog).toContainEqual([
         'routeChangeError',
         'Failed to load static props',
-        false,
+        null,
         '/error-route',
       ])
     } finally {
