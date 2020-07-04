@@ -406,6 +406,26 @@ const runTests = (context, dev = false) => {
     }
   })
 
+  it('should use urls without basepath in router events for failed route change', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#error-route').click()
+
+      await waitFor(2000)
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toContainEqual([
+        'routeChangeError',
+        'Failed to load static props',
+        false,
+        '/error-route',
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
   it('should allow URL query strings without refresh', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello?query=true')
     try {

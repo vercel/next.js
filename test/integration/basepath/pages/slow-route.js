@@ -1,7 +1,7 @@
 export async function getServerSideProps() {
-  // we will use this route to simulate a route error by clicking it
-  // twice in rapid succession
-  await new Promise((resolve) => setTimeout(resolve, 10000))
+  // We will use this route to simulate a route cancellation error
+  // by clicking its link twice in rapid succession
+  await new Promise((resolve) => setTimeout(resolve, 5000))
   return { props: {} }
 }
 

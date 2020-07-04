@@ -60,5 +60,10 @@ export default () => (
         <h1>Slow route</h1>
       </a>
     </Link>
+    <Link href="/error-route">
+      <a id="error-route">
+        <h1>Error route</h1>
+      </a>
+    </Link>
   </>
 )
