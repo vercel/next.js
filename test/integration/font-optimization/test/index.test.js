@@ -24,7 +24,7 @@ const fsExists = (file) =>
     .then(() => true)
     .catch(() => false)
 
-describe('Font optimization', () => {
+describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
@@ -53,6 +53,28 @@ describe('Font optimization', () => {
     )
     expect(html).toMatch(
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
+    )
+  })
+})
+
+describe('Font optimization for serverless apps', () => {
+  beforeAll(async () => {
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    builtServerPagesDir = join(appDir, '.next/serverless')
+    builtPage = (file) => join(builtServerPagesDir, file)
+  })
+  afterAll(() => killApp(app))
+
+  it('should inline the google fonts for static pages', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css?family=Voces"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css\?family=Voces">.*<\/style>/
     )
   })
 })
