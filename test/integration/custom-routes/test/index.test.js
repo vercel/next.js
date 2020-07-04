@@ -893,6 +893,14 @@ const runTests = (isDev = false) => {
             },
           },
           {
+            namedRegex: '^/auto\\-export/(?<slug>[^/]+?)(?:/)?$',
+            page: '/auto-export/[slug]',
+            regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
             namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
@@ -964,6 +972,27 @@ describe('Custom routes', () => {
   afterAll(async () => {
     externalServer.close()
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+  })
+
+  describe('no-op rewrite', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        env: {
+          ADD_NOOP_REWRITE: 'true',
+        },
+      })
+    })
+    afterAll(() => killApp(app))
+
+    it('should not show error for no-op rewrite and auto export dynamic route', async () => {
+      const browser = await webdriver(appPort, '/auto-export/my-slug')
+      const html = await browser.eval(() => document.documentElement.innerHTML)
+      expect(html).not.toContain(
+        `Rewrites don't support auto-exported dynamic pages yet`
+      )
+      expect(html).toContain(`auto-export my-slug`)
+    })
   })
 
   describe('dev mode', () => {

@@ -321,7 +321,8 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const didRewrite = (req as any)._nextDidRewrite
+  const didRewrite =
+    (req as any)._nextDidRewrite && (req as any)._nextRewroteUrl !== req.url
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 

@@ -2,6 +2,14 @@ module.exports = {
   // target: 'serverless',
   async rewrites() {
     return [
+      ...(process.env.ADD_NOOP_REWRITE === 'true'
+        ? [
+            {
+              source: '/:path*',
+              destination: '/:path*',
+            },
+          ]
+        : []),
       {
         source: '/to-another',
         destination: '/another/one',

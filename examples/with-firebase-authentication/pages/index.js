@@ -35,7 +35,7 @@ const Index = () => {
         <p>You're signed in. Email: {user.email}</p>
         <p
           style={{
-            display: 'inlinelock',
+            display: 'inline-block',
             color: 'blue',
             textDecoration: 'underline',
             cursor: 'pointer',
