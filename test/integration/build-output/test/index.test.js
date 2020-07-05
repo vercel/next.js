@@ -52,10 +52,17 @@ describe('Build Output', () => {
           )
         )[1]
 
-      const parseSharedSize = (sharedPartName) =>
-        stdout.match(
+      const parseSharedSize = (sharedPartName) => {
+        const matches = stdout.match(
           new RegExp(`${sharedPartName} .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`)
-        )[1]
+        )
+
+        if (!matches) {
+          throw new Error(`Could not match ${sharedPartName}`)
+        }
+
+        return matches[1]
+      }
 
       const indexSize = parsePageSize('/')
       const indexFirstLoad = parsePageFirstLoad('/')
@@ -64,7 +71,7 @@ describe('Build Output', () => {
       const err404FirstLoad = parsePageFirstLoad('/404')
 
       const sharedByAll = parseSharedSize('shared by all')
-      const _appSize = parseSharedSize('_app\\.js')
+      const _appSize = parseSharedSize('_app\\..*?\\.js')
       const webpackSize = parseSharedSize('webpack\\..*?\\.js')
       const mainSize = parseSharedSize('main\\..*?\\.js')
       const frameworkSize = parseSharedSize('framework\\..*?\\.js')
@@ -106,7 +113,7 @@ describe('Build Output', () => {
       expect(parseFloat(webpackSize) - 775).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith('B')).toBe(true)
 
-      expect(parseFloat(mainSize) - 6.3).toBeLessThanOrEqual(0)
+      expect(parseFloat(mainSize) - 6.4).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
       expect(parseFloat(frameworkSize) - 41).toBeLessThanOrEqual(0)

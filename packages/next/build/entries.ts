@@ -84,7 +84,7 @@ export function createEntrypoints(
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     canonicalBase: config.canonicalBase,
-    basePath: config.experimental.basePath,
+    basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
           publicRuntimeConfig: config.publicRuntimeConfig,
@@ -92,15 +92,19 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
-    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
+    // base64 encode to make sure contents don't break webpack URL loading
+    loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
+      'base64'
+    ),
   }
 
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
-    const bundleFile = `${normalizePagePath(page)}.js`
+    const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
 
-    const bundlePath = join('static', 'BUILD_ID', 'pages', bundleFile)
+    const clientBundlePath = join('static', 'pages', bundleFile)
+    const serverBundlePath = join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -110,18 +114,18 @@ export function createEntrypoints(
         absolutePagePath,
         ...defaultServerlessOptions,
       }
-      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      server[bundlePath] = [absolutePagePath]
+      server[serverBundlePath] = [absolutePagePath]
     } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
         ...defaultServerlessOptions,
       }
-      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
     }
@@ -143,7 +147,7 @@ export function createEntrypoints(
       // might cause the router to not be able to load causing hydration
       // to fail
 
-      client[bundlePath] =
+      client[clientBundlePath] =
         page === '/_app'
           ? [pageLoader, require.resolve('../client/router')]
           : pageLoader
