@@ -65,7 +65,7 @@ export default function Product({ product }) {
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="max-w-sm w-full mb-5">
         <ProductImage
           containerClassName={styles.imageContainer}
           image={variant.image}

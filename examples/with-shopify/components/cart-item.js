@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
-import cn from 'classnames'
-import styles from './cart-item.module.css'
+import ProductQuantity from './product-quantity'
 
 export default function CartItem({ item, onItemUpdate, loading }) {
   const [quantity, setQuantity] = useState(item.quantity)
@@ -67,39 +66,13 @@ export default function CartItem({ item, onItemUpdate, loading }) {
         </div>
 
         <div className="flex flex-grow">
-          <div
-            className={cn(
-              'flex flex-grow justify-start sm:justify-center items-center',
-              { 'opacity-50': loading }
-            )}
-          >
-            <button
-              type="button"
-              className={styles.quantityControl}
-              disabled={loading}
-              onClick={() => increaseQuantity(-1)}
-            >
-              -
-            </button>
-            <input
-              className={styles.quantity}
-              type="number"
-              min="0"
-              step="1"
-              value={quantity}
-              onChange={handleQuantity}
-              onBlur={handleBlur}
-              disabled={loading}
-            />
-            <button
-              type="button"
-              className={styles.quantityControl}
-              disabled={loading}
-              onClick={() => increaseQuantity(1)}
-            >
-              +
-            </button>
-          </div>
+          <ProductQuantity
+            value={quantity}
+            loading={loading}
+            onIncrease={increaseQuantity}
+            onChange={handleQuantity}
+            onBlur={handleBlur}
+          />
 
           <div className="flex flex-col text-right justify-center">
             <span className="text-lg">{price}</span>

@@ -7,7 +7,6 @@ export default function ProductImage({
   title,
   slug,
   children,
-  large,
 }) {
   const img = (
     <img
@@ -18,28 +17,24 @@ export default function ProductImage({
   )
 
   return (
-    <div className="w-full">
-      <div
-        className={cn(
-          containerClassName,
-          'relative overflow-hidden shadow-small',
-          {
-            'hover:shadow-medium transition-shadow duration-200': slug,
-            'max-h-104': !large,
-            'pb-full': large,
-          }
-        )}
-      >
-        {slug ? (
-          <Link as={`/p/${slug}`} href="/p/[slug]">
-            <a aria-label={title}>{img}</a>
-          </Link>
-        ) : (
-          img
-        )}
+    <div
+      className={cn(
+        containerClassName,
+        'relative overflow-hidden pb-full shadow-small',
+        {
+          'hover:shadow-medium transition-shadow duration-200': slug,
+        }
+      )}
+    >
+      {slug ? (
+        <Link as={`/p/${slug}`} href="/p/[slug]">
+          <a aria-label={title}>{img}</a>
+        </Link>
+      ) : (
+        img
+      )}
 
-        {children}
-      </div>
+      {children}
     </div>
   )
 }

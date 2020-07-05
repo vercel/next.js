@@ -46,7 +46,7 @@ export async function getShopDataForHome() {
                   image {
                     altText
                     originalSrc
-                    transformedSrc(maxHeight: 416, maxWidth: 416, crop: CENTER)
+                    transformedSrc(maxHeight: 384, maxWidth: 384, crop: CENTER)
                   }
                 }
               }
