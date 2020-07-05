@@ -121,7 +121,7 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    postProcess: boolean
+    optimizeImages: boolean
     optimizeFonts: boolean
     fontManifest: FontManifest
   }
@@ -170,7 +170,7 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      postProcess: this.nextConfig.experimental.optimizeImages,
+      optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeFonts: this.nextConfig.experimental.optimizeFonts,
       fontManifest: this.nextConfig.experimental.optimizeFonts
         ? requireFontManifest(this.distDir, this._isLikeServerless)
