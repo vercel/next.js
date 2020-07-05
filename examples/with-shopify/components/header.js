@@ -4,7 +4,7 @@ import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import styles from './header.module.css'
 
-export default function Header() {
+export default function Header({ title }) {
   const { pathname } = useRouter()
   const { openCart } = useCart()
   const { checkout } = useCheckout()
@@ -17,7 +17,7 @@ export default function Header() {
     <header className={styles.header}>
       <h2 className={styles.logo}>
         <Link href="/">
-          <a className="hover:underline">Store Name</a>
+          <a className="hover:underline">{title}</a>
         </Link>
       </h2>
       <nav className="flex items-center">

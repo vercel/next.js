@@ -15,12 +15,12 @@ export default function Index({ shop, products }) {
   return (
     <Layout>
       <Head>
-        <title>Next.js Blog Example with {CMS_NAME}</title>
+        <title>Next.js Ecommerce Example with {CMS_NAME}</title>
       </Head>
       <Container>
         <CartProvider>
-          <Header />
-          <Intro title={shop.name} />
+          <Header title={shop.name} />
+          <Intro />
           <Products products={products} />
           <CartModal />
         </CartProvider>
