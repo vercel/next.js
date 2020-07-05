@@ -229,6 +229,15 @@ export default class Server {
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
+
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targetting both serverless and SSR by calling
+     * `process.env.__OPTIMIZE_FONTS`.
+     * Nit: For serverless/static this is supplied by webpack define plugin.
+     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+     */
+    process.env.__OPTIMIZE_FONTS = JSON.stringify(this.renderOpts.optimizeFonts)
   }
 
   protected currentPhase(): string {

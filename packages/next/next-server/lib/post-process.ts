@@ -147,6 +147,10 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       const url = this.fontDefinitions[key]
       result = result.replace(` href="${url}"`, ` data-href="${url}"`)
       const fontContent = await options.getFontDefinition(url)
+      if (result.indexOf(`<style data-href="${url}">`) > -1) {
+        // The font is already optimized and probably the response is cached
+        continue
+      }
       result = result.replace(
         '</head>',
         `<style data-href="${url}">${fontContent.replace(
