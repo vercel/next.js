@@ -79,7 +79,7 @@ export default function ProductBody({ product }) {
             </label>
           )}
 
-          <label className="flex flex-col" htmlFor="quantity">
+          <label className="flex flex-col mb-6" htmlFor="quantity">
             <span className="text-2xl mb-4">Quantity</span>
             <ProductQuantity
               id="quantity"
@@ -90,6 +90,17 @@ export default function ProductBody({ product }) {
               onBlur={handleBlur}
             />
           </label>
+
+          <div className="flex flex-col">
+            <span className="text-2xl mb-4">Quantity</span>
+            <ProductQuantity
+              value={quantity}
+              loading={loading}
+              onChange={handleQuantity}
+              onIncrease={increaseQuantity}
+              onBlur={handleBlur}
+            />
+          </div>
         </div>
       </div>
     </main>

@@ -3,6 +3,7 @@ import Modal from 'react-modal'
 import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import CartItem from './cart-item'
+import Button from './button'
 import styles from './cart-modal.module.css'
 
 Modal.setAppElement('#__next')
@@ -64,29 +65,19 @@ export default function CartModal() {
             ))}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-              <button
-                type="button"
-                className={styles.closeButton}
-                onClick={closeCart}
-              >
+              <Button type="button" onClick={closeCart} secondary>
                 Continue Shopping
-              </button>
-              <button type="submit" className={styles.submitButton}>
-                Check Out
-              </button>
+              </Button>
+              <Button type="submit">Check Out</Button>
             </div>
           </form>
         ) : (
           <>
             <p className="text-lg">Your cart is currently empty.</p>
             <div className="mt-8">
-              <button
-                type="button"
-                className={cn(styles.submitButton, 'w-full')}
-                onClick={closeCart}
-              >
+              <Button type="button" className="w-full" onClick={closeCart}>
                 Continue Shopping
-              </button>
+              </Button>
             </div>
           </>
         )}
