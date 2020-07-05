@@ -11,7 +11,8 @@ const MyBox = (props) => {
   useFrame(() => (mesh.current.rotation.x = mesh.current.rotation.y += 0.01))
 
   return (
-    <Box args={[1, 1, 1]}
+    <Box
+      args={[1, 1, 1]}
       {...props}
       ref={mesh}
       scale={active ? [6, 6, 6] : [5, 5, 5]}
