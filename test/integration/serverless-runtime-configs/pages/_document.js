@@ -1,9 +1,4 @@
-import Document, {
-  Html,
-  Head,
-  Main,
-  NextScript,
-} from '../integration/font-optimization/server/pages/next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import getConfig from 'next/config'
 
 const config = getConfig()
