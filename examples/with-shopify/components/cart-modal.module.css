@@ -21,32 +21,3 @@
     border-accent-2
     outline-none;
 }
-
-.closeButton,
-.submitButton {
-  @apply font-medium
-    p-2
-    duration-200
-    transition-colors;
-}
-
-.closeButton {
-  @apply bg-accent-2
-    border
-    border-accent-2;
-}
-
-.submitButton {
-  @apply bg-black
-    text-white
-    border
-    border-black;
-}
-
-.submitButton:hover {
-  @apply bg-white text-black;
-}
-
-.closeButton:hover {
-  @apply bg-white;
-}

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import Modal from 'react-modal'
-import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import CartItem from './cart-item'
 import Button from './button'
