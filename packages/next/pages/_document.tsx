@@ -269,6 +269,20 @@ export class Head extends Component<
         )
     }
 
+    if (process.env.__OPTIMIZE_FONTS) {
+      children = React.Children.map(children, (c: any) => {
+        if (
+          c.type === 'link' &&
+          c.props['href'] &&
+          c.props['href'].startsWith('https://fonts.googleapis.com/css')
+        ) {
+          c.props['data-href'] = c.props['href']
+          delete c.props['href']
+        }
+        return c
+      })
+    }
+
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
 
@@ -276,7 +290,6 @@ export class Head extends Component<
     head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
-
       if (inAmpMode) {
         let badProp: string = ''
 

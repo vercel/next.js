@@ -126,14 +126,11 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       .filter(
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
-          ((tag.hasAttribute('data-href') &&
-            tag.getAttribute('data-href').startsWith(this.DOMAIN)) ||
-            (tag.hasAttribute('href') &&
-              tag.getAttribute('href').startsWith(this.DOMAIN)))
+          tag.hasAttribute('data-href') &&
+          tag.getAttribute('data-href').startsWith(this.DOMAIN)
       )
       .forEach((element: HTMLElement) => {
-        const url =
-          element.getAttribute('data-href') || element.getAttribute('href')
+        const url = element.getAttribute('data-href')
         this.fontDefinitions.push(url)
       })
   }
