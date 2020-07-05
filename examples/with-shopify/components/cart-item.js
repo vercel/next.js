@@ -66,13 +66,15 @@ export default function CartItem({ item, onItemUpdate, loading }) {
         </div>
 
         <div className="flex flex-grow">
-          <ProductQuantity
-            value={quantity}
-            loading={loading}
-            onIncrease={increaseQuantity}
-            onChange={handleQuantity}
-            onBlur={handleBlur}
-          />
+          <div className="flex flex-grow justify-start sm:justify-center items-center">
+            <ProductQuantity
+              value={quantity}
+              loading={loading}
+              onChange={handleQuantity}
+              onIncrease={increaseQuantity}
+              onBlur={handleBlur}
+            />
+          </div>
 
           <div className="flex flex-col text-right justify-center">
             <span className="text-lg">{price}</span>

@@ -21,14 +21,14 @@ export default function Index({ shop, product, moreProducts }) {
     <Layout>
       <Head>
         <title>
-          {product?.title ? `${product.title} | ` : ''}Next.js Blog Example with{' '}
-          {CMS_NAME}
+          {product?.title ? `${product.title} | ` : ''}Next.js Ecommerce Example
+          with {CMS_NAME}
         </title>
         <meta property="og:image" content={product.image} />
       </Head>
       <Container>
         <CartProvider>
-          <Header />
+          <Header title={shop.name} />
           {router.isFallback ? (
             <h1 className="text-5xl">Loading...</h1>
           ) : (

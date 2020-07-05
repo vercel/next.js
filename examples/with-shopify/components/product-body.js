@@ -1,9 +1,32 @@
+import { useState } from 'react'
 import ProductImage from './product-image'
+import ProductQuantity from './product-quantity'
 
 export default function ProductBody({ product }) {
+  const [quantity, setQuantity] = useState(1)
+  const [loading, setLoading] = useState(false)
   const variants = product.variants.edges
   const variant = variants[0].node
   const { amount, currencyCode } = variant.priceV2
+  const handleQuantity = (e) => {
+    const val = Number(e.target.value)
+
+    if (Number.isInteger(val) && val >= 0) {
+      setQuantity(e.target.value)
+    }
+  }
+  const handleBlur = (e) => {
+    // Reset the quantity to 1 if it's manually set to a lower number
+    if (Number(quantity) <= 0) setQuantity(1)
+  }
+  const increaseQuantity = (n = 1) => {
+    const val = Number(quantity) + n
+
+    if (Number.isInteger(val) && val > 0) {
+      setQuantity(val)
+    }
+  }
+
   const formatCurrency = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currencyCode,
@@ -16,7 +39,7 @@ export default function ProductBody({ product }) {
   })
   const sizes = allSelectedOptions.filter((option) => option.name === 'Size')
 
-  // console.log(product, variants)
+  console.log(product, variants)
   // console.log('s', allSelectedOptions)
 
   return (
@@ -29,8 +52,8 @@ export default function ProductBody({ product }) {
           <h2 className="text-4xl mb-6">{product.title}</h2>
           <h3 className="text-2xl mb-6">{price}</h3>
 
-          {sizes.length && (
-            <label className="flex flex-col">
+          {sizes.length > 0 && (
+            <label className="flex flex-col mb-6">
               <span className="text-2xl mb-4">Size</span>
               <div className="relative">
                 <select
@@ -55,6 +78,18 @@ export default function ProductBody({ product }) {
               </div>
             </label>
           )}
+
+          <label className="flex flex-col" htmlFor="quantity">
+            <span className="text-2xl mb-4">Quantity</span>
+            <ProductQuantity
+              id="quantity"
+              value={quantity}
+              loading={loading}
+              onChange={handleQuantity}
+              onIncrease={increaseQuantity}
+              onBlur={handleBlur}
+            />
+          </label>
         </div>
       </div>
     </main>
