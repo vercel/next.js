@@ -15,38 +15,41 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import {
+  normalizeTrailingSlash,
+  removePathTrailingSlash,
+} from '../../../client/normalize-trailing-slash'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return `${basePath}${path}`
+  return basePath ? (path === '/' ? basePath : basePath + path) : path
 }
 
 export function delBasePath(path: string): string {
-  return path.substr(basePath.length)
+  return path.slice(basePath.length) || '/'
 }
 
-function toRoute(path: string): string {
-  return path.replace(/\/$/, '') || '/'
+function prepareRoute(path: string) {
+  return removePathTrailingSlash(delBasePath(path || '/'))
 }
-
-const prepareRoute = (path: string) =>
-  toRoute(!path || path === '/' ? '/index' : path)
 
 type Url = UrlObject | string
+
+function formatUrl(url: Url): string {
+  return url
+    ? formatWithValidation(
+        normalizeTrailingSlash(typeof url === 'object' ? url : parse(url))
+      )
+    : url
+}
 
 function prepareUrlAs(url: Url, as: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  url = typeof url === 'object' ? formatWithValidation(url) : url
-  as = typeof as === 'object' ? formatWithValidation(as) : as
-
-  url = addBasePath(url)
-  as = as ? addBasePath(as) : as
-
   return {
-    url,
-    as,
+    url: addBasePath(formatUrl(url)),
+    as: as ? addBasePath(formatUrl(as)) : as,
   }
 }
 
@@ -100,36 +103,26 @@ const manualScrollRestoration =
   'scrollRestoration' in window.history
 
 function fetchNextData(
-  pathname: string,
-  query: ParsedUrlQuery | null,
+  dataHref: string,
   isServerRender: boolean,
   cb?: (...args: any) => any
 ) {
   let attempts = isServerRender ? 3 : 1
   function getResponse(): Promise<any> {
-    return fetch(
-      formatWithValidation({
-        pathname: addBasePath(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${delBasePath(pathname)}.json`
-        ),
-        query,
-      }),
-      {
-        // Cookies are required to be present for Next.js' SSG "Preview Mode".
-        // Cookies may also be required for `getServerSideProps`.
-        //
-        // > `fetch` won’t send cookies, unless you set the credentials init
-        // > option.
-        // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-        //
-        // > For maximum browser compatibility when it comes to sending &
-        // > receiving cookies, always supply the `credentials: 'same-origin'`
-        // > option instead of relying on the default.
-        // https://github.com/github/fetch#caveats
-        credentials: 'same-origin',
-      }
-    ).then((res) => {
+    return fetch(dataHref, {
+      // Cookies are required to be present for Next.js' SSG "Preview Mode".
+      // Cookies may also be required for `getServerSideProps`.
+      //
+      // > `fetch` won’t send cookies, unless you set the credentials init
+      // > option.
+      // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+      //
+      // > For maximum browser compatibility when it comes to sending &
+      // > receiving cookies, always supply the `credentials: 'same-origin'`
+      // > option instead of relying on the default.
+      // https://github.com/github/fetch#caveats
+      credentials: 'same-origin',
+    }).then((res) => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
           return getResponse()
@@ -204,7 +197,7 @@ export default class Router implements BaseRouter {
     }
   ) {
     // represents the current component key
-    this.route = toRoute(pathname)
+    this.route = removePathTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -253,10 +246,11 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
+
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
-          as
+          getURL()
         )
       }
 
@@ -458,7 +452,9 @@ export default class Router implements BaseRouter {
       // url and as should always be prefixed with basePath by this
       // point by either next/link or router.push/replace so strip the
       // basePath from the pathname to match the pages dir 1-to-1
-      pathname = pathname ? delBasePath(pathname) : pathname
+      pathname = pathname
+        ? removePathTrailingSlash(delBasePath(pathname))
+        : pathname
 
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
@@ -478,15 +474,14 @@ export default class Router implements BaseRouter {
         method = 'replaceState'
       }
 
-      const route = toRoute(pathname)
+      const route = removePathTrailingSlash(pathname)
       const { shallow = false } = options
+      const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
-        const { pathname: asPathname } = parse(as)
+        const { pathname: asPathname } = parse(cleanedAs)
         const routeRegex = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(routeRegex)(
-          delBasePath(asPathname || '')
-        )
+        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
           const missingParams = Object.keys(routeRegex.groups).filter(
             (param) => !query[param]
@@ -536,23 +531,21 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname!, query, delBasePath(as), routeInfo).then(
-            () => {
-              if (error) {
-                Router.events.emit('routeChangeError', error, as)
-                throw error
-              }
-
-              Router.events.emit('routeChangeComplete', as)
-
-              if (process.env.__NEXT_SCROLL_RESTORATION) {
-                if (manualScrollRestoration && '_N_X' in options) {
-                  window.scrollTo(options._N_X, options._N_Y)
-                }
-              }
-              return resolve(true)
+          this.set(route, pathname!, query, cleanedAs, routeInfo).then(() => {
+            if (error) {
+              Router.events.emit('routeChangeError', error, as)
+              throw error
             }
-          )
+
+            if (process.env.__NEXT_SCROLL_RESTORATION) {
+              if (manualScrollRestoration && '_N_X' in options) {
+                window.scrollTo(options._N_X, options._N_Y)
+              }
+            }
+            Router.events.emit('routeChangeComplete', as)
+
+            return resolve(true)
+          })
         },
         reject
       )
@@ -694,11 +687,21 @@ export default class Router implements BaseRouter {
           }
         }
 
+        let dataHref: string | undefined
+
+        if (__N_SSG || __N_SSP) {
+          dataHref = this.pageLoader.getDataHref(
+            formatWithValidation({ pathname, query }),
+            as,
+            __N_SSG
+          )
+        }
+
         return this._getData<RouteInfo>(() =>
           __N_SSG
-            ? this._getStaticData(as)
+            ? this._getStaticData(dataHref!)
             : __N_SSP
-            ? this._getServerData(as)
+            ? this._getServerData(dataHref!)
             : this.getInitialProps(
                 Component,
                 // we provide AppTree later so this needs to be `any`
@@ -816,7 +819,7 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-      const route = toRoute(pathname)
+      const route = removePathTrailingSlash(pathname)
       Promise.all([
         this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
@@ -868,23 +871,20 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<object> => {
-    const pathname = prepareRoute(parse(asPath).pathname!)
+  _getStaticData = (dataHref: string): Promise<object> => {
+    const pathname = prepareRoute(parse(dataHref).pathname!)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? Promise.resolve(this.sdc[pathname])
+      ? Promise.resolve(this.sdc[dataHref])
       : fetchNextData(
-          pathname,
-          null,
+          dataHref,
           this.isSsr,
           (data) => (this.sdc[pathname] = data)
         )
   }
 
-  _getServerData = (asPath: string): Promise<object> => {
-    let { pathname, query } = parse(asPath, true)
-    pathname = prepareRoute(pathname!)
-    return fetchNextData(pathname, query, this.isSsr)
+  _getServerData = (dataHref: string): Promise<object> => {
+    return fetchNextData(dataHref, this.isSsr)
   }
 
   getInitialProps(

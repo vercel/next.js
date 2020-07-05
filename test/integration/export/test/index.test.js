@@ -103,6 +103,20 @@ describe('Static Export', () => {
     ).toBe(true)
   })
 
+  it('should handle trailing slash in getStaticPaths', async () => {
+    expect(
+      await access(join(outdir, 'gssp/foo/index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+
+    expect(
+      await access(join(outNoTrailSlash, 'gssp/foo.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+  })
+
   it('should only output 404.html without exportTrailingSlash', async () => {
     expect(
       await access(join(outNoTrailSlash, '404/index.html'))

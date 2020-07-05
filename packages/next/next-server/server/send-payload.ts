@@ -1,10 +1,14 @@
-import { ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import { isResSent } from '../lib/utils'
+import generateETag from 'next/dist/compiled/etag'
+import fresh from 'next/dist/compiled/fresh'
 
 export function sendPayload(
+  req: IncomingMessage,
   res: ServerResponse,
   payload: any,
   type: 'html' | 'json',
+  generateEtags: boolean,
   options?:
     | { private: true }
     | { private: boolean; stateful: true }
@@ -14,7 +18,18 @@ export function sendPayload(
     return
   }
 
-  // TODO: ETag headers?
+  const etag = generateEtags ? generateETag(payload) : undefined
+
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return
+  }
+
+  if (etag) {
+    res.setHeader('ETag', etag)
+  }
+
   res.setHeader(
     'Content-Type',
     type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
