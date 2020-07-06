@@ -1,0 +1,53 @@
+{
+  "name": "with-typescript",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc"
+  },
+  "dependencies": {
+    "@apollo/react-common": "^3.1.4",
+    "@apollo/react-components": "^3.1.5",
+    "@apollo/react-hooks": "^3.1.5",
+    "@apollo/react-ssr": "^3.1.5",
+    "@types/react-fade-in": "^0.1.0",
+    "@types/react-lottie": "^1.2.5",
+    "apollo-boost": "^0.4.9",
+    "apollo-cache-inmemory": "^1.6.6",
+    "apollo-client": "^2.6.10",
+    "apollo-link-context": "^1.0.20",
+    "apollo-link-http": "^1.5.17",
+    "apollo-utilities": "^1.3.4",
+    "framer-motion": "^1.11.1",
+    "graphql": "^15.1.0",
+    "graphql-tag": "^2.10.3",
+    "js-cookie": "^2.2.1",
+    "next": "latest",
+    "next-cookies": "^2.0.3",
+    "nprogress": "^0.2.0",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "react-fade-in": "^1.1.0",
+    "react-hook-form": "^5.7.2",
+    "react-lottie": "^1.2.3",
+    "react-redux": "^7.2.0",
+    "react-toastify": "^6.0.8",
+    "redux": "^4.0.5",
+    "redux-devtools-extension": "^2.13.8",
+    "redux-persist": "^6.0.0",
+    "redux-thunk": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/js-cookie": "^2.2.6",
+    "@types/node": "^12.12.21",
+    "@types/nprogress": "^0.2.0",
+    "@types/react": "^16.9.16",
+    "@types/react-dom": "^16.9.4",
+    "@types/react-redux": "^7.1.9",
+    "@types/redux-persist": "^4.3.1",
+    "typescript": "3.7.3"
+  },
+  "license": "ISC"
+}
