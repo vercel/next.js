@@ -1,5 +1,4 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import chalk from 'next/dist/compiled/chalk'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
@@ -324,13 +323,8 @@ export async function renderToHTML(
     nextExportCommand &&
     (hasPageGetInitialProps || defaultAppGetInitialProps)
   ) {
-    console.log()
-    console.warn(
-      chalk.bold.red(`Warning`) +
-        ': ' +
-        chalk.yellow(
-          `Rewrite your App using getStaticProps instead of getInitialProps before using "next export"  `
-        )
+    console.log(
+      `Warning: Detected getInitialProps on page ${pathname} while running "next export". It's recommended to use getStaticProps which has a more correct behavior for static exporting: https://err.sh/next.js/vercel/next.js/getinitialprops-export`
     )
   }
 
