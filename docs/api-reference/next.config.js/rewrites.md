@@ -23,7 +23,7 @@ module.exports = {
 }
 ```
 
-`rewrites` is an `async` function that expects an array to be returned holding objects with `source` and `destination`.
+`rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
 
 - `source` is the incoming request path pattern.
 - `destination` is the path you want to route to.
