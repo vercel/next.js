@@ -8,8 +8,7 @@ export async function getStaticProps() {
     .readFileSync(
       findUp.sync('world.txt', {
         // prevent webpack from intercepting
-        // eslint-disable-next-line no-eval
-        cwd: eval(`__dirname`),
+        cwd: process.cwd(),
       }),
       'utf8'
     )
