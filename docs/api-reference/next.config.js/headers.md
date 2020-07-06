@@ -31,7 +31,7 @@ module.exports = {
 }
 ```
 
-`headers` is an `async` function that expects an array to be returned holding objects with `source` and `headers`.
+`headers` is an async function that expects an array to be returned holding objects with `source` and `headers` properties:
 
 - `source` is the incoming request path pattern.
 - `headers` is an array of header objects holding `key` and `value`
