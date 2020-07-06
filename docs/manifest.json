@@ -228,6 +228,10 @@
               "path": "/docs/api-reference/next.config.js/environment-variables.md"
             },
             {
+              "title": "Base Path",
+              "path": "/docs/api-reference/next.config.js/basepath.md"
+            },
+            {
               "title": "Custom Page Extensions",
               "path": "/docs/api-reference/next.config.js/custom-page-extensions.md"
             },
