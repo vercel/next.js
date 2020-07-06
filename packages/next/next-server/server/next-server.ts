@@ -172,7 +172,7 @@ export default class Server {
       optimizeFonts: this.nextConfig.experimental.optimizeFonts,
       fontManifest: this.nextConfig.experimental.optimizeFonts
         ? requireFontManifest(this.distDir, this._isLikeServerless)
-        : undefined,
+        : null,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -1053,7 +1053,6 @@ export default class Server {
             ...opts,
             isDataReq,
           }
-
           renderResult = await renderToHTML(
             req,
             res,

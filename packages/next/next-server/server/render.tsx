@@ -144,12 +144,12 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  optimizeFonts: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  optimizeFonts: boolean
   fontManifest?: FontManifest
 }
 
