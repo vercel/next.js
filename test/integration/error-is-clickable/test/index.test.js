@@ -24,8 +24,7 @@ describe('Clickable error link', () => {
     await browser.eval(`(function () {
           document.querySelector("nextjs-portal")
           .shadowRoot
-          .querySelector("div")
-          .querySelector("#error-link").click()
+          .querySelector("#nextjs__container_errors_desc > a").click()
           })()
         `)
     const url = await browser.url()
