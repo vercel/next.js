@@ -100,7 +100,7 @@ export default function ProductBody({ product }) {
         </div>
 
         <div className="w-full mt-8 md:mt-0">
-          <h2 className="text-4xl mb-6">{product.title}</h2>
+          <h2 className="text-5xl mb-6">{product.title}</h2>
           <h3 className="text-2xl mb-6">{price}</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">

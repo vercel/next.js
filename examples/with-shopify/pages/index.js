@@ -21,7 +21,9 @@ export default function Index({ shop, products }) {
         <CartProvider>
           <Header title={shop.name} />
           <Intro />
-          <Products products={products} />
+          <section className="my-32">
+            <Products products={products.edges} />
+          </section>
           <CartModal />
         </CartProvider>
       </Container>

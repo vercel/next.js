@@ -9,8 +9,9 @@ import Container from '@/components/container'
 import Header from '@/components/header'
 import ProductBody from '@/components/product-body'
 import CartModal from '@/components/cart-modal'
+import Products from '@/components/products'
 
-export default function Index({ shop, product, moreProducts }) {
+export default function Index({ shop, product, relatedProducts }) {
   const router = useRouter()
 
   if (!router.isFallback && !product?.handle) {
@@ -34,6 +35,12 @@ export default function Index({ shop, product, moreProducts }) {
           ) : (
             <ProductBody product={product} />
           )}
+          {relatedProducts.length > 0 && (
+            <section className="my-16">
+              <h2 className="mb-8 text-6xl leading-tight">You may also like</h2>
+              <Products products={relatedProducts} />
+            </section>
+          )}
           <CartModal />
         </CartProvider>
       </Container>
@@ -48,7 +55,7 @@ export async function getStaticProps({ params }) {
     props: {
       shop: data.shop,
       product: data.product,
-      // moreProducts: data.recommendedProducts,
+      relatedProducts: data.relatedProducts,
     },
   }
 }
