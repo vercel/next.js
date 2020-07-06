@@ -198,9 +198,25 @@ export default class Server {
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath) as PagesManifest
       if (this.pagesManifest.nextVersion !== process.env.__NEXT_VERSION) {
-        throw new Error(
-          `Next.js version used (${this.pagesManifest.nextVersion}) for build differs from current version (${process.env.__NEXT_VERSION})!  Try building your app with 'next build' before starting the server.`
-        )
+        this.pagesManifest.nextVersion
+          ? console.warn(
+              chalk.red(
+                `Next.js version used ${chalk.yellow(
+                  `(${this.pagesManifest.nextVersion})`
+                )} for the build differs from current version ${chalk.yellow(
+                  `(${process.env.__NEXT_VERSION})`
+                )}!  Try building your app with ${chalk.blue(
+                  'next build'
+                )} before starting the server.`
+              )
+            )
+          : console.warn(
+              chalk.red(
+                `Could detect Next.js version used for the build, Try building your app again with ${chalk.blue(
+                  'next build'
+                )} before starting the server.`
+              )
+            )
       }
     }
 

@@ -4,7 +4,7 @@ import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export interface PagesManifest {
-  nextVersion: string
+  nextVersion: string | undefined
   pages: { [page: string]: string }
 }
 
@@ -22,7 +22,7 @@ export default class PagesManifestPlugin implements Plugin {
   apply(compiler: Compiler): void {
     compiler.hooks.emit.tap('NextJsPagesManifest', (compilation) => {
       const entrypoints = compilation.entrypoints
-      const nextVersion: string = process.env.__NEXT_VERSION ?? ''
+      const nextVersion: string = process.env.__NEXT_VERSION!
       const pagesManifest: PagesManifest = {
         nextVersion: nextVersion,
         pages: {},
