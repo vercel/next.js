@@ -86,6 +86,8 @@ module.exports = {
 }
 ```
 
+### Incremental adoption of Next.js
+
 You can also make Next.js check the application routes before falling back to proxying to the previous website.
 
 This way you don't have to change the rewrites configuration when migrating more pages to Next.js
