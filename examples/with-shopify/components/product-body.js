@@ -3,6 +3,7 @@ import { useCart, useCheckout } from '@/lib/cart'
 import ProductImage from './product-image'
 import ProductQuantity from './product-quantity'
 import Button from './button'
+import markdownStyles from './markdown-styles.module.css'
 
 export default function ProductBody({ product }) {
   const [quantity, setQuantity] = useState(1)
@@ -156,6 +157,13 @@ export default function ProductBody({ product }) {
               Add to Cart
             </Button>
             <Button type="button">Buy it Now</Button>
+          </div>
+
+          <div className="max-w-2xl mt-12">
+            <div
+              className={markdownStyles['markdown']}
+              dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+            />
           </div>
         </div>
       </div>

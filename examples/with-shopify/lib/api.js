@@ -87,7 +87,7 @@ export async function getProductAndMoreProducts(handle) {
         id
         handle
         title
-        description
+        descriptionHtml
         images(first: 100) {
           edges {
             node {
