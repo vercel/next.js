@@ -53,12 +53,12 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-function makeClickable(text: string): JSX.Element[] {
+function makeClickable(text: string): JSX.Element[] | string {
   // Regex Checks for http:// or https://
-  const regx = /(https?:\/\/)([^\s/$.?#].[^\s]*)/gi
-
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/gi
+  if (!linkRegex.test(text)) return text
   return text.split(' ').map((word, index, array) => {
-    if (regx.test(word)) {
+    if (linkRegex.test(word)) {
       return (
         <>
           <a href={word}>{word}</a>
@@ -310,9 +310,7 @@ export const styles = css`
     margin: 0;
     margin-top: var(--size-gap-half);
   }
-  .nextjs-container-errors-header > div > a,
-  a:hover,
-  a:visited {
+  .nextjs-container-errors-header > p > a {
     color: var(--color-ansi-red);
   }
 
