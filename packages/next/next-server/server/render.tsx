@@ -144,7 +144,6 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  optimizeImages: boolean
   optimizeFonts: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
@@ -294,6 +293,10 @@ export async function renderToHTML(
     if (fontManifest) {
       return Promise.resolve(getFontDefinitionFromManifest(url, fontManifest))
     }
+    /**
+     * Markup for static files in serverless build are generated via webpack loader.
+     * By that time the font manifest is not created thus the font definition is requested via network.
+     */
     return getFontDefinitionFromNetwork(url)
   }
 
@@ -801,7 +804,6 @@ export async function renderToHTML(
       getFontDefinition,
     },
     {
-      preloadImages: renderOpts.optimizeImages,
       optimizeFonts: renderOpts.optimizeFonts,
     }
   )

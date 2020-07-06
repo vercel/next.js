@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import React, { useContext, Component } from 'react'
+import React, { useContext, Component, ReactNode } from 'react'
 import flush from 'styled-jsx/server'
 import { AMP_RENDER_TARGET } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
@@ -236,6 +236,22 @@ export class Head extends Component<
         ))
   }
 
+  makeStylesheetInert(node: ReactNode): ReactNode {
+    return React.Children.map(node, (c: any) => {
+      if (
+        c.type === 'link' &&
+        c.props['href'] &&
+        c.props['href'].startsWith('https://fonts.googleapis.com/css')
+      ) {
+        c.props['data-href'] = c.props['href']
+        delete c.props['href']
+      } else if (c.props && c.props['children']) {
+        c.props['children'] = this.makeStylesheetInert(c.props['children'])
+      }
+      return c
+    })
+  }
+
   render() {
     const {
       styles,
@@ -270,17 +286,7 @@ export class Head extends Component<
     }
 
     if (process.env.__OPTIMIZE_FONTS) {
-      children = React.Children.map(children, (c: any) => {
-        if (
-          c.type === 'link' &&
-          c.props['href'] &&
-          c.props['href'].startsWith('https://fonts.googleapis.com/css')
-        ) {
-          c.props['data-href'] = c.props['href']
-          delete c.props['href']
-        }
-        return c
-      })
+      children = this.makeStylesheetInert(children)
     }
 
     let hasAmphtmlRel = false
@@ -439,7 +445,9 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {this.getCssLinks()}
+            {process.env.__OPTIMIZE_FONTS
+              ? this.makeStylesheetInert(this.getCssLinks())
+              : this.getCssLinks()}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
             {this.context._documentProps.isDevelopment && (

@@ -121,7 +121,6 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    optimizeImages: boolean
     optimizeFonts: boolean
     fontManifest: FontManifest
   }
@@ -170,7 +169,6 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeFonts: this.nextConfig.experimental.optimizeFonts,
       fontManifest: this.nextConfig.experimental.optimizeFonts
         ? requireFontManifest(this.distDir, this._isLikeServerless)
@@ -1040,7 +1038,10 @@ export default class Server {
           renderResult = await (components.Component as any).renderReqToHTML(
             req,
             res,
-            'passthrough'
+            'passthrough',
+            {
+              fontManifest: this.renderOpts.fontManifest,
+            }
           )
 
           html = renderResult.html
@@ -1052,6 +1053,7 @@ export default class Server {
             ...opts,
             isDataReq,
           }
+
           renderResult = await renderToHTML(
             req,
             res,

@@ -3,7 +3,6 @@ import { parse, HTMLElement } from 'node-html-parser'
 const MIDDLEWARE_TIME_BUDGET = 10
 
 type postProcessOptions = {
-  preloadImages: boolean
   optimizeFonts: boolean
 }
 
@@ -69,11 +68,14 @@ async function processHTML(
   ) {
     let timer = Date.now()
     middleware.inspect(root, postProcessData, data)
+    const inspectTime = Date.now() - timer
     document = await middleware.mutate(document, postProcessData, data)
     timer = Date.now() - timer
     if (timer > MIDDLEWARE_TIME_BUDGET) {
       console.warn(
-        `The postprocess middleware "${name}" took ${timer}ms to complete. This is longer than the ${MIDDLEWARE_TIME_BUDGET} limit.`
+        `The postprocess middleware "${name}" took ${timer}ms(${inspectTime}, ${
+          timer - inspectTime
+        }) to complete. This is longer than the ${MIDDLEWARE_TIME_BUDGET} limit.`
       )
     }
     return
@@ -90,23 +92,6 @@ async function processHTML(
   }
 
   return document
-}
-
-class FindImages implements PostProcessMiddleware {
-  inspect(
-    _originalDom: HTMLElement,
-    _data: postProcessData,
-    _options: renderOptions
-  ) {
-    return
-  }
-  mutate = async (
-    markup: string,
-    _data: postProcessData,
-    _options: renderOptions
-  ) => {
-    return markup
-  }
 }
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
@@ -145,12 +130,11 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     for (const key in this.fontDefinitions) {
       const url = this.fontDefinitions[key]
-      result = result.replace(` href="${url}"`, ` data-href="${url}"`)
-      const fontContent = await options.getFontDefinition(url)
       if (result.indexOf(`<style data-href="${url}">`) > -1) {
         // The font is already optimized and probably the response is cached
         continue
       }
+      const fontContent = await options.getFontDefinition(url)
       result = result.replace(
         '</head>',
         `<style data-href="${url}">${fontContent.replace(
@@ -163,27 +147,6 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
-class RenderPreloads implements PostProcessMiddleware {
-  inspect = (
-    _originalDom: HTMLElement,
-    _data: postProcessData,
-    _options: renderOptions
-  ) => {}
-  mutate = async (
-    markup: string,
-    _data: postProcessData,
-    _options: renderOptions
-  ) => {
-    return markup
-  }
-}
-
-// Initialization
-registerPostProcessor(
-  'Find-Images',
-  new FindImages(),
-  (options) => options.preloadImages
-)
 // Initialization
 registerPostProcessor(
   'Inline-Fonts',
@@ -191,11 +154,6 @@ registerPostProcessor(
   // Using process.env because passing Experimental flag through loader is not possible.
   // @ts-ignore
   (options) => options.optimizeFonts || process.env.__OPTIMIZE_FONTS
-)
-registerPostProcessor(
-  'Render-Preloads',
-  new RenderPreloads(),
-  (options) => options.preloadImages
 )
 
 export default processHTML
