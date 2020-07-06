@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
+    scrollRestoration: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
