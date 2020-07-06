@@ -224,7 +224,7 @@ export default async function exportPage({
             optimizeFonts,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
-              : undefined,
+              : null,
           }
         )
         curRenderOpts = result.renderOpts || {}
@@ -266,7 +266,7 @@ export default async function exportPage({
           optimizeFonts,
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
-            : undefined,
+            : null,
         }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
