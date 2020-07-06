@@ -36,6 +36,10 @@ export default function CartModal() {
         setLoading(false)
       })
   }
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    window.open(checkout.webUrl)
+  }
 
   console.log('CHECKOUT', checkout)
 
@@ -53,7 +57,7 @@ export default function CartModal() {
 
       <div className="p-8">
         {lineItems.length ? (
-          <form>
+          <form onSubmit={handleSubmit}>
             {lineItems.map(({ node }) => (
               <CartItem
                 key={node.variant.id}
