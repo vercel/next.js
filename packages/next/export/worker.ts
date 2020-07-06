@@ -217,15 +217,16 @@ export default async function exportPage({
           req,
           res,
           'export',
-          { ampPath },
-          // @ts-ignore
           {
-            ...params,
+            ampPath,
+            /// @ts-ignore
             optimizeFonts,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
-          }
+          },
+          // @ts-ignore
+          params
         )
         curRenderOpts = result.renderOpts || {}
         html = result.html
