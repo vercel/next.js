@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCart, useCheckout } from '@/lib/cart'
 import ProductImage from './product-image'
 import ProductQuantity from './product-quantity'
 import Button from './button'
@@ -6,6 +7,8 @@ import Button from './button'
 export default function ProductBody({ product }) {
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(false)
+  const { openCart } = useCart()
+  const { checkout, setLineItems } = useCheckout()
   const variants = product.variants.edges
   const variant = variants[0].node
   const { amount, currencyCode } = variant.priceV2
@@ -26,6 +29,51 @@ export default function ProductBody({ product }) {
     if (Number.isInteger(val) && val > 0) {
       setQuantity(val)
     }
+  }
+  const addToCart = () => {
+    const val = Number(quantity)
+    let found = false
+
+    // Get current items
+    const items =
+      checkout?.lineItems.edges.map(({ node }) => {
+        let { quantity: currentQuantity } = node
+
+        if (node.variant.id === variant.id) {
+          // Update the current item in the checkout
+          found = true
+          currentQuantity += val
+        }
+
+        return {
+          variantId: node.variant.id,
+          quantity: currentQuantity,
+        }
+      }) ?? []
+
+    if (!found) {
+      // Add the item to the checkout
+      items.push({
+        variantId: variant.id,
+        quantity: val,
+      })
+    }
+
+    setLoading(true)
+    setLineItems(items)
+      .then((data) => {
+        const errors = data.checkoutUserErrors ?? data.userErrors
+
+        if (errors.length) {
+          console.error('Checkout failed with:', errors)
+          throw errors[0]
+        }
+        setLoading(false)
+        openCart()
+      })
+      .catch((error) => {
+        setLoading(false)
+      })
   }
 
   const formatCurrency = new Intl.NumberFormat('en-US', {
@@ -83,7 +131,7 @@ export default function ProductBody({ product }) {
             </div>
           )}
 
-          <div className="mb-6">
+          <div>
             <label className="inline-flex flex-col" htmlFor="quantity">
               <span className="text-2xl mb-4">Quantity</span>
               <ProductQuantity
@@ -97,8 +145,14 @@ export default function ProductBody({ product }) {
             </label>
           </div>
 
-          <div className="flex flex-col max-w-xs">
-            <Button type="button" className="mb-4" secondary>
+          <div className="flex flex-col max-w-xs mt-12">
+            <Button
+              type="button"
+              className="mb-4"
+              onClick={addToCart}
+              disabled={loading}
+              secondary
+            >
               Add to Cart
             </Button>
             <Button type="button">Buy it Now</Button>
