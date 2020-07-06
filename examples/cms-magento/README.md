@@ -4,7 +4,7 @@ This example showcase on using Next.js , Magento , Apollo Client and Redux to bu
 
 ## Configuration
 
-![Image of URL Config for Category in Magneto 2](https://github.com/vercel/next.js/blob/canary/examples/cms-magento/docs/seo.png)
+![Image of URL Config for Category in Magneto 2](https://github.com/iamsharzil/next.js/blob/canary/examples/cms-magento/docs/seo.png)
 
 Change URL in the index file with your Category URL
 
