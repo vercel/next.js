@@ -28,6 +28,7 @@
     "strip-ansi": "6.0.0"
   },
   "peerDependencies": {
+    "webpack": "^4|^5",
     "react": "^16.9.0",
     "react-dom": "^16.9.0"
   }
