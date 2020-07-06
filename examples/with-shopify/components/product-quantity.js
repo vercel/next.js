@@ -3,7 +3,7 @@ import styles from './product-quantity.module.css'
 
 export default function ProductQuantity({ loading, onIncrease, ...props }) {
   return (
-    <div className={cn({ 'opacity-50': loading })}>
+    <div className={cn('flex h-12', { 'opacity-50': loading })}>
       <button
         type="button"
         className={styles.quantityControl}

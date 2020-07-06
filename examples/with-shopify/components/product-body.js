@@ -94,22 +94,25 @@ export default function ProductBody({ product }) {
 
   return (
     <main>
-      <div className="flex w-full">
-        <div className="max-w-lg w-full mr-8">
+      <div className="flex flex-col md:flex-row w-full">
+        <div className="md:max-w-lg w-full md:mr-8">
           <ProductImage image={variant.image} title={product.title} large />
         </div>
 
-        <div className="w-full">
+        <div className="w-full mt-8 md:mt-0">
           <h2 className="text-4xl mb-6">{product.title}</h2>
           <h3 className="text-2xl mb-6">{price}</h3>
 
-          {sizes.length > 0 && (
-            <div className="mb-6">
-              <label className="inline-flex flex-col">
-                <span className="text-2xl mb-4">Size</span>
-                <div className="inline-block relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
+            {sizes.length > 0 && (
+              <div className="flex flex-col">
+                <div className="text-2xl mb-4">
+                  <label htmlFor="size">Size</label>
+                </div>
+
+                <div className="max-w-xs inline-block relative">
                   <select
-                    className="w-full appearance-none border border-black py-3 pl-4 pr-8"
+                    className="w-full h-12 appearance-none border border-black py-2 pl-4 pr-8"
                     name="size"
                     id="size"
                     defaultValue={size.value}
@@ -128,13 +131,13 @@ export default function ProductBody({ product }) {
                     </svg>
                   </div>
                 </div>
-              </label>
-            </div>
-          )}
+              </div>
+            )}
 
-          <div>
-            <label className="inline-flex flex-col" htmlFor="quantity">
-              <span className="text-2xl mb-4">Quantity</span>
+            <div className="inline-flex flex-col">
+              <div className="text-2xl mb-4">
+                <label htmlFor="quantity">Quantity</label>
+              </div>
               <ProductQuantity
                 id="quantity"
                 value={quantity}
@@ -143,10 +146,10 @@ export default function ProductBody({ product }) {
                 onIncrease={increaseQuantity}
                 onBlur={handleBlur}
               />
-            </label>
+            </div>
           </div>
 
-          <div className="flex flex-col max-w-xs mt-12">
+          <div className="flex flex-col md:max-w-xs mt-12">
             <Button
               type="button"
               className="mb-4"

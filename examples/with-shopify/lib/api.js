@@ -122,7 +122,7 @@ export async function getProductAndMoreProducts(handle) {
               image {
                 altText
                 originalSrc
-                transformedSrc(maxHeight: 512, maxWidth: 512, crop: CENTER)
+                transformedSrc(maxHeight: 600, maxWidth: 600, crop: CENTER)
               }
             }
           }
