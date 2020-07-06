@@ -19,6 +19,7 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
+import { isWriteable } from '../next/build/is-writeable'
 
 export class DownloadError extends Error {}
 
@@ -93,6 +94,13 @@ export async function createApp({
   }
 
   const root = path.resolve(appPath)
+  if (!(await isWriteable(root))) {
+    console.error('The operation was rejected by your operating system.')
+    console.error(
+      'It is likely you do not have the permissions to access this file as the current user'
+    )
+    process.exit(1)
+  }
   const appName = path.basename(root)
 
   await makeDir(root)
