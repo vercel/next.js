@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import ProductImage from './product-image'
 import ProductQuantity from './product-quantity'
 import Button from './button'
 import markdownStyles from './markdown-styles.module.css'
+import ProductGallery from './product-gallery'
 
 export default function ProductBody({ product }) {
   const variants = product.variants.edges
@@ -93,25 +93,6 @@ export default function ProductBody({ product }) {
   })
   const sizes = allSelectedOptions.filter((option) => option.name === 'Size')
 
-  const colorsByImage = new Map()
-
-  variants.forEach(({ node }) => {
-    const src = node.image.originalSrc
-    const colors = colorsByImage.get(src)
-    const color = node.selectedOptions.find((option) => option.name === 'Color')
-
-    if (color) {
-      colorsByImage.set(src, (colors ?? new Set()).add(color.value))
-    }
-  })
-
-  // Update the colors map to append the image info and product images that aren't related
-  // to a specific variant
-  product.images.edges.forEach(({ node }) => {
-    const colors = colorsByImage.get(node.originalSrc) ?? []
-    colorsByImage.set(node.originalSrc, { colors, image: node })
-  })
-
   console.log(product, variants)
   // console.log('s', allSelectedOptions)
 
@@ -120,23 +101,11 @@ export default function ProductBody({ product }) {
       <div className="flex flex-col md:flex-row w-full">
         <div className="md:max-w-lg w-full md:mr-8">
           <ProductImage image={activeImage} title={product.title} />
-          <div className="grid grid-cols-p-images gap-2 mt-3">
-            {Array.from(colorsByImage.values(), ({ image }, i) => (
-              <div
-                key={image.originalSrc}
-                className={cn(
-                  'p-1 cursor-pointer border border-transparent hover:border-accent-2',
-                  {
-                    'border-accent-2':
-                      activeImage.originalSrc === image.originalSrc,
-                  }
-                )}
-                onClick={() => setActiveImage(image)}
-              >
-                <ProductImage image={image} title={product.title} />
-              </div>
-            ))}
-          </div>
+          <ProductGallery
+            product={product}
+            activeImage={activeImage}
+            onClick={(image) => setActiveImage(image)}
+          />
         </div>
 
         <div className="w-full mt-8 md:mt-0">
