@@ -866,6 +866,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__OPTIMIZE_FONTS': JSON.stringify(
           config.experimental.optimizeFonts
         ),
+        'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
+          config.experimental.scrollRestoration
+        ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         ...(isServer
           ? {
