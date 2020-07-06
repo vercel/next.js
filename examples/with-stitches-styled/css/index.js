@@ -8,8 +8,5 @@ export const css = createCss({
     },
   },
 })
-/*
-  With Typescript:
-  const { Provider, styled, useCss } = createStyled<typeof config>()  
-*/
+
 export const styled = createStyled(css)
