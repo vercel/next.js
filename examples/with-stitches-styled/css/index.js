@@ -1,7 +1,7 @@
-import { createConfig } from '@stitches/css'
+import { createCss } from '@stitches/css'
 import { createStyled } from '@stitches/styled'
 
-const config = createConfig({
+export const css = createCss({
   tokens: {
     colors: {
       RED: 'tomato',
@@ -12,6 +12,4 @@ const config = createConfig({
   With Typescript:
   const { Provider, styled, useCss } = createStyled<typeof config>()  
 */
-const { Provider, styled, useCss } = createStyled()
-
-export { config, Provider, styled, useCss }
+export const styled = createStyled(css)
