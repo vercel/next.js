@@ -15,7 +15,6 @@ const Index = () => {
     user ? ['/api/getFood', user.token] : null,
     fetcher
   )
-
   if (!user) {
     return (
       <>
@@ -36,7 +35,7 @@ const Index = () => {
         <p>You're signed in. Email: {user.email}</p>
         <p
           style={{
-            display: 'inlinelock',
+            display: 'inline-block',
             color: 'blue',
             textDecoration: 'underline',
             cursor: 'pointer',
@@ -52,7 +51,11 @@ const Index = () => {
         </Link>
       </div>
       {error && <div>Failed to fetch food!</div>}
-      {data && <div>Your favorite food is {data.food}.</div>}
+      {data ? (
+        <div>Your favorite food is {data.food}.</div>
+      ) : (
+        <div>Loading...</div>
+      )}
     </div>
   )
 }

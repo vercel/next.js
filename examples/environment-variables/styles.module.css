@@ -1,0 +1,62 @@
+.container {
+  padding: 4rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.container p {
+  margin: 1.5rem 0;
+}
+
+.container pre {
+  border: 1px solid #eaeaea;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  white-space: pre;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card {
+  max-width: 50rem;
+  box-shadow: -10px 10px 80px rgba(0, 0, 0, 0.12);
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 0 auto;
+}
+
+.inlineCode {
+  color: #be00ff;
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+
+.inlineCode::before,
+.inlineCode::after {
+  content: '`';
+}
+
+.hr {
+  border: 0;
+  border-top: 1px solid #eaeaea;
+  margin: 1.5rem 0;
+}
+
+.table {
+  display: block;
+  overflow: auto;
+  border-collapse: collapse;
+  margin: 2.5rem 0;
+}
+
+.table th {
+  font-weight: 600;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid #eaeaea;
+}
+
+.table td {
+  font-size: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid #eaeaea;
+}

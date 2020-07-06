@@ -3,6 +3,7 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
+import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
 
 function hasRel(rel, link) {
   try {
@@ -36,14 +37,6 @@ function normalizeRoute(route) {
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
-}
-
-export function getAssetPath(route) {
-  return route === '/'
-    ? '/index'
-    : /^\/index(\/|$)/.test(route)
-    ? `/index${route}`
-    : `${route}`
 }
 
 function appendLink(href, rel, as) {
@@ -116,16 +109,17 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href, asPath) {
-    const getHrefForSlug = (/** @type string */ path) => {
-      const dataRoute = getAssetPath(path)
-      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}.json`
-    }
-
-    const { pathname: hrefPathname, query } = parse(href, true)
+  getDataHref(href, asPath, ssg) {
+    const { pathname: hrefPathname, query, search } = parse(href, true)
     const { pathname: asPathname } = parse(asPath)
-
     const route = normalizeRoute(hrefPathname)
+
+    const getHrefForSlug = (/** @type string */ path) => {
+      const dataRoute = getAssetPathFromRoute(path, '.json')
+      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}${
+        ssg ? '' : search || ''
+      }`
+    }
 
     let isDynamic = isDynamicRoute(route),
       interpolatedRoute
@@ -142,18 +136,22 @@ export default class PageLoader {
       interpolatedRoute = route
       if (
         !Object.keys(dynamicGroups).every((param) => {
-          let value = dynamicMatches[param]
-          const repeat = dynamicGroups[param].repeat
+          let value = dynamicMatches[param] || ''
+          const { repeat, optional } = dynamicGroups[param]
 
           // support single-level catch-all
           // TODO: more robust handling for user-error (passing `/`)
+          let replaced = `[${repeat ? '...' : ''}${param}]`
+          if (optional) {
+            replaced = `${!value ? '/' : ''}[${replaced}]`
+          }
           if (repeat && !Array.isArray(value)) value = [value]
 
           return (
-            param in dynamicMatches &&
+            (optional || param in dynamicMatches) &&
             // Interpolate group into data URL if present
             (interpolatedRoute = interpolatedRoute.replace(
-              `[${repeat ? '...' : ''}${param}]`,
+              replaced,
               repeat
                 ? value.map(encodeURIComponent).join('/')
                 : encodeURIComponent(value)
@@ -185,7 +183,7 @@ export default class PageLoader {
         // Check if the route requires a data file
         s.has(route) &&
         // Try to generate data href, noop when falsy
-        (_dataHref = this.getDataHref(href, asPath)) &&
+        (_dataHref = this.getDataHref(href, asPath, true)) &&
         // noop when data has already been prefetched (dedupe)
         !document.querySelector(
           `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
@@ -246,11 +244,11 @@ export default class PageLoader {
         } else {
           // Development only. In production the page file is part of the build manifest
           route = normalizeRoute(route)
-          let scriptRoute = getAssetPath(route)
+          let scriptRoute = getAssetPathFromRoute(route, '.js')
 
-          const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-            this.buildId
-          )}/pages${encodeURI(scriptRoute)}.js`
+          const url = `${this.assetPrefix}/_next/static/pages${encodeURI(
+            scriptRoute
+          )}`
           this.loadScript(url, route)
         }
       }
@@ -327,13 +325,13 @@ export default class PageLoader {
       if (process.env.NODE_ENV !== 'production') {
         route = normalizeRoute(route)
 
-        const scriptRoute = getAssetPath(route)
         const ext =
           process.env.__NEXT_MODERN_BUILD && hasNoModule ? '.module.js' : '.js'
+        const scriptRoute = getAssetPathFromRoute(route, ext)
 
         url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
           this.buildId
-        )}/pages${encodeURI(scriptRoute)}${ext}`
+        )}/pages${encodeURI(scriptRoute)}`
       }
     }
 
