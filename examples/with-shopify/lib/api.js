@@ -92,6 +92,15 @@ export async function getProductAndMoreProducts(handle) {
         productByHandle(handle: $handle) {
           ...ProductFields
           descriptionHtml
+          images(first: 100) {
+            edges {
+              node {
+                altText
+                originalSrc
+                transformedSrc(maxHeight: $maxHeight, maxWidth: $maxWidth, crop: CENTER)
+              }
+            }
+          }
           variants(first: 100) {
             edges {
               node {

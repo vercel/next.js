@@ -15,9 +15,6 @@ module.exports = {
         28: '7rem',
         full: '100%',
       },
-      maxHeight: {
-        104: '26rem',
-      },
       letterSpacing: {
         tighter: '-.04em',
       },
@@ -35,7 +32,8 @@ module.exports = {
         medium: '0 8px 30px rgba(0, 0, 0, 0.12)',
       },
       gridTemplateColumns: {
-        'p-1': 'minmax(0, 26rem)',
+        'p-1': 'minmax(0, 24rem)',
+        'p-images': 'repeat(auto-fill, 4.5rem)',
       },
     },
   },
