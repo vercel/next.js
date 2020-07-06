@@ -159,12 +159,14 @@ export default function ProductBody({ product }) {
             <Button type="button">Buy it Now</Button>
           </div>
 
-          <div className="max-w-2xl mt-12">
-            <div
-              className={markdownStyles['markdown']}
-              dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
-            />
-          </div>
+          {product.descriptionHtml?.length > 0 && (
+            <div className="max-w-2xl mt-12">
+              <div
+                className={markdownStyles['markdown']}
+                dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+              />
+            </div>
+          )}
         </div>
       </div>
     </main>
