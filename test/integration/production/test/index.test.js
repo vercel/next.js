@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global browserName */
 import cheerio from 'cheerio'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync } from 'fs'
 import {
   nextServer,
   renderViaHTTP,
@@ -9,6 +9,7 @@ import {
   startApp,
   stopApp,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -23,7 +24,6 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 const appDir = join(__dirname, '../')
-let serverDir
 let appPort
 let server
 let app
@@ -43,9 +43,6 @@ describe('Production Usage', () => {
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
-
-    const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-    serverDir = join(appDir, '.next/server/static/', buildId, 'pages')
   })
   afterAll(() => stopApp(server))
 
@@ -75,6 +72,24 @@ describe('Production Usage', () => {
 
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getStaticProps', async () => {
+      const url = `http://localhost:${appPort}/fully-static`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getServerSideProps', async () => {
+      const url = `http://localhost:${appPort}/fully-dynamic`
       const etag = (await fetch(url)).headers.get('ETag')
 
       const headers = { 'If-None-Match': etag }
@@ -320,6 +335,25 @@ describe('Production Usage', () => {
 
       expect(text).toBe('Hello World')
       await browser.close()
+    })
+
+    it('should set title by routeChangeComplete event', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(function setup() {
+        window.next.router.events.on('routeChangeComplete', function handler(
+          url
+        ) {
+          window.routeChangeTitle = document.title
+          window.routeChangeUrl = url
+        })
+        window.next.router.push('/with-title')
+      })
+      await browser.waitForElementByCss('#with-title')
+
+      const title = await browser.eval(`window.routeChangeTitle`)
+      const url = await browser.eval(`window.routeChangeUrl`)
+      expect(title).toBe('hello from title')
+      expect(url).toBe('/with-title')
     })
   })
 
@@ -622,18 +656,21 @@ describe('Production Usage', () => {
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['about', 'another', 'counter', 'dynamic', 'prefetch']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(false)
+    const pages = ['/about', '/another', '/counter', '/dynamic', '/prefetch']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['api', 'external-and-back', 'finish-response']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
+    const pages = ['/api', '/external-and-back', '/finish-response']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
 

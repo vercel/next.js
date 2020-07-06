@@ -23,6 +23,8 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
+import { BuildManifest } from '../next-server/server/get-page-files'
+import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -42,7 +44,6 @@ export function collectPages(
 }
 
 export interface PageInfo {
-  isAmp?: boolean
   isHybridAmp?: boolean
   size: number
   totalSize: number
@@ -50,7 +51,6 @@ export interface PageInfo {
   isSsg: boolean
   ssgPageRoutes: string[] | null
   hasSsgFallback: boolean
-  serverBundle: string
 }
 
 export async function printTreeView(
@@ -70,7 +70,7 @@ export async function printTreeView(
     buildId: string
     pagesDir: string
     pageExtensions: string[]
-    buildManifest: BuildManifestShape
+    buildManifest: BuildManifest
     isModern: boolean
     useStatic404: boolean
   }
@@ -141,6 +141,7 @@ export async function printTreeView(
         : '├'
 
     const pageInfo = pageInfos.get(item)
+    const ampFirst = buildManifest.ampFirstPages.includes(item)
 
     messages.push([
       `${symbol} ${
@@ -153,14 +154,14 @@ export async function printTreeView(
           : 'λ'
       } ${item}`,
       pageInfo
-        ? pageInfo.isAmp
+        ? ampFirst
           ? chalk.cyan('AMP')
           : pageInfo.size >= 0
           ? prettyBytes(pageInfo.size)
           : ''
         : '',
       pageInfo
-        ? pageInfo.isAmp
+        ? ampFirst
           ? chalk.cyan('AMP')
           : pageInfo.size >= 0
           ? getPrettySize(pageInfo.totalSize)
@@ -348,7 +349,6 @@ export function printCustomRoutes({
   }
 }
 
-type BuildManifestShape = { pages: { [k: string]: string[] } }
 type ComputeManifestShape = {
   commonFiles: string[]
   uniqueFiles: string[]
@@ -357,14 +357,14 @@ type ComputeManifestShape = {
   sizeCommonFiles: number
 }
 
-let cachedBuildManifest: BuildManifestShape | undefined
+let cachedBuildManifest: BuildManifest | undefined
 
 let lastCompute: ComputeManifestShape | undefined
 let lastComputeModern: boolean | undefined
 let lastComputePageInfo: boolean | undefined
 
 async function computeFromManifest(
-  manifest: BuildManifestShape,
+  manifest: BuildManifest,
   distPath: string,
   isModern: boolean,
   pageInfos?: Map<string, PageInfo>
@@ -383,7 +383,8 @@ async function computeFromManifest(
     if (pageInfos) {
       const pageInfo = pageInfos.get(key)
       // don't include AMP pages since they don't rely on shared bundles
-      if (pageInfo?.isHybridAmp || pageInfo?.isAmp) {
+      // AMP First pages are not under the pageInfos key
+      if (pageInfo?.isHybridAmp) {
         return
       }
     }
@@ -480,7 +481,7 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildManifest: BuildManifestShape,
+  buildManifest: BuildManifest,
   isModern: boolean
 ): Promise<[number, number]> {
   const data = await computeFromManifest(buildManifest, distPath, isModern)
@@ -573,6 +574,7 @@ export async function buildStaticPaths(
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
+      entry = removePathTrailingSlash(entry)
       const result = _routeMatcher(entry)
       if (!result) {
         throw new Error(
@@ -716,7 +718,7 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
         `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
-          `\nLearn more: https://nextjs.org/docs#dynamic-routing`
+          `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
       )
     }
 

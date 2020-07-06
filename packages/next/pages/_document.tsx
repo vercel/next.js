@@ -1,12 +1,7 @@
 import PropTypes from 'prop-types'
 import React, { useContext, Component } from 'react'
 import flush from 'styled-jsx/server'
-import {
-  AMP_RENDER_TARGET,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-} from '../next-server/lib/constants'
+import { AMP_RENDER_TARGET } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
   DocumentContext,
@@ -61,30 +56,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = process.env.__NEXT_PLUGINS
-      ? await import(
-          // @ts-ignore loader syntax
-          'next-plugin-loader?middleware=unstable-enhance-app-server!'
-        ).then((mod) => mod.default(ctx))
-      : []
-
     const enhanceApp = (App: any) => {
-      for (const enhancer of enhancers) {
-        App = enhancer(App)
-      }
       return (props: any) => <App {...props} />
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [
-      ...flush(),
-      ...(process.env.__NEXT_PLUGINS
-        ? await import(
-            // @ts-ignore loader syntax
-            'next-plugin-loader?middleware=unstable-get-styles-server!'
-          ).then((mod) => mod.default(ctx))
-        : []),
-    ]
+    const styles = [...flush()]
     return { html, head, styles }
   }
 
@@ -619,10 +596,9 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
-      const AmpDevFiles = [
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-        CLIENT_STATIC_FILES_RUNTIME_AMP,
-        CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+      const ampDevFiles = [
+        ...buildManifest.devFiles,
+        ...buildManifest.ampDevFiles,
       ]
 
       return (
@@ -643,19 +619,17 @@ export class NextScript extends Component<OriginProps> {
               data-ampdevmode
             />
           )}
-          {AmpDevFiles
-            ? AmpDevFiles.map((file) => (
-                <script
-                  key={file}
-                  src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-                  nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
-                  data-ampdevmode
-                />
-              ))
-            : null}
+          {ampDevFiles.map((file) => (
+            <script
+              key={file}
+              src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+              nonce={this.props.nonce}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
+              data-ampdevmode
+            />
+          ))}
         </>
       )
     }

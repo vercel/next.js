@@ -55,18 +55,15 @@ import Router, {
 import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
-import {
-  getFallback,
-  getSprCache,
-  initializeSprCache,
-  setSprCache,
-} from './spr-cache'
+import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -126,12 +123,10 @@ export default class Server {
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
+  private incrementalCache: IncrementalCache
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
-  protected staticPathsWorker?: import('jest-worker').default & {
-    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
-  }
 
   public constructor({
     dir = '.',
@@ -170,7 +165,7 @@ export default class Server {
       previewProps: this.getPreviewProps(),
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
-      basePath: this.nextConfig.experimental.basePath,
+      basePath: this.nextConfig.basePath,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -236,14 +231,12 @@ export default class Server {
       initServer()
     }
 
-    initializeSprCache({
+    this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,
       pagesDir: join(
         this.distDir,
-        this._isLikeServerless
-          ? SERVERLESS_DIRECTORY
-          : `${SERVER_DIRECTORY}/static/${this.buildId}`,
+        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
@@ -279,7 +272,7 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    const { basePath } = this.nextConfig.experimental
+    const { basePath } = this.nextConfig
 
     // if basePath is set require it be present
     if (basePath && !req.url!.startsWith(basePath)) {
@@ -393,6 +386,7 @@ export default class Server {
             params.path[0] === 'css' ||
             params.path[0] === 'media' ||
             params.path[0] === this.buildId ||
+            params.path[0] === 'pages' ||
             params.path[1] === 'pages'
           ) {
             this.setImmutableAssetCacheControl(res)
@@ -433,13 +427,14 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path
-            // we need to re-encode the params since they are decoded
-            // by path-match and we are re-building the URL
-            .map((param: string) => encodeURIComponent(param))
-            .join('/')}`
-            .replace(/\.json$/, '')
-            .replace(/\/index$/, '/')
+          const pathname = getRouteFromAssetPath(
+            `/${params.path
+              // we need to re-encode the params since they are decoded
+              // by path-match and we are re-building the URL
+              .map((param: string) => encodeURIComponent(param))
+              .join('/')}`,
+            '.json'
+          )
 
           const parsedUrl = parseUrl(pathname, true)
 
@@ -603,10 +598,13 @@ export default class Server {
       type: 'route',
       name: 'Catchall render',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
+
+        // next.js core assumes page path without trailing slash
+        pathname = removePathTrailingSlash(pathname)
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
@@ -886,7 +884,6 @@ export default class Server {
       try {
         const components = await loadComponents(
           this.distDir,
-          this.buildId,
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless
         )
@@ -906,43 +903,20 @@ export default class Server {
     return null
   }
 
-  private async getStaticPaths(
+  protected async getStaticPaths(
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
     hasStaticFallback: boolean
   }> {
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-    let staticPaths: string[] | undefined
-    let hasStaticFallback = false
+    // `staticPaths` is intentionally set to `undefined` as it should've
+    // been caught when checking disk data.
+    const staticPaths = undefined
 
-    if (!this.renderOpts.dev) {
-      // `staticPaths` is intentionally set to `undefined` as it should've
-      // been caught when checking disk data.
-      staticPaths = undefined
-
-      // Read whether or not fallback should exist from the manifest.
-      hasStaticFallback =
-        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
-        'string'
-    } else {
-      const __getStaticPaths = async () => {
-        const paths = await this.staticPathsWorker!.loadStaticPaths(
-          this.distDir,
-          this.buildId,
-          pathname,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return paths
-      }
-      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-        await withCoalescedInvoke(__getStaticPaths)(
-          `staticPaths-${pathname}`,
-          []
-        )
-      ).value)
-    }
+    // Read whether or not fallback should exist from the manifest.
+    const hasStaticFallback =
+      typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
+      'string'
 
     return { staticPaths, hasStaticFallback }
   }
@@ -1012,7 +986,9 @@ export default class Server {
         : `${urlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
-    const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+    const cachedData = ssgCacheKey
+      ? await this.incrementalCache.get(ssgCacheKey)
+      : undefined
 
     if (cachedData) {
       const data = isDataReq
@@ -1020,9 +996,11 @@ export default class Server {
         : cachedData.html
 
       sendPayload(
+        req,
         res,
         data,
         isDataReq ? 'json' : 'html',
+        this.renderOpts.generateEtags,
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1049,43 +1027,51 @@ export default class Server {
           return { isOrigin: true, value }
         }
 
-    const doRender = maybeCoalesceInvoke(async function (): Promise<{
-      html: string | null
-      pageData: any
-      sprRevalidate: number | false
-    }> {
-      let pageData: any
-      let html: string | null
-      let sprRevalidate: number | false
+    const doRender = maybeCoalesceInvoke(
+      async (): Promise<{
+        html: string | null
+        pageData: any
+        sprRevalidate: number | false
+      }> => {
+        let pageData: any
+        let html: string | null
+        let sprRevalidate: number | false
 
-      let renderResult
-      // handle serverless
-      if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          'passthrough'
-        )
+        let renderResult
+        // handle serverless
+        if (isLikeServerless) {
+          renderResult = await (components.Component as any).renderReqToHTML(
+            req,
+            res,
+            'passthrough'
+          )
 
-        html = renderResult.html
-        pageData = renderResult.renderOpts.pageData
-        sprRevalidate = renderResult.renderOpts.revalidate
-      } else {
-        const renderOpts: RenderOpts = {
-          ...components,
-          ...opts,
-          isDataReq,
+          html = renderResult.html
+          pageData = renderResult.renderOpts.pageData
+          sprRevalidate = renderResult.renderOpts.revalidate
+        } else {
+          const renderOpts: RenderOpts = {
+            ...components,
+            ...opts,
+            isDataReq,
+          }
+          renderResult = await renderToHTML(
+            req,
+            res,
+            pathname,
+            query,
+            renderOpts
+          )
+
+          html = renderResult
+          // TODO: change this to a different passing mechanism
+          pageData = (renderOpts as any).pageData
+          sprRevalidate = (renderOpts as any).revalidate
         }
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
-        html = renderResult
-        // TODO: change this to a different passing mechanism
-        pageData = (renderOpts as any).pageData
-        sprRevalidate = (renderOpts as any).revalidate
+        return { html, pageData, sprRevalidate }
       }
-
-      return { html, pageData, sprRevalidate }
-    })
+    )
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
@@ -1094,9 +1080,6 @@ export default class Server {
     const { staticPaths, hasStaticFallback } = hasStaticPaths
       ? await this.getStaticPaths(pathname)
       : { staticPaths: undefined, hasStaticFallback: false }
-
-    // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
     // When we did not respond from cache, we need to choose to block on
     // rendering or return a skeleton.
@@ -1135,7 +1118,7 @@ export default class Server {
 
       // Production already emitted the fallback as static HTML.
       if (isProduction) {
-        html = await getFallback(pathname)
+        html = await this.incrementalCache.getFallback(pathname)
       }
       // We need to generate the fallback on-demand for development.
       else {
@@ -1147,7 +1130,7 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(res, html, 'html')
+      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
       return null
     }
 
@@ -1158,9 +1141,11 @@ export default class Server {
     let resHtml = html
     if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
+        req,
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
+        this.renderOpts.generateEtags,
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
@@ -1172,9 +1157,13 @@ export default class Server {
       resHtml = null
     }
 
-    // Update the SPR cache if the head request and cacheable
+    // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
+      await this.incrementalCache.set(
+        ssgCacheKey,
+        { html: html!, pageData },
+        sprRevalidate
+      )
     }
 
     return resHtml
@@ -1457,7 +1446,7 @@ export default class Server {
     }
   }
 
-  private get _isLikeServerless(): boolean {
+  protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
 }

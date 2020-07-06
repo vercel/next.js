@@ -7,9 +7,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
@@ -39,7 +41,8 @@ function generateClientManifest(
 }
 
 function isJsFile(file: string): boolean {
-  return file.endsWith('.js')
+  // We don't want to include `.hot-update.js` files into the initial page
+  return !file.endsWith('.hot-update.js') && file.endsWith('.js')
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
@@ -61,8 +64,22 @@ export default class BuildManifestPlugin {
         const assetMap: BuildManifest = {
           polyfillFiles: [],
           devFiles: [],
+          ampDevFiles: [],
           lowPriorityFiles: [],
           pages: { '/_app': [] },
+          ampFirstPages: [],
+        }
+
+        const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
+        if (ampFirstEntryNames) {
+          for (const entryName of ampFirstEntryNames) {
+            const pagePath = getRouteFromEntrypoint(entryName)
+            if (!pagePath) {
+              continue
+            }
+
+            assetMap.ampFirstPages.push(pagePath)
+          }
         }
 
         const mainJsChunk = chunks.find(
@@ -84,6 +101,19 @@ export default class BuildManifestPlugin {
         assetMap.devFiles = reactRefreshChunk?.files.filter(isJsFile) ?? []
 
         for (const entrypoint of compilation.entrypoints.values()) {
+          const isAmpRuntime =
+            entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
+
+          if (isAmpRuntime) {
+            for (const file of entrypoint.getFiles()) {
+              if (!(isJsFile(file) || file.endsWith('.css'))) {
+                continue
+              }
+
+              assetMap.ampDevFiles.push(file.replace(/\\/g, '/'))
+            }
+            continue
+          }
           const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
           if (!pagePath) {

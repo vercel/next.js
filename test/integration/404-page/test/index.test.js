@@ -11,18 +11,17 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
-const appPage = join(appDir, 'pages/_app.js')
 const nextConfig = join(appDir, 'next.config.js')
 const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
-let buildId
 let appPort
 let app
 
@@ -51,18 +50,8 @@ const runTests = (mode = 'server') => {
 
   if (mode !== 'dev') {
     it('should output 404.html during build', async () => {
-      expect(
-        await fs.exists(
-          join(
-            appDir,
-            '.next',
-            mode === 'serverless'
-              ? 'serverless/pages'
-              : `server/static/${buildId}/pages`,
-            '404.html'
-          )
-        )
-      ).toBe(true)
+      const page = getPageFileFromPagesManifest(appDir, '/404')
+      expect(page.endsWith('.html')).toBe(true)
     })
 
     it('should add /404 to pages-manifest correctly', async () => {
@@ -79,7 +68,6 @@ describe('404 Page Support', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -91,7 +79,6 @@ describe('404 Page Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 
@@ -112,7 +99,6 @@ describe('404 Page Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       await fs.writeFile(nextConfig, nextConfigContent)
@@ -274,86 +260,5 @@ describe('404 Page Support', () => {
     await fs.move(`${pages404}.bak`, pages404)
 
     expect(stderr).toMatch(gip404Err)
-  })
-
-  describe('_app with getInitialProps', () => {
-    beforeAll(() =>
-      fs.writeFile(
-        appPage,
-        `
-      import NextApp from 'next/app'
-      const App = ({ Component, pageProps }) => <Component {...pageProps} />
-      App.getInitialProps = NextApp.getInitialProps
-      export default App
-    `
-      )
-    )
-    afterAll(() => fs.remove(appPage))
-
-    describe('production mode', () => {
-      afterAll(() => killApp(app))
-
-      it('should build successfully', async () => {
-        const { code, stderr, stdout } = await nextBuild(appDir, [], {
-          stderr: true,
-          stdout: true,
-        })
-
-        expect(code).toBe(0)
-        expect(stderr).not.toMatch(gip404Err)
-        expect(stdout).not.toMatch(gip404Err)
-
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      })
-
-      it('should not output static 404 if _app has getInitialProps', async () => {
-        expect(
-          await fs.exists(
-            join(appDir, '.next/server/static', buildId, 'pages/404.html')
-          )
-        ).toBe(false)
-      })
-
-      it('specify to use the 404 page still in the routes-manifest', async () => {
-        const manifest = await fs.readJSON(
-          join(appDir, '.next/routes-manifest.json')
-        )
-        expect(manifest.pages404).toBe(true)
-      })
-
-      it('should still use 404 page', async () => {
-        const res = await fetchViaHTTP(appPort, '/abc')
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('custom 404 page')
-      })
-    })
-
-    describe('dev mode', () => {
-      let stderr = ''
-      let stdout = ''
-
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStderr(msg) {
-            stderr += msg
-          },
-          onStdout(msg) {
-            stdout += msg
-          },
-        })
-      })
-      afterAll(() => killApp(app))
-
-      it('should not show pages/404 GIP error if _app has GIP', async () => {
-        const res = await fetchViaHTTP(appPort, '/abc')
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('custom 404 page')
-        expect(stderr).not.toMatch(gip404Err)
-        expect(stdout).not.toMatch(gip404Err)
-      })
-    })
   })
 })
