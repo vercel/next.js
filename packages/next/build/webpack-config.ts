@@ -273,7 +273,7 @@ export default async function getBaseWebpackConfig(
   }
 
   function getReactProfilingInProduction() {
-    if (config.reactProductionProfiling) {
+    if (process.argv.length > 2 && process.argv.includes('--profile')) {
       return {
         'react-dom$': 'react-dom/profiling',
         'scheduler/tracing': 'scheduler/tracing-profiling',
