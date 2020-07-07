@@ -199,6 +199,12 @@ export interface NextApiRequest extends IncomingMessage {
   body: any
 
   env: Env
+
+  preview?: boolean
+  /**
+   * Preview data set on the request, if any
+   * */
+  previewData?: any
 }
 
 /**

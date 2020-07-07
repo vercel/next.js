@@ -46,7 +46,16 @@ export async function apiResolver(
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
     // Parsing query string
     setLazyProp({ req: apiReq, params }, 'query', getQueryParser(req))
-    // // Parsing of body
+    // Parsing preview data
+    setLazyProp({ req: apiReq }, 'previewData', () =>
+      tryGetPreviewData(req, res, apiContext)
+    )
+    // Checking if preview mode is enabled
+    setLazyProp({ req: apiReq }, 'preview', () =>
+      apiReq.previewData !== false ? true : undefined
+    )
+
+    // Parsing of body
     if (bodyParser) {
       apiReq.body = await parseBody(
         apiReq,
