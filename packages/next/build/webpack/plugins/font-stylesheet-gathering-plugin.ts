@@ -1,6 +1,5 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
-import { visit } from 'next/dist/compiled/recast'
 import { compilation as CompilationType, Compiler } from 'webpack'
 import { namedTypes } from 'ast-types'
 import { RawSource } from 'webpack-sources'
@@ -8,6 +7,9 @@ import {
   getFontDefinitionFromNetwork,
   FontManifest,
 } from '../../../next-server/server/font-utils'
+// @ts-ignore
+import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
+import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 
 interface VisitorMap {
   [key: string]: (path: NodePath) => void
@@ -26,51 +28,64 @@ export default class FontStylesheetGatheringPlugin {
       factory.hooks.parser
         .for('javascript/' + type)
         .tap(this.constructor.name, (parser) => {
-          var that = this
-          parser.hooks.program.tap(this.constructor.name, (ast: any) => {
-            // We will only optimize fonts from first party code.
-            if (parser?.state?.module?.resource.includes('node_modules')) {
-              return
-            }
-            visit(ast, {
-              visitCallExpression: function (path) {
-                const { node }: { node: namedTypes.CallExpression } = path
-                if (!node.arguments || node.arguments.length < 2) {
-                  return false
-                }
-                if (isNodeCreatingLinkElement(node)) {
-                  const propsNode = node
-                    .arguments[1] as namedTypes.ObjectExpression
-                  if (!propsNode.properties) {
-                    return false
-                  }
-                  const props: {
-                    [key: string]: string
-                  } = propsNode.properties.reduce(
-                    (originalProps, prop: any) => {
-                      // todo check the type of prop
-                      // @ts-ignore
-                      originalProps[prop.key.name] = prop.value.value
-                      return originalProps
-                    },
-                    {}
-                  )
-
-                  if (
-                    !props.rel ||
-                    props.rel !== 'stylesheet' ||
-                    !props.href ||
-                    !props.href.startsWith('https://')
-                  ) {
-                    return false
-                  }
-                  that.gatheredStylesheets.push(props.href)
-                }
-                this.traverse(path)
-                return false
-              },
+          /**
+           * Webpack fun facts:
+           * `parser.hooks.call.for` cannot catch calls for user defined identifiers like `__jsx`
+           * it can only detect calls for native objects like `window`, `this`, `eval` etc.
+           * In order to be able to catch calls of variables like `__jsx`, first we need to catch them as
+           * Identifier and then return `BasicEvaluatedExpression` whose `id` and `type` webpack matches to
+           * invoke hook for call.
+           * See: https://github.com/webpack/webpack/blob/webpack-4/lib/Parser.js#L1931-L1932.
+           */
+          parser.hooks.evaluate
+            .for('Identifier')
+            .tap(this.constructor.name, (node: namedTypes.Identifier) => {
+              return node.name === '__jsx'
+                ? new BasicEvaluatedExpression()
+                    //@ts-ignore
+                    .setRange(node.range)
+                    .setExpression(node)
+                    .setIdentifier('__jsx')
+                : undefined
             })
-          })
+
+          parser.hooks.call
+            .for('__jsx')
+            .tap(this.constructor.name, (node: namedTypes.CallExpression) => {
+              // We will only optimize fonts from first party code.
+              if (parser?.state?.module?.resource.includes('node_modules')) {
+                return
+              }
+              if (node.arguments.length !== 2) {
+                // A font link tag has only two arguments rel=stylesheet and href='...'
+                return
+              }
+              if (!isNodeCreatingLinkElement(node)) {
+                return
+              }
+
+              const propsNode = node.arguments[1] as namedTypes.ObjectExpression
+              const props: {
+                [key: string]: string
+              } = propsNode.properties.reduce((originalProps, prop: any) => {
+                // todo check the type of prop
+                // @ts-ignore
+                originalProps[prop.key.name] = prop.value.value
+                return originalProps
+              }, {})
+              if (
+                !props.rel ||
+                props.rel !== 'stylesheet' ||
+                !props.href ||
+                !OPTIMIZED_FONT_PROVIDERS.some((url) =>
+                  props.href.startsWith(url)
+                )
+              ) {
+                return false
+              }
+
+              this.gatheredStylesheets.push(props.href)
+            })
         })
     }
   }
