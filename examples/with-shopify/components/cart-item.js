@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import cn from 'classnames'
 import Link from 'next/link'
 import ProductQuantity from './product-quantity'
 
@@ -39,6 +40,14 @@ export default function CartItem({ item, onItemUpdate, loading }) {
   const price = formatCurrency.format(amount * item.quantity)
   const size = selectedOptions.find((option) => option.name === 'Size')
 
+  const hasDiscount =
+    variant.compareAtPriceV2 &&
+    Number(variant.compareAtPriceV2.amount) > 0 &&
+    Number(variant.compareAtPriceV2.amount) > Number(amount)
+  const discount = hasDiscount
+    ? formatCurrency.format(variant.compareAtPriceV2.amount * item.quantity)
+    : 0
+
   return (
     <>
       <div className="flex flex-col sm:flex-row">
@@ -77,7 +86,10 @@ export default function CartItem({ item, onItemUpdate, loading }) {
           </div>
 
           <div className="flex flex-col text-right justify-center">
-            <span className="text-lg">{price}</span>
+            <span className={cn('text-lg', { 'text-highlight-red': discount })}>
+              {price}
+            </span>
+            {hasDiscount && <del className="text-accent-5">{discount}</del>}
           </div>
         </div>
       </div>

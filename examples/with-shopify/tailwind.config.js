@@ -10,6 +10,7 @@ module.exports = {
         success: '#0070f3',
         cyan: '#79FFE1',
         error: '#FF1A1A',
+        'highlight-red': '#FF1A1A',
       },
       spacing: {
         28: '7rem',
