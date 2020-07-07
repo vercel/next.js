@@ -390,6 +390,22 @@ const runTests = (context, dev = false) => {
       await browser.close()
     }
   })
+
+  it('should correctly replace state when same asPath but different url', async () => {
+    const browser = await webdriver(context.appPort, '/docs')
+    try {
+      await browser.elementByCss('#hello-link').click()
+      await browser.waitForElementByCss('#something-else-link')
+      await browser.elementByCss('#something-else-link').click()
+      await browser.waitForElementByCss('#something-else-page')
+      await browser.back()
+      await browser.waitForElementByCss('#index-page')
+      await browser.forward()
+      await browser.waitForElementByCss('#something-else-page')
+    } finally {
+      await browser.close()
+    }
+  })
 }
 
 describe('basePath development', () => {

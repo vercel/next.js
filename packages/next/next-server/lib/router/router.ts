@@ -465,18 +465,19 @@ export default class Router implements BaseRouter {
         return resolve(false)
       }
 
+      const cleanedAs = delBasePath(as)
+
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
       // We also need to set the method = replaceState always
       // as this should not go into the history (That's how browsers work)
       // We should compare the new asPath to the current asPath, not the url
-      if (!this.urlIsNew(as)) {
+      if (!this.urlIsNew(cleanedAs)) {
         method = 'replaceState'
       }
 
       const route = removePathTrailingSlash(pathname)
       const { shallow = false } = options
-      const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(cleanedAs)
