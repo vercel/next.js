@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import ProductImage from './product-image'
+import ZoomImage from './zoom-image'
 import ProductQuantity from './product-quantity'
 import Button from './button'
 import markdownStyles from './markdown-styles.module.css'
@@ -25,6 +27,7 @@ export default function ProductBody({ product }) {
   const [loading, setLoading] = useState(false)
   const [activeImage, setActiveImage] = useState(variant.image)
   const [colorValue, setColorValue] = useState(color?.value)
+  const [hasZoom, setHasZoom] = useState(false)
   const { openCart } = useCart()
   const { checkout, setLineItems } = useCheckout()
 
@@ -116,7 +119,18 @@ export default function ProductBody({ product }) {
     <main>
       <div className="flex flex-col md:flex-row w-full">
         <div className="md:max-w-lg w-full md:mr-8">
-          <ProductImage image={activeImage} title={product.title} />
+          <ZoomImage src={activeImage.originalSrc}>
+            <ProductImage
+              className={cn({
+                'cursor-zoom-out hover:opacity-0': hasZoom,
+                'cursor-zoom-in': !hasZoom,
+              })}
+              image={activeImage}
+              title={product.title}
+              onClick={() => setHasZoom(!hasZoom)}
+            />
+          </ZoomImage>
+
           <ProductGallery
             product={product}
             activeImage={activeImage}

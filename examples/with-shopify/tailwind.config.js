@@ -35,6 +35,10 @@ module.exports = {
         'p-1': 'minmax(0, 24rem)',
         'p-images': 'repeat(auto-fill, 4.5rem)',
       },
+      cursor: {
+        'zoom-in': 'zoom-in',
+        'zoom-out': 'zoom-out',
+      },
     },
   },
 }

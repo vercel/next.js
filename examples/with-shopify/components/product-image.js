@@ -2,17 +2,20 @@ import Link from 'next/link'
 import cn from 'classnames'
 
 export default function ProductImage({
+  className,
   containerClassName,
   image,
   title,
   slug,
   children,
+  ...props
 }) {
   const img = (
     <img
       src={image.transformedSrc || image.originalSrc}
       alt={image.altText || `Product image for ${title}`}
-      className="absolute w-full h-full"
+      className={cn(className, 'absolute w-full h-full')}
+      {...props}
     />
   )
 
