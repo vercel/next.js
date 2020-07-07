@@ -12,6 +12,7 @@ const nextBuild: cliCommand = (argv) => {
     {
       // Types
       '--help': Boolean,
+      '--profile': Boolean,
       // Aliases
       '-h': '--help',
     },
@@ -33,7 +34,9 @@ const nextBuild: cliCommand = (argv) => {
       0
     )
   }
-
+  if (args['--profile']) {
+    console.log('Profiling is enabled. Note: This may affect performance')
+  }
   const dir = resolve(args._[0] || '.')
 
   // Check if the provided directory exists
