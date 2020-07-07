@@ -23,14 +23,37 @@ export default function ProductBody({ product }) {
   const color = variant.selectedOptions.find(
     (option) => option.name === 'Color'
   )
+  // Use a Set to avoid duplicates
+  const colors = new Set()
+  const colorsBySize = new Map()
+
+  variants.forEach(({ node }) => {
+    const nodeSize = node.selectedOptions.find(
+      (option) => option.name === 'Size'
+    )
+    const nodeColor = node.selectedOptions.find(
+      (option) => option.name === 'Color'
+    )
+
+    if (nodeColor) colors.add(nodeColor.value)
+    if (nodeSize) {
+      const sizeColors = colorsBySize.get(nodeSize.value) || []
+
+      if (nodeColor) sizeColors.push(nodeColor.value)
+
+      colorsBySize.set(nodeSize.value, sizeColors)
+    }
+  })
 
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(false)
   const [activeImage, setActiveImage] = useState(variant.image)
+  const [sizeValue, setSizeValue] = useState(size?.value)
   const [colorValue, setColorValue] = useState(color?.value)
   const [hasZoom, setHasZoom] = useState(false)
   const { openCart } = useCart()
   const { checkout, setLineItems } = useCheckout()
+  const availableColors = colorsBySize.get(sizeValue)
 
   const handleQuantity = (e) => {
     const val = Number(e.target.value)
@@ -50,8 +73,7 @@ export default function ProductBody({ product }) {
       setQuantity(val)
     }
   }
-  const handleColorChange = (e) => {
-    const { value } = e.target
+  const changeColor = (value) => {
     const { node } = variants.find(({ node }) =>
       node.selectedOptions.some(
         (option) => option.name === 'Color' && option.value === value
@@ -60,6 +82,18 @@ export default function ProductBody({ product }) {
 
     setColorValue(value)
     setActiveImage(node.image)
+  }
+  const handleSizeChange = (e) => {
+    setSizeValue(e.target.value)
+
+    const sizeColors = colorsBySize.get(e.target.value)
+
+    if (!sizeColors.includes(colorValue)) {
+      changeColor(sizeColors[0])
+    }
+  }
+  const handleColorChange = (e) => {
+    changeColor(e.target.value)
   }
   const addToCart = () => {
     const val = Number(quantity)
@@ -107,12 +141,6 @@ export default function ProductBody({ product }) {
       })
   }
 
-  const allSelectedOptions = variants.flatMap(({ node }) => {
-    return node.selectedOptions
-  })
-  const sizes = allSelectedOptions.filter((option) => option.name === 'Size')
-  const colors = allSelectedOptions.filter((option) => option.name === 'Color')
-
   console.log(product, variants)
   // console.log('s', allSelectedOptions)
 
@@ -144,15 +172,20 @@ export default function ProductBody({ product }) {
           <h3 className="text-2xl mb-6">{price}</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
-            {sizes.length > 0 && (
+            {size && (
               <div className="flex flex-col">
                 <div className="text-2xl mb-4">
                   <label htmlFor="size">Size</label>
                 </div>
 
-                <SelectInput name="size" id="size" defaultValue={size.value}>
-                  {sizes.map((s) => (
-                    <option key={s.value}>{s.value}</option>
+                <SelectInput
+                  name="size"
+                  id="size"
+                  value={sizeValue}
+                  onChange={handleSizeChange}
+                >
+                  {Array.from(colorsBySize.keys(), (value) => (
+                    <option key={value}>{value}</option>
                   ))}
                 </SelectInput>
               </div>
@@ -170,8 +203,13 @@ export default function ProductBody({ product }) {
                   value={colorValue}
                   onChange={handleColorChange}
                 >
-                  {colors.map((s) => (
-                    <option key={s.value}>{s.value}</option>
+                  {Array.from(colors, (value) => (
+                    <option
+                      key={value}
+                      disabled={!availableColors.includes(value)}
+                    >
+                      {value}
+                    </option>
                   ))}
                 </SelectInput>
               </div>
