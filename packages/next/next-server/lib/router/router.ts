@@ -42,9 +42,9 @@ type Url = UrlObject | string
  * Resolves a given hyperlink with a certain router state (basePath not included).
  * Preserves absolute urls.
  */
-export function resolveHref(router: NextRouter, href: Url): string {
+export function resolveHref(currentPath: string, href: Url): string {
   // we use a dummy base url for relative urls
-  const base = new URL(router.pathname, 'http://n')
+  const base = new URL(currentPath, 'http://n')
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
   const finalUrl = normalizeTrailingSlash(new URL(urlAsString, base))
@@ -58,8 +58,8 @@ function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
   return {
-    url: addBasePath(resolveHref(router, url)),
-    as: as ? addBasePath(resolveHref(router, as)) : as,
+    url: addBasePath(resolveHref(router.pathname, url)),
+    as: as ? addBasePath(resolveHref(router.pathname, as)) : as,
   }
 }
 

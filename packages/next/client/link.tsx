@@ -13,7 +13,6 @@ import { addBasePath, resolveHref } from '../next-server/lib/router/router'
 function isLocal(url: string): boolean {
   const locationOrigin = getLocationOrigin()
   const resolved = new URL(url, locationOrigin)
-  // TODO: Investigate shouldn't we add: && resolved.pathname.startsWith(router.basePath) ?
   return resolved.origin === locationOrigin
 }
 
@@ -169,12 +168,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const router = useRouter()
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(router, props.href)
+    const resolvedHref = resolveHref(router.pathname, props.href)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(router, props.as) : resolvedHref,
+      as: props.as ? resolveHref(router.pathname, props.as) : resolvedHref,
     }
-  }, [router, props.href, props.as])
+  }, [router.pathname, props.href, props.as])
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
