@@ -58,5 +58,8 @@ export default () => (
     >
       click me for error
     </div>
+    <Link href="/something-else" as="/hello">
+      <a id="something-else-link">to something else</a>
+    </Link>
   </>
 )
