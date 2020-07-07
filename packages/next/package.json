@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.4.5-canary.18",
+  "version": "9.4.5-canary.29",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -76,8 +76,8 @@
     "@babel/preset-typescript": "7.9.0",
     "@babel/runtime": "7.9.6",
     "@babel/types": "7.9.6",
-    "@next/react-dev-overlay": "9.4.5-canary.18",
-    "@next/react-refresh-utils": "9.4.5-canary.18",
+    "@next/react-dev-overlay": "9.4.5-canary.29",
+    "@next/react-refresh-utils": "9.4.5-canary.29",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
@@ -85,15 +85,16 @@
     "cacache": "13.0.1",
     "chokidar": "2.1.8",
     "css-loader": "3.5.3",
+    "cssnano-simple": "1.0.4",
     "find-cache-dir": "3.3.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.3",
-    "native-url": "0.3.1",
+    "native-url": "0.3.4",
     "neo-async": "2.6.1",
     "pnp-webpack-plugin": "1.6.4",
-    "postcss": "7.0.29",
+    "postcss": "7.0.32",
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
     "react-is": "16.13.1",
@@ -114,7 +115,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.4.5-canary.18",
+    "@next/polyfill-nomodule": "9.4.5-canary.29",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -151,7 +152,6 @@
     "@types/styled-jsx": "2.2.8",
     "@types/terser-webpack-plugin": "2.2.0",
     "@types/text-table": "0.2.1",
-    "@types/webpack-dev-middleware": "2.0.3",
     "@types/webpack-hot-middleware": "2.16.5",
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.22.0",
@@ -170,7 +170,6 @@
     "conf": "5.0.0",
     "content-type": "1.0.4",
     "cookie": "0.4.1",
-    "cssnano-simple": "1.0.2",
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "dotenv": "8.2.0",
@@ -212,9 +211,7 @@
     "thread-loader": "2.1.3",
     "typescript": "3.8.3",
     "unfetch": "4.1.0",
-    "unistore": "3.4.1",
-    "webpack-dev-middleware": "3.7.0",
-    "webpack-hot-middleware": "2.25.0"
+    "unistore": "3.4.1"
   },
   "engines": {
     "node": ">=10.13.0"

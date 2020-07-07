@@ -86,7 +86,8 @@ function testLinkShouldRewriteTo(expectations) {
         await browser.elementByCss('#link').click()
 
         await browser.waitForElementByCss('#hydration-marker')
-        const { pathname } = new URL(await browser.eval('window.location.href'))
+        const url = new URL(await browser.eval('window.location.href'))
+        const pathname = url.href.slice(url.origin.length)
         expect(pathname).toBe(expectedHref)
       } finally {
         if (browser) await browser.close()
@@ -103,7 +104,8 @@ function testLinkShouldRewriteTo(expectations) {
         await browser.elementByCss('#route-pusher').click()
 
         await browser.waitForElementByCss('#hydration-marker')
-        const { pathname } = new URL(await browser.eval('window.location.href'))
+        const url = new URL(await browser.eval('window.location.href'))
+        const pathname = url.href.slice(url.origin.length)
         expect(pathname).toBe(expectedHref)
       } finally {
         if (browser) await browser.close()
@@ -112,10 +114,11 @@ function testLinkShouldRewriteTo(expectations) {
   )
 }
 
-function testWithTrailingSlash() {
+function testWithoutTrailingSlash() {
   testShouldRedirect([
     ['/about/', '/about'],
     ['/catch-all/hello/world/', '/catch-all/hello/world'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 
   testShouldResolve([
@@ -127,19 +130,25 @@ function testWithTrailingSlash() {
       '/catch-all/[...slug].js',
       '/catch-all/[...slug]',
     ],
+    ['/about?hello=world', '/about.js', '/about'],
   ])
 
   testLinkShouldRewriteTo([
     ['/', '/'],
     ['/about', '/about'],
     ['/about/', '/about'],
+    ['/about?hello=world', '/about?hello=world'],
+    ['/about/?hello=world', '/about?hello=world'],
+    ['/catch-all/hello/', '/catch-all/hello'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
-function testWithoutTrailingSlash() {
+function testWithTrailingSlash() {
   testShouldRedirect([
     ['/about', '/about/'],
     ['/catch-all/hello/world', '/catch-all/hello/world/'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 
   testShouldResolve([
@@ -151,12 +160,17 @@ function testWithoutTrailingSlash() {
       '/catch-all/[...slug].js',
       '/catch-all/[...slug]',
     ],
+    ['/about/?hello=world', '/about.js', '/about'],
   ])
 
   testLinkShouldRewriteTo([
     ['/', '/'],
     ['/about', '/about/'],
     ['/about/', '/about/'],
+    ['/about?hello=world', '/about/?hello=world'],
+    ['/about/?hello=world', '/about/?hello=world'],
+    ['/catch-all/hello/', '/catch-all/hello/'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
@@ -177,7 +191,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testWithTrailingSlash()
+    testWithoutTrailingSlash()
   })
 
   describe('dev mode, trailingSlash: true', () => {
@@ -196,7 +210,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testWithoutTrailingSlash()
+    testWithTrailingSlash()
   })
 
   describe('production mode, trailingSlash: false', () => {
@@ -217,7 +231,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testWithTrailingSlash()
+    testWithoutTrailingSlash()
 
     it('should have a redirect in the routesmanifest', async () => {
       const manifest = await fs.readJSON(
@@ -255,7 +269,7 @@ describe('Trailing slashes', () => {
       await killApp(app)
     })
 
-    testWithoutTrailingSlash()
+    testWithTrailingSlash()
 
     it('should have a redirect in the routesmanifest', async () => {
       const manifest = await fs.readJSON(
@@ -265,8 +279,13 @@ describe('Trailing slashes', () => {
         expect.objectContaining({
           redirects: expect.arrayContaining([
             expect.objectContaining({
-              source: '/:path+',
-              destination: '/:path+/',
+              source: '/:path*/:file.:ext/',
+              destination: '/:path*/:file.:ext',
+              statusCode: 308,
+            }),
+            expect.objectContaining({
+              source: '/:path*/:notfile([^/.]+)',
+              destination: '/:path*/:notfile/',
               statusCode: 308,
             }),
           ]),

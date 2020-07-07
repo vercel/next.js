@@ -43,16 +43,16 @@ const runTests = (context, dev = false) => {
       const errorSource = await getRedboxSource(browser)
       expect(errorSource).toMatchInlineSnapshot(`
         "pages${
-          process.platform === 'win32' ? '\\' : '/'
-        }hello.js (52:14) @ onClick
+          process.platform === 'win32' ? '\\\\' : '/'
+        }hello.js (56:14) @ onClick
 
-          50 |   id=\\"trigger-error\\"
-          51 |   onClick={() => {
-        > 52 |     throw new Error('oops heres an error')
+          54 |   id=\\"trigger-error\\"
+          55 |   onClick={() => {
+        > 56 |     throw new Error('oops heres an error')
              |          ^
-          53 |   }}
-          54 | >
-          55 |   click me for error"
+          57 |   }}
+          58 | >
+          59 |   click me for error"
       `)
     })
   } else {
@@ -115,6 +115,18 @@ const runTests = (context, dev = false) => {
       )
     })
   }
+
+  it('should not update URL for a 404', async () => {
+    const browser = await webdriver(context.appPort, '/missing')
+    const pathname = await browser.eval(() => window.location.pathname)
+    expect(pathname).toBe('/missing')
+  })
+
+  it('should update dynamic params after mount correctly', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
+    const text = await browser.elementByCss('#slug').text()
+    expect(text).toContain('slug: hello-dynamic')
+  })
 
   it('should navigate to index page with getStaticProps', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
@@ -200,6 +212,14 @@ const runTests = (context, dev = false) => {
       () => browser.eval(() => document.documentElement.innerHTML),
       /slug: first/
     )
+  })
+
+  it('should work with hash links', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.elementByCss('#hashlink').click()
+    const url = new URL(await browser.eval(() => window.location.href))
+    expect(url.pathname).toBe('/docs/hello')
+    expect(url.hash).toBe('#hashlink')
   })
 
   it('should work with catch-all page', async () => {
@@ -306,6 +326,13 @@ const runTests = (context, dev = false) => {
     expect(pathname).toBe('/docs/other-page')
   })
 
+  it('should have correct href for a link to /', async () => {
+    const browser = await webdriver(context.appPort, '/docs/link-to-root')
+    const href = await browser.elementByCss('#link-back').getAttribute('href')
+    const { pathname } = url.parse(href)
+    expect(pathname).toBe('/docs')
+  })
+
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(context.appPort, '/hello')
     expect(text).not.toContain('Hello World')
@@ -359,6 +386,22 @@ const runTests = (context, dev = false) => {
 
       const pathname = await browser.elementByCss('#pathname').text()
       expect(pathname).toBe('/hello')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should correctly replace state when same asPath but different url', async () => {
+    const browser = await webdriver(context.appPort, '/docs')
+    try {
+      await browser.elementByCss('#hello-link').click()
+      await browser.waitForElementByCss('#something-else-link')
+      await browser.elementByCss('#something-else-link').click()
+      await browser.waitForElementByCss('#something-else-page')
+      await browser.back()
+      await browser.waitForElementByCss('#index-page')
+      await browser.forward()
+      await browser.waitForElementByCss('#something-else-page')
     } finally {
       await browser.close()
     }
