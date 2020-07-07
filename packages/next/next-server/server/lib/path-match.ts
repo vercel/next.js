@@ -8,7 +8,7 @@ export default (customRoute = false) => {
     const matcherOptions = {
       sensitive: false,
       delimiter: '/',
-      ...(customRoute ? { strict: true } : undefined),
+      ...(customRoute ? { strict: false } : undefined),
       decode: decodeParam,
     }
     const matcherRegex = pathToRegexp.pathToRegexp(path, keys, matcherOptions)

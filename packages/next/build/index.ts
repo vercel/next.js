@@ -260,7 +260,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   ) => {
     const keys: any[] = []
     const routeRegex = pathToRegexp(r.source, keys, {
-      strict: true,
+      strict: false,
       sensitive: false,
       delimiter: '/', // default is `/#?`, but Next does not pass query info
     })
