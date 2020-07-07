@@ -1,7 +1,10 @@
 import PropTypes from 'prop-types'
 import React, { useContext, Component, ReactNode } from 'react'
 import flush from 'styled-jsx/server'
-import { AMP_RENDER_TARGET } from '../next-server/lib/constants'
+import {
+  AMP_RENDER_TARGET,
+  OPTIMIZED_FONT_PROVIDERS,
+} from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
   DocumentContext,
@@ -241,7 +244,7 @@ export class Head extends Component<
       if (
         c.type === 'link' &&
         c.props['href'] &&
-        c.props['href'].startsWith('https://fonts.googleapis.com/css')
+        OPTIMIZED_FONT_PROVIDERS.some((url) => c.props['href'].startsWith(url))
       ) {
         c.props['data-href'] = c.props['href']
         delete c.props['href']

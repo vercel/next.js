@@ -1,4 +1,5 @@
 import { parse, HTMLElement } from 'node-html-parser'
+import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
 const MIDDLEWARE_TIME_BUDGET = 10
 
@@ -96,7 +97,6 @@ async function processHTML(
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
   fontDefinitions: Array<string> = []
-  DOMAIN = 'https://fonts.googleapis.com/css'
   inspect(
     originalDom: HTMLElement,
     _data: postProcessData,
@@ -112,7 +112,9 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
           tag.hasAttribute('data-href') &&
-          tag.getAttribute('data-href').startsWith(this.DOMAIN)
+          OPTIMIZED_FONT_PROVIDERS.some((url) =>
+            tag.getAttribute('data-href').startsWith(url)
+          )
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')

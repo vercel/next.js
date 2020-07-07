@@ -3,6 +3,7 @@ import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
+import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
 type WithInAmpMode = {
   inAmpMode?: boolean
@@ -140,7 +141,9 @@ function reduceComponents(
         if (
           c.type === 'link' &&
           c.props['href'] &&
-          c.props['href'].startsWith('https://fonts.googleapis.com/css')
+          OPTIMIZED_FONT_PROVIDERS.some((url) =>
+            c.props['href'].startsWith(url)
+          )
         ) {
           c.props['data-href'] = c.props['href']
           delete c.props['href']
