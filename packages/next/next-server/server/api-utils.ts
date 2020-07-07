@@ -68,6 +68,7 @@ export async function apiResolver(
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
+    apiRes.redirect = (statusOrUrl, url) => redirect(apiRes, statusOrUrl, url)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
@@ -215,6 +216,26 @@ export function sendStatusCode(
   statusCode: number
 ): NextApiResponse<any> {
   res.statusCode = statusCode
+  return res
+}
+
+/**
+ *
+ * @param res response object
+ * @param [statusOrUrl] `HTTP` status code of redirect
+ * @param url URL of redirect
+ */
+export function redirect(
+  res: NextApiResponse,
+  statusOrUrl: string | number,
+  url?: string
+): NextApiResponse<any> {
+  if (typeof statusOrUrl === 'string') {
+    url = statusOrUrl
+    statusOrUrl = 307
+  }
+
+  res.writeHead(statusOrUrl, { Location: url }).end()
   return res
 }
 
