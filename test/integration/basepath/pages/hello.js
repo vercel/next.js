@@ -44,6 +44,10 @@ export default () => (
         <h1>nested index getStaticProps</h1>
       </a>
     </Link>
+    <Link href="#hashlink">
+      <a id="hashlink">Hash Link</a>
+    </Link>
+    <br />
     <div id="base-path">{useRouter().basePath}</div>
     <div id="pathname">{useRouter().pathname}</div>
     <div

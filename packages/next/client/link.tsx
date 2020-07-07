@@ -2,13 +2,13 @@ declare const __NEXT_DATA__: any
 
 import React, { Children } from 'react'
 import { parse, resolve, UrlObject } from 'url'
-import { PrefetchOptions } from '../next-server/lib/router/router'
+import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
-import Router from './router'
+import { useRouter } from './router'
 import { addBasePath } from '../next-server/lib/router/router'
 import { normalizeTrailingSlash } from './normalize-trailing-slash'
 
@@ -96,33 +96,32 @@ const listenToIntersections = (el: Element, cb: () => void) => {
   }
 }
 
-function getPaths(parsedHref: string, parsedAs?: string): string[] {
-  const { pathname } = window.location
-  const resolvedHref = resolve(pathname, parsedHref)
-  return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
-}
-
-function prefetch(href: string, as?: string, options?: PrefetchOptions): void {
+function prefetch(
+  router: NextRouter,
+  href: string,
+  as: string,
+  options?: PrefetchOptions
+): void {
   if (typeof window === 'undefined') return
   // Prefetch the JSON page if asked (only in the client)
-  const [resolvedHref, resolvedAs] = getPaths(href, as)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Router.prefetch(resolvedHref, resolvedAs, options).catch((err) => {
+  router.prefetch(href, as, options).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
     }
   })
   // Join on an invalid URI character
-  prefetched[resolvedHref + '%' + resolvedAs] = true
+  prefetched[href + '%' + as] = true
 }
 
 function linkClicked(
   e: React.MouseEvent,
+  router: NextRouter,
   href: string,
-  as?: string,
+  as: string,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean
@@ -145,10 +144,6 @@ function linkClicked(
     return
   }
 
-  const { pathname } = window.location
-  href = resolve(pathname, href)
-  as = as ? resolve(pathname, as) : href
-
   e.preventDefault()
 
   //  avoid scroll for urls with anchor refs
@@ -157,7 +152,7 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  Router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+  router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
     (success: boolean) => {
       if (!success) return
       if (scroll) {
@@ -184,28 +179,29 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   const [childElm, setChildElm] = React.useState<Element>()
 
-  const { href, as } = React.useMemo(
-    () => ({
-      href: formatUrl(props.href),
-      as: props.as ? formatUrl(props.as) : props.as,
-    }),
-    [props.href, props.as]
-  )
+  const router = useRouter()
+
+  const { href, as } = React.useMemo(() => {
+    const resolvedHref = resolve(router.pathname, formatUrl(props.href))
+    return {
+      href: resolvedHref,
+      as: props.as
+        ? resolve(router.pathname, formatUrl(props.as))
+        : resolvedHref,
+    }
+  }, [router.pathname, props.href, props.as])
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
-      const isPrefetched =
-        prefetched[
-          // Join on an invalid URI character
-          getPaths(href, as).join('%')
-        ]
+      // Join on an invalid URI character
+      const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
-          prefetch(href, as)
+          prefetch(router, href, as)
         })
       }
     }
-  }, [p, childElm, href, as])
+  }, [p, childElm, href, as, router])
 
   let { children, replace, shallow, scroll } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
@@ -236,7 +232,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll)
       }
     },
   }
@@ -246,14 +242,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       if (child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }
-      prefetch(href, as, { priority: true })
+      prefetch(router, href, as, { priority: true })
     }
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = addBasePath(as || href)
+    childProps.href = addBasePath(as)
   }
 
   // Add the ending slash to the paths. So, we can serve the
