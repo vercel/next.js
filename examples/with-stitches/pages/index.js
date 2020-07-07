@@ -1,6 +1,13 @@
-import { useCss } from '../css'
+import { css } from '../css'
 
 export default function Home() {
-  const css = useCss()
-  return <h1 className={css.color('RED')}>Hello world</h1>
+  return (
+    <h1
+      className={css({
+        color: 'RED',
+      })}
+    >
+      Hello world
+    </h1>
+  )
 }
