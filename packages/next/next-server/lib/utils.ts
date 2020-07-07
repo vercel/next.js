@@ -1,7 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { format, UrlObject } from 'url'
+import { UrlObject } from 'url'
+import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
@@ -372,7 +373,7 @@ export function formatWithValidation(url: UrlObject): string {
     }
   }
 
-  return format(url)
+  return formatUrl(url)
 }
 
 export const SP = typeof performance !== 'undefined'
