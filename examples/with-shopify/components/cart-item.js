@@ -36,7 +36,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
     style: 'currency',
     currency: currencyCode,
   })
-  const price = formatCurrency.format(amount)
+  const price = formatCurrency.format(amount * item.quantity)
   const size = selectedOptions.find((option) => option.name === 'Size')
 
   return (
