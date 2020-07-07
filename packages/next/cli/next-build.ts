@@ -30,6 +30,8 @@ const nextBuild: cliCommand = (argv) => {
 
       <dir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
+
+      Additionally, --profile flag can be used to enable React Production Profiling
     `,
       0
     )
