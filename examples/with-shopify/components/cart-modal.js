@@ -40,6 +40,13 @@ export default function CartModal() {
     e.preventDefault()
     window.open(checkout.webUrl)
   }
+  const formatCurrency =
+    checkout &&
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: checkout.subtotalPriceV2.currencyCode,
+    })
+  const price = formatCurrency?.format(checkout.subtotalPriceV2.amount)
 
   console.log('CHECKOUT', checkout)
 
@@ -66,6 +73,14 @@ export default function CartModal() {
                 onItemUpdate={handleItemUpdate}
               />
             ))}
+
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-2xl">Subtotal</h3>
+              <h3 className="text-2xl">{price}</h3>
+            </div>
+            <p className="text-sm text-left text-accent-5">
+              Shipping & taxes calculated at checkout
+            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <Button type="button" onClick={closeCart} secondary>

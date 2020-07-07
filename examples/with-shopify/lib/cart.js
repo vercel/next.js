@@ -8,6 +8,10 @@ const CheckoutFields = `
   fragment CheckoutFields on Checkout {
     id
     webUrl
+    subtotalPriceV2 {
+      amount
+      currencyCode
+    }
     lineItems(first: 200) {
       edges {
         node {
