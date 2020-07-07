@@ -34,9 +34,5 @@ export const withAuthSync = (Component) => {
     return <Component {...props} />
   }
 
-  if (Component.getInitialProps) {
-    Wrapper.getInitialProps = Component.getInitialProps
-  }
-
   return Wrapper
 }

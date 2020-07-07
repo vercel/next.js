@@ -1,4 +1,3 @@
-import React from 'react'
 import Container from './container'
 import cn from 'classnames'
 import { EXAMPLE_PATH } from '../lib/constants'
@@ -7,7 +6,7 @@ type Props = {
   preview?: boolean
 }
 
-const Alert: React.FC<Props> = ({ preview }) => {
+const Alert = ({ preview }: Props) => {
   return (
     <div
       className={cn('border-b', {
@@ -32,7 +31,7 @@ const Alert: React.FC<Props> = ({ preview }) => {
             <>
               The source code for this blog is{' '}
               <a
-                href={`https://github.com/zeit/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
+                href={`https://github.com/vercel/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
                 className="underline hover:text-success duration-200 transition-colors"
               >
                 available on GitHub

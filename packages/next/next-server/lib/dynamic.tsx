@@ -25,6 +25,7 @@ export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
     error?: Error | null
     isLoading?: boolean
     pastDelay?: boolean
+    retry?: () => void
     timedOut?: boolean
   }) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
@@ -124,7 +125,7 @@ export default function dynamic<P = {}>(
     if (process.env.NODE_ENV !== 'production') {
       if (dynamicOptions.modules) {
         console.warn(
-          'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
+          'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/vercel/next.js/next-dynamic-modules'
         )
       }
     }

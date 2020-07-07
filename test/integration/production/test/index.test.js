@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global browserName */
 import cheerio from 'cheerio'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync } from 'fs'
 import {
   nextServer,
   renderViaHTTP,
@@ -9,6 +9,7 @@ import {
   startApp,
   stopApp,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -23,7 +24,6 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 const appDir = join(__dirname, '../')
-let serverDir
 let appPort
 let server
 let app
@@ -43,9 +43,6 @@ describe('Production Usage', () => {
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
-
-    const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-    serverDir = join(appDir, '.next/server/static/', buildId, 'pages')
   })
   afterAll(() => stopApp(server))
 
@@ -75,6 +72,24 @@ describe('Production Usage', () => {
 
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getStaticProps', async () => {
+      const url = `http://localhost:${appPort}/fully-static`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getServerSideProps', async () => {
+      const url = `http://localhost:${appPort}/fully-dynamic`
       const etag = (await fetch(url)).headers.get('ETag')
 
       const headers = { 'If-None-Match': etag }
@@ -151,29 +166,37 @@ describe('Production Usage', () => {
     })
 
     it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
           headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
-        }
-      )
-      expect(res.status).toBe(412)
+        })
+        expect(res.status).toBe(412)
+      }
     })
 
     it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
           headers: { 'if-unmodified-since': 'nextjs' },
-        }
-      )
-      expect(res.status).toBe(200)
+        })
+        expect(res.status).toBe(200)
+      }
     })
 
     it('should set Content-Length header', async () => {
@@ -183,7 +206,6 @@ describe('Production Usage', () => {
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
       const reactLoadableManifest = require(join(
         '../.next',
@@ -193,12 +215,9 @@ describe('Production Usage', () => {
 
       const resources = new Set()
 
-      // test a regular page
-      resources.add(`${url}static/${buildId}/pages/index.js`)
-
       // test dynamic chunk
       resources.add(
-        url + reactLoadableManifest['../../components/hello1'][0].publicPath
+        url + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc
@@ -317,6 +336,25 @@ describe('Production Usage', () => {
       expect(text).toBe('Hello World')
       await browser.close()
     })
+
+    it('should set title by routeChangeComplete event', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(function setup() {
+        window.next.router.events.on('routeChangeComplete', function handler(
+          url
+        ) {
+          window.routeChangeTitle = document.title
+          window.routeChangeUrl = url
+        })
+        window.next.router.push('/with-title')
+      })
+      await browser.waitForElementByCss('#with-title')
+
+      const title = await browser.eval(`window.routeChangeTitle`)
+      const url = await browser.eval(`window.routeChangeUrl`)
+      expect(title).toBe('hello from title')
+      expect(url).toBe('/with-title')
+    })
   })
 
   it('should navigate to external site and back', async () => {
@@ -421,7 +459,7 @@ describe('Production Usage', () => {
 
     it('should allow to access /static/ and /_next/', async () => {
       // This is a test case which prevent the following issue happening again.
-      // See: https://github.com/zeit/next.js/issues/2617
+      // See: https://github.com/vercel/next.js/issues/2617
       await renderViaHTTP(appPort, '/_next/')
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
@@ -529,7 +567,7 @@ describe('Production Usage', () => {
       await browser.close()
     })
 
-    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
     // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
     it('It does not add a timestamp to link tags with prefetch attribute', async () => {
       const browser = await webdriver(appPort, '/prefetch')
@@ -562,16 +600,6 @@ describe('Production Usage', () => {
 
         // Let the browser to prefetch the page and error it on the console.
         await waitFor(3000)
-        const browserLogs = await browser.log('browser')
-        let foundLog = false
-        browserLogs.forEach((log) => {
-          if (
-            log.message.match(/\/no-such-page\.js - Failed to load resource/)
-          ) {
-            foundLog = true
-          }
-        })
-        expect(foundLog).toBe(true)
 
         // When we go to the 404 page, it'll do a hard reload.
         // So, it's possible for the front proxy to load a page from another zone.
@@ -612,7 +640,7 @@ describe('Production Usage', () => {
 
   it('should not put backslashes in pages-manifest.json', () => {
     // Whatever platform you build on, pages-manifest.json should use forward slash (/)
-    // See: https://github.com/zeit/next.js/issues/4920
+    // See: https://github.com/vercel/next.js/issues/4920
     const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
 
     for (let key of Object.keys(pagesManifest)) {
@@ -628,18 +656,21 @@ describe('Production Usage', () => {
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['about', 'another', 'counter', 'dynamic', 'prefetch']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(false)
+    const pages = ['/about', '/another', '/counter', '/dynamic', '/prefetch']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['api', 'external-and-back', 'finish-response']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
+    const pages = ['/api', '/external-and-back', '/finish-response']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
 

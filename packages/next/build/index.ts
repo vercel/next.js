@@ -1,4 +1,3 @@
-import '../next-server/server/node-polyfill-fetch'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
@@ -10,21 +9,19 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import checkCustomRoutes, {
-  getRedirectStatus,
-  Header,
-  Redirect,
-  Rewrite,
-  RouteType,
-} from '../lib/check-custom-routes'
 import {
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
+import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
+import loadCustomRoutes, {
+  getRedirectStatus,
+  Redirect,
+  RouteType,
+} from '../lib/load-custom-routes'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { recursiveDelete } from '../lib/recursive-delete'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
@@ -47,7 +44,10 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { BuildManifest } from '../next-server/server/get-page-files'
+import '../next-server/server/node-polyfill-fetch'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { getPagePath } from '../next-server/server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
@@ -64,18 +64,16 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getJsPageSizeInKb,
+  getNamedExports,
   hasCustomGetInitialProps,
   isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNamedExports,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { writeBuildId } from './write-build-id'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import { BuildManifest } from '../next-server/server/get-page-files'
-
+import { writeBuildId } from './write-build-id'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -101,7 +99,7 @@ export type PrerenderManifest = {
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
-      '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
+      '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
     )
   }
 
@@ -112,32 +110,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const headers: Header[] = []
-  const rewrites: Rewrite[] = []
-  const redirects: Redirect[] = []
 
-  if (typeof config.experimental.redirects === 'function') {
-    const _redirects = await config.experimental.redirects()
-    checkCustomRoutes(_redirects, 'redirect')
-    redirects.push(..._redirects)
-  }
-  if (typeof config.experimental.rewrites === 'function') {
-    const _rewrites = await config.experimental.rewrites()
-    checkCustomRoutes(_rewrites, 'rewrite')
-    rewrites.push(..._rewrites)
-  }
-  if (typeof config.experimental.headers === 'function') {
-    const _headers = await config.experimental.headers()
-    checkCustomRoutes(_headers, 'header')
-    headers.push(..._headers)
-  }
+  const { headers, rewrites, redirects } = await loadCustomRoutes(config)
 
   if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
     const cacheDir = path.join(distDir, 'cache')
-    const hasCache = await promises
-      .access(cacheDir)
-      .then(() => true)
-      .catch(() => false)
+    const hasCache = await fileExists(cacheDir)
 
     if (!hasCache) {
       // Intentionally not piping to stderr in case people fail in CI when
@@ -160,8 +138,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
-  let publicFiles: string[] = []
-  let hasPublicDir = false
+  const hasPublicDir = await fileExists(publicDir)
 
   telemetry.record(
     eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
@@ -174,16 +151,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   eventNextPlugins(path.resolve(dir)).then((events) => telemetry.record(events))
 
-  await verifyTypeScriptSetup(dir, pagesDir)
-
-  try {
-    await promises.stat(publicDir)
-    hasPublicDir = true
-  } catch (_) {}
-
-  if (hasPublicDir) {
-    publicFiles = await recursiveReadDir(publicDir, /.*/)
-  }
+  const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+  await verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
 
   let tracer: any = null
   if (config.experimental.profiling) {
@@ -212,7 +181,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
-    /* dev */ false,
     mappedPages,
     target,
     buildId,
@@ -231,32 +199,55 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let hasNonStaticErrorPage: boolean
 
   if (hasPublicDir) {
-    try {
-      await promises.stat(path.join(publicDir, '_next'))
+    const hasPublicUnderScoreNextDir = await fileExists(
+      path.join(publicDir, '_next')
+    )
+    if (hasPublicUnderScoreNextDir) {
       throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-    } catch (err) {}
-  }
-
-  for (let file of publicFiles) {
-    file = file
-      .replace(/\\/g, '/')
-      .replace(/\/index$/, '')
-      .split(publicDir)
-      .pop()!
-
-    if (mappedPages[file]) {
-      conflictingPublicFiles.push(file)
     }
   }
+
+  // Check if pages conflict with files in `public`
+  // Only a page of public file can be served, not both.
+  for (const page in mappedPages) {
+    const hasPublicPageFile = await fileExists(
+      path.join(publicDir, page === '/' ? '/index' : page),
+      'file'
+    )
+    if (hasPublicPageFile) {
+      conflictingPublicFiles.push(page)
+    }
+  }
+
   const numConflicting = conflictingPublicFiles.length
 
   if (numConflicting) {
     throw new Error(
       `Conflicting public and page file${
         numConflicting === 1 ? ' was' : 's were'
-      } found. https://err.sh/zeit/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+      } found. https://err.sh/vercel/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
         '\n'
       )}`
+    )
+  }
+
+  const nestedReservedPages = pageKeys.filter((page) => {
+    return (
+      page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
+    )
+  })
+
+  if (nestedReservedPages.length) {
+    console.warn(
+      '\n' +
+        chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
+        ) +
+        nestedReservedPages.join('\n') +
+        chalk.bold(
+          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+        )
     )
   }
 
@@ -286,21 +277,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
-  const firstOptionalCatchAllPage =
-    pageKeys.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f)) ?? null
-  if (
-    config.experimental?.optionalCatchAll !== true &&
-    firstOptionalCatchAllPage
-  ) {
-    const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-    throw new Error(msg)
-  }
-
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
-    version: 1,
+    version: 3,
     pages404: true,
-    basePath: config.experimental.basePath,
+    basePath: config.basePath,
     redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map((r) => buildCustomRoute(r, 'rewrite')),
     headers: headers.map((r) => buildCustomRoute(r, 'header')),
@@ -311,8 +292,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         return {
           page,
           regex: routeRegex.re.source,
+          routeKeys: routeRegex.routeKeys,
           namedRegex: routeRegex.namedRegex,
-          routeKeys: Object.keys(routeRegex.groups),
         }
       }),
   }
@@ -358,7 +339,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn(
       chalk.bold.yellow(`Warning: `) +
         chalk.bold(
-          `Production code optimization has been disabled in your project. Read more: https://err.sh/zeit/next.js/minification-disabled`
+          `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
         )
     )
   }
@@ -366,7 +347,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const webpackBuildStart = process.hrtime()
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
+  // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
   if (isLikeServerless) {
     const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
@@ -412,7 +393,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const parsed = page_name_regex.exec(error)
       const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(
-        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
+        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.`
       )
     }
 
@@ -424,7 +405,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('__next_polyfill__') > -1
     ) {
       throw new Error(
-        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
+        '> webpack config.resolve.alias was incorrectly overridden. https://err.sh/vercel/next.js/invalid-resolve-alias'
       )
     }
     throw new Error('> Build failed because of webpack errors')
@@ -490,13 +471,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   hasNonStaticErrorPage =
     hasCustomErrorPage &&
     (await hasCustomGetInitialProps(
-      path.join(
-        distDir,
-        ...(isLikeServerless
-          ? ['serverless', 'pages']
-          : ['server', 'static', buildId, 'pages']),
-        '_error.js'
-      ),
+      getPagePath('/_error', distDir, isLikeServerless),
       runtimeEnvConfig,
       false
     ))
@@ -508,18 +483,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
-        buildId,
         buildManifest,
         config.experimental.modern
-      )
-      const bundleRelative = path.join(
-        isLikeServerless ? 'pages' : `static/${buildId}/pages`,
-        actualPage + '.js'
-      )
-      const serverBundle = path.join(
-        distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        bundleRelative
       )
 
       let isSsg = false
@@ -528,110 +493,81 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let ssgPageRoutes: string[] | null = null
       let hasSsgFallback: boolean = false
 
-      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
-
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-      if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomGetInitialProps(
-          isLikeServerless
-            ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
-          runtimeEnvConfig,
-          true
-        )
-
-        namedExports = getNamedExports(
-          isLikeServerless
-            ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
-          runtimeEnvConfig
-        )
-
-        if (customAppGetInitialProps) {
-          console.warn(
-            chalk.bold.yellow(`Warning: `) +
-              chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
-              )
-          )
-          console.warn(
-            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
-          )
-        }
-      }
-
       if (nonReservedPage) {
+        const serverBundle = getPagePath(page, distDir, isLikeServerless)
+
+        if (customAppGetInitialProps === undefined) {
+          customAppGetInitialProps = hasCustomGetInitialProps(
+            isLikeServerless
+              ? serverBundle
+              : getPagePath('/_app', distDir, isLikeServerless),
+            runtimeEnvConfig,
+            true
+          )
+
+          namedExports = getNamedExports(
+            isLikeServerless
+              ? serverBundle
+              : getPagePath('/_app', distDir, isLikeServerless),
+            runtimeEnvConfig
+          )
+
+          if (customAppGetInitialProps) {
+            console.warn(
+              chalk.bold.yellow(`Warning: `) +
+                chalk.yellow(
+                  `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
+                )
+            )
+            console.warn(
+              'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+            )
+          }
+        }
+
         try {
-          let result = await staticCheckWorkers.isPageStatic(
+          let workerResult = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
             runtimeEnvConfig
           )
 
-          if (result.isHybridAmp) {
+          if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
           }
 
-          if (result.isAmpOnly) {
-            // ensure all AMP only bundles got removed
-            try {
-              const clientBundle = path.join(
-                distDir,
-                'static',
-                buildId,
-                'pages',
-                actualPage + '.js'
-              )
-              await promises.unlink(clientBundle)
-
-              if (config.experimental.modern) {
-                await promises.unlink(
-                  clientBundle.replace(/\.js$/, '.module.js')
-                )
-              }
-            } catch (err) {
-              if (err.code !== 'ENOENT') {
-                throw err
-              }
-            }
-          }
-
-          if (result.hasStaticProps) {
+          if (workerResult.hasStaticProps) {
             ssgPages.add(page)
             isSsg = true
 
-            if (result.prerenderRoutes) {
-              additionalSsgPaths.set(page, result.prerenderRoutes)
-              ssgPageRoutes = result.prerenderRoutes
+            if (workerResult.prerenderRoutes) {
+              additionalSsgPaths.set(page, workerResult.prerenderRoutes)
+              ssgPageRoutes = workerResult.prerenderRoutes
             }
-            if (result.prerenderFallback) {
+            if (workerResult.prerenderFallback) {
               hasSsgFallback = true
               ssgFallbackPages.add(page)
             }
-          } else if (result.hasServerProps) {
+          } else if (workerResult.hasServerProps) {
             serverPropsPages.add(page)
-          } else if (result.isStatic && customAppGetInitialProps === false) {
+          } else if (
+            workerResult.isStatic &&
+            customAppGetInitialProps === false
+          ) {
             staticPages.add(page)
             isStatic = true
           }
 
           if (hasPages404 && page === '/404') {
-            if (!result.isStatic && !result.hasStaticProps) {
+            if (!workerResult.isStatic && !workerResult.hasStaticProps) {
               throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps
-            if (customAppGetInitialProps && !result.hasStaticProps) {
+            if (customAppGetInitialProps && !workerResult.hasStaticProps) {
               staticPages.delete(page)
             }
           }
@@ -644,7 +580,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       pageInfos.set(page, {
         size: selfSize,
         totalSize: allSize,
-        serverBundle,
         static: isStatic,
         isSsg,
         isHybridAmp,
@@ -670,8 +605,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       let dataRouteRegex: string
-      let routeKeys: string[] | undefined
       let namedDataRouteRegex: string | undefined
+      let routeKeys: { [named: string]: string } | undefined
 
       if (isDynamicRoute(page)) {
         const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
@@ -684,7 +619,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           /\(\?:\/\)\?\$$/,
           '\\.json$'
         )
-        routeKeys = Object.keys(routeRegex.groups)
+        routeKeys = routeRegex.routeKeys
       } else {
         dataRouteRegex = new RegExp(
           `^${path.posix.join(
@@ -722,21 +657,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         .map((pg) => `pages${pg}`)
         .join(
           '\n'
-        )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
+        )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
     )
-  }
-
-  if (Array.isArray(configs[0].plugins)) {
-    configs[0].plugins.some((plugin: any) => {
-      if (!plugin.ampPages) {
-        return false
-      }
-
-      plugin.ampPages.forEach((pg: any) => {
-        pageInfos.get(pg)!.isAmp = true
-      })
-      return true
-    })
   }
 
   await writeBuildId(distDir, buildId)
@@ -758,7 +680,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...config,
       initialPageRevalidationMap: {},
       // Default map will be the collection of automatic statically exported
-      // pages and SPR pages.
+      // pages and incremental pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
@@ -806,11 +728,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     // remove server bundles that were exported
     for (const page of staticPages) {
-      const { serverBundle } = pageInfos.get(page)!
+      const serverBundle = getPagePath(page, distDir, isLikeServerless)
       await promises.unlink(serverBundle)
     }
+    const serverOutputDir = path.join(
+      distDir,
+      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
 
     const moveExportedPage = async (
+      originPage: string,
       page: string,
       file: string,
       isSsg: boolean,
@@ -818,10 +745,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
     ) => {
       file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
-      const relativeDest = (isLikeServerless
-        ? path.join('pages', file)
-        : path.join('static', buildId, 'pages', file)
-      ).replace(/\\/g, '/')
+      const pagePath = getPagePath(originPage, distDir, isLikeServerless)
+
+      const relativeDest = path
+        .relative(
+          serverOutputDir,
+          path.join(
+            path.join(
+              pagePath,
+              // strip leading / and then recurse number of nested dirs
+              // to place from base folder
+              originPage
+                .substr(1)
+                .split('/')
+                .map(() => '..')
+                .join('/')
+            ),
+            file
+          )
+        )
+        .replace(/\\/g, '/')
 
       const dest = path.join(
         distDir,
@@ -831,8 +774,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (!isSsg) {
         pagesManifest[page] = relativeDest
-        if (page === '/') pagesManifest['/index'] = relativeDest
-        if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
       }
       await promises.mkdir(path.dirname(dest), { recursive: true })
       await promises.rename(orig, dest)
@@ -840,7 +781,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
     if (!hasPages404 && useStatic404) {
-      await moveExportedPage('/404', '/404', false, 'html')
+      await moveExportedPage('/_error', '/404', '/404', false, 'html')
     }
 
     for (const page of combinedPages) {
@@ -853,21 +794,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
       if (!(isSsg && isDynamic && !isSsgFallback)) {
-        await moveExportedPage(page, file, isSsg, 'html')
+        await moveExportedPage(page, page, file, isSsg, 'html')
       }
 
       if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-        await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
+        const ampPage = `${file}.amp`
+        await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
 
         if (isSsg) {
-          await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'json')
+          await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
         }
       }
 
       if (isSsg) {
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
-          await moveExportedPage(page, file, true, 'json')
+          await moveExportedPage(page, page, file, true, 'json')
 
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
@@ -882,22 +824,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
-            await moveExportedPage(route, route, true, 'html')
-            await moveExportedPage(route, route, true, 'json')
+            await moveExportedPage(page, route, route, true, 'html')
+            await moveExportedPage(page, route, route, true, 'json')
 
             if (hasAmp) {
-              await moveExportedPage(
-                `${route}.amp`,
-                `${route}.amp`,
-                true,
-                'html'
-              )
-              await moveExportedPage(
-                `${route}.amp`,
-                `${route}.amp`,
-                true,
-                'json'
-              )
+              const ampPage = `${normalizePagePath(route)}.amp`
+              await moveExportedPage(page, ampPage, ampPage, true, 'html')
+              await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
 
             finalPrerenderRoutes[route] = {
@@ -920,7 +853,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await promises.rmdir(exportOptions.outdir)
     await promises.writeFile(
       manifestPath,
-      JSON.stringify(pagesManifest),
+      JSON.stringify(pagesManifest, null, 2),
       'utf8'
     )
   }
@@ -993,8 +926,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
-    // No need to call this fn as we already emitted a default SSG manifest:
-    // await generateClientSsgManifest(prerenderManifest, { distDir, buildId })
   }
 
   await promises.writeFile(
