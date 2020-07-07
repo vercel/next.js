@@ -11,9 +11,20 @@ export default function ProductBody({ product }) {
   const variant = variants[0].node
   const { amount, currencyCode } = variant.priceV2
 
+  const formatCurrency = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currencyCode,
+  })
+  const price = formatCurrency.format(amount)
+  const size = variant.selectedOptions.find((option) => option.name === 'Size')
+  const color = variant.selectedOptions.find(
+    (option) => option.name === 'Color'
+  )
+
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(false)
   const [activeImage, setActiveImage] = useState(variant.image)
+  const [colorValue, setColorValue] = useState(color?.value)
   const { openCart } = useCart()
   const { checkout, setLineItems } = useCheckout()
 
@@ -24,7 +35,7 @@ export default function ProductBody({ product }) {
       setQuantity(e.target.value)
     }
   }
-  const handleBlur = (e) => {
+  const handleQuantityBlur = (e) => {
     // Reset the quantity to 1 if it's manually set to a lower number
     if (Number(quantity) <= 0) setQuantity(1)
   }
@@ -34,6 +45,17 @@ export default function ProductBody({ product }) {
     if (Number.isInteger(val) && val > 0) {
       setQuantity(val)
     }
+  }
+  const handleColorChange = (e) => {
+    const { value } = e.target
+    const { node } = variants.find(({ node }) =>
+      node.selectedOptions.some(
+        (option) => option.name === 'Color' && option.value === value
+      )
+    )
+
+    setColorValue(value)
+    setActiveImage(node.image)
   }
   const addToCart = () => {
     const val = Number(quantity)
@@ -81,17 +103,11 @@ export default function ProductBody({ product }) {
       })
   }
 
-  const formatCurrency = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode,
-  })
-  const price = formatCurrency.format(amount)
-  const size = variant.selectedOptions.find((option) => option.name === 'Size')
-
   const allSelectedOptions = variants.flatMap(({ node }) => {
     return node.selectedOptions
   })
   const sizes = allSelectedOptions.filter((option) => option.name === 'Size')
+  const colors = allSelectedOptions.filter((option) => option.name === 'Color')
 
   console.log(product, variants)
   // console.log('s', allSelectedOptions)
@@ -143,6 +159,37 @@ export default function ProductBody({ product }) {
               </div>
             )}
 
+            {color && (
+              <div className="flex flex-col">
+                <div className="text-2xl mb-4">
+                  <label htmlFor="size">Color</label>
+                </div>
+
+                <div className="max-w-xs inline-block relative">
+                  <select
+                    className="w-full h-12 appearance-none border border-black py-2 pl-4 pr-8"
+                    name="size"
+                    id="size"
+                    value={colorValue}
+                    onChange={handleColorChange}
+                  >
+                    {colors.map((s) => (
+                      <option key={s.value}>{s.value}</option>
+                    ))}
+                  </select>
+                  <div className="absolute pointer-events-none inset-y-0 right-0 flex items-center px-2">
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="inline-flex flex-col">
               <div className="text-2xl mb-4">
                 <label htmlFor="quantity">Quantity</label>
@@ -153,7 +200,7 @@ export default function ProductBody({ product }) {
                 loading={loading}
                 onChange={handleQuantity}
                 onIncrease={increaseQuantity}
-                onBlur={handleBlur}
+                onBlur={handleQuantityBlur}
               />
             </div>
           </div>
