@@ -9,8 +9,8 @@
   "dependencies": {
     "next": "latest",
     "next-transpile-modules": "^3.0.2",
-    "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "react": "^16.8.3",
+    "react-dom": "^16.8.3"
   },
   "license": "ISC"
 }
