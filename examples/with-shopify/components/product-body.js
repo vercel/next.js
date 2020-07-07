@@ -5,6 +5,7 @@ import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
 import ProductQuantity from './product-quantity'
 import Button from './button'
+import SelectInput from './select-input'
 import markdownStyles from './markdown-styles.module.css'
 import ProductGallery from './product-gallery'
 
@@ -149,58 +150,30 @@ export default function ProductBody({ product }) {
                   <label htmlFor="size">Size</label>
                 </div>
 
-                <div className="max-w-xs inline-block relative">
-                  <select
-                    className="w-full h-12 appearance-none border border-black py-2 pl-4 pr-8"
-                    name="size"
-                    id="size"
-                    defaultValue={size.value}
-                  >
-                    {sizes.map((s) => (
-                      <option key={s.value}>{s.value}</option>
-                    ))}
-                  </select>
-                  <div className="absolute pointer-events-none inset-y-0 right-0 flex items-center px-2">
-                    <svg
-                      className="fill-current h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
-                  </div>
-                </div>
+                <SelectInput name="size" id="size" defaultValue={size.value}>
+                  {sizes.map((s) => (
+                    <option key={s.value}>{s.value}</option>
+                  ))}
+                </SelectInput>
               </div>
             )}
 
             {color && (
               <div className="flex flex-col">
                 <div className="text-2xl mb-4">
-                  <label htmlFor="size">Color</label>
+                  <label htmlFor="color">Color</label>
                 </div>
 
-                <div className="max-w-xs inline-block relative">
-                  <select
-                    className="w-full h-12 appearance-none border border-black py-2 pl-4 pr-8"
-                    name="size"
-                    id="size"
-                    value={colorValue}
-                    onChange={handleColorChange}
-                  >
-                    {colors.map((s) => (
-                      <option key={s.value}>{s.value}</option>
-                    ))}
-                  </select>
-                  <div className="absolute pointer-events-none inset-y-0 right-0 flex items-center px-2">
-                    <svg
-                      className="fill-current h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
-                  </div>
-                </div>
+                <SelectInput
+                  name="color"
+                  id="color"
+                  value={colorValue}
+                  onChange={handleColorChange}
+                >
+                  {colors.map((s) => (
+                    <option key={s.value}>{s.value}</option>
+                  ))}
+                </SelectInput>
               </div>
             )}
 
