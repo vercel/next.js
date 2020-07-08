@@ -83,17 +83,29 @@ export default function CartModal() {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-              <Button type="button" onClick={closeCart} secondary>
+              <Button
+                type="button"
+                onClick={closeCart}
+                disabled={loading}
+                secondary
+              >
                 Continue Shopping
               </Button>
-              <Button type="submit">Check Out</Button>
+              <Button type="submit" disabled={loading}>
+                Check Out
+              </Button>
             </div>
           </form>
         ) : (
           <>
             <p className="text-lg">Your cart is currently empty.</p>
             <div className="mt-8">
-              <Button type="button" className="w-full" onClick={closeCart}>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={closeCart}
+                disabled={loading}
+              >
                 Continue Shopping
               </Button>
             </div>

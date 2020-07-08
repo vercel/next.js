@@ -249,7 +249,9 @@ export default function ProductBody({ product }) {
             >
               Add to Cart
             </Button>
-            <Button type="button">Buy it Now</Button>
+            <Button type="button" disabled={loading}>
+              Buy it Now
+            </Button>
           </div>
 
           {product.descriptionHtml?.length > 0 && (
