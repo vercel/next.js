@@ -19,10 +19,22 @@ let appPort
 const appDir = join(__dirname, '../')
 
 function runTests() {
-  it('should render catch-all top-level route with no segments', async () => {
+  it('should render optional catch-all top-level route with no segments', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     expect($('#success').text()).toBe('yay')
+  })
+
+  it('should render optional catch-all top-level route with one segment', async () => {
+    const html = await renderViaHTTP(appPort, '/one')
+    const $ = cheerio.load(html)
+    expect($('#success').text()).toBe('one')
+  })
+
+  it('should render optional catch-all top-level route with two segments', async () => {
+    const html = await renderViaHTTP(appPort, '/one/two')
+    const $ = cheerio.load(html)
+    expect($('#success').text()).toBe('one,two')
   })
 }
 
