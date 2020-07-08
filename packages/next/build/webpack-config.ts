@@ -1014,6 +1014,13 @@ export default async function getBaseWebpackConfig(
     delete webpackConfig.output?.futureEmitAssets
     // No longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
+
+    if (dev) {
+      if (!webpackConfig.optimization) {
+        webpackConfig.optimization = {}
+      }
+      webpackConfig.optimization.usedExports = false
+    }
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
