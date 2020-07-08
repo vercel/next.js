@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import Modal from 'react-modal'
 import { useCart, useCheckout } from '@/lib/cart'
 import CartItem from './cart-item'
@@ -8,34 +7,10 @@ import styles from './cart-modal.module.css'
 Modal.setAppElement('#__next')
 
 export default function CartModal() {
-  const [loading, setLoading] = useState(false)
   const { isOpen, closeCart } = useCart()
-  const { checkout, setLineItems } = useCheckout()
+  const { checkout, loading, updateItem } = useCheckout()
   const lineItems = checkout?.lineItems.edges ?? []
-  const handleItemUpdate = (item) => {
-    const items = lineItems.flatMap(({ node }) => {
-      if (node.variant.id === item.variantId) {
-        // Remove or update the item
-        return item.quantity <= 0 ? [] : [item]
-      }
-      return [
-        {
-          variantId: node.variant.id,
-          quantity: node.quantity,
-        },
-      ]
-    })
 
-    setLoading(true)
-    setLineItems(items)
-      .then(() => {
-        setLoading(false)
-      })
-      .catch((error) => {
-        console.error(error)
-        setLoading(false)
-      })
-  }
   const handleSubmit = (e) => {
     e.preventDefault()
     window.open(checkout.webUrl)
@@ -47,8 +22,6 @@ export default function CartModal() {
       currency: checkout.subtotalPriceV2.currencyCode,
     })
   const price = formatCurrency?.format(checkout.subtotalPriceV2.amount)
-
-  console.log('CHECKOUT', checkout)
 
   return (
     <Modal
@@ -70,7 +43,7 @@ export default function CartModal() {
                 key={node.variant.id}
                 item={node}
                 loading={loading}
-                onItemUpdate={handleItemUpdate}
+                onItemUpdate={updateItem}
               />
             ))}
 

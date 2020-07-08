@@ -42,7 +42,7 @@ function useTransition(length) {
 }
 
 export default function Product({ product }) {
-  const { loading, errorMsg, addVariantToCart } = useCheckout()
+  const { loading, errorMsg, addItem } = useCheckout()
   const images = useImages(product)
   const variants = product.variants.edges
   const variant = variants[0].node
@@ -84,7 +84,7 @@ export default function Product({ product }) {
             <button
               type="button"
               className={styles.addToCart}
-              onClick={() => addVariantToCart(variant)}
+              onClick={() => addItem(variant)}
               disabled={loading}
             >
               {loading ? 'Loading...' : 'Add to Cart'}

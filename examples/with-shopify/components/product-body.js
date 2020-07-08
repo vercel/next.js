@@ -42,7 +42,7 @@ export default function ProductBody({ product }) {
     color: getColor(initialVariant),
     hasZoom: false,
   })
-  const { loading, addVariantToCart } = useCheckout()
+  const { loading, addItem } = useCheckout()
 
   const variant = getVariant(variants, state)
   const { price, compareAtPrice, discount } = formatVariantPrice(variant)
@@ -187,7 +187,7 @@ export default function ProductBody({ product }) {
             <Button
               type="button"
               className="mb-4"
-              onClick={() => addVariantToCart(variant, Number(state.quantity))}
+              onClick={() => addItem(variant, Number(state.quantity))}
               disabled={loading}
               secondary
             >
