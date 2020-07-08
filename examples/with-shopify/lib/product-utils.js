@@ -1,9 +1,12 @@
 import { useMemo } from 'react'
-import formatVariantPrice from './format-variant-price'
 
 export const isSize = (option) => option.name === 'Size'
 
 export const isColor = (option) => option.name === 'Color'
+
+export const getSize = (node) => node.selectedOptions.find(isSize)?.value
+
+export const getColor = (node) => node.selectedOptions.find(isColor)?.value
 
 export function getImages(product) {
   // 1. Use a Map to avoid duplicated images, product variants may be
@@ -28,24 +31,22 @@ export function useImages(product) {
 }
 
 export function getVariantsMetadata(variants) {
-  const data = {
-    colors: new Set(),
-    colorsBySize: new Map(),
-  }
+  const colors = new Set()
+  const colorsBySize = new Map()
 
   variants.forEach(({ node }) => {
-    const nodeSize = node.selectedOptions.find(isSize)
-    const nodeColor = node.selectedOptions.find(isColor)
+    const size = getSize(node)
+    const color = getColor(node)
 
-    if (nodeColor) data.colors.add(nodeColor.value)
-    if (nodeSize) {
-      const sizeColors = data.colorsBySize.get(nodeSize.value) || []
+    if (color) colors.add(color)
+    if (size) {
+      const sizeColors = colorsBySize.get(size) || []
 
-      if (nodeColor) sizeColors.push(nodeColor.value)
+      if (color) sizeColors.push(color)
 
-      data.colorsBySize.set(nodeSize.value, sizeColors)
+      colorsBySize.set(size, sizeColors)
     }
   })
 
-  return data
+  return { colors, colorsBySize }
 }

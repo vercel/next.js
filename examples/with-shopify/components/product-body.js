@@ -1,7 +1,7 @@
 import { useMemo, useReducer } from 'react'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
-import { isColor, getVariantsMetadata, isSize } from '@/lib/product-utils'
+import { getVariantsMetadata, getSize, getColor } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
@@ -20,6 +20,13 @@ function reducer(state, action) {
   }
 }
 
+// Get the currently active variant
+function getVariant(variants, { size, color }) {
+  return variants.find(
+    ({ node }) => getSize(node) === size && getColor(node) === color
+  ).node
+}
+
 export default function ProductBody({ product }) {
   const variants = product.variants.edges
   const initialVariant = variants[0].node
@@ -31,21 +38,15 @@ export default function ProductBody({ product }) {
   const [state, dispatch] = useReducer(reducer, {
     quantity: 1,
     image: initialVariant.image,
-    size: initialVariant.selectedOptions.find(isSize)?.value,
-    color: initialVariant.selectedOptions.find(isColor)?.value,
+    size: getSize(initialVariant),
+    color: getColor(initialVariant),
     hasZoom: false,
   })
   const { loading, addVariantToCart } = useCheckout()
 
-  // Get the currently active variant
-  const variant = variants.find(
-    ({ node }) =>
-      node.selectedOptions.find(isSize)?.value === state.size &&
-      node.selectedOptions.find(isColor)?.value === state.color
-  ).node
+  const variant = getVariant(variants, state)
   const { price, compareAtPrice, discount } = formatVariantPrice(variant)
   const availableColors = colorsBySize.get(state.size)
-
   const update = (newState) => dispatch({ type: 'update', newState })
   const handleQuantity = (e) => {
     const val = Number(e.target.value)
@@ -67,22 +68,19 @@ export default function ProductBody({ product }) {
       update({ quantity: val })
     }
   }
-  const changeColor = (value) => {
-    const { node } = variants.find(({ node }) =>
-      node.selectedOptions.some(
-        (option) => isColor(option) && option.value === value
-      )
-    )
-
-    update({ color: value, image: node.image })
-  }
   const handleSizeChange = (e) => {
-    const sizeColors = colorsBySize.get(e.target.value)
+    const size = e.target.value
+    const sizeColors = colorsBySize.get(size)
+    const color = sizeColors.includes(state.color) ? state.color : sizeColors[0]
+    const { image } = getVariant(variants, { size, color })
 
-    update({
-      size: e.target.value,
-      color: sizeColors.includes(state.color) ? state.color : sizeColors[0],
-    })
+    update({ size, color, image })
+  }
+  const handleColorChange = (e) => {
+    const color = e.target.value
+    const { image } = getVariant(variants, { size: state.size, color })
+
+    update({ color, image })
   }
 
   return (
@@ -156,7 +154,7 @@ export default function ProductBody({ product }) {
                   name="color"
                   id="color"
                   value={state.color}
-                  onChange={(e) => changeColor(e.target.value)}
+                  onChange={handleColorChange}
                 >
                   {Array.from(colors, (value) => (
                     <option
