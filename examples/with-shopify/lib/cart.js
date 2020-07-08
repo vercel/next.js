@@ -101,7 +101,8 @@ export const useCheckout = () => {
   const lineItems = checkout?.lineItems.edges ?? []
   const setItems = (items, open = true) => {
     setStatus({ loading: true })
-    setLineItems(checkout, items)
+
+    return setLineItems(checkout, items)
       .then((data) => {
         const errors = data.checkoutUserErrors ?? data.userErrors
 
@@ -110,15 +111,15 @@ export const useCheckout = () => {
           throw errors[0]
         }
         setStatus({ loading: false })
-        if (data.checkout) setCheckout(data.checkout)
-        if (open) openCart()
+
+        return data
       })
       .catch((error) => {
         console.error(error)
         setStatus({ loading: false, errorMsg: error.message })
       })
   }
-  const addItem = (variant, quantity = 1) => {
+  const addItem = (item, quantity = 1) => {
     let found = false
 
     // Get current items
@@ -126,7 +127,7 @@ export const useCheckout = () => {
       lineItems.map(({ node }) => {
         let { quantity: currentQuantity } = node
 
-        if (node.variant.id === variant.id) {
+        if (node.variant.id === item.id) {
           // Update the current item in the checkout
           found = true
           currentQuantity += quantity
@@ -140,10 +141,13 @@ export const useCheckout = () => {
 
     if (!found) {
       // Add the item to the checkout
-      items.push({ variantId: variant.id, quantity })
+      items.push({ variantId: item.id, quantity })
     }
 
-    setItems(items)
+    setItems(items).then((data) => {
+      setCheckout(data.checkout)
+      openCart()
+    })
   }
   const updateItem = (item) => {
     const items = lineItems.flatMap(({ node }) => {
@@ -159,8 +163,13 @@ export const useCheckout = () => {
       ]
     })
 
-    setItems(items, false)
+    setItems(items, false).then((data) => {
+      setCheckout(data.checkout)
+    })
   }
+  // Creates a new checkout with a single item, the current checkout is kept intact
+  const buyNow = (item, quantity) =>
+    setItems([{ variantId: item.id, quantity }])
 
   return {
     checkout,
@@ -168,6 +177,7 @@ export const useCheckout = () => {
     errorMsg,
     addItem,
     updateItem,
+    buyNow,
   }
 }
 

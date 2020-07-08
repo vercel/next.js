@@ -42,7 +42,7 @@ export default function ProductBody({ product }) {
     color: getColor(initialVariant),
     hasZoom: false,
   })
-  const { loading, addItem } = useCheckout()
+  const { loading, addItem, buyNow } = useCheckout()
 
   const variant = getVariant(variants, state)
   const { price, compareAtPrice, discount } = formatVariantPrice(variant)
@@ -81,6 +81,14 @@ export default function ProductBody({ product }) {
     const { image } = getVariant(variants, { size: state.size, color })
 
     update({ color, image })
+  }
+
+  const addToCart = () => addItem(variant, Number(state.quantity))
+  const buyItNow = () => {
+    buyNow(variant, Number(state.quantity)).then((data) => {
+      console.log('YE', data)
+      window.open(data.checkout.webUrl)
+    })
   }
 
   return (
@@ -187,13 +195,13 @@ export default function ProductBody({ product }) {
             <Button
               type="button"
               className="mb-4"
-              onClick={() => addItem(variant, Number(state.quantity))}
+              onClick={addToCart}
               disabled={loading}
               secondary
             >
               Add to Cart
             </Button>
-            <Button type="button" disabled={loading}>
+            <Button type="button" onClick={buyItNow} disabled={loading}>
               Buy it Now
             </Button>
           </div>
