@@ -155,7 +155,7 @@ registerPostProcessor(
   new FontOptimizerMiddleware(),
   // Using process.env because passing Experimental flag through loader is not possible.
   // @ts-ignore
-  (options) => options.optimizeFonts || process.env.__OPTIMIZE_FONTS
+  (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
 )
 
 export default processHTML

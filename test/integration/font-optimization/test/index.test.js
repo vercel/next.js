@@ -12,27 +12,20 @@ import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 30)
 
+const appDir = join(__dirname, '../')
+const nextConfig = join(appDir, 'next.config.js')
+let builtServerPagesDir
+let builtPage
+let appPort
+let app
+
 const fsExists = (file) =>
   fs
     .access(file)
     .then(() => true)
     .catch(() => false)
 
-describe('Font optimization for SSR apps', () => {
-  const appDir = join(__dirname, '../server')
-  let builtServerPagesDir
-  let builtPage
-  let appPort
-  let app
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-    builtServerPagesDir = join(appDir, '.next', 'server')
-    builtPage = (file) => join(builtServerPagesDir, file)
-  })
-  afterAll(() => killApp(app))
-
+function runTests() {
   it('should inline the google fonts for static pages', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
@@ -41,6 +34,17 @@ describe('Font optimization for SSR apps', () => {
     )
     expect(html).toMatch(
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css\?family=Voces">.*<\/style>/
+    )
+  })
+
+  it('should inline the google fonts for static pages with Next/Head', async () => {
+    const html = await renderViaHTTP(appPort, '/static-head')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Modak"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Modak">.*<\/style>/
     )
   })
 
@@ -54,15 +58,32 @@ describe('Font optimization for SSR apps', () => {
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
     )
   })
+}
+
+describe('Font optimization for SSR apps', () => {
+  beforeAll(async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {optimizeFonts: true} }`,
+      'utf8'
+    )
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    builtServerPagesDir = join(appDir, '.next', 'server')
+    builtPage = (file) => join(builtServerPagesDir, file)
+  })
+  afterAll(() => killApp(app))
+  runTests()
 })
 
 describe('Font optimization for serverless apps', () => {
-  const appDir = join(__dirname, '../serverless')
-  let builtServerPagesDir
-  let builtPage
-  let appPort
-  let app
   beforeAll(async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
+      'utf8'
+    )
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
@@ -70,14 +91,5 @@ describe('Font optimization for serverless apps', () => {
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(() => killApp(app))
-  it('should inline the google fonts for static pages', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-    expect(html).toContain(
-      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css?family=Voces"/>'
-    )
-    expect(html).toMatch(
-      /<style data-href="https:\/\/fonts\.googleapis\.com\/css\?family=Voces">.*<\/style>/
-    )
-  })
+  runTests()
 })

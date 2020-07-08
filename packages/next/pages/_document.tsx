@@ -297,7 +297,7 @@ export class Head extends Component<
         )
     }
 
-    if (process.env.__OPTIMIZE_FONTS) {
+    if (process.env.__NEXT_OPTIMIZE_FONTS) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -457,7 +457,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {process.env.__OPTIMIZE_FONTS
+            {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks())
               : this.getCssLinks()}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
