@@ -1,9 +1,13 @@
+.imageTransition {
+  @apply transition-opacity duration-500 ease-in-out;
+}
+
 .ctaContainer {
-  @apply absolute w-full bottom-0;
+  @apply absolute w-full bottom-0 z-20;
 }
 
 .error {
-  @apply bg-error text-white px-6 py-2;
+  @apply bg-error text-white hidden px-6 py-2;
 }
 
 .hide {
@@ -12,7 +16,7 @@
 
 .show,
 .imageContainer:hover .ctaContainer {
-  @apply translate-y-0 opacity-100 visible;
+  @apply translate-y-0 block visible opacity-100;
 }
 
 .addToCart {
