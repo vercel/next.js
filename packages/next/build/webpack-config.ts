@@ -232,14 +232,16 @@ export default async function getBaseWebpackConfig(
         // Backwards compatibility
         'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
-          `.${path.sep}` +
-          path.relative(
-            dir,
-            path.join(
-              NEXT_PROJECT_ROOT_DIST_CLIENT,
-              dev ? `next-dev.js` : 'next.js'
+          `./` +
+          path
+            .relative(
+              dir,
+              path.join(
+                NEXT_PROJECT_ROOT_DIST_CLIENT,
+                dev ? `next-dev.js` : 'next.js'
+              )
             )
-          ),
+            .replace(/\\/g, '/'),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
           'polyfills.js'
