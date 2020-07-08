@@ -5,7 +5,8 @@
     bg-opacity-75
     flex
     justify-center
-    items-center;
+    items-center
+    z-20;
 }
 
 .modal {

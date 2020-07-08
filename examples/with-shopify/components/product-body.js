@@ -1,7 +1,8 @@
 import { useMemo, useReducer } from 'react'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
-import { isColor, getVariantMetadata } from '@/lib/product-utils'
+import { isColor, getVariantsMetadata, isSize } from '@/lib/product-utils'
+import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
 import ProductQuantity from './product-quantity'
@@ -21,27 +22,31 @@ function reducer(state, action) {
 
 export default function ProductBody({ product }) {
   const variants = product.variants.edges
-  const variant = variants[0].node
-  const {
-    price,
-    compareAtPrice,
-    discount,
-    size,
-    color,
-    colors,
-    colorsBySize,
-  } = useMemo(() => getVariantMetadata(variant, variants), [variant, variants])
+  const initialVariant = variants[0].node
+  const { colors, colorsBySize } = useMemo(
+    () => getVariantsMetadata(variants),
+    [variants]
+  )
+
   const [state, dispatch] = useReducer(reducer, {
     quantity: 1,
-    image: variant.image,
-    size: size?.value,
-    color: color?.value,
+    image: initialVariant.image,
+    size: initialVariant.selectedOptions.find(isSize)?.value,
+    color: initialVariant.selectedOptions.find(isColor)?.value,
     hasZoom: false,
   })
-  const update = (newState) => dispatch({ type: 'update', newState })
   const { loading, addVariantToCart } = useCheckout()
+
+  // Get the currently active variant
+  const variant = variants.find(
+    ({ node }) =>
+      node.selectedOptions.find(isSize)?.value === state.size &&
+      node.selectedOptions.find(isColor)?.value === state.color
+  ).node
+  const { price, compareAtPrice, discount } = formatVariantPrice(variant)
   const availableColors = colorsBySize.get(state.size)
 
+  const update = (newState) => dispatch({ type: 'update', newState })
   const handleQuantity = (e) => {
     const val = Number(e.target.value)
 
@@ -92,7 +97,7 @@ export default function ProductBody({ product }) {
               })}
               image={state.image}
               title={product.title}
-              onClick={() => update({ hasZoom: !!state.hasZoom })}
+              onClick={() => update({ hasZoom: !state.hasZoom })}
             />
           </ZoomImage>
 

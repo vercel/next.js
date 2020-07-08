@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import cn from 'classnames'
 import Link from 'next/link'
-import { isSize } from '@/lib/product-utils'
+import { isSize, isColor } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductQuantity from './product-quantity'
 
@@ -36,6 +36,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
   }
   const { price, compareAtPrice } = formatVariantPrice(variant, item.quantity)
   const size = selectedOptions.find(isSize)
+  const color = selectedOptions.find(isColor)
 
   return (
     <>
@@ -59,7 +60,10 @@ export default function CartItem({ item, onItemUpdate, loading }) {
                 </h3>
               </a>
             </Link>
-            {size && <p>Size: {size.value}</p>}
+
+            {(size || color) && (
+              <p>{[size.value, color.value].filter(Boolean).join(' / ')}</p>
+            )}
           </div>
         </div>
 
