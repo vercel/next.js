@@ -1,0 +1,7 @@
+{
+  "title": "Willkommen zu react und react-i18next",
+  "description": {
+    "part1": "Um loszulegen, ändere pages/index.jsx speicheren und neuladen.",
+    "part2": "Ändere die Sprachen zwischen deutsch und englisch mit Hilfe der beiden Schalter."
+  }
+}
