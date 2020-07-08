@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
+import { useImages } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import styles from './product.module.css'
@@ -42,18 +43,17 @@ function useTransition(length) {
 
 export default function Product({ product }) {
   const { loading, errorMsg, addVariantToCart } = useCheckout()
+  const images = useImages(product)
   const variants = product.variants.edges
   const variant = variants[0].node
-  // Get the list of unique images in the product by using a `Set`
-  // Product variants may be using the default image
-  const images = new Set(variants.map(({ node }) => node.image.transformedSrc))
+  const { price, compareAtPrice, discount } = formatVariantPrice(variant)
+
   // Delete the first image as it's the one added by `ProductImage`
-  images.delete(variant.image.transformedSrc)
+  images.delete(variant.image.originalSrc)
 
   const { position, initTransition, stopTransition } = useTransition(
     images.size
   )
-  const { price, compareAtPrice, discount } = formatVariantPrice(variant)
 
   return (
     <div>
@@ -91,10 +91,10 @@ export default function Product({ product }) {
             </button>
           </div>
 
-          {Array.from(images, (src, i) => (
+          {Array.from(images.values(), (image, i) => (
             <img
-              key={src}
-              src={src}
+              key={image.transformedSrc}
+              src={image.transformedSrc}
               className={cn('absolute opacity-0', styles.imageTransition, {
                 'opacity-100': position === i + 1,
               })}

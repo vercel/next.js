@@ -15,6 +15,15 @@ const ProductFields = `
         currencyCode
       }
     }
+    images(first: 100) {
+      edges {
+        node {
+          altText
+          originalSrc
+          transformedSrc(maxHeight: $maxHeight, maxWidth: $maxWidth, crop: CENTER)
+        }
+      }
+    }
   }
 `
 
@@ -96,15 +105,6 @@ export async function getProductAndMoreProducts(handle) {
         productByHandle(handle: $handle) {
           ...ProductFields
           descriptionHtml
-          images(first: 100) {
-            edges {
-              node {
-                altText
-                originalSrc
-                transformedSrc(maxHeight: $maxHeight, maxWidth: $maxWidth, crop: CENTER)
-              }
-            }
-          }
           variants(first: 100) {
             edges {
               node {
@@ -131,6 +131,7 @@ export async function getProductAndMoreProducts(handle) {
   //       query ProductRecommendations($productId: ID!, $maxWidth: Int = 384, $maxHeight: Int = 384) {
   //         productRecommendations(productId: $productId) {
   //           ...ProductFields
+  //           descriptionHtml
   //           variants(first: 10) {
   //             edges {
   //               node {

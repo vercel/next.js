@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import formatVariantPrice from './format-variant-price'
 
 export const isSize = (option) => option.name === 'Size'
@@ -29,4 +30,26 @@ export function getVariantMetadata(variant, variants) {
   })
 
   return data
+}
+
+export function getImages(product) {
+  // 1. Use a Map to avoid duplicated images, product variants may be
+  // using the default image of the product
+  const images = new Map()
+
+  // 2. Append the images that are assigned to a variant
+  product.variants.edges.forEach(({ node }) => {
+    images.set(node.image.originalSrc, node.image)
+  })
+
+  // 3. Append any remaining images that are in the product and not assigned to a variant
+  product.images.edges.forEach(({ node }) => {
+    images.set(node.originalSrc, node)
+  })
+
+  return images
+}
+
+export function useImages(product) {
+  return useMemo(() => getImages(product), [product])
 }
