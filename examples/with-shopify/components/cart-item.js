@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import cn from 'classnames'
 import Link from 'next/link'
+import { isSize } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductQuantity from './product-quantity'
 
@@ -34,7 +35,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
     }
   }
   const { price, compareAtPrice } = formatVariantPrice(variant, item.quantity)
-  const size = selectedOptions.find((option) => option.name === 'Size')
+  const size = selectedOptions.find(isSize)
 
   return (
     <>

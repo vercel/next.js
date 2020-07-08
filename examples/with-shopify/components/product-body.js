@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useReducer } from 'react'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
+import { isSize, isColor } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
@@ -10,102 +11,123 @@ import SelectInput from './select-input'
 import markdownStyles from './markdown-styles.module.css'
 import ProductGallery from './product-gallery'
 
-export default function ProductBody({ product }) {
-  const variants = product.variants.edges
-  const variant = variants[0].node
-  const { price, compareAtPrice, discount } = formatVariantPrice(variant)
-  const size = variant.selectedOptions.find((option) => option.name === 'Size')
-  const color = variant.selectedOptions.find(
-    (option) => option.name === 'Color'
-  )
-  // Use a Set to avoid duplicates
-  const colors = new Set()
-  const colorsBySize = new Map()
+function getVariantMetadata(variant, variants) {
+  const data = {
+    ...formatVariantPrice(variant),
+    size: variant.selectedOptions.find(isSize),
+    color: variant.selectedOptions.find(isColor),
+    // Use a Set to avoid duplicates
+    colors: new Set(),
+    colorsBySize: new Map(),
+  }
 
   variants.forEach(({ node }) => {
-    const nodeSize = node.selectedOptions.find(
-      (option) => option.name === 'Size'
-    )
-    const nodeColor = node.selectedOptions.find(
-      (option) => option.name === 'Color'
-    )
+    const nodeSize = node.selectedOptions.find(isSize)
+    const nodeColor = node.selectedOptions.find(isColor)
 
-    if (nodeColor) colors.add(nodeColor.value)
+    if (nodeColor) data.colors.add(nodeColor.value)
     if (nodeSize) {
-      const sizeColors = colorsBySize.get(nodeSize.value) || []
+      const sizeColors = data.colorsBySize.get(nodeSize.value) || []
 
       if (nodeColor) sizeColors.push(nodeColor.value)
 
-      colorsBySize.set(nodeSize.value, sizeColors)
+      data.colorsBySize.set(nodeSize.value, sizeColors)
     }
   })
 
-  const [quantity, setQuantity] = useState(1)
-  const [activeImage, setActiveImage] = useState(variant.image)
-  const [sizeValue, setSizeValue] = useState(size?.value)
-  const [colorValue, setColorValue] = useState(color?.value)
-  const [hasZoom, setHasZoom] = useState(false)
+  return data
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'update':
+      return { ...state, ...action.newState }
+    default:
+      throw new Error()
+  }
+}
+
+export default function ProductBody({ product }) {
+  const variants = product.variants.edges
+  const variant = variants[0].node
+  const {
+    price,
+    compareAtPrice,
+    discount,
+    size,
+    color,
+    colors,
+    colorsBySize,
+  } = useMemo(() => getVariantMetadata(variant, variants), [variant, variants])
+  const [state, dispatch] = useReducer(reducer, {
+    quantity: 1,
+    image: variant.image,
+    size: size?.value,
+    color: color?.value,
+    hasZoom: false,
+  })
+  const update = (newState) => dispatch({ type: 'update', newState })
   const { loading, errorMsg, addVariantToCart } = useCheckout()
-  const availableColors = colorsBySize.get(sizeValue)
+  const availableColors = colorsBySize.get(state.size)
 
   const handleQuantity = (e) => {
     const val = Number(e.target.value)
 
     if (Number.isInteger(val) && val >= 0) {
-      setQuantity(e.target.value)
+      update({ quantity: e.target.value })
     }
   }
   const handleQuantityBlur = (e) => {
-    // Reset the quantity to 1 if it's manually set to a lower number
-    if (Number(quantity) <= 0) setQuantity(1)
+    if (Number(state.quantity) <= 0) {
+      // Reset the quantity to 1 if it's manually set to a lower number
+      update({ quantity: 1 })
+    }
   }
   const increaseQuantity = (n = 1) => {
-    const val = Number(quantity) + n
+    const val = Number(state.quantity) + n
 
     if (Number.isInteger(val) && val > 0) {
-      setQuantity(val)
+      update({ quantity: val })
     }
   }
   const changeColor = (value) => {
     const { node } = variants.find(({ node }) =>
       node.selectedOptions.some(
-        (option) => option.name === 'Color' && option.value === value
+        (option) => isColor(option) && option.value === value
       )
     )
 
-    setColorValue(value)
-    setActiveImage(node.image)
+    update({ color: value, image: node.image })
   }
   const handleSizeChange = (e) => {
     const sizeColors = colorsBySize.get(e.target.value)
 
-    setSizeValue(e.target.value)
-
-    if (!sizeColors.includes(colorValue)) {
-      changeColor(sizeColors[0])
-    }
+    update({
+      size: e.target.value,
+      color: sizeColors.includes(state.color) ? state.color : sizeColors[0],
+    })
   }
 
   return (
     <main>
       <div className="flex flex-col md:flex-row w-full">
         <div className="md:max-w-lg w-full md:mr-8">
-          <ZoomImage src={activeImage.originalSrc}>
+          <ZoomImage src={state.image.originalSrc}>
             <ProductImage
               className={cn({
-                'cursor-zoom-out hover:opacity-0': hasZoom,
-                'cursor-zoom-in': !hasZoom,
+                'cursor-zoom-out hover:opacity-0': state.hasZoom,
+                'cursor-zoom-in': !state.hasZoom,
               })}
-              image={activeImage}
+              image={state.image}
               title={product.title}
-              onClick={() => setHasZoom(!hasZoom)}
+              onClick={() => update({ hasZoom: !!state.hasZoom })}
             />
           </ZoomImage>
 
           <ProductGallery
             product={product}
-            activeImage={activeImage}
-            onClick={(image) => setActiveImage(image)}
+            activeImage={state.image}
+            onClick={(image) => update({ image })}
           />
         </div>
 
@@ -128,7 +150,7 @@ export default function ProductBody({ product }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
-            {size && (
+            {state.size && (
               <div className="flex flex-col">
                 <div className="text-2xl mb-4">
                   <label htmlFor="size">Size</label>
@@ -137,7 +159,7 @@ export default function ProductBody({ product }) {
                 <SelectInput
                   name="size"
                   id="size"
-                  value={sizeValue}
+                  value={state.size}
                   onChange={handleSizeChange}
                 >
                   {Array.from(colorsBySize.keys(), (value) => (
@@ -147,7 +169,7 @@ export default function ProductBody({ product }) {
               </div>
             )}
 
-            {color && (
+            {state.color && (
               <div className="flex flex-col">
                 <div className="text-2xl mb-4">
                   <label htmlFor="color">Color</label>
@@ -156,7 +178,7 @@ export default function ProductBody({ product }) {
                 <SelectInput
                   name="color"
                   id="color"
-                  value={colorValue}
+                  value={state.color}
                   onChange={(e) => changeColor(e.target.value)}
                 >
                   {Array.from(colors, (value) => (
@@ -177,7 +199,7 @@ export default function ProductBody({ product }) {
               </div>
               <ProductQuantity
                 id="quantity"
-                value={quantity}
+                value={state.quantity}
                 loading={loading}
                 onChange={handleQuantity}
                 onIncrease={increaseQuantity}
@@ -190,7 +212,7 @@ export default function ProductBody({ product }) {
             <Button
               type="button"
               className="mb-4"
-              onClick={() => addVariantToCart(variant, Number(quantity))}
+              onClick={() => addVariantToCart(variant, Number(state.quantity))}
               disabled={loading}
               secondary
             >
