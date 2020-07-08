@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
+import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import styles from './product.module.css'
 
@@ -11,12 +12,7 @@ export default function Product({ product }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState()
   const variant = product.variants.edges[0].node
-  const { amount, currencyCode } = variant.priceV2
-  const formatCurrency = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode,
-  })
-  const price = formatCurrency.format(amount)
+  const { price, compareAtPrice, discount } = formatVariantPrice(variant)
   const onCtaClick = () => {
     let found = false
     // Get current items
@@ -65,7 +61,7 @@ export default function Product({ product }) {
 
   return (
     <div>
-      <div className="max-w-sm w-full mb-5">
+      <div className="relative max-w-sm w-full mb-5">
         <ProductImage
           containerClassName={styles.imageContainer}
           image={variant.image}
@@ -100,7 +96,21 @@ export default function Product({ product }) {
           <a className="hover:underline">{product.title}</a>
         </Link>
       </h3>
-      <p className="text-lg">{price}</p>
+      <div className="flex items-center">
+        <span
+          className={cn('text-2xl mr-4', {
+            'text-highlight-red': compareAtPrice,
+          })}
+        >
+          {price}
+        </span>
+        {compareAtPrice && (
+          <div className="text-lg text-accent-5">
+            <del className="mr-2">{compareAtPrice}</del>
+            <span className="font-medium">-{discount}</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

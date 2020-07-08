@@ -36,8 +36,8 @@ export default function Index({ shop, product, relatedProducts }) {
             <ProductBody product={product} />
           )}
           {relatedProducts.length > 0 && (
-            <section className="my-16">
-              <h2 className="mb-8 text-6xl leading-tight">You may also like</h2>
+            <section className="my-24">
+              <h2 className="mb-8 text-5xl leading-tight">You may also like</h2>
               <Products products={relatedProducts} />
             </section>
           )}

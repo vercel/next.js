@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import cn from 'classnames'
 import Link from 'next/link'
+import formatVariantPrice from '@/lib/format-variant-price'
 import ProductQuantity from './product-quantity'
 
 export default function CartItem({ item, onItemUpdate, loading }) {
@@ -32,21 +33,8 @@ export default function CartItem({ item, onItemUpdate, loading }) {
       updateItem({ quantity: val })
     }
   }
-  const { amount, currencyCode } = variant.priceV2
-  const formatCurrency = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode,
-  })
-  const price = formatCurrency.format(amount * item.quantity)
+  const { price, compareAtPrice } = formatVariantPrice(variant, item.quantity)
   const size = selectedOptions.find((option) => option.name === 'Size')
-
-  const hasDiscount =
-    variant.compareAtPriceV2 &&
-    Number(variant.compareAtPriceV2.amount) > 0 &&
-    Number(variant.compareAtPriceV2.amount) > Number(amount)
-  const discount = hasDiscount
-    ? formatCurrency.format(variant.compareAtPriceV2.amount * item.quantity)
-    : 0
 
   return (
     <>
@@ -86,10 +74,16 @@ export default function CartItem({ item, onItemUpdate, loading }) {
           </div>
 
           <div className="flex flex-col text-right justify-center">
-            <span className={cn('text-lg', { 'text-highlight-red': discount })}>
+            <span
+              className={cn('text-lg', {
+                'text-highlight-red': compareAtPrice,
+              })}
+            >
               {price}
             </span>
-            {hasDiscount && <del className="text-accent-5">{discount}</del>}
+            {compareAtPrice && (
+              <del className="text-accent-5">{compareAtPrice}</del>
+            )}
           </div>
         </div>
       </div>

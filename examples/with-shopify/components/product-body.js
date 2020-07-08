@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
+import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
 import ProductQuantity from './product-quantity'
@@ -12,13 +13,7 @@ import ProductGallery from './product-gallery'
 export default function ProductBody({ product }) {
   const variants = product.variants.edges
   const variant = variants[0].node
-  const { amount, currencyCode } = variant.priceV2
-
-  const formatCurrency = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode,
-  })
-  const price = formatCurrency.format(amount)
+  const { price, compareAtPrice, discount } = formatVariantPrice(variant)
   const size = variant.selectedOptions.find((option) => option.name === 'Size')
   const color = variant.selectedOptions.find(
     (option) => option.name === 'Color'
@@ -169,7 +164,21 @@ export default function ProductBody({ product }) {
 
         <div className="w-full mt-8 md:mt-0">
           <h2 className="text-5xl mb-6">{product.title}</h2>
-          <h3 className="text-2xl mb-6">{price}</h3>
+          <div className="flex items-center mb-6">
+            <h3
+              className={cn('text-3xl mr-4', {
+                'text-highlight-red': compareAtPrice,
+              })}
+            >
+              {price}
+            </h3>
+            {compareAtPrice && (
+              <div className="text-lg text-accent-5">
+                <del className="mr-2">{compareAtPrice}</del>
+                <span className="font-medium">-{discount}</span>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
             {size && (
