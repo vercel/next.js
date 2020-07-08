@@ -21,6 +21,8 @@ function getImagesBySrc(product) {
     const colors = imagesBySrc.get(node.originalSrc) ?? []
     imagesBySrc.set(node.originalSrc, { colors, image: node })
   })
+
+  return imagesBySrc
 }
 
 export default function ProductGallery({ product, activeImage, onClick }) {
