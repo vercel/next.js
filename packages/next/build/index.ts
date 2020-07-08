@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   getRedirectStatus,
+  normalizeRouteRegex,
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
@@ -273,7 +274,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             permanent: undefined,
           }
         : {}),
-      regex: routeRegex.source,
+      regex: normalizeRouteRegex(routeRegex.source),
     }
   }
 
@@ -291,7 +292,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         const routeRegex = getRouteRegex(page)
         return {
           page,
-          regex: routeRegex.re.source,
+          regex: normalizeRouteRegex(routeRegex.re.source),
           routeKeys: routeRegex.routeKeys,
           namedRegex: routeRegex.namedRegex,
         }
@@ -611,9 +612,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (isDynamicRoute(page)) {
         const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
 
-        dataRouteRegex = routeRegex.re.source.replace(
-          /\(\?:\\\/\)\?\$$/,
-          '\\.json$'
+        dataRouteRegex = normalizeRouteRegex(
+          routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
         )
         namedDataRouteRegex = routeRegex.namedRegex!.replace(
           /\(\?:\/\)\?\$$/,
@@ -621,13 +621,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
         )
         routeKeys = routeRegex.routeKeys
       } else {
-        dataRouteRegex = new RegExp(
-          `^${path.posix.join(
-            '/_next/data',
-            escapeStringRegexp(buildId),
-            `${pagePath}.json`
-          )}$`
-        ).source
+        dataRouteRegex = normalizeRouteRegex(
+          new RegExp(
+            `^${path.posix.join(
+              '/_next/data',
+              escapeStringRegexp(buildId),
+              `${pagePath}.json`
+            )}$`
+          ).source
+        )
       }
 
       return {
@@ -887,14 +889,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       finalDynamicRoutes[tbdRoute] = {
-        routeRegex: getRouteRegex(tbdRoute).re.source,
+        routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
         dataRoute,
         fallback: ssgFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
-        dataRouteRegex: getRouteRegex(
-          dataRoute.replace(/\.json$/, '')
-        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+        dataRouteRegex: normalizeRouteRegex(
+          getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
+            /\(\?:\\\/\)\?\$$/,
+            '\\.json$'
+          )
+        ),
       }
     })
     const prerenderManifest: PrerenderManifest = {
