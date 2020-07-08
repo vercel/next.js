@@ -81,7 +81,9 @@ const ReplaceLineItems = `
 export const useCart = () => useContext(Cart)
 
 export const useCheckout = () => {
+  const { openCart } = useCart()
   const { checkout, setCheckout } = useContext(Checkout)
+  const [{ loading, errorMsg }, setStatus] = useState({ loading: false })
   const setLineItems = async (lineItems) => {
     const data = checkout
       ? await graphqlFetch(ReplaceLineItems, {
@@ -102,8 +104,49 @@ export const useCheckout = () => {
 
     return data
   }
+  const addVariantToCart = (variant, quantity = 1) => {
+    let found = false
 
-  return { checkout, setLineItems }
+    // Get current items
+    const items =
+      checkout?.lineItems.edges.map(({ node }) => {
+        let { quantity: currentQuantity } = node
+
+        if (node.variant.id === variant.id) {
+          // Update the current item in the checkout
+          found = true
+          currentQuantity += quantity
+        }
+
+        return {
+          variantId: node.variant.id,
+          quantity: currentQuantity,
+        }
+      }) ?? []
+
+    if (!found) {
+      // Add the item to the checkout
+      items.push({ variantId: variant.id, quantity })
+    }
+
+    setStatus({ loading: true })
+    setLineItems(items)
+      .then((data) => {
+        const errors = data.checkoutUserErrors ?? data.userErrors
+
+        if (errors.length) {
+          console.error('Checkout failed with:', errors)
+          throw errors[0]
+        }
+        setStatus({ loading: false })
+        openCart()
+      })
+      .catch((error) => {
+        setStatus({ loading: false, errorMsg: error.message })
+      })
+  }
+
+  return { checkout, loading, errorMsg, setLineItems, addVariantToCart }
 }
 
 export const CartProvider = ({ children }) => {

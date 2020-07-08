@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import cn from 'classnames'
-import { useCart, useCheckout } from '@/lib/cart'
+import { useCheckout } from '@/lib/cart'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
@@ -41,13 +41,11 @@ export default function ProductBody({ product }) {
   })
 
   const [quantity, setQuantity] = useState(1)
-  const [loading, setLoading] = useState(false)
   const [activeImage, setActiveImage] = useState(variant.image)
   const [sizeValue, setSizeValue] = useState(size?.value)
   const [colorValue, setColorValue] = useState(color?.value)
   const [hasZoom, setHasZoom] = useState(false)
-  const { openCart } = useCart()
-  const { checkout, setLineItems } = useCheckout()
+  const { loading, errorMsg, addVariantToCart } = useCheckout()
   const availableColors = colorsBySize.get(sizeValue)
 
   const handleQuantity = (e) => {
@@ -79,65 +77,14 @@ export default function ProductBody({ product }) {
     setActiveImage(node.image)
   }
   const handleSizeChange = (e) => {
-    setSizeValue(e.target.value)
-
     const sizeColors = colorsBySize.get(e.target.value)
+
+    setSizeValue(e.target.value)
 
     if (!sizeColors.includes(colorValue)) {
       changeColor(sizeColors[0])
     }
   }
-  const handleColorChange = (e) => {
-    changeColor(e.target.value)
-  }
-  const addToCart = () => {
-    const val = Number(quantity)
-    let found = false
-
-    // Get current items
-    const items =
-      checkout?.lineItems.edges.map(({ node }) => {
-        let { quantity: currentQuantity } = node
-
-        if (node.variant.id === variant.id) {
-          // Update the current item in the checkout
-          found = true
-          currentQuantity += val
-        }
-
-        return {
-          variantId: node.variant.id,
-          quantity: currentQuantity,
-        }
-      }) ?? []
-
-    if (!found) {
-      // Add the item to the checkout
-      items.push({
-        variantId: variant.id,
-        quantity: val,
-      })
-    }
-
-    setLoading(true)
-    setLineItems(items)
-      .then((data) => {
-        const errors = data.checkoutUserErrors ?? data.userErrors
-
-        if (errors.length) {
-          console.error('Checkout failed with:', errors)
-          throw errors[0]
-        }
-        setLoading(false)
-        openCart()
-      })
-      .catch((error) => {
-        setLoading(false)
-      })
-  }
-
-  console.log(product, variants)
-  // console.log('s', allSelectedOptions)
 
   return (
     <main>
@@ -210,7 +157,7 @@ export default function ProductBody({ product }) {
                   name="color"
                   id="color"
                   value={colorValue}
-                  onChange={handleColorChange}
+                  onChange={(e) => changeColor(e.target.value)}
                 >
                   {Array.from(colors, (value) => (
                     <option
@@ -243,7 +190,7 @@ export default function ProductBody({ product }) {
             <Button
               type="button"
               className="mb-4"
-              onClick={addToCart}
+              onClick={() => addVariantToCart(variant, Number(quantity))}
               disabled={loading}
               secondary
             >

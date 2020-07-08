@@ -1,63 +1,14 @@
-import { useState } from 'react'
 import Link from 'next/link'
 import cn from 'classnames'
-import { useCart, useCheckout } from '@/lib/cart'
+import { useCheckout } from '@/lib/cart'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
 import styles from './product.module.css'
 
 export default function Product({ product }) {
-  const { openCart } = useCart()
-  const { checkout, setLineItems } = useCheckout()
-  const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState()
+  const { loading, errorMsg, addVariantToCart } = useCheckout()
   const variant = product.variants.edges[0].node
   const { price, compareAtPrice, discount } = formatVariantPrice(variant)
-  const onCtaClick = () => {
-    let found = false
-    // Get current items
-    const items =
-      checkout?.lineItems.edges.map(({ node }) => {
-        let { quantity } = node
-
-        if (node.variant.id === variant.id) {
-          // Update the current item in the checkout
-          found = true
-          quantity += 1
-        }
-
-        return {
-          variantId: node.variant.id,
-          quantity,
-        }
-      }) ?? []
-
-    if (!found) {
-      // Add the item to the checkout
-      items.push({
-        variantId: variant.id,
-        quantity: 1,
-      })
-    }
-
-    setLoading(true)
-    setErrorMsg()
-    setLineItems(items)
-      .then((data) => {
-        const errors = data.checkoutUserErrors ?? data.userErrors
-
-        if (errors.length) {
-          console.error('Checkout failed with:', errors)
-          throw errors[0]
-        }
-        setLoading(false)
-        openCart()
-      })
-      .catch((error) => {
-        setLoading(false)
-        setErrorMsg(error.message)
-      })
-  }
 
   return (
     <div>
@@ -83,7 +34,7 @@ export default function Product({ product }) {
             <button
               type="button"
               className={styles.addToCart}
-              onClick={onCtaClick}
+              onClick={() => addVariantToCart(variant)}
               disabled={loading}
             >
               {loading ? 'Loading...' : 'Add to Cart'}
