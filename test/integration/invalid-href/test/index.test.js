@@ -21,47 +21,41 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
-const showsError = async (
-  pathname,
-  regex,
-  click = false,
-  isWarn = false,
-  cb
-) => {
+const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
-  if (isWarn) {
-    await browser.eval(`(function() {
-      window.warnLogs = []
-      var origWarn = window.console.warn
-      window.console.warn = function() {
-        var warnStr = ''
-        for (var i = 0; i < arguments.length; i++) {
-          if (i > 0) warnStr += ' ';
-          warnStr += arguments[i]
+  try {
+    if (isWarn) {
+      await browser.eval(`(function() {
+        window.warnLogs = []
+        var origWarn = window.console.warn
+        window.console.warn = function() {
+          var warnStr = ''
+          for (var i = 0; i < arguments.length; i++) {
+            if (i > 0) warnStr += ' ';
+            warnStr += arguments[i]
+          }
+          window.warnLogs.push(warnStr)
+          origWarn.apply(undefined, arguments)
         }
-        window.warnLogs.push(warnStr)
-        origWarn.apply(undefined, arguments)
-      }
-    })()`)
-  }
+      })()`)
+    }
 
-  if (click) {
-    await browser.elementByCss('a').click()
+    if (click) {
+      await browser.elementByCss('a').click()
+    }
+    if (isWarn) {
+      await waitFor(2000)
+      const warnLogs = await browser.eval('window.warnLogs')
+      console.log(warnLogs)
+      expect(warnLogs.some((log) => log.match(regex))).toBe(true)
+    } else {
+      expect(await hasRedbox(browser)).toBe(true)
+      const errorContent = await getRedboxHeader(browser)
+      expect(errorContent).toMatch(regex)
+    }
+  } finally {
+    await browser.close()
   }
-  if (isWarn) {
-    await waitFor(2000)
-    const warnLogs = await browser.eval('window.warnLogs')
-    console.log(warnLogs)
-    expect(warnLogs.some((log) => log.match(regex))).toBe(true)
-  } else {
-    expect(await hasRedbox(browser)).toBe(true)
-    const errorContent = await getRedboxHeader(browser)
-    expect(errorContent).toMatch(regex)
-  }
-
-  if (cb) await cb(browser)
-
-  await browser.close()
 }
 
 const noError = async (pathname, click = false) => {
