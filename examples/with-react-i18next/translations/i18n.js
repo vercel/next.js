@@ -3,8 +3,8 @@ import { initReactI18next } from 'react-i18next'
 
 import enTranslation from './locales/en/translation'
 import deTranslation from './locales/de/translation'
-import enOverview from './locales/en/overview.json'
-import deOverview from './locales/de/overview.json'
+import enOverview from './locales/en/overview'
+import deOverview from './locales/de/overview'
 
 const resources = {
   en: { translation: enTranslation, overview: enOverview },
