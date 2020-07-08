@@ -74,6 +74,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
+import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -789,7 +790,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSsgFallback = ssgFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
-      let file = normalizePagePath(page)
+      const file = getAssetPathFromRoute(page)
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
@@ -824,11 +825,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
-            await moveExportedPage(page, route, route, true, 'html')
-            await moveExportedPage(page, route, route, true, 'json')
+            const ssgFile = getAssetPathFromRoute(route)
+            await moveExportedPage(page, route, ssgFile, true, 'html')
+            await moveExportedPage(page, route, ssgFile, true, 'json')
 
             if (hasAmp) {
-              const ampPage = `${normalizePagePath(route)}.amp`
+              const ampPage = getAssetPathFromRoute(route, '.amp')
               await moveExportedPage(page, ampPage, ampPage, true, 'html')
               await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
