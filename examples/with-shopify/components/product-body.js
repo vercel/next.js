@@ -1,8 +1,7 @@
 import { useMemo, useReducer } from 'react'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
-import { isSize, isColor } from '@/lib/product-utils'
-import formatVariantPrice from '@/lib/format-variant-price'
+import { isColor, getVariantMetadata } from '@/lib/product-utils'
 import ProductImage from './product-image'
 import ZoomImage from './zoom-image'
 import ProductQuantity from './product-quantity'
@@ -10,33 +9,6 @@ import Button from './button'
 import SelectInput from './select-input'
 import markdownStyles from './markdown-styles.module.css'
 import ProductGallery from './product-gallery'
-
-function getVariantMetadata(variant, variants) {
-  const data = {
-    ...formatVariantPrice(variant),
-    size: variant.selectedOptions.find(isSize),
-    color: variant.selectedOptions.find(isColor),
-    // Use a Set to avoid duplicates
-    colors: new Set(),
-    colorsBySize: new Map(),
-  }
-
-  variants.forEach(({ node }) => {
-    const nodeSize = node.selectedOptions.find(isSize)
-    const nodeColor = node.selectedOptions.find(isColor)
-
-    if (nodeColor) data.colors.add(nodeColor.value)
-    if (nodeSize) {
-      const sizeColors = data.colorsBySize.get(nodeSize.value) || []
-
-      if (nodeColor) sizeColors.push(nodeColor.value)
-
-      data.colorsBySize.set(nodeSize.value, sizeColors)
-    }
-  })
-
-  return data
-}
 
 function reducer(state, action) {
   switch (action.type) {
@@ -67,7 +39,7 @@ export default function ProductBody({ product }) {
     hasZoom: false,
   })
   const update = (newState) => dispatch({ type: 'update', newState })
-  const { loading, errorMsg, addVariantToCart } = useCheckout()
+  const { loading, addVariantToCart } = useCheckout()
   const availableColors = colorsBySize.get(state.size)
 
   const handleQuantity = (e) => {

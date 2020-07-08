@@ -1,7 +1,8 @@
+import { useMemo } from 'react'
 import cn from 'classnames'
 import ProductImage from './product-image'
 
-export default function ProductGallery({ product, activeImage, onClick }) {
+function getImagesBySrc(product) {
   const imagesBySrc = new Map()
 
   product.variants.edges.forEach(({ node }) => {
@@ -20,6 +21,10 @@ export default function ProductGallery({ product, activeImage, onClick }) {
     const colors = imagesBySrc.get(node.originalSrc) ?? []
     imagesBySrc.set(node.originalSrc, { colors, image: node })
   })
+}
+
+export default function ProductGallery({ product, activeImage, onClick }) {
+  const imagesBySrc = useMemo(() => getImagesBySrc(product), [product])
 
   return (
     <div className="grid grid-cols-p-images gap-2 mt-3">
