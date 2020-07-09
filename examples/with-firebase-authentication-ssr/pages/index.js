@@ -1,3 +1,4 @@
+// TODO: remove swr and js-cookie packages
 import useSWR from 'swr'
 import Link from 'next/link'
 import { useUser } from '../utils/auth/useUser'
