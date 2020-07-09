@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 const defaultState = {
   hasHover: false,
   position: 0,
-  delay: 1000,
+  delay: 700,
 }
 
 export default function useTransition(length) {
@@ -24,7 +24,7 @@ export default function useTransition(length) {
       setTransition({
         hasHover: true,
         position: next > length ? 0 : next,
-        delay: 2200,
+        delay: 2500,
       })
     }, delay)
 

@@ -1,5 +1,5 @@
 .imageTransition {
-  @apply transition-opacity duration-500 ease-in-out;
+  @apply transition-opacity duration-700 ease-in-out;
 }
 
 .ctaContainer {

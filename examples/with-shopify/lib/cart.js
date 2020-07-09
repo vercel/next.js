@@ -1,6 +1,8 @@
 import { createContext, useContext, useState } from 'react'
 import graphqlFetch from '@/lib/graphql-fetch'
 
+export const MAX_PER_ITEM = 5
+
 const Checkout = createContext()
 const Cart = createContext()
 
@@ -92,6 +94,13 @@ const setLineItems = async (checkout, lineItems) =>
         },
       }).then((d) => d.checkoutCreate)
 
+const validateItem = (item) => {
+  console.log('U', item.quantity, MAX_PER_ITEM)
+  if (item.quantity > MAX_PER_ITEM) {
+    throw new Error(`Up to ${MAX_PER_ITEM} units are allowed per product`)
+  }
+}
+
 export const useCart = () => useContext(Cart)
 
 export const useCheckout = () => {
@@ -99,25 +108,25 @@ export const useCheckout = () => {
   const { checkout, setCheckout } = useContext(Checkout)
   const [{ loading, errorMsg }, setStatus] = useState({ loading: false })
   const lineItems = checkout?.lineItems.edges ?? []
-  const setItems = (items, open = true) => {
-    setStatus({ loading: true })
+  const setItems = async (items, open = true) => {
+    try {
+      items.forEach(validateItem)
+      setStatus({ loading: true })
 
-    return setLineItems(checkout, items)
-      .then((data) => {
-        const errors = data.checkoutUserErrors ?? data.userErrors
+      const data = await setLineItems(checkout, items)
+      const errors = data.checkoutUserErrors ?? data.userErrors
 
-        if (errors.length) {
-          console.error('Checkout failed with:', errors)
-          throw errors[0]
-        }
-        setStatus({ loading: false })
+      if (errors.length) {
+        console.error('Checkout failed with:', errors)
+        throw errors[0]
+      }
+      setStatus({ loading: false })
 
-        return data
-      })
-      .catch((error) => {
-        console.error(error)
-        setStatus({ loading: false, errorMsg: error.message })
-      })
+      return data
+    } catch (error) {
+      console.error(error)
+      setStatus({ loading: false, errorMsg: error.message })
+    }
   }
   const addItem = (item, quantity = 1) => {
     let found = false
@@ -145,8 +154,10 @@ export const useCheckout = () => {
     }
 
     setItems(items).then((data) => {
-      setCheckout(data.checkout)
-      openCart()
+      if (data) {
+        setCheckout(data.checkout)
+        openCart()
+      }
     })
   }
   const updateItem = (item) => {
@@ -164,7 +175,7 @@ export const useCheckout = () => {
     })
 
     setItems(items, false).then((data) => {
-      setCheckout(data.checkout)
+      if (data) setCheckout(data.checkout)
     })
   }
   // Creates a new checkout with a single item, the current checkout is kept intact

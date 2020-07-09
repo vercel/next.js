@@ -8,9 +8,8 @@ Modal.setAppElement('#__next')
 
 export default function CartModal() {
   const { isOpen, closeCart } = useCart()
-  const { checkout, loading, updateItem } = useCheckout()
+  const { checkout, loading, errorMsg, updateItem } = useCheckout()
   const lineItems = checkout?.lineItems.edges ?? []
-
   const handleSubmit = (e) => {
     e.preventDefault()
     window.open(checkout.webUrl)
@@ -51,11 +50,12 @@ export default function CartModal() {
               <h3 className="text-2xl">Subtotal</h3>
               <h3 className="text-2xl">{price}</h3>
             </div>
-            <p className="text-sm text-left text-accent-5">
+            <p className="text-sm text-left text-accent-5 mb-2">
               Shipping & taxes calculated at checkout
             </p>
+            <p className="text-right text-error h-6">{errorMsg}</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <Button
                 type="button"
                 onClick={closeCart}
