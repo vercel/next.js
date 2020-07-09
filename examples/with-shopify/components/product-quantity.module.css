@@ -16,6 +16,7 @@
   @apply border-accent-7;
 }
 
+.quantity:disabled,
 .quantityControl:disabled {
-  @apply cursor-default border-accent-2;
+  @apply cursor-default border-accent-2 opacity-50;
 }

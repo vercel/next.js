@@ -1,6 +1,6 @@
 import { useMemo, useReducer, useEffect } from 'react'
 import cn from 'classnames'
-import { useCheckout } from '@/lib/cart'
+import { useCheckout, MAX_PER_ITEM } from '@/lib/cart'
 import { getVariantsMetadata, getSize, getColor } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductImage from './product-image'
@@ -194,7 +194,9 @@ export default function ProductBody({ product }) {
               <ProductQuantity
                 id="quantity"
                 value={state.quantity}
-                loading={loading}
+                min={1}
+                max={MAX_PER_ITEM}
+                disabled={loading}
                 onChange={handleQuantity}
                 onIncrease={increaseQuantity}
                 onBlur={handleQuantityBlur}

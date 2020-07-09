@@ -1,29 +1,38 @@
-import cn from 'classnames'
 import styles from './product-quantity.module.css'
 
-export default function ProductQuantity({ loading, onIncrease, ...props }) {
+export default function ProductQuantity({
+  value,
+  min,
+  max,
+  disabled,
+  onChange,
+  onIncrease,
+  ...props
+}) {
   return (
-    <div className={cn('flex h-12', { 'opacity-50': loading })}>
+    <div className="flex h-12">
       <button
         type="button"
         className={styles.quantityControl}
-        disabled={loading}
+        disabled={disabled || (min ? Number(value) <= min : false)}
         onClick={() => onIncrease(-1)}
       >
         -
       </button>
       <input
-        className={styles.quantity}
         type="number"
+        className={styles.quantity}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
         min="0"
         step="1"
-        disabled={loading}
         {...props}
       />
       <button
         type="button"
         className={styles.quantityControl}
-        disabled={loading}
+        disabled={disabled || (max ? Number(value) >= max : false)}
         onClick={() => onIncrease(1)}
       >
         +

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import cn from 'classnames'
 import Link from 'next/link'
+import { MAX_PER_ITEM } from '@/lib/cart'
 import { getSize, getColor } from '@/lib/product-utils'
 import formatVariantPrice from '@/lib/format-variant-price'
 import ProductQuantity from './product-quantity'
@@ -71,7 +72,8 @@ export default function CartItem({ item, onItemUpdate, loading }) {
           <div className="flex flex-grow justify-start sm:justify-center items-center">
             <ProductQuantity
               value={quantity}
-              loading={loading}
+              max={MAX_PER_ITEM}
+              disabled={loading}
               onChange={handleQuantity}
               onIncrease={increaseQuantity}
               onBlur={handleBlur}
