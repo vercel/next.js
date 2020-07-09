@@ -149,6 +149,7 @@ export default async function getBaseWebpackConfig(
     pagesDir,
     tracer,
     target = 'server',
+    reactProductionProfiling = false,
     entrypoints,
   }: {
     buildId: string
@@ -158,6 +159,7 @@ export default async function getBaseWebpackConfig(
     pagesDir: string
     target?: string
     tracer?: any
+    reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
@@ -232,14 +234,16 @@ export default async function getBaseWebpackConfig(
         // Backwards compatibility
         'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
-          `.${path.sep}` +
-          path.relative(
-            dir,
-            path.join(
-              NEXT_PROJECT_ROOT_DIST_CLIENT,
-              dev ? `next-dev.js` : 'next.js'
+          `./` +
+          path
+            .relative(
+              dir,
+              path.join(
+                NEXT_PROJECT_ROOT_DIST_CLIENT,
+                dev ? `next-dev.js` : 'next.js'
+              )
             )
-          ),
+            .replace(/\\/g, '/'),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
           'polyfills.js'
@@ -273,7 +277,7 @@ export default async function getBaseWebpackConfig(
   }
 
   function getReactProfilingInProduction() {
-    if (config.reactProductionProfiling) {
+    if (reactProductionProfiling) {
       return {
         'react-dom$': 'react-dom/profiling',
         'scheduler/tracing': 'scheduler/tracing-profiling',
@@ -707,7 +711,7 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
-      ignored: ['.git/**', 'node_modules/**', '.git/**'],
+      ignored: ['**/.git', '**/node_modules'],
     },
     output: {
       path: outputPath,
@@ -863,6 +867,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
+          config.experimental.scrollRestoration
+        ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         ...(isServer
           ? {
@@ -1011,6 +1018,13 @@ export default async function getBaseWebpackConfig(
     delete webpackConfig.output?.futureEmitAssets
     // No longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
+
+    if (dev) {
+      if (!webpackConfig.optimization) {
+        webpackConfig.optimization = {}
+      }
+      webpackConfig.optimization.usedExports = false
+    }
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
