@@ -98,7 +98,6 @@ export default function ProductBody({ product }) {
   const addToCart = () => addItem(variant, Number(state.quantity))
   const buyItNow = () => {
     buyNow(variant, Number(state.quantity)).then((data) => {
-      console.log('YE', data)
       window.open(data.checkout.webUrl)
     })
   }
