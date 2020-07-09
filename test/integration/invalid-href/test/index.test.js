@@ -22,6 +22,40 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
+const origIt = it
+const origBeforeAll = beforeAll
+const origAfterAll = afterAll
+
+// eslint-disable-next-line no-native-reassign
+it = (name, test) => {
+  return origIt(name, async (...args) => {
+    console.log(`###: entering test "${name}"`)
+    const result = await test(...args)
+    console.log(`###: exiting test "${name}"`)
+    return result
+  })
+}
+
+// eslint-disable-next-line no-native-reassign
+beforeAll = (setup) => {
+  return origBeforeAll(async (...args) => {
+    console.log(`###: entering beforeAll"`)
+    const result = await setup(...args)
+    console.log(`###: exiting beforeAll"`)
+    return result
+  })
+}
+
+// eslint-disable-next-line no-native-reassign
+afterAll = (teardown) => {
+  return origAfterAll(async (...args) => {
+    console.log(`###: entering afterAll"`)
+    const result = await teardown(...args)
+    console.log(`###: exiting afterAll"`)
+    return result
+  })
+}
+
 const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
   try {
@@ -145,7 +179,9 @@ describe('Invalid hrefs', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
+      console.log('starting')
       app = await nextStart(appDir, appPort)
+      console.log('server started')
     })
     afterAll(() => killApp(app))
 
@@ -198,3 +234,10 @@ describe('Invalid hrefs', () => {
     })
   })
 })
+
+// eslint-disable-next-line no-native-reassign
+it = origIt
+// eslint-disable-next-line no-native-reassign
+beforeAll = origBeforeAll
+// eslint-disable-next-line no-native-reassign
+afterAll = origAfterAll
