@@ -33,6 +33,7 @@ module.exports = {
         medium: '0 8px 30px rgba(0, 0, 0, 0.12)',
       },
       gridTemplateColumns: {
+        header: 'repeat(auto-fit, minmax(3rem, max-content))',
         'p-1': 'minmax(0, 24rem)',
         'p-images': 'repeat(auto-fill, 4.5rem)',
       },

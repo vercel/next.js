@@ -3,12 +3,12 @@
 }
 
 .logo {
-  @apply text-2xl font-bold tracking-tight leading-tight mb-5;
+  @apply text-2xl font-bold tracking-tight leading-tight whitespace-no-wrap mb-5 mr-8;
 }
 
 @screen sm {
   .header {
-    @apply flex-row items-end;
+    @apply flex-row;
   }
   .logo {
     @apply mb-0;
@@ -25,7 +25,7 @@
 }
 
 .navItem {
-  @apply text-accent-5 font-medium uppercase mr-4;
+  @apply text-accent-5 font-medium uppercase;
 }
 
 .navItem:hover {
@@ -34,12 +34,4 @@
 
 .navItem:focus {
   @apply outline-none;
-}
-
-.navItem:last-child {
-  @apply mr-0;
-}
-
-.navItem.active {
-  @apply text-black;
 }

@@ -20,11 +20,11 @@ export default function Header({ title }) {
           <a className="hover:underline">{title}</a>
         </Link>
       </h2>
-      <nav className="flex items-center">
+      <nav className="w-full flex-grow grid grid-cols-header gap-4 justify-center sm:justify-end items-center">
         <Link href="/">
           <a
             className={cn(styles.navItem, {
-              [styles.active]: pathname === '/',
+              'text-black': pathname === '/',
             })}
           >
             Home
@@ -34,7 +34,7 @@ export default function Header({ title }) {
           About
         </a>
         <button type="button" className={styles.navItem} onClick={openCart}>
-          🛒 Cart {itemsCount ? `(${itemsCount})` : ''}
+          🛒&nbsp;Cart {itemsCount ? `(${itemsCount})` : ''}
         </button>
       </nav>
     </header>
