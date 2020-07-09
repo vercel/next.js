@@ -46,7 +46,7 @@ const nextBuild: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  build(dir)
+  build(dir, null, args['--profile'])
     .then(() => process.exit(0))
     .catch((err) => {
       console.error('')

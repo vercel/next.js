@@ -96,7 +96,11 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-export default async function build(dir: string, conf = null): Promise<void> {
+export default async function build(
+  dir: string,
+  conf = null,
+  reactProductionProfiling = false
+): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
@@ -311,6 +315,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      reactProductionProfiling,
       isServer: false,
       config,
       target,
@@ -320,6 +325,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      reactProductionProfiling,
       isServer: true,
       config,
       target,
