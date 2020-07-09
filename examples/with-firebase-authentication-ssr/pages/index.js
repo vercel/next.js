@@ -1,26 +1,22 @@
 // TODO: remove swr and js-cookie packages
-import useSWR from 'swr'
 import Link from 'next/link'
-import { useUser } from '../utils/auth/useUser'
+import useAuthUser from '../utils/auth/useAuthUser'
 import withAuthComponent from 'utils/auth/withAuthComponent'
 import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
 
-const fetcher = (url, token) =>
-  fetch(url, {
-    method: 'GET',
-    headers: new Headers({ 'Content-Type': 'application/json', token }),
-    credentials: 'same-origin',
-  }).then((res) => res.json())
+const logout = async () => {
+  console.log('TODO')
+}
 
 const Index = () => {
-  // TODO: use server-side props
-  // TODO: use an updated hook that returns AuthUser
-  const { user, logout } = useUser()
-  const { data, error } = useSWR(
-    user ? ['/api/getFood', user.token] : null,
-    fetcher
-  )
-  if (!user) {
+  const AuthUser = useAuthUser()
+
+  // TODO: use server-side props to display fetched data
+  const data = {
+    food: 'pizza',
+  }
+
+  if (!AuthUser.id) {
     return (
       <>
         <p>Hi there!</p>
@@ -37,7 +33,7 @@ const Index = () => {
   return (
     <div>
       <div>
-        <p>You're signed in. Email: {user.email}</p>
+        <p>You're signed in. Email: {AuthUser.email}</p>
         <p
           style={{
             display: 'inline-block',
@@ -55,7 +51,6 @@ const Index = () => {
           <a>Another example page</a>
         </Link>
       </div>
-      {error && <div>Failed to fetch food!</div>}
       {data ? (
         <div>Your favorite food is {data.food}.</div>
       ) : (

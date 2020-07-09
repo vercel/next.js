@@ -1,3 +1,5 @@
+import { AuthUserContext } from 'utils/auth/useAuthUser'
+
 // A higher-order component to handle auth logic for pages.
 // It should be paired with `withAuthServerSideProps`.
 // See:
@@ -7,10 +9,8 @@ const withAuthComponent = (ChildComponent) => {
     const { AuthUser, ...otherProps } = props
     console.log('AuthUser in withAuthComponent:', AuthUser)
 
-    // TODO: use the client-side authed user from the Firebase
-    //   JS SDK when it's loaded.
-    // TODO: set the AuthUser context
-    return <ChildComponent {...otherProps} />
+    // TODO: hook: useClientSideFirebaseUser, which handles
+    // Firebase changes + session setting/unsetting.
 
     // TODO
     // We'll use the authed user from client-side auth (Firebase JS SDK)
@@ -22,11 +22,14 @@ const withAuthComponent = (ChildComponent) => {
     //     const { AuthUser: AuthUserFromSession, token } = AuthUserInfo
     //     const AuthUser = AuthUserFromClient || AuthUserFromSession || null
     //
-    //     return (
-    //       <AuthUserInfoContext.Provider value={{ AuthUser, token }}>
-    //         <ComposedComponent {...otherProps} />
-    //       </AuthUserInfoContext.Provider>
-    //     )
+
+    // TODO: use the client-side authed user from the Firebase
+    //   JS SDK when it's loaded.
+    return (
+      <AuthUserContext.Provider value={AuthUser}>
+        <ChildComponent {...otherProps} />
+      </AuthUserContext.Provider>
+    )
   }
 }
 
