@@ -791,7 +791,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSsgFallback = ssgFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
-      let file = normalizePagePath(page)
+      const file = normalizePagePath(page)
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
@@ -826,11 +826,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
-            await moveExportedPage(page, route, route, true, 'html')
-            await moveExportedPage(page, route, route, true, 'json')
+            const pageFile = normalizePagePath(route)
+            await moveExportedPage(page, route, pageFile, true, 'html')
+            await moveExportedPage(page, route, pageFile, true, 'json')
 
             if (hasAmp) {
-              const ampPage = `${normalizePagePath(route)}.amp`
+              const ampPage = `${pageFile}.amp`
               await moveExportedPage(page, ampPage, ampPage, true, 'html')
               await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
