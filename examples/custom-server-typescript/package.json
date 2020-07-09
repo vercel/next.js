@@ -2,7 +2,7 @@
   "name": "custom-server-typescript",
   "version": "1.0.0",
   "scripts": {
-    "dev": "nodemon",
+    "dev": "ts-node --project tsconfig.server.json server/index.ts",
     "build": "next build && tsc --project tsconfig.server.json",
     "start": "cross-env NODE_ENV=production node dist/index.js"
   },
