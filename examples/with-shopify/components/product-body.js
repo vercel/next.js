@@ -46,7 +46,7 @@ export default function ProductBody({ product }) {
     [variants]
   )
   const [state, dispatch] = useReducer(reducer, initialVariant, initState)
-  const { loading, addItem, buyNow } = useCheckout()
+  const { loading, errorMsg, addItem, buyNow } = useCheckout()
 
   useEffect(() => {
     // If the initial variant changes for any reason, reset the state
@@ -202,7 +202,8 @@ export default function ProductBody({ product }) {
             </div>
           </div>
 
-          <div className="flex flex-col md:max-w-xs mt-12">
+          <div className="flex flex-col md:max-w-xs mt-8">
+            <p className="text-error h-6 mb-4">{errorMsg}</p>
             <Button
               type="button"
               className="mb-4"
