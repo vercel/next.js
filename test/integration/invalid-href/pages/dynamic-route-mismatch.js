@@ -2,6 +2,6 @@ import Link from 'next/link'
 
 export default () => (
   <Link href="/[post]" as="/blog/post-1">
-    <a>Click me</a>
+    <a id="click-me">Click me</a>
   </Link>
 )

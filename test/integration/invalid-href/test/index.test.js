@@ -14,7 +14,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 5)
+jest.setTimeout(1000 * 60 * 2)
 let app
 let appPort
 const appDir = join(__dirname, '..')
@@ -40,9 +40,12 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
         }
       })()`)
     }
-
+    // wait for page to be built and navigated to
+    await waitFor(3000)
+    await browser.waitForElementByCss('#click-me')
     if (click) {
-      await browser.elementByCss('a').click()
+      await browser.elementByCss('#click-me').click()
+      await waitFor(500)
     }
     if (isWarn) {
       await check(async () => {
@@ -60,24 +63,29 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
-  await browser.eval(`(function() {
-    window.caughtErrors = []
-    window.addEventListener('error', function (error) {
-      window.caughtErrors.push(error.message || 1)
-    })
-    window.addEventListener('unhandledrejection', function (error) {
-      window.caughtErrors.push(error.message || 1)
-    })
-    window.next.router.replace('${pathname}')
-  })()`)
-  // wait for page to be built and navigated to
-  await waitFor(3000)
-  if (click) {
-    await browser.elementByCss('a').click()
+  try {
+    await browser.eval(`(function() {
+      window.caughtErrors = []
+      window.addEventListener('error', function (error) {
+        window.caughtErrors.push(error.message || 1)
+      })
+      window.addEventListener('unhandledrejection', function (error) {
+        window.caughtErrors.push(error.message || 1)
+      })
+      window.next.router.replace('${pathname}')
+    })()`)
+    // wait for page to be built and navigated to
+    await waitFor(3000)
+    await browser.waitForElementByCss('#click-me')
+    if (click) {
+      await browser.elementByCss('#click-me').click()
+      await waitFor(500)
+    }
+    const numErrors = await browser.eval(`window.caughtErrors.length`)
+    expect(numErrors).toBe(0)
+  } finally {
+    await browser.close()
   }
-  const numErrors = await browser.eval(`window.caughtErrors.length`)
-  expect(numErrors).toBe(0)
-  await browser.close()
 }
 
 describe('Invalid hrefs', () => {
@@ -167,22 +175,26 @@ describe('Invalid hrefs', () => {
 
     it('shows error when dynamic route mismatch is used on Link', async () => {
       const browser = await webdriver(appPort, '/dynamic-route-mismatch')
-      await browser.eval(`(function() {
-        window.caughtErrors = []
-        window.addEventListener('unhandledrejection', (error) => {
-          window.caughtErrors.push(error.reason.message)
-        })
-      })()`)
-      await browser.elementByCss('a').click()
-      await waitFor(500)
-      const errors = await browser.eval('window.caughtErrors')
-      expect(
-        errors.find((err) =>
-          err.includes(
-            'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+      try {
+        await browser.eval(`(function() {
+          window.caughtErrors = []
+          window.addEventListener('unhandledrejection', (error) => {
+            window.caughtErrors.push(error.reason.message)
+          })
+        })()`)
+        await browser.elementByCss('a').click()
+        await waitFor(500)
+        const errors = await browser.eval('window.caughtErrors')
+        expect(
+          errors.find((err) =>
+            err.includes(
+              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+            )
           )
-        )
-      ).toBeTruthy()
+        ).toBeTruthy()
+      } finally {
+        await browser.close()
+      }
     })
   })
 })
