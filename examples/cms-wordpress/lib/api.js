@@ -149,7 +149,7 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
           // Only some of the fields of a revision are considered as there are some inconsistencies
           isRevision
             ? `
-        revisions(first: 1, where: { orderby: { field: MODIFIED, order: ASC } }) {
+        revisions(first: 1, where: { orderby: { field: MODIFIED, order: DESC } }) {
           edges {
             node {
               title
