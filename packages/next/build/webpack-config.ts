@@ -711,7 +711,7 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
-      ignored: ['.git/**', 'node_modules/**', '.git/**'],
+      ignored: ['**/.git', '**/node_modules'],
     },
     output: {
       path: outputPath,
