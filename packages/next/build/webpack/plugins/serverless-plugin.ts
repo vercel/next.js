@@ -2,8 +2,8 @@ import { Compiler } from 'webpack'
 import webpack from 'webpack'
 const isWebpack5 = parseInt(webpack.version!) === 5
 
-let ChunkGraph = isWebpack5
-  ? require('webpack/lib/ChunkGraph')
+const GraphHelpers = isWebpack5
+  ? undefined
   : require('webpack/lib/GraphHelpers')
 
 /**
@@ -20,24 +20,27 @@ export class ServerlessPlugin {
         : compilation.hooks.optimizeChunksBasic
 
       hook.tap('ServerlessPlugin', (chunks) => {
-        chunks.forEach((chunk) => {
+        for (const chunk of chunks) {
           // If chunk is not an entry point skip them
-          if (chunk.hasEntryModule()) {
-            const dynamicChunks = chunk.getAllAsyncChunks()
-            if (dynamicChunks.size !== 0) {
-              for (const dynamicChunk of dynamicChunks) {
-                for (const module of dynamicChunk.modulesIterable) {
-                  let chunkGraph = ChunkGraph
-                  if (isWebpack5) {
-                    chunkGraph = ChunkGraph.getChunkGraphForChunk(chunk)
-                    if (chunkGraph.isModuleInChunk(module, chunk)) return false
-                  }
-                  chunkGraph.connectChunkAndModule(chunk, module)
-                }
+          if (!chunk.hasEntryModule()) {
+            continue
+          }
+
+          // Async chunks are usages of import() for example
+          const dynamicChunks = chunk.getAllAsyncChunks()
+          for (const dynamicChunk of dynamicChunks) {
+            for (const module of dynamicChunk.modulesIterable) {
+              if (isWebpack5) {
+                // Add module back into the entry chunk
+                chunk.addModule(module)
+                continue
               }
+
+              // Webpack 4 has separate GraphHelpers
+              GraphHelpers.connectChunkAndModule(chunk, module)
             }
           }
-        })
+        }
       })
     })
   }
