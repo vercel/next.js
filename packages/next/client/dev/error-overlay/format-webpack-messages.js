@@ -34,7 +34,7 @@ function isLikelyASyntaxError(message) {
 function formatMessage(message) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
-    message = message.message
+    message = (message.file ? message.file + '\n' : '') + message.message
   }
   let lines = message.split('\n')
 
