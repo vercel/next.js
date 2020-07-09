@@ -1,17 +1,6 @@
-import { get, has } from 'lodash/object'
 import { withCookies } from 'utils/middleware/cookies'
 import { verifyIdToken } from 'utils/auth/firebaseAdmin'
-
-// TODO: move to own file
-const createAuthUser = (firebaseUser) => {
-  return {
-    id: get(firebaseUser, 'uid', null),
-    email: get(firebaseUser, 'email', null),
-    emailVerified: has(firebaseUser, 'emailVerified')
-      ? get(firebaseUser, 'emailVerified', null) // Firebase JS SDK
-      : get(firebaseUser, 'email_verified', null), // Firebase admin SDK
-  }
-}
+import createAuthUser from 'utils/auth/createAuthUser'
 
 // An auth wrapper for a page's exported getServerSideProps.
 // See this discussion on how best to use getServerSideProps
