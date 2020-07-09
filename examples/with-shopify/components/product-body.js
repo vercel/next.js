@@ -1,4 +1,4 @@
-import { useMemo, useReducer } from 'react'
+import { useMemo, useReducer, useEffect } from 'react'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
 import { getVariantsMetadata, getSize, getColor } from '@/lib/product-utils'
@@ -11,21 +11,32 @@ import SelectInput from './select-input'
 import markdownStyles from './markdown-styles.module.css'
 import ProductGallery from './product-gallery'
 
+// Get the currently active variant
+function getVariant(variants, { size, color }) {
+  return variants.find(
+    ({ node }) => getSize(node) === size && getColor(node) === color
+  )?.node
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'update':
-      return { ...state, ...action.newState }
+      return { ...state, ...action.payload }
+    case 'reset':
+      return initState(action.payload)
     default:
       throw new Error()
   }
 }
 
-// Get the currently active variant
-function getVariant(variants, { size, color }) {
-  return variants.find(
-    ({ node }) => getSize(node) === size && getColor(node) === color
-  ).node
-}
+const initState = (variant) => ({
+  id: variant.id,
+  quantity: 1,
+  image: variant.image,
+  size: getSize(variant),
+  color: getColor(variant),
+  hasZoom: false,
+})
 
 export default function ProductBody({ product }) {
   const variants = product.variants.edges
@@ -34,20 +45,21 @@ export default function ProductBody({ product }) {
     () => getVariantsMetadata(variants),
     [variants]
   )
-
-  const [state, dispatch] = useReducer(reducer, {
-    quantity: 1,
-    image: initialVariant.image,
-    size: getSize(initialVariant),
-    color: getColor(initialVariant),
-    hasZoom: false,
-  })
+  const [state, dispatch] = useReducer(reducer, initialVariant, initState)
   const { loading, addItem, buyNow } = useCheckout()
 
-  const variant = getVariant(variants, state)
+  useEffect(() => {
+    // If the initial variant changes for any reason, reset the state
+    // This ensures a valid state for navigations between products in this page
+    if (initialVariant.id !== state.id) {
+      dispatch({ type: 'reset', payload: initialVariant })
+    }
+  }, [initialVariant, state.id])
+
+  const variant = getVariant(variants, state) ?? initialVariant
   const { price, compareAtPrice, discount } = formatVariantPrice(variant)
   const availableColors = colorsBySize.get(state.size)
-  const update = (newState) => dispatch({ type: 'update', newState })
+  const update = (payload) => dispatch({ type: 'update', payload })
   const handleQuantity = (e) => {
     const val = Number(e.target.value)
 
