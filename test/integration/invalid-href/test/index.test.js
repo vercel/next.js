@@ -24,36 +24,19 @@ const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*inva
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
 const origIt = it
-const origBeforeAll = beforeAll
-const origAfterAll = afterAll
 
 // eslint-disable-next-line no-native-reassign
 it = (name, test) => {
   return origIt(name, async (...args) => {
     console.log(`###: entering test "${name}"`)
-    const result = await test(...args)
-    console.log(`###: exiting test "${name}"`)
-    return result
-  })
-}
-
-// eslint-disable-next-line no-native-reassign
-beforeAll = (setup) => {
-  return origBeforeAll(async (...args) => {
-    console.log(`###: entering beforeAll"`)
-    const result = await setup(...args)
-    console.log(`###: exiting beforeAll"`)
-    return result
-  })
-}
-
-// eslint-disable-next-line no-native-reassign
-afterAll = (teardown) => {
-  return origAfterAll(async (...args) => {
-    console.log(`###: entering afterAll"`)
-    const result = await teardown(...args)
-    console.log(`###: exiting afterAll"`)
-    return result
+    let success = false
+    try {
+      const result = await test(...args)
+      success = true
+      return result
+    } finally {
+      console.log(`###: exiting test "${name}" ${success ? 'PASS' : 'FAIL'}`)
+    }
   })
 }
 
@@ -77,14 +60,18 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
     }
     // wait for page to be built and navigated to
     await waitFor(3000)
+    console.log('###: waiting for #click-me')
     await browser.waitForElementByCss('#click-me')
     if (click) {
+      console.log('###: clicking #click-me')
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
     }
     if (isWarn) {
       await check(async () => {
-        return (await browser.eval('window.warnLogs')).join('\n')
+        const warnLogs = await browser.eval('window.warnLogs')
+        console.log(warnLogs)
+        return warnLogs.join('\n')
       }, regex)
     } else {
       expect(await hasRedbox(browser)).toBe(true)
@@ -99,6 +86,7 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
   try {
+    console.log('###: execute eval')
     await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
@@ -107,8 +95,11 @@ const noError = async (pathname, click = false) => {
       window.addEventListener('unhandledrejection', function (error) {
         window.caughtErrors.push(error.message || 1)
       })
-      window.next.router.replace('${pathname}')
+      setTimeout(() => {
+        window.next.router.replace('${pathname}')
+      })
     })()`)
+    console.log('###: done')
     // wait for page to be built and navigated to
     await waitFor(3000)
     console.log('###: waiting for #click-me')
@@ -242,7 +233,3 @@ describe('Invalid hrefs', () => {
 
 // eslint-disable-next-line no-native-reassign
 it = origIt
-// eslint-disable-next-line no-native-reassign
-beforeAll = origBeforeAll
-// eslint-disable-next-line no-native-reassign
-afterAll = origAfterAll
