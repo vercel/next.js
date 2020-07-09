@@ -32,11 +32,12 @@ export function getFontDefinitionFromManifest(
   url: string,
   manifest: FontManifest
 ): string {
-  let fontContent = ''
-  manifest.forEach((font: any) => {
-    if (font && font.url === url) {
-      fontContent = font.content
-    }
-  })
-  return fontContent
+  return (
+    manifest.find((font) => {
+      if (font && font.url === url) {
+        return true
+      }
+      return false
+    })?.content || ''
+  )
 }

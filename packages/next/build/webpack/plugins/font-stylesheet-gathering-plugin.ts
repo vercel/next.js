@@ -40,6 +40,10 @@ export default class FontStylesheetGatheringPlugin {
           parser.hooks.evaluate
             .for('Identifier')
             .tap(this.constructor.name, (node: namedTypes.Identifier) => {
+              // We will only optimize fonts from first party code.
+              if (parser?.state?.module?.resource.includes('node_modules')) {
+                return
+              }
               return node.name === '__jsx'
                 ? new BasicEvaluatedExpression()
                     //@ts-ignore
@@ -52,10 +56,6 @@ export default class FontStylesheetGatheringPlugin {
           parser.hooks.call
             .for('__jsx')
             .tap(this.constructor.name, (node: namedTypes.CallExpression) => {
-              // We will only optimize fonts from first party code.
-              if (parser?.state?.module?.resource.includes('node_modules')) {
-                return
-              }
               if (node.arguments.length !== 2) {
                 // A font link tag has only two arguments rel=stylesheet and href='...'
                 return
@@ -64,15 +64,20 @@ export default class FontStylesheetGatheringPlugin {
                 return
               }
 
+              // node.arguments[0] is the name of the tag and [1] are the props.
               const propsNode = node.arguments[1] as namedTypes.ObjectExpression
-              const props: {
-                [key: string]: string
-              } = propsNode.properties.reduce((originalProps, prop: any) => {
-                // todo check the type of prop
-                // @ts-ignore
-                originalProps[prop.key.name] = prop.value.value
-                return originalProps
-              }, {})
+              const props: { [key: string]: string } = {}
+              propsNode.properties.forEach((prop) => {
+                if (prop.type !== 'Property') {
+                  return
+                }
+                if (
+                  prop.key.type === 'Identifier' &&
+                  prop.value.type === 'Literal'
+                ) {
+                  props[prop.key.name] = prop.value.value as string
+                }
+              })
               if (
                 !props.rel ||
                 props.rel !== 'stylesheet' ||
@@ -100,15 +105,15 @@ export default class FontStylesheetGatheringPlugin {
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (_, modulesFinished) => {
-          const allContent = this.gatheredStylesheets.map((url) =>
+          const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
           let manifestContent: FontManifest = []
 
-          for (let promiseIndex in allContent) {
+          for (let promiseIndex in fontDefinitionPromises) {
             manifestContent.push({
               url: this.gatheredStylesheets[promiseIndex],
-              content: await allContent[promiseIndex],
+              content: await fontDefinitionPromises[promiseIndex],
             })
           }
           compilation.assets['font-manifest.json'] = new RawSource(
