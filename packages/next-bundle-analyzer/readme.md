@@ -25,6 +25,14 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 module.exports = withBundleAnalyzer({})
 ```
 
+Or configuration as a function:
+
+```js
+module.exports = (phase, defaultConfig) => {
+  return withBundleAnalyzer(defaultConfig)
+}
+```
+
 Then you can run the command below:
 
 ```bash
