@@ -15,6 +15,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 2)
+jest.retryTimes(0)
 let app
 let appPort
 const appDir = join(__dirname, '..')
@@ -110,13 +111,17 @@ const noError = async (pathname, click = false) => {
     })()`)
     // wait for page to be built and navigated to
     await waitFor(3000)
+    console.log('###: waiting for #click-me')
     await browser.waitForElementByCss('#click-me')
+    console.log('###: found #click-me')
     if (click) {
+      console.log('###: clicking #click-me')
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
     }
-    const numErrors = await browser.eval(`window.caughtErrors.length`)
-    expect(numErrors).toBe(0)
+    const caughtErrors = await browser.eval(`window.caughtErrors`)
+    console.log('###: errors: \n', caughtErrors.join('\n'))
+    expect(caughtErrors).toHaveLength(0)
   } finally {
     await browser.close()
   }
