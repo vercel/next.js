@@ -29,6 +29,11 @@ export function getRedirectStatus(route: Redirect): number {
   )
 }
 
+export function normalizeRouteRegex(regex: string) {
+  // clean up un-necessary escaping from regex.source which turns / into \\/
+  return regex.replace(/\\\//g, '/')
+}
+
 function checkRedirect(
   route: Redirect
 ): { invalidParts: string[]; hadInvalidStatus: boolean } {
@@ -346,17 +351,26 @@ export default async function loadCustomRoutes(
   ])
 
   redirects.unshift(
-    config.experimental.trailingSlash
-      ? {
-          source: '/:path+',
-          destination: '/:path+/',
-          permanent: true,
-        }
-      : {
-          source: '/:path+/',
-          destination: '/:path+',
-          permanent: true,
-        }
+    ...(config.experimental.trailingSlash
+      ? [
+          {
+            source: '/:path*/:file.:ext/',
+            destination: '/:path*/:file.:ext',
+            permanent: true,
+          },
+          {
+            source: '/:path*/:notfile([^/.]+)',
+            destination: '/:path*/:notfile/',
+            permanent: true,
+          },
+        ]
+      : [
+          {
+            source: '/:path+/',
+            destination: '/:path+',
+            permanent: true,
+          },
+        ])
   )
 
   return {

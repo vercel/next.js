@@ -660,7 +660,9 @@ export default async function getBaseWebpackConfig(
       nodeEnv: false,
       splitChunks: isServer ? false : splitChunksConfig,
       runtimeChunk: isServer
-        ? undefined
+        ? isWebpack5 && !isLikeServerless
+          ? { name: 'webpack-runtime' }
+          : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
@@ -861,6 +863,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
+          config.experimental.scrollRestoration
+        ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         ...(isServer
           ? {
@@ -926,7 +931,8 @@ export default async function getBaseWebpackConfig(
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
-      target === 'server' &&
+      !isWebpack5 &&
+        target === 'server' &&
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
