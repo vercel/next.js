@@ -2,7 +2,7 @@ import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, normalize, relative as relativePath, sep } from 'path'
+import { join, normalize, relative as relativePath } from 'path'
 import { UrlObject } from 'url'
 import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
@@ -260,11 +260,11 @@ export default class HotReloader {
 
     let additionalClientEntrypoints: { [file: string]: string } = {}
     additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] =
-      `.${sep}` +
+      `./` +
       relativePath(
         this.dir,
         join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-      )
+      ).replace(/\\/g, '/')
 
     additionalClientEntrypoints[
       CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
