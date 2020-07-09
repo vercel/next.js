@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 import { useUser } from '../utils/auth/useUser'
+import withAuthUser from 'utils/pageWrappers/withAuthUser'
 
 const fetcher = (url, token) =>
   fetch(url, {
@@ -60,7 +61,4 @@ const Index = () => {
   )
 }
 
-// TODO: add withAuthUser HOC, getting the user from the
-// user token in the session cookie, then adding the AuthUser
-// to React context.
-export default Index
+export default withAuthUser(Index)
