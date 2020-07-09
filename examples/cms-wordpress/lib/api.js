@@ -70,7 +70,9 @@ export async function getAllPostsForHome(preview) {
             slug
             date
             featuredImage {
-              sourceUrl
+              node {
+                sourceUrl
+              }
             }
             author {
               name
