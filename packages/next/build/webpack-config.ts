@@ -149,6 +149,7 @@ export default async function getBaseWebpackConfig(
     pagesDir,
     tracer,
     target = 'server',
+    reactProductionProfiling = false,
     entrypoints,
   }: {
     buildId: string
@@ -158,6 +159,7 @@ export default async function getBaseWebpackConfig(
     pagesDir: string
     target?: string
     tracer?: any
+    reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
@@ -273,7 +275,7 @@ export default async function getBaseWebpackConfig(
   }
 
   function getReactProfilingInProduction() {
-    if (config.reactProductionProfiling) {
+    if (reactProductionProfiling) {
       return {
         'react-dom$': 'react-dom/profiling',
         'scheduler/tracing': 'scheduler/tracing-profiling',
