@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 import { useUser } from '../utils/auth/useUser'
+import withAuthComponent from 'utils/auth/withAuthComponent'
 import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
 
 const fetcher = (url, token) =>
@@ -63,4 +64,4 @@ const Index = () => {
 
 export const getServerSideProps = withAuthServerSideProps()
 
-export default Index
+export default withAuthComponent(Index)
