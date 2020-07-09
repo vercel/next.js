@@ -164,7 +164,9 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
               excerpt
               content
               author {
-                ...AuthorFields
+                node {
+                  ...AuthorFields
+                }
               }
             }
           }
