@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 import { useUser } from '../utils/auth/useUser'
-import withAuthUser from 'utils/pageWrappers/withAuthUser'
+import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
 
 const fetcher = (url, token) =>
   fetch(url, {
@@ -61,4 +61,6 @@ const Index = () => {
   )
 }
 
-export default withAuthUser(Index)
+export const getServerSideProps = withAuthServerSideProps()
+
+export default Index

@@ -33,10 +33,12 @@ export const withCookies = (req, res) => {
     req.cookie = {
       get: (cookieName) => {
         try {
-          return deserialize(
-            cookies.get(cookieName, {
-              signed: true,
-            })
+          return JSON.parse(
+            deserialize(
+              cookies.get(cookieName, {
+                signed: true,
+              })
+            )
           )
         } catch (e) {
           return undefined
