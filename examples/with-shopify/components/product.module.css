@@ -7,7 +7,7 @@
 }
 
 .error {
-  @apply bg-error text-white hidden px-6 py-2;
+  @apply absolute bg-error text-white px-6 py-2;
 }
 
 .hide {
@@ -16,7 +16,11 @@
 
 .show,
 .imageContainer:hover .ctaContainer {
-  @apply translate-y-0 block visible opacity-100;
+  @apply translate-y-0 visible opacity-100;
+}
+
+.error.show {
+  @apply static;
 }
 
 .addToCart {
@@ -25,4 +29,8 @@
 
 .addToCart:disabled {
   @apply cursor-default;
+}
+
+.addToCart:focus {
+  @apply outline-none;
 }
