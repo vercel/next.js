@@ -12,6 +12,8 @@ const fetcher = (url, token) =>
   }).then((res) => res.json())
 
 const Index = () => {
+  // TODO: use server-side props
+  // TODO: use an updated hook that returns AuthUser
   const { user, logout } = useUser()
   const { data, error } = useSWR(
     user ? ['/api/getFood', user.token] : null,
