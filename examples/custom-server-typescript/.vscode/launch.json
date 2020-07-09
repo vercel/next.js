@@ -1,0 +1,61 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Next: Edge",
+            "request": "launch",
+            "type": "pwa-msedge",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Next: Chrome",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Next: Node",
+            "type": "node",
+            "request": "launch",
+            "runtimeArgs": [
+                "--no-lazy",
+                "-r",
+                "ts-node/register"
+            ],
+            "args": [
+                "server/index.ts"
+            ],
+            "env": {
+                "NODE_OPTIONS": "--inspect=0.0.0.0:9229",
+                "TS_NODE_PROJECT": "tsconfig.server.json"
+            },
+            "sourceMaps": true,
+            "cwd": "${workspaceRoot}",
+            "skipFiles": [
+                "<node_internals>/**",
+                "node_modules/**"
+            ],
+            "port": 9229,
+            "internalConsoleOptions": "openOnSessionStart",
+            "console": "integratedTerminal"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Next: Full (Edge)",
+            "configurations": [
+                "Next: Node",
+                "Next: Edge"
+            ]
+        },
+        {
+            "name": "Next: Full (Chrome)",
+            "configurations": [
+                "Next: Node",
+                "Next: Chrome"
+            ]
+        }
+    ]
+}
