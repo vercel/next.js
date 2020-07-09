@@ -1,1 +1,3 @@
-export default () => 'hi from post'
+export default function Page() {
+  return 'hi from post'
+}

@@ -97,7 +97,7 @@ const noError = async (pathname, click = false) => {
       })
       setTimeout(() => {
         window.next.router.replace('${pathname}')
-      })
+      }, 0)
     })()`)
     console.log('###: done')
     // wait for page to be built and navigated to

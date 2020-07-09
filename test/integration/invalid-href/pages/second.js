@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 
 const invalidLink = 'https://google.com/another'
 
-export default () => {
+export default function Page() {
   const { query, ...router } = useRouter()
   const { method } = query
 
