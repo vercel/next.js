@@ -6,8 +6,8 @@ import { get, has } from 'lodash/object'
  * @param {Object} firebaseUser - A decoded Firebase user token or JS SDK
  *   Firebase user object.
  * @return {Object|null} AuthUser - The user object.
- * @return {String} AuthUser.id - The user's ID
- * @return {String} AuthUser.email - The user's email
+ * @return {String|null} AuthUser.id - The user's ID
+ * @return {String|null} AuthUser.email - The user's email
  * @return {Boolean} AuthUser.emailVerified - Whether the user has verified their email
  */
 const createAuthUser = (firebaseUser) => {
@@ -16,7 +16,7 @@ const createAuthUser = (firebaseUser) => {
     email: get(firebaseUser, 'email', null),
     emailVerified: has(firebaseUser, 'emailVerified')
       ? get(firebaseUser, 'emailVerified', null) // Firebase JS SDK
-      : get(firebaseUser, 'email_verified', null), // Firebase admin SDK
+      : get(firebaseUser, 'email_verified', false), // Firebase admin SDK
   }
 }
 
