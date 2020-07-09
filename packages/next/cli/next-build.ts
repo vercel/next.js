@@ -2,7 +2,7 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { resolve } from 'path'
-
+import * as Log from '../build/output/log'
 import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
@@ -31,13 +31,13 @@ const nextBuild: cliCommand = (argv) => {
       <dir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
 
-      Additionally, --profile flag can be used to enable React Production Profiling
+      --profile can be used to enable React Production Profiling
     `,
       0
     )
   }
   if (args['--profile']) {
-    console.log('Profiling is enabled. Note: This may affect performance')
+    Log.warn('Profiling is enabled. Note: This may affect performance')
   }
   const dir = resolve(args._[0] || '.')
 
