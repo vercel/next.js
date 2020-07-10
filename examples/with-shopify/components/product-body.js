@@ -84,7 +84,8 @@ export default function ProductBody({ product }) {
     const size = e.target.value
     const sizeColors = colorsBySize.get(size)
     const color = sizeColors.includes(state.color) ? state.color : sizeColors[0]
-    const { image } = getVariant(variants, { size, color })
+    // Only change the image if the product has a color defined
+    const { image } = color ? getVariant(variants, { size, color }) : state
 
     update({ size, color, image })
   }
