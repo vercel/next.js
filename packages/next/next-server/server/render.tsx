@@ -399,14 +399,6 @@ export async function renderToHTML(
     }
 
     if (isAutoExport) {
-      // remove query values except ones that will be set during export
-      query = {
-        ...(query.amp
-          ? {
-              amp: query.amp,
-            }
-          : {}),
-      }
       req.url = pathname
       renderOpts.nextExport = true
     }
