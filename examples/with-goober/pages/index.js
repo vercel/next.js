@@ -21,7 +21,7 @@ const SmallTitle = styled('p')`
 export default function Home() {
   return (
     <>
-      <Title>You are using goober! Yay!</Title>
+      <Title>You are using 🥜 goober! Yay!</Title>
       <SmallTitle>Go on, try it!</SmallTitle>
     </>
   )
