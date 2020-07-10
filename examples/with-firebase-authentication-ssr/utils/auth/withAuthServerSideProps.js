@@ -26,6 +26,8 @@ const withAuthServerSideProps = (getServerSidePropsFunc) => {
       composedProps = await getServerSidePropsFunc(ctx)
     }
 
+    // TODO: pass user data (including token) in context
+
     return {
       props: {
         AuthUser,
