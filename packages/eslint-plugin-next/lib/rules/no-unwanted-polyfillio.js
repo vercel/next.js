@@ -43,6 +43,8 @@ const NEXT_POLYFILLED_FEATURES = [
   'String.prototype.trimEnd',
   'String.prototype.trimStart',
   'String.prototype.trim',
+  'URL',
+  'URLSearchParams',
   'WeakMap',
   'WeakSet',
   'Promise',
