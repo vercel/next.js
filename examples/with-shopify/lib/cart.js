@@ -95,7 +95,6 @@ const setLineItems = async (checkout, lineItems) =>
       }).then((d) => d.checkoutCreate)
 
 const validateItem = (item) => {
-  console.log('U', item.quantity, MAX_PER_ITEM)
   if (item.quantity > MAX_PER_ITEM) {
     throw new Error(`Up to ${MAX_PER_ITEM} units are allowed per product`)
   }

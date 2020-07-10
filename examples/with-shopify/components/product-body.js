@@ -58,7 +58,7 @@ export default function ProductBody({ product }) {
 
   const variant = getVariant(variants, state) ?? initialVariant
   const { price, compareAtPrice, discount } = formatVariantPrice(variant)
-  const availableColors = colorsBySize.get(state.size)
+  const availableColors = colorsBySize.get(state.size) ?? []
   const update = (payload) => dispatch({ type: 'update', payload })
   const handleQuantity = (e) => {
     const val = Number(e.target.value)
@@ -143,7 +143,7 @@ export default function ProductBody({ product }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
-          {state.size && (
+          {colorsBySize.size > 0 && (
             <div className="flex flex-col">
               <div className="text-2xl mb-4">
                 <label htmlFor="size">Size</label>
@@ -162,7 +162,7 @@ export default function ProductBody({ product }) {
             </div>
           )}
 
-          {state.color && (
+          {colors.size > 0 && (
             <div className="flex flex-col">
               <div className="text-2xl mb-4">
                 <label htmlFor="color">Color</label>
