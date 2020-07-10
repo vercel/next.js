@@ -23,8 +23,9 @@ const nextBuild: cliCommand = (argv) => {
     if (error.code === 'ARG_UNKNOWN_OPTION') {
       printAndExit(error.message, 1)
     }
+    throw error
   }
-  if (args!['--help']) {
+  if (args['--help']) {
     printAndExit(
       `
       Description
@@ -42,17 +43,17 @@ const nextBuild: cliCommand = (argv) => {
       0
     )
   }
-  if (args!['--profile']) {
+  if (args['--profile']) {
     Log.warn('Profiling is enabled. Note: This may affect performance')
   }
-  const dir = resolve(args!._[0] || '.')
+  const dir = resolve(args._[0] || '.')
 
   // Check if the provided directory exists
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  build(dir, null, args!['--profile'])
+  build(dir, null, args['--profile'])
     .then(() => process.exit(0))
     .catch((err) => {
       console.error('')
