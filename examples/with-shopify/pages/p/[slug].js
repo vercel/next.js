@@ -42,14 +42,7 @@ export default function Index({ shop, pages, product, relatedProducts }) {
 
 export async function getStaticProps({ params }) {
   const data = await getProductAndMoreProducts(params.slug)
-
-  return {
-    props: {
-      shop: data.shop,
-      product: data.product,
-      relatedProducts: data.relatedProducts,
-    },
-  }
+  return { props: { ...data } }
 }
 
 export async function getStaticPaths() {
