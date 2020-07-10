@@ -7,5 +7,5 @@ While prerendering a page an error occurred. This can occur for many reasons fro
 #### Possible Ways to Fix It
 
 - Make sure to move any non-pages out of the `pages` folder
-- Check for any code that assumes a prop is available even when it might not be
+- Check for any code that assumes a prop is available even when it might not be. e.g., have default data for all dynamic pages' props.
 - Check for any out of date modules that you might be relying on
