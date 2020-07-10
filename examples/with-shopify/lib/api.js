@@ -1,9 +1,27 @@
 import graphqlFetch from './graphql-fetch'
 
+const ShopFields = `
+  fragment ShopFields on Shop {
+    name
+    privacyPolicy {
+      title
+      handle
+    }
+    refundPolicy {
+      title
+      handle
+    }
+    termsOfService {
+      title
+      handle
+    }
+  }
+`
+
 const RootFields = `
   fragment RootFields on QueryRoot {
     shop {
-      name
+      ...ShopFields
     }
     pages(first: 100) {
       edges {
@@ -14,6 +32,7 @@ const RootFields = `
       }
     }
   }
+  ${ShopFields}
 `
 
 const ProductFields = `
@@ -196,7 +215,7 @@ export async function getProductAndMoreProducts(handle) {
   return { shop, pages, product, relatedProducts }
 }
 
-export async function getPageData(handle) {
+export async function getShopData(handle) {
   const data = await graphqlFetch(
     `
       query Page($handle: String!) {
@@ -215,7 +234,7 @@ export async function getPageData(handle) {
   return data
 }
 
-export async function getAllPagesHandles() {
+export async function getShopPagesHandles() {
   const data = await graphqlFetch(`
     {
       pages(first: 100) {
@@ -229,4 +248,37 @@ export async function getAllPagesHandles() {
   `)
 
   return data.pages
+}
+
+export async function getLegalPage(field) {
+  const data = await graphqlFetch(
+    `
+      query LegalPage {
+        ...RootFields
+        shop {
+          ${field} {
+            title
+            handle
+            body
+          }
+        }
+      }
+      ${RootFields}
+    `
+  )
+
+  return data
+}
+
+export async function getLegalPagesHandles() {
+  const data = await graphqlFetch(`
+    {
+      shop {
+        ...ShopFields
+      }
+    }
+    ${ShopFields}
+  `)
+
+  return data.shop
 }

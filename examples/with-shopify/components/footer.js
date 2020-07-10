@@ -1,11 +1,10 @@
-import { useRouter } from 'next/router'
 import Link from 'next/link'
-import cn from 'classnames'
-import Container from './container'
 import { EXAMPLE_PATH } from '@/lib/constants'
+import { getLegalPages } from '@/lib/shop-utils'
+import Container from './container'
 
-export default function Footer({ pages }) {
-  const { pathname } = useRouter()
+export default function Footer({ shop, pages }) {
+  const legalPages = getLegalPages(shop)
 
   return (
     <footer className="bg-accent-1 border-t border-accent-2 mt-32">
@@ -19,11 +18,7 @@ export default function Footer({ pages }) {
               <ul className="mt-4">
                 <li>
                   <Link href="/">
-                    <a
-                      className={cn({
-                        'text-black': pathname === '/',
-                      })}
-                    >
+                    <a className="text-accent-5 font-medium hover:text-black">
                       Home
                     </a>
                   </Link>
@@ -31,12 +26,8 @@ export default function Footer({ pages }) {
 
                 {pages.edges.map(({ node }) => (
                   <li key={node.handle} className="mt-4">
-                    <Link href={`/pages/${node.handle}`}>
-                      <a
-                        className={cn({
-                          'text-black': pathname === node.handle,
-                        })}
-                      >
+                    <Link href="/pages/[page]" as={`/pages/${node.handle}`}>
+                      <a className="text-accent-5 font-medium hover:text-black">
                         {node.title}
                       </a>
                     </Link>
@@ -45,19 +36,15 @@ export default function Footer({ pages }) {
               </ul>
             </div>
             <div className="mt-4">
-              <h4 className="text-sm leading-5 font-semibold tracking-wider text-black uppercase">
+              <h4 className="leading-5 font-semibold tracking-wider text-black uppercase">
                 Legal
               </h4>
               <ul>
-                {pages.edges.map(({ node }) => (
-                  <li key={node.handle} className="mt-4">
-                    <Link href={`/pages/${node.handle}`}>
-                      <a
-                        className={cn({
-                          'text-black': pathname === node.handle,
-                        })}
-                      >
-                        {node.title}
+                {legalPages.map(({ title, handle }) => (
+                  <li key={handle} className="mt-4">
+                    <Link href="/legal/[page]" as={`/legal/${handle}`}>
+                      <a className="text-accent-5 font-medium hover:text-black">
+                        {title}
                       </a>
                     </Link>
                   </li>
