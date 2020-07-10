@@ -1,29 +1,3 @@
-.header {
-  @apply flex flex-col justify-between items-center mb-20 mt-8;
-}
-
-.logo {
-  @apply text-2xl font-bold tracking-tight leading-tight whitespace-no-wrap mb-5;
-}
-
-@screen sm {
-  .header {
-    @apply flex-row;
-  }
-  .logo {
-    @apply mb-0 mr-8;
-  }
-}
-
-@screen md {
-  .header {
-    @apply items-center;
-  }
-  .logo {
-    @apply text-4xl tracking-tighter;
-  }
-}
-
 .navItem {
   @apply text-accent-5 font-medium uppercase;
 }

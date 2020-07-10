@@ -143,6 +143,7 @@ export async function getProductAndMoreProducts(handle) {
   //   (await graphqlFetch(
   //     `
   //       query ProductRecommendations($productId: ID!, $maxWidth: Int = 384, $maxHeight: Int = 384) {
+  //         ...RootFields
   //         productRecommendations(productId: $productId) {
   //           ...ProductFields
   //           descriptionHtml
@@ -155,6 +156,7 @@ export async function getProductAndMoreProducts(handle) {
   //           }
   //         }
   //       }
+  //       ${RootFields}
   //       ${ProductFields}
   //       ${VariantFields}
   //     `,

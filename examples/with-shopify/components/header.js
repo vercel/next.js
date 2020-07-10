@@ -14,8 +14,8 @@ export default function Header({ title, pages }) {
   )
 
   return (
-    <header className={styles.header}>
-      <h2 className={styles.logo}>
+    <header className="flex flex-col sm:flex-row justify-between items-center mb-20 mt-8">
+      <h2 className="text-2xl md:text-4xl font-bold tracking-tight md:tracking-tighter leading-tight whitespace-no-wrap mb-5 sm:mb-0 sm:mr-8">
         <Link href="/">
           <a className="hover:underline">{title}</a>
         </Link>
