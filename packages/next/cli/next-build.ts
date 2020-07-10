@@ -2,23 +2,27 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { resolve } from 'path'
-
 import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 
 const nextBuild: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      // Aliases
-      '-h': '--help',
-    },
-    { argv }
-  )
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    // Aliases
+    '-h': '--help',
+  }
 
-  if (args['--help']) {
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      printAndExit(error.message, 1)
+    }
+  }
+  if (args!['--help']) {
     printAndExit(
       `
       Description
@@ -34,7 +38,7 @@ const nextBuild: cliCommand = (argv) => {
     )
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = resolve(args!._[0] || '.')
 
   // Check if the provided directory exists
   if (!existsSync(dir)) {
