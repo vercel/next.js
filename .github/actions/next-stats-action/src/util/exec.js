@@ -9,9 +9,13 @@ const env = {
   PR_STATS_COMMENT_TOKEN: '',
 }
 
-function exec(command, noLog = false) {
+function exec(command, noLog = false, opts = {}) {
   if (!noLog) logger(`exec: ${command}`)
-  return execP(command, { env, timeout: 180 * 1000 })
+  return execP(command, {
+    timeout: 180 * 1000,
+    ...opts,
+    env: { ...env, ...opts.env },
+  })
 }
 
 exec.spawn = function spawn(command = '', opts = {}) {

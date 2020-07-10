@@ -5,13 +5,6 @@ description: Get to know more about Next.js with the frequently asked questions.
 # Frequently Asked Questions
 
 <details>
-  <summary>What browsers are supported?</summary>
-  <p>Next.js supports IE11 and all modern browsers out of the box using <a href="https://new.babeljs.io/docs/en/next/babel-preset-env.html">@babel/preset-env</a>. In order to support IE11 Next.js adds a global Promise polyfill.</p>
-
-  <p>In cases where your own code or any external npm dependencies you are using require features not supported by your target browsers you will need to implement polyfills. If you need to implement polyfills, the <a href="https://github.com/vercel/next.js/tree/canary/examples/with-polyfills">polyfills</a> example demonstrates the recommended approach.</p>
-</details>
-
-<details>
   <summary>Is this production ready?</summary>
   <p>Next.js has been powering <a href="https://vercel.com">https://vercel.com</a>  since its inception.</p>
 

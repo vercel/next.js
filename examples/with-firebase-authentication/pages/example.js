@@ -14,10 +14,4 @@ const Example = (props) => {
   )
 }
 
-Example.displayName = 'Example'
-
-Example.propTypes = {}
-
-Example.defaultProps = {}
-
 export default Example

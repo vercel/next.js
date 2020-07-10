@@ -34,8 +34,8 @@ export function hasZeroOrOneAsteriskCharacter(str: string): boolean {
 /**
  * Determines whether a path starts with a relative path component (i.e. `.` or `..`).
  */
-export function pathIsRelative(path: string): boolean {
-  return /^\.\.?($|[\\/])/.test(path)
+export function pathIsRelative(testPath: string): boolean {
+  return /^\.\.?($|[\\/])/.test(testPath)
 }
 
 export function tryParsePattern(pattern: string): Pattern | undefined {
@@ -221,8 +221,8 @@ export class JsConfigPathsPlugin implements ResolvePlugin {
                 obj,
                 `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
                 resolveContext,
-                (err: any, result: any | undefined) => {
-                  resolve([err, result])
+                (resolverErr: any, resolverResult: any | undefined) => {
+                  resolve([resolverErr, resolverResult])
                 }
               )
             })

@@ -10,13 +10,26 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 
 [https://next-blog-starter.now.sh/](https://next-blog-starter.now.sh/)
 
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/blog-starter)
+
 ### Related examples
 
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
 - [Prismic](/examples/cms-prismic)
 - [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
+- [ButterCMS](/examples/cms-buttercms)
+- [Storyblok](/examples/cms-storyblok)
+- [GraphCMS](/examples/cms-graphcms)
 
 ## How to use
 
@@ -25,7 +38,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example blog-starter blog-starter-app
+npx create-next-app --example blog-starter blog-starter-app
 # or
 yarn create next-app --example blog-starter blog-starter-app
 ```

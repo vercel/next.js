@@ -39,9 +39,9 @@ async function tryApplyUpdates() {
   }
   try {
     const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
-    const data = await res.json()
+    const jsonData = await res.json()
     const curPage = page === '/' ? 'index' : page
-    const pageUpdated = Object.keys(data.c).some((mod) => {
+    const pageUpdated = Object.keys(jsonData.c).some((mod) => {
       return (
         mod.indexOf(
           `pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`

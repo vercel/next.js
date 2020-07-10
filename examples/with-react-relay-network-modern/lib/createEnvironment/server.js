@@ -14,7 +14,7 @@ export default {
         store,
         network: new RelayNetworkLayer([
           urlMiddleware({
-            url: (req) => process.env.RELAY_ENDPOINT,
+            url: (req) => process.env.NEXT_PUBLIC_RELAY_ENDPOINT,
           }),
         ]),
       }),
@@ -28,7 +28,7 @@ export default {
       store,
       network: new RelayNetworkLayer([
         urlMiddleware({
-          url: (req) => process.env.RELAY_ENDPOINT,
+          url: (req) => process.env.NEXT_PUBLIC_RELAY_ENDPOINT,
         }),
       ]),
     })

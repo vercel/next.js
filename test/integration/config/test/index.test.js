@@ -53,11 +53,7 @@ describe('Configuration', () => {
 
       await check(
         () => browser.elementByCss('.hello-world').getComputedCss('font-size'),
-        {
-          test(content) {
-            return content === '100px'
-          },
-        }
+        '100px'
       )
     } finally {
       if (browser) {
@@ -75,11 +71,7 @@ describe('Configuration', () => {
           browser
             .elementByCss('.hello-world')
             .getComputedCss('background-color'),
-        {
-          test(content) {
-            return content === 'rgba(0, 0, 255, 1)'
-          },
-        }
+        'rgba(0, 0, 255, 1)'
       )
     } finally {
       if (browser) {
@@ -128,18 +120,11 @@ describe('Configuration', () => {
     try {
       browser = await webdriver(context.appPort, '/webpack-css')
 
-      await check(
-        async () => {
-          const pTag = await browser.elementByCss('.hello-world')
-          const initialFontSize = await pTag.getComputedCss('font-size')
-          return initialFontSize
-        },
-        {
-          test(content) {
-            return content === '100px'
-          },
-        }
-      )
+      await check(async () => {
+        const pTag = await browser.elementByCss('.hello-world')
+        const initialFontSize = await pTag.getComputedCss('font-size')
+        return initialFontSize
+      }, '100px')
 
       const pagePath = join(
         __dirname,
@@ -159,11 +144,7 @@ describe('Configuration', () => {
         await check(
           () =>
             browser.elementByCss('.hello-world').getComputedCss('font-size'),
-          {
-            test(content) {
-              return content === '200px'
-            },
-          }
+          '200px'
         )
       } finally {
         // Finally is used so that we revert the content back to the original regardless of the test outcome
@@ -173,11 +154,7 @@ describe('Configuration', () => {
         await check(
           () =>
             browser.elementByCss('.hello-world').getComputedCss('font-size'),
-          {
-            test(content) {
-              return content === '100px'
-            },
-          }
+          '100px'
         )
       }
     } finally {
@@ -196,32 +173,20 @@ describe('Configuration', () => {
       browser = await webdriver(context.appPort, '/webpack-css')
       await check(
         () => browser.elementByCss('.hello-world').getComputedCss('color'),
-        {
-          test(content) {
-            return content === 'rgba(255, 255, 0, 1)'
-          },
-        }
+        'rgba(255, 255, 0, 1)'
       )
 
       try {
         file.replace('yellow', 'red')
         await check(
           () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          {
-            test(content) {
-              return content === 'rgba(255, 0, 0, 1)'
-            },
-          }
+          'rgba(255, 0, 0, 1)'
         )
       } finally {
         file.restore()
         await check(
           () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          {
-            test(content) {
-              return content === 'rgba(255, 255, 0, 1)'
-            },
-          }
+          'rgba(255, 255, 0, 1)'
         )
       }
     } finally {

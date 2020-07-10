@@ -11,7 +11,7 @@ For documentation see: https://github.com/vercel/next.js#exposing-configuration-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-universal-configuration-runtime with-universal-configuration-runtime-app
+npx create-next-app --example with-universal-configuration-runtime with-universal-configuration-runtime-app
 # or
 yarn create next-app --example with-universal-configuration-runtime with-universal-configuration-runtime-app
 ```

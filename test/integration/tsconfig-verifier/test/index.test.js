@@ -44,13 +44,13 @@ describe('tsconfig.json verifier', () => {
           \\"isolatedModules\\": true,
           \\"jsx\\": \\"preserve\\"
         },
-        \\"exclude\\": [
-          \\"node_modules\\"
-        ],
         \\"include\\": [
           \\"next-env.d.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
         ]
       }
       "
@@ -88,13 +88,13 @@ describe('tsconfig.json verifier', () => {
           \\"isolatedModules\\": true,
           \\"jsx\\": \\"preserve\\"
         },
-        \\"exclude\\": [
-          \\"node_modules\\"
-        ],
         \\"include\\": [
           \\"next-env.d.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
         ]
       }
       "
@@ -155,13 +155,13 @@ describe('tsconfig.json verifier', () => {
         }
         // in-object comment 2
         ,
-        \\"exclude\\": [
-          \\"node_modules\\"
-        ],
         \\"include\\": [
           \\"next-env.d.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
         ]
       }
       // end comment

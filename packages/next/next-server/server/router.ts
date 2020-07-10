@@ -152,8 +152,8 @@ export default class Router {
     this.dynamicRoutes = routes
   }
 
-  addFsRoute(route: Route) {
-    this.fsRoutes.unshift(route)
+  addFsRoute(fsRoute: Route) {
+    this.fsRoutes.unshift(fsRoute)
   }
 
   async execute(
@@ -182,7 +182,7 @@ export default class Router {
       - User rewrites (checking filesystem and pages each match)
     */
 
-    const routes = [
+    const allRoutes = [
       ...this.headers,
       ...this.redirects,
       ...this.fsRoutes,
@@ -194,14 +194,19 @@ export default class Router {
               type: 'route',
               name: 'Page checker',
               match: route('/:path*'),
-              fn: async (req, res, params, parsedUrl) => {
-                const { pathname } = parsedUrl
+              fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
+                const { pathname } = parsedCheckerUrl
 
                 if (!pathname) {
                   return { finished: false }
                 }
                 if (await memoizedPageChecker(pathname)) {
-                  return this.catchAllRoute.fn(req, res, params, parsedUrl)
+                  return this.catchAllRoute.fn(
+                    checkerReq,
+                    checkerRes,
+                    params,
+                    parsedCheckerUrl
+                  )
                 }
                 return { finished: false }
               },
@@ -214,12 +219,12 @@ export default class Router {
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
     ]
 
-    for (const route of routes) {
-      const newParams = route.match(parsedUrlUpdated.pathname)
+    for (const testRoute of allRoutes) {
+      const newParams = testRoute.match(parsedUrlUpdated.pathname)
 
       // Check if the match function matched
       if (newParams) {
-        const result = await route.fn(req, res, newParams, parsedUrlUpdated)
+        const result = await testRoute.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled
         if (result.finished) {
@@ -238,19 +243,19 @@ export default class Router {
         }
 
         // check filesystem
-        if (route.check === true) {
+        if (testRoute.check === true) {
           for (const fsRoute of this.fsRoutes) {
             const fsParams = fsRoute.match(parsedUrlUpdated.pathname)
 
             if (fsParams) {
-              const result = await fsRoute.fn(
+              const fsResult = await fsRoute.fn(
                 req,
                 res,
                 fsParams,
                 parsedUrlUpdated
               )
 
-              if (result.finished) {
+              if (fsResult.finished) {
                 return true
               }
             }
