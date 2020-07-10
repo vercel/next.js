@@ -23,6 +23,9 @@ const FIREBASE_ERROR_TOKEN_EXPIRED = 'auth/id-token-expired'
  * @return {String} The new ID token
  */
 const refreshExpiredIdToken = async (refreshToken) => {
+  if (!refreshToken) {
+    throw new Error('The "refreshToken" argument is required.')
+  }
   // https://firebase.google.com/docs/reference/rest/auth/#section-refresh-token
   const endpoint = `https://securetoken.googleapis.com/v1/token?key=${process.env.NEXT_PUBLIC_FIREBASE_PUBLIC_API_KEY}`
   const response = await fetch(endpoint, {
@@ -30,14 +33,11 @@ const refreshExpiredIdToken = async (refreshToken) => {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: JSON.stringify({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    }),
+    body: `grant_type=refresh_token&refresh_token=${refreshToken}`,
   })
   const responseJSON = await response.json()
   if (!response.ok) {
-    throw new Error(`Problem refreshing token: ${responseJSON}`)
+    throw new Error(`Problem refreshing token: ${JSON.stringify(responseJSON)}`)
   }
   const idToken = responseJSON.id_token
   return idToken
@@ -58,9 +58,10 @@ export const verifyIdToken = async (token, refreshToken = null) => {
     if (refreshToken && e.code === FIREBASE_ERROR_TOKEN_EXPIRED) {
       const newToken = await refreshExpiredIdToken(refreshToken)
       firebaseUser = await admin.auth().verifyIdToken(newToken)
+    } else {
+      // Otherwise, throw.
+      throw e
     }
-    // Otherwise, throw.
-    throw e
   }
   return firebaseUser
 }
