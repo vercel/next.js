@@ -4,7 +4,7 @@ import { getLegalPages } from '@/lib/shop-utils'
 import Container from './container'
 
 export default function Footer({ shop, pages }) {
-  const legalPages = getLegalPages(shop)
+  const legalPages = shop && getLegalPages(shop)
 
   return (
     <footer className="bg-accent-1 border-t border-accent-2 mt-32">
@@ -24,7 +24,7 @@ export default function Footer({ shop, pages }) {
                   </Link>
                 </li>
 
-                {pages.edges.map(({ node }) => (
+                {pages?.edges.map(({ node }) => (
                   <li key={node.handle} className="mt-4">
                     <Link href="/pages/[page]" as={`/pages/${node.handle}`}>
                       <a className="text-accent-5 font-medium hover:text-black">
@@ -35,7 +35,7 @@ export default function Footer({ shop, pages }) {
                 ))}
               </ul>
             </div>
-            {legalPages.length > 0 && (
+            {legalPages?.length > 0 && (
               <div className="mt-4">
                 <h4 className="leading-5 font-semibold tracking-wider text-black uppercase">
                   Legal

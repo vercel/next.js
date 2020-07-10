@@ -16,7 +16,7 @@ export default function Layout({ preview, shop, pages, children }) {
         <Alert preview={preview} />
         <Container>
           <CartProvider>
-            <Header title={shop.name} pages={pages} />
+            <Header title={shop?.name} pages={pages} />
             <main>{children}</main>
             <CartModal />
           </CartProvider>

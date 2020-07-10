@@ -1,10 +1,11 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import cn from 'classnames'
+import { STORE_NAME } from '@/lib/constants'
 import { useCart, useCheckout } from '@/lib/cart'
 import styles from './header.module.css'
 
-export default function Header({ title, pages }) {
+export default function Header({ title = STORE_NAME, pages }) {
   const { pathname } = useRouter()
   const { openCart } = useCart()
   const { checkout } = useCheckout()
@@ -31,7 +32,7 @@ export default function Header({ title, pages }) {
           </a>
         </Link>
 
-        {pages.edges.map(({ node }) => (
+        {pages?.edges.map(({ node }) => (
           <Link
             key={node.handle}
             href="/pages/[page]"

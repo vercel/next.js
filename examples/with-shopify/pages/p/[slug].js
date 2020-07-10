@@ -21,7 +21,7 @@ export default function Index({ shop, pages, product, relatedProducts }) {
           {product?.title ? `${product.title} | ` : ''}Next.js Ecommerce Example
           with {CMS_NAME}
         </title>
-        <meta property="og:image" content={product.image} />
+        {product?.image && <meta property="og:image" content={product.image} />}
       </Head>
 
       {router.isFallback ? (
@@ -29,7 +29,7 @@ export default function Index({ shop, pages, product, relatedProducts }) {
       ) : (
         <ProductBody product={product} />
       )}
-      {relatedProducts.length > 0 && (
+      {relatedProducts?.length > 0 && (
         <section className="my-24">
           <h2 className="mb-8 text-5xl leading-tight">You may also like</h2>
           <Products products={relatedProducts} />
