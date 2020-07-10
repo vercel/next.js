@@ -8,6 +8,9 @@ const mainRepoDir = path.join(workDir, mainRepoName)
 const diffRepoDir = path.join(workDir, diffRepoName)
 const statsAppDir = path.join(workDir, 'stats-app')
 const diffingDir = path.join(workDir, 'diff')
+const yarnEnvValues = {
+  YARN_CACHE_FOLDER: path.join(workDir, 'yarn-cache'),
+}
 const allowedConfigLocations = [
   './',
   '.stats-app',
@@ -24,5 +27,6 @@ module.exports = {
   mainRepoDir,
   diffRepoDir,
   statsAppDir,
+  yarnEnvValues,
   allowedConfigLocations,
 }

@@ -45,6 +45,18 @@ export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
 >
 
+/**
+ * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
+ * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
+ */
+export type NextWebVitalsMetric = {
+  id: string
+  label: string
+  name: string
+  startTime: number
+  value: number
+}
+
 export type Enhancer<C> = (Component: C) => C
 
 export type ComponentsEnhancer =
@@ -187,6 +199,12 @@ export interface NextApiRequest extends IncomingMessage {
   body: any
 
   env: Env
+
+  preview?: boolean
+  /**
+   * Preview data set on the request, if any
+   * */
+  previewData?: any
 }
 
 /**
@@ -207,6 +225,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>
+  redirect: (statusOrUrl: string | number, url?: string) => NextApiResponse<T>
 
   /**
    * Set preview data for Next.js' prerender mode

@@ -18,14 +18,12 @@ module.exports = withOffline({
       },
     ],
   },
-  experimental: {
-    async rewrites() {
-      return [
-        {
-          source: '/service-worker.js',
-          destination: '/_next/static/service-worker.js',
-        },
-      ]
-    },
+  async rewrites() {
+    return [
+      {
+        source: '/service-worker.js',
+        destination: '/_next/static/service-worker.js',
+      },
+    ]
   },
 })

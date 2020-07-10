@@ -24,9 +24,6 @@ export const VALID_MIDDLEWARE = [
   'on-error-client',
   'on-error-server',
   'babel-preset-build',
-  'unstable-post-hydration',
-  'unstable-get-styles-server',
-  'unstable-enhance-app-server',
 ]
 
 type ENV_OPTIONS = { [name: string]: string }

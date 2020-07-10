@@ -87,9 +87,6 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 
 ### Optional catch all routes
 
-> **Warning**: This feature is **experimental and may not work as expected**.
-> You must enable the `optionalCatchAll` experimental option to try it.
-
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
 For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
