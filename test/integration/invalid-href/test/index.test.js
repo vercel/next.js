@@ -23,23 +23,6 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
-const origIt = it
-
-// eslint-disable-next-line no-native-reassign
-it = (name, test) => {
-  return origIt(name, async (...args) => {
-    console.log(`###: entering test "${name}"`)
-    let success = false
-    try {
-      const result = await test(...args)
-      success = true
-      return result
-    } finally {
-      console.log(`###: exiting test "${name}" ${success ? 'PASS' : 'FAIL'}`)
-    }
-  })
-}
-
 const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
   try {
@@ -60,17 +43,14 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
     }
     // wait for page to be built and navigated to
     await waitFor(3000)
-    console.log('###: waiting for #click-me')
     await browser.waitForElementByCss('#click-me')
     if (click) {
-      console.log('###: clicking #click-me')
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
     }
     if (isWarn) {
       await check(async () => {
         const warnLogs = await browser.eval('window.warnLogs')
-        console.log(warnLogs)
         return warnLogs.join('\n')
       }, regex)
     } else {
@@ -84,10 +64,8 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 }
 
 const noError = async (pathname, click = false) => {
-  console.log('###: opening browser')
   const browser = await webdriver(appPort, '/')
   try {
-    console.log('###: execute eval')
     await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
@@ -100,19 +78,14 @@ const noError = async (pathname, click = false) => {
         window.next.router.replace('${pathname}')
       }, 0)
     })()`)
-    console.log('###: done')
     // wait for page to be built and navigated to
     await waitFor(3000)
-    console.log('###: waiting for #click-me')
     await browser.waitForElementByCss('#click-me')
-    console.log('###: found #click-me')
     if (click) {
-      console.log('###: clicking #click-me')
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
     }
     const caughtErrors = await browser.eval(`window.caughtErrors`)
-    console.log('###: errors: \n', caughtErrors.join('\n'))
     expect(caughtErrors).toHaveLength(0)
   } finally {
     await browser.close()
@@ -176,9 +149,7 @@ describe('Invalid hrefs', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
-      console.log('starting')
       app = await nextStart(appDir, appPort)
-      console.log('server started')
     })
     afterAll(() => killApp(app))
 
@@ -231,6 +202,3 @@ describe('Invalid hrefs', () => {
     })
   })
 })
-
-// eslint-disable-next-line no-native-reassign
-it = origIt
