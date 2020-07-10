@@ -84,6 +84,7 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 }
 
 const noError = async (pathname, click = false) => {
+  console.log('###: opening browser')
   const browser = await webdriver(appPort, '/')
   try {
     console.log('###: execute eval')
