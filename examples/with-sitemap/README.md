@@ -1,4 +1,7 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+### Sitemap for Static Next.Js App
+
+This is a static [Next.js](https://nextjs.org/) project which generates a sitemap for all the static paths.
+Everytime, you try to start a development server or make a build, you get an updated `sitemap.xml` file in `public` directory.
 
 ## Getting Started
 
@@ -10,18 +13,9 @@ npm run dev
 yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/sitemap.xml](http://localhost:3000/sitemap.xml) with your browser to see the sitemap.
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+**Note**: Everytime you add or remove a page from `pages` directory, you need to restart the server, to update your `pages/sitemap.xml` file.
 
 ## Deploy on Vercel
 
