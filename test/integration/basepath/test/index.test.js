@@ -20,6 +20,7 @@ import {
   initNextServerScript,
   getRedboxSource,
   hasRedbox,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -115,6 +116,98 @@ const runTests = (context, dev = false) => {
       )
     })
   }
+
+  it('should rewrite with basePath by default', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/rewrite-1')
+    expect(html).toContain('getServerSideProps')
+  })
+
+  it('should not rewrite without basePath without disabling', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/rewrite-1')
+    expect(res.status).toBe(404)
+  })
+
+  it('should not rewrite with basePath when set to false', async () => {
+    // won't 404 as it matches the dynamic [slug] route
+    const html = await renderViaHTTP(
+      context.appPort,
+      '/docs/rewrite-no-basePath'
+    )
+    expect(html).toContain('slug')
+  })
+
+  it('should rewrite without basePath when set to false', async () => {
+    const html = await renderViaHTTP(context.appPort, '/rewrite-no-basePath')
+    expect(html).toContain('getServerSideProps')
+  })
+
+  it('should redirect with basePath by default', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/redirect-1',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(pathname).toBe('/docs/somewhere-else')
+    expect(res.status).toBe(307)
+  })
+
+  it('should not redirect without basePath without disabling', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/redirect-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('should not redirect with basePath when set to false', async () => {
+    // won't 404 as it matches the dynamic [slug] route
+    const html = await renderViaHTTP(
+      context.appPort,
+      '/docs/rewrite-no-basePath'
+    )
+    expect(html).toContain('slug')
+  })
+
+  it('should redirect without basePath when set to false', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/redirect-no-basepath',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(pathname).toBe('/another-destination')
+    expect(res.status).toBe(307)
+  })
+
+  //
+  it('should add header with basePath by default', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/docs/add-header')
+    expect(res.headers.get('x-hello')).toBe('world')
+  })
+
+  it('should not add header without basePath without disabling', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/add-header')
+    expect(res.headers.get('x-hello')).toBe(null)
+  })
+
+  it('should not add header with basePath when set to false', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/add-header-no-basepath'
+    )
+    expect(res.headers.get('x-hello')).toBe(null)
+  })
+
+  it('should add header without basePath when set to false', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/add-header-no-basepath')
+    expect(res.headers.get('x-hello')).toBe('world')
+  })
 
   it('should not update URL for a 404', async () => {
     const browser = await webdriver(context.appPort, '/missing')
@@ -759,8 +852,9 @@ describe('basePath serverless', () => {
   const nextConfig = new File(join(appDir, 'next.config.js'))
 
   beforeAll(async () => {
-    await nextConfig.write(
-      `module.exports = { target: 'experimental-serverless-trace', basePath: '/docs' } `
+    await nextConfig.replace(
+      '// replace me',
+      `target: 'experimental-serverless-trace',`
     )
     await nextBuild(appDir)
     context.appPort = await findPort()

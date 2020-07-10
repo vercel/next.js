@@ -8,6 +8,7 @@ import {
 export type Rewrite = {
   source: string
   destination: string
+  basePath?: false
 }
 
 export type Redirect = Rewrite & {
@@ -17,6 +18,7 @@ export type Redirect = Rewrite & {
 
 export type Header = {
   source: string
+  basePath?: false
   headers: Array<{ key: string; value: string }>
 }
 
@@ -148,10 +150,11 @@ function checkCustomRoutes(
     allowedKeys = new Set([
       'source',
       'destination',
+      'basePath',
       ...(isRedirect ? ['statusCode', 'permanent'] : []),
     ])
   } else {
-    allowedKeys = new Set(['source', 'headers'])
+    allowedKeys = new Set(['source', 'headers', 'basePath'])
   }
 
   for (const route of routes) {
@@ -170,6 +173,10 @@ function checkCustomRoutes(
     const keys = Object.keys(route)
     const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
+
+    if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
+      invalidParts.push('`basePath` must be undefined or false')
+    }
 
     if (!route.source) {
       invalidParts.push('`source` is missing')
@@ -314,7 +321,7 @@ export interface CustomRoutes {
   redirects: Redirect[]
 }
 
-async function loadRedirects(config: any) {
+async function loadRedirects(config: any): Promise<Redirect[]> {
   if (typeof config.redirects !== 'function') {
     return []
   }
@@ -323,7 +330,7 @@ async function loadRedirects(config: any) {
   return _redirects
 }
 
-async function loadRewrites(config: any) {
+async function loadRewrites(config: any): Promise<Rewrite[]> {
   if (typeof config.rewrites !== 'function') {
     return []
   }
@@ -332,7 +339,7 @@ async function loadRewrites(config: any) {
   return _rewrites
 }
 
-async function loadHeaders(config: any) {
+async function loadHeaders(config: any): Promise<Header[]> {
   if (typeof config.headers !== 'function') {
     return []
   }
