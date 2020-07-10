@@ -3,7 +3,7 @@
 }
 
 .logo {
-  @apply text-2xl font-bold tracking-tight leading-tight whitespace-no-wrap mb-5 mr-8;
+  @apply text-2xl font-bold tracking-tight leading-tight whitespace-no-wrap mb-5;
 }
 
 @screen sm {
@@ -11,7 +11,7 @@
     @apply flex-row;
   }
   .logo {
-    @apply mb-0;
+    @apply mb-0 mr-8;
   }
 }
 

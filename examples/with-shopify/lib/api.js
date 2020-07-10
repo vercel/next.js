@@ -1,5 +1,21 @@
 import graphqlFetch from './graphql-fetch'
 
+const RootFields = `
+  fragment RootFields on QueryRoot {
+    shop {
+      name
+    }
+    pages(first: 100) {
+      edges {
+        node {
+          title
+          handle
+        }
+      }
+    }
+  }
+`
+
 const ProductFields = `
   fragment ProductFields on Product {
     id
@@ -54,9 +70,7 @@ const VariantFields = `
 export async function getShopDataForHome() {
   const data = await graphqlFetch(`
     query Products($maxWidth: Int = 384, $maxHeight: Int = 384) {
-      shop {
-        name
-      }
+      ...RootFields
       products(first: 10) {
         edges {
           node {
@@ -72,6 +86,7 @@ export async function getShopDataForHome() {
         }
       }
     }
+    ${RootFields}
     ${ProductFields}
     ${VariantFields}
   `)
@@ -96,12 +111,10 @@ export async function getAllProductsWithSlug() {
 }
 
 export async function getProductAndMoreProducts(handle) {
-  const { shop, productByHandle: product } = await graphqlFetch(
+  const { shop, pages, productByHandle: product } = await graphqlFetch(
     `
       query ProductAndMoreProducts($handle: String!, $maxWidth: Int = 600, $maxHeight: Int = 600) {
-        shop {
-          name
-        }
+        ...RootFields
         productByHandle(handle: $handle) {
           ...ProductFields
           descriptionHtml
@@ -114,6 +127,7 @@ export async function getProductAndMoreProducts(handle) {
           }
         }
       }
+      ${RootFields}
       ${ProductFields}
       ${VariantFields}
     `,
@@ -177,5 +191,5 @@ export async function getProductAndMoreProducts(handle) {
       ({ node }) => node.handle !== handle
     ) ?? []
 
-  return { shop, product, relatedProducts }
+  return { shop, pages, product, relatedProducts }
 }

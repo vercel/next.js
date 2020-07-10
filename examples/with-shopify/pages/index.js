@@ -9,9 +9,7 @@ import Intro from '@/components/intro'
 import Products from '@/components/products'
 import CartModal from '@/components/cart-modal'
 
-export default function Index({ shop, products }) {
-  console.log('SHOP', shop)
-
+export default function Index({ shop, pages, products }) {
   return (
     <Layout>
       <Head>
@@ -19,7 +17,7 @@ export default function Index({ shop, products }) {
       </Head>
       <Container>
         <CartProvider>
-          <Header title={shop.name} />
+          <Header title={shop.name} pages={pages} />
           <Intro />
           <section className="my-32">
             <Products products={products.edges} />
@@ -32,9 +30,9 @@ export default function Index({ shop, products }) {
 }
 
 export async function getStaticProps({ preview }) {
-  const { shop, products } = await getShopDataForHome()
+  const { shop, pages, products } = await getShopDataForHome()
 
   return {
-    props: { allPosts: [], shop, products },
+    props: { allPosts: [], shop, pages, products },
   }
 }

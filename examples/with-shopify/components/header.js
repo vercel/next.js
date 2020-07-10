@@ -4,7 +4,7 @@ import cn from 'classnames'
 import { useCart, useCheckout } from '@/lib/cart'
 import styles from './header.module.css'
 
-export default function Header({ title }) {
+export default function Header({ title, pages }) {
   const { pathname } = useRouter()
   const { openCart } = useCart()
   const { checkout } = useCheckout()
@@ -30,9 +30,13 @@ export default function Header({ title }) {
             Home
           </a>
         </Link>
-        <a href="#" className={styles.navItem}>
-          About
-        </a>
+
+        {pages.edges.map(({ node }) => (
+          <Link key={node.handle} href={node.handle}>
+            <a className={styles.navItem}>{node.title}</a>
+          </Link>
+        ))}
+
         <button type="button" className={styles.navItem} onClick={openCart}>
           🛒&nbsp;Cart {itemsCount ? `(${itemsCount})` : ''}
         </button>
