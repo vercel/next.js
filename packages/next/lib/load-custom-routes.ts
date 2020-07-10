@@ -321,7 +321,7 @@ export interface CustomRoutes {
   redirects: Redirect[]
 }
 
-async function loadRedirects(config: any): Promise<Redirect[]> {
+async function loadRedirects(config: any) {
   if (typeof config.redirects !== 'function') {
     return []
   }
@@ -330,7 +330,7 @@ async function loadRedirects(config: any): Promise<Redirect[]> {
   return _redirects
 }
 
-async function loadRewrites(config: any): Promise<Rewrite[]> {
+async function loadRewrites(config: any) {
   if (typeof config.rewrites !== 'function') {
     return []
   }
@@ -339,7 +339,7 @@ async function loadRewrites(config: any): Promise<Rewrite[]> {
   return _rewrites
 }
 
-async function loadHeaders(config: any): Promise<Header[]> {
+async function loadHeaders(config: any) {
   if (typeof config.headers !== 'function') {
     return []
   }

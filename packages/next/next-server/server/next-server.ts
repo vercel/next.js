@@ -454,7 +454,6 @@ export default class Server {
       ({
         ...r,
         type,
-        matchSrc: `${getCustomRouteBasePath(r)}${r.source}`,
         match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
