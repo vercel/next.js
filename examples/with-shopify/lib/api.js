@@ -212,3 +212,19 @@ export async function getPageData(handle) {
 
   return data
 }
+
+export async function getAllPagesHandles() {
+  const data = await graphqlFetch(`
+    {
+      pages(first: 100) {
+        edges {
+          node {
+            handle
+          }
+        }
+      }
+    }
+  `)
+
+  return data.pages
+}

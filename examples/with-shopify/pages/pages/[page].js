@@ -1,7 +1,7 @@
 import ErrorPage from 'next/error'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
-import { getPageData } from '@/lib/api'
+import { getPageData, getAllPagesHandles } from '@/lib/api'
 import { CartProvider } from '@/lib/cart'
 import Layout from '@/components/layout'
 import Container from '@/components/container'
@@ -9,7 +9,7 @@ import Header from '@/components/header'
 import CartModal from '@/components/cart-modal'
 import HtmlContent from '@/components/html-content'
 
-export default function About({ shop, pages, pageByHandle }) {
+export default function Page({ shop, pages, pageByHandle }) {
   if (!pageByHandle) {
     return <ErrorPage statusCode={404} />
   }
@@ -35,7 +35,16 @@ export default function About({ shop, pages, pageByHandle }) {
   )
 }
 
-export async function getStaticProps() {
-  const data = await getPageData('about')
+export async function getStaticProps({ params }) {
+  const data = await getPageData(params.page)
   return { props: { ...data } }
+}
+
+export async function getStaticPaths() {
+  const pages = await getAllPagesHandles()
+
+  return {
+    paths: pages.edges.map(({ node }) => ({ params: { page: node.handle } })),
+    fallback: false,
+  }
 }
