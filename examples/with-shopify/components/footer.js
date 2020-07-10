@@ -35,22 +35,24 @@ export default function Footer({ shop, pages }) {
                 ))}
               </ul>
             </div>
-            <div className="mt-4">
-              <h4 className="leading-5 font-semibold tracking-wider text-black uppercase">
-                Legal
-              </h4>
-              <ul>
-                {legalPages.map(({ title, handle }) => (
-                  <li key={handle} className="mt-4">
-                    <Link href="/legal/[page]" as={`/legal/${handle}`}>
-                      <a className="text-accent-5 font-medium hover:text-black">
-                        {title}
-                      </a>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {legalPages.length > 0 && (
+              <div className="mt-4">
+                <h4 className="leading-5 font-semibold tracking-wider text-black uppercase">
+                  Legal
+                </h4>
+                <ul>
+                  {legalPages.map(({ title, handle }) => (
+                    <li key={handle} className="mt-4">
+                      <Link href="/legal/[page]" as={`/legal/${handle}`}>
+                        <a className="text-accent-5 font-medium hover:text-black">
+                          {title}
+                        </a>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col">

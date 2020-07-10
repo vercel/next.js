@@ -2,6 +2,7 @@ export const LEGAL = {
   'privacy-policy': 'privacyPolicy',
   'refund-policy': 'refundPolicy',
   'terms-of-service': 'termsOfService',
+  // This one is currently not returned by the Storefront API
   'shipping-policy': 'shippingPolicy',
 }
 
