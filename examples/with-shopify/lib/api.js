@@ -187,9 +187,28 @@ export async function getProductAndMoreProducts(handle) {
       `
     ))
   const relatedProducts =
-    additionalData?.products.edges.filter(
-      ({ node }) => node.handle !== handle
-    ) ?? []
+    additionalData?.products.edges
+      .filter(({ node }) => node.handle !== handle)
+      .slice(0, 3) ?? []
 
   return { shop, pages, product, relatedProducts }
+}
+
+export async function getPageData(handle) {
+  const data = await graphqlFetch(
+    `
+      query Page($handle: String!) {
+        ...RootFields
+        pageByHandle(handle: $handle) {
+          title
+          handle
+          body
+        }
+      }
+      ${RootFields}
+    `,
+    { variables: { handle } }
+  )
+
+  return data
 }

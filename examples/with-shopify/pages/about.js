@@ -1,15 +1,19 @@
+import ErrorPage from 'next/error'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
-import { getShopDataForHome } from '@/lib/api'
+import { getPageData } from '@/lib/api'
 import { CartProvider } from '@/lib/cart'
 import Layout from '@/components/layout'
 import Container from '@/components/container'
 import Header from '@/components/header'
-import Intro from '@/components/intro'
-import Products from '@/components/products'
 import CartModal from '@/components/cart-modal'
+import HtmlContent from '@/components/html-content'
 
-export default function Index({ shop, pages, products }) {
+export default function About({ shop, pages, pageByHandle }) {
+  if (!pageByHandle) {
+    return <ErrorPage statusCode={404} />
+  }
+
   return (
     <Layout>
       <Head>
@@ -18,9 +22,11 @@ export default function Index({ shop, pages, products }) {
       <Container>
         <CartProvider>
           <Header title={shop.name} pages={pages} />
-          <Intro />
           <section className="my-32">
-            <Products products={products.edges} />
+            <div className="max-w-2xl mx-auto">
+              <h1 className="text-6xl mb-12">{pageByHandle.title}</h1>
+              <HtmlContent content={pageByHandle.body} />
+            </div>
           </section>
           <CartModal />
         </CartProvider>
@@ -29,7 +35,7 @@ export default function Index({ shop, pages, products }) {
   )
 }
 
-export async function getStaticProps({ preview }) {
-  const data = await getShopDataForHome()
+export async function getStaticProps() {
+  const data = await getPageData('about')
   return { props: { ...data } }
 }

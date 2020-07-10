@@ -8,8 +8,8 @@ import ZoomImage from './zoom-image'
 import ProductQuantity from './product-quantity'
 import Button from './button'
 import SelectInput from './select-input'
-import markdownStyles from './markdown-styles.module.css'
 import ProductGallery from './product-gallery'
+import HtmlContent from './html-content'
 
 // Get the currently active variant
 function getVariant(variants, { size, color }) {
@@ -222,10 +222,7 @@ export default function ProductBody({ product }) {
 
           {product.descriptionHtml?.length > 0 && (
             <div className="max-w-2xl mt-12">
-              <div
-                className={markdownStyles['markdown']}
-                dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
-              />
+              <HtmlContent content={product.descriptionHtml} />
             </div>
           )}
         </div>

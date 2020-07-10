@@ -33,7 +33,13 @@ export default function Header({ title, pages }) {
 
         {pages.edges.map(({ node }) => (
           <Link key={node.handle} href={node.handle}>
-            <a className={styles.navItem}>{node.title}</a>
+            <a
+              className={cn(styles.navItem, {
+                'text-black': pathname === node.handle,
+              })}
+            >
+              {node.title}
+            </a>
           </Link>
         ))}
 
