@@ -29,6 +29,11 @@ export function getRedirectStatus(route: Redirect): number {
   )
 }
 
+export function normalizeRouteRegex(regex: string) {
+  // clean up un-necessary escaping from regex.source which turns / into \\/
+  return regex.replace(/\\\//g, '/')
+}
+
 function checkRedirect(
   route: Redirect
 ): { invalidParts: string[]; hadInvalidStatus: boolean } {

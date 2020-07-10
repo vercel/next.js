@@ -26,6 +26,12 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should not have any query values when not defined', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#query').text())).toEqual([])
+  })
+
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -553,6 +559,30 @@ function runTests(dev) {
         redirects: expect.arrayContaining([]),
         dataRoutes: [
           {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/b\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/b/(?<a>[^/]+?)\\.json$`,
+            page: '/b/[123]',
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/c\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/c/(?<a>[^/]+?)\\.json$`,
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
+            },
+          },
+          {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
             )}/p1/p2/all\\-ssg/(?<rest>.+?)\\.json$`,
@@ -597,6 +627,14 @@ function runTests(dev) {
         ],
         dynamicRoutes: [
           {
+            namedRegex: '^/b/(?<a>[^/]+?)(?:/)?$',
+            page: '/b/[123]',
+            regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
             namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
@@ -605,6 +643,14 @@ function runTests(dev) {
             routeKeys: {
               name: 'name',
               id: 'id',
+            },
+          },
+          {
+            namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
             },
           },
           {
