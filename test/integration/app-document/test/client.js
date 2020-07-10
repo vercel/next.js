@@ -5,7 +5,7 @@ import { join } from 'path'
 import { check } from 'next-test-utils'
 
 export default (context, render) => {
-  describe.skip('Client side', () => {
+  describe('Client side', () => {
     it('should detect the changes to pages/_app.js and display it', async () => {
       const appPath = join(__dirname, '../', 'pages', '_app.js')
       const originalContent = readFileSync(appPath, 'utf8')
