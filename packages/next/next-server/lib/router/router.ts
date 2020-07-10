@@ -169,7 +169,7 @@ export default class Router implements BaseRouter {
   _wrapApp: (App: ComponentType) => any
   isSsr: boolean
   isFallback: boolean
-  _lastStarted?: string
+  _inFlightRoute?: string
 
   static events: MittEmitter = mitt()
 
@@ -429,10 +429,12 @@ export default class Router implements BaseRouter {
         }
       }
 
-      this.abortComponentLoad()
+      if (this._inFlightRoute) {
+        this.abortComponentLoad(this._inFlightRoute)
+      }
 
       const cleanedAs = delBasePath(as)
-      this._lastStarted = cleanedAs
+      this._inFlightRoute = cleanedAs
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
@@ -524,6 +526,7 @@ export default class Router implements BaseRouter {
           }
 
           if (error && error.aborted) {
+            delete error.aborted
             Router.events.emit('routeChangeError', error, cleanedAs)
             return resolve(false)
           }
@@ -909,11 +912,11 @@ export default class Router implements BaseRouter {
     })
   }
 
-  abortComponentLoad(): void {
+  abortComponentLoad(as: string): void {
     if (this.clc) {
       const e = new Error('Route Cancelled')
       ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, this._lastStarted)
+      Router.events.emit('routeChangeError', e, as)
       this.clc()
       this.clc = null
     }
