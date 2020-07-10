@@ -12,6 +12,8 @@ import {
   nextStart,
   fetchViaHTTP,
   renderViaHTTP,
+  getPageFileFromBuildManifest,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import qs from 'querystring'
 import path from 'path'
@@ -20,7 +22,6 @@ import fetch from 'node-fetch'
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
-const buildIdFile = join(appDir, '.next/BUILD_ID')
 let stderr = ''
 let appPort
 let app
@@ -172,15 +173,12 @@ describe('Serverless', () => {
 
   it('should not have combined client-side chunks', () => {
     expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
-    const buildId = readFileSync(buildIdFile, 'utf8').trim()
 
-    const pageContent = join(
-      appDir,
-      '.next/static',
-      buildId,
-      'pages/dynamic.js'
-    )
-    expect(readFileSync(pageContent, 'utf8')).not.toContain('Hello!')
+    const pageFile = getPageFileFromBuildManifest(appDir, '/')
+
+    expect(
+      readFileSync(join(__dirname, '..', '.next', pageFile), 'utf8')
+    ).not.toContain('Hello!')
   })
 
   it('should not output _app.js and _document.js to serverless build', () => {
@@ -189,18 +187,21 @@ describe('Serverless', () => {
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['abc', 'dynamic', 'dynamic-two', 'some-amp']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverlessDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverlessDir, file + '.js'))).toBe(false)
+    const pages = ['/abc', '/dynamic', '/dynamic-two', '/some-amp']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['fetch', '_error']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverlessDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverlessDir, file + '.html'))).toBe(false)
+    const pages = ['/fetch', '/_error']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
 
@@ -235,9 +236,22 @@ describe('Serverless', () => {
     expect(param).toBe('val')
   })
 
-  it('should 404 on API request with trailing slash', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/hello/')
-    expect(res.status).toBe(404)
+  it('should reply with redirect on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    expect(res.headers.get('location')).toBe(
+      `http://localhost:${appPort}/api/hello`
+    )
+  })
+
+  it('should reply on API request with trailing slash successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello/')
+    expect(content).toMatch(/hello world/)
   })
 
   it('should have the correct query string for a dynamic route', async () => {

@@ -9,7 +9,7 @@ This example shows how to analyze the output bundles using [webpack-bundle-size-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-webpack-bundle-size-analyzer with-webpack-bundle-size-analyzer-app
+npx create-next-app --example with-webpack-bundle-size-analyzer with-webpack-bundle-size-analyzer-app
 # or
 yarn create next-app --example with-webpack-bundle-size-analyzer with-webpack-bundle-size-analyzer-app
 ```

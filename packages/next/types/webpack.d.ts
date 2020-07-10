@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable import/no-extraneous-dependencies, @typescript-eslint/no-unused-vars */
 // Type definitions for webpack 4.39
 // Project: https://github.com/webpack/webpack
 // Definitions by: Qubo <https://github.com/tkqubo>
@@ -2277,7 +2277,7 @@ declare module 'webpack' {
 
       function indent(s: string | string[]): string
 
-      function prefix(s: string | string[], prefix: string): string
+      function prefix(s: string | string[], prefixToAdd: string): string
 
       function asString(str: string | string[]): string
 
@@ -2292,7 +2292,7 @@ declare module 'webpack' {
         filterFn: (module: compilation.Module, num: number) => boolean,
         moduleTemplate: compilation.ModuleTemplate,
         dependencyTemplates: any,
-        prefix?: string
+        prefixToAdd?: string
       ): ConcatSource
     }
 

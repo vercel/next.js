@@ -1,19 +1,20 @@
-import { Compiler, compilation } from 'webpack'
-import {
-  IConformanceTestResult,
-  IWebpackConformanceTest,
-  IConformanceAnomaly,
-  IGetAstNodeResult,
-  NodeInspector,
-  IConformanceTestStatus,
-} from './TestInterface'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'next/dist/compiled/recast'
+import { compilation as CompilationType, Compiler } from 'webpack'
+import {
+  IConformanceAnomaly,
+  IConformanceTestResult,
+  IConformanceTestStatus,
+  IGetAstNodeResult,
+  IWebpackConformanceTest,
+  NodeInspector,
+} from './TestInterface'
 
-export { MinificationConformanceCheck } from './checks/minification-conformance-check'
-export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
 export { DuplicatePolyfillsConformanceCheck } from './checks/duplicate-polyfills-conformance-check'
 export { GranularChunksConformanceCheck } from './checks/granular-chunks-conformance'
+export { MinificationConformanceCheck } from './checks/minification-conformance-check'
+export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
 
 export interface IWebpackConformancePluginOptions {
   tests: IWebpackConformanceTest[]
@@ -48,7 +49,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildStartedHandler = (
-    compilation: compilation.Compilation,
+    _compilation: CompilationType.Compilation,
     callback: () => void
   ) => {
     const buildStartedResults: IConformanceTestResult[] = this.tests.map(
@@ -67,7 +68,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildCompletedHandler = (
-    compilation: compilation.Compilation,
+    compilation: CompilationType.Compilation,
     cb: () => void
   ): void => {
     const buildCompletedResults: IConformanceTestResult[] = this.tests.map(
@@ -87,7 +88,9 @@ export default class WebpackConformancePlugin {
     cb()
   }
 
-  private parserHandler = (factory: compilation.NormalModuleFactory): void => {
+  private parserHandler = (
+    factory: CompilationType.NormalModuleFactory
+  ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     const collectedVisitors: Map<string, [NodeInspector?]> = new Map()
     // Collect all interested visitors from all tests.

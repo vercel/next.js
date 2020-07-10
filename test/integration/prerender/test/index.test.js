@@ -25,6 +25,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
+import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -36,6 +37,7 @@ let buildId
 let distPagesDir
 let exportDir
 let stderr
+let origConfig
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -115,6 +117,16 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall-explicit/[...slug]',
   },
+  '/catchall-optional': {
+    dataRoute: `/_next/data/${buildId}/catchall-optional.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/catchall-optional/[[...slug]]',
+  },
+  '/catchall-optional/value': {
+    dataRoute: `/_next/data/${buildId}/catchall-optional/value.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/catchall-optional/[[...slug]]',
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
@@ -129,6 +141,31 @@ const expectedManifestRoutes = () => ({
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
     initialRevalidateSeconds: false,
     srcRoute: null,
+  },
+  '/index': {
+    dataRoute: `/_next/data/${buildId}/index/index.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: null,
+  },
+  '/lang/de/about': {
+    dataRoute: `/_next/data/${buildId}/lang/de/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/en/about': {
+    dataRoute: `/_next/data/${buildId}/lang/en/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/es/about': {
+    dataRoute: `/_next/data/${buildId}/lang/es/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/fr/about': {
+    dataRoute: `/_next/data/${buildId}/lang/fr/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
   },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
@@ -249,6 +286,38 @@ const navigateTest = (dev = false) => {
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#comment-1')
 
+    // go to /index
+    await browser.elementByCss('#to-nested-index').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello nested index/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-optional
+    await browser.elementByCss('#catchall-optional-root').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Catch all: \[\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-optional/value
+    await browser.elementByCss('#catchall-optional-value').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Catch all: \[value\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
     // go to /blog/post-1/comment-1
     await browser.elementByCss('#comment-1').click()
     await browser.waitForElementByCss('#home')
@@ -269,7 +338,7 @@ const navigateTest = (dev = false) => {
   })
 }
 
-const runTests = (dev = false, looseMode = false) => {
+const runTests = (dev = false, isEmulatedServerless = false) => {
   navigateTest(dev)
 
   it('should SSR normal page correctly', async () => {
@@ -277,7 +346,7 @@ const runTests = (dev = false, looseMode = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR SPR page correctly', async () => {
+  it('should SSR incremental page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
     const $ = cheerio.load(html)
@@ -482,7 +551,43 @@ const runTests = (dev = false, looseMode = false) => {
     expect($('#catchall').text()).toMatch(/Hi.*?second/)
   })
 
-  if (!looseMode) {
+  if (!isEmulatedServerless) {
+    it('should handle fallback only page correctly HTML', async () => {
+      const browser = await webdriver(appPort, '/fallback-only/first%2Fpost')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toContain('hi fallback')
+
+      // wait for fallback data to load
+      await check(() => browser.elementByCss('p').text(), /Post/)
+
+      // check fallback data
+      const post = await browser.elementByCss('p').text()
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+
+      expect(post).toContain('first/post')
+      expect(params).toEqual({
+        slug: 'first/post',
+      })
+      expect(query).toEqual(params)
+    })
+
+    it('should handle fallback only page correctly data', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(
+          appPort,
+          `/_next/data/${buildId}/fallback-only/second%2Fpost.json`
+        )
+      )
+
+      expect(data.pageProps.params).toEqual({
+        slug: 'second/post',
+      })
+    })
+  }
+
+  if (!isEmulatedServerless) {
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(
         appPort,
@@ -492,15 +597,58 @@ const runTests = (dev = false, looseMode = false) => {
       const html = await res.text()
       expect(html).toMatch(/This page could not be found/)
     })
+
+    it('should allow rewriting to SSG page with fallback: false', async () => {
+      const html = await renderViaHTTP(appPort, '/about')
+      expect(html).toMatch(/About:.*?en/)
+    })
+
+    it('should fetch /_next/data correctly with mismatched href and as', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      if (!dev) {
+        await browser.eval(() =>
+          document.querySelector('#to-rewritten-ssg').scrollIntoView()
+        )
+
+        await check(
+          async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
+            let found = false
+
+            for (const link of links) {
+              const href = await link.getAttribute('href')
+              const { pathname } = url.parse(href)
+
+              if (pathname.endsWith('/lang/en/about.json')) {
+                found = true
+                break
+              }
+            }
+            return found
+          },
+          {
+            test(result) {
+              return result === true
+            },
+          }
+        )
+      }
+      await browser.eval('window.beforeNav = "hi"')
+      await browser.elementByCss('#to-rewritten-ssg').click()
+      await browser.waitForElementByCss('#about')
+
+      expect(await browser.eval('window.beforeNav')).toBe('hi')
+      expect(await browser.elementByCss('#about').text()).toBe('About: en')
+    })
   }
 
   if (dev) {
-    // TODO: re-enable when this is supported in dev
-    it.skip('should show error when rewriting to dynamic SSG page', async () => {
+    it('should show error when rewriting to dynamic SSG page', async () => {
       const item = Math.round(Math.random() * 100)
       const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
       expect(html).toContain(
-        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+        `Rewrites don't support dynamic pages with getStaticProps yet`
       )
     })
 
@@ -720,8 +868,13 @@ const runTests = (dev = false, looseMode = false) => {
         /Failed to load static props/
       )
     })
+
+    it('should not contain headers already sent error', async () => {
+      await renderViaHTTP(appPort, '/fallback-only/some-fallback-post')
+      expect(stderr).not.toContain('ERR_HTTP_HEADERS_SENT')
+    })
   } else {
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
@@ -768,6 +921,18 @@ const runTests = (dev = false, looseMode = false) => {
         },
         {
           dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-gssp.json$`
+          ),
+          page: '/bad-gssp',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/bad-ssr.json$`
+          ),
+          page: '/bad-ssr',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
           ),
           page: '/blog',
@@ -782,7 +947,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
-          routeKeys: ['post'],
+          routeKeys: {
+            post: 'post',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -794,7 +961,10 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
-          routeKeys: ['post', 'comment'],
+          routeKeys: {
+            post: 'post',
+            comment: 'comment',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -806,7 +976,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -818,7 +990,23 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall\\-optional(?:/(?<slug>.+?))?\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
+          ),
+          page: '/catchall-optional/[[...slug]]',
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -827,6 +1015,40 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/default-revalidate.json$`
           ),
           page: '/default-revalidate',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+          page: '/fallback-only/[slug]',
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index\\/index.json$`
+          ),
+          page: '/index',
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/lang/(?<lang>[^/]+?)/about\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          page: '/lang/[lang]/about',
+          routeKeys: {
+            lang: 'lang',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -838,7 +1060,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
-          routeKeys: ['p'],
+          routeKeys: {
+            p: 'p',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -856,7 +1080,9 @@ const runTests = (dev = false, looseMode = false) => {
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
-          routeKeys: ['user'],
+          routeKeys: {
+            user: 'user',
+          },
         },
       ])
     })
@@ -899,6 +1125,24 @@ const runTests = (dev = false, looseMode = false) => {
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
         },
+        '/fallback-only/[slug]': {
+          dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/fallback-only/[slug].html',
+          routeRegex: normalizeRegEx(
+            '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
+        '/lang/[lang]/about': {
+          dataRoute: `/_next/data/${buildId}/lang/[lang]/about.json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx('^\\/lang\\/([^\\/]+?)\\/about(?:\\/)?$'),
+        },
         '/non-json/[p]': {
           dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
           dataRouteRegex: normalizeRegEx(
@@ -917,12 +1161,23 @@ const runTests = (dev = false, looseMode = false) => {
             `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
           ),
         },
+
         '/catchall/[...slug]': {
           fallback: '/catchall/[...slug].html',
           routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+          ),
+        },
+        '/catchall-optional/[[...slug]]': {
+          dataRoute: `/_next/data/${buildId}/catchall-optional/[[...slug]].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(
+            '^\\/catchall\\-optional(?:\\/(.+?))?(?:\\/)?$'
           ),
         },
         '/catchall-explicit/[...slug]': {
@@ -952,7 +1207,7 @@ const runTests = (dev = false, looseMode = false) => {
       }
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle de-duping correctly', async () => {
         let vals = new Array(10).fill(null)
 
@@ -982,7 +1237,7 @@ const runTests = (dev = false, looseMode = false) => {
       expect(initialHtml).toBe(newHtml)
     })
 
-    if (!looseMode) {
+    if (!isEmulatedServerless) {
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
         const initialHtml = await renderViaHTTP(appPort, route)
@@ -1035,46 +1290,81 @@ const runTests = (dev = false, looseMode = false) => {
       await waitFor(500)
       expect(stderr).not.toMatch(/Failed to update prerender files for/)
     })
+
+    if (isEmulatedServerless) {
+      it('should fail the api function instead of rendering 500', async () => {
+        const res = await fetchViaHTTP(appPort, '/api/bad')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (getServerSideProps)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should fail the page function instead of rendering 500 (render)', async () => {
+        const res = await fetchViaHTTP(appPort, '/bad-ssr')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+      })
+
+      it('should call /_error GIP on 500', async () => {
+        stderr = ''
+        const res = await fetchViaHTTP(appPort, '/bad-gssp')
+        expect(res.status).toBe(500)
+        expect(await res.text()).toBe('FAIL_FUNCTION')
+        expect(stderr).toMatch('CUSTOM_ERROR_GIP_CALLED')
+        expect(stderr).not.toMatch('!!! WARNING !!!')
+      })
+    }
   }
 }
 
 describe('SSG Prerender', () => {
-  afterAll(() => fs.remove(nextConfig))
-
   describe('dev mode', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
         module.exports = {
-          experimental: {
-            rewrites() {
-              return [
-                {
-                  source: "/some-rewrite/:item",
-                  destination: "/blog/post-:item"
-                }
-              ]
-            }
+          rewrites() {
+            return [
+              {
+                source: "/some-rewrite/:item",
+                destination: "/blog/post-:item"
+              },
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }
       `
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
         onStderr: (msg) => {
           stderr += msg
         },
       })
       buildId = 'development'
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(true)
   })
 
   describe('dev mode getStaticPaths', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         // we set cpus to 1 so that we make sure the requests
@@ -1084,10 +1374,12 @@ describe('SSG Prerender', () => {
       )
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      })
     })
     afterAll(async () => {
-      await fs.remove(nextConfig)
+      await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
 
@@ -1130,6 +1422,7 @@ describe('SSG Prerender', () => {
     beforeAll(async () => {
       // remove firebase import since it breaks in legacy serverless mode
       origBlogPageContent = await fs.readFile(blogPagePath, 'utf8')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
 
       await fs.writeFile(
         blogPagePath,
@@ -1141,7 +1434,17 @@ describe('SSG Prerender', () => {
 
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless' }`,
+        `module.exports = {
+          target: 'serverless',
+          rewrites() {
+            return [
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
+          }
+        }`,
         'utf8'
       )
       await fs.remove(join(appDir, '.next'))
@@ -1157,6 +1460,7 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await fs.writeFile(blogPagePath, origBlogPageContent)
       await killApp(app)
     })
@@ -1220,6 +1524,8 @@ describe('SSG Prerender', () => {
   })
 
   describe('enumlated serverless mode', () => {
+    const cstmError = join(appDir, 'pages', '_error.js')
+
     beforeAll(async () => {
       const startServerlessEmulator = async (dir, port, buildId) => {
         const scriptPath = join(dir, 'server.js')
@@ -1228,13 +1534,33 @@ describe('SSG Prerender', () => {
           { ...process.env },
           { PORT: port, BUILD_ID: buildId }
         )
-        return initNextServerScript(scriptPath, /ready on/i, env)
+        return initNextServerScript(scriptPath, /ready on/i, env, false, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
       }
 
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`,
         'utf8'
+      )
+      await fs.writeFile(
+        cstmError,
+        `
+          function Error() {
+            return <div />
+          }
+
+          Error.getInitialProps = () => {
+            console.error('CUSTOM_ERROR_GIP_CALLED')
+            return {}
+          }
+
+          export default Error
+        `
       )
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
@@ -1246,7 +1572,11 @@ describe('SSG Prerender', () => {
       appPort = await findPort()
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.remove(cstmError)
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(false, true)
   })
@@ -1254,7 +1584,6 @@ describe('SSG Prerender', () => {
   describe('production mode', () => {
     let buildOutput = ''
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await fs.remove(join(appDir, '.next'))
       const { stdout } = await nextBuild(appDir, [], { stdout: true })
       buildOutput = stdout
@@ -1267,7 +1596,8 @@ describe('SSG Prerender', () => {
         },
       })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
+      // TODO: Don't rely on this path
+      distPagesDir = join(appDir, '.next', 'server', 'pages')
     })
     afterAll(() => killApp(app))
 
@@ -1288,18 +1618,23 @@ describe('SSG Prerender', () => {
       '/catchall/[...slug].js',
       '/non-json/[p].js',
       '/blog/[post]/index.js',
+      '/fallback-only/[slug].js',
     ]
+
+    const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
+
     const fallbackTruePageContents = {}
 
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = {
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
-              throw new Error('Found SPR page in the default export path map')
+              throw new Error('Found Incremental page in the default export path map')
             }
             return defaultPathMap
           },
@@ -1319,6 +1654,11 @@ describe('SSG Prerender', () => {
         )
       }
 
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(pagePath, `${pagePath}.bak`)
+      }
+
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
@@ -1326,13 +1666,18 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await stopApp(app)
-      await fs.remove(nextConfig)
 
       for (const page of fallbackTruePages) {
         const pagePath = join(appDir, 'pages', page)
 
         await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
+
+      for (const page of brokenPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.rename(`${pagePath}.bak`, pagePath)
       }
     })
 
