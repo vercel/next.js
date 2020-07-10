@@ -74,9 +74,7 @@ const noError = async (pathname, click = false) => {
       window.addEventListener('unhandledrejection', function (error) {
         window.caughtErrors.push(error.message || 1)
       })
-      setTimeout(() => {
-        window.next.router.replace('${pathname}')
-      }, 0)
+      window.next.router.replace('${pathname}')
     })()`)
     // wait for page to be built and navigated to
     await waitFor(3000)
