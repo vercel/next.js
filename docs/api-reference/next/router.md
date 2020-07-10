@@ -37,7 +37,7 @@ export default ActiveLink
 
 > `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](#withRouter) or wrap your class in a function component.
 
-### router object
+## `router` object
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
@@ -45,27 +45,9 @@ The following is the definition of the `router` object returned by both [`useRou
 - `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - Actual path (including the query) shown in the browser
 
-Additionally, the [`Router API`](#router-api) is also included inside the object.
+Additionally, the following methods are also included inside `router`:
 
-## withRouter
-
-If [`useRouter`](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router` object](#router-object) to any component, here's how to use it:
-
-```jsx
-import { withRouter } from 'next/router'
-
-function Page({ router }) {
-  return <p>{router.pathname}</p>
-}
-
-export default withRouter(Page)
-```
-
-## Router API
-
-The API of `Router`, exported by `next/router`, is defined below.
-
-### Router.push
+### router.push
 
 <details>
   <summary><b>Examples</b></summary>
@@ -77,9 +59,7 @@ The API of `Router`, exported by `next/router`, is defined below.
 Handles client-side transitions, this method is useful for cases where [`next/link`](/docs/api-reference/next/link.md) is not enough.
 
 ```jsx
-import Router from 'next/router'
-
-Router.push(url, as, options)
+router.push(url, as, options)
 ```
 
 - `url` - The URL to navigate to. This is usually the name of a `page`
@@ -87,31 +67,58 @@ Router.push(url, as, options)
 - `options` - Optional object with the following configuration options:
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
-> You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
+> You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
 #### Usage
 
 Navigating to `pages/about.js`, which is a predefined route:
 
 ```jsx
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 
-function Page() {
-  return <span onClick={() => Router.push('/about')}>Click me</span>
+export default function Page() {
+  const router = useRouter()
+
+  return <span onClick={() => router.push('/about')}>Click me</span>
 }
 ```
 
 Navigating `pages/post/[pid].js`, which is a dynamic route:
 
 ```jsx
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 
-function Page() {
+export default function Page() {
+  const router = useRouter()
+
   return (
-    <span onClick={() => Router.push('/post/[pid]', '/post/abc')}>
+    <span onClick={() => router.push('/post/[pid]', '/post/abc')}>
       Click me
     </span>
   )
+}
+```
+
+Redirecting the user to `pages/login.js`, useful for pages behind authentication:
+
+```jsx
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+
+// Here you would fetch and return the user
+const useUser = () => ({ user: null, loading: false })
+
+export default function Page() {
+  const { user, loading } = useUser()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!(user || loading)) {
+      router.push('/login')
+    }
+  }, [user, loading])
+
+  return <p>Redirecting...</p>
 }
 ```
 
@@ -120,48 +127,58 @@ function Page() {
 You can use an URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md#with-url-object). Works for both the `url` and `as` parameters:
 
 ```jsx
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 
-const handler = () => {
-  Router.push({
-    pathname: '/about',
-    query: { name: 'Vercel' },
-  })
-}
+export default function ReadMore() {
+  const router = useRouter()
 
-function ReadMore() {
   return (
-    <div>
-      Click <span onClick={handler}>here</span> to read more
-    </div>
+    <span
+      onClick={() => {
+        router.push({
+          pathname: '/about',
+          query: { name: 'Vercel' },
+        })
+      }}
+    >
+      Click here to read more
+    </span>
   )
 }
-
-export default ReadMore
 ```
 
-### Router.replace
+### router.replace
 
-Similar to the `replace` prop in [`next/link`](/docs/api-reference/next/link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
+Similar to the `replace` prop in [`next/link`](/docs/api-reference/next/link.md), `router.replace` will prevent adding a new URL entry into the `history` stack.
 
 ```jsx
-import Router from 'next/router'
-
-Router.replace('/home')
+router.replace(url, as, options)
 ```
 
-The API for `Router.replace` is exactly the same as that used for [`Router.push`](#router.push).
+- The API for `router.replace` is exactly the same as the API for [`router.push`](#router.push).
 
-### Router.prefetch
+#### Usage
+
+Take a look at the following example:
+
+```jsx
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  return <span onClick={() => router.replace('/home')}>Click me</span>
+}
+```
+
+### router.prefetch
 
 Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
 
 > This is a production only feature. Next.js doesn't prefetch pages on development.
 
 ```jsx
-import Router from 'next/router'
-
-Router.prefetch(url, as)
+router.prefetch(url, as)
 ```
 
 - `url` - The path to a `page` inside the `pages` directory
@@ -173,9 +190,10 @@ Let's say you have a login page, and after a login, you redirect the user to the
 
 ```jsx
 import { useCallback, useEffect } from 'react'
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 
 export default function Login() {
+  const router = useRouter()
   const handleSubmit = useCallback((e) => {
     e.preventDefault()
 
@@ -187,13 +205,13 @@ export default function Login() {
       }),
     }).then((res) => {
       // Do a fast client-side transition to the already prefetched dashboard page
-      if (res.ok) Router.push('/dashboard')
+      if (res.ok) router.push('/dashboard')
     })
   }, [])
 
   useEffect(() => {
     // Prefetch the dashboard page as the user will go there after the login
-    Router.prefetch('/dashboard')
+    router.prefetch('/dashboard')
   }, [])
 
   return (
@@ -205,57 +223,82 @@ export default function Login() {
 }
 ```
 
-### Router.beforePopState
+### router.beforePopState
 
 In some cases (for example, if using a [Custom Server](/docs/advanced-features/custom-server.md)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
 
-You could use this to manipulate the request, or force a SSR refresh, as in the following example:
-
 ```jsx
-import Router from 'next/router'
-
-Router.beforePopState(({ url, as, options }) => {
-  // I only want to allow these two routes!
-  if (as !== '/' && as !== '/other') {
-    // Have SSR render bad routes as a 404.
-    window.location.href = as
-    return false
-  }
-
-  return true
-})
+router.beforePopState(cb)
 ```
-
-`Router.beforePopState(cb: () => boolean)`
 
 - `cb` - The function to run on incoming `popstate` events. The function receives the state of the event as an object with the following props:
   - `url`: `String` - the route for the new state. This is usually the name of a `page`
   - `as`: `String` - the url that will be shown in the browser
-  - `options`: `Object` - Additional options sent by [Router.push](#router.push)
+  - `options`: `Object` - Additional options sent by [router.push](#router.push)
 
-If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
+If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 
-### Router.back
+#### Usage
+
+You could use `beforePopState` to manipulate the request, or force a SSR refresh, as in the following example:
+
+```jsx
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.beforePopState(({ url, as, options }) => {
+      // I only want to allow these two routes!
+      if (as !== '/' && as !== '/other') {
+        // Have SSR render bad routes as a 404.
+        window.location.href = as
+        return false
+      }
+
+      return true
+    })
+  }, [])
+
+  return <p>Welcome to the page</p>
+}
+```
+
+### router.back
 
 Navigate back in history. Equivalent to clicking the browser’s back button. It executes `window.history.back()`.
 
-```jsx
-import Router from 'next/router'
+#### Usage
 
-Router.back()
+```jsx
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  return <span onClick={() => router.back()}>Click here to go back</span>
+}
 ```
 
-### Router.reload
+### router.reload
 
 Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.
 
-```jsx
-import Router from 'next/router'
+#### Usage
 
-Router.reload()
+```jsx
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  return <span onClick={() => router.reload()}>Click here to reload</span>
+}
 ```
 
-### Router.events
+### router.events
 
 <details>
   <summary><b>Examples</b></summary>
@@ -264,7 +307,7 @@ Router.reload()
   </ul>
 </details>
 
-You can listen to different events happening inside the Router. Here's a list of supported events:
+You can listen to different events happening inside the Next.js Router. Here's a list of supported events:
 
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
@@ -274,53 +317,82 @@ You can listen to different events happening inside the Router. Here's a list of
 - `hashChangeStart(url)` - Fires when the hash will change but not the page
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
 
-> Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
+> Here `url` is the URL shown in the browser. If you call `router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-For example, to listen to the router event `routeChangeStart`, do the following:
+#### Usage
+
+For example, to listen to the router event `routeChangeStart`, open or create `pages/_app.js` and subscribe to the event, like so:
 
 ```jsx
-import Router from 'next/router'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 
-const handleRouteChange = (url) => {
-  console.log('App is changing to: ', url)
+export default function MyApp({ Component, pageProps }) {
+  const router = useRouter()
+
+  useEffect(() => {
+    const handleRouteChange = (url) => {
+      console.log('App is changing to: ', url)
+    }
+
+    router.events.on('routeChangeStart', handleRouteChange)
+
+    // If the component is unmounted, unsubscribe
+    // from the event with the `off` method:
+    return () => {
+      router.events.off('routeChangeStart', handleRouteChange)
+    }
+  }, [])
+
+  return <Component {...pageProps} />
 }
-
-Router.events.on('routeChangeStart', handleRouteChange)
 ```
 
-If you no longer want to listen to the event, unsubscribe with the `off` method:
+> We use a [Custom App](/docs/advanced-features/custom-app.md) (`pages/_app.js`) for this example to subscribe to the event because it's not unmounted on page navigations, but you can subscribe to router events on any component in your application.
 
-```jsx
-import Router from 'next/router'
-
-Router.events.off('routeChangeStart', handleRouteChange)
-```
+Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens.
 
 If a route load is cancelled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
 
 ```jsx
-import Router from 'next/router'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 
-Router.events.on('routeChangeError', (err, url) => {
-  if (err.cancelled) {
-    console.log(`Route to ${url} was cancelled!`)
-  }
-})
+export default function MyApp({ Component, pageProps }) {
+  const router = useRouter()
+
+  useEffect(() => {
+    const handleRouteChangeError = (err, url) => {
+      if (err.cancelled) {
+        console.log(`Route to ${url} was cancelled!`)
+      }
+    }
+
+    router.events.on('routeChangeError', handleRouteChangeError)
+
+    // If the component is unmounted, unsubscribe
+    // from the event with the `off` method:
+    return () => {
+      router.events.off('routeChangeError', handleRouteChangeError)
+    }
+  }, [])
+
+  return <Component {...pageProps} />
+}
 ```
 
-Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens, as in the following example:
+## withRouter
+
+If [`useRouter`](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router` object](#router-object) to any component.
+
+### Usage
 
 ```jsx
-import Router from 'next/router'
+import { withRouter } from 'next/router'
 
-useEffect(() => {
-  const handleRouteChange = (url) => {
-    console.log('App is changing to: ', url)
-  }
+function Page({ router }) {
+  return <p>{router.pathname}</p>
+}
 
-  Router.events.on('routeChangeStart', handleRouteChange)
-  return () => {
-    Router.events.off('routeChangeStart', handleRouteChange)
-  }
-}, [])
+export default withRouter(Page)
 ```

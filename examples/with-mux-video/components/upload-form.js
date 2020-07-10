@@ -66,7 +66,7 @@ const UploadForm = () => {
     })
 
     upload.on('progress', (progress) => {
-      setProgress(progress.detail)
+      setProgress(Math.floor(progress.detail))
     })
 
     upload.on('success', () => {

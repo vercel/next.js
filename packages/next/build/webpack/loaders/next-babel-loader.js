@@ -1,6 +1,7 @@
 import babelLoader from 'next/dist/compiled/babel-loader'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
+import * as Log from '../../output/log'
 
 // increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
@@ -20,7 +21,7 @@ const getModernOptions = (babelOptions = {}) => {
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
-    // Blacklist accidental inclusions
+    // Block accidental inclusions
     'transform-regenerator',
     'transform-async-to-generator',
   ]
@@ -124,8 +125,7 @@ module.exports = babelLoader.custom((babel) => {
           // We only log for client compilation otherwise there will be double output
           if (file && !isServer && !configs.has(file)) {
             configs.add(file)
-            console.log(`> Using external babel configuration`)
-            console.log(`> Location: "${file}"`)
+            Log.info(`Using external babel configuration from ${file}`)
           }
         }
       } else {
@@ -137,6 +137,18 @@ module.exports = babelLoader.custom((babel) => {
       options.caller.isModern = isModern
       options.caller.isDev = development
 
+      const emitWarning = this.emitWarning.bind(this)
+      Object.defineProperty(options.caller, 'onWarning', {
+        enumerable: false,
+        writable: false,
+        value: (options.caller.onWarning = function (reason) {
+          if (!(reason instanceof Error)) {
+            reason = new Error(reason)
+          }
+          emitWarning(reason)
+        }),
+      })
+
       options.plugins = options.plugins || []
 
       if (hasReactRefresh) {
@@ -145,6 +157,13 @@ module.exports = babelLoader.custom((babel) => {
           { type: 'plugin' }
         )
         options.plugins.unshift(reactRefreshPlugin)
+        if (!isServer) {
+          const noAnonymousDefaultExportPlugin = babel.createConfigItem(
+            [require('../../babel/plugins/no-anonymous-default-export'), {}],
+            { type: 'plugin' }
+          )
+          options.plugins.unshift(noAnonymousDefaultExportPlugin)
+        }
       }
 
       if (!isServer && isPageFile) {

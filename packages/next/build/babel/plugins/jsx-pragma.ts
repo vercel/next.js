@@ -8,13 +8,13 @@ export default function ({
   return {
     inherits: require('babel-plugin-syntax-jsx'),
     visitor: {
-      JSXElement(path, state) {
+      JSXElement(_path, state) {
         state.set('jsx', true)
       },
 
       // Fragment syntax is still JSX since it compiles to createElement(),
       // but JSXFragment is not a JSXElement
-      JSXFragment(path, state) {
+      JSXFragment(_path, state) {
         state.set('jsx', true)
       },
 

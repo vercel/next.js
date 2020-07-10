@@ -1,4 +1,5 @@
 import Player from '../components/Player'
+import PlayerCSS from '../components/PlayerCss'
 
 const Index = () => {
   const videoJsOptions = {
@@ -13,7 +14,12 @@ const Index = () => {
     ],
   }
 
-  return <Player {...videoJsOptions} />
+  return (
+    <>
+      <Player {...videoJsOptions} />
+      <PlayerCSS />
+    </>
+  )
 }
 
 export default Index

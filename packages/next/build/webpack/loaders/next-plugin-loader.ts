@@ -12,7 +12,7 @@ export const pluginLoaderOptions: {
   plugins: [],
 }
 
-const nextPluginLoader: loader.Loader = function (source) {
+const nextPluginLoader: loader.Loader = function () {
   const { middleware }: NextPluginLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 

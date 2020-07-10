@@ -1,24 +1,19 @@
 {
-  "name": "with-sentry",
-  "version": "1.1.0",
+  "name": "with-sentry-simple",
+  "version": "1.0.0",
+  "license": "ISC",
   "scripts": {
-    "dev": "SENTRY_DSN=abc123 node server.js",
-    "build": "SENTRY_DSN=abc123 next build",
-    "start": "SENTRY_DSN=abc123 NODE_ENV=production node server.js"
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
-    "@sentry/browser": "^5.0.3",
-    "@sentry/integrations": "^5.0.3",
-    "@sentry/node": "^5.0.3",
+    "@sentry/browser": "^5.15.5",
+    "@sentry/node": "^5.15.5",
+    "@sentry/webpack-plugin": "^1.11.1",
     "@zeit/next-source-maps": "0.0.4-canary.1",
-    "cookie-parser": "1.4.4",
-    "express": "^4.16.4",
-    "js-cookie": "2.2.0",
     "next": "latest",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
-    "sentry-testkit": "^2.1.0",
-    "uuid": "^3.3.2"
-  },
-  "license": "ISC"
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  }
 }

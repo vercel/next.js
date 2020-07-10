@@ -1,9 +1,4 @@
-import {
-  BUILD_MANIFEST,
-  CLIENT_STATIC_FILES_PATH,
-  REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY,
-} from '../lib/constants'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from '../lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
@@ -23,7 +18,6 @@ export type ManifestItem = {
   id: number | string
   name: string
   file: string
-  publicPath: string
 }
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
@@ -42,7 +36,6 @@ export type LoadComponentsReturnType = {
 
 export async function loadComponents(
   distDir: string,
-  buildId: string,
   pathname: string,
   serverless: boolean
 ): Promise<LoadComponentsReturnType> {
@@ -58,27 +51,9 @@ export async function loadComponents(
       getServerSideProps,
     } as LoadComponentsReturnType
   }
-  const documentPath = join(
-    distDir,
-    SERVER_DIRECTORY,
-    CLIENT_STATIC_FILES_PATH,
-    buildId,
-    'pages',
-    '_document'
-  )
-  const appPath = join(
-    distDir,
-    SERVER_DIRECTORY,
-    CLIENT_STATIC_FILES_PATH,
-    buildId,
-    'pages',
-    '_app'
-  )
 
-  const DocumentMod = require(documentPath)
-
-  const AppMod = require(appPath)
-
+  const DocumentMod = requirePage('/_document', distDir, serverless)
+  const AppMod = requirePage('/_app', distDir, serverless)
   const ComponentMod = requirePage(pathname, distDir, serverless)
 
   const [

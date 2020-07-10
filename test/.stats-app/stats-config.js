@@ -112,8 +112,7 @@ module.exports = {
                 return config
               },
               experimental: {
-                modern: true,
-                granularChunks: true
+                modern: true
               }
             }
           `,
@@ -128,8 +127,7 @@ module.exports = {
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
               experimental: {
-                modern: true,
-                granularChunks: true
+                modern: true
               }
             }
           `,
@@ -164,8 +162,7 @@ module.exports = {
               generateBuildId: () => 'BUILD_ID',
               target: 'serverless',
               experimental: {
-                modern: true,
-                granularChunks: true
+                modern: true
               }
             }
           `,

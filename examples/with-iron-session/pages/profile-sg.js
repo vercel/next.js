@@ -31,7 +31,7 @@ const SgProfile = () => {
 }
 
 function githubUrl(login) {
-  return `https://api.github.com/${login}`
+  return `https://api.github.com/users/${login}`
 }
 
 export default SgProfile

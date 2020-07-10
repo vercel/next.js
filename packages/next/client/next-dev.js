@@ -28,7 +28,7 @@ const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
-  .then(({ emitter, renderCtx, render }) => {
+  .then(({ renderCtx, render }) => {
     initOnDemandEntries({ assetPrefix: prefix })
     if (process.env.__NEXT_BUILD_INDICATOR) initializeBuildWatcher()
     if (

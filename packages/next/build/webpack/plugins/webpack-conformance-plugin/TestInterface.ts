@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 
 export interface IConformanceAnomaly {

@@ -1,7 +1,25 @@
+interface Group {
+  pos: number
+  repeat: boolean
+  optional: boolean
+}
+
 // this isn't importing the escape-string-regex module
 // to reduce bytes
 function escapeRegex(str: string) {
   return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+}
+
+function parseParameter(param: string) {
+  const optional = param.startsWith('[') && param.endsWith(']')
+  if (optional) {
+    param = param.slice(1, -1)
+  }
+  const repeat = param.startsWith('...')
+  if (repeat) {
+    param = param.slice(3)
+  }
+  return { key: param, repeat, optional }
 }
 
 export function getRouteRegex(
@@ -9,61 +27,95 @@ export function getRouteRegex(
 ): {
   re: RegExp
   namedRegex?: string
-  groups: { [groupName: string]: { pos: number; repeat: boolean } }
+  routeKeys?: { [named: string]: string }
+  groups: { [groupName: string]: Group }
 } {
-  // Escape all characters that could be considered RegEx
-  const escapedRoute = escapeRegex(normalizedRoute.replace(/\/$/, '') || '/')
+  const segments = (normalizedRoute.replace(/\/$/, '') || '/')
+    .slice(1)
+    .split('/')
 
-  const groups: { [groupName: string]: { pos: number; repeat: boolean } } = {}
+  const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
-
-  const parameterizedRoute = escapedRoute.replace(
-    /\/\\\[([^/]+?)\\\](?=\/|$)/g,
-    (_, $1) => {
-      const isOptional = /^\\\[.*\\\]$/.test($1)
-      if (isOptional) {
-        $1 = $1.slice(2, -2)
+  const parameterizedRoute = segments
+    .map((segment) => {
+      if (segment.startsWith('[') && segment.endsWith(']')) {
+        const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
+        groups[key] = { pos: groupIndex++, repeat, optional }
+        return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
+      } else {
+        return `/${escapeRegex(segment)}`
       }
-      const isCatchAll = /^(\\\.){3}/.test($1)
-      if (isCatchAll) {
-        $1 = $1.slice(6)
-      }
-      groups[
-        $1
-          // Un-escape key
-          .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-        // eslint-disable-next-line no-sequences
-      ] = { pos: groupIndex++, repeat: isCatchAll }
-      return isCatchAll ? (isOptional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
-    }
-  )
-
-  let namedParameterizedRoute: string | undefined
+    })
+    .join('')
 
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
   if (typeof window === 'undefined') {
-    namedParameterizedRoute = escapedRoute.replace(
-      /\/\\\[([^/]+?)\\\](?=\/|$)/g,
-      (_, $1) => {
-        const isCatchAll = /^(\\\.){3}/.test($1)
-        const key = $1
-          // Un-escape key
-          .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-          .replace(/^\.{3}/, '')
+    let routeKeyCharCode = 97
+    let routeKeyCharLength = 1
 
-        return isCatchAll
-          ? `/(?<${escapeRegex(key)}>.+?)`
-          : `/(?<${escapeRegex(key)}>[^/]+?)`
+    // builds a minimal routeKey using only a-z and minimal number of characters
+    const getSafeRouteKey = () => {
+      let routeKey = ''
+
+      for (let i = 0; i < routeKeyCharLength; i++) {
+        routeKey += String.fromCharCode(routeKeyCharCode)
+        routeKeyCharCode++
+
+        if (routeKeyCharCode > 122) {
+          routeKeyCharLength++
+          routeKeyCharCode = 97
+        }
       }
-    )
+      return routeKey
+    }
+
+    const routeKeys: { [named: string]: string } = {}
+
+    let namedParameterizedRoute = segments
+      .map((segment) => {
+        if (segment.startsWith('[') && segment.endsWith(']')) {
+          const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
+          // replace any non-word characters since they can break
+          // the named regex
+          let cleanedKey = key.replace(/\W/g, '')
+          let invalidKey = false
+
+          // check if the key is still invalid and fallback to using a known
+          // safe key
+          if (cleanedKey.length === 0 || cleanedKey.length > 30) {
+            invalidKey = true
+          }
+          if (!isNaN(parseInt(cleanedKey.substr(0, 1)))) {
+            invalidKey = true
+          }
+
+          if (invalidKey) {
+            cleanedKey = getSafeRouteKey()
+          }
+
+          routeKeys[cleanedKey] = key
+          return repeat
+            ? optional
+              ? `(?:/(?<${cleanedKey}>.+?))?`
+              : `/(?<${cleanedKey}>.+?)`
+            : `/(?<${cleanedKey}>[^/]+?)`
+        } else {
+          return `/${escapeRegex(segment)}`
+        }
+      })
+      .join('')
+
+    return {
+      re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
+      groups,
+      routeKeys,
+      namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
+    }
   }
 
   return {
-    re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+    re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
     groups,
-    namedRegex: namedParameterizedRoute
-      ? `^${namedParameterizedRoute}(?:/)?$`
-      : undefined,
   }
 }
