@@ -1,5 +1,5 @@
 import currentState from '../shared-module'
 
-export default function Page() {
+export default () => {
   return <p id="currentstate">{currentState()}</p>
 }
