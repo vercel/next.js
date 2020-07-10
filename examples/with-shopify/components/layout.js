@@ -4,7 +4,7 @@ import Meta from './meta'
 import 'lazysizes'
 import 'lazysizes/plugins/parent-fit/ls.parent-fit'
 
-export default function Layout({ preview, children }) {
+export default function Layout({ preview, shop, pages, children }) {
   return (
     <>
       <Meta />
@@ -12,7 +12,7 @@ export default function Layout({ preview, children }) {
         <Alert preview={preview} />
         <main>{children}</main>
       </div>
-      <Footer />
+      <Footer shop={shop} pages={pages} />
     </>
   )
 }

@@ -36,6 +36,7 @@ module.exports = {
         header: 'repeat(auto-fit, minmax(3rem, max-content))',
         'p-1': 'minmax(0, 24rem)',
         'p-images': 'repeat(auto-fill, 4.5rem)',
+        footer: 'repeat(auto-fit, minmax(0, max-content))',
       },
       cursor: {
         'zoom-in': 'zoom-in',

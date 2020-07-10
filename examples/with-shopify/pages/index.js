@@ -11,7 +11,7 @@ import CartModal from '@/components/cart-modal'
 
 export default function Index({ shop, pages, products }) {
   return (
-    <Layout>
+    <Layout shop={shop} pages={pages}>
       <Head>
         <title>Next.js Ecommerce Example with {CMS_NAME}</title>
       </Head>
