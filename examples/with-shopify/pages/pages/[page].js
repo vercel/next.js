@@ -1,12 +1,8 @@
 import ErrorPage from 'next/error'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
-import { getShopData, getShopPagesHandles } from '@/lib/api'
-import { CartProvider } from '@/lib/cart'
+import { getShopPage, getShopPagesHandles } from '@/lib/api'
 import Layout from '@/components/layout'
-import Container from '@/components/container'
-import Header from '@/components/header'
-import CartModal from '@/components/cart-modal'
 import HtmlContent from '@/components/html-content'
 
 export default function Page({ shop, pages, pageByHandle }) {
@@ -15,28 +11,23 @@ export default function Page({ shop, pages, pageByHandle }) {
   }
 
   return (
-    <Layout>
+    <Layout shop={shop} pages={pages}>
       <Head>
         <title>Next.js Ecommerce Example with {CMS_NAME}</title>
       </Head>
-      <Container>
-        <CartProvider>
-          <Header title={shop.name} pages={pages} />
-          <section className="my-32">
-            <div className="max-w-2xl mx-auto">
-              <h1 className="text-6xl mb-12">{pageByHandle.title}</h1>
-              <HtmlContent content={pageByHandle.body} />
-            </div>
-          </section>
-          <CartModal />
-        </CartProvider>
-      </Container>
+
+      <section className="my-32">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-6xl mb-12">{pageByHandle.title}</h1>
+          <HtmlContent content={pageByHandle.body} />
+        </div>
+      </section>
     </Layout>
   )
 }
 
 export async function getStaticProps({ params }) {
-  const data = await getShopData(params.page)
+  const data = await getShopPage(params.page)
   return { props: { ...data } }
 }
 

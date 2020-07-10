@@ -103,130 +103,128 @@ export default function ProductBody({ product }) {
   }
 
   return (
-    <main>
-      <div className="flex flex-col md:flex-row w-full">
-        <div className="md:max-w-lg w-full md:mr-8">
-          <ZoomImage src={state.image.originalSrc}>
-            <ProductImage
-              className={cn({
-                'cursor-zoom-out hover:opacity-0': state.hasZoom,
-                'cursor-zoom-in': !state.hasZoom,
-              })}
-              image={state.image}
-              title={product.title}
-              onClick={() => update({ hasZoom: !state.hasZoom })}
-            />
-          </ZoomImage>
-
-          <ProductGallery
-            product={product}
-            activeImage={state.image}
-            onClick={(image) => update({ image })}
+    <div className="flex flex-col md:flex-row w-full">
+      <div className="md:max-w-lg w-full md:mr-8">
+        <ZoomImage src={state.image.originalSrc}>
+          <ProductImage
+            className={cn({
+              'cursor-zoom-out hover:opacity-0': state.hasZoom,
+              'cursor-zoom-in': !state.hasZoom,
+            })}
+            image={state.image}
+            title={product.title}
+            onClick={() => update({ hasZoom: !state.hasZoom })}
           />
-        </div>
+        </ZoomImage>
 
-        <div className="w-full mt-8 md:mt-0">
-          <h2 className="text-5xl mb-6">{product.title}</h2>
-          <div className="flex items-center mb-6">
-            <h3
-              className={cn('text-3xl mr-4', {
-                'text-highlight-red': compareAtPrice,
-              })}
-            >
-              {price}
-            </h3>
-            {compareAtPrice && (
-              <div className="text-lg text-accent-5">
-                <del className="mr-2">{compareAtPrice}</del>
-                <span className="font-medium">-{discount}</span>
-              </div>
-            )}
-          </div>
+        <ProductGallery
+          product={product}
+          activeImage={state.image}
+          onClick={(image) => update({ image })}
+        />
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
-            {state.size && (
-              <div className="flex flex-col">
-                <div className="text-2xl mb-4">
-                  <label htmlFor="size">Size</label>
-                </div>
-
-                <SelectInput
-                  name="size"
-                  id="size"
-                  value={state.size}
-                  onChange={handleSizeChange}
-                >
-                  {Array.from(colorsBySize.keys(), (value) => (
-                    <option key={value}>{value}</option>
-                  ))}
-                </SelectInput>
-              </div>
-            )}
-
-            {state.color && (
-              <div className="flex flex-col">
-                <div className="text-2xl mb-4">
-                  <label htmlFor="color">Color</label>
-                </div>
-
-                <SelectInput
-                  name="color"
-                  id="color"
-                  value={state.color}
-                  onChange={handleColorChange}
-                >
-                  {Array.from(colors, (value) => (
-                    <option
-                      key={value}
-                      disabled={!availableColors.includes(value)}
-                    >
-                      {value}
-                    </option>
-                  ))}
-                </SelectInput>
-              </div>
-            )}
-
-            <div className="inline-flex flex-col">
-              <div className="text-2xl mb-4">
-                <label htmlFor="quantity">Quantity</label>
-              </div>
-              <ProductQuantity
-                id="quantity"
-                value={state.quantity}
-                min={1}
-                max={MAX_PER_ITEM}
-                disabled={loading}
-                onChange={handleQuantity}
-                onIncrease={increaseQuantity}
-                onBlur={handleQuantityBlur}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col md:max-w-xs mt-8">
-            <p className="text-error h-6 mb-4">{errorMsg}</p>
-            <Button
-              type="button"
-              className="mb-4"
-              onClick={addToCart}
-              disabled={loading}
-              secondary
-            >
-              Add to Cart
-            </Button>
-            <Button type="button" onClick={buyItNow} disabled={loading}>
-              Buy it Now
-            </Button>
-          </div>
-
-          {product.descriptionHtml?.length > 0 && (
-            <div className="max-w-2xl mt-12">
-              <HtmlContent content={product.descriptionHtml} />
+      <div className="w-full mt-8 md:mt-0">
+        <h2 className="text-5xl mb-6">{product.title}</h2>
+        <div className="flex items-center mb-6">
+          <h3
+            className={cn('text-3xl mr-4', {
+              'text-highlight-red': compareAtPrice,
+            })}
+          >
+            {price}
+          </h3>
+          {compareAtPrice && (
+            <div className="text-lg text-accent-5">
+              <del className="mr-2">{compareAtPrice}</del>
+              <span className="font-medium">-{discount}</span>
             </div>
           )}
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-12 md:gap-6">
+          {state.size && (
+            <div className="flex flex-col">
+              <div className="text-2xl mb-4">
+                <label htmlFor="size">Size</label>
+              </div>
+
+              <SelectInput
+                name="size"
+                id="size"
+                value={state.size}
+                onChange={handleSizeChange}
+              >
+                {Array.from(colorsBySize.keys(), (value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </SelectInput>
+            </div>
+          )}
+
+          {state.color && (
+            <div className="flex flex-col">
+              <div className="text-2xl mb-4">
+                <label htmlFor="color">Color</label>
+              </div>
+
+              <SelectInput
+                name="color"
+                id="color"
+                value={state.color}
+                onChange={handleColorChange}
+              >
+                {Array.from(colors, (value) => (
+                  <option
+                    key={value}
+                    disabled={!availableColors.includes(value)}
+                  >
+                    {value}
+                  </option>
+                ))}
+              </SelectInput>
+            </div>
+          )}
+
+          <div className="inline-flex flex-col">
+            <div className="text-2xl mb-4">
+              <label htmlFor="quantity">Quantity</label>
+            </div>
+            <ProductQuantity
+              id="quantity"
+              value={state.quantity}
+              min={1}
+              max={MAX_PER_ITEM}
+              disabled={loading}
+              onChange={handleQuantity}
+              onIncrease={increaseQuantity}
+              onBlur={handleQuantityBlur}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col md:max-w-xs mt-8">
+          <p className="text-error h-6 mb-4">{errorMsg}</p>
+          <Button
+            type="button"
+            className="mb-4"
+            onClick={addToCart}
+            disabled={loading}
+            secondary
+          >
+            Add to Cart
+          </Button>
+          <Button type="button" onClick={buyItNow} disabled={loading}>
+            Buy it Now
+          </Button>
+        </div>
+
+        {product.descriptionHtml?.length > 0 && (
+          <div className="max-w-2xl mt-12">
+            <HtmlContent content={product.descriptionHtml} />
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   )
 }

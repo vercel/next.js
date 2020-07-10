@@ -5,13 +5,10 @@ import { CMS_NAME } from '@/lib/constants'
 import { getAllProductsWithSlug, getProductAndMoreProducts } from '@/lib/api'
 import { CartProvider } from '@/lib/cart'
 import Layout from '@/components/layout'
-import Container from '@/components/container'
-import Header from '@/components/header'
 import ProductBody from '@/components/product-body'
-import CartModal from '@/components/cart-modal'
 import Products from '@/components/products'
 
-export default function Index({ shop, product, relatedProducts }) {
+export default function Index({ shop, pages, product, relatedProducts }) {
   const router = useRouter()
 
   if (!router.isFallback && !product?.handle) {
@@ -19,7 +16,7 @@ export default function Index({ shop, product, relatedProducts }) {
   }
 
   return (
-    <Layout>
+    <Layout shop={shop} pages={pages}>
       <Head>
         <title>
           {product?.title ? `${product.title} | ` : ''}Next.js Ecommerce Example
@@ -27,23 +24,18 @@ export default function Index({ shop, product, relatedProducts }) {
         </title>
         <meta property="og:image" content={product.image} />
       </Head>
-      <Container>
-        <CartProvider>
-          <Header title={shop.name} />
-          {router.isFallback ? (
-            <h1 className="text-5xl">Loading...</h1>
-          ) : (
-            <ProductBody product={product} />
-          )}
-          {relatedProducts.length > 0 && (
-            <section className="my-24">
-              <h2 className="mb-8 text-5xl leading-tight">You may also like</h2>
-              <Products products={relatedProducts} />
-            </section>
-          )}
-          <CartModal />
-        </CartProvider>
-      </Container>
+
+      {router.isFallback ? (
+        <h1 className="text-5xl">Loading...</h1>
+      ) : (
+        <ProductBody product={product} />
+      )}
+      {relatedProducts.length > 0 && (
+        <section className="my-24">
+          <h2 className="mb-8 text-5xl leading-tight">You may also like</h2>
+          <Products products={relatedProducts} />
+        </section>
+      )}
     </Layout>
   )
 }

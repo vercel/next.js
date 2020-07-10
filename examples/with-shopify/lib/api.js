@@ -86,7 +86,7 @@ const VariantFields = `
   }
 `
 
-export async function getShopDataForHome() {
+export async function getShopPageForHome() {
   const data = await graphqlFetch(`
     query Products($maxWidth: Int = 384, $maxHeight: Int = 384) {
       ...RootFields
@@ -215,7 +215,7 @@ export async function getProductAndMoreProducts(handle) {
   return { shop, pages, product, relatedProducts }
 }
 
-export async function getShopData(handle) {
+export async function getShopPage(handle) {
   const data = await graphqlFetch(
     `
       query Page($handle: String!) {
