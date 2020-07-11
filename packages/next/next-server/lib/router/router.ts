@@ -20,6 +20,8 @@ import {
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
+const ABORTED = Symbol('aborted')
+
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
@@ -525,8 +527,7 @@ export default class Router implements BaseRouter {
             return resolve(false)
           }
 
-          if (error && error.aborted) {
-            delete error.aborted
+          if (error && error[ABORTED]) {
             Router.events.emit('routeChangeError', error, cleanedAs)
             return resolve(false)
           }
@@ -612,7 +613,7 @@ export default class Router implements BaseRouter {
     }
 
     const handleError = (
-      err: Error & { code: any; cancelled: boolean; aborted: boolean },
+      err: Error & { code: any; cancelled: boolean; [ABORTED]: boolean },
       loadErrorFail?: boolean
     ) => {
       return new Promise((resolve) => {
@@ -627,7 +628,7 @@ export default class Router implements BaseRouter {
 
           // Changing the URL doesn't block executing the current code path.
           // So, we need to mark it as aborted and stop the routing logic.
-          err.aborted = true
+          err[ABORTED] = true
           // @ts-ignore TODO: fix the control flow here
           return resolve({ error: err })
         }
