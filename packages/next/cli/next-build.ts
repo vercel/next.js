@@ -21,7 +21,7 @@ const nextBuild: cliCommand = (argv) => {
     args = arg(validArgs, { argv })
   } catch (error) {
     if (error.code === 'ARG_UNKNOWN_OPTION') {
-      printAndExit(error.message, 1)
+      return printAndExit(error.message, 1)
     }
     throw error
   }
