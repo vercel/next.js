@@ -87,4 +87,9 @@ describe('Build warnings', () => {
     }))
     expect(stdout).not.toContain('no-cache')
   })
+
+  it('should warn when unknown argument provided', async () => {
+    const { stderr } = await nextBuild(appDir, ['--random'], { stderr: true })
+    expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+  })
 })
