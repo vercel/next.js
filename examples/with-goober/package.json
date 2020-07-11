@@ -1,0 +1,17 @@
+{
+  "name": "with-goober",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "goober": "^2.0.2",
+    "goober-autoprefixer": "^1.2.0"
+  }
+}
