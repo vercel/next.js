@@ -401,9 +401,11 @@ const runTests = (context, dev = false) => {
         .waitForElementByCss('#other-page-title')
 
       const eventLog = await browser.eval('window._getEventLog()')
-      expect(eventLog).toContainEqual(['routeChangeStart', '/other-page'])
-      expect(eventLog).toContainEqual(['beforeHistoryChange', '/other-page'])
-      expect(eventLog).toContainEqual(['routeChangeComplete', '/other-page'])
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/other-page'],
+        ['beforeHistoryChange', '/other-page'],
+        ['routeChangeComplete', '/other-page'],
+      ])
     } finally {
       await browser.close()
     }
@@ -437,11 +439,12 @@ const runTests = (context, dev = false) => {
         .waitForElementByCss('#other-page-title')
 
       const eventLog = await browser.eval('window._getEventLog()')
-      expect(eventLog).toContainEqual([
-        'routeChangeError',
-        'Route Cancelled',
-        true,
-        '/slow-route',
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/slow-route'],
+        ['routeChangeError', 'Route Cancelled', true, '/slow-route'],
+        ['routeChangeStart', '/other-page'],
+        ['beforeHistoryChange', '/other-page'],
+        ['routeChangeComplete', '/other-page'],
       ])
     } finally {
       await browser.close()
@@ -457,11 +460,14 @@ const runTests = (context, dev = false) => {
       await waitFor(2000)
 
       const eventLog = await browser.eval('window._getEventLog()')
-      expect(eventLog).toContainEqual([
-        'routeChangeError',
-        'Failed to load static props',
-        null,
-        '/error-route',
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/error-route'],
+        [
+          'routeChangeError',
+          'Failed to load static props',
+          null,
+          '/error-route',
+        ],
       ])
     } finally {
       await browser.close()
