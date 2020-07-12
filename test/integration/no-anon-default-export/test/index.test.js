@@ -35,7 +35,12 @@ describe('no anonymous default export warning', () => {
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(1)
+    expect(
+      getRegexCount(
+        stdout,
+        /page.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
 
     await killApp(app)
   })
@@ -57,7 +62,12 @@ describe('no anonymous default export warning', () => {
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(1)
+    expect(
+      getRegexCount(
+        stdout,
+        /Child.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
 
     await killApp(app)
   })
@@ -79,7 +89,18 @@ describe('no anonymous default export warning', () => {
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(2)
+    expect(
+      getRegexCount(
+        stdout,
+        /Child.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
+    expect(
+      getRegexCount(
+        stdout,
+        /both.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
 
     await killApp(app)
   })
