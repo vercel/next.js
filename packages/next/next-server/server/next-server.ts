@@ -522,7 +522,6 @@ export default class Server {
             false,
             getCustomRouteBasePath(redirectRoute)
           )
-
           const updatedDestination = formatUrl(parsedDestination)
 
           res.setHeader('Location', updatedDestination)
