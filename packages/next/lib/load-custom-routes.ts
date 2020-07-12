@@ -364,11 +364,13 @@ export default async function loadCustomRoutes(
             source: '/:path*/:file.:ext/',
             destination: '/:path*/:file.:ext',
             permanent: true,
+            basePath: false,
           },
           {
             source: '/:path*/:notfile([^/.]+)',
             destination: '/:path*/:notfile/',
             permanent: true,
+            basePath: false,
           },
         ]
       : [
@@ -376,6 +378,7 @@ export default async function loadCustomRoutes(
             source: '/:path+/',
             destination: '/:path+',
             permanent: true,
+            basePath: false,
           },
         ])
   )

@@ -523,8 +523,7 @@ export default class Server {
             getCustomRouteBasePath(redirectRoute)
           )
 
-          const updatedDestination =
-            this.nextConfig.basePath + formatUrl(parsedDestination)
+          const updatedDestination = formatUrl(parsedDestination)
 
           res.setHeader('Location', updatedDestination)
           res.statusCode = getRedirectStatus(redirectRoute as Redirect)
