@@ -22,6 +22,7 @@ export type Route = {
   check?: boolean
   statusCode?: number
   name: string
+  requireBasePath?: false
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
@@ -34,11 +35,14 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 
+const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
+
 export const prepareDestination = (
   destination: string,
   params: Params,
   query: ParsedUrlQuery,
-  appendParamsToQuery?: boolean
+  appendParamsToQuery: boolean,
+  basePath: string
 ) => {
   const parsedDestination = parseUrl(destination, true)
   const destQuery = parsedDestination.query
@@ -77,8 +81,12 @@ export const prepareDestination = (
     }
   }
 
+  const shouldAddBasePath = destination.startsWith('/') && basePath
+
   try {
-    newUrl = encodeURI(destinationCompiler(params))
+    newUrl = `${shouldAddBasePath ? basePath : ''}${encodeURI(
+      destinationCompiler(params)
+    )}`
 
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
@@ -109,7 +117,12 @@ export const prepareDestination = (
   }
 }
 
+function replaceBasePath(basePath: string, pathname: string) {
+  return pathname!.replace(basePath, '') || '/'
+}
+
 export default class Router {
+  basePath: string
   headers: Route[]
   fsRoutes: Route[]
   rewrites: Route[]
@@ -120,6 +133,7 @@ export default class Router {
   useFileSystemPublicRoutes: boolean
 
   constructor({
+    basePath = '',
     headers = [],
     fsRoutes = [],
     rewrites = [],
@@ -129,6 +143,7 @@ export default class Router {
     pageChecker,
     useFileSystemPublicRoutes,
   }: {
+    basePath: string
     headers: Route[]
     fsRoutes: Route[]
     rewrites: Route[]
@@ -138,6 +153,7 @@ export default class Router {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
   }) {
+    this.basePath = basePath
     this.headers = headers
     this.fsRoutes = fsRoutes
     this.rewrites = rewrites
@@ -192,7 +208,8 @@ export default class Router {
         ? [
             {
               type: 'route',
-              name: 'Page checker',
+              name: 'page checker',
+              requireBasePath: false,
               match: route('/:path*'),
               fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
                 const { pathname } = parsedCheckerUrl
@@ -218,17 +235,55 @@ export default class Router {
       // disabled
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
     ]
+    const originallyHadBasePath =
+      !this.basePath || (req as any)._nextHadBasePath
 
     for (const testRoute of allRoutes) {
-      const newParams = testRoute.match(parsedUrlUpdated.pathname)
+      // if basePath is being used, the basePath will still be included
+      // in the pathname here to allow custom-routes to require containing
+      // it or not, filesystem routes and pages must always include the basePath
+      // if it is set
+      let currentPathname = parsedUrlUpdated.pathname
+      const originalPathname = currentPathname
+      const requireBasePath = testRoute.requireBasePath !== false
+      const isCustomRoute = customRouteTypes.has(testRoute.type)
+
+      if (!isCustomRoute) {
+        // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+        currentPathname = replaceBasePath(this.basePath, currentPathname!)
+      }
+
+      const newParams = testRoute.match(currentPathname)
 
       // Check if the match function matched
       if (newParams) {
+        // since we require basePath be present for non-custom-routes we
+        // 404 here when we matched an fs route
+        if (!isCustomRoute) {
+          if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
+            if (requireBasePath) {
+              // consider this a non-match so the 404 renders
+              return false
+            }
+            // page checker occurs before rewrites so we need to continue
+            // to check those since they don't always require basePath
+            continue
+          }
+
+          parsedUrlUpdated.pathname = currentPathname
+        }
+
         const result = await testRoute.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled
         if (result.finished) {
           return true
+        }
+
+        // since the fs route didn't match we need to re-add the basePath
+        // to continue checking rewrites with the basePath present
+        if (!isCustomRoute) {
+          parsedUrlUpdated.pathname = originalPathname
         }
 
         if (result.pathname) {
@@ -244,10 +299,15 @@ export default class Router {
 
         // check filesystem
         if (testRoute.check === true) {
+          const originalFsPathname = parsedUrlUpdated.pathname
+          const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
+
           for (const fsRoute of this.fsRoutes) {
-            const fsParams = fsRoute.match(parsedUrlUpdated.pathname)
+            const fsParams = fsRoute.match(fsPathname)
 
             if (fsParams) {
+              parsedUrlUpdated.pathname = fsPathname
+
               const fsResult = await fsRoute.fn(
                 req,
                 res,
@@ -258,17 +318,17 @@ export default class Router {
               if (fsResult.finished) {
                 return true
               }
+
+              parsedUrlUpdated.pathname = originalFsPathname
             }
           }
 
-          let matchedPage = await memoizedPageChecker(
-            parsedUrlUpdated.pathname!
-          )
+          let matchedPage = await memoizedPageChecker(fsPathname)
 
           // If we didn't match a page check dynamic routes
           if (!matchedPage) {
             for (const dynamicRoute of this.dynamicRoutes) {
-              if (dynamicRoute.match(parsedUrlUpdated.pathname)) {
+              if (dynamicRoute.match(fsPathname)) {
                 matchedPage = true
               }
             }
@@ -276,6 +336,8 @@ export default class Router {
 
           // Matched a page or dynamic route so render it using catchAllRoute
           if (matchedPage) {
+            parsedUrlUpdated.pathname = fsPathname
+
             const pageParams = this.catchAllRoute.match(
               parsedUrlUpdated.pathname
             )

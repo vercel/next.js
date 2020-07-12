@@ -137,7 +137,9 @@ const nextServerlessLoader: loader.Loader = function () {
           const { parsedDestination } = prepareDestination(
             rewrite.destination,
             params,
-            parsedUrl.query
+            parsedUrl.query,
+            true,
+            "${basePath}"
           )
 
           Object.assign(parsedUrl.query, parsedDestination.query, params)
@@ -173,6 +175,7 @@ const nextServerlessLoader: loader.Loader = function () {
     ? `
     // always strip the basePath if configured since it is required
     req.url = req.url.replace(new RegExp('^${basePath}'), '') || '/'
+    parsedUrl.pathname = parsedUrl.pathname.replace(new RegExp('^${basePath}'), '') || '/'
   `
     : ''
 
@@ -204,12 +207,12 @@ const nextServerlessLoader: loader.Loader = function () {
         try {
           await initServer()
 
-          ${handleBasePath}
-
           // We need to trust the dynamic route params from the proxy
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parse(req.url, true))
+
+          ${handleBasePath}
 
           const params = ${
             pageIsDynamicRoute
@@ -296,8 +299,6 @@ const nextServerlessLoader: loader.Loader = function () {
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
 
-      ${handleBasePath}
-
       const options = {
         App,
         Document,
@@ -323,6 +324,8 @@ const nextServerlessLoader: loader.Loader = function () {
         // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
         const parsedUrl = handleRewrites(parse(req.url, true))
+
+        ${handleBasePath}
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           _nextData = true
