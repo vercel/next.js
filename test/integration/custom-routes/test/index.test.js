@@ -496,6 +496,7 @@ const runTests = (isDev = false) => {
         basePath: '',
         redirects: [
           {
+            basePath: false,
             destination: '/:path+',
             regex: normalizeRegEx(
               '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$'
