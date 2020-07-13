@@ -1,5 +1,5 @@
 // import { verifyIdToken } from 'utils/auth/firebaseAdmin'
-const favoriteFoods = ['pizza', 'burger', 'chips', 'tortilla']
+const favoriteFoods = ['donuts', 'apples', 'pancakes', 'kale']
 
 const getFood = async (req, res) => {
   // TODO: reenable auth
