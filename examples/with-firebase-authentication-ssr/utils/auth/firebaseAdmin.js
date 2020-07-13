@@ -47,23 +47,30 @@ const refreshExpiredIdToken = async (refreshToken) => {
  * Verify the Firebase ID token and return the Firebase user.
  * If the ID token has expired, refresh it if a refreshToken
  * is provided.
- * @return {Object} The Firebase user
+ * @return {Object} result
+ * @return {Object} result.user - The Firebase user
+ * @return {Object} result.token - The token, which will change when
+ *   it is refreshed.
  */
 export const verifyIdToken = async (token, refreshToken = null) => {
   let firebaseUser
+  let newToken = token
   try {
     firebaseUser = await admin.auth().verifyIdToken(token)
   } catch (e) {
     // If the user's ID token has expired, refresh it if possible.
     if (refreshToken && e.code === FIREBASE_ERROR_TOKEN_EXPIRED) {
-      const newToken = await refreshExpiredIdToken(refreshToken)
+      newToken = await refreshExpiredIdToken(refreshToken)
       firebaseUser = await admin.auth().verifyIdToken(newToken)
     } else {
       // Otherwise, throw.
       throw e
     }
   }
-  return firebaseUser
+  return {
+    user: firebaseUser,
+    token: newToken,
+  }
 }
 
 /**
@@ -78,7 +85,7 @@ export const verifyIdToken = async (token, refreshToken = null) => {
  * @return {String} tokenInfo.refreshToken - The user's refresh token
  */
 export const getCustomIdAndRefreshTokens = async (token) => {
-  const firebaseUser = await verifyIdToken(token)
+  const { user: firebaseUser } = await verifyIdToken(token)
 
   // It's important that we pass the same user ID here, otherwise
   // Firebase will create a new user.

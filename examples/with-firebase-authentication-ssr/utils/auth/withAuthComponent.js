@@ -1,4 +1,5 @@
 import { AuthUserContext } from 'utils/auth/useAuthUser'
+import createAuthUser from 'utils/auth/createAuthUser'
 
 // A higher-order component to handle auth logic for pages.
 // It should be paired with `withAuthServerSideProps`.
@@ -6,7 +7,12 @@ import { AuthUserContext } from 'utils/auth/useAuthUser'
 // https://github.com/vercel/next.js/discussions/10925#discussioncomment-12471
 const withAuthComponent = (ChildComponent) => {
   return (props) => {
-    const { AuthUser, ...otherProps } = props
+    const { AuthUserSerializable, ...otherProps } = props
+    const AuthUser = createAuthUser(AuthUserSerializable)
+    console.log(
+      'AuthUserSerializable in withAuthComponent:',
+      AuthUserSerializable
+    )
     console.log('AuthUser in withAuthComponent:', AuthUser)
 
     // TODO: hook: useClientSideFirebaseUser, which handles

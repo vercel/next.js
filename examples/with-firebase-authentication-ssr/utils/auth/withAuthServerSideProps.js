@@ -1,6 +1,8 @@
 import { withCookies } from 'utils/middleware/cookies'
 import { verifyIdToken } from 'utils/auth/firebaseAdmin'
-import createAuthUser from 'utils/auth/createAuthUser'
+import createAuthUser, {
+  createAuthUserSerializable,
+} from 'utils/auth/createAuthUser'
 
 // An auth wrapper for a page's exported getServerSideProps.
 // See this discussion on how best to use getServerSideProps
@@ -14,23 +16,24 @@ const withAuthServerSideProps = (getServerSidePropsFunc) => {
     // as needed), and return the AuthUser object in props.
     withCookies(req, res)
     const sessionData = req.cookie.get('sessionExampleA')
-    const firebaseUser = await verifyIdToken(
+    const { user: firebaseUser, token } = await verifyIdToken(
       sessionData.idToken,
       sessionData.refreshToken
     )
-    const AuthUser = createAuthUser(firebaseUser)
+    const AuthUserSerializable = createAuthUserSerializable(firebaseUser, token)
 
     // Evaluate the composed getServerSideProps().
     let composedProps = {}
     if (getServerSidePropsFunc) {
+      // Add the AuthUser to Next.js context so pages can use
+      // it in `getServerSideProps`, if needed.
+      const AuthUser = createAuthUser(AuthUserSerializable)
+      ctx.AuthUser = AuthUser
       composedProps = await getServerSidePropsFunc(ctx)
     }
-
-    // TODO: pass user data (including token) in context
-
     return {
       props: {
-        AuthUser,
+        AuthUserSerializable,
         ...composedProps,
       },
     }
