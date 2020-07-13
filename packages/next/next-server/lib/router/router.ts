@@ -471,7 +471,7 @@ export default class Router implements BaseRouter {
 
       const parsed = tryParseRelativeUrl(url)
 
-      if (!parsed) return
+      if (!parsed) return resolve(false)
 
       let { pathname, searchParams } = parsed
       const query = searchParamsToUrlQuery(searchParams)
