@@ -14,6 +14,11 @@ module.exports = withPrefresh({
       }
     }
 
+    if (isServer) {
+      // mark `preact` stuffs as external for server bundle to prevent duplicate copies of preact
+      config.externals.push(/^preact/);
+    }
+
     // Install webpack aliases:
     const aliases = config.resolve.alias || (config.resolve.alias = {})
     aliases.react = aliases['react-dom'] = 'preact/compat'
