@@ -259,11 +259,22 @@ export default async function build(
   const buildCustomRoute = (
     r: {
       source: string
+      basePath?: false
       statusCode?: number
+      destination?: string
     },
     type: RouteType
   ) => {
     const keys: any[] = []
+
+    if (r.basePath !== false) {
+      r.source = `${config.basePath}${r.source}`
+
+      if (r.destination && r.destination.startsWith('/')) {
+        r.destination = `${config.basePath}${r.destination}`
+      }
+    }
+
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
       sensitive: false,
