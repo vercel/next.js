@@ -4,10 +4,7 @@ import Link from 'next/link'
 import useAuthUser from '../utils/auth/useAuthUser'
 import withAuthComponent from 'utils/auth/withAuthComponent'
 import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
-
-const logout = async () => {
-  console.log('TODO')
-}
+import logout from 'utils/auth/logout'
 
 const fetcher = async (url, token) => {
   const res = await fetch(url, {
@@ -50,7 +47,7 @@ const Index = (props) => {
             textDecoration: 'underline',
             cursor: 'pointer',
           }}
-          onClick={() => logout()}
+          onClick={async () => await logout()}
         >
           Log out
         </p>
@@ -72,8 +69,8 @@ const Index = (props) => {
 export const getServerSideProps = withAuthServerSideProps(
   async ({ AuthUser }) => {
     // TODO: use token in data fetching
-    const token = await AuthUser.getIdToken()
-    console.log('index.js: user ID token:', token)
+    // const token = await AuthUser.getIdToken()
+    // console.log('index.js: user ID token:', token)
     const data = await fetcher(endpoint)
     return { data: data }
   }

@@ -1,9 +1,9 @@
 import cookiesMiddleware from 'utils/middleware/cookies'
 
 const handler = async (req, res) => {
-  // Destroy the session.
-  // https://github.com/expressjs/cookie-session#destroying-a-session
-  req.session = null
+  // An undefined value will delete the cookie.
+  // https://github.com/pillarjs/cookies#cookiesset-name--value---options--
+  req.cookie.set('authExample', undefined)
   res.status(200).json({ status: true })
 }
 

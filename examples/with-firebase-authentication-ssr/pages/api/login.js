@@ -1,8 +1,6 @@
 import cookiesMiddleware from 'utils/middleware/cookies'
 import { getCustomIdAndRefreshTokens } from 'utils/auth/firebaseAdmin'
 
-const sessionCookieName = 'sessionExampleA'
-
 const handler = async (req, res) => {
   if (!(req.headers && req.headers.authorization)) {
     return res.status(400).json({ error: 'Missing Authorization header value' })
@@ -20,7 +18,7 @@ const handler = async (req, res) => {
   // cookie will be available to future requests to pages,
   // providing a valid Firebase ID token for server-side rendering.
   req.cookie.set(
-    sessionCookieName,
+    'authExample',
     JSON.stringify({
       idToken,
       refreshToken,
