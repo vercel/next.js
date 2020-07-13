@@ -65,3 +65,30 @@ module.exports = {
   },
 }
 ```
+
+### Redirects with basePath support
+
+When leveraging <a href="/docs/api-reference/next.config.js/basepath.md">basePath support</a> with redirects each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the redirect.
+
+```js
+module.exports = {
+  basePath: '/docs',
+
+  async redirects() {
+    return [
+      {
+        source: '/with-basePath', // automatically becomes /docs/with-basePath
+        destination: '/another', // automatically becomes /docs/another
+        permanent: false,
+      },
+      {
+        // does not add /docs since basePath: false is set
+        source: '/without-basePath',
+        destination: '/another',
+        basePath: false,
+        permanent: false,
+      },
+    ]
+  },
+}
+```
