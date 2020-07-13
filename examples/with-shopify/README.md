@@ -61,11 +61,11 @@ You can manually add products too, the example currently supports products that 
 
 The example uses the [Shopify Storefront API](https://shopify.dev/docs/storefront-api). Follow the steps in [this guide](https://shopify.dev/docs/storefront-api/getting-started#private-app) to create a new private app for your store that has Storefront enabled.
 
-In your custom app, under the **Storefront API** section, the default permissions should be enough to get the example working, it should look like this:
+In your custom app, under the **Storefront API** section, the default permissions should be enough to get the example working. It should look like this:
 
 ![Storefront API permissions](./docs/storefront-app.jpg)
 
-Now that you have a custom app, copy the **Storefront access token** (it's under **Storefront API**) and open the `.env` file in this directory:
+Now that you have a custom app, open the `.env` file in this directory:
 
 - `NEXT_PUBLIC_SHOPIFY_GRAPHQL_API_URL` should be `https://<my-domain.com>/api/2020-04/graphql`, where `<my-domain.com>` should be the domain of your store. For example: `next-js-example.myshopify.com`
 - `NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN` should match the **Storefront access token** that's under the **Storefront API** section in the custom app you created
