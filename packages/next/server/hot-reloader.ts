@@ -176,14 +176,14 @@ export default class HotReloader {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlObject
-  ) {
+  ): Promise<{ finished?: true }> {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
     // That's when the CORS support is needed.
     const { preflight } = addCorsSupport(req, res)
     if (preflight) {
-      return
+      return {}
     }
 
     // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
