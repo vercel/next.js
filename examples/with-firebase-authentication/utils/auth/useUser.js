@@ -20,7 +20,6 @@ const useUser = () => {
         cookies.remove('auth')
         setUser()
         router.push('/auth')
-        
       })
       .catch((e) => {
         console.error(e)
