@@ -336,6 +336,17 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
+
+    const { basePath } = this.nextConfig
+    let removedBasePath = false
+
+    if (basePath && parsedUrl.pathname?.startsWith(basePath)) {
+      // strip basePath before handling dev bundles
+      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
+      removedBasePath = true
+    }
+
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
@@ -349,6 +360,13 @@ export default class DevServer extends Server {
     }
     if (finished) {
       return
+    }
+
+    // re-add basePath before continuing only if we removed it
+    // so that custom-routes can accurately determine if they should
+    // match against the basePath or not
+    if (removedBasePath) {
+      parsedUrl.pathname = `${basePath}${parsedUrl.pathname}`
     }
 
     return super.run(req, res, parsedUrl)
@@ -393,7 +411,8 @@ export default class DevServer extends Server {
     fsRoutes.push({
       match: route('/:path*'),
       type: 'route',
-      name: 'Catchall public directory route',
+      requireBasePath: false,
+      name: 'catchall public directory route',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl
         if (!pathname) {

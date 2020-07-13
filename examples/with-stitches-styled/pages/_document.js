@@ -20,8 +20,8 @@ export default class MyDocument extends Document {
         styles: (
           <>
             {initialProps.styles}
-            {extractedStyles.map((content) => (
-              <style>{content}</style>
+            {extractedStyles.map((content, index) => (
+              <style key={index}>{content}</style>
             ))}
           </>
         ),
