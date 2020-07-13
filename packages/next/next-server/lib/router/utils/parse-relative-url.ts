@@ -12,7 +12,7 @@ export function parseRelativeUrl(url: string, base?: string) {
     resolvedBase
   )
   if (origin !== DUMMY_BASE.origin) {
-    throw new Error('Invalid relative URL')
+    throw new Error('invariant: invalid relative URL')
   }
   return {
     pathname,
