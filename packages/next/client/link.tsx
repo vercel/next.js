@@ -218,7 +218,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     ref?: any
   } = {
     ref: (el: any) => {
-      setChildElm(el)
+      if (el) setChildElm(el)
 
       if (child && typeof child === 'object' && child.ref) {
         if (typeof child.ref === 'function') child.ref(el)
