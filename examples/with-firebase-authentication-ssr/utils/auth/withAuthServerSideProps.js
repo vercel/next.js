@@ -16,10 +16,14 @@ const withAuthServerSideProps = (getServerSidePropsFunc) => {
     // as needed), and return the AuthUser object in props.
     withCookies(req, res)
     const sessionData = req.cookie.get('sessionExampleA')
-    const { user: firebaseUser, token } = await verifyIdToken(
-      sessionData.idToken,
-      sessionData.refreshToken
-    )
+    let firebaseUser
+    let token
+    if (sessionData) {
+      ;({ user: firebaseUser, token } = await verifyIdToken(
+        sessionData.idToken,
+        sessionData.refreshToken
+      ))
+    }
     const AuthUserSerializable = createAuthUserSerializable(firebaseUser, token)
 
     // Evaluate the composed getServerSideProps().
