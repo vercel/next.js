@@ -8,17 +8,23 @@ import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 
 const nextBuild: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--profile': Boolean,
-      // Aliases
-      '-h': '--help',
-    },
-    { argv }
-  )
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--profile': Boolean,
+    // Aliases
+    '-h': '--help',
+  }
 
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
     printAndExit(
       `
@@ -31,7 +37,8 @@ const nextBuild: cliCommand = (argv) => {
       <dir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
 
-      --profile can be used to enable React Production Profiling
+      Options
+      --profile     Can be used to enable React Production Profiling
     `,
       0
     )
