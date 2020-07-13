@@ -1,36 +1,28 @@
 import { AuthUserContext } from 'utils/auth/useAuthUser'
 import createAuthUser from 'utils/auth/createAuthUser'
+import useFirebaseUser from 'utils/auth/useFirebaseUser'
 
-// A higher-order component to handle auth logic for pages.
-// It should be paired with `withAuthServerSideProps`.
-// See:
-// https://github.com/vercel/next.js/discussions/10925#discussioncomment-12471
+// A higher-order component to provide pages with the
+// authenticated user.
+// This should be paired with `withAuthServerSideProps`.
 const withAuthComponent = (ChildComponent) => {
   return (props) => {
     const { AuthUserSerializable, ...otherProps } = props
-    const AuthUser = createAuthUser(AuthUserSerializable)
-    console.log(
-      'AuthUserSerializable in withAuthComponent:',
-      AuthUserSerializable
-    )
-    console.log('AuthUser in withAuthComponent:', AuthUser)
+    const AuthUserFromServer = createAuthUser(AuthUserSerializable)
 
-    // TODO: hook: useClientSideFirebaseUser, which handles
-    // Firebase changes + session setting/unsetting.
+    const {
+      user: firebaseUser,
+      initialized: firebaseInitialized,
+    } = useFirebaseUser()
+    const AuthUserFromClient = createAuthUser(firebaseUser)
 
-    // TODO
-    // We'll use the authed user from client-side auth (Firebase JS SDK)
-    // when available. On the server side, we'll use the authed user from
-    // the session. This allows us to server-render while also using Firebase's
-    // client-side auth functionality.
-    //     const { user: firebaseUser } = useFirebaseAuth()
-    //     const AuthUserFromClient = createAuthUser(firebaseUser)
-    //     const { AuthUser: AuthUserFromSession, token } = AuthUserInfo
-    //     const AuthUser = AuthUserFromClient || AuthUserFromSession || null
-    //
-
-    // TODO: use the client-side authed user from the Firebase
-    //   JS SDK when it's loaded.
+    // Set the AuthUser to values from the Firebase JS SDK user
+    // once it has initialized. On the server side and before the
+    // client-side SDK has initialized, use the AuthUser from the
+    // session.
+    const AuthUser = firebaseInitialized
+      ? AuthUserFromClient
+      : AuthUserFromServer
     return (
       <AuthUserContext.Provider value={AuthUser}>
         <ChildComponent {...otherProps} />

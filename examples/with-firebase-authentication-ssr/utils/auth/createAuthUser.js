@@ -1,4 +1,4 @@
-import { get, has } from 'lodash/object'
+import { get } from 'lodash/object'
 
 /**
  * Take the user object from Firebase (from either the Firebase admin SDK or
@@ -24,9 +24,10 @@ const createAuthUser = (user) => {
     // After the Firebase JS SDK has initialized on the client side, use the
     // Firebase SDK's getIdToKen method, which will handle refreshing the token
     // as needed.
-    getIdToken: has(user, 'getIdToken')
-      ? user.getIdToken
-      : async () => user.token,
+    getIdToken:
+      user && user.getIdToken
+        ? async () => user.getIdToken()
+        : async () => (user && user.token ? user.token : null),
   }
 }
 
