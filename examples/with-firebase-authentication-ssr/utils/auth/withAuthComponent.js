@@ -1,6 +1,7 @@
 import { AuthUserContext } from 'utils/auth/useAuthUser'
 import createAuthUser from 'utils/auth/createAuthUser'
 import useFirebaseUser from 'utils/auth/useFirebaseUser'
+import useFirebaseCookieManager from 'utils/auth/useFirebaseCookieManager'
 
 // A higher-order component to provide pages with the
 // authenticated user.
@@ -9,6 +10,9 @@ const withAuthComponent = (ChildComponent) => {
   return (props) => {
     const { AuthUserSerializable, ...otherProps } = props
     const AuthUserFromServer = createAuthUser(AuthUserSerializable)
+
+    // Manages the auth cookie.
+    useFirebaseCookieManager()
 
     const {
       user: firebaseUser,
