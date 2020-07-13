@@ -357,28 +357,42 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
-  redirects.unshift(
-    ...(config.experimental.trailingSlash
-      ? [
-          {
-            source: '/:path*/:file.:ext/',
-            destination: '/:path*/:file.:ext',
-            permanent: true,
-          },
-          {
-            source: '/:path*/:notfile([^/.]+)',
-            destination: '/:path*/:notfile/',
-            permanent: true,
-          },
-        ]
-      : [
-          {
-            source: '/:path+/',
-            destination: '/:path+',
-            permanent: true,
-          },
-        ])
-  )
+  if (config.experimental.trailingSlash) {
+    redirects.unshift(
+      {
+        source: '/:path*/:file.:ext/',
+        destination: '/:path*/:file.:ext',
+        permanent: true,
+      },
+      {
+        source: '/:path*/:notfile([^/.]+)',
+        destination: '/:path*/:notfile/',
+        permanent: true,
+      }
+    )
+    if (config.basePath) {
+      redirects.unshift({
+        source: config.basePath,
+        destination: config.basePath + '/',
+        permanent: true,
+        basePath: false,
+      })
+    }
+  } else {
+    redirects.unshift({
+      source: '/:path+/',
+      destination: '/:path+',
+      permanent: true,
+    })
+    if (config.basePath) {
+      redirects.unshift({
+        source: config.basePath + '/',
+        destination: config.basePath,
+        permanent: true,
+        basePath: false,
+      })
+    }
+  }
 
   return {
     headers,
