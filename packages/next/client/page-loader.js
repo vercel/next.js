@@ -1,8 +1,9 @@
-import { parse } from 'url'
 import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
+import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/search-params-to-url-query'
+import { parseRelativeUrl } from './../next-server/lib/router/utils/parse-relative-url'
 import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
 
@@ -111,8 +112,11 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   getDataHref(href, asPath, ssg) {
-    const { pathname: hrefPathname, query, search } = parse(href, true)
-    const { pathname: asPathname } = parse(asPath)
+    const { pathname: hrefPathname, searchParams, search } = parseRelativeUrl(
+      href
+    )
+    const query = searchParamsToUrlQuery(searchParams)
+    const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (/** @type string */ path) => {
@@ -177,7 +181,7 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   prefetchData(href, asPath) {
-    const { pathname: hrefPathname } = parse(href, true)
+    const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest.then(
       (s, _dataHref) =>
