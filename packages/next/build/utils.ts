@@ -20,6 +20,7 @@ import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
@@ -631,8 +632,8 @@ export async function buildStaticPaths(
           .replace(
             replaced,
             repeat
-              ? (paramValue as string[]).map(encodeURIComponent).join('/')
-              : encodeURIComponent(paramValue as string)
+              ? (paramValue as string[]).map(escapePathDelimiters).join('/')
+              : escapePathDelimiters(paramValue as string)
           )
           .replace(/(?!^)\/$/, '')
       })
