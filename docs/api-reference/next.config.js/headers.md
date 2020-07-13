@@ -92,7 +92,7 @@ module.exports = {
 
 ### Headers with basePath support
 
-When leveraging [`basePath`](/docs/api-reference/next.config.js/basepath.md) support with headers each `source` is automatically prefixed with the `basePath` unless you add `basePath: false` to the header:
+When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with headers each `source` is automatically prefixed with the `basePath` unless you add `basePath: false` to the header:
 
 ```js
 module.exports = {

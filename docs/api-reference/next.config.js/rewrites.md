@@ -113,7 +113,7 @@ module.exports = {
 
 ### Rewrites with basePath support
 
-When leveraging <a href="/docs/api-reference/next.config.js/basepath.md">basePath support</a> with rewrites each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the rewrite.
+When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with rewrites each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the rewrite:
 
 ```js
 module.exports = {
