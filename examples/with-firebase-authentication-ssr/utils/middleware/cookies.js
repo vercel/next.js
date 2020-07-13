@@ -26,8 +26,8 @@ export const withCookies = (req, res) => {
   try {
     const cookies = Cookies(req, res, {
       keys: sessionSecrets,
-      // TODO: set other options, such as "secure", "sameSite", etc.
-      // https://github.com/expressjs/cookie-session#cookie-options
+      // Recommended: set other options, such as "secure", "sameSite", etc.
+      // https://github.com/pillarjs/cookies#readme
     })
 
     req.cookie = {
