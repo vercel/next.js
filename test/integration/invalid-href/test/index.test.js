@@ -190,5 +190,17 @@ describe('Invalid hrefs', () => {
         )
       ).toBeTruthy()
     })
+
+    it('makes sure that router push with bad links resolve', async () => {
+      const browser = await webdriver(appPort, '/third')
+      await browser.elementByCss('#click-me').click()
+      await browser.waitForElementByCss('#is-done')
+    })
+
+    it('makes sure that router replace with bad links resolve', async () => {
+      const browser = await webdriver(appPort, '/third?method=replace')
+      await browser.elementByCss('#click-me').click()
+      await browser.waitForElementByCss('#is-done')
+    })
   })
 })
