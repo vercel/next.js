@@ -10,7 +10,6 @@
     "cookies": "0.8.0",
     "firebase": "^7.15.5",
     "firebase-admin": "^8.12.1",
-    "js-cookie": "2.2.1",
     "lodash": "4.17.19",
     "next": "latest",
     "react": "^16.13.1",

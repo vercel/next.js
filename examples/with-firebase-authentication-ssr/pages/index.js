@@ -1,4 +1,3 @@
-// TODO: js-cookie package
 import useSWR from 'swr'
 import Link from 'next/link'
 import useAuthUser from '../utils/auth/useAuthUser'
