@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-TODO
+[https://nextjs-shopify.vercel.app/](https://nextjs-shopify.vercel.app/)
 
 ## Deploy your own
 
@@ -86,13 +86,13 @@ yarn dev
 
 [Shopify Pages](https://help.shopify.com/en/manual/online-store/legacy/pages) allow you to have custom pages and are also supported by the example.
 
-Follow the [steps in the official guide](https://help.shopify.com/en/manual/online-store/legacy/pages#add-a-new-webpage-to-your-online-store) to create a new page. A good use case would be to have an `About` page like in [our demo](TODO).
+Follow the [steps in the official guide](https://help.shopify.com/en/manual/online-store/legacy/pages#add-a-new-webpage-to-your-online-store) to create a new page. A good use case would be to have an `About` page like in [our demo](https://nextjs-shopify.vercel.app/pages/about).
 
 ### Step 6. Optionally add store policies
 
 [Store Policies](https://help.shopify.com/en/manual/checkout-settings/refund-privacy-tos) allow you to have custom pages for policies similar to the way Shopify Pages work.
 
-Follow the [steps in the official guide](https://help.shopify.com/en/manual/checkout-settings/refund-privacy-tos#add-or-generate-store-policies) to create a policy page. You can see an example in [our demo](TODO).
+Follow the [steps in the official guide](https://help.shopify.com/en/manual/checkout-settings/refund-privacy-tos#add-or-generate-store-policies) to create a policy page. You can see an example in [our demo](https://nextjs-shopify.vercel.app/legal/privacy-policy).
 
 ### Step 7. Deploy on Vercel
 
