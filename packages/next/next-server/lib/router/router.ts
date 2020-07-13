@@ -97,6 +97,11 @@ type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
 
+const manualScrollRestoration =
+  process.env.__NEXT_SCROLL_RESTORATION &&
+  typeof window !== 'undefined' &&
+  'scrollRestoration' in window.history
+
 function fetchNextData(
   dataHref: string,
   isServerRender: boolean,
@@ -250,6 +255,35 @@ export default class Router implements BaseRouter {
       }
 
       window.addEventListener('popstate', this.onPopState)
+
+      // enable custom scroll restoration handling when available
+      // otherwise fallback to browser's default handling
+      if (process.env.__NEXT_SCROLL_RESTORATION) {
+        if (manualScrollRestoration) {
+          window.history.scrollRestoration = 'manual'
+
+          let scrollDebounceTimeout: undefined | NodeJS.Timeout
+
+          const debouncedScrollSave = () => {
+            if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
+
+            scrollDebounceTimeout = setTimeout(() => {
+              const { url, as: curAs, options } = history.state
+              this.changeState(
+                'replaceState',
+                url,
+                curAs,
+                Object.assign({}, options, {
+                  _N_X: window.scrollX,
+                  _N_Y: window.scrollY,
+                })
+              )
+            }, 10)
+          }
+
+          window.addEventListener('scroll', debouncedScrollSave)
+        }
+      }
     }
   }
 
@@ -431,18 +465,19 @@ export default class Router implements BaseRouter {
         return resolve(false)
       }
 
+      const cleanedAs = delBasePath(as)
+
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
       // We also need to set the method = replaceState always
       // as this should not go into the history (That's how browsers work)
       // We should compare the new asPath to the current asPath, not the url
-      if (!this.urlIsNew(as)) {
+      if (!this.urlIsNew(cleanedAs)) {
         method = 'replaceState'
       }
 
       const route = removePathTrailingSlash(pathname)
       const { shallow = false } = options
-      const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(cleanedAs)
@@ -503,7 +538,13 @@ export default class Router implements BaseRouter {
               throw error
             }
 
+            if (process.env.__NEXT_SCROLL_RESTORATION) {
+              if (manualScrollRestoration && '_N_X' in options) {
+                window.scrollTo(options._N_X, options._N_Y)
+              }
+            }
             Router.events.emit('routeChangeComplete', as)
+
             return resolve(true)
           })
         },

@@ -49,10 +49,10 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     sprFlushToDisk: true,
     reactMode: 'legacy',
-    reactProductionProfiling: false,
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
+    scrollRestoration: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
