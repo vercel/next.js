@@ -13,19 +13,6 @@ export default class WebWorkerFastRefreshPlugin {
             const fn = tapInfo.fn
             tapInfo.fn = function () {
               const res = fn.apply(this, arguments)
-              console.log(
-                Template.asString([
-                  res,
-                  '',
-                  '// noop fns to prevent runtime errors during initialization',
-                  'self.$RefreshReg$ = function () {};',
-                  'self.$RefreshSig$ = function () {',
-                  Template.indent('return function (type) {'),
-                  Template.indent(Template.indent('return type;')),
-                  Template.indent('}'),
-                  '};',
-                ])
-              )
               return Template.asString([
                 res,
                 '',
