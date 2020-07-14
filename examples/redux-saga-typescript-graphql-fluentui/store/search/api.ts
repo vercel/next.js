@@ -6,7 +6,6 @@ const buildQuery = (query: string) => `
     addressesSearch(query:"${query}") {
       _id,
       formattedAddress
-   
     }
   }
   

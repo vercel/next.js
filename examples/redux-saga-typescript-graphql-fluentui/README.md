@@ -1,5 +1,8 @@
 # redux-saga-typescript-graphQL-fluentUI example
 
+It is a simple example of how to build next app by using redux, redux-saga, typesript, GraphQL and UI libary FluentUI. you will have to build your own GraphQl endpoint to work with the UI, the UI looks like
+![SearchBar](SearchBar.png)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
