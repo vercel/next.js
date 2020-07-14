@@ -17,12 +17,12 @@ export default class WebWorkerFastRefreshPlugin {
                 res,
                 '',
                 '// noop fns to prevent runtime errors during initialization',
-                'self.$RefreshReg$ = function () {}',
+                'self.$RefreshReg$ = function () {};',
                 'self.$RefreshSig$ = function () {',
                 Template.indent('return function (type) {'),
-                Template.indent(Template.indent('return type')),
-                Template.indent('}'),
-                '}',
+                Template.indent(Template.indent('return type;')),
+                Template.indent('};'),
+                '};',
               ])
             }
           }
