@@ -324,6 +324,30 @@ const runTests = (context, dev = false) => {
     )
   })
 
+  it('should redirect trailing slash correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    const { pathname } = new URL(res.headers.get('location'))
+    expect(pathname).toBe('/docs/hello')
+  })
+
+  it('should redirect trailing slash on root correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    const { pathname } = new URL(res.headers.get('location'))
+    expect(pathname).toBe('/docs')
+  })
+
   it('should 404 when manually adding basePath with <Link>', async () => {
     const browser = await webdriver(
       context.appPort,

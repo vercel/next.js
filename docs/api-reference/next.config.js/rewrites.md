@@ -110,3 +110,28 @@ module.exports = {
   },
 }
 ```
+
+### Rewrites with basePath support
+
+When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with rewrites each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the rewrite:
+
+```js
+module.exports = {
+  basePath: '/docs',
+
+  async rewrites() {
+    return [
+      {
+        source: '/with-basePath', // automatically becomes /docs/with-basePath
+        destination: '/another', // automatically becomes /docs/another
+      },
+      {
+        // does not add /docs since basePath: false is set
+        source: '/without-basePath',
+        destination: '/another',
+        basePath: false,
+      },
+    ]
+  },
+}
+```
