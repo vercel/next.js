@@ -3,6 +3,7 @@ import { verifyIdToken } from 'utils/auth/firebaseAdmin'
 import createAuthUser, {
   createAuthUserSerializable,
 } from 'utils/auth/createAuthUser'
+import { AUTH_COOKIE_NAME } from 'utils/constants'
 
 // An auth wrapper for a page's exported getServerSideProps.
 // See this discussion on how best to use getServerSideProps
@@ -15,7 +16,7 @@ const withAuthServerSideProps = (getServerSidePropsFunc) => {
     // Get the user's token from their cookie, verify it (refreshing
     // as needed), and return the AuthUser object in props.
     withCookies(req, res)
-    const sessionData = req.cookie.get('sessionExampleA')
+    const sessionData = req.cookie.get(AUTH_COOKIE_NAME)
     let firebaseUser
     let token
     if (sessionData) {
