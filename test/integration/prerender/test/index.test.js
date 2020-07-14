@@ -117,6 +117,16 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall-explicit/[...slug]',
   },
+  '/catchall-explicit/[first]/[second]': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/[first]/[second].json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/[third]/[fourth]': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/[third]/[fourth].json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
   '/catchall-optional': {
     dataRoute: `/_next/data/${buildId}/catchall-optional.json`,
     initialRevalidateSeconds: false,
@@ -141,6 +151,16 @@ const expectedManifestRoutes = () => ({
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
     initialRevalidateSeconds: false,
     srcRoute: null,
+  },
+  '/dynamic/[first]': {
+    dataRoute: `/_next/data/${buildId}/dynamic/[first].json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/dynamic/[slug]',
+  },
+  '/dynamic/[second]': {
+    dataRoute: `/_next/data/${buildId}/dynamic/[second].json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/dynamic/[slug]',
   },
   '/index': {
     dataRoute: `/_next/data/${buildId}/index/index.json`,
@@ -307,6 +327,50 @@ const navigateTest = (dev = false) => {
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#comment-1')
 
+    // go to /dynamic/[first]
+    await browser.elementByCss('#dynamic-first').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#param').text()
+    expect(text).toMatch(/Hi \[first\]!/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /dynamic/[second]
+    await browser.elementByCss('#dynamic-second').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#param').text()
+    expect(text).toMatch(/Hi \[second\]!/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-explicit/[first]/[second]
+    await browser.elementByCss('#catchall-explicit-string').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi \[first\] \[second\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-explicit/[first]/[second]
+    await browser.elementByCss('#catchall-explicit-object').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi \[third\] \[fourth\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
     // go to /catchall-optional/value
     await browser.elementByCss('#catchall-optional-value').click()
     await browser.waitForElementByCss('#home')
@@ -458,6 +522,68 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         },
       })
     ).toBe(true)
+  })
+
+  it('should SSR dynamic page with brackets in param as object', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic/[first]')
+    const $ = cheerio.load(html)
+    expect($('#param').text()).toMatch(/Hi \[first\]!/)
+  })
+
+  it('should navigate to dynamic page with brackets in param as object', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#dynamic-first').click()
+    await browser.waitForElementByCss('#param')
+    const value = await browser.elementByCss('#param').text()
+    expect(value).toMatch(/Hi \[first\]!/)
+  })
+
+  it('should SSR dynamic page with brackets in param as string', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic/[second]')
+    const $ = cheerio.load(html)
+    expect($('#param').text()).toMatch(/Hi \[second\]!/)
+  })
+
+  it('should navigate to dynamic page with brackets in param as string', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#dynamic-second').click()
+    await browser.waitForElementByCss('#param')
+    const value = await browser.elementByCss('#param').text()
+    expect(value).toMatch(/Hi \[second\]!/)
+  })
+
+  it('should SSR catch-all page with brackets in param as string', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/[first]/[second]'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi \[first\] \[second\]/)
+  })
+
+  it('should navigate to catch-all page with brackets in param as string', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#catchall-explicit-string').click()
+    await browser.waitForElementByCss('#catchall')
+    const value = await browser.elementByCss('#catchall').text()
+    expect(value).toMatch(/Hi \[first\] \[second\]/)
+  })
+
+  it('should SSR catch-all page with brackets in param as object', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/[third]/[fourth]'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi \[third\] \[fourth\]/)
+  })
+
+  it('should navigate to catch-all page with brackets in param as object', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#catchall-explicit-object').click()
+    await browser.waitForElementByCss('#catchall')
+    const value = await browser.elementByCss('#catchall').text()
+    expect(value).toMatch(/Hi \[third\] \[fourth\]/)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -1020,6 +1146,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
+            )}\\/dynamic\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/dynamic/(?<slug>[^/]+?)\\.json$`,
+          page: '/dynamic/[slug]',
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
             )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
           ),
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -1124,6 +1264,14 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
+        },
+        '/dynamic/[slug]': {
+          dataRoute: `/_next/data/${buildId}/dynamic/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/dynamic\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(`^\\/dynamic\\/([^\\/]+?)(?:\\/)?$`),
         },
         '/fallback-only/[slug]': {
           dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
