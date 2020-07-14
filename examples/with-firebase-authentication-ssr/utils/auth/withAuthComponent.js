@@ -18,7 +18,7 @@ const withAuthComponent = (ChildComponent) => {
       user: firebaseUser,
       initialized: firebaseInitialized,
     } = useFirebaseUser()
-    const AuthUserFromClient = createAuthUser(firebaseUser)
+    const AuthUserFromClient = createAuthUser(firebaseUser, firebaseInitialized)
 
     // Set the AuthUser to values from the Firebase JS SDK user
     // once it has initialized. On the server side and before the

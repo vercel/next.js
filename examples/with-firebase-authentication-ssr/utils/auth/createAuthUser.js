@@ -13,7 +13,7 @@ import { get } from 'lodash/object'
  *   resolves to the Firebase user's ID token string, or null if the user is
  *   not authenticated.
  */
-const createAuthUser = (user) => {
+const createAuthUser = (user, clientInitialized = false) => {
   return {
     id: get(user, 'uid', null),
     email: get(user, 'email', null),
@@ -28,6 +28,9 @@ const createAuthUser = (user) => {
       user && user.getIdToken
         ? async () => user.getIdToken()
         : async () => (user && user.token ? user.token : null),
+    // clientInitialized is true if the user state is determined by
+    // the Firebase JS SDK.
+    clientInitialized,
   }
 }
 
