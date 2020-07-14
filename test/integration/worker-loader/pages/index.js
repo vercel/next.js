@@ -31,9 +31,9 @@ export default function Home() {
 
   return (
     <main>
-      <h2 className="title">$RefreshRegistry repro</h2>
-      <div className="web-status">Web: {expensiveWebStatus}</div>
-      <div className="worker-status">Worker: {expensiveWorkerStatus}</div>
+      <h1>$RefreshRegistry repro</h1>
+      <div id="web-status">Web: {expensiveWebStatus}</div>
+      <div id="worker-status">Worker: {expensiveWorkerStatus}</div>
     </main>
   )
 }

@@ -22,8 +22,10 @@ describe('Web Workers with Fast Refresh', () => {
     let browser
     try {
       browser = await webdriver(context.appPort, '/')
-      await check(() => browser.elementByCss('#web-status'), /PASS/i)
-      await check(() => browser.elementByCss('#worker-status'), /PASS/i)
+      await browser.waitForElementByCss('#web-status')
+      await check(() => browser.elementByCss('#web-status').text(), /PASS/i)
+      await browser.waitForElementByCss('#worker-status')
+      await check(() => browser.elementByCss('#worker-status').text(), /PASS/i)
     } finally {
       if (browser) {
         await browser.close()
