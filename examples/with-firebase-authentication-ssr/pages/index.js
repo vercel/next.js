@@ -65,14 +65,14 @@ const Index = (props) => {
   )
 }
 
-export const getServerSideProps = withAuthServerSideProps(
-  async ({ AuthUser }) => {
-    // TODO: use token in data fetching
-    // const token = await AuthUser.getIdToken()
-    // console.log('index.js: user ID token:', token)
-    const data = await fetcher(endpoint)
-    return { data: data }
-  }
-)
+export const getServerSideProps = withAuthServerSideProps({
+  authRequired: true,
+})(async ({ AuthUser }) => {
+  // TODO: use token in data fetching
+  // const token = await AuthUser.getIdToken()
+  // console.log('index.js: user ID token:', token)
+  const data = await fetcher(endpoint)
+  return { data: data }
+})
 
-export default withAuthComponent(Index)
+export default withAuthComponent({ authRequired: true })(Index)

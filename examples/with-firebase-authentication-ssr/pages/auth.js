@@ -1,8 +1,8 @@
 import FirebaseAuth from '../components/FirebaseAuth'
-import useFirebaseCookieManager from 'utils/auth/useFirebaseCookieManager'
+import withAuthComponent from 'utils/auth/withAuthComponent'
 
+// TODO: redirect if user
 const Auth = () => {
-  useFirebaseCookieManager()
   return (
     <div>
       <p>Sign in</p>
@@ -13,4 +13,4 @@ const Auth = () => {
   )
 }
 
-export default Auth
+export default withAuthComponent()(Auth)

@@ -9,7 +9,9 @@ import { AUTH_COOKIE_NAME } from 'utils/constants'
 // See this discussion on how best to use getServerSideProps
 // with a higher-order component pattern:
 // https://github.com/vercel/next.js/discussions/10925#discussioncomment-12471
-const withAuthServerSideProps = (getServerSidePropsFunc) => {
+const withAuthServerSideProps = ({ authRequired } = {}) => (
+  getServerSidePropsFunc
+) => {
   return async (ctx) => {
     const { req, res } = ctx
 
@@ -26,13 +28,25 @@ const withAuthServerSideProps = (getServerSidePropsFunc) => {
       ))
     }
     const AuthUserSerializable = createAuthUserSerializable(firebaseUser, token)
+    const AuthUser = createAuthUser(AuthUserSerializable)
+
+    // If auth is required but the user is not authed, don't return
+    // any props.
+    // Ideally, this should redirect on the server-side. See this
+    // RFC on supporting redirects from getServerSideProps:
+    // https://github.com/vercel/next.js/discussions/14890
+    if (!AuthUser.id && authRequired) {
+      console.log(
+        'Not fetching props: auth is required but the user is not authed.'
+      )
+      return { props: {} }
+    }
 
     // Evaluate the composed getServerSideProps().
     let composedProps = {}
     if (getServerSidePropsFunc) {
       // Add the AuthUser to Next.js context so pages can use
       // it in `getServerSideProps`, if needed.
-      const AuthUser = createAuthUser(AuthUserSerializable)
       ctx.AuthUser = AuthUser
       composedProps = await getServerSidePropsFunc(ctx)
     }

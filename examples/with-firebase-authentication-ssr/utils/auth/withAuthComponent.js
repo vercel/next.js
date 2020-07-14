@@ -1,12 +1,15 @@
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { AuthUserContext } from 'utils/auth/useAuthUser'
 import createAuthUser from 'utils/auth/createAuthUser'
 import useFirebaseUser from 'utils/auth/useFirebaseUser'
 import useFirebaseCookieManager from 'utils/auth/useFirebaseCookieManager'
 
 // A higher-order component to provide pages with the
-// authenticated user.
-// This should be paired with `withAuthServerSideProps`.
-const withAuthComponent = (ChildComponent) => {
+// authenticated user. This must be used if using `useAuthUser`.
+// To access the user during SSR, this should be paired with
+// `withAuthServerSideProps`.
+const withAuthComponent = ({ authRequired } = {}) => (ChildComponent) => {
   return (props) => {
     const { AuthUserSerializable, ...otherProps } = props
     const AuthUserFromServer = createAuthUser(AuthUserSerializable)
@@ -27,6 +30,27 @@ const withAuthComponent = (ChildComponent) => {
     const AuthUser = firebaseInitialized
       ? AuthUserFromClient
       : AuthUserFromServer
+
+    // If auth is required but the user is not authed, redirect to
+    // the login page.
+    const redirectToLogin = !AuthUser.id && authRequired
+    const router = useRouter()
+    useEffect(() => {
+      // Only redirect on the client side.
+      if (typeof window === undefined) {
+        return
+      }
+      if (redirectToLogin) {
+        console.log(
+          'Auth is required but the user is not authed. Redirecting to login.'
+        )
+        router.push('/auth')
+      }
+    }, [redirectToLogin, router])
+    if (redirectToLogin) {
+      return null
+    }
+
     return (
       <AuthUserContext.Provider value={AuthUser}>
         <ChildComponent {...otherProps} />
