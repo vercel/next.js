@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Link from 'next/link'
 import cn from 'classnames'
 import { useCheckout } from '@/lib/cart'
@@ -8,7 +9,7 @@ import ProductImage from './product-image'
 import styles from './product.module.css'
 
 export default function Product({ product }) {
-  const { loading, errorMsg, addItem } = useCheckout()
+  const { loading, errorMsg, setErrorMsg, addItem } = useCheckout()
   const images = useImages(product)
   const variants = product.variants.edges
   const variant = variants[0].node
@@ -20,6 +21,17 @@ export default function Product({ product }) {
   const { position, initTransition, stopTransition } = useTransition(
     images.size
   )
+
+  useEffect(() => {
+    if (errorMsg) {
+      // Remove the error message after 3 seconds
+      const timeout = setTimeout(setErrorMsg, 3000)
+
+      return () => {
+        clearTimeout(timeout)
+      }
+    }
+  }, [errorMsg, setErrorMsg])
 
   return (
     <div>

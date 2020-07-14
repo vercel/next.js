@@ -180,6 +180,7 @@ export const useCheckout = () => {
   // Creates a new checkout with a single item, the current checkout is kept intact
   const buyNow = (item, quantity) =>
     setItems([{ variantId: item.id, quantity }])
+  const setErrorMsg = (errorMsg) => setStatus({ loading, errorMsg })
 
   return {
     checkout,
@@ -188,6 +189,7 @@ export const useCheckout = () => {
     addItem,
     updateItem,
     buyNow,
+    setErrorMsg,
   }
 }
 
