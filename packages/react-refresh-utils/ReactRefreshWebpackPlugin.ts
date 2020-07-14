@@ -6,7 +6,27 @@ import {
   // @ts-ignore exists in webpack 5
   RuntimeGlobals,
   version,
+  compilation as Compilation,
 } from 'webpack'
+
+// Shared between webpack 4 and 5:
+function injectRefreshFunctions(compilation: Compilation.Compilation) {
+  compilation.mainTemplate.hooks.localVars.tap(
+    'ReactFreshWebpackPlugin',
+    (source) =>
+      Template.asString([
+        source,
+        '',
+        '// noop fns to prevent runtime errors during initialization',
+        'self.$RefreshReg$ = function () {};',
+        'self.$RefreshSig$ = function () {',
+        Template.indent('return function (type) {'),
+        Template.indent(Template.indent('return type;')),
+        Template.indent('};'),
+        '};',
+      ])
+  )
+}
 
 function webpack4(compiler: Compiler) {
   // Webpack 4 does not have a method to handle interception of module
@@ -16,6 +36,8 @@ function webpack4(compiler: Compiler) {
   // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
+    injectRefreshFunctions(compilation)
+
     const hookRequire: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
       .mainTemplate.hooks as any).require
 
@@ -106,6 +128,8 @@ function webpack5(compiler: Compiler) {
   }
 
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
+    injectRefreshFunctions(compilation)
+
     // @ts-ignore Exists in webpack 5
     compilation.hooks.additionalTreeRuntimeRequirements.tap(
       'ReactFreshWebpackPlugin',
