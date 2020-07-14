@@ -10,6 +10,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
   const [quantity, setQuantity] = useState(item.quantity)
   const { variant, title } = item
   const { id, image } = variant
+  const { handle } = variant.product
   const updateItem = (data) => {
     onItemUpdate({ variantId: id, ...data })
   }
@@ -43,7 +44,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
     <>
       <div className="flex flex-col sm:flex-row">
         <div className="flex w-full sm:w-1/2 mb-4 sm:mb-0">
-          <Link href="/">
+          <Link href="/p/[slug]" as={`/p/${handle}`}>
             <a aria-label={title} className="flex-shrink-0 mr-2">
               <img
                 className="w-24 h-24"
@@ -54,7 +55,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
           </Link>
 
           <div className="flex flex-col text-left justify-center sm:mr-2">
-            <Link href="/">
+            <Link href="/p/[slug]" as={`/p/${handle}`}>
               <a aria-label={title}>
                 <h3 className="text-lg hover:text-accent-5 font-medium mb-1">
                   {title}
