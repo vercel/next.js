@@ -43,7 +43,7 @@ Custom attributes are allowed as props, like `lang`:
 <Html lang="en">
 ```
 
-The `<Head />` component used here is not the same one from [`next/head`](/docs/api-reference/next/head), to avoid duplicated tags, have a custom `<title>`, or to add dynamic tags, like meta tags, use [`next/head`](/docs/api-reference/next/head) instead.
+The `<Head />` component used here is not the same one from [`next/head`](/docs/api-reference/next/head). The `<Head />` component used here should only be used for any `<head>` code that is common for all pages. For all other cases, such as `<title>` tags, we recommend using [`next/head`](/docs/api-reference/next/head) in your pages or components.
 
 The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md#context-object), with one addition:
 
