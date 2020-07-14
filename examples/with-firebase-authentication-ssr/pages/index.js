@@ -1,6 +1,6 @@
 import useSWR from 'swr'
 import Link from 'next/link'
-import useAuthUser from '../utils/auth/useAuthUser'
+import useAuthUser from 'utils/auth/useAuthUser'
 import withAuthComponent from 'utils/auth/withAuthComponent'
 import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
 import logout from 'utils/auth/logout'
