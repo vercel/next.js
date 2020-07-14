@@ -30,24 +30,11 @@ const Index = (props) => {
   }
   const { data } = useSWR(endpoint, fetchWithToken, { initialData })
 
-  if (!AuthUser.id) {
-    return (
-      <>
-        <p>Hi there!</p>
-        <p>
-          You are not signed in.{' '}
-          <Link href={'/auth'}>
-            <a>Sign in</a>
-          </Link>
-        </p>
-      </>
-    )
-  }
-
   return (
     <div>
       <div>
         <p>You're signed in. Email: {AuthUser.email}</p>
+        {data ? <p>Your favorite food is {data.food}.</p> : <p>Loading...</p>}
         <p
           style={{
             display: 'inline-block',
@@ -62,14 +49,14 @@ const Index = (props) => {
       </div>
       <div>
         <Link href={'/example'}>
-          <a>Another example page</a>
+          <a>Example static page</a>
         </Link>
       </div>
-      {data ? (
-        <div>Your favorite food is {data.food}.</div>
-      ) : (
-        <div>Loading...</div>
-      )}
+      <div>
+        <Link href={'/example-2'}>
+          <a>Example with optional auth</a>
+        </Link>
+      </div>
     </div>
   )
 }

@@ -4,8 +4,7 @@ const Example = (props) => {
   return (
     <div>
       <p>
-        This page is static because it does not fetch any data or include the
-        authed user info.
+        This page is static. It does not fetch any data or use the authed user.
       </p>
       <Link href={'/'}>
         <a>Home</a>
