@@ -42,9 +42,9 @@ export default function CartItem({ item, onItemUpdate, loading }) {
   return (
     <>
       <div className="flex flex-col sm:flex-row">
-        <div className="flex mb-4 sm:mb-0">
+        <div className="flex w-full sm:w-1/2 mb-4 sm:mb-0">
           <Link href="/">
-            <a aria-label={title} className="mr-2">
+            <a aria-label={title} className="flex-shrink-0 mr-2">
               <img
                 className="w-24 h-24"
                 src={image.transformedSrc || image.originalSrc}
@@ -53,7 +53,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
             </a>
           </Link>
 
-          <div className="flex flex-col text-left justify-center">
+          <div className="flex flex-col text-left justify-center sm:mr-2">
             <Link href="/">
               <a aria-label={title}>
                 <h3 className="text-lg hover:text-accent-5 font-medium mb-1">
@@ -69,7 +69,7 @@ export default function CartItem({ item, onItemUpdate, loading }) {
         </div>
 
         <div className="flex flex-grow">
-          <div className="flex flex-grow justify-start sm:justify-center items-center">
+          <div className="flex flex-grow items-center">
             <ProductQuantity
               value={quantity}
               max={MAX_PER_ITEM}
