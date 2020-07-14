@@ -33,7 +33,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-> The code above is the default `Document` added by Next.js. Feel free to remove it if you don't need to change it.
+> The code above is the default `Document` added by Next.js. Feel free to remove the `getInitialProps` or `render` function from `MyDocument` if you don't need to change them.
 
 `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
 
