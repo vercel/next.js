@@ -36,7 +36,8 @@ const withAuthComponent = ({
 
     // If auth is required but the user is not authed, redirect to
     // the login page.
-    const redirectToLogin = !AuthUser.id && authRequired
+    const redirectToLogin =
+      AuthUser.clientInitialized && !AuthUser.id && authRequired
     const router = useRouter()
     useEffect(() => {
       // Only redirect on the client side.
@@ -50,13 +51,11 @@ const withAuthComponent = ({
         router.push('/auth')
       }
     }, [redirectToLogin, router])
-    if (redirectToLogin) {
-      return null
-    }
 
     // If the user is authed and redirectIfAuthed is true, redirect
     // to the app. This is useful for login pages.
-    const redirectToApp = AuthUser.id && redirectIfAuthed
+    const redirectToApp =
+      AuthUser.clientInitialized && AuthUser.id && redirectIfAuthed
     useEffect(() => {
       // Only redirect on the client side.
       if (typeof window === undefined) {
@@ -66,7 +65,27 @@ const withAuthComponent = ({
         router.push('/')
       }
     }, [redirectToApp, router])
-    if (redirectToApp) {
+
+    // Show a loading screen if we are waiting for the auth client
+    // to load (to verify auth status) or are redirecting.
+    // This prevents a flash of content on the login screen.
+    const showLoader = !!(
+      redirectIfAuthed &&
+      (!AuthUser.clientInitialized || // waiting on auth client
+        (AuthUser.clientInitialized && AuthUser.id)) // redirecting to app
+    )
+    if (showLoader) {
+      return <div>Loading...</div>
+    }
+
+    // Render children if one of these is true:
+    // - the user is authed
+    // - the user is not authed but auth is not required
+    const renderChildComponent = !!(
+      AuthUser.id ||
+      (!AuthUser.id && !authRequired)
+    )
+    if (!renderChildComponent) {
       return null
     }
 
