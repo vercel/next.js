@@ -11,20 +11,21 @@ import {
 
 // Shared between webpack 4 and 5:
 function injectRefreshFunctions(compilation: Compilation.Compilation) {
-  compilation.mainTemplate.hooks.localVars.tap(
-    'ReactFreshWebpackPlugin',
-    (source) =>
-      Template.asString([
-        source,
-        '',
-        '// noop fns to prevent runtime errors during initialization',
-        'self.$RefreshReg$ = function () {};',
-        'self.$RefreshSig$ = function () {',
-        Template.indent('return function (type) {'),
-        Template.indent(Template.indent('return type;')),
-        Template.indent('};'),
-        '};',
-      ])
+  const hookVars: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
+    .mainTemplate.hooks as any).localVars
+
+  hookVars.tap('ReactFreshWebpackPlugin', (source) =>
+    Template.asString([
+      source,
+      '',
+      '// noop fns to prevent runtime errors during initialization',
+      'self.$RefreshReg$ = function () {};',
+      'self.$RefreshSig$ = function () {',
+      Template.indent('return function (type) {'),
+      Template.indent(Template.indent('return type;')),
+      Template.indent('};'),
+      '};',
+    ])
   )
 }
 
