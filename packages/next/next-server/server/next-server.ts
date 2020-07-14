@@ -62,7 +62,10 @@ import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
+import {
+  removePathTrailingSlash,
+  ensurePathTrailingSlash,
+} from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -444,6 +447,11 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
+    const normalizePathTrailingSlash = this.nextConfig.experimental
+      .trailingSlash
+      ? ensurePathTrailingSlash
+      : removePathTrailingSlash
+
     const getCustomRouteBasePath = (r: { basePath?: false }) => {
       return r.basePath !== false && this.renderOpts.dev
         ? this.nextConfig.basePath
@@ -540,6 +548,46 @@ export default class Server {
         },
       } as Route
     })
+
+    redirects.unshift({
+      type: 'redirect',
+      match: (url) => url.startsWith(this.nextConfig.basePath),
+      statusCode: 308,
+      name: `Redirect slashes`,
+      fn: async (_req, res, params, parsedUrl) => {
+        const { pathname } = parsedUrl
+        const slashesNormalized = normalizePathTrailingSlash(
+          pathname?.replace(/\/\/+/g, '/') || '/'
+        )
+
+        if (slashesNormalized === pathname) {
+          return { finished: false }
+        }
+
+        const { parsedDestination } = prepareDestination(
+          slashesNormalized,
+          params,
+          parsedUrl.query,
+          false,
+          ''
+        )
+        const updatedDestination = formatUrl(parsedDestination)
+
+        res.setHeader('Location', updatedDestination)
+        res.statusCode = 308
+
+        // Since IE11 doesn't support the 308 header add backwards
+        // compatibility using refresh header
+        if (res.statusCode === 308) {
+          res.setHeader('Refresh', `0;url=${updatedDestination}`)
+        }
+
+        res.end()
+        return {
+          finished: true,
+        }
+      },
+    } as Route)
 
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
