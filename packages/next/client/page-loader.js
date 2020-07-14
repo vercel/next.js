@@ -155,12 +155,13 @@ export default class PageLoader {
           return (
             (optional || param in dynamicMatches) &&
             // Interpolate group into data URL if present
-            (interpolatedRoute = interpolatedRoute.replace(
-              replaced,
-              repeat
-                ? value.map(escapePathDelimiters).join('/')
-                : escapePathDelimiters(value)
-            ))
+            (interpolatedRoute =
+              interpolatedRoute.replace(
+                replaced,
+                repeat
+                  ? value.map(escapePathDelimiters).join('/')
+                  : escapePathDelimiters(value)
+              ) || '/')
           )
         })
       ) {
