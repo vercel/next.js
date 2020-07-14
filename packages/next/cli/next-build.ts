@@ -2,22 +2,29 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { resolve } from 'path'
-
+import * as Log from '../build/output/log'
 import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 
 const nextBuild: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      // Aliases
-      '-h': '--help',
-    },
-    { argv }
-  )
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--profile': Boolean,
+    // Aliases
+    '-h': '--help',
+  }
 
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
     printAndExit(
       `
@@ -29,11 +36,16 @@ const nextBuild: cliCommand = (argv) => {
 
       <dir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
+
+      Options
+      --profile     Can be used to enable React Production Profiling
     `,
       0
     )
   }
-
+  if (args['--profile']) {
+    Log.warn('Profiling is enabled. Note: This may affect performance')
+  }
   const dir = resolve(args._[0] || '.')
 
   // Check if the provided directory exists
@@ -41,7 +53,7 @@ const nextBuild: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  build(dir)
+  build(dir, null, args['--profile'])
     .then(() => process.exit(0))
     .catch((err) => {
       console.error('')

@@ -26,7 +26,7 @@ module.exports = withSourceMaps({
     //
     // Luckily, Next.js will call this webpack function twice, once for the
     // server and once for the client. Read more:
-    // https://nextjs.org/docs#customizing-webpack-config
+    // https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config
     //
     // So ask Webpack to replace @sentry/node imports with @sentry/browser when
     // building the browser's bundle

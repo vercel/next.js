@@ -12,4 +12,4 @@ Use `next build` with platforms that don't require `next export` like https://ve
 
 ### Useful Links
 
-- [Static HTML export](https://nextjs.org/docs#static-html-export)
+- [Static HTML export](https://nextjs.org/docs/advanced-features/static-html-export)

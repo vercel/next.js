@@ -26,6 +26,12 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should not have any query values when not defined', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#query').text())).toEqual([])
+  })
+
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -81,9 +87,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-post-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -96,15 +102,15 @@ function runTests(dev) {
     expect(await browser.elementByCss('h3').text()).toBe('My blog')
   })
 
-  it.skip('should navigate optional dynamic page', async () => {
+  it('should navigate optional dynamic page', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      await browser.elementByCss('#view-blog-post-1-comments').click()
-      await browser.waitForElementByCss('p')
+      await browser.elementByCss('#view-post-1-comments').click()
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
-      expect(text).toMatch(/blog post.*543.*comment.*\(all\)/i)
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/comments for post-1 here/i)
     } finally {
       if (browser) await browser.close()
     }
@@ -115,9 +121,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-nested-dynamic-cmnt').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/blog post.*321.*comment.*123/i)
     } finally {
       if (browser) await browser.close()
@@ -129,9 +135,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-post-1-comment-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -235,6 +241,21 @@ function runTests(dev) {
 
       const text = await browser.elementByCss('#all-ssr-content').text()
       expect(text).toBe('{"rest":["hello1/","he/llo2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it("[catch-all] shouldn't fail on colon followed by double digits in the path", async () => {
+    // https://github.com/GoogleChromeLabs/native-url/issues/27
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-colonnumber').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":[":42"]}')
     } finally {
       if (browser) await browser.close()
     }
@@ -401,9 +422,9 @@ function runTests(dev) {
   it('should scroll to a hash on client-side navigation', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-dynamic-with-hash').click()
-    await browser.waitForElementByCss('p')
+    await browser.waitForElementByCss('#asdf')
 
-    const text = await browser.elementByCss('p').text()
+    const text = await browser.elementByCss('#asdf').text()
     expect(text).toMatch(/onmpost:.*test-w-hash/)
 
     const scrollPosition = await browser.eval('window.pageYOffset')
@@ -535,8 +556,32 @@ function runTests(dev) {
         basePath: '',
         headers: [],
         rewrites: [],
-        redirects: [],
+        redirects: expect.arrayContaining([]),
         dataRoutes: [
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/b\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/b/(?<a>[^/]+?)\\.json$`,
+            page: '/b/[123]',
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/c\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/c/(?<a>[^/]+?)\\.json$`,
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
+            },
+          },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
@@ -582,6 +627,14 @@ function runTests(dev) {
         ],
         dynamicRoutes: [
           {
+            namedRegex: '^/b/(?<a>[^/]+?)(?:/)?$',
+            page: '/b/[123]',
+            regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
             namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
@@ -590,6 +643,14 @@ function runTests(dev) {
             routeKeys: {
               name: 'name',
               id: 'id',
+            },
+          },
+          {
+            namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
             },
           },
           {

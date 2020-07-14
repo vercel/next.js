@@ -54,7 +54,7 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 { "pid": "abc", "comment": "a-comment" }
 ```
 
-Client-side navigations to a dynamic route can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes).
+**Note:** Client-side navigations to a dynamic route (including [catch all routes](#catch-all-routes)) can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes). Read our docs for [Linking between pages](/docs/routing/introduction#linking-between-pages) to learn more.
 
 ### Catch all routes
 
@@ -86,9 +86,6 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 > A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
 
 ### Optional catch all routes
-
-> **Warning**: This feature is **experimental and may not work as expected**.
-> You must enable the `optionalCatchAll` experimental option to try it.
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 

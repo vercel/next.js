@@ -1,5 +1,12 @@
-import { Compiler, compilation as CompilationType, Plugin } from 'webpack'
+import {
+  Compiler,
+  compilation as CompilationType,
+  Plugin,
+  version,
+} from 'webpack'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
+
+const isWebpack5 = parseInt(version!) === 5
 
 export const ampFirstEntryNamesMap: WeakMap<
   CompilationType.Compilation,
@@ -7,44 +14,6 @@ export const ampFirstEntryNamesMap: WeakMap<
 > = new WeakMap()
 
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
-
-// Recursively look up the issuer till it ends up at the root
-function findEntryModule(mod: any): CompilationType.Module | null {
-  const queue = new Set([mod])
-  for (const module of queue) {
-    for (const reason of module.reasons) {
-      if (!reason.module) return module
-      queue.add(reason.module)
-    }
-  }
-
-  return null
-}
-
-function handler(parser: any) {
-  function markAsAmpFirst() {
-    const entryModule = findEntryModule(parser.state.module)
-
-    if (!entryModule) {
-      return
-    }
-
-    // @ts-ignore buildInfo exists on Module
-    entryModule.buildInfo.NEXT_ampFirst = true
-  }
-
-  parser.hooks.varDeclarationConst
-    .for(STRING_LITERAL_DROP_BUNDLE)
-    .tap(PLUGIN_NAME, markAsAmpFirst)
-
-  parser.hooks.varDeclarationLet
-    .for(STRING_LITERAL_DROP_BUNDLE)
-    .tap(PLUGIN_NAME, markAsAmpFirst)
-
-  parser.hooks.varDeclaration
-    .for(STRING_LITERAL_DROP_BUNDLE)
-    .tap(PLUGIN_NAME, markAsAmpFirst)
-}
 
 // Prevents outputting client pages when they are not needed
 export class DropClientPage implements Plugin {
@@ -54,8 +23,68 @@ export class DropClientPage implements Plugin {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
+        // Recursively look up the issuer till it ends up at the root
+        function findEntryModule(mod: any): CompilationType.Module | null {
+          const queue = new Set([mod])
+          for (const module of queue) {
+            if (isWebpack5) {
+              // @ts-ignore TODO: webpack 5 types
+              const incomingConnections = compilation.moduleGraph.getIncomingConnections(
+                module
+              )
+
+              for (const incomingConnection of incomingConnections) {
+                if (!incomingConnection.originModule) return module
+                queue.add(incomingConnection.originModule)
+              }
+              continue
+            }
+
+            for (const reason of module.reasons) {
+              if (!reason.module) return module
+              queue.add(reason.module)
+            }
+          }
+
+          return null
+        }
+
+        function handler(parser: any) {
+          function markAsAmpFirst() {
+            const entryModule = findEntryModule(parser.state.module)
+
+            if (!entryModule) {
+              return
+            }
+
+            // @ts-ignore buildInfo exists on Module
+            entryModule.buildInfo.NEXT_ampFirst = true
+          }
+
+          if (isWebpack5) {
+            parser.hooks.preDeclarator.tap(PLUGIN_NAME, (declarator: any) => {
+              if (declarator?.id?.name === STRING_LITERAL_DROP_BUNDLE) {
+                markAsAmpFirst()
+              }
+            })
+            return
+          }
+
+          parser.hooks.varDeclaration
+            .for(STRING_LITERAL_DROP_BUNDLE)
+            .tap(PLUGIN_NAME, markAsAmpFirst)
+        }
+
         normalModuleFactory.hooks.parser
           .for('javascript/auto')
+          .tap(PLUGIN_NAME, handler)
+
+        normalModuleFactory.hooks.parser
+          .for('javascript/esm')
+          .tap(PLUGIN_NAME, handler)
+
+        normalModuleFactory.hooks.parser
+          .for('javascript/dynamic')
           .tap(PLUGIN_NAME, handler)
 
         if (!ampFirstEntryNamesMap.has(compilation)) {
@@ -67,6 +96,19 @@ export class DropClientPage implements Plugin {
         ) as string[]
 
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
+          if (isWebpack5) {
+            for (const [name, entryData] of compilation.entries) {
+              for (const dependency of entryData.dependencies) {
+                // @ts-ignore TODO: webpack 5 types
+                const module = compilation.moduleGraph.getModule(dependency)
+                if (module?.buildInfo?.NEXT_ampFirst) {
+                  // @ts-ignore @types/webpack has outdated types for webpack 5
+                  compilation.entries.delete(name)
+                }
+              }
+            }
+            return
+          }
           // Remove preparedEntrypoint that has bundle drop marker
           // This will ensure webpack does not create chunks/bundles for this particular entrypoint
           for (
