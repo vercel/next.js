@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-jss": "10.0.0-alpha.9"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-jss": "^10.3.0"
   },
   "license": "ISC"
 }
