@@ -551,7 +551,7 @@ export default class Server {
 
     redirects.unshift({
       type: 'redirect',
-      match: (url) => url!.startsWith(this.nextConfig.basePath),
+      match: getCustomRouteMatcher('/(.*)'),
       statusCode: 308,
       name: `Redirect slashes`,
       fn: async (_req, res, _params, parsedUrl) => {
