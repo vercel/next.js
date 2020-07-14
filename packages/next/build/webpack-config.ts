@@ -51,6 +51,7 @@ import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
+import WebWorkerFastRefreshPlugin from './webpack/plugins/webworker-fast-refresh-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -999,6 +1000,7 @@ export default async function getBaseWebpackConfig(
           ].filter(Boolean),
         }),
       new WellKnownErrorsPlugin(),
+      hasReactRefresh && new WebWorkerFastRefreshPlugin(),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
