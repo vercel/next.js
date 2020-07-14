@@ -5,6 +5,23 @@ import withAuthComponent from 'utils/auth/withAuthComponent'
 import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
 import logout from 'utils/auth/logout'
 
+const getAbsoluteURL = (url, req = null) => {
+  // TODO: use https unless localhost
+  const protocol = 'http'
+  let host
+  if (req) {
+    host = req.headers.host
+  } else {
+    if (typeof window === undefined) {
+      throw new Error(
+        'The "req" parameter must be provided if on the server side.'
+      )
+    }
+    host = window.location.host
+  }
+  return `${protocol}://${host}${url}`
+}
+
 const fetcher = async (url, token) => {
   const res = await fetch(url, {
     method: 'GET',
@@ -18,15 +35,14 @@ const fetcher = async (url, token) => {
   return resJSON
 }
 
-// TODO: don't hardcode domain
-const endpoint = 'http://localhost:3000/api/getFood'
+const endpoint = '/api/getFood'
 
 const Index = (props) => {
   const AuthUser = useAuthUser()
   const initialData = props.data
   const fetchWithToken = async (url) => {
     const token = await AuthUser.getIdToken()
-    return fetcher(url, token)
+    return fetcher(getAbsoluteURL(url), token)
   }
   const { data } = useSWR(endpoint, fetchWithToken, { initialData })
 
@@ -63,9 +79,10 @@ const Index = (props) => {
 
 export const getServerSideProps = withAuthServerSideProps({
   authRequired: true,
-})(async ({ AuthUser }) => {
+})(async (ctx) => {
+  const { AuthUser, req } = ctx
   const token = await AuthUser.getIdToken()
-  const data = await fetcher(endpoint, token)
+  const data = await fetcher(getAbsoluteURL(endpoint, req), token)
   return { data: data }
 })
 
