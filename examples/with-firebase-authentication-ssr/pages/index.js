@@ -6,8 +6,6 @@ import withAuthServerSideProps from 'utils/auth/withAuthServerSideProps'
 import logout from 'utils/auth/logout'
 
 const getAbsoluteURL = (url, req = null) => {
-  // TODO: use https unless localhost
-  const protocol = 'http'
   let host
   if (req) {
     host = req.headers.host
@@ -19,6 +17,8 @@ const getAbsoluteURL = (url, req = null) => {
     }
     host = window.location.host
   }
+  const isLocalhost = host.indexOf('localhost') === 0
+  const protocol = isLocalhost ? 'http' : 'https'
   return `${protocol}://${host}${url}`
 }
 
