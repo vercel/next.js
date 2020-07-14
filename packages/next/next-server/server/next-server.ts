@@ -551,10 +551,10 @@ export default class Server {
 
     redirects.unshift({
       type: 'redirect',
-      match: (url) => url.startsWith(this.nextConfig.basePath),
+      match: (url) => url!.startsWith(this.nextConfig.basePath),
       statusCode: 308,
       name: `Redirect slashes`,
-      fn: async (_req, res, params, parsedUrl) => {
+      fn: async (_req, res, _params, parsedUrl) => {
         const { pathname } = parsedUrl
         const slashesNormalized = normalizePathTrailingSlash(
           pathname?.replace(/\/\/+/g, '/') || '/'
@@ -566,7 +566,7 @@ export default class Server {
 
         const { parsedDestination } = prepareDestination(
           slashesNormalized,
-          params,
+          {},
           parsedUrl.query,
           false,
           ''
