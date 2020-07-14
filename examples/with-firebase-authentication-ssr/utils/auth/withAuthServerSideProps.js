@@ -9,7 +9,7 @@ import { AUTH_COOKIE_NAME } from 'utils/constants'
 // See this discussion on how best to use getServerSideProps
 // with a higher-order component pattern:
 // https://github.com/vercel/next.js/discussions/10925#discussioncomment-12471
-const withAuthServerSideProps = ({ authRequired } = {}) => (
+const withAuthServerSideProps = ({ authRequired = false } = {}) => (
   getServerSidePropsFunc
 ) => {
   return async (ctx) => {

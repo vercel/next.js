@@ -9,7 +9,10 @@ import useFirebaseCookieManager from 'utils/auth/useFirebaseCookieManager'
 // authenticated user. This must be used if using `useAuthUser`.
 // To access the user during SSR, this should be paired with
 // `withAuthServerSideProps`.
-const withAuthComponent = ({ authRequired } = {}) => (ChildComponent) => {
+const withAuthComponent = ({
+  authRequired = false,
+  redirectIfAuthed = false,
+} = {}) => (ChildComponent) => {
   return (props) => {
     const { AuthUserSerializable, ...otherProps } = props
     const AuthUserFromServer = createAuthUser(AuthUserSerializable)
@@ -48,6 +51,22 @@ const withAuthComponent = ({ authRequired } = {}) => (ChildComponent) => {
       }
     }, [redirectToLogin, router])
     if (redirectToLogin) {
+      return null
+    }
+
+    // If the user is authed and redirectIfAuthed is true, redirect
+    // to the app. This is useful for login pages.
+    const redirectToApp = AuthUser.id && redirectIfAuthed
+    useEffect(() => {
+      // Only redirect on the client side.
+      if (typeof window === undefined) {
+        return
+      }
+      if (redirectToApp) {
+        router.push('/')
+      }
+    }, [redirectToApp, router])
+    if (redirectToApp) {
       return null
     }
 

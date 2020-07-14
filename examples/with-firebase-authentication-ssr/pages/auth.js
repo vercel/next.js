@@ -1,7 +1,6 @@
 import FirebaseAuth from '../components/FirebaseAuth'
 import withAuthComponent from 'utils/auth/withAuthComponent'
 
-// TODO: redirect if user
 const Auth = () => {
   return (
     <div>
@@ -13,4 +12,4 @@ const Auth = () => {
   )
 }
 
-export default withAuthComponent()(Auth)
+export default withAuthComponent({ redirectIfAuthed: true })(Auth)

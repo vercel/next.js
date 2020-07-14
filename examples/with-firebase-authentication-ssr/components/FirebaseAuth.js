@@ -23,7 +23,8 @@ const firebaseAuthConfig = {
   callbacks: {
     // https://github.com/firebase/firebaseui-web#signinsuccesswithauthresultauthresult-redirecturl
     signInSuccessWithAuthResult: () => {
-      // Don't automatically redirect.
+      // Don't automatically redirect. We handle redirecting based on
+      // auth state in withAuthComponent.js.
       return false
     },
   },
