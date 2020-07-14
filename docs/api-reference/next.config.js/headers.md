@@ -89,3 +89,37 @@ module.exports = {
   },
 }
 ```
+
+### Headers with basePath support
+
+When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with headers each `source` is automatically prefixed with the `basePath` unless you add `basePath: false` to the header:
+
+```js
+module.exports = {
+  basePath: '/docs',
+
+  async headers() {
+    return [
+      {
+        source: '/with-basePath', // becomes /docs/with-basePath
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world'
+          }
+        ]
+      },
+      {
+        source: '/without-basePath', // is not modified since basePath: false is set
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world'
+          }
+        ]
+        basePath: false
+      },
+    ]
+  },
+}
+```
