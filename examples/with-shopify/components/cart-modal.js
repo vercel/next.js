@@ -1,10 +1,9 @@
+import { useEffect } from 'react'
 import Modal from 'react-modal'
 import { useCart, useCheckout } from '@/lib/cart'
 import CartItem from './cart-item'
 import Button from './button'
 import styles from './cart-modal.module.css'
-
-Modal.setAppElement('#__next')
 
 export default function CartModal() {
   const { isOpen, closeCart } = useCart()
@@ -21,6 +20,10 @@ export default function CartModal() {
       currency: checkout.subtotalPriceV2.currencyCode,
     })
   const price = formatCurrency?.format(checkout.subtotalPriceV2.amount)
+
+  useEffect(() => {
+    Modal.setAppElement('#__next')
+  }, [])
 
   return (
     <Modal
