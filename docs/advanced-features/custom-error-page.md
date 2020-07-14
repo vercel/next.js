@@ -75,3 +75,5 @@ export default function Page({ errorCode, stars }) {
 ```
 
 The `Error` component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.
+
+If you have a custom `Error` component be sure to import that one instead. `next/error` exports the default component used by Next.js.
