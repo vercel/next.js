@@ -9,11 +9,13 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 5)
+jest.setTimeout(1000 * 60 * 2)
+
 let app
 let appPort
 const appDir = join(__dirname, '..')
@@ -21,78 +23,78 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
-const showsError = async (
-  pathname,
-  regex,
-  click = false,
-  isWarn = false,
-  cb
-) => {
+const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
-  if (isWarn) {
-    await browser.eval(`(function() {
-      window.warnLogs = []
-      var origWarn = window.console.warn
-      window.console.warn = function() {
-        var warnStr = ''
-        for (var i = 0; i < arguments.length; i++) {
-          if (i > 0) warnStr += ' ';
-          warnStr += arguments[i]
+  try {
+    if (isWarn) {
+      await browser.eval(`(function() {
+        window.warnLogs = []
+        var origWarn = window.console.warn
+        window.console.warn = function() {
+          var warnStr = ''
+          for (var i = 0; i < arguments.length; i++) {
+            if (i > 0) warnStr += ' ';
+            warnStr += arguments[i]
+          }
+          window.warnLogs.push(warnStr)
+          origWarn.apply(undefined, arguments)
         }
-        window.warnLogs.push(warnStr)
-        origWarn.apply(undefined, arguments)
-      }
-    })()`)
+      })()`)
+    }
+    // wait for page to be built and navigated to
+    await waitFor(3000)
+    await browser.waitForElementByCss('#click-me')
+    if (click) {
+      await browser.elementByCss('#click-me').click()
+      await waitFor(500)
+    }
+    if (isWarn) {
+      await check(async () => {
+        const warnLogs = await browser.eval('window.warnLogs')
+        return warnLogs.join('\n')
+      }, regex)
+    } else {
+      expect(await hasRedbox(browser)).toBe(true)
+      const errorContent = await getRedboxHeader(browser)
+      expect(errorContent).toMatch(regex)
+    }
+  } finally {
+    await browser.close()
   }
-
-  if (click) {
-    await browser.elementByCss('a').click()
-  }
-  if (isWarn) {
-    await waitFor(2000)
-    const warnLogs = await browser.eval('window.warnLogs')
-    console.log(warnLogs)
-    expect(warnLogs.some((log) => log.match(regex))).toBe(true)
-  } else {
-    expect(await hasRedbox(browser)).toBe(true)
-    const errorContent = await getRedboxHeader(browser)
-    expect(errorContent).toMatch(regex)
-  }
-
-  if (cb) await cb(browser)
-
-  await browser.close()
 }
 
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
-  await browser.eval(`(function() {
-    window.caughtErrors = []
-    window.addEventListener('error', function (error) {
-      window.caughtErrors.push(error.message || 1)
-    })
-    window.addEventListener('unhandledrejection', function (error) {
-      window.caughtErrors.push(error.message || 1)
-    })
-    window.next.router.replace('${pathname}')
-  })()`)
-  // wait for page to be built and navigated to
-  await waitFor(3000)
-  if (click) {
-    await browser.elementByCss('a').click()
+  try {
+    await browser.eval(`(function() {
+      window.caughtErrors = []
+      window.addEventListener('error', function (error) {
+        window.caughtErrors.push(error.message || 1)
+      })
+      window.addEventListener('unhandledrejection', function (error) {
+        window.caughtErrors.push(error.message || 1)
+      })
+      window.next.router.replace('${pathname}')
+    })()`)
+    // wait for page to be built and navigated to
+    await waitFor(3000)
+    await browser.waitForElementByCss('#click-me')
+    if (click) {
+      await browser.elementByCss('#click-me').click()
+      await waitFor(500)
+    }
+    const caughtErrors = await browser.eval(`window.caughtErrors`)
+    expect(caughtErrors).toHaveLength(0)
+  } finally {
+    await browser.close()
   }
-  const numErrors = await browser.eval(`window.caughtErrors.length`)
-  expect(numErrors).toBe(0)
-  await browser.close()
 }
 
 describe('Invalid hrefs', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-      })
+      app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
 
@@ -173,22 +175,26 @@ describe('Invalid hrefs', () => {
 
     it('shows error when dynamic route mismatch is used on Link', async () => {
       const browser = await webdriver(appPort, '/dynamic-route-mismatch')
-      await browser.eval(`(function() {
-        window.caughtErrors = []
-        window.addEventListener('unhandledrejection', (error) => {
-          window.caughtErrors.push(error.reason.message)
-        })
-      })()`)
-      await browser.elementByCss('a').click()
-      await waitFor(500)
-      const errors = await browser.eval('window.caughtErrors')
-      expect(
-        errors.find((err) =>
-          err.includes(
-            'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+      try {
+        await browser.eval(`(function() {
+          window.caughtErrors = []
+          window.addEventListener('unhandledrejection', (error) => {
+            window.caughtErrors.push(error.reason.message)
+          })
+        })()`)
+        await browser.elementByCss('a').click()
+        await waitFor(500)
+        const errors = await browser.eval('window.caughtErrors')
+        expect(
+          errors.find((err) =>
+            err.includes(
+              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+            )
           )
-        )
-      ).toBeTruthy()
+        ).toBeTruthy()
+      } finally {
+        await browser.close()
+      }
     })
 
     it('makes sure that router push with bad links resolve', async () => {

@@ -87,9 +87,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-post-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -102,15 +102,15 @@ function runTests(dev) {
     expect(await browser.elementByCss('h3').text()).toBe('My blog')
   })
 
-  it.skip('should navigate optional dynamic page', async () => {
+  it('should navigate optional dynamic page', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      await browser.elementByCss('#view-blog-post-1-comments').click()
-      await browser.waitForElementByCss('p')
+      await browser.elementByCss('#view-post-1-comments').click()
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
-      expect(text).toMatch(/blog post.*543.*comment.*\(all\)/i)
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/comments for post-1 here/i)
     } finally {
       if (browser) await browser.close()
     }
@@ -121,9 +121,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-nested-dynamic-cmnt').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/blog post.*321.*comment.*123/i)
     } finally {
       if (browser) await browser.close()
@@ -135,9 +135,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-post-1-comment-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -422,9 +422,9 @@ function runTests(dev) {
   it('should scroll to a hash on client-side navigation', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-dynamic-with-hash').click()
-    await browser.waitForElementByCss('p')
+    await browser.waitForElementByCss('#asdf')
 
-    const text = await browser.elementByCss('p').text()
+    const text = await browser.elementByCss('#asdf').text()
     expect(text).toMatch(/onmpost:.*test-w-hash/)
 
     const scrollPosition = await browser.eval('window.pageYOffset')
