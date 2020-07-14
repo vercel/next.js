@@ -11,7 +11,11 @@ const fetcher = async (url, token) => {
     headers: { 'Content-Type': 'application/json', token },
     credentials: 'same-origin',
   })
-  return await res.json()
+  const resJSON = await res.json()
+  if (!res.ok) {
+    throw new Error(`Error fetching data: ${JSON.stringify(resJSON)}`)
+  }
+  return resJSON
 }
 
 // TODO: don't hardcode domain
@@ -20,7 +24,10 @@ const endpoint = 'http://localhost:3000/api/getFood'
 const Index = (props) => {
   const AuthUser = useAuthUser()
   const initialData = props.data
+
+  // FIXME: use the user token here to fetch. Otherwise
   const { data } = useSWR(endpoint, fetcher, { initialData })
+
   if (!AuthUser.id) {
     return (
       <>
@@ -68,10 +75,8 @@ const Index = (props) => {
 export const getServerSideProps = withAuthServerSideProps({
   authRequired: true,
 })(async ({ AuthUser }) => {
-  // TODO: use token in data fetching
-  // const token = await AuthUser.getIdToken()
-  // console.log('index.js: user ID token:', token)
-  const data = await fetcher(endpoint)
+  const token = await AuthUser.getIdToken()
+  const data = await fetcher(endpoint, token)
   return { data: data }
 })
 
