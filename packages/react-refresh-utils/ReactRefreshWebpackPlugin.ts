@@ -19,12 +19,14 @@ function injectRefreshFunctions(compilation: Compilation.Compilation) {
       source,
       '',
       '// noop fns to prevent runtime errors during initialization',
-      'self.$RefreshReg$ = function () {};',
-      'self.$RefreshSig$ = function () {',
-      Template.indent('return function (type) {'),
-      Template.indent(Template.indent('return type;')),
+      'if (typeof self !== "undefined") {',
+      Template.indent('self.$RefreshReg$ = function () {};'),
+      Template.indent('self.$RefreshSig$ = function () {'),
+      Template.indent(Template.indent('return function (type) {')),
+      Template.indent(Template.indent(Template.indent('return type;'))),
+      Template.indent(Template.indent('};')),
       Template.indent('};'),
-      '};',
+      '}',
     ])
   )
 }
