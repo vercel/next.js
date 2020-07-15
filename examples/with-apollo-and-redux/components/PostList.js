@@ -40,15 +40,6 @@ export default function PostList() {
       variables: {
         skip: allPosts.length,
       },
-      updateQuery: (previousResult, { fetchMoreResult }) => {
-        if (!fetchMoreResult) {
-          return previousResult
-        }
-        return Object.assign({}, previousResult, {
-          // Append the new posts results to the old one
-          allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts],
-        })
-      },
     })
   }
 
