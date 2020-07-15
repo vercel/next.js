@@ -59,7 +59,7 @@ export default class BuildManifestPlugin {
   apply(compiler: Compiler) {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
-      (compilation, callback) => {
+      (compilation: any, callback: any) => {
         const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
           polyfillFiles: [],
