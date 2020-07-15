@@ -27,7 +27,7 @@ export default class FontStylesheetGatheringPlugin {
     for (const type of JS_TYPES) {
       factory.hooks.parser
         .for('javascript/' + type)
-        .tap(this.constructor.name, (parser) => {
+        .tap(this.constructor.name, (parser: any) => {
           /**
            * Webpack fun facts:
            * `parser.hooks.call.for` cannot catch calls for user defined identifiers like `__jsx`
@@ -104,7 +104,7 @@ export default class FontStylesheetGatheringPlugin {
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
-        async (_, modulesFinished) => {
+        async (_: any, modulesFinished: Function) => {
           const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
