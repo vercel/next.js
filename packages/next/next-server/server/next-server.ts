@@ -270,13 +270,11 @@ export default class Server {
 
     const { basePath } = this.nextConfig
 
-    // if basePath is set require it be present
-    if (basePath && !req.url!.startsWith(basePath)) {
-      return this.render404(req, res, parsedUrl)
-    } else {
-      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
-      req.url = req.url!.replace(basePath, '')
+    if (basePath && req.url?.startsWith(basePath)) {
+      // store original URL to allow checking if basePath was
+      // provided or not
+      ;(req as any)._nextHadBasePath = true
+      req.url = req.url!.replace(basePath, '') || '/'
     }
 
     res.statusCode = 200
@@ -325,6 +323,7 @@ export default class Server {
   }
 
   protected generateRoutes(): {
+    basePath: string
     headers: Route[]
     rewrites: Route[]
     fsRoutes: Route[]
@@ -462,11 +461,17 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
+    const getCustomRouteBasePath = (r: { basePath?: false }) => {
+      return r.basePath !== false && this.renderOpts.dev
+        ? this.nextConfig.basePath
+        : ''
+    }
+
     const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
       ({
         ...r,
         type,
-        match: getCustomRouteMatcher(r.source),
+        match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
       } as Route & Rewrite & Header)
@@ -475,7 +480,13 @@ export default class Server {
       if (!value.includes(':')) {
         return value
       }
-      const { parsedDestination } = prepareDestination(value, params, {})
+      const { parsedDestination } = prepareDestination(
+        value,
+        params,
+        {},
+        false,
+        ''
+      )
 
       if (
         !parsedDestination.pathname ||
@@ -524,7 +535,9 @@ export default class Server {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
             params,
-            parsedUrl.query
+            parsedUrl.query,
+            false,
+            getCustomRouteBasePath(redirectRoute)
           )
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -548,6 +561,7 @@ export default class Server {
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
+        ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
         name: `Rewrite route`,
@@ -557,7 +571,8 @@ export default class Server {
             rewriteRoute.destination,
             params,
             parsedUrl.query,
-            true
+            true,
+            getCustomRouteBasePath(rewriteRoute)
           )
 
           // external rewrite, proxy it
@@ -577,8 +592,9 @@ export default class Server {
               finished: true,
             }
           }
-          ;(req as any)._nextDidRewrite = true
           ;(req as any)._nextRewroteUrl = newUrl
+          ;(req as any)._nextDidRewrite =
+            (req as any)._nextRewroteUrl !== req.url
 
           return {
             finished: false,
@@ -635,6 +651,7 @@ export default class Server {
       catchAllRoute,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
+      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
     }
   }
