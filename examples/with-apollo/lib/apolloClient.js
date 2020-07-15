@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
-import { ApolloClient } from 'apollo-client'
-import { InMemoryCache } from 'apollo-cache-inmemory'
-import { HttpLink } from 'apollo-link-http'
+import { ApolloClient } from '@apollo/client/core'
+import { HttpLink, InMemoryCache } from '@apollo/client'
 
 let apolloClient
 
