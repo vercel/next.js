@@ -12,7 +12,7 @@ Depending on your app's requirements, other approaches may be better.
 
 ## How it works
 
-On login, we create a custom Firebase token, fetch an ID token and refresh token, and store the ID and refresh tokens in a cookie. On future requests, we verify the ID token server-side; if it's expired, we use the refresh token to get a new one.
+On login, we create a custom Firebase token, [fetch an ID token and refresh token](https://firebase.google.com/docs/reference/rest/auth/#section-verify-custom-token), and store the ID and refresh tokens in a cookie. On future requests, we verify the ID token server-side; if it's expired, we [use the refresh token](https://firebase.google.com/docs/reference/rest/auth/#section-refresh-token) to get a new one.
 
 The authed user is provided as an isomorphic `AuthUser` object. During SSR and client-side rendering prior to initializing the Firebase JS SDK, `AuthUser` relies on the ID token from the cookie. After the Firebase JS SDK initializes, it relies on the Firebase JS SDK.
 
