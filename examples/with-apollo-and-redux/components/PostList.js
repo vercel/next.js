@@ -1,5 +1,4 @@
-import { useQuery } from '@apollo/react-hooks'
-import { NetworkStatus } from 'apollo-client'
+import { useQuery, NetworkStatus } from '@apollo/client'
 import gql from 'graphql-tag'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
