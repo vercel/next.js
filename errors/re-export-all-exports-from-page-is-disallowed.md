@@ -2,12 +2,37 @@
 
 #### Why This Error Occurred
 
-This error occurred when use of `export * from '...'` in Next.js pages to prevent errors like this one :
-
-In case we import `fs` and re-exports all, we got the following error :
+The following export breaks Next.js compilation of pages:
 
 ```js
-    Module not found: Can't resolve 'fs' in './pages/example.js'
+export * from '...'
+```
+
+Node.js code may be leaked to the browser build causing an error. For example, the next two pages:
+
+```js
+// pages/one.js
+import fs from 'fs'
+
+export default function A() {
+  return <main />
+}
+
+export function getStaticProps() {
+  fs
+  return { props: {} }
+}
+```
+
+```js
+// pages/two.js
+export * from './one'
+```
+
+Will cause the following error:
+
+```
+Module not found: Can't resolve 'fs' in './pages/two.js'
 ```
 
 #### Possible Ways to Fix It
