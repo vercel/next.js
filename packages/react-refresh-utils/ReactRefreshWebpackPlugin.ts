@@ -11,10 +11,9 @@ import {
 
 // Shared between webpack 4 and 5:
 function injectRefreshFunctions(compilation: Compilation.Compilation) {
-  const hookVars: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
-    .mainTemplate.hooks as any).localVars
+  const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
-  hookVars.tap('ReactFreshWebpackPlugin', (source) =>
+  hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
     Template.asString([
       source,
       '',
@@ -41,10 +40,10 @@ function webpack4(compiler: Compiler) {
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     injectRefreshFunctions(compilation)
 
-    const hookRequire: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
-      .mainTemplate.hooks as any).require
+    const hookRequire: any = (compilation.mainTemplate.hooks as any).require
 
-    hookRequire.tap('ReactFreshWebpackPlugin', (source, _chunk, _hash) => {
+    // @ts-ignore webpack 5 types compat
+    hookRequire.tap('ReactFreshWebpackPlugin', (source: string) => {
       // Webpack 4 evaluates module code on the following line:
       // ```
       // modules[moduleId].call(module.exports, module, module.exports, hotCreateRequire(moduleId));
@@ -52,6 +51,7 @@ function webpack4(compiler: Compiler) {
       // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
       const lines = source.split('\n')
+      // @ts-ignore webpack 5 types compat
       const evalIndex = lines.findIndex((l) =>
         l.includes('modules[moduleId].call(')
       )
@@ -130,6 +130,7 @@ function webpack5(compiler: Compiler) {
     }
   }
 
+  // @ts-ignore webpack 5 types compat
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     injectRefreshFunctions(compilation)
 
