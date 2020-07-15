@@ -16,7 +16,9 @@ module.exports = withPrefresh({
 
     if (isServer) {
       // mark `preact` stuffs as external for server bundle to prevent duplicate copies of preact
-      config.externals.push(/^(preact|preact-render-to-string|preact-context-provider)([\\/]|$)/);
+      config.externals.push(
+        /^(preact|preact-render-to-string|preact-context-provider)([\\/]|$)/
+      )
     }
 
     // Install webpack aliases:
