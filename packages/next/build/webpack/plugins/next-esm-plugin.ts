@@ -80,12 +80,9 @@ export class NextEsmPlugin implements Plugin {
   }
 
   apply(compiler: Compiler) {
-    compiler.hooks.make.tapAsync(
-      PLUGIN_NAME,
-      (compilation: CompilationType.Compilation, callback) => {
-        this.runBuild(compiler, compilation).then(callback)
-      }
-    )
+    compiler.hooks.make.tapAsync(PLUGIN_NAME, (compilation, callback) => {
+      this.runBuild(compiler, compilation).then(callback)
+    })
   }
 
   getLoaders(rules: RuleSetRule[], predicate: (loader: string) => boolean) {
