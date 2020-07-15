@@ -328,10 +328,17 @@ const nextServerlessLoader: loader.Loader = function () {
         ${handleBasePath}
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
-          _nextData = true
-          parsedUrl.pathname = parsedUrl.pathname
-            .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
-            .replace(/\\.json$/, '')
+          const {
+            default: getRouteFromAssetPath,
+          } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
+          _nextData = true;
+          parsedUrl.pathname = getRouteFromAssetPath(
+            parsedUrl.pathname.replace(
+              new RegExp('/_next/data/${escapedBuildId}/'),
+              '/'
+            ),
+            '.json'
+          );
         }
 
         const renderOpts = Object.assign(
