@@ -112,7 +112,7 @@ export default class WebpackConformancePlugin {
     for (const type of JS_TYPES) {
       factory.hooks.parser
         .for('javascript/' + type)
-        .tap(this.constructor.name, (parser) => {
+        .tap(this.constructor.name, (parser: any) => {
           parser.hooks.program.tap(this.constructor.name, (ast: any) => {
             const visitors: VisitorMap = {}
             const that = this

@@ -21,10 +21,10 @@ export class CssMinimizerPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap('CssMinimizerPlugin', (compilation) => {
+    compiler.hooks.compilation.tap('CssMinimizerPlugin', (compilation: any) => {
       compilation.hooks.optimizeChunkAssets.tapPromise(
         'CssMinimizerPlugin',
-        (chunks) =>
+        (chunks: webpack.compilation.Chunk[]) =>
           Promise.all(
             chunks
               .reduce(
