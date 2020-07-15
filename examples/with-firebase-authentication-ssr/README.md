@@ -10,6 +10,14 @@ Depending on your app's requirements, other approaches may be better.
 
 **If you don't need server-side access to a Firebase ID token:** consider using [Firebase's session cookies](https://firebase.google.com/docs/auth/admin/manage-cookies). It's less complicated and will likely be quicker to render server-side. However, *you will not be able to access other Firebase services* with the session cookie.
 
+## How it works
+
+On login, we create a custom Firebase token, fetch an ID token and refresh token, and store the ID and refresh tokens in a cookie. On future requests, we verify the ID token server-side; if it's expired, we use the refresh token to get a new one.
+
+The authed user is provided as an isomorphic `AuthUser` object. During SSR and client-side rendering prior to initializing the Firebase JS SDK, `AuthUser` relies on the ID token from the cookie. After the Firebase JS SDK initializes, it relies on the Firebase JS SDK.
+
+The Firebase JS SDK auth state remains the source of truth. On auth state change, we set/unset the auth cookie.
+
 ## How to use
 
 ### Using `create-next-app`
