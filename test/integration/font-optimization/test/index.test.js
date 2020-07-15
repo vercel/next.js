@@ -42,7 +42,7 @@ const startServerlessEmulator = async (dir, port) => {
 
 function runTests() {
   it('should inline the google fonts for static pages', async () => {
-    const html = await renderViaHTTP(appPort, '/')
+    const html = await renderViaHTTP(appPort, '/index')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
     expect(html).toContain(
       '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css?family=Voces"/>'
@@ -125,15 +125,5 @@ describe('Font optimization for emulated serverless apps', () => {
   afterAll(async () => {
     await fs.remove(nextConfig)
   })
-  // only testing for stars page as others are static pages.
-  it('should inline the google fonts for SSR pages', async () => {
-    const html = await renderViaHTTP(appPort, '/stars')
-    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-    expect(html).toContain(
-      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
-    )
-    expect(html).toMatch(
-      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
-    )
-  })
+  runTests()
 })

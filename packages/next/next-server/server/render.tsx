@@ -46,11 +46,7 @@ import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
 import postProcess from '../lib/post-process'
-import {
-  FontManifest,
-  getFontDefinitionFromManifest,
-  getFontDefinitionFromNetwork,
-} from './font-utils'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 
 function noRouter() {
   const message =
@@ -289,15 +285,11 @@ export async function renderToHTML(
     basePath,
   } = renderOpts
 
-  const getFontDefinition = (url: string): Promise<string> => {
+  const getFontDefinition = (url: string): string => {
     if (fontManifest) {
-      return Promise.resolve(getFontDefinitionFromManifest(url, fontManifest))
+      return getFontDefinitionFromManifest(url, fontManifest)
     }
-    /**
-     * Markup for static files in serverless build are generated via webpack loader.
-     * By that time the font manifest is not created thus the font definition is requested via network.
-     */
-    return getFontDefinitionFromNetwork(url)
+    return ''
   }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
