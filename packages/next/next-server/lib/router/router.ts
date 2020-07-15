@@ -18,7 +18,6 @@ import { getRouteRegex } from './utils/route-regex'
 import { searchParamsToUrlQuery } from './utils/search-params-to-url-query'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import {
-  normalizeTrailingSlash,
   removePathTrailingSlash,
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
@@ -52,7 +51,8 @@ export function resolveHref(currentPath: string, href: Url): string {
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
-  const finalUrl = normalizeTrailingSlash(new URL(urlAsString, base))
+  const finalUrl = new URL(urlAsString, base)
+  finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
   // if the origin didn't change, it means we received a relative href
   return finalUrl.origin === base.origin
     ? finalUrl.href.slice(finalUrl.origin.length)
