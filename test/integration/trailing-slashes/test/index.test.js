@@ -12,6 +12,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  File,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -20,7 +21,7 @@ jest.setTimeout(1000 * 60 * 2)
 let app
 let appPort
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 
 function testShouldRedirect(expectations) {
   it.each(expectations)(
@@ -176,18 +177,13 @@ function testWithTrailingSlash() {
 
 describe('Trailing slashes', () => {
   describe('dev mode, trailingSlash: false', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: false')
-      )
+      nextConfig.replace('// <placeholder>', 'trailingSlash: false')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
@@ -195,18 +191,13 @@ describe('Trailing slashes', () => {
   })
 
   describe('dev mode, trailingSlash: true', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: true')
-      )
+      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
@@ -214,20 +205,14 @@ describe('Trailing slashes', () => {
   })
 
   describe('production mode, trailingSlash: false', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: false')
-      )
+      nextConfig.replace('// <placeholder>', 'trailingSlash: false')
       await nextBuild(appDir)
-
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
@@ -252,20 +237,14 @@ describe('Trailing slashes', () => {
   })
 
   describe('production mode, trailingSlash: true', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: true')
-      )
+      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
       await nextBuild(appDir)
-
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
@@ -295,20 +274,14 @@ describe('Trailing slashes', () => {
   })
 
   describe('dev mode, with basepath, trailingSlash: true', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig
-          .replace('// <placeholder>', 'trailingSlash: true')
-          .replace('// basePath:', 'basePath:')
-      )
+      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      nextConfig.replace('// basePath:', 'basePath:')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
@@ -326,22 +299,15 @@ describe('Trailing slashes', () => {
   })
 
   describe('production mode, with basepath, trailingSlash: true', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig
-          .replace('// <placeholder>', 'trailingSlash: true')
-          .replace('// basePath:', 'basePath:')
-      )
+      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      nextConfig.replace('// basePath:', 'basePath:')
       await nextBuild(appDir)
-
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
