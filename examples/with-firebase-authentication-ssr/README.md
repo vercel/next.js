@@ -6,7 +6,7 @@ This example demonstrates server-side rendering with Firebase authentication, pr
 
 Depending on your app's requirements, other approaches may be better.
 
-**If you don't need SSR:** use [with-firebase-authentication](https://github.com/vercel/next.js/tree/canary/examples/with-firebase-authentication) to fetch data from the client side. It's less complicated, and your app will have a quicker initial page load.
+**If you don't need SSR:** use [with-firebase-authentication](../with-firebase-authentication) to fetch data from the client side. It's less complicated, and your app will have a quicker initial page load.
 
 **If you don't need server-side access to a Firebase ID token:** consider using [Firebase's session cookies](https://firebase.google.com/docs/auth/admin/manage-cookies). It's less complicated and will likely be quicker to render server-side. However, *you will not be able to access other Firebase services* with the session cookie.
 
