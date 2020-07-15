@@ -16,7 +16,6 @@ export const withCookies = (req, res) => {
 
   // An array is useful for rotating secrets without invalidating old sessions.
   // The first will be used to sign cookies, and the rest to validate them.
-  // https://github.com/expressjs/cookie-session#keys
   const sessionSecrets = [
     process.env.SESSION_SECRET_CURRENT,
     process.env.SESSION_SECRET_PREVIOUS,

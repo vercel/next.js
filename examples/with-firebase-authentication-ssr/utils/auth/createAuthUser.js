@@ -1,10 +1,13 @@
 import { get } from 'lodash/object'
 
 /**
- * Take the user object from Firebase (from either the Firebase admin SDK or
- * or the client-side Firebase JS SDK) and return a consistent AuthUser object.
+ * Take the user object (either an AuthUserSerializable object or a user
+ * from client-side Firebase JS SDK) and return an AuthUser object.
  * @param {Object} user - Either: a Firebase JS SDK user object or an
  *   AuthUserSerializable object.
+ * @param {Boolean} clientInitialized - This should be true if the
+ *   Firebase JS SDK has initialized, meaning we know the AuthUser value
+ *   is from the source of truth. Defaults to false.
  * @return {Object|null} AuthUser - The user object.
  * @return {String|null} AuthUser.id - The user's ID
  * @return {String|null} AuthUser.email - The user's email
@@ -12,6 +15,8 @@ import { get } from 'lodash/object'
  * @return {Function} AuthUser.getIdToken - An asynchronous function that
  *   resolves to the Firebase user's ID token string, or null if the user is
  *   not authenticated.
+ * @return {Boolean} AuthUser.clientInitialized - Whether the client-side
+ *   Firebase JS SDK has initialized.
  */
 const createAuthUser = (user, clientInitialized = false) => {
   return {
