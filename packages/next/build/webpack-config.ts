@@ -969,6 +969,7 @@ export default async function getBaseWebpackConfig(
           })
         })(),
       config.experimental.conformance &&
+        !isWebpack5 &&
         !dev &&
         new WebpackConformancePlugin({
           tests: [
