@@ -145,8 +145,10 @@ function reduceComponents(
             c.props['href'].startsWith(url)
           )
         ) {
-          c.props['data-href'] = c.props['href']
-          delete c.props['href']
+          const newProps = { ...(c.props || {}) }
+          newProps['data-href'] = newProps['href']
+          newProps['href'] = undefined
+          return React.cloneElement(c, newProps)
         }
       }
       return React.cloneElement(c, { key })
