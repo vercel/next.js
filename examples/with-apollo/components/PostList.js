@@ -1,5 +1,4 @@
-import { useQuery, NetworkStatus } from '@apollo/client'
-import gql from 'graphql-tag'
+import { gql, useQuery, NetworkStatus } from '@apollo/client'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
