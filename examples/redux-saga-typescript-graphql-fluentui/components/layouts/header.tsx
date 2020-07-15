@@ -14,6 +14,6 @@ const renderDetailsRowStyles = {
 
 export const Header: React.FunctionComponent = () => (
   <Text as="h2" nowrap block styles={renderDetailsRowStyles}>
-    this is a heder
+    this is a header
   </Text>
 )
