@@ -1,6 +1,14 @@
-# Example: Firebase authentication with a serverless API
+# Example: Firebase authentication with SSR
 
-This example includes Firebase authentication and serverless [API routes](https://nextjs.org/docs/api-routes/introduction).
+This example demonstrates server-side rendering with Firebase authentication, providing server-side access to a valid Firebase ID token.
+
+## Before you use this example
+
+Depending on your app's requirements, other approaches may be better.
+
+**If you don't need SSR:** use [with-firebase-authentication](https://github.com/vercel/next.js/tree/canary/examples/with-firebase-authentication) to fetch data from the client side. It's less complicated, and your app will have a quicker initial page load.
+
+**If you don't need server-side access to a Firebase ID token:** consider using [Firebase's session cookies](https://firebase.google.com/docs/auth/admin/manage-cookies). It's less complicated and will likely be quicker to render server-side. However, *you will not be able to access other Firebase services* with the session cookie.
 
 ## How to use
 
@@ -9,9 +17,9 @@ This example includes Firebase authentication and serverless [API routes](https:
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-firebase-authentication with-firebase-authentication-app
+npx create-next-app --example with-firebase-authentication with-firebase-authentication-ssr
 # or
-yarn create next-app --example with-firebase-authentication with-firebase-authentication-app
+yarn create next-app --example with-firebase-authentication with-firebase-authentication-ssr
 ```
 
 ### Download manually
@@ -19,8 +27,8 @@ yarn create next-app --example with-firebase-authentication with-firebase-authen
 Download the example:
 
 ```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication
-cd with-firebase-authentication
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication-ssr
+cd with-firebase-authentication-ssr
 ```
 
 ## Configuration
