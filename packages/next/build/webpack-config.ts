@@ -383,7 +383,7 @@ export default async function getBaseWebpackConfig(
         defaultVendors: false,
         framework: {
           chunks: 'all',
-          name: isWebpack5 ? 'static/chunks/framework' : 'framework',
+          name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
           // https://github.com/vercel/next.js/pull/9012
@@ -418,17 +418,14 @@ export default async function getBaseWebpackConfig(
               hash.update(module.libIdent({ context: dir }))
             }
 
-            return (
-              (isWebpack5 ? 'static/chunks/' : '') +
-              hash.digest('hex').substring(0, 8)
-            )
+            return hash.digest('hex').substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
         },
         commons: {
-          name: (isWebpack5 ? 'static/chunks/' : '') + 'commons',
+          name: 'commons',
           minChunks: totalPages,
           priority: 20,
         },
@@ -436,7 +433,7 @@ export default async function getBaseWebpackConfig(
           name(module, chunks) {
             return (
               (isWebpack5 ? 'static/chunks/' : '') +
-              (crypto
+              crypto
                 .createHash('sha1')
                 .update(
                   chunks.reduce(
@@ -447,7 +444,7 @@ export default async function getBaseWebpackConfig(
                   )
                 )
                 .digest('hex') +
-                (isModuleCSS(module) ? '_CSS' : ''))
+              (isModuleCSS(module) ? '_CSS' : '')
             )
           },
           priority: 10,
@@ -972,6 +969,7 @@ export default async function getBaseWebpackConfig(
           })
         })(),
       config.experimental.conformance &&
+        !isWebpack5 &&
         !dev &&
         new WebpackConformancePlugin({
           tests: [
