@@ -1,6 +1,4 @@
-import { useQuery } from '@apollo/react-hooks'
-import { NetworkStatus } from 'apollo-client'
-import gql from 'graphql-tag'
+import { gql, useQuery, NetworkStatus } from '@apollo/client'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
@@ -42,15 +40,6 @@ export default function PostList() {
     fetchMore({
       variables: {
         skip: allPosts.length,
-      },
-      updateQuery: (previousResult, { fetchMoreResult }) => {
-        if (!fetchMoreResult) {
-          return previousResult
-        }
-        return Object.assign({}, previousResult, {
-          // Append the new posts results to the old one
-          allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts],
-        })
       },
     })
   }

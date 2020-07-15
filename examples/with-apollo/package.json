@@ -7,19 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@apollo/react-hooks": "3.1.3",
-    "apollo-cache-inmemory": "1.6.5",
-    "apollo-client": "2.6.8",
-    "apollo-link-http": "1.5.16",
-    "graphql": "^14.0.2",
-    "graphql-tag": "2.10.3",
+    "@apollo/client": "^3.0.0",
+    "graphql": "^15.3.0",
     "next": "latest",
     "prop-types": "^15.6.2",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "devDependencies": {
-    "babel-plugin-graphql-tag": "^2.5.0"
-  },
+  "devDependencies": {},
   "license": "ISC"
 }
