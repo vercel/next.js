@@ -2,6 +2,8 @@
 
 This example includes Firebase authentication and serverless [API routes](https://nextjs.org/docs/api-routes/introduction).
 
+**Note:** this example fetches data on the client-side only. If you need server-side rendering, consider using [with-firebase-authentication-ssr](../with-firebase-authentication-ssr).
+
 ## How to use
 
 ### Using `create-next-app`
