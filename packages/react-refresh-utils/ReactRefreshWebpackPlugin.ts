@@ -15,11 +15,13 @@ function webpack4(compiler: Compiler) {
   // `strictModuleExceptionHandling` in `MainTemplate`:
   // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
+  // @ts-ignore webpack 5 types compat
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     const hookRequire: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
       .mainTemplate.hooks as any).require
 
-    hookRequire.tap('ReactFreshWebpackPlugin', (source, _chunk, _hash) => {
+    // @ts-ignore webpack 5 types compat
+    hookRequire.tap('ReactFreshWebpackPlugin', (source) => {
       // Webpack 4 evaluates module code on the following line:
       // ```
       // modules[moduleId].call(module.exports, module, module.exports, hotCreateRequire(moduleId));
@@ -27,6 +29,7 @@ function webpack4(compiler: Compiler) {
       // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
       const lines = source.split('\n')
+      // @ts-ignore webpack 5 types compat
       const evalIndex = lines.findIndex((l) =>
         l.includes('modules[moduleId].call(')
       )
@@ -105,6 +108,7 @@ function webpack5(compiler: Compiler) {
     }
   }
 
+  // @ts-ignore webpack 5 types compat
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     // @ts-ignore Exists in webpack 5
     compilation.hooks.additionalTreeRuntimeRequirements.tap(
