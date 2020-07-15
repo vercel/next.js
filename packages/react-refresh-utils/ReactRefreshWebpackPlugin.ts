@@ -13,7 +13,7 @@ import {
 function injectRefreshFunctions(compilation: Compilation.Compilation) {
   const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
-  hookVars.tap('ReactFreshWebpackPlugin', (source) =>
+  hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
     Template.asString([
       source,
       '',
