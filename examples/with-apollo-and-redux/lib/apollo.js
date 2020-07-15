@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
-import { ApolloClient } from 'apollo-client'
-import { InMemoryCache } from 'apollo-cache-inmemory'
-import { HttpLink } from 'apollo-link-http'
+import { ApolloClient, HttpLink, InMemoryCache } from '@apollo/client'
+import { concatPagination } from '@apollo/client/utilities'
 
 let apolloClient
 
@@ -12,7 +11,15 @@ function createApolloClient() {
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
     }),
-    cache: new InMemoryCache(),
+    cache: new InMemoryCache({
+      typePolicies: {
+        Query: {
+          fields: {
+            allPosts: concatPagination(),
+          },
+        },
+      },
+    }),
   })
 }
 
