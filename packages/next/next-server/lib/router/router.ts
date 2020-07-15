@@ -20,12 +20,17 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import {
   normalizeTrailingSlash,
   removePathTrailingSlash,
+  normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return basePath ? (path === '/' ? basePath : basePath + path) : path
+  return basePath
+    ? path === '/'
+      ? normalizePathTrailingSlash(basePath)
+      : basePath + path
+    : path
 }
 
 export function delBasePath(path: string): string {

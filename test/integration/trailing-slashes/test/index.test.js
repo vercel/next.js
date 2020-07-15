@@ -70,8 +70,8 @@ function testShouldResolve(expectations) {
 function testLinkShouldRewriteTo(expectations) {
   it.each(expectations)(
     '%s should have href %s',
-    async (href, expectedHref) => {
-      const content = await renderViaHTTP(appPort, `/linker?href=${href}`)
+    async (linkPage, expectedHref) => {
+      const content = await renderViaHTTP(appPort, linkPage)
       const $ = cheerio.load(content)
       expect($('#link').attr('href')).toBe(expectedHref)
     }
@@ -79,10 +79,10 @@ function testLinkShouldRewriteTo(expectations) {
 
   it.each(expectations)(
     '%s should navigate to %s',
-    async (href, expectedHref) => {
+    async (linkPage, expectedHref) => {
       let browser
       try {
-        browser = await webdriver(appPort, `/linker?href=${href}`)
+        browser = await webdriver(appPort, linkPage)
         await browser.elementByCss('#link').click()
 
         await browser.waitForElementByCss('#hydration-marker')
@@ -97,10 +97,10 @@ function testLinkShouldRewriteTo(expectations) {
 
   it.each(expectations)(
     '%s should push route to %s',
-    async (href, expectedHref) => {
+    async (linkPage, expectedHref) => {
       let browser
       try {
-        browser = await webdriver(appPort, `/linker?href=${href}`)
+        browser = await webdriver(appPort, linkPage)
         await browser.elementByCss('#route-pusher').click()
 
         await browser.waitForElementByCss('#hydration-marker')
@@ -134,13 +134,13 @@ function testWithoutTrailingSlash() {
   ])
 
   testLinkShouldRewriteTo([
-    ['/', '/'],
-    ['/about', '/about'],
-    ['/about/', '/about'],
-    ['/about?hello=world', '/about?hello=world'],
-    ['/about/?hello=world', '/about?hello=world'],
-    ['/catch-all/hello/', '/catch-all/hello'],
-    ['/catch-all/hello.world/', '/catch-all/hello.world'],
+    ['/linker?href=/', '/'],
+    ['/linker?href=/about', '/about'],
+    ['/linker?href=/about/', '/about'],
+    ['/linker?href=/about?hello=world', '/about?hello=world'],
+    ['/linker?href=/about/?hello=world', '/about?hello=world'],
+    ['/linker?href=/catch-all/hello/', '/catch-all/hello'],
+    ['/linker?href=/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
@@ -164,13 +164,13 @@ function testWithTrailingSlash() {
   ])
 
   testLinkShouldRewriteTo([
-    ['/', '/'],
-    ['/about', '/about/'],
-    ['/about/', '/about/'],
-    ['/about?hello=world', '/about/?hello=world'],
-    ['/about/?hello=world', '/about/?hello=world'],
-    ['/catch-all/hello/', '/catch-all/hello/'],
-    ['/catch-all/hello.world/', '/catch-all/hello.world'],
+    ['/linker?href=/', '/'],
+    ['/linker?href=/about', '/about/'],
+    ['/linker?href=/about/', '/about/'],
+    ['/linker?href=/about?hello=world', '/about/?hello=world'],
+    ['/linker?href=/about/?hello=world', '/about/?hello=world'],
+    ['/linker?href=/catch-all/hello/', '/catch-all/hello/'],
+    ['/linker?href=/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
@@ -318,6 +318,11 @@ describe('Trailing slashes', () => {
       ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
       ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
     ])
+
+    testLinkShouldRewriteTo([
+      ['/docs/linker?href=/about', '/docs/about/'],
+      ['/docs/linker?href=/', '/docs/'],
+    ])
   })
 
   describe('production mode, with basepath, trailingSlash: true', () => {
@@ -345,6 +350,11 @@ describe('Trailing slashes', () => {
       ['/docs', '/docs/'],
       ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
       ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+    ])
+
+    testLinkShouldRewriteTo([
+      ['/docs/linker?href=/about', '/docs/about/'],
+      ['/docs/linker?href=/', '/docs/'],
     ])
   })
 })
