@@ -1,8 +1,8 @@
 # With universal configuration
 
-This example shows how to use environment variables and customize one based on NODE_ENV for your application using `dotenv`, a `.env`-file and `next.config.js`.
+This example shows how to use environment variables and customize one based on NODE_ENV for your application using , a `.env.local` file and `next.config.js`.
 
-When you build your application the environment variable is transformed into a primitive (string or undefined) and can only be changed with a new build. This happens for both client-side and server-side. If the environment variable is used directly in your application it will only have an effect on the server side, not the client side.
+When you build your application the environment variable is transformed into a primitive (string or undefined) and can only be changed with a new build. This happens for both client-side and server-side. If the environment variable is prefixed with `NEXT_PUBLIC_` it will have effect on the server-side and client-side, otherwise it will have effect on the server-side only
 
 ## Deploy your own
 
@@ -46,6 +46,4 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 ## Please note
 
 - It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
-- Any env var you expose in `next.config.js` will be publicly available and exposed to the client.
 - This example sets the environment configuration at build time, meaning the same build might not be used in e.g. both staging and production. For a solution which sets the environment at runtime, see the example [with-universal-configuration-runtime](../with-universal-configuration-runtime).
-- If you have many variables in `.env` and want to expose them without listing them all in `next.config.js`, see the example [with-dotenv](../with-dotenv). That example automatically exposes any variable that has been referenced in code, but keeps all other variables secret.
