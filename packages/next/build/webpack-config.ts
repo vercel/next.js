@@ -134,9 +134,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 }
 
 type ClientEntries = {
-  'main.js': string[]
-} & {
-  [key: string]: string
+  [key: string]: string | string[]
 }
 
 export default async function getBaseWebpackConfig(
@@ -1277,11 +1275,10 @@ export default async function getBaseWebpackConfig(
           : originalEntry
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
-        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
-          ...entry['main.js'],
-          originalFile,
-        ]
+        const originalFile = clientEntries[
+          CLIENT_STATIC_FILES_RUNTIME_MAIN
+        ] as string
+        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [...['main.js'], originalFile]
       }
       delete entry['main.js']
 
