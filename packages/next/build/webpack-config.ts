@@ -384,6 +384,7 @@ export default async function getBaseWebpackConfig(
         framework: {
           chunks: 'all',
           name: 'framework',
+          filename: 'static/chunks/[name].[contenthash].js',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
           // https://github.com/vercel/next.js/pull/9012
@@ -420,6 +421,7 @@ export default async function getBaseWebpackConfig(
 
             return hash.digest('hex').substring(0, 8)
           },
+          filename: 'static/chunks/[name].[contenthash].js',
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
@@ -428,11 +430,11 @@ export default async function getBaseWebpackConfig(
           name: 'commons',
           minChunks: totalPages,
           priority: 20,
+          filename: 'static/chunks/[name].[contenthash].js',
         },
         shared: {
           name(module, chunks) {
             return (
-              (isWebpack5 ? 'static/chunks/' : '') +
               crypto
                 .createHash('sha1')
                 .update(
@@ -443,10 +445,10 @@ export default async function getBaseWebpackConfig(
                     ''
                   )
                 )
-                .digest('hex') +
-              (isModuleCSS(module) ? '_CSS' : '')
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
             )
           },
+          filename: 'static/chunks/[name].[contenthash].js',
           priority: 10,
           minChunks: 2,
           reuseExistingChunk: true,
