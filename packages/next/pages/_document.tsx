@@ -497,7 +497,8 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          async={!isDevelopment}
+          defer={!isDevelopment && (process.env.__NEXT_DEFER_SCRIPTS as any)}
+          async={!isDevelopment && (!process.env.__NEXT_DEFER_SCRIPTS as any)}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -540,7 +541,8 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          async={!isDevelopment}
+          defer={!isDevelopment && (process.env.__NEXT_DEFER_SCRIPTS as any)}
+          async={!isDevelopment && (!process.env.__NEXT_DEFER_SCRIPTS as any)}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
