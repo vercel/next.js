@@ -45,6 +45,6 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 ## Please note
 
-- Any env var you expose in `next.config.js` will be publicly available and exposed to the client.
 - It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
+- Any env var you expose in `next.config.js` will be publicly available and exposed to the client.
 - This example sets the environment configuration at build time, meaning the same build might not be used in e.g. both staging and production. For a solution which sets the environment at runtime, see the example [with-universal-configuration-runtime](../with-universal-configuration-runtime).
