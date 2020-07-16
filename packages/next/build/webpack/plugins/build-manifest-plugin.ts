@@ -8,6 +8,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
@@ -152,7 +153,11 @@ export default class BuildManifestPlugin {
         const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+
+        const clientRoutesManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${CLIENT_ROUTES_MANIFEST}`
+
         assetMap.lowPriorityFiles.push(ssgManifestPath)
+        assetMap.lowPriorityFiles.push(clientRoutesManifestPath)
         compilation.assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
 
         if (this.modern) {

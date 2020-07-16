@@ -20,6 +20,8 @@ import loadCustomRoutes, {
   normalizeRouteRegex,
   Redirect,
   RouteType,
+  writeClientRoutesManifest,
+  Rewrite,
 } from '../lib/load-custom-routes'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -294,7 +296,26 @@ export default async function build(
   }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-  const routesManifest: any = {
+  const routesManifest: {
+    version: number
+    pages404: boolean
+    basePath: string
+    redirects: Array<ReturnType<typeof buildCustomRoute>>
+    rewrites: Array<ReturnType<typeof buildCustomRoute>>
+    headers: Array<ReturnType<typeof buildCustomRoute>>
+    dynamicRoutes: Array<{
+      page: string
+      regex: string
+      namedRegex?: string
+      routeKeys?: { [key: string]: string }
+    }>
+    dataRoutes: Array<{
+      page: string
+      routeKeys?: { [key: string]: string }
+      dataRouteRegex: string
+      namedDataRouteRegex?: string
+    }>
+  } = {
     version: 3,
     pages404: true,
     basePath: config.basePath,
@@ -312,6 +333,7 @@ export default async function build(
           namedRegex: routeRegex.namedRegex,
         }
       }),
+    dataRoutes: [],
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -663,6 +685,7 @@ export default async function build(
       'utf8'
     )
   }
+
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
@@ -950,6 +973,12 @@ export default async function build(
       'utf8'
     )
   }
+
+  await writeClientRoutesManifest(
+    (routesManifest.rewrites as any) as Rewrite[],
+    buildId,
+    distDir
+  )
 
   await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),

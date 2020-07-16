@@ -316,7 +316,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
@@ -345,23 +344,6 @@ export async function renderToHTML(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
     }
-  }
-
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    (isAutoExport || isFallback) &&
-    pageIsDynamic &&
-    didRewrite
-  ) {
-    // TODO: If we decide to ship rewrites to the client we could
-    // solve this by running over the rewrites and getting the params.
-    throw new Error(
-      `Rewrites don't support${
-        isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
-        `Using this will cause the page to fail to parse the params on the client\n` +
-        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
-    )
   }
 
   if (hasPageGetInitialProps && isSSG) {

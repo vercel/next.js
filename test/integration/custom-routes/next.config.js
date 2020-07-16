@@ -11,6 +11,10 @@ module.exports = {
           ]
         : []),
       {
+        source: '/rewriting-to-auto-export',
+        destination: '/auto-export/hello',
+      },
+      {
         source: '/to-another',
         destination: '/another/one',
       },

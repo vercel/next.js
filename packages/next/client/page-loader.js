@@ -103,6 +103,20 @@ export default class PageLoader {
     })
   }
 
+  getPageList() {
+    if (process.env.NODE_ENV === 'production') {
+      return this.promisedBuildManifest.then((buildManifest) =>
+        Object.keys(buildManifest)
+      )
+    } else {
+      return fetch(
+        `${this.assetPrefix}/_next/static/${this.buildId}/_devPagesManifest.json`
+      )
+        .then((res) => res.json())
+        .then((manifest) => manifest.pages)
+    }
+  }
+
   // Returns a promise for the dependencies for a particular route
   getDependencies(route) {
     return this.promisedBuildManifest.then((m) => {

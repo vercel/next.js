@@ -29,15 +29,15 @@ import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
-const nextConfig = join(appDir, 'next.config.js')
+const nextConfigPath = join(appDir, 'next.config.js')
 const indexPage = join(__dirname, '../pages/index.js')
+const nextConfig = new File(nextConfigPath)
 let app
 let appPort
 let buildId
 let distPagesDir
 let exportDir
 let stderr
-let origConfig
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -767,17 +767,27 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       expect(await browser.eval('window.beforeNav')).toBe('hi')
       expect(await browser.elementByCss('#about').text()).toBe('About: en')
     })
+
+    it('should not error when rewriting to fallback dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const browser = await webdriver(appPort, `/some-rewrite/${item}`)
+
+      await check(
+        () => browser.elementByCss('p').text(),
+        new RegExp(`Post: post-${item}`)
+      )
+
+      expect(JSON.parse(await browser.elementByCss('#params').text())).toEqual({
+        post: `post-${item}`,
+      })
+      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+        item: item + '',
+        post: `post-${item}`,
+      })
+    })
   }
 
   if (dev) {
-    it('should show error when rewriting to dynamic SSG page', async () => {
-      const item = Math.round(Math.random() * 100)
-      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
-      expect(html).toContain(
-        `Rewrites don't support dynamic pages with getStaticProps yet`
-      )
-    })
-
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
       await fs.writeFile(
@@ -1473,26 +1483,6 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 describe('SSG Prerender', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      origConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          rewrites() {
-            return [
-              {
-                source: "/some-rewrite/:item",
-                destination: "/blog/post-:item"
-              },
-              {
-                source: '/about',
-                destination: '/lang/en/about'
-              }
-            ]
-          }
-        }
-      `
-      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
@@ -1503,7 +1493,6 @@ describe('SSG Prerender', () => {
       buildId = 'development'
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
 
@@ -1512,13 +1501,10 @@ describe('SSG Prerender', () => {
 
   describe('dev mode getStaticPaths', () => {
     beforeAll(async () => {
-      origConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
+      nextConfig.write(
         // we set cpus to 1 so that we make sure the requests
         // aren't being cached at the jest-worker level
-        `module.exports = { experimental: { cpus: 1 } }`,
-        'utf8'
+        `module.exports = { experimental: { cpus: 1 } }`
       )
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
@@ -1527,7 +1513,7 @@ describe('SSG Prerender', () => {
       })
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
@@ -1570,7 +1556,6 @@ describe('SSG Prerender', () => {
     beforeAll(async () => {
       // remove firebase import since it breaks in legacy serverless mode
       origBlogPageContent = await fs.readFile(blogPagePath, 'utf8')
-      origConfig = await fs.readFile(nextConfig, 'utf8')
 
       await fs.writeFile(
         blogPagePath,
@@ -1580,21 +1565,7 @@ describe('SSG Prerender', () => {
         )
       )
 
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = {
-          target: 'serverless',
-          rewrites() {
-            return [
-              {
-                source: '/about',
-                destination: '/lang/en/about'
-              }
-            ]
-          }
-        }`,
-        'utf8'
-      )
+      nextConfig.replace('// target', `target: 'serverless',`)
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       stderr = ''
@@ -1608,7 +1579,7 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origConfig)
+      nextConfig.restore()
       await fs.writeFile(blogPagePath, origBlogPageContent)
       await killApp(app)
     })
@@ -1689,11 +1660,9 @@ describe('SSG Prerender', () => {
         })
       }
 
-      origConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace' }`,
-        'utf8'
+      await nextConfig.replace(
+        '// target',
+        `target: 'experimental-serverless-trace',`
       )
       await fs.writeFile(
         cstmError,
@@ -1721,8 +1690,8 @@ describe('SSG Prerender', () => {
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
     afterAll(async () => {
+      nextConfig.restore()
       await fs.remove(cstmError)
-      await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
 
@@ -1775,9 +1744,7 @@ describe('SSG Prerender', () => {
 
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
-      origConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
+      nextConfig.write(
         `module.exports = {
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
@@ -1814,7 +1781,7 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origConfig)
+      nextConfig.restore()
       await stopApp(app)
 
       for (const page of fallbackTruePages) {

@@ -14,9 +14,16 @@ import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
-import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
+import loadCustomRoutes, {
+  CustomRoutes,
+  writeClientRoutesManifest,
+} from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  CLIENT_STATIC_FILES_PATH,
+  DEV_CLIENT_PAGES_MANIFEST,
+} from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -206,6 +213,26 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
+        const clientRoutesManifestPath = pathJoin(
+          this.distDir,
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+        )
+
+        // we write a separate manifest with all pages for the client in
+        // dev mode so that we can match a page after a rewrite on the client
+        // before it has been built and is populated in the _buildManifest
+        fs.promises
+          .writeFile(
+            clientRoutesManifestPath,
+            JSON.stringify({
+              pages: routedPages,
+            })
+          )
+          .catch((err) =>
+            console.error('Failed to update dev client pages manifest', err)
+          )
+
         try {
           this.dynamicRoutes = getSortedRoutes(routedPages)
             .filter(isDynamicRoute)
@@ -263,6 +290,10 @@ export default class DevServer extends Server {
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
+
+    // this must come after starting the hot-reloader since it clears
+    // the static folder on start
+    await writeClientRoutesManifest(rewrites, this.buildId, this.distDir)
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
