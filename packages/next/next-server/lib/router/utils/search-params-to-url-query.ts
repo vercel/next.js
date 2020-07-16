@@ -4,7 +4,7 @@ export function searchParamsToUrlQuery(
   searchParams: URLSearchParams
 ): ParsedUrlQuery {
   const query: ParsedUrlQuery = {}
-  Array.from(searchParams.entries()).forEach(([key, value]) => {
+  searchParams.forEach((value, key) => {
     if (typeof query[key] === 'undefined') {
       query[key] = value
     } else if (Array.isArray(query[key])) {
