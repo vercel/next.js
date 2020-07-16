@@ -2,7 +2,9 @@
 
 This example shows how to use environment variables and customize one based on NODE_ENV for your application using a `.env.local` file and `next.config.js`.
 
-When you build your application the environment variable is transformed into a primitive (string or undefined) and can only be changed with a new build. This happens for both client-side and server-side. If the environment variable is prefixed with `NEXT_PUBLIC_` it will have effect on the server-side and client-side, otherwise it will have effect on the server-side only
+When you build your application the environment variable is transformed into a primitive (string or undefined) and can only be changed with a new build. This happens for both client-side and server-side. If the environment variable is prefixed with `NEXT_PUBLIC_` it will have effect on the server-side and client-side, otherwise it will have effect on the server-side only.
+
+You can read more about environement variables [here](https://nextjs.org/docs/basic-features/environment-variables)
 
 ## Deploy your own
 
