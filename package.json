@@ -122,6 +122,7 @@
     "tree-kill": "1.2.1",
     "typescript": "3.8.3",
     "wait-port": "0.2.2",
+    "web-streams-polyfill": "2.1.1",
     "webpack-bundle-analyzer": "3.6.1",
     "worker-loader": "2.0.0"
   },
