@@ -24,8 +24,8 @@ const Heading = styled('h1')`
     text-decoration: none;
   }
 `
-const Small=styled('div')`
- color:black;
+const Small = styled('div')`
+  color: black;
 `
 const Container = styled('div')`
   display: flex;
@@ -59,8 +59,10 @@ export default function Home() {
       />
       <img src="/filbert.png" width="150" alt="filbert" />
       <Heading>
-        <a target="_black" href="https://filbert-js.vercel.app/"> Welcome to Filbert!</a>
-        
+        <a target="_black" href="https://filbert-js.vercel.app/">
+          {' '}
+          Welcome to Filbert!
+        </a>
       </Heading>
       <Small>A light weight(~1KB) css-in-js solution(framework)🎨</Small>
       <Text>Next JS is awesome</Text>
