@@ -42,6 +42,9 @@ import 'core-js/features/string/repeat'
 import 'core-js/features/string/starts-with'
 import 'core-js/features/string/trim-left'
 import 'core-js/features/string/trim-right'
+import 'core-js/features/url'
+import 'core-js/features/url/to-json'
+import 'core-js/features/url-search-params'
 import 'core-js/features/weak-map'
 import 'core-js/features/weak-set'
 import 'core-js/features/promise'
@@ -50,6 +53,5 @@ import 'core-js/features/promise/finally'
 
 // Specialized Packages:
 import 'whatwg-fetch'
-import 'url-polyfill'
 import assign from 'object-assign'
 Object.assign = assign
