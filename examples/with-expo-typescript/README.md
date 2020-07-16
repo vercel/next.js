@@ -33,9 +33,9 @@ Deploy the native app to the App store and Play store using [Expo deployment](ht
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-expo with-expo-app
+npx create-next-app --example with-expo-typescript with-expo-typescript-app
 # or
-yarn create next-app --example with-expo with-expo-app
+yarn create next-app --example with-expo-typescript with-expo-typescript-app
 ```
 
 ### Running web

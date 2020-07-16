@@ -43,7 +43,6 @@ const externals = {
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
   'webpack-sources': 'webpack-sources',
-  // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
   // dependents: terser-webpack-plugin
@@ -170,14 +169,6 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
-}
-// eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('compiled/cssnano-simple')
 }
 // eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
@@ -478,28 +469,7 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('compiled/unistore')
 }
-// eslint-disable-next-line camelcase
-externals['webpack-dev-middleware'] =
-  'next/dist/compiled/webpack-dev-middleware'
-export async function ncc_webpack_dev_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
-    )
-    .ncc({ packageName: 'webpack-dev-middleware', externals })
-    .target('compiled/webpack-dev-middleware')
-}
-// eslint-disable-next-line camelcase
-externals['webpack-hot-middleware'] =
-  'next/dist/compiled/webpack-hot-middleware'
-export async function ncc_webpack_hot_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-hot-middleware'))
-    )
-    .ncc({ packageName: 'webpack-hot-middleware', externals })
-    .target('compiled/webpack-hot-middleware')
-}
+
 externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
 export async function ncc_terser_webpack_plugin(task, opts) {
   await task
@@ -552,7 +522,6 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
-      'ncc_cssnano_simple',
       'ncc_debug',
       'ncc_devalue',
       'ncc_dotenv',
@@ -589,8 +558,6 @@ export async function ncc(task) {
       'ncc_text_table',
       'ncc_thread_loader',
       'ncc_unistore',
-      'ncc_webpack_dev_middleware',
-      'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
     ])

@@ -21,17 +21,15 @@ export const AMP_RENDER_TARGET = '__NEXT_AMP_RENDER_TARGET__'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const CLIENT_STATIC_FILES_RUNTIME_PATH = `${CLIENT_STATIC_FILES_PATH}/${CLIENT_STATIC_FILES_RUNTIME}`
 // static/runtime/main.js
-export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/main.js`
+export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/main`
 // static/runtime/react-refresh.js
-export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/react-refresh.js`
+export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/react-refresh`
 // static/runtime/amp.js
-export const CLIENT_STATIC_FILES_RUNTIME_AMP = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/amp.js`
+export const CLIENT_STATIC_FILES_RUNTIME_AMP = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/amp`
 // static/runtime/webpack.js
-export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/webpack.js`
+export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/webpack`
 // static/runtime/polyfills.js
-export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/polyfills.js`
-// matches static/<buildid>/pages/<page>.js
-export const IS_BUNDLED_PAGE_REGEX = /^static[/\\][^/\\]+[/\\]pages.*\.js$/
+export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = `${CLIENT_STATIC_FILES_RUNTIME_PATH}/polyfills`
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'

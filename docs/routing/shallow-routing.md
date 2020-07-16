@@ -38,14 +38,6 @@ function Page() {
 export default Page
 ```
 
-If you don't need to add the router object to the page, you can also use the [Router API](/docs/api-reference/next/router.md#router-api) directly, like so:
-
-```jsx
-import Router from 'next/router'
-// Inside your page
-Router.push('/?counter=10', undefined, { shallow: true })
-```
-
 The URL will get updated to `/?counter=10`. and the page won't get replaced, only the state of the route is changed.
 
 You can also watch for URL changes via [`componentDidUpdate`](https://reactjs.org/docs/react-component.html#componentdidupdate) as shown below:
@@ -65,7 +57,7 @@ componentDidUpdate(prevProps) {
 Shallow routing **only** works for same page URL changes. For example, let's assume we have another page called `pages/about.js`, and you run this:
 
 ```jsx
-Router.push('/?counter=10', '/about?counter=10', { shallow: true })
+router.push('/?counter=10', '/about?counter=10', { shallow: true })
 ```
 
 Since that's a new page, it'll unload the current page, load the new one and wait for data fetching even though we asked to do shallow routing.

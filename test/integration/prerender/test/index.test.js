@@ -25,6 +25,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
+import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -116,6 +117,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall-explicit/[...slug]',
   },
+  '/catchall-explicit/[first]/[second]': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/[first]/[second].json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/[third]/[fourth]': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/[third]/[fourth].json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-optional': {
+    dataRoute: `/_next/data/${buildId}/catchall-optional.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/catchall-optional/[[...slug]]',
+  },
+  '/catchall-optional/value': {
+    dataRoute: `/_next/data/${buildId}/catchall-optional/value.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/catchall-optional/[[...slug]]',
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
@@ -128,6 +149,21 @@ const expectedManifestRoutes = () => ({
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: null,
+  },
+  '/dynamic/[first]': {
+    dataRoute: `/_next/data/${buildId}/dynamic/[first].json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/dynamic/[slug]',
+  },
+  '/dynamic/[second]': {
+    dataRoute: `/_next/data/${buildId}/dynamic/[second].json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/dynamic/[slug]',
+  },
+  '/index': {
+    dataRoute: `/_next/data/${buildId}/index/index.json`,
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
@@ -270,6 +306,82 @@ const navigateTest = (dev = false) => {
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#comment-1')
 
+    // go to /index
+    await browser.elementByCss('#to-nested-index').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello nested index/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-optional
+    await browser.elementByCss('#catchall-optional-root').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Catch all: \[\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /dynamic/[first]
+    await browser.elementByCss('#dynamic-first').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#param').text()
+    expect(text).toMatch(/Hi \[first\]!/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /dynamic/[second]
+    await browser.elementByCss('#dynamic-second').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#param').text()
+    expect(text).toMatch(/Hi \[second\]!/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-explicit/[first]/[second]
+    await browser.elementByCss('#catchall-explicit-string').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi \[first\] \[second\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-explicit/[first]/[second]
+    await browser.elementByCss('#catchall-explicit-object').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi \[third\] \[fourth\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /catchall-optional/value
+    await browser.elementByCss('#catchall-optional-value').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Catch all: \[value\]/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
     // go to /blog/post-1/comment-1
     await browser.elementByCss('#comment-1').click()
     await browser.waitForElementByCss('#home')
@@ -298,7 +410,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR SPR page correctly', async () => {
+  it('should SSR incremental page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
     const $ = cheerio.load(html)
@@ -410,6 +522,68 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         },
       })
     ).toBe(true)
+  })
+
+  it('should SSR dynamic page with brackets in param as object', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic/[first]')
+    const $ = cheerio.load(html)
+    expect($('#param').text()).toMatch(/Hi \[first\]!/)
+  })
+
+  it('should navigate to dynamic page with brackets in param as object', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#dynamic-first').click()
+    await browser.waitForElementByCss('#param')
+    const value = await browser.elementByCss('#param').text()
+    expect(value).toMatch(/Hi \[first\]!/)
+  })
+
+  it('should SSR dynamic page with brackets in param as string', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic/[second]')
+    const $ = cheerio.load(html)
+    expect($('#param').text()).toMatch(/Hi \[second\]!/)
+  })
+
+  it('should navigate to dynamic page with brackets in param as string', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#dynamic-second').click()
+    await browser.waitForElementByCss('#param')
+    const value = await browser.elementByCss('#param').text()
+    expect(value).toMatch(/Hi \[second\]!/)
+  })
+
+  it('should SSR catch-all page with brackets in param as string', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/[first]/[second]'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi \[first\] \[second\]/)
+  })
+
+  it('should navigate to catch-all page with brackets in param as string', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#catchall-explicit-string').click()
+    await browser.waitForElementByCss('#catchall')
+    const value = await browser.elementByCss('#catchall').text()
+    expect(value).toMatch(/Hi \[first\] \[second\]/)
+  })
+
+  it('should SSR catch-all page with brackets in param as object', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/[third]/[fourth]'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi \[third\] \[fourth\]/)
+  })
+
+  it('should navigate to catch-all page with brackets in param as object', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#catchall-explicit-object').click()
+    await browser.waitForElementByCss('#catchall')
+    const value = await browser.elementByCss('#catchall').text()
+    expect(value).toMatch(/Hi \[third\] \[fourth\]/)
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -554,6 +728,45 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       const html = await renderViaHTTP(appPort, '/about')
       expect(html).toMatch(/About:.*?en/)
     })
+
+    it('should fetch /_next/data correctly with mismatched href and as', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      if (!dev) {
+        await browser.eval(() =>
+          document.querySelector('#to-rewritten-ssg').scrollIntoView()
+        )
+
+        await check(
+          async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
+            let found = false
+
+            for (const link of links) {
+              const href = await link.getAttribute('href')
+              const { pathname } = url.parse(href)
+
+              if (pathname.endsWith('/lang/en/about.json')) {
+                found = true
+                break
+              }
+            }
+            return found
+          },
+          {
+            test(result) {
+              return result === true
+            },
+          }
+        )
+      }
+      await browser.eval('window.beforeNav = "hi"')
+      await browser.elementByCss('#to-rewritten-ssg').click()
+      await browser.waitForElementByCss('#about')
+
+      expect(await browser.eval('window.beforeNav')).toBe('hi')
+      expect(await browser.elementByCss('#about').text()).toBe('About: en')
+    })
   }
 
   if (dev) {
@@ -561,7 +774,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       const item = Math.round(Math.random() * 100)
       const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
       expect(html).toContain(
-        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client`
+        `Rewrites don't support dynamic pages with getStaticProps yet`
       )
     })
 
@@ -860,7 +1073,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/blog\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]',
-          routeKeys: ['post'],
+          routeKeys: {
+            post: 'post',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -872,7 +1087,10 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
           ),
           page: '/blog/[post]/[comment]',
-          routeKeys: ['post', 'comment'],
+          routeKeys: {
+            post: 'post',
+            comment: 'comment',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -884,7 +1102,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/catchall\\/(.+?)\\.json$`
           ),
           page: '/catchall/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -896,7 +1116,23 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           page: '/catchall-explicit/[...slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/catchall\\-optional(?:/(?<slug>.+?))?\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
+          ),
+          page: '/catchall-optional/[[...slug]]',
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -910,13 +1146,35 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
+            )}\\/dynamic\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/dynamic/(?<slug>[^/]+?)\\.json$`,
+          page: '/dynamic/[slug]',
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
             )}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
           ),
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
             buildId
           )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
           page: '/fallback-only/[slug]',
-          routeKeys: ['slug'],
+          routeKeys: {
+            slug: 'slug',
+          },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index\\/index.json$`
+          ),
+          page: '/index',
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -928,7 +1186,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
           ),
           page: '/lang/[lang]/about',
-          routeKeys: ['lang'],
+          routeKeys: {
+            lang: 'lang',
+          },
         },
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -940,7 +1200,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
-          routeKeys: ['p'],
+          routeKeys: {
+            p: 'p',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -958,7 +1220,9 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           page: '/user/[user]/profile',
-          routeKeys: ['user'],
+          routeKeys: {
+            user: 'user',
+          },
         },
       ])
     })
@@ -1001,6 +1265,14 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
         },
+        '/dynamic/[slug]': {
+          dataRoute: `/_next/data/${buildId}/dynamic/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/dynamic\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(`^\\/dynamic\\/([^\\/]+?)(?:\\/)?$`),
+        },
         '/fallback-only/[slug]': {
           dataRoute: `/_next/data/${buildId}/fallback-only/[slug].json`,
           dataRouteRegex: normalizeRegEx(
@@ -1037,12 +1309,23 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
           ),
         },
+
         '/catchall/[...slug]': {
           fallback: '/catchall/[...slug].html',
           routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+          ),
+        },
+        '/catchall-optional/[[...slug]]': {
+          dataRoute: `/_next/data/${buildId}/catchall-optional/[[...slug]].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(
+            '^\\/catchall\\-optional(?:\\/(.+?))?(?:\\/)?$'
           ),
         },
         '/catchall-explicit/[...slug]': {
@@ -1195,19 +1478,17 @@ describe('SSG Prerender', () => {
         nextConfig,
         `
         module.exports = {
-          experimental: {
-            rewrites() {
-              return [
-                {
-                  source: "/some-rewrite/:item",
-                  destination: "/blog/post-:item"
-                },
-                {
-                  source: '/about',
-                  destination: '/lang/en/about'
-                }
-              ]
-            }
+          rewrites() {
+            return [
+              {
+                source: "/some-rewrite/:item",
+                destination: "/blog/post-:item"
+              },
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }
       `
@@ -1303,15 +1584,13 @@ describe('SSG Prerender', () => {
         nextConfig,
         `module.exports = {
           target: 'serverless',
-          experimental: {
-            rewrites() {
-              return [
-                {
-                  source: '/about',
-                  destination: '/lang/en/about'
-                }
-              ]
-            }
+          rewrites() {
+            return [
+              {
+                source: '/about',
+                destination: '/lang/en/about'
+              }
+            ]
           }
         }`,
         'utf8'
@@ -1465,7 +1744,8 @@ describe('SSG Prerender', () => {
         },
       })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
+      // TODO: Don't rely on this path
+      distPagesDir = join(appDir, '.next', 'server', 'pages')
     })
     afterAll(() => killApp(app))
 
@@ -1502,7 +1782,7 @@ describe('SSG Prerender', () => {
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
-              throw new Error('Found SPR page in the default export path map')
+              throw new Error('Found Incremental page in the default export path map')
             }
             return defaultPathMap
           },

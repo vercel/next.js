@@ -47,6 +47,45 @@ const Page = ({ world, time }) => {
       <Link href="/catchall/[...slug]" as="/catchall/first">
         <a id="to-catchall">to catchall</a>
       </Link>
+      <br />
+      <Link href="/index">
+        <a id="to-nested-index">to nested index</a>
+      </Link>
+      <br />
+      <Link href="/lang/[lang]/about?lang=en" as="/about">
+        <a id="to-rewritten-ssg">to rewritten static path page</a>
+      </Link>
+      <br />
+      <Link href="/catchall-optional/[[...slug]]" as="/catchall-optional">
+        <a id="catchall-optional-root">to optional catchall root</a>
+      </Link>
+      <Link href="/catchall-optional/[[...slug]]" as="/catchall-optional/value">
+        <a id="catchall-optional-value">to optional catchall page /value</a>
+      </Link>
+      <br />
+      <Link href="/dynamic/[slug]" as="/dynamic/[first]">
+        <a id="dynamic-first">to dynamic [first] page</a>
+      </Link>
+      <Link href="/dynamic/[slug]" as="/dynamic/[second]">
+        <a id="dynamic-second">to dynamic [second] page</a>
+      </Link>
+      <br />
+      <Link
+        href="/catchall-explicit/[...slug]"
+        as="/catchall-explicit/[first]/[second]"
+      >
+        <a id="catchall-explicit-string">
+          to catchall-explicit [first]/[second] page
+        </a>
+      </Link>
+      <Link
+        href="/catchall-explicit/[...slug]"
+        as="/catchall-explicit/[third]/[fourth]"
+      >
+        <a id="catchall-explicit-object">
+          to catchall-explicit [third]/[fourth] page
+        </a>
+      </Link>
     </>
   )
 }

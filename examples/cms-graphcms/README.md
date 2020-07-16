@@ -28,7 +28,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
 
 ## How to use
 
@@ -37,7 +37,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-graphcms cms-graphcms-app
+npx create-next-app --example cms-graphcms cms-graphcms-app
 # or
 yarn create next-app --example cms-graphcms cms-graphcms-app
 ```
@@ -119,4 +119,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
