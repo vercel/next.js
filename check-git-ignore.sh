@@ -3,7 +3,7 @@
 cd `dirname $0`
 
 for folder in examples/* ;
-  do cp -n -v packages/create-next-app/templates/default/gitignore $folder/.gitignore;
+  do cp -n packages/create-next-app/templates/default/gitignore $folder/.gitignore;
 done;
 
 if [[ ! -z $(git status -s) ]];then
