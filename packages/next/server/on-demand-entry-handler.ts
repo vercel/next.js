@@ -168,7 +168,7 @@ export default function onDemandEntryHandler(
 
       const bundleFile = normalizePagePath(pageUrl)
       const serverBundlePath = posix.join('pages', bundleFile)
-      const clientBundlePath = posix.join('static', 'pages', bundleFile)
+      const clientBundlePath = posix.join('pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
