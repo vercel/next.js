@@ -396,25 +396,24 @@ export class File {
   }
 
   replace(pattern, newValue) {
+    const currentContent = readFileSync(this.path, 'utf8')
     if (pattern instanceof RegExp) {
-      if (!pattern.test(this.originalContent)) {
+      if (!pattern.test(currentContent)) {
         throw new Error(
-          `Failed to replace content.\n\nPattern: ${pattern.toString()}\n\nContent: ${
-            this.originalContent
-          }`
+          `Failed to replace content.\n\nPattern: ${pattern.toString()}\n\nContent: ${currentContent}`
         )
       }
     } else if (typeof pattern === 'string') {
-      if (!this.originalContent.includes(pattern)) {
+      if (!currentContent.includes(pattern)) {
         throw new Error(
-          `Failed to replace content.\n\nPattern: ${pattern}\n\nContent: ${this.originalContent}`
+          `Failed to replace content.\n\nPattern: ${pattern}\n\nContent: ${currentContent}`
         )
       }
     } else {
       throw new Error(`Unknown replacement attempt type: ${pattern}`)
     }
 
-    const newContent = this.originalContent.replace(pattern, newValue)
+    const newContent = currentContent.replace(pattern, newValue)
     this.write(newContent)
   }
 
@@ -469,7 +468,9 @@ export async function getRedboxHeader(browser) {
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-dialog-header]').innerText
+    return root
+      .querySelector('[data-nextjs-dialog-header]')
+      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
   })
 }
 
@@ -483,8 +484,9 @@ export async function getRedboxSource(browser) {
         )
       )
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-      .innerText
+    return root
+      .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
   })
 }
 

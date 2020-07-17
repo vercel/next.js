@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject } from 'url'
+import { UrlObject } from 'url'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -15,47 +15,71 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { normalizeTrailingSlash } from './normalize-trailing-slash'
-import getAssetPathFromRoute from './utils/get-asset-path-from-route'
+import { searchParamsToUrlQuery } from './utils/search-params-to-url-query'
+import { parseRelativeUrl } from './utils/parse-relative-url'
+import {
+  removePathTrailingSlash,
+  normalizePathTrailingSlash,
+} from '../../../client/normalize-trailing-slash'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
-  return `${basePath}${path}`
+  return basePath
+    ? path === '/'
+      ? normalizePathTrailingSlash(basePath)
+      : basePath + path
+    : path
 }
 
 export function delBasePath(path: string): string {
-  return path.substr(basePath.length)
-}
-
-function toRoute(path: string): string {
-  return path.replace(/\/$/, '') || '/'
+  return path.slice(basePath.length) || '/'
 }
 
 function prepareRoute(path: string) {
-  return toRoute(delBasePath(path || '') || '/')
+  return removePathTrailingSlash(delBasePath(path || '/'))
 }
 
 type Url = UrlObject | string
 
-function prepareUrlAs(url: Url, as: Url) {
+/**
+ * Resolves a given hyperlink with a certain router state (basePath not included).
+ * Preserves absolute urls.
+ */
+export function resolveHref(currentPath: string, href: Url): string {
+  // we use a dummy base url for relative urls
+  const base = new URL(currentPath, 'http://n')
+  const urlAsString =
+    typeof href === 'string' ? href : formatWithValidation(href)
+  const finalUrl = new URL(urlAsString, base)
+  finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+  // if the origin didn't change, it means we received a relative href
+  return finalUrl.origin === base.origin
+    ? finalUrl.href.slice(finalUrl.origin.length)
+    : finalUrl.href
+}
+
+function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  url = typeof url === 'object' ? formatWithValidation(url) : url
-  as = typeof as === 'object' ? formatWithValidation(as) : as
-
-  url = addBasePath(
-    normalizeTrailingSlash(url, !!process.env.__NEXT_TRAILING_SLASH)
-  )
-  as = as
-    ? addBasePath(
-        normalizeTrailingSlash(as, !!process.env.__NEXT_TRAILING_SLASH)
-      )
-    : as
-
   return {
-    url,
-    as,
+    url: addBasePath(resolveHref(router.pathname, url)),
+    as: as ? addBasePath(resolveHref(router.pathname, as)) : as,
+  }
+}
+
+function tryParseRelativeUrl(
+  url: string
+): null | ReturnType<typeof parseRelativeUrl> {
+  try {
+    return parseRelativeUrl(url)
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
+      )
+    }
+    return null
   }
 }
 
@@ -103,40 +127,32 @@ type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
 
+const manualScrollRestoration =
+  process.env.__NEXT_SCROLL_RESTORATION &&
+  typeof window !== 'undefined' &&
+  'scrollRestoration' in window.history
+
 function fetchNextData(
-  pathname: string,
-  query: ParsedUrlQuery | null,
+  dataHref: string,
   isServerRender: boolean,
   cb?: (...args: any) => any
 ) {
   let attempts = isServerRender ? 3 : 1
   function getResponse(): Promise<any> {
-    return fetch(
-      formatWithValidation({
-        pathname: addBasePath(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${getAssetPathFromRoute(
-            pathname,
-            '.json'
-          )}`
-        ),
-        query,
-      }),
-      {
-        // Cookies are required to be present for Next.js' SSG "Preview Mode".
-        // Cookies may also be required for `getServerSideProps`.
-        //
-        // > `fetch` won’t send cookies, unless you set the credentials init
-        // > option.
-        // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-        //
-        // > For maximum browser compatibility when it comes to sending &
-        // > receiving cookies, always supply the `credentials: 'same-origin'`
-        // > option instead of relying on the default.
-        // https://github.com/github/fetch#caveats
-        credentials: 'same-origin',
-      }
-    ).then((res) => {
+    return fetch(dataHref, {
+      // Cookies are required to be present for Next.js' SSG "Preview Mode".
+      // Cookies may also be required for `getServerSideProps`.
+      //
+      // > `fetch` won’t send cookies, unless you set the credentials init
+      // > option.
+      // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+      //
+      // > For maximum browser compatibility when it comes to sending &
+      // > receiving cookies, always supply the `credentials: 'same-origin'`
+      // > option instead of relying on the default.
+      // https://github.com/github/fetch#caveats
+      credentials: 'same-origin',
+    }).then((res) => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
           return getResponse()
@@ -211,7 +227,7 @@ export default class Router implements BaseRouter {
     }
   ) {
     // represents the current component key
-    this.route = toRoute(pathname)
+    this.route = removePathTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -260,14 +276,44 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
+
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
-          addBasePath(as)
+          getURL()
         )
       }
 
       window.addEventListener('popstate', this.onPopState)
+
+      // enable custom scroll restoration handling when available
+      // otherwise fallback to browser's default handling
+      if (process.env.__NEXT_SCROLL_RESTORATION) {
+        if (manualScrollRestoration) {
+          window.history.scrollRestoration = 'manual'
+
+          let scrollDebounceTimeout: undefined | NodeJS.Timeout
+
+          const debouncedScrollSave = () => {
+            if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
+
+            scrollDebounceTimeout = setTimeout(() => {
+              const { url, as: curAs, options } = history.state
+              this.changeState(
+                'replaceState',
+                url,
+                curAs,
+                Object.assign({}, options, {
+                  _N_X: window.scrollX,
+                  _N_Y: window.scrollY,
+                })
+              )
+            }, 10)
+          }
+
+          window.addEventListener('scroll', debouncedScrollSave)
+        }
+      }
     }
   }
 
@@ -302,14 +348,12 @@ export default class Router implements BaseRouter {
       return
     }
 
+    const { url, as, options } = e.state
+    const { pathname } = parseRelativeUrl(url)
+
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (
-      e.state &&
-      this.isSsr &&
-      e.state.as === this.asPath &&
-      parse(e.state.url).pathname === this.pathname
-    ) {
+    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
       return
     }
 
@@ -319,7 +363,6 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const { url, as, options } = e.state
     if (process.env.NODE_ENV !== 'production') {
       if (typeof url === 'undefined' || typeof as === 'undefined') {
         console.warn(
@@ -373,7 +416,7 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as: Url = url, options = {}) {
-    ;({ url, as } = prepareUrlAs(url, as))
+    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -384,7 +427,7 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as: Url = url, options = {}) {
-    ;({ url, as } = prepareUrlAs(url, as))
+    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
 
@@ -431,37 +474,36 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      let { pathname, query, protocol } = parse(url, true)
+      const parsed = tryParseRelativeUrl(url)
+
+      if (!parsed) return resolve(false)
+
+      let { pathname, searchParams } = parsed
+      const query = searchParamsToUrlQuery(searchParams)
 
       // url and as should always be prefixed with basePath by this
       // point by either next/link or router.push/replace so strip the
       // basePath from the pathname to match the pages dir 1-to-1
-      pathname = pathname ? delBasePath(pathname) : pathname
+      pathname = pathname
+        ? removePathTrailingSlash(delBasePath(pathname))
+        : pathname
 
-      if (!pathname || protocol) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-          )
-        }
-        return resolve(false)
-      }
+      const cleanedAs = delBasePath(as)
 
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
       // We also need to set the method = replaceState always
       // as this should not go into the history (That's how browsers work)
       // We should compare the new asPath to the current asPath, not the url
-      if (!this.urlIsNew(as)) {
+      if (!this.urlIsNew(cleanedAs)) {
         method = 'replaceState'
       }
 
-      const route = toRoute(pathname)
+      const route = removePathTrailingSlash(pathname)
       const { shallow = false } = options
-      const cleanedAs = delBasePath(as)
 
       if (isDynamicRoute(route)) {
-        const { pathname: asPathname } = parse(cleanedAs)
+        const { pathname: asPathname } = parseRelativeUrl(cleanedAs)
         const routeRegex = getRouteRegex(route)
         const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
@@ -519,7 +561,13 @@ export default class Router implements BaseRouter {
               throw error
             }
 
+            if (process.env.__NEXT_SCROLL_RESTORATION) {
+              if (manualScrollRestoration && '_N_X' in options) {
+                window.scrollTo(options._N_X, options._N_Y)
+              }
+            }
             Router.events.emit('routeChangeComplete', as)
+
             return resolve(true)
           })
         },
@@ -663,11 +711,21 @@ export default class Router implements BaseRouter {
           }
         }
 
+        let dataHref: string | undefined
+
+        if (__N_SSG || __N_SSP) {
+          dataHref = this.pageLoader.getDataHref(
+            formatWithValidation({ pathname, query }),
+            as,
+            __N_SSG
+          )
+        }
+
         return this._getData<RouteInfo>(() =>
           __N_SSG
-            ? this._getStaticData(as)
+            ? this._getStaticData(dataHref!)
             : __N_SSP
-            ? this._getServerData(as)
+            ? this._getServerData(dataHref!)
             : this.getInitialProps(
                 Component,
                 // we provide AppTree later so this needs to be `any`
@@ -770,22 +828,17 @@ export default class Router implements BaseRouter {
     options: PrefetchOptions = {}
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const { pathname, protocol } = parse(url)
+      const parsed = tryParseRelativeUrl(url)
 
-      if (!pathname || protocol) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-          )
-        }
-        return
-      }
+      if (!parsed) return
+
+      const { pathname } = parsed
 
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') {
         return
       }
-      const route = toRoute(pathname)
+      const route = removePathTrailingSlash(pathname)
       Promise.all([
         this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
@@ -837,23 +890,21 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<object> => {
-    const pathname = prepareRoute(parse(asPath).pathname!)
+  _getStaticData = (dataHref: string): Promise<object> => {
+    let { pathname } = parseRelativeUrl(dataHref)
+    pathname = prepareRoute(pathname)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? Promise.resolve(this.sdc[pathname])
+      ? Promise.resolve(this.sdc[dataHref])
       : fetchNextData(
-          pathname,
-          null,
+          dataHref,
           this.isSsr,
           (data) => (this.sdc[pathname] = data)
         )
   }
 
-  _getServerData = (asPath: string): Promise<object> => {
-    let { pathname, query } = parse(asPath, true)
-    pathname = prepareRoute(pathname!)
-    return fetchNextData(pathname, query, this.isSsr)
+  _getServerData = (dataHref: string): Promise<object> => {
+    return fetchNextData(dataHref, this.isSsr)
   }
 
   getInitialProps(

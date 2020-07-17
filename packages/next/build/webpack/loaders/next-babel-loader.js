@@ -137,6 +137,18 @@ module.exports = babelLoader.custom((babel) => {
       options.caller.isModern = isModern
       options.caller.isDev = development
 
+      const emitWarning = this.emitWarning.bind(this)
+      Object.defineProperty(options.caller, 'onWarning', {
+        enumerable: false,
+        writable: false,
+        value: (options.caller.onWarning = function (reason) {
+          if (!(reason instanceof Error)) {
+            reason = new Error(reason)
+          }
+          emitWarning(reason)
+        }),
+      })
+
       options.plugins = options.plugins || []
 
       if (hasReactRefresh) {
@@ -145,6 +157,13 @@ module.exports = babelLoader.custom((babel) => {
           { type: 'plugin' }
         )
         options.plugins.unshift(reactRefreshPlugin)
+        if (!isServer) {
+          const noAnonymousDefaultExportPlugin = babel.createConfigItem(
+            [require('../../babel/plugins/no-anonymous-default-export'), {}],
+            { type: 'plugin' }
+          )
+          options.plugins.unshift(noAnonymousDefaultExportPlugin)
+        }
       }
 
       if (!isServer && isPageFile) {

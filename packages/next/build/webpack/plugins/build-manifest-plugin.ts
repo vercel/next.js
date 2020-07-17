@@ -41,7 +41,8 @@ function generateClientManifest(
 }
 
 function isJsFile(file: string): boolean {
-  return file.endsWith('.js')
+  // We don't want to include `.hot-update.js` files into the initial page
+  return !file.endsWith('.hot-update.js') && file.endsWith('.js')
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
@@ -58,7 +59,7 @@ export default class BuildManifestPlugin {
   apply(compiler: Compiler) {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
-      (compilation, callback) => {
+      (compilation: any, callback: any) => {
         const chunks: CompilationType.Chunk[] = compilation.chunks
         const assetMap: BuildManifest = {
           polyfillFiles: [],

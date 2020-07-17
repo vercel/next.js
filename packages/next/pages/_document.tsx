@@ -56,30 +56,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = process.env.__NEXT_PLUGINS
-      ? await import(
-          // @ts-ignore loader syntax
-          'next-plugin-loader?middleware=unstable-enhance-app-server!'
-        ).then((mod) => mod.default(ctx))
-      : []
-
     const enhanceApp = (App: any) => {
-      for (const enhancer of enhancers) {
-        App = enhancer(App)
-      }
       return (props: any) => <App {...props} />
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [
-      ...flush(),
-      ...(process.env.__NEXT_PLUGINS
-        ? await import(
-            // @ts-ignore loader syntax
-            'next-plugin-loader?middleware=unstable-get-styles-server!'
-          ).then((mod) => mod.default(ctx))
-        : []),
-    ]
+    const styles = [...flush()]
     return { html, head, styles }
   }
 
@@ -274,10 +256,19 @@ export class Head extends Component<
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
         const isReactHelmet = child?.props?.['data-react-helmet']
-        if (child?.type === 'title' && !isReactHelmet) {
-          console.warn(
-            "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
-          )
+        if (!isReactHelmet) {
+          if (child?.type === 'title') {
+            console.warn(
+              "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
+            )
+          } else if (
+            child?.type === 'meta' &&
+            child?.props?.name === 'viewport'
+          ) {
+            console.warn(
+              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-viewport-meta"
+            )
+          }
         }
         return child
       })
