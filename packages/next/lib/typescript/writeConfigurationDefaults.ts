@@ -31,11 +31,6 @@ function getDesiredCompilerOptions(
       value: true,
       reason: 'requirement for babel',
     },
-    module: {
-      parsedValue: ts.ModuleKind.ESNext,
-      value: 'esnext',
-      reason: 'for dynamic import() support',
-    },
     moduleResolution: {
       parsedValue: ts.ModuleResolutionKind.NodeJs,
       value: 'node',
