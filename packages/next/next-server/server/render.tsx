@@ -522,9 +522,8 @@ export async function renderToHTML(
         console.warn(
           'Your `getStaticProps` function did not return anything, please consider returning the props or remove it'
         )
+        data = { props: {} }
       }
-
-      data = { props: {} }
 
       const invalidKeys = Object.keys(data).filter(
         (key) => key !== 'unstable_revalidate' && key !== 'props'
@@ -616,9 +615,8 @@ export async function renderToHTML(
         console.warn(
           'Your `getServerSideProps` function did not return anything, please consider returning the props or remove it'
         )
+        data = { props: {} }
       }
-
-      data = { props: {} }
 
       const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 
