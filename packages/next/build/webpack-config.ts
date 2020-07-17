@@ -351,6 +351,11 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  if (config.experimental.modern) {
+    terserOptions.module = true
+    terserOptions.ecma = terserOptions.compress.ecma = terserOptions.output.ecma = 8
+  }
+
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
       // mini-css-extract-plugin
