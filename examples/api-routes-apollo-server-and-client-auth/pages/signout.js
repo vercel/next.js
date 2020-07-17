@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { useMutation, useApolloClient } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import { gql, useMutation, useApolloClient } from '@apollo/client'
 
 const SignOutMutation = gql`
   mutation SignOutMutation {
