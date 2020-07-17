@@ -277,6 +277,7 @@ export default class DevServer extends Server {
 
   protected async close(): Promise<void> {
     await this.stopWatcher()
+    await this.staticPathsWorker.end()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
