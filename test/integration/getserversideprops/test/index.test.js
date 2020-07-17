@@ -129,6 +129,12 @@ const expectedManifestRoutes = () => [
     page: '/something',
   },
   {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/undefined-return.json$`
+    ),
+    page: '/undefined-return',
+  },
+  {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
       buildId
     )}/user/(?<user>[^/]+?)/profile\\.json$`,
