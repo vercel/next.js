@@ -491,6 +491,15 @@ const runTests = (dev = false) => {
       )
     })
 
+    it('should show warning for undefined return getServerSideProps', async () => {
+      const html = await renderViaHTTP(appPort, '/undefined-return')
+      expect(stderr).toMatch(
+        'Your `getServerSideProps` function did not return anything, please consider returning the props or remove it'
+      )
+
+      expect(html).toContain(`no getServerSideProps return`)
+    })
+
     it('should show error for invalid JSON returned from getServerSideProps', async () => {
       const html = await renderViaHTTP(appPort, '/non-json')
       expect(html).toContain(
