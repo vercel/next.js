@@ -1,5 +1,4 @@
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import { gql, useMutation } from '@apollo/client'
 import { ALL_POSTS_QUERY, allPostsQueryVars } from './PostList'
 
 const CREATE_POST_MUTATION = gql`
