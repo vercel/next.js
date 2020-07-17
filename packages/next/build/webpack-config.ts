@@ -134,9 +134,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 }
 
 type ClientEntries = {
-  'main.js': string[]
-} & {
-  [key: string]: string
+  [key: string]: string | string[]
 }
 
 export default async function getBaseWebpackConfig(
@@ -432,7 +430,6 @@ export default async function getBaseWebpackConfig(
         shared: {
           name(module, chunks) {
             return (
-              (isWebpack5 ? 'static/chunks/' : '') +
               crypto
                 .createHash('sha1')
                 .update(
@@ -443,8 +440,7 @@ export default async function getBaseWebpackConfig(
                     ''
                   )
                 )
-                .digest('hex') +
-              (isModuleCSS(module) ? '_CSS' : '')
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
             )
           },
           priority: 10,
@@ -713,7 +709,9 @@ export default async function getBaseWebpackConfig(
     output: {
       path: outputPath,
       // On the server we don't use the chunkhash
-      filename: dev || isServer ? '[name].js' : '[name]-[chunkhash].js',
+      filename: isServer
+        ? '[name].js'
+        : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
       hotUpdateChunkFilename: isWebpack5
@@ -1277,11 +1275,10 @@ export default async function getBaseWebpackConfig(
           : originalEntry
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
-        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
-          ...entry['main.js'],
-          originalFile,
-        ]
+        const originalFile = clientEntries[
+          CLIENT_STATIC_FILES_RUNTIME_MAIN
+        ] as string
+        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [...['main.js'], originalFile]
       }
       delete entry['main.js']
 
