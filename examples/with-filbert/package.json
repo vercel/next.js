@@ -1,0 +1,21 @@
+{
+  "name": "with-filbert",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "Kuldeep Keshwar",
+  "license": "ISC",
+  "dependencies": {
+    "@filbert-js/core": "^0.0.4",
+    "@filbert-js/server-stylesheet": "^0.0.4",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  }
+}
