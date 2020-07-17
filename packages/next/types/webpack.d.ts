@@ -699,6 +699,7 @@ declare module 'webpack' {
         reuseExistingChunk?: boolean
         /** Give chunks created a name (chunks with equal name are merged) */
         name?: boolean | string | ((...args: any[]) => any)
+        filename?: string
       }
       interface SplitChunksOptions {
         /** Select chunks for determining shared modules (defaults to \"async\", \"initial\" and \"all\" requires adding these chunks to the HTML) */

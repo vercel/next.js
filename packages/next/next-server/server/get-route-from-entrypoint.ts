@@ -1,7 +1,5 @@
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
-// matches static/<buildid>/pages/:page*.js
-// const SERVER_ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/
 // matches pages/:page*.js
 const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
 // matches static/pages/:page*.js

@@ -33,7 +33,7 @@
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
     "next": "node packages/next/dist/bin/next",
-    "debug": "node --inspect-brk packages/next/dist/bin/next"
+    "debug": "node --inspect packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
   "devDependencies": {

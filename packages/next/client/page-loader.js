@@ -252,7 +252,7 @@ export default class PageLoader {
           route = normalizeRoute(route)
           let scriptRoute = getAssetPathFromRoute(route, '.js')
 
-          const url = `${this.assetPrefix}/_next/static/pages${encodeURI(
+          const url = `${this.assetPrefix}/_next/static/chunks/pages${encodeURI(
             scriptRoute
           )}`
           this.loadScript(url, route)

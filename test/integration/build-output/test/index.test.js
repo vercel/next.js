@@ -26,7 +26,7 @@ describe('Build Output', () => {
 
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
@@ -149,7 +149,7 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\/_app [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
@@ -177,7 +177,7 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/amp .* AMP/)
       expect(stdout).toMatch(/\/hybrid [ 0-9.]* B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
@@ -203,7 +203,7 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/λ \/404 [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
