@@ -1,6 +1,6 @@
-import { useMutation } from "@apollo/react-hooks";
-import gql from "graphql-tag";
-import { ALL_POSTS_QUERY, allPostsQueryVars } from "./SubscriptionList";
+import { useMutation } from '@apollo/react-hooks'
+import gql from 'graphql-tag'
+import { ALL_POSTS_QUERY, allPostsQueryVars } from './SubscriptionList'
 
 const CREATE_POST_MUTATION = gql`
   mutation createPost($title: String!, $url: String!) {
@@ -12,23 +12,23 @@ const CREATE_POST_MUTATION = gql`
       createdAt
     }
   }
-`;
+`
 
 export default function SubscriptionSubmit() {
-  const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION);
+  const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
 
   const handleSubmit = event => {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new window.FormData(form);
-    const title = formData.get("title");
-    const url = formData.get("url");
-    form.reset();
+    event.preventDefault()
+    const form = event.target
+    const formData = new window.FormData(form)
+    const title = formData.get('title')
+    const url = formData.get('url')
+    form.reset()
 
     createPost({
       variables: { title, url }
-    });
-  };
+    })
+  }
 
   return (
     <form onSubmit={handleSubmit}>
@@ -53,5 +53,5 @@ export default function SubscriptionSubmit() {
         }
       `}</style>
     </form>
-  );
+  )
 }

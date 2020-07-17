@@ -1,7 +1,7 @@
-// import { useQuery } from "@apollo/react-hooks";
-import gql from "graphql-tag";
-import ErrorMessage from "./ErrorMessage";
-import { useEffect } from "react";
+// import { useQuery } from '@apollo/react-hooks';
+import gql from 'graphql-tag'
+import ErrorMessage from './ErrorMessage'
+import { useEffect } from 'react'
 export const ALL_POSTS_QUERY = gql`
   query allPosts($first: Int!, $skip: Int!) {
     allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
@@ -12,24 +12,24 @@ export const ALL_POSTS_QUERY = gql`
       createdAt
     }
   }
-`;
+`
 
 export const allPostsQueryVars = {
   skip: 0,
   first: 10
-};
+}
 
 export default function SubscriptionList(props) {
   useEffect(() => {
-    props.handleSubscribe();
-  }, []);
+    props.handleSubscribe()
+  }, [])
 
-  const { loading, error, data, fetchMore, networkStatus } = props;
+  const { loading, error, data, fetchMore, networkStatus } = props
 
-  if (error) return <ErrorMessage message="Error loading posts." />;
-  if (loading) return <div>Loading</div>;
+  if (error) return <ErrorMessage message="Error loading posts." />
+  if (loading) return <div>Loading</div>
 
-  const { allPosts } = data;
+  const { allPosts } = data
   return (
     <section>
       <ul>
@@ -76,12 +76,12 @@ export default function SubscriptionList(props) {
           border-style: solid;
           border-width: 6px 4px 0 4px;
           border-color: #ffffff transparent transparent transparent;
-          content: "";
+          content: '';
           height: 0;
           margin-right: 5px;
           width: 0;
         }
       `}</style>
     </section>
-  );
+  )
 }
