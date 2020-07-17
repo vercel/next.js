@@ -49,9 +49,14 @@ const NEXT_POLYFILLED_FEATURES = [
   'WeakSet',
   'Promise',
   'Promise.prototype.finally',
-  'es2015',
-  'es5',
-  'es6',
+  'es2015', // Should be covered by babel-preset-env instead.
+  'es2016', // Should be covered by babel-preset-env instead.
+  'es2017', // Should be covered by babel-preset-env instead.
+  'es2018', // Should be covered by babel-preset-env instead.
+  'es2019', // Should be covered by babel-preset-env instead.
+  'es5', // Should be covered by babel-preset-env instead.
+  'es6', // Should be covered by babel-preset-env instead.
+  'es7', // Should be covered by babel-preset-env instead.
 ]
 
 //------------------------------------------------------------------------------
@@ -60,7 +65,8 @@ const NEXT_POLYFILLED_FEATURES = [
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit full page refresh for nextjs pages',
+      description:
+        'Prohibit unwanted features to be listed in Polyfill.io tag.',
       category: 'HTML',
       recommended: true,
     },
