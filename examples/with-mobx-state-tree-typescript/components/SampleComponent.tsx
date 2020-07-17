@@ -18,7 +18,7 @@ const SampleComponent: React.FC<IOwnProps> = observer((props) => {
     return () => {
       stop()
     }
-  }, [])
+  }, [start, stop])
 
   return (
     <div>
