@@ -88,6 +88,37 @@ const runTests = (isDev = false) => {
       `getStaticPaths can not be attached to a page's component and must be exported from the page`
     )
   })
+  it('should show error for undefined getStaticProps', async () => {
+    await fs.writeFile(
+      indexPage,
+      `
+        export function getStaticProps() {}
+        export default function Page() {
+          return <div />;
+        }
+      `
+    )
+    expect(await getStderr()).toContain(
+      'Your `getStaticProps` function did not return anything, please consider returning the props or remove it'
+    )
+  })
+
+  if (isDev) {
+    it('should show error for undefined getServerSideProps', async () => {
+      await fs.writeFile(
+        indexPage,
+        `
+          export function getServerSideProps() {}
+          export default function Page() {
+            return <div />;
+          }
+        `
+      )
+      expect(await getStderr()).toContain(
+        'Your `getServerSideProps` function did not return anything, please consider returning the props or remove it'
+      )
+    })
+  }
 }
 
 describe('GS(S)P Page Errors', () => {
