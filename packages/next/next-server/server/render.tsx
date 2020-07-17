@@ -4,9 +4,7 @@ import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
-  GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
-  GSSP_NO_RETURNED_VALUE,
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
@@ -521,8 +519,12 @@ export async function renderToHTML(
       }
 
       if (data == null) {
-        throw new Error(GSP_NO_RETURNED_VALUE)
+        console.warn(
+          'Your `getStaticProps` function did not return anything, please consider returning the props or remove it'
+        )
       }
+
+      data = { props: {} }
 
       const invalidKeys = Object.keys(data).filter(
         (key) => key !== 'unstable_revalidate' && key !== 'props'
@@ -611,8 +613,12 @@ export async function renderToHTML(
       }
 
       if (data == null) {
-        throw new Error(GSSP_NO_RETURNED_VALUE)
+        console.warn(
+          'Your `getServerSideProps` function did not return anything, please consider returning the props or remove it'
+        )
       }
+
+      data = { props: {} }
 
       const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
 

@@ -9,10 +9,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import { join } from 'path'
-import {
-  GSP_NO_RETURNED_VALUE,
-  GSSP_NO_RETURNED_VALUE,
-} from '../../../../packages/next/dist/lib/constants'
+
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
@@ -91,34 +88,6 @@ const runTests = (isDev = false) => {
       `getStaticPaths can not be attached to a page's component and must be exported from the page`
     )
   })
-
-  it('should show error for undefined getStaticProps', async () => {
-    await fs.writeFile(
-      indexPage,
-      `
-        export function getStaticProps() {}
-        export default function Page() {
-          return <div />;
-        }
-      `
-    )
-    expect(await getStderr()).toContain(GSP_NO_RETURNED_VALUE)
-  })
-
-  if (isDev) {
-    it('should show error for undefined getServerSideProps', async () => {
-      await fs.writeFile(
-        indexPage,
-        `
-          export function getServerSideProps() {}
-          export default function Page() {
-            return <div />;
-          }
-        `
-      )
-      expect(await getStderr()).toContain(GSSP_NO_RETURNED_VALUE)
-    })
-  }
 }
 
 describe('GS(S)P Page Errors', () => {
