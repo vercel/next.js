@@ -20,7 +20,7 @@ export const getStaticPaths = async () => {
     graphqlOperation(getTodoList, { id: 'global' })
   )) as { data: GetTodoListQuery; errors: any[] }
   if (result.errors) {
-    console.error('Failed to fetch todo.', result.errors)
+    console.error('Failed to fetch todos paths.', result.errors)
     throw new Error(result.errors[0].message)
   }
   const paths = result.data.getTodoList.todos.items.map(({ id }) => ({
@@ -35,7 +35,7 @@ export const getStaticProps = async ({ params: { id } }) => {
     variables: { id },
   })) as { data: GetTodoQuery; errors: any[] }
   if (todo.errors) {
-    console.error(todo.errors)
+    console.error('Failed to fetch todo.', todo.errors)
     throw new Error(todo.errors[0].message)
   }
   return {

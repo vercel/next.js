@@ -59,7 +59,7 @@ const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
 // Matches Babel plugin paths that support the useBuiltIns option
 const PLUGINS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/
 
-export default class NextEsmPlugin implements Plugin {
+export class NextEsmPlugin implements Plugin {
   options: {
     filename: any
     chunkFilename: any
@@ -80,12 +80,9 @@ export default class NextEsmPlugin implements Plugin {
   }
 
   apply(compiler: Compiler) {
-    compiler.hooks.make.tapAsync(
-      PLUGIN_NAME,
-      (compilation: CompilationType.Compilation, callback) => {
-        this.runBuild(compiler, compilation).then(callback)
-      }
-    )
+    compiler.hooks.make.tapAsync(PLUGIN_NAME, (compilation, callback) => {
+      this.runBuild(compiler, compilation).then(callback)
+    })
   }
 
   getLoaders(rules: RuleSetRule[], predicate: (loader: string) => boolean) {

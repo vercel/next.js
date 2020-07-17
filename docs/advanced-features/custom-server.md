@@ -17,6 +17,8 @@ description: Start a Next.js app programmatically using a custom server.
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to use custom route patterns.
 
+> A custom server **can not** be deployed on [Vercel](https://vercel.com/solutions/nextjs), the platform Next.js was made for.
+
 > Before deciding to use a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
 
 Take a look at the following example of a custom server:
@@ -96,4 +98,4 @@ module.exports = {
 
 > Note that `useFileSystemPublicRoutes` disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
 
-> You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; for that refer to [`Router.beforePopState`](/docs/api-reference/next/router.md#router.beforePopState).
+> You may also wish to configure the client-side router to disallow client-side redirects to filename routes; for that refer to [`router.beforePopState`](/docs/api-reference/next/router.md#router.beforePopState).
