@@ -304,8 +304,7 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const didRewrite =
-    (req as any)._nextDidRewrite && (req as any)._nextRewroteUrl !== req.url
+  const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
@@ -401,7 +400,11 @@ export async function renderToHTML(
     if (isAutoExport) {
       // remove query values except ones that will be set during export
       query = {
-        amp: query.amp,
+        ...(query.amp
+          ? {
+              amp: query.amp,
+            }
+          : {}),
       }
       req.url = pathname
       renderOpts.nextExport = true
