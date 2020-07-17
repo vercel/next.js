@@ -1,7 +1,7 @@
-import { inject, observer } from 'mobx-react'
+import React, { useEffect } from 'react'
+import { observer } from 'mobx-react-lite'
 import Link from 'next/link'
-import React from 'react'
-import { IStore } from '../store'
+import { IStore, useStore } from '../store'
 import Clock from './Clock'
 
 interface IOwnProps {
@@ -10,42 +10,27 @@ interface IOwnProps {
   linkTo: string
 }
 
-@inject('store')
-@observer
-class SampleComponent extends React.Component<IOwnProps> {
-  public componentDidMount() {
-    if (!this.props.store) {
-      return
-    }
-    this.props.store.start()
-  }
+const SampleComponent: React.FC<IOwnProps> = observer((props) => {
+  const { lastUpdate, light, start, stop } = useStore('')
 
-  public componentWillUnmount() {
-    if (!this.props.store) {
-      return
+  useEffect(() => {
+    start()
+    return () => {
+      stop()
     }
-    this.props.store.stop()
-  }
+  }, [start, stop])
 
-  public render() {
-    if (!this.props.store) {
-      return <div>Store not defined</div>
-    }
-    return (
-      <div>
-        <h1>{this.props.title}</h1>
-        <Clock
-          lastUpdate={this.props.store.lastUpdate}
-          light={this.props.store.light}
-        />
-        <nav>
-          <Link href={this.props.linkTo}>
-            <a>Navigate</a>
-          </Link>
-        </nav>
-      </div>
-    )
-  }
-}
+  return (
+    <div>
+      <h1>{props.title}</h1>
+      <Clock lastUpdate={lastUpdate} light={light} />
+      <nav>
+        <Link href={props.linkTo}>
+          <a>Navigate</a>
+        </Link>
+      </nav>
+    </div>
+  )
+})
 
 export default SampleComponent
