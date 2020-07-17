@@ -76,6 +76,11 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
   previewData?: any
+  ctx?: {
+    req: IncomingMessage
+    res: ServerResponse
+    query: ParsedUrlQuery
+  }
 }
 
 export type GetStaticPropsResult<P> = {
