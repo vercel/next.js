@@ -510,6 +510,7 @@ export async function renderToHTML(
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          ctx,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
