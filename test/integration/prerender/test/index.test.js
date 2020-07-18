@@ -587,7 +587,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
-  // server error instead of continously retrying. Do we want to change this?
+  // server error instead of continuously retrying. Do we want to change this?
   if (!dev) {
     it('should reload page on failed data request, and retry', async () => {
       const browser = await webdriver(appPort, '/')

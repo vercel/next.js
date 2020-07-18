@@ -311,8 +311,8 @@ You can listen to different events happening inside the Next.js Router. Here's a
 
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
-  - `err.cancelled` - Indicates if the navigation was cancelled
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is canceled
+  - `err.cancelled` - Indicates if the navigation was canceled
 - `beforeHistoryChange(url)` - Fires just before changing the browser's history
 - `hashChangeStart(url)` - Fires when the hash will change but not the page
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
@@ -352,7 +352,7 @@ export default function MyApp({ Component, pageProps }) {
 
 Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens.
 
-If a route load is cancelled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
+If a route load is canceled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `canceled` property set to `true`, as in the following example:
 
 ```jsx
 import { useEffect } from 'react'
@@ -364,7 +364,7 @@ export default function MyApp({ Component, pageProps }) {
   useEffect(() => {
     const handleRouteChangeError = (err, url) => {
       if (err.cancelled) {
-        console.log(`Route to ${url} was cancelled!`)
+        console.log(`Route to ${url} was canceled!`)
       }
     }
 
