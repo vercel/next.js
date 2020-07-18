@@ -83,8 +83,6 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 { "slug": ["a", "b"] }
 ```
 
-> A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
-
 ### Optional catch all routes
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
@@ -98,6 +96,8 @@ The `query` objects are as follows:
 { "slug": ["a"] } // `GET /post/a` (single-element array)
 { "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
 ```
+
+> A good example of optional catch all routes is the Next.js docs, a single page called [pages/docs/[[...slug]].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B%5B...slug%5D%5D.js) takes care of all the docs you're currently looking at.
 
 ## Caveats
 
