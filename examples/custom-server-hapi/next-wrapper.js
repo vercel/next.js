@@ -5,6 +5,16 @@ const nextHandlerWrapper = (app) => {
     return h.close
   }
 }
+const nextPublicHandlerWrapper = (app) => {
+  const handler = app.getRequestHandler()
+  return async ({ raw, url }, h) => {
+    url.href = url.href.replace('/public', '')
+    url.pathname = url.pathname.replace('/public', '')
+    raw.req.url = raw.req.url.replace('/public', '')
+    await handler(raw.req, raw.res, url)
+    return h.close
+  }
+}
 const defaultHandlerWrapper = (app) => async (
   { raw: { req, res }, url },
   h
@@ -28,4 +38,9 @@ const pathWrapper = (app, pathName, opts) => async (
   return h.response(html).code(raw.res.statusCode)
 }
 
-module.exports = { pathWrapper, defaultHandlerWrapper, nextHandlerWrapper }
+module.exports = {
+  pathWrapper,
+  defaultHandlerWrapper,
+  nextHandlerWrapper,
+  nextPublicHandlerWrapper,
+}
