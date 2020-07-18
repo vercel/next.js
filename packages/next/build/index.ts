@@ -442,9 +442,6 @@ export default async function build(
       console.log(chalk.green('Compiled successfully.\n'))
     }
   }
-  const postBuildSpinner = createSpinner({
-    prefixText: 'Automatically optimizing pages',
-  })
 
   const manifestPath = path.join(
     distDir,
@@ -689,11 +686,12 @@ export default async function build(
     const combinedPages = [...staticPages, ...ssgPages]
     const exportApp = require('../export').default
     const exportOptions = {
-      silent: true,
+      silent: false,
       buildExport: true,
       threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
+      statusMessage: 'Automatically optimizing pages',
     }
     const exportConfig: any = {
       ...config,
@@ -744,6 +742,10 @@ export default async function build(
     }
 
     await exportApp(dir, exportOptions, exportConfig)
+
+    const postBuildSpinner = createSpinner({
+      prefixText: 'Finalizing page optimization',
+    })
 
     // remove server bundles that were exported
     for (const page of staticPages) {
@@ -876,10 +878,10 @@ export default async function build(
       JSON.stringify(pagesManifest, null, 2),
       'utf8'
     )
-  }
 
-  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-  console.log()
+    if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+    console.log()
+  }
 
   const analysisEnd = process.hrtime(analysisBegin)
   telemetry.record(

@@ -97,6 +97,7 @@ interface ExportOptions {
   threads?: number
   pages?: string[]
   buildExport?: boolean
+  statusMessage?: string
 }
 
 export default async function exportApp(
@@ -342,7 +343,9 @@ export default async function exportApp(
     )
   }
 
-  const progress = !options.silent && createProgress(filteredPaths.length)
+  const progress =
+    !options.silent &&
+    createProgress(filteredPaths.length, options.statusMessage)
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
