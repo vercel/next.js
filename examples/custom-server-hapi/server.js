@@ -4,7 +4,6 @@ const {
   pathWrapper,
   defaultHandlerWrapper,
   nextHandlerWrapper,
-  nextPublicHandlerWrapper,
 } = require('./next-wrapper')
 
 const port = parseInt(process.env.PORT, 10) || 3000
@@ -35,8 +34,8 @@ app.prepare().then(async () => {
 
   server.route({
     method: 'GET',
-    path: '/public/{p*}' /* use next to handle static files */,
-    handler: nextPublicHandlerWrapper(app),
+    path: '/logo.svg' /* use next to handle static files */,
+    handler: nextHandlerWrapper(app),
   })
 
   server.route({

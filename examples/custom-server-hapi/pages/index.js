@@ -15,7 +15,7 @@ export default function Home() {
           </Link>
         </li>
       </ul>
-      <img src="/public/logo.svg" width="200" />
+      <img src="/logo.svg" width="200" />
     </>
   )
 }
