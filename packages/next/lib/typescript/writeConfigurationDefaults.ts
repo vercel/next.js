@@ -7,7 +7,12 @@ import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 type DesiredCompilerOptionsShape = {
   [key: string]:
     | { suggested: any }
-    | { parsedValue?: any; value: any; reason: string }
+    | {
+        parsedValue?: any
+        parsedValues?: Array<any>
+        value: any
+        reason: string
+      }
 }
 
 function getDesiredCompilerOptions(
@@ -33,6 +38,13 @@ function getDesiredCompilerOptions(
     },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
+      // All of these values work:
+      parsedValues: [
+        ts.ModuleKind.ES2020,
+        ts.ModuleKind.ESNext,
+        ts.ModuleKind.CommonJS,
+        ts.ModuleKind.AMD,
+      ],
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
@@ -111,7 +123,9 @@ export async function writeConfigurationDefaults(
     } else if ('value' in check) {
       const ev = effectiveConfiguration.options[optionKey]
       if (
-        !('parsedValue' in check
+        !('parsedValues' in check
+          ? check.parsedValues?.includes(ev)
+          : 'parsedValue' in check
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
