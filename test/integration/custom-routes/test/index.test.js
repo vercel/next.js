@@ -496,11 +496,11 @@ const runTests = (isDev = false) => {
         basePath: '',
         redirects: [
           {
-            destination: '/:before*/:after',
             regex: normalizeRegEx(
-              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?\\/(\\/+)(.*)$'
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?\\/(\\/+)(|.*\\/[^\\/.]+|[^\\/.]+)$'
             ),
-            source: '/:before*/{(/+)}:after(.*)',
+            source: '/:before*/{(/+)}:after(|.*/[^/.]+|[^/.]+)',
+            destination: '/:before*/:after',
             statusCode: 308,
           },
           {
