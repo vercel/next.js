@@ -438,7 +438,7 @@ export default class Router implements BaseRouter {
     as: string,
     options: any
   ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
+    return Promise.resolve().then(() => {
       if (!options._h) {
         this.isSsr = false
       }
@@ -477,12 +477,12 @@ export default class Router implements BaseRouter {
         this.changeState(method, url, as, options)
         this.scrollToHash(cleanedAs)
         Router.events.emit('hashChangeComplete', cleanedAs)
-        return resolve(true)
+        return true
       }
 
       const parsed = tryParseRelativeUrl(url)
 
-      if (!parsed) return resolve(false)
+      if (!parsed) return false
 
       let { pathname, searchParams } = parsed
       const query = searchParamsToUrlQuery(searchParams)
@@ -525,11 +525,9 @@ export default class Router implements BaseRouter {
               )
             }
 
-            return reject(
-              new Error(
-                `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                  `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
-              )
+            throw new Error(
+              `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+                `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
             )
           }
         } else {
@@ -541,18 +539,18 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', cleanedAs)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
-      this.getRouteInfo(route, pathname, query, as, shallow).then(
+      return this.getRouteInfo(route, pathname, query, as, shallow).then(
         (routeInfo) => {
           const { error } = routeInfo
 
           if (error && error.cancelled) {
             // An event already has been fired
-            return resolve(false)
+            return false
           }
 
           if (error && error[ABORTED]) {
             Router.events.emit('routeChangeError', error, cleanedAs)
-            return resolve(false)
+            return false
           }
 
           Router.events.emit('beforeHistoryChange', cleanedAs)
@@ -565,23 +563,24 @@ export default class Router implements BaseRouter {
               !(routeInfo.Component as any).getInitialProps
           }
 
-          this.set(route, pathname!, query, cleanedAs, routeInfo).then(() => {
-            if (error) {
-              Router.events.emit('routeChangeError', error, cleanedAs)
-              throw error
-            }
-
-            if (process.env.__NEXT_SCROLL_RESTORATION) {
-              if (manualScrollRestoration && '_N_X' in options) {
-                window.scrollTo(options._N_X, options._N_Y)
+          return this.set(route, pathname!, query, cleanedAs, routeInfo).then(
+            () => {
+              if (error) {
+                Router.events.emit('routeChangeError', error, cleanedAs)
+                throw error
               }
-            }
-            Router.events.emit('routeChangeComplete', cleanedAs)
 
-            return resolve(true)
-          })
-        },
-        reject
+              if (process.env.__NEXT_SCROLL_RESTORATION) {
+                if (manualScrollRestoration && '_N_X' in options) {
+                  window.scrollTo(options._N_X, options._N_Y)
+                }
+              }
+              Router.events.emit('routeChangeComplete', cleanedAs)
+
+              return true
+            }
+          )
+        }
       )
     })
   }
