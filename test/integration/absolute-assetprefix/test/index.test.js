@@ -59,4 +59,14 @@ describe('absolute assetPrefix with path prefix', () => {
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('hello')
   })
+
+  it('should fetch from cache correctly', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.waitForElementByCss('#about-link').click()
+    await browser.waitForElementByCss('#prop')
+    await browser.back()
+    await browser.waitForElementByCss('#about-link').click()
+    const prop = await browser.waitForElementByCss('#prop').text()
+    expect(prop).toBe('hello')
+  })
 })
