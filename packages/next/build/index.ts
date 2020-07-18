@@ -443,6 +443,10 @@ export default async function build(
     }
   }
 
+  const postCompileSpinner = createSpinner({
+    prefixText: 'Preparing to optimize pages',
+  })
+
   const manifestPath = path.join(
     distDir,
     isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
@@ -681,6 +685,9 @@ export default async function build(
 
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
+
+  if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+  console.log()
 
   if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
