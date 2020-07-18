@@ -128,8 +128,8 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
-async function fetchRetry(url: string, attempts: number): Promise<any> {
-  const res = await fetch(url, {
+function fetchRetry(url: string, attempts: number): Promise<any> {
+  return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
     // Cookies may also be required for `getServerSideProps`.
     //
@@ -142,22 +142,20 @@ async function fetchRetry(url: string, attempts: number): Promise<any> {
     // > option instead of relying on the default.
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
-  })
-
-  if (!res.ok) {
-    if (attempts > 1 && res.status >= 500) {
-      return fetchRetry(url, attempts - 1)
+  }).then((res) => {
+    if (!res.ok) {
+      if (attempts > 1 && res.status >= 500) {
+        return fetchRetry(url, attempts - 1)
+      }
+      throw new Error(`Failed to load static props`)
     }
-    throw new Error(`Failed to load static props`)
-  }
 
-  return res.json()
+    return res.json()
+  })
 }
 
-async function fetchNextData(dataHref: string, isServerRender: boolean) {
-  try {
-    return await fetchRetry(dataHref, isServerRender ? 3 : 1)
-  } catch (err) {
+function fetchNextData(dataHref: string, isServerRender: boolean) {
+  return fetchRetry(dataHref, isServerRender ? 3 : 1).catch((err: Error) => {
     // We should only trigger a server-side transition if this was caused
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
@@ -165,7 +163,7 @@ async function fetchNextData(dataHref: string, isServerRender: boolean) {
       ;(err as any).code = 'PAGE_LOAD_ERROR'
     }
     throw err
-  }
+  })
 }
 
 export default class Router implements BaseRouter {
@@ -880,17 +878,18 @@ export default class Router implements BaseRouter {
     })
   }
 
-  async _getStaticData(dataHref: string): Promise<object> {
+  _getStaticData(dataHref: string): Promise<object> {
     const { href: cacheKey } = new URL(dataHref, window.location.href)
     if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
-      return this.sdc[cacheKey]
+      return Promise.resolve(this.sdc[cacheKey])
     }
-    const data = await fetchNextData(dataHref, this.isSsr)
-    this.sdc[cacheKey] = data
-    return data
+    return fetchNextData(dataHref, this.isSsr).then((data) => {
+      this.sdc[cacheKey] = data
+      return data
+    })
   }
 
-  async _getServerData(dataHref: string): Promise<object> {
+  _getServerData(dataHref: string): Promise<object> {
     return fetchNextData(dataHref, this.isSsr)
   }
 

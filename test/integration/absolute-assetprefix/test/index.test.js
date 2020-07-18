@@ -62,11 +62,13 @@ describe('absolute assetPrefix with path prefix', () => {
 
   it('should fetch from cache correctly', async () => {
     const browser = await webdriver(appPort, '/')
+    await browser.eval('window.clientSideNavigated = true')
     await browser.waitForElementByCss('#about-link').click()
     await browser.waitForElementByCss('#prop')
     await browser.back()
     await browser.waitForElementByCss('#about-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('hello')
+    expect(await browser.eval('window.clientSideNavigated')).toBe(true)
   })
 })
