@@ -29,11 +29,8 @@ const runTests = (isDev = false) => {
     ['/hello///world////foo', '/hello/world/foo'],
     ['/hello//world?foo=bar//baz', '/hello/world?foo=bar%2F%2Fbaz'],
   ])('it should redirect %s to %s', async (from, to) => {
-    const res = await fetchViaHTTP(appPort, from, undefined, {
-      redirect: 'manual',
-    })
-    expect(res.status).toBe(308)
-    const location = new URL(res.headers.get('location'), 'http://n')
+    const res = await fetchViaHTTP(appPort, from)
+    const location = new URL(res.url)
     const locPathname = location.href.slice(location.origin.length)
     expect(locPathname).toBe(to)
   })

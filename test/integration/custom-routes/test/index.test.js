@@ -496,6 +496,22 @@ const runTests = (isDev = false) => {
         basePath: '',
         redirects: [
           {
+            destination: '/:before*/:after',
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?\\/(\\/+)(.*)$'
+            ),
+            source: '/:before*/{(/+)}:after(.*)',
+            statusCode: 308,
+          },
+          {
+            destination: '/:path+',
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$'
+            ),
+            source: '/:path+/',
+            statusCode: 308,
+          },
+          {
             destination: '/:lang/about',
             regex: normalizeRegEx(
               '^\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))$'
