@@ -1,5 +1,4 @@
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import { gql, useMutation } from '@apollo/client'
 import PropTypes from 'prop-types'
 
 const UPDATE_POST_MUTATION = gql`
