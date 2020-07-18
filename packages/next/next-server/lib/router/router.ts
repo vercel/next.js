@@ -891,7 +891,7 @@ export default class Router implements BaseRouter {
   }
 
   _getStaticData = (dataHref: string): Promise<object> => {
-    let { pathname } = parseRelativeUrl(dataHref)
+    let { pathname } = new URL(dataHref, window.location.href)
     pathname = prepareRoute(pathname)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
