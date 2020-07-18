@@ -89,6 +89,8 @@ Catch all routes can be made optional by including the parameter in double brack
 
 For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
 
+The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/post` in the example above).
+
 The `query` objects are as follows:
 
 ```json
