@@ -46,5 +46,8 @@
     "typescript": "3.8.3",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
+  },
+  "engines": {
+    "node": ">=10.13.0"
   }
 }
