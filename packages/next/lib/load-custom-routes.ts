@@ -396,7 +396,7 @@ export default async function loadCustomRoutes(
 
   // multiple slashes redirect
   redirects.unshift({
-    source: '/:before*/{(/+)}:after(.*)',
+    source: '/:before*/{(/+)}:after(|.*/[^/.]+|[^/.]+)',
     destination: '/:before*/:after',
     permanent: true,
   })
