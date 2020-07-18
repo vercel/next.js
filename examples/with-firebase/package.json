@@ -11,8 +11,5 @@
     "next": "latest",
     "react": "^16.13.0",
     "react-dom": "^16.13.0"
-  },
-  "devDependencies": {
-    "dotenv": "8.2.0"
   }
 }
