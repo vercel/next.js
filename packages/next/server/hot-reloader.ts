@@ -2,7 +2,7 @@ import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, normalize, relative as relativePath } from 'path'
+import { join, relative as relativePath } from 'path'
 import { UrlObject } from 'url'
 import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
@@ -84,7 +84,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/pages/:path*.js(\\.map|)'
+  '/_next/static/chunks/pages/:path*.js(\\.map|)'
 )
 
 // Recursively look up the issuer till it ends up at the root
@@ -176,14 +176,14 @@ export default class HotReloader {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlObject
-  ) {
+  ): Promise<{ finished?: true }> {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
     // That's when the CORS support is needed.
     const { preflight } = addCorsSupport(req, res)
     if (preflight) {
-      return
+      return {}
     }
 
     // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
@@ -353,7 +353,7 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          (c) => c.name === normalize(`pages/_document`)
+          (c) => c.name === `pages/_document`
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
