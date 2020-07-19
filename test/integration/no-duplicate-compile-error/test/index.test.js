@@ -56,7 +56,18 @@ describe('no duplicate compile error output', () => {
     )
     await browser.waitForElementByCss('#a')
 
-    expect((stdout.match(/Unexpected token/g) || []).length).toBe(1)
+    function getRegexCount(str, regex) {
+      return (str.match(regex) || []).length
+    }
+
+    const correctMessagesRegex = /error - [^\r\n]+\r?\n[^\r\n]+Unexpected token/g
+    const totalMessagesRegex = /Unexpected token/g
+
+    const correctMessages = getRegexCount(stdout, correctMessagesRegex)
+    const totalMessages = getRegexCount(stdout, totalMessagesRegex)
+
+    expect(correctMessages).toBeGreaterThanOrEqual(1)
+    expect(correctMessages).toBe(totalMessages)
     expect(stderr).toBe('')
 
     await killApp(app)
