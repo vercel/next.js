@@ -5,6 +5,7 @@ import * as http from 'http'
 import * as path from 'path'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { promises as fs } from 'fs'
 
 jest.setTimeout(1000 * 60 * 1)
 
@@ -14,6 +15,8 @@ let appPort
 let cdnPort
 let app
 let cdn
+let buildId
+let cdnAccessLog = []
 
 const nextConfig = new File(path.resolve(__dirname, '../next.config.js'))
 
@@ -22,31 +25,41 @@ describe('absolute assetPrefix with path prefix', () => {
     cdnPort = await findPort()
     // lightweight http proxy
     cdn = http.createServer((clientReq, clientRes) => {
-      const proxy = http.request(
+      const proxyPath = clientReq.url.slice('/path-prefix'.length)
+      cdnAccessLog.push(proxyPath)
+      const proxyReq = http.request(
         {
           hostname: 'localhost',
           port: appPort,
-          path: clientReq.url.slice('/path-prefix'.length),
+          path: proxyPath,
           method: clientReq.method,
           headers: clientReq.headers,
         },
-        (res) => {
+        (proxyRes) => {
           // cdn must be configured to allow requests from this origin
-          res.headers[
+          proxyRes.headers[
             'Access-Control-Allow-Origin'
           ] = `http://localhost:${appPort}`
-          clientRes.writeHead(res.statusCode, res.headers)
-          res.pipe(clientRes, { end: true })
+          clientRes.writeHead(proxyRes.statusCode, proxyRes.headers)
+          proxyRes.pipe(clientRes, { end: true })
         }
       )
 
-      clientReq.pipe(proxy, { end: true })
+      clientReq.pipe(proxyReq, { end: true })
     })
     await new Promise((resolve) => cdn.listen(cdnPort, resolve))
     nextConfig.replace('__CDN_PORT__', cdnPort)
     await nextBuild(appDir)
+    buildId = await fs.readFile(
+      path.resolve(__dirname, '../.next/BUILD_ID'),
+      'utf8'
+    )
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
+  })
+
+  afterEach(() => {
+    cdnAccessLog = []
   })
 
   afterAll(() => killApp(app))
@@ -58,6 +71,7 @@ describe('absolute assetPrefix with path prefix', () => {
     await browser.waitForElementByCss('#about-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('hello')
+    expect(cdnAccessLog).toContain(`/_next/data/${buildId}/about.json`)
   })
 
   it('should fetch from cache correctly', async () => {
@@ -70,5 +84,38 @@ describe('absolute assetPrefix with path prefix', () => {
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('hello')
     expect(await browser.eval('window.clientSideNavigated')).toBe(true)
+    expect(
+      cdnAccessLog.filter(
+        (path) => path === `/_next/data/${buildId}/about.json`
+      )
+    ).toHaveLength(1)
+  })
+
+  it('should work with getStaticPaths prerendered', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.waitForElementByCss('#gsp-prerender-link').click()
+    const prop = await browser.waitForElementByCss('#prop').text()
+    expect(prop).toBe('prerendered')
+    expect(cdnAccessLog).toContain(
+      `/_next/data/${buildId}/gsp-fallback/prerendered.json`
+    )
+  })
+
+  it('should work with getStaticPaths fallback', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.waitForElementByCss('#gsp-fallback-link').click()
+    const prop = await browser.waitForElementByCss('#prop').text()
+    expect(prop).toBe('fallback')
+    expect(cdnAccessLog).toContain(
+      `/_next/data/${buildId}/gsp-fallback/fallback.json`
+    )
+  })
+
+  it('should work with getServerSideProps', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.waitForElementByCss('#gssp-link').click()
+    const prop = await browser.waitForElementByCss('#prop').text()
+    expect(prop).toBe('foo')
+    expect(cdnAccessLog).toContain(`/_next/data/${buildId}/gssp.json?prop=foo`)
   })
 })
