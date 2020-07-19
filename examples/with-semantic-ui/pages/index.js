@@ -18,7 +18,7 @@ export default function Home() {
               <div className="row">
                 <p>
                   Larger content should be still available as a fallback to{' '}
-                  <em>fileLoader</em> but it should not polute{' '}
+                  <em>fileLoader</em> but it should not pollute{' '}
                   <em>/.next/static/css</em> folder. You should see two images
                   below. One, smaller, loaded as data url, and one, bigger,
                   loaded via url.

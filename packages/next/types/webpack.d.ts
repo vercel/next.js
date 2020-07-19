@@ -239,7 +239,7 @@ declare module 'webpack' {
       /**
        * Use the future version of asset emitting logic, which allows freeing memory of assets after emitting.
        * It could break plugins which assume that assets are still readable after they were emitted.
-       * @deprecated - will be removed in webpack v5.0.0 and this behaviour will become the new default.
+       * @deprecated - will be removed in webpack v5.0.0 and this behavior will become the new default.
        */
       futureEmitAssets?: boolean
       /** The filename of WebAssembly modules as relative path inside the `output.path` directory. */
@@ -757,7 +757,7 @@ declare module 'webpack' {
          */
         usedExports?: boolean
         /**
-         *  Recognise the sideEffects flag in package.json or rules to eliminate modules. This depends on optimization.providedExports and optimization.usedExports.
+         *  Recognize the sideEffects flag in package.json or rules to eliminate modules. This depends on optimization.providedExports and optimization.usedExports.
          *  These dependencies have a cost, but eliminating modules has positive impact on performance because of less code generation. It depends on your codebase.
          *  Try it for possible performance wins.
          */
@@ -1990,7 +1990,7 @@ declare module 'webpack' {
           minSize: 30000
           /**
            * Size in byte.
-           * maximum size prefered for each chunk.
+           * maximum size preferred for each chunk.
            *
            * Default: 51200
            */

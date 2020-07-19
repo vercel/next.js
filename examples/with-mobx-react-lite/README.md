@@ -47,7 +47,7 @@ yarn dev
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-## Inplementation details
+## Implementation details
 
 The initial store data is returned from the `initializeData` function that recycles existing store data if it already exists.
 

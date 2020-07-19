@@ -57,7 +57,7 @@ cp .env.local.example .env.local
 
 Next, Copy your Sentry DSN. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN** and set it as the value for `NEXT_PUBLIC_SENTRY_DSN` inside `.env.local`
 
-> **Note:** Error tracking is disabled in development mode using the `NODE_ENV` environment variable. To change this behaviour, remove the `enabled` property from the `Sentry.init()` call inside your `_app.js` file.
+> **Note:** Error tracking is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `enabled` property from the `Sentry.init()` call inside your `_app.js` file.
 
 ### Step 2. Run Next.js in development mode
 
@@ -80,7 +80,7 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 3. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
 4. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
 
-> **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behaviour, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
+> **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
 
 ## Other configuration options
 

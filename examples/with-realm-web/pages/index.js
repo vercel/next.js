@@ -83,7 +83,7 @@ const IndexPage = () => {
           font-family: sans-serif;
         }
         .status {
-          text-colour: red;
+          text-color: red;
           text-align: center;
         }
       `}</style>

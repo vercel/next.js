@@ -280,7 +280,7 @@ XHRWrapper.prototype.open = function (method, url) {
   // XDomainRequest#abort removes onprogress, onerror, onload
   xhr.onload = onFinish
   xhr.onerror = onFinish
-  // improper fix to match Firefox behaviour, but it is better than just ignore abort
+  // improper fix to match Firefox behavior, but it is better than just ignore abort
   // see https://bugzilla.mozilla.org/show_bug.cgi?id=768596
   // https://bugzilla.mozilla.org/show_bug.cgi?id=880200
   // https://code.google.com/p/chromium/issues/detail?id=153570

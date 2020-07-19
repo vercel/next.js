@@ -77,7 +77,7 @@ export default function IndexPage() {
         food, yet ignore the squirrels, you'll never catch them anyway cat
         snacks spread kitty litter all over house or hopped up on catnip. Spit
         up on light gray carpet instead of adjacent linoleum throwup on your
-        pillow, so cat is love, cat is life yet human is washing you why halp oh
+        pillow, so cat is love, cat is life yet human is washing you why help oh
         the horror flee scratch hiss bite. Chase mice. Swat turds around the
         house hide at bottom of staircase to trip human. Meowing non stop for
         food howl on top of tall thing. Shake treat bag pee in human's bed until
@@ -93,7 +93,7 @@ export default function IndexPage() {
         catch the red dot today slap owner's face at 5am until human fills food
         dish scratch at the door then walk away for intrigued by the shower, but
         steal the warm chair right after you get up. Fall asleep on the washing
-        machine destroy couch as revenge scream at teh bath so love to play with
+        machine destroy couch as revenge scream at the bath so love to play with
         owner's hair tie. Howl uncontrollably for no reason rub whiskers on bare
         skin act innocent. Cats making all the muffins lick butt and make a
         weird face meow all night having their mate disturbing sleeping humans
@@ -108,7 +108,7 @@ export default function IndexPage() {
         cleans the litter box and if it fits, i sits caticus cuteicus. Eats
         owners hair then claws head lounge in doorway, and hide when guests come
         over chase ball of string eat owner's food play riveting piece on
-        synthesizer keyboard. Purrr purr littel cat, little cat purr purr spit
+        synthesizer keyboard. Purrr purr little cat, little cat purr purr spit
         up on light gray carpet instead of adjacent linoleum kitty loves pigs
         yet damn that dog meow or walk on car leaving trail of paw prints on
         hood and windshield. Roll on the floor purring your whiskers off meow
@@ -212,7 +212,7 @@ export default function IndexPage() {
         together yet have my breakfast spaghetti yarn so scamper. Need to chase
         tail meow for food, then when human fills food dish, take a few bites of
         food and continue meowing for pee in the shoe thinking longingly about
-        tuna brine yet purrr purr littel cat, little cat purr purr lie on your
+        tuna brine yet purrr purr little cat, little cat purr purr lie on your
         belly and purr when you are asleep. Lounge in doorway poop on grasses
         for lounge in doorway for chew iPad power cord.
       </p>
