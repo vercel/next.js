@@ -14,6 +14,10 @@ export default function Page() {
       <Link href="/gsp-fallback/[slug]" as="/gsp-fallback/fallback">
         <a id="gsp-fallback-link">getStaticPaths fallback</a>
       </Link>
+      <br />
+      <Link href="/gssp?prop=foo">
+        <a id="gssp-link">getServerSideProps</a>
+      </Link>
     </>
   )
 }

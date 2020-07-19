@@ -7,7 +7,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { promises as fs } from 'fs'
 
-jest.setTimeout(1000 * 60 * 10)
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '..')
 
@@ -109,5 +109,13 @@ describe('absolute assetPrefix with path prefix', () => {
     expect(cdnAccessLog).toContain(
       `/_next/data/${buildId}/gsp-fallback/fallback.json`
     )
+  })
+
+  it('should work with getServerSideProps', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.waitForElementByCss('#gssp-link').click()
+    const prop = await browser.waitForElementByCss('#prop').text()
+    expect(prop).toBe('foo')
+    expect(cdnAccessLog).toContain(`/_next/data/${buildId}/gssp.json?prop=foo`)
   })
 })
