@@ -32,7 +32,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
             <footer>
               <p id="nextjs__container_build_error_desc">
                 <small>
-                  This error occured during the build process and can only be
+                  This error occurred during the build process and can only be
                   dismissed by fixing the error.
                 </small>
               </p>

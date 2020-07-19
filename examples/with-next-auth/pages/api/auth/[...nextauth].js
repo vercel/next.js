@@ -77,7 +77,7 @@ const options = {
   },
 
   // Control which users / accounts can sign in
-  // You can use this option in conjuction with OAuth and JWT to control which
+  // You can use this option in conjunction with OAuth and JWT to control which
   // accounts can sign in without having to use a database.
   allowSignin: async (user, account) => {
     // Return true if user / account is allowed to sign in.
