@@ -50,7 +50,10 @@ describe('no duplicate compile error output', () => {
     }
 
     // Wait for compile error to disappear:
-    await check(() => hasRedbox(browser).then((r) => (r ? 'yes' : 'no')), /no/)
+    await check(
+      () => hasRedbox(browser, false).then((r) => (r ? 'yes' : 'no')),
+      /no/
+    )
     await browser.waitForElementByCss('#a')
 
     expect((stdout.match(/Unexpected token/g) || []).length).toBe(1)
