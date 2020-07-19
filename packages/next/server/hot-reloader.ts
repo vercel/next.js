@@ -32,7 +32,11 @@ import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
 
-export async function renderScriptError(res: ServerResponse, error: Error) {
+export async function renderScriptError(
+  res: ServerResponse,
+  error: Error,
+  { verbose = true } = {}
+) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader(
     'Cache-Control',
@@ -48,7 +52,9 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
     return
   }
 
-  console.error(error.stack)
+  if (verbose) {
+    console.error(error.stack)
+  }
   res.statusCode = 500
   res.end('500 - Internal Error')
 }
@@ -213,7 +219,7 @@ export default class HotReloader {
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0])
+          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
           return { finished: true }
         }
       }
