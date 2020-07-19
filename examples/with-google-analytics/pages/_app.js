@@ -4,8 +4,8 @@ import * as gtag from '../lib/gtag'
 
 const App = ({ Component, pageProps }) => {
   useEffect(() => {
-    const handleRouteChange = (url) => {
-      gtag.pageview(url)
+    const handleRouteChange = () => {
+      gtag.pageview()
     }
     Router.events.on('routeChangeComplete', handleRouteChange)
     return () => {
