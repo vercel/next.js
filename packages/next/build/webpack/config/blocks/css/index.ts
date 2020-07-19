@@ -102,7 +102,7 @@ export const css = curry(async function css(
   )
 
   // CSS Modules support must be enabled on the server and client so the class
-  // names are availble for SSR or Prerendering.
+  // names are available for SSR or Prerendering.
   fns.push(
     loader({
       oneOf: [
