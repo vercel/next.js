@@ -508,7 +508,7 @@ const runTests = (context, dev = false) => {
     }
   })
 
-  it('should use urls without basepath in router events', async () => {
+  it('should use urls with basepath in router events', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     try {
       await browser.eval('window._clearEventLog()')
@@ -519,16 +519,16 @@ const runTests = (context, dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', '/other-page'],
-        ['beforeHistoryChange', '/other-page'],
-        ['routeChangeComplete', '/other-page'],
+        ['routeChangeStart', '/docs/other-page'],
+        ['beforeHistoryChange', '/docs/other-page'],
+        ['routeChangeComplete', '/docs/other-page'],
       ])
     } finally {
       await browser.close()
     }
   })
 
-  it('should use urls without basepath in router events for hash changes', async () => {
+  it('should use urls with basepath in router events for hash changes', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     try {
       await browser.eval('window._clearEventLog()')
@@ -536,15 +536,15 @@ const runTests = (context, dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['hashChangeStart', '/hello#some-hash'],
-        ['hashChangeComplete', '/hello#some-hash'],
+        ['hashChangeStart', '/docs/hello#some-hash'],
+        ['hashChangeComplete', '/docs/hello#some-hash'],
       ])
     } finally {
       await browser.close()
     }
   })
 
-  it('should use urls without basepath in router events for cancelled routes', async () => {
+  it('should use urls with basepath in router events for cancelled routes', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     try {
       await browser.eval('window._clearEventLog()')
@@ -557,18 +557,18 @@ const runTests = (context, dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', '/slow-route'],
-        ['routeChangeError', 'Route Cancelled', true, '/slow-route'],
-        ['routeChangeStart', '/other-page'],
-        ['beforeHistoryChange', '/other-page'],
-        ['routeChangeComplete', '/other-page'],
+        ['routeChangeStart', '/docs/slow-route'],
+        ['routeChangeError', 'Route Cancelled', true, '/docs/slow-route'],
+        ['routeChangeStart', '/docs/other-page'],
+        ['beforeHistoryChange', '/docs/other-page'],
+        ['routeChangeComplete', '/docs/other-page'],
       ])
     } finally {
       await browser.close()
     }
   })
 
-  it('should use urls without basepath in router events for failed route change', async () => {
+  it('should use urls with basepath in router events for failed route change', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     try {
       await browser.eval('window._clearEventLog()')
@@ -578,12 +578,12 @@ const runTests = (context, dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', '/error-route'],
+        ['routeChangeStart', '/docs/error-route'],
         [
           'routeChangeError',
           'Failed to load static props',
           null,
-          '/error-route',
+          '/docs/error-route',
         ],
       ])
     } finally {
