@@ -626,7 +626,7 @@ export default class Router implements BaseRouter {
     }
 
     const handleError = (
-      err: Error & { code: any; canceled: boolean },
+      err: Error & { code: any; cancelled: boolean },
       loadErrorFail?: boolean
     ) => {
       return new Promise((resolve) => {
@@ -640,7 +640,7 @@ export default class Router implements BaseRouter {
           window.location.href = as
 
           // Changing the URL doesn't block executing the current code path.
-          // So, we need to mark it as a canceled error and stop the routing logic.
+          // So, we need to mark it as a cancelled error and stop the routing logic.
           err.cancelled = true
           // @ts-ignore TODO: fix the control flow here
           return resolve({ error: err })
@@ -847,14 +847,14 @@ export default class Router implements BaseRouter {
   }
 
   async fetchComponent(route: string): Promise<ComponentRes> {
-    let canceled = false
+    let cancelled = false
     const cancel = (this.clc = () => {
-      canceled = true
+      cancelled = true
     })
 
     const componentResult = await this.pageLoader.loadPage(route)
 
-    if (canceled) {
+    if (cancelled) {
       const error: any = new Error(
         `Abort fetching component for route: "${route}"`
       )
@@ -870,9 +870,9 @@ export default class Router implements BaseRouter {
   }
 
   _getData<T>(fn: () => Promise<T>): Promise<T> {
-    let canceled = false
+    let cancelled = false
     const cancel = () => {
-      canceled = true
+      cancelled = true
     }
     this.clc = cancel
     return fn().then((data) => {
@@ -880,7 +880,7 @@ export default class Router implements BaseRouter {
         this.clc = null
       }
 
-      if (canceled) {
+      if (cancelled) {
         const err: any = new Error('Loading initial props cancelled')
         err.cancelled = true
         throw err
@@ -925,7 +925,7 @@ export default class Router implements BaseRouter {
   abortComponentLoad(as: string): void {
     if (this.clc) {
       const e = new Error('Route Cancelled')
-      ;(e as any).canceled = true
+      ;(e as any).cancelled = true
       Router.events.emit('routeChangeError', e, as)
       this.clc()
       this.clc = null
