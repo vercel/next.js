@@ -36,10 +36,6 @@ export function delBasePath(path: string): string {
   return path.slice(basePath.length) || '/'
 }
 
-function prepareRoute(path: string) {
-  return removePathTrailingSlash(delBasePath(path || '/'))
-}
-
 type Url = UrlObject | string
 
 /**
@@ -132,50 +128,42 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
-function fetchNextData(
-  dataHref: string,
-  isServerRender: boolean,
-  cb?: (...args: any) => any
-) {
-  let attempts = isServerRender ? 3 : 1
-  function getResponse(): Promise<any> {
-    return fetch(dataHref, {
-      // Cookies are required to be present for Next.js' SSG "Preview Mode".
-      // Cookies may also be required for `getServerSideProps`.
-      //
-      // > `fetch` won’t send cookies, unless you set the credentials init
-      // > option.
-      // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-      //
-      // > For maximum browser compatibility when it comes to sending &
-      // > receiving cookies, always supply the `credentials: 'same-origin'`
-      // > option instead of relying on the default.
-      // https://github.com/github/fetch#caveats
-      credentials: 'same-origin',
-    }).then((res) => {
-      if (!res.ok) {
-        if (--attempts > 0 && res.status >= 500) {
-          return getResponse()
-        }
-        throw new Error(`Failed to load static props`)
+function fetchRetry(url: string, attempts: number): Promise<any> {
+  return fetch(url, {
+    // Cookies are required to be present for Next.js' SSG "Preview Mode".
+    // Cookies may also be required for `getServerSideProps`.
+    //
+    // > `fetch` won’t send cookies, unless you set the credentials init
+    // > option.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    //
+    // > For maximum browser compatibility when it comes to sending &
+    // > receiving cookies, always supply the `credentials: 'same-origin'`
+    // > option instead of relying on the default.
+    // https://github.com/github/fetch#caveats
+    credentials: 'same-origin',
+  }).then((res) => {
+    if (!res.ok) {
+      if (attempts > 1 && res.status >= 500) {
+        return fetchRetry(url, attempts - 1)
       }
-      return res.json()
-    })
-  }
+      throw new Error(`Failed to load static props`)
+    }
 
-  return getResponse()
-    .then((data) => {
-      return cb ? cb(data) : data
-    })
-    .catch((err: Error) => {
-      // We should only trigger a server-side transition if this was caused
-      // on a client-side transition. Otherwise, we'd get into an infinite
-      // loop.
-      if (!isServerRender) {
-        ;(err as any).code = 'PAGE_LOAD_ERROR'
-      }
-      throw err
-    })
+    return res.json()
+  })
+}
+
+function fetchNextData(dataHref: string, isServerRender: boolean) {
+  return fetchRetry(dataHref, isServerRender ? 3 : 1).catch((err: Error) => {
+    // We should only trigger a server-side transition if this was caused
+    // on a client-side transition. Otherwise, we'd get into an infinite
+    // loop.
+    if (!isServerRender) {
+      ;(err as any).code = 'PAGE_LOAD_ERROR'
+    }
+    throw err
+  })
 }
 
 export default class Router implements BaseRouter {
@@ -890,20 +878,18 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (dataHref: string): Promise<object> => {
-    let { pathname } = parseRelativeUrl(dataHref)
-    pathname = prepareRoute(pathname)
-
-    return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? Promise.resolve(this.sdc[dataHref])
-      : fetchNextData(
-          dataHref,
-          this.isSsr,
-          (data) => (this.sdc[pathname] = data)
-        )
+  _getStaticData(dataHref: string): Promise<object> {
+    const { href: cacheKey } = new URL(dataHref, window.location.href)
+    if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
+      return Promise.resolve(this.sdc[cacheKey])
+    }
+    return fetchNextData(dataHref, this.isSsr).then((data) => {
+      this.sdc[cacheKey] = data
+      return data
+    })
   }
 
-  _getServerData = (dataHref: string): Promise<object> => {
+  _getServerData(dataHref: string): Promise<object> {
     return fetchNextData(dataHref, this.isSsr)
   }
 
