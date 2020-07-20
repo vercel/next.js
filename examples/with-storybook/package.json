@@ -11,15 +11,17 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
+    "react": "16.13.1",
     "react-dom": "^16.7.0"
   },
   "license": "ISC",
   "devDependencies": {
-    "@storybook/addon-actions": "5.2.3",
-    "@storybook/addon-links": "5.2.3",
-    "@storybook/addons": "5.2.3",
-    "@storybook/react": "5.2.3",
-    "babel-loader": "^8.0.5"
+    "@babel/core": "7.10.5",
+    "@storybook/addon-actions": "^5.3.19",
+    "@storybook/addon-docs": "5.3.19",
+    "@storybook/addon-links": "^5.3.19",
+    "@storybook/addons": "^5.3.19",
+    "@storybook/react": "^5.3.19",
+    "babel-loader": "8.1.0"
   }
 }
