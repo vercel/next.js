@@ -1,6 +1,6 @@
 # Example app with react-md
 
-This example features how you use [react-md](https://react-md.mlaursen.com/) (React Material Design) with Next.js.
+This example features how you use [react-md](https://react-md.dev/) (React Material Design) with Next.js.
 
 I recommend reading [layout-component](../layout-component) example next to learn how to reuse the layout across the pages.
 
