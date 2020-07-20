@@ -3,7 +3,7 @@ import { InferGetStaticPropsType } from 'next'
 export const getStaticProps = async () => {
   return {
     props: { data: ['hello', 'world'] },
-    unstable_revalidate: false,
+    revalidate: false,
   }
 }
 

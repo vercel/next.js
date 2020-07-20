@@ -10,7 +10,7 @@ export async function getStaticProps({ params }) {
       time: new Date().getTime(),
       random: Math.random(),
     },
-    unstable_revalidate: false,
+    revalidate: false,
   }
 }
 

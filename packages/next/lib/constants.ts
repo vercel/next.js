@@ -40,10 +40,8 @@ export const GSSP_NO_RETURNED_VALUE =
   'Your `getServerSideProps` function did not return an object. Did you forget to add a `return`?'
 
 export const UNSTABLE_REVALIDATE_RENAME_ERROR =
-  'The `revalidate` property is not yet available for general use.\n' +
-  'To try the experimental implementation, please use `unstable_revalidate` instead.\n' +
-  "We're excited for you to try this feature—please share all feedback on the RFC:\n" +
-  'https://nextjs.link/issg'
+  'The `unstable_revalidate` property is available for general use.\n' +
+  'Please use `revalidate` instead.'
 
 export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's component and must be exported from the page. See more info here: https://err.sh/next.js/gssp-component-member`
 

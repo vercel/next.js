@@ -80,7 +80,7 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 
 export type GetStaticPropsResult<P> = {
   props: P
-  unstable_revalidate?: number | boolean
+  revalidate?: number | boolean
 }
 
 export type GetStaticProps<
