@@ -360,8 +360,8 @@ export default async function loadCustomRoutes(
   if (config.trailingSlash) {
     redirects.unshift(
       {
-        source: '/:path*/:file.:ext/',
-        destination: '/:path*/:file.:ext',
+        source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+        destination: '/:file',
         permanent: true,
       },
       {
