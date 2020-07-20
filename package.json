@@ -58,7 +58,7 @@
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "10.0.3",
     "babel-jest": "24.9.0",
-    "browserslist": "^4.8.3",
+    "browserslist": "^4.13.0",
     "browserstack-local": "1.4.0",
     "caniuse-lite": "^1.0.30001019",
     "cheerio": "0.22.0",
