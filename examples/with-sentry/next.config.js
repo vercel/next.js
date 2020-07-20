@@ -10,6 +10,9 @@ const {
   SENTRY_PROJECT,
   SENTRY_AUTH_TOKEN,
   NODE_ENV,
+  VERCEL_GITHUB_COMMIT_SHA,
+  VERCEL_GITLAB_COMMIT_SHA,
+  VERCEL_BITBUCKET_COMMIT_SHA,
 } = process.env
 
 process.env.SENTRY_DSN = SENTRY_DSN
@@ -51,7 +54,10 @@ module.exports = withSourceMaps({
           include: '.next',
           ignore: ['node_modules'],
           urlPrefix: '~/_next',
-          release: options.buildId,
+          release:
+            VERCEL_GITHUB_COMMIT_SHA ||
+            VERCEL_GITLAB_COMMIT_SHA ||
+            VERCEL_BITBUCKET_COMMIT_SHA,
         })
       )
     }
