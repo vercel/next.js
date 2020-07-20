@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import cheerio from 'cheerio'
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -9,6 +10,7 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
+  renderViaHTTP,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -20,19 +22,27 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
-  it.each([
+  const cases = [
     ['/hello//world', '/hello/world'],
     ['//hello/world', '/hello/world'],
     ['/hello/world//', '/hello/world'],
     ['//', '/'],
     ['/hello///world', '/hello/world'],
     ['/hello///world////foo', '/hello/world/foo'],
-    ['/hello//world?foo=bar//baz', '/hello/world?foo=bar%2F%2Fbaz'],
-  ])('it should redirect %s to %s', async (from, to) => {
+    ['/hello//world?foo=bar//baz', '/hello/world?foo=bar//baz'],
+  ]
+
+  it.each(cases)('it should redirect %s to %s', async (from, to) => {
     const res = await fetchViaHTTP(appPort, from)
     const location = new URL(res.url)
     const locPathname = location.href.slice(location.origin.length)
     expect(locPathname).toBe(to)
+  })
+
+  it.each(cases)('it should rewrite href %s to %s', async (from, to) => {
+    const content = await renderViaHTTP(appPort, `/linker?href=${from}`)
+    const $ = cheerio.load(content)
+    expect($('#link').attr('href')).toBe(to)
   })
 }
 

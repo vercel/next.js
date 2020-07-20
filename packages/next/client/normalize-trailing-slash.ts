@@ -20,3 +20,7 @@ export const normalizePathTrailingSlash = process.env.__NEXT_TRAILING_SLASH
       }
     }
   : removePathTrailingSlash
+
+export function normalizePathSlashes(path: string): string {
+  return normalizePathTrailingSlash(path.replace(/\/\/+/g, '/'))
+}
