@@ -99,7 +99,7 @@ export function runNextCommand(argv, options = {}) {
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', [nextBin, ...argv], {
+    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
       ...options.spawnOptions,
       cwd,
       env,
