@@ -7,7 +7,7 @@ const MyError = async ({ statusCode, hasGetInitialPropsRun, err }) => {
     // https://github.com/vercel/next.js/issues/8592. As a workaround, we pass
     // err via _app.js so it can be captured
     Sentry.captureException(err)
-    await Sentry.flush(2000);
+    await Sentry.flush(2000)
   }
 
   return <NextErrorComponent statusCode={statusCode} />
@@ -42,7 +42,7 @@ MyError.getInitialProps = async ({ res, err, asPath }) => {
   }
   if (err) {
     Sentry.captureException(err)
-    await Sentry.flush(2000);
+    await Sentry.flush(2000)
     return errorInitialProps
   }
 
@@ -52,7 +52,7 @@ MyError.getInitialProps = async ({ res, err, asPath }) => {
   Sentry.captureException(
     new Error(`_error.js getInitialProps missing data at path: ${asPath}`)
   )
-  await Sentry.flush(2000);
+  await Sentry.flush(2000)
 
   return errorInitialProps
 }
