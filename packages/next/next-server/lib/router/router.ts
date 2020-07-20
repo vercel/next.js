@@ -22,6 +22,8 @@ import {
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
+const ABORTED = Symbol('aborted')
+
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 export function addBasePath(path: string): string {
@@ -529,7 +531,12 @@ export default class Router implements BaseRouter {
         const { error } = routeInfo
 
         if (error && error.cancelled) {
-          // An event has already been fired
+          // An event already has been fired
+          return false
+        }
+
+        if (error && error[ABORTED]) {
+          Router.events.emit('routeChangeError', error, as)
           return false
         }
 
@@ -598,7 +605,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  async getRouteInfo(
+  getRouteInfo(
     route: string,
     pathname: string,
     query: any,
@@ -613,71 +620,81 @@ export default class Router implements BaseRouter {
       return Promise.resolve(cachedRouteInfo)
     }
 
-    const handleError = async (
-      err: Error & { code: any; cancelled: boolean },
+    const handleError = (
+      err: Error & { code: any; cancelled: boolean; [ABORTED]: boolean },
       loadErrorFail?: boolean
-    ): Promise<RouteInfo> => {
-      if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
-        Router.events.emit('routeChangeError', err, as)
+    ) => {
+      return new Promise((resolve) => {
+        if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+          // If we can't load the page it could be one of following reasons
+          //  1. Page doesn't exists
+          //  2. Page does exist in a different zone
+          //  3. Internal error while loading the page
 
-        // If we can't load the page it could be one of following reasons
-        //  1. Page doesn't exists
-        //  2. Page does exist in a different zone
-        //  3. Internal error while loading the page
+          // So, doing a hard reload is the proper way to deal with this.
+          window.location.href = as
 
-        // So, doing a hard reload is the proper way to deal with this.
-        window.location.href = as
+          // Changing the URL doesn't block executing the current code path.
+          // So, we need to mark it as aborted and stop the routing logic.
+          err[ABORTED] = true
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
 
-        // Changing the URL doesn't block executing the current code path.
-        // So, we need to mark it as cancelled to stop the routing logic.
-        const cancellationError = Object.assign(new Error(err.message), {
-          cancelled: true,
-        })
-        // @ts-ignore TODO: fix the control flow here
-        return { error: cancellationError }
-      }
+        if (err.cancelled) {
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
 
-      if (err.cancelled) {
-        // @ts-ignore TODO: fix the control flow here
-        return { error: err }
-      }
-
-      return this.fetchComponent('/_error')
-        .then((res) => {
-          const { page: Component } = res
-          const routeInfo: RouteInfo = { Component, err }
-          return this.getInitialProps(Component, {
-            err,
-            pathname,
-            query,
-          } as any).then(
-            (props) => {
-              routeInfo.props = props
-              routeInfo.error = err
-              return routeInfo
-            },
-            (gipErr) => {
-              console.error('Error in error page `getInitialProps`: ', gipErr)
-              routeInfo.props = {}
-              routeInfo.error = err
-              return routeInfo
-            }
-          )
-        })
-        .catch((routeInfoErr) => handleError(routeInfoErr, true))
+        resolve(
+          this.fetchComponent('/_error')
+            .then((res) => {
+              const { page: Component } = res
+              const routeInfo: RouteInfo = { Component, err }
+              return new Promise((resolveRouteInfo) => {
+                this.getInitialProps(Component, {
+                  err,
+                  pathname,
+                  query,
+                } as any).then(
+                  (props) => {
+                    routeInfo.props = props
+                    routeInfo.error = err
+                    resolveRouteInfo(routeInfo)
+                  },
+                  (gipErr) => {
+                    console.error(
+                      'Error in error page `getInitialProps`: ',
+                      gipErr
+                    )
+                    routeInfo.error = err
+                    routeInfo.props = {}
+                    resolveRouteInfo(routeInfo)
+                  }
+                )
+              }) as Promise<RouteInfo>
+            })
+            .catch((routeInfoErr) => handleError(routeInfoErr, true))
+        )
+      }) as Promise<RouteInfo>
     }
 
-    if (cachedRouteInfo) {
-      return cachedRouteInfo
-    }
+    return (new Promise((resolve, reject) => {
+      if (cachedRouteInfo) {
+        return resolve(cachedRouteInfo)
+      }
 
-    return this.fetchComponent(route)
-      .then((res) => {
-        const routeInfo = {
-          Component: res.page,
-          __N_SSG: res.mod.__N_SSG,
-          __N_SSP: res.mod.__N_SSP,
-        } as RouteInfo
+      this.fetchComponent(route).then(
+        (res) =>
+          resolve({
+            Component: res.page,
+            __N_SSG: res.mod.__N_SSG,
+            __N_SSP: res.mod.__N_SSP,
+          }),
+        reject
+      )
+    }) as Promise<RouteInfo>)
+      .then((routeInfo: RouteInfo) => {
         const { Component, __N_SSG, __N_SSP } = routeInfo
 
         if (process.env.NODE_ENV !== 'production') {
