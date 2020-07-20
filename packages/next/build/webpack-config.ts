@@ -945,7 +945,7 @@ export default async function getBaseWebpackConfig(
           tracer,
         }),
       !isWebpack5 &&
-        !config.experimental.modern &&
+        config.experimental.modern &&
         !isServer &&
         !dev &&
         (() => {
