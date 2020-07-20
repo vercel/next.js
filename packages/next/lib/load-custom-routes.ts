@@ -357,7 +357,7 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
-  if (config.experimental.trailingSlash) {
+  if (config.trailingSlash) {
     redirects.unshift(
       {
         source: '/:path*/:file.:ext/',
