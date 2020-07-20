@@ -24,7 +24,7 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', [scriptPath], { env })
+    const instance = spawn('node', ['--no-deprecation', scriptPath], { env })
 
     function handleStdout(data) {
       const message = data.toString()
@@ -159,7 +159,11 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   }
 
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
+    const instance = spawn(
+      'node',
+      ['--no-deprecation', 'dist/bin/next', ...argv],
+      { cwd, env }
+    )
     let didResolve = false
 
     function handleStdout(data) {
@@ -246,7 +250,7 @@ export function buildTS(args = [], cwd, env = {}) {
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [require.resolve('typescript/lib/tsc'), ...args],
+      ['--no-deprecation', require.resolve('typescript/lib/tsc'), ...args],
       { cwd, env }
     )
     let output = ''
