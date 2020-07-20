@@ -318,6 +318,8 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `router.push(url, as)` (or similar), then the value of `url` will be `as`.
+>
+> **Note:** If you [configure a `basePath`](/docs/api-reference/next.config.js/basepath.md) then the value of `url` will be `basePath + as`.
 
 #### Usage
 
