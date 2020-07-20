@@ -81,7 +81,7 @@
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
-    "browserslist": "4.12.0",
+    "browserslist": "4.13.0",
     "cacache": "13.0.1",
     "chokidar": "2.1.8",
     "css-loader": "3.5.3",
