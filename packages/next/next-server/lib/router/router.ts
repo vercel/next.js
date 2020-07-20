@@ -451,7 +451,7 @@ export default class Router implements BaseRouter {
       }
 
       const cleanedAs = delBasePath(as)
-      this._inFlightRoute = cleanedAs
+      this._inFlightRoute = as
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
@@ -461,10 +461,10 @@ export default class Router implements BaseRouter {
       // any time without notice.
       if (!options._h && this.onlyAHashChange(cleanedAs)) {
         this.asPath = cleanedAs
-        Router.events.emit('hashChangeStart', cleanedAs)
+        Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as, options)
         this.scrollToHash(cleanedAs)
-        Router.events.emit('hashChangeComplete', cleanedAs)
+        Router.events.emit('hashChangeComplete', as)
         return true
       }
 
@@ -524,7 +524,7 @@ export default class Router implements BaseRouter {
         }
       }
 
-      Router.events.emit('routeChangeStart', cleanedAs)
+      Router.events.emit('routeChangeStart', as)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
       return this.getRouteInfo(route, pathname, query, as, shallow).then(
@@ -537,11 +537,11 @@ export default class Router implements BaseRouter {
           }
 
           if (error && error[ABORTED]) {
-            Router.events.emit('routeChangeError', error, cleanedAs)
+            Router.events.emit('routeChangeError', error, as)
             return false
           }
 
-          Router.events.emit('beforeHistoryChange', cleanedAs)
+          Router.events.emit('beforeHistoryChange', as)
           this.changeState(method, url, as, options)
 
           if (process.env.NODE_ENV !== 'production') {
@@ -563,7 +563,7 @@ export default class Router implements BaseRouter {
                   window.scrollTo(options._N_X, options._N_Y)
                 }
               }
-              Router.events.emit('routeChangeComplete', cleanedAs)
+              Router.events.emit('routeChangeComplete', as)
 
               return true
             }
