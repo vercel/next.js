@@ -102,6 +102,7 @@ export class DropClientPage implements Plugin {
                 // @ts-ignore TODO: webpack 5 types
                 const module = compilation.moduleGraph.getModule(dependency)
                 if (module?.buildInfo?.NEXT_ampFirst) {
+                  ampFirstEntryNamesItem.push(name)
                   // @ts-ignore @types/webpack has outdated types for webpack 5
                   compilation.entries.delete(name)
                 }

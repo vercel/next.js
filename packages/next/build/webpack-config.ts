@@ -944,7 +944,8 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      config.experimental.modern &&
+      !isWebpack5 &&
+        config.experimental.modern &&
         !isServer &&
         !dev &&
         (() => {

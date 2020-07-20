@@ -15,7 +15,7 @@ jest.setTimeout(1000 * 60 * 3)
 const appDir = join(__dirname, '../')
 
 describe('no duplicate compile error output', () => {
-  it('show not show compile error on page refresh', async () => {
+  it('should not show compile error on page refresh', async () => {
     let stdout = ''
     let stderr = ''
 
