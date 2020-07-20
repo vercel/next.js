@@ -1,0 +1,35 @@
+import { Meta, Story, Preview } from '@storybook/addon-docs/blocks'
+import { Button } from '@storybook/react/demo'
+import { action } from '@storybook/addon-actions'
+
+<Meta title="MDX/Button" component={Button} />
+
+# Buttons
+
+With `MDX` we can define a story for `Button` right in the middle of our
+markdown documentation.
+
+## Button with text
+
+<Preview>
+  <Story name="Text">
+    <Button onClick={action('clicked')}>Hello Button</Button>
+  </Story>
+</Preview>
+
+## Button with emoji
+
+`MDX` is a standard file format that combines Markdown with JSX. This text has been written with `Markdown`,
+while the preview below is JSX
+
+<Preview>
+  <Story name="Emoji" parameters={{ viewMode: 'docs' }}>
+    <Button onClick={action('clicked')}>
+      <span role="img" aria-label="so cool">
+        😀 😎 👍 💯
+      </span>
+    </Button>
+  </Story>
+</Preview>
+
+More information about Storybook MDX can be found in [Storybook Docs](https://storybook.js.org/docs/formats/mdx-syntax)
