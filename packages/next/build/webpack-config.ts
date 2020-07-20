@@ -839,7 +839,7 @@ export default async function getBaseWebpackConfig(
             }
           : {}),
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
-          config.experimental.trailingSlash
+          config.trailingSlash
         ),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
@@ -947,7 +947,8 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      config.experimental.modern &&
+      !isWebpack5 &&
+        config.experimental.modern &&
         !isServer &&
         !dev &&
         (() => {
@@ -1285,7 +1286,10 @@ export default async function getBaseWebpackConfig(
         const originalFile = clientEntries[
           CLIENT_STATIC_FILES_RUNTIME_MAIN
         ] as string
-        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [...['main.js'], originalFile]
+        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
+          ...entry['main.js'],
+          originalFile,
+        ]
       }
       delete entry['main.js']
 
