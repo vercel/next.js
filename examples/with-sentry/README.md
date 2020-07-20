@@ -75,7 +75,7 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 ### Step 3. Automatic sourcemap upload (optional)
 
-- You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/global-integrations/#vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
+- You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
 
 > **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
 
