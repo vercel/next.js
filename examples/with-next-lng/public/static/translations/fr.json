@@ -1,0 +1,4 @@
+{
+  "greet": "Bonjour",
+  "whoami": "Je suis {{firstname}}"
+}

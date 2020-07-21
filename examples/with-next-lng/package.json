@@ -1,0 +1,16 @@
+{
+  "name": "with-next-lng",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@mies-co/next-lng": "^0.0.6",
+    "next": "canary",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0"
+  }
+}
