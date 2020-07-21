@@ -95,7 +95,7 @@ export async function validateSlugForPreview({ slug, contentID }) {
   }
 }
 
-//Generates a preview key to compare agains
+//Generates a preview key to compare against
 export function generatePreviewKey() {
   //the string we want to encode
   const str = `-1_${process.env.AGILITY_CMS_SECURITY_KEY}_Preview`
