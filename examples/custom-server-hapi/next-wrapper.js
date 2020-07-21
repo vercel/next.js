@@ -5,14 +5,6 @@ const nextHandlerWrapper = (app) => {
     return h.close
   }
 }
-const defaultHandlerWrapper = (app) => async (
-  { raw: { req, res }, url },
-  h
-) => {
-  const { pathname, query } = url
-  const html = await app.renderToHTML(req, res, pathname, query)
-  return h.response(html).code(res.statusCode)
-}
 
 const pathWrapper = (app, pathName, opts) => async (
   { raw, query, params },
@@ -30,6 +22,5 @@ const pathWrapper = (app, pathName, opts) => async (
 
 module.exports = {
   pathWrapper,
-  defaultHandlerWrapper,
   nextHandlerWrapper,
 }
