@@ -22,9 +22,13 @@ import {
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
-const ABORTED = Symbol('aborted')
-
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+
+function buildCancellationError() {
+  return Object.assign(new Error('Route Cancelled'), {
+    cancelled: true,
+  })
+}
 
 export function addBasePath(path: string): string {
   return basePath
@@ -525,50 +529,47 @@ export default class Router implements BaseRouter {
 
     Router.events.emit('routeChangeStart', as)
 
-    // If shallow is true and the route exists in the router cache we reuse the previous result
-    return this.getRouteInfo(route, pathname, query, as, shallow).then(
-      (routeInfo) => {
-        const { error } = routeInfo
+    try {
+      const routeInfo = await this.getRouteInfo(
+        route,
+        pathname,
+        query,
+        as,
+        shallow
+      )
+      const { error } = routeInfo
 
-        if (error && error.cancelled) {
-          // An event already has been fired
-          return false
-        }
+      Router.events.emit('beforeHistoryChange', as)
+      this.changeState(method, url, as, options)
 
-        if (error && error[ABORTED]) {
-          Router.events.emit('routeChangeError', error, as)
-          return false
-        }
-
-        Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, as, options)
-
-        if (process.env.NODE_ENV !== 'production') {
-          const appComp: any = this.components['/_app'].Component
-          ;(window as any).next.isPrerendered =
-            appComp.getInitialProps === appComp.origGetInitialProps &&
-            !(routeInfo.Component as any).getInitialProps
-        }
-
-        return this.set(route, pathname!, query, cleanedAs, routeInfo).then(
-          () => {
-            if (error) {
-              Router.events.emit('routeChangeError', error, cleanedAs)
-              throw error
-            }
-
-            if (process.env.__NEXT_SCROLL_RESTORATION) {
-              if (manualScrollRestoration && '_N_X' in options) {
-                window.scrollTo(options._N_X, options._N_Y)
-              }
-            }
-            Router.events.emit('routeChangeComplete', as)
-
-            return true
-          }
-        )
+      if (process.env.NODE_ENV !== 'production') {
+        const appComp: any = this.components['/_app'].Component
+        ;(window as any).next.isPrerendered =
+          appComp.getInitialProps === appComp.origGetInitialProps &&
+          !(routeInfo.Component as any).getInitialProps
       }
-    )
+
+      await this.set(route, pathname!, query, cleanedAs, routeInfo)
+
+      if (error) {
+        Router.events.emit('routeChangeError', error, cleanedAs)
+        throw error
+      }
+
+      if (process.env.__NEXT_SCROLL_RESTORATION) {
+        if (manualScrollRestoration && '_N_X' in options) {
+          window.scrollTo(options._N_X, options._N_Y)
+        }
+      }
+      Router.events.emit('routeChangeComplete', as)
+
+      return true
+    } catch (err) {
+      if (err.cancelled) {
+        return false
+      }
+      throw err
+    }
   }
 
   changeState(
@@ -605,138 +606,122 @@ export default class Router implements BaseRouter {
     }
   }
 
-  getRouteInfo(
+  async handleRouteInfoError(
+    err: Error & { code: any; cancelled: boolean },
+    pathname: string,
+    query: any,
+    as: string,
+    loadErrorFail?: boolean
+  ): Promise<RouteInfo> {
+    if (err.cancelled) {
+      // bubble up cancellation errors
+      throw err
+    }
+
+    if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+      Router.events.emit('routeChangeError', err, as)
+
+      // If we can't load the page it could be one of following reasons
+      //  1. Page doesn't exists
+      //  2. Page does exist in a different zone
+      //  3. Internal error while loading the page
+
+      // So, doing a hard reload is the proper way to deal with this.
+      window.location.href = as
+
+      // Changing the URL doesn't block executing the current code path.
+      // So let's throw a cancellation error stop the routing logic.
+      throw buildCancellationError()
+    }
+
+    try {
+      const { page: Component } = await this.fetchComponent('/_error')
+      const routeInfo: RouteInfo = { Component, err, error: err }
+
+      try {
+        routeInfo.props = await this.getInitialProps(Component, {
+          err,
+          pathname,
+          query,
+        } as any)
+      } catch (gipErr) {
+        console.error('Error in error page `getInitialProps`: ', gipErr)
+        routeInfo.props = {}
+      }
+
+      return routeInfo
+    } catch (routeInfoErr) {
+      return this.handleRouteInfoError(routeInfoErr, pathname, query, as, true)
+    }
+  }
+
+  async getRouteInfo(
     route: string,
     pathname: string,
     query: any,
     as: string,
     shallow: boolean = false
   ): Promise<RouteInfo> {
-    const cachedRouteInfo = this.components[route]
+    try {
+      const cachedRouteInfo = this.components[route]
 
-    // If there is a shallow route transition possible
-    // If the route is already rendered on the screen.
-    if (shallow && cachedRouteInfo && this.route === route) {
-      return Promise.resolve(cachedRouteInfo)
-    }
-
-    const handleError = (
-      err: Error & { code: any; cancelled: boolean; [ABORTED]: boolean },
-      loadErrorFail?: boolean
-    ) => {
-      return new Promise((resolve) => {
-        if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
-          // If we can't load the page it could be one of following reasons
-          //  1. Page doesn't exists
-          //  2. Page does exist in a different zone
-          //  3. Internal error while loading the page
-
-          // So, doing a hard reload is the proper way to deal with this.
-          window.location.href = as
-
-          // Changing the URL doesn't block executing the current code path.
-          // So, we need to mark it as aborted and stop the routing logic.
-          err[ABORTED] = true
-          // @ts-ignore TODO: fix the control flow here
-          return resolve({ error: err })
-        }
-
-        if (err.cancelled) {
-          // @ts-ignore TODO: fix the control flow here
-          return resolve({ error: err })
-        }
-
-        resolve(
-          this.fetchComponent('/_error')
-            .then((res) => {
-              const { page: Component } = res
-              const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolveRouteInfo) => {
-                this.getInitialProps(Component, {
-                  err,
-                  pathname,
-                  query,
-                } as any).then(
-                  (props) => {
-                    routeInfo.props = props
-                    routeInfo.error = err
-                    resolveRouteInfo(routeInfo)
-                  },
-                  (gipErr) => {
-                    console.error(
-                      'Error in error page `getInitialProps`: ',
-                      gipErr
-                    )
-                    routeInfo.error = err
-                    routeInfo.props = {}
-                    resolveRouteInfo(routeInfo)
-                  }
-                )
-              }) as Promise<RouteInfo>
-            })
-            .catch((routeInfoErr) => handleError(routeInfoErr, true))
-        )
-      }) as Promise<RouteInfo>
-    }
-
-    return (new Promise((resolve, reject) => {
-      if (cachedRouteInfo) {
-        return resolve(cachedRouteInfo)
+      if (shallow && cachedRouteInfo && this.route === route) {
+        return cachedRouteInfo
       }
 
-      this.fetchComponent(route).then(
-        (res) =>
-          resolve({
-            Component: res.page,
-            __N_SSG: res.mod.__N_SSG,
-            __N_SSP: res.mod.__N_SSP,
-          }),
-        reject
-      )
-    }) as Promise<RouteInfo>)
-      .then((routeInfo: RouteInfo) => {
-        const { Component, __N_SSG, __N_SSP } = routeInfo
+      const routeInfo = cachedRouteInfo
+        ? cachedRouteInfo
+        : await this.fetchComponent(route).then(
+            (res) =>
+              ({
+                Component: res.page,
+                __N_SSG: res.mod.__N_SSG,
+                __N_SSP: res.mod.__N_SSP,
+              } as RouteInfo)
+          )
 
-        if (process.env.NODE_ENV !== 'production') {
-          const { isValidElementType } = require('react-is')
-          if (!isValidElementType(Component)) {
-            throw new Error(
-              `The default export is not a React Component in page: "${pathname}"`
-            )
-          }
-        }
+      const { Component, __N_SSG, __N_SSP } = routeInfo
 
-        let dataHref: string | undefined
-
-        if (__N_SSG || __N_SSP) {
-          dataHref = this.pageLoader.getDataHref(
-            formatWithValidation({ pathname, query }),
-            as,
-            __N_SSG
+      if (process.env.NODE_ENV !== 'production') {
+        const { isValidElementType } = require('react-is')
+        if (!isValidElementType(Component)) {
+          throw new Error(
+            `The default export is not a React Component in page: "${pathname}"`
           )
         }
+      }
 
-        return this._getData<RouteInfo>(() =>
+      let dataHref: string | undefined
+
+      if (__N_SSG || __N_SSP) {
+        dataHref = this.pageLoader.getDataHref(
+          formatWithValidation({ pathname, query }),
+          as,
           __N_SSG
-            ? this._getStaticData(dataHref!)
-            : __N_SSP
-            ? this._getServerData(dataHref!)
-            : this.getInitialProps(
-                Component,
-                // we provide AppTree later so this needs to be `any`
-                {
-                  pathname,
-                  query,
-                  asPath: as,
-                } as any
-              )
-        ).then((props) => {
-          routeInfo.props = props
-          this.components[route] = routeInfo
-          return routeInfo
-        })
-      })
-      .catch(handleError)
+        )
+      }
+
+      const props = await this._getData<RouteInfo>(() =>
+        __N_SSG
+          ? this._getStaticData(dataHref!)
+          : __N_SSP
+          ? this._getServerData(dataHref!)
+          : this.getInitialProps(
+              Component,
+              // we provide AppTree later so this needs to be `any`
+              {
+                pathname,
+                query,
+                asPath: as,
+              } as any
+            )
+      )
+      routeInfo.props = props
+      this.components[route] = routeInfo
+      return routeInfo
+    } catch (err) {
+      return this.handleRouteInfoError(err, pathname, query, as)
+    }
   }
 
   set(
@@ -917,9 +902,7 @@ export default class Router implements BaseRouter {
 
   abortComponentLoad(as: string): void {
     if (this.clc) {
-      const e = new Error('Route Cancelled')
-      ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, as)
+      Router.events.emit('routeChangeError', buildCancellationError(), as)
       this.clc()
       this.clc = null
     }
