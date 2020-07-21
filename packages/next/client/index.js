@@ -49,7 +49,19 @@ envConfig.setConfig({
   publicRuntimeConfig: runtimeConfig || {},
 })
 
-const asPath = delBasePath(getURL())
+let asPath = getURL()
+
+// make sure not to attempt stripping basePath for 404s
+if (
+  page !== '/404' &&
+  !(
+    page === '/_error' &&
+    hydrateProps &&
+    hydrateProps.pageProps.statusCode === '404'
+  )
+) {
+  asPath = delBasePath(asPath)
+}
 
 const pageLoader = new PageLoader(buildId, prefix, page)
 const register = ([r, f]) => pageLoader.registerPage(r, f)
