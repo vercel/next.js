@@ -54,7 +54,6 @@ The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/
 - `Document` is only rendered in the server, event handlers like `onClick` won't work
 - React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead
 - `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md)
-- Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`. Those variables will be `undefined` when a page is being statically exported by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or by [`next export`](/docs/advanced-features/static-html-export.md)
 
 ## Customizing `renderPage`
 
