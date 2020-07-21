@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "sourceMap": true,
     "esModuleInterop": true,
     "target": "es3",
     "lib": ["dom"],

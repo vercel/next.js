@@ -40,5 +40,5 @@ Look for any usage of the `next/link` component, `Router#push`, or `Router#repla
 
 ### Useful Links
 
-- [Routing section in Documentation](https://nextjs.org/docs#routing)
-- [Dynamic routing section in Documentation](https://nextjs.org/docs#dynamic-routing)
+- [Routing section in Documentation](https://nextjs.org/docs/routing/introduction)
+- [Dynamic routing section in Documentation](https://nextjs.org/docs/routing/dynamic-routes)

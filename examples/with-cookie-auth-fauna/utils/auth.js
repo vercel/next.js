@@ -34,9 +34,5 @@ export const withAuthSync = (Component) => {
     return <Component {...props} />
   }
 
-  if (Component.getServerSideProps) {
-    Wrapper.getServerSideProps = Component.getServerSideProps
-  }
-
   return Wrapper
 }

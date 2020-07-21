@@ -46,12 +46,18 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       params.append(key, (stackFrame[key] ?? '').toString())
     }
 
-    self.fetch(`/__nextjs_launch-editor?${params.toString()}`).then(
-      () => {},
-      () => {
-        // TODO: report error
-      }
-    )
+    self
+      .fetch(
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_launch-editor?${params.toString()}`
+      )
+      .then(
+        () => {},
+        () => {
+          // TODO: report error
+        }
+      )
   }, [stackFrame])
 
   // TODO: make the caret absolute

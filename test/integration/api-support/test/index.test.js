@@ -12,6 +12,8 @@ import {
   nextBuild,
   nextStart,
   nextExport,
+  getPageFileFromBuildManifest,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -234,6 +236,29 @@ function runTests(dev = false) {
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
+  it('should redirect with status code 307', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {
+      redirect: 'manual',
+    })
+
+    expect(res.status).toEqual(307)
+  })
+
+  it('should redirect to login', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {})
+
+    expect(res.redirected).toBe(true)
+    expect(res.url).toContain('/login')
+  })
+
+  it('should redirect with status code 301', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/redirect-301', null, {
+      redirect: 'manual',
+    })
+
+    expect(res.status).toEqual(301)
+  })
+
   it('should return empty query object', async () => {
     const data = await fetchViaHTTP(appPort, '/api/query', null, {}).then(
       (res) => res.ok && res.json()
@@ -355,31 +380,13 @@ function runTests(dev = false) {
 
   if (dev) {
     it('should compile only server code in development', async () => {
-      await fetchViaHTTP(appPort, '/')
       await fetchViaHTTP(appPort, '/api/users')
 
-      // Normal page
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/static/development/pages/index.js`)
-        )
-      ).toBeTruthy()
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/server/static/development/pages/index.js`)
-        )
-      ).toBeTruthy()
-      // API page
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/static/development/pages/api/users.js`)
-        )
-      ).toBeFalsy()
-      expect(
-        await fs.exists(
-          join(appDir, `/.next/server/static/development/pages/api/users.js`)
-        )
-      ).toBeTruthy()
+      expect(() => getPageFileFromBuildManifest(appDir, '/api/users')).toThrow(
+        /No files for page/
+      )
+
+      expect(getPageFileFromPagesManifest(appDir, '/api/users')).toBeTruthy()
     })
 
     it('should show warning when the API resolves without ending the request in dev mode', async () => {
