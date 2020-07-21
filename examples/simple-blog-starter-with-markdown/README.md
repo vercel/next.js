@@ -10,8 +10,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/simple-blog-starter-with-markdown )
-
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/simple-blog-starter-with-markdown)
 
 ## How to use
 

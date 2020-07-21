@@ -1,7 +1,7 @@
 import Container from './container'
 
 export default function Footer() {
-  const date = new Date();
+  const date = new Date()
   return (
     <footer>
       <Container>

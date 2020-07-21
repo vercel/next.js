@@ -6,7 +6,6 @@ import { getAllPosts } from '../lib/api'
 import Head from 'next/head'
 
 export default function Index({ allPosts }) {
-  const heroPost = allPosts[0]
   const morePosts = allPosts.slice(1)
   return (
     <>
@@ -24,12 +23,7 @@ export default function Index({ allPosts }) {
 }
 
 export async function getStaticProps() {
-  const allPosts = getAllPosts([
-    'title',
-    'date',
-    'slug',
-    'excerpt',
-  ])
+  const allPosts = getAllPosts(['title', 'date', 'slug', 'excerpt'])
 
   return {
     props: { allPosts },
