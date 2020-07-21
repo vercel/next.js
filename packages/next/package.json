@@ -87,6 +87,7 @@
     "css-loader": "3.5.3",
     "cssnano-simple": "1.0.4",
     "find-cache-dir": "3.3.1",
+    "intersection-observer": "0.11.0",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
     "mini-css-extract-plugin": "0.8.0",

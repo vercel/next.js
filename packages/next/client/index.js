@@ -309,6 +309,10 @@ export async function render(renderingProps) {
   }
 
   try {
+    if (!('IntersectionObserver' in window)) {
+      // This is practically just Safari 11 and 12.0
+      await import('next/dist/build/polyfills/intersection-observer')
+    }
     await doRender(renderingProps)
   } catch (renderErr) {
     if (process.env.NODE_ENV === 'development') {

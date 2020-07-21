@@ -54,4 +54,5 @@ import 'core-js/features/promise/finally'
 // Specialized Packages:
 import 'whatwg-fetch'
 import assign from 'object-assign'
+import 'intersection-observer'
 Object.assign = assign

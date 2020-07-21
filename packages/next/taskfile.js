@@ -25,11 +25,21 @@ export async function unfetch(task, opts) {
     .target('dist/build/polyfills')
 }
 
+export async function intersectionObserver(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('intersection-observer'))
+    )
+    .ncc({ packageName: 'intersection-observer' })
+    .target('dist/build/polyfills')
+}
+
 export async function browser_polyfills(task) {
   await task.parallel([
     'next__polyfill_nomodule',
     'finally_polyfill',
     'unfetch',
+    'intersectionObserver',
   ])
 }
 
