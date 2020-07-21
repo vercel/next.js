@@ -83,8 +83,9 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
 2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
-3. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
-4. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
+3. Save your git provider's commit SHA as either `VERCEL_GITHUB_COMMIT_SHA`, `VERCEL_GITLAB_COMMIT_SHA`, or `VERCEL_BITBUCKET_COMMIT_SHA` environment variable in `.env.local`.
+4. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
+5. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
 
 > **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
 
