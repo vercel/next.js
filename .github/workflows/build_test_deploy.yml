@@ -93,10 +93,9 @@ jobs:
           path: '.'
           key: ${{ github.sha }}
 
-      - run: |
-          node run-tests.js test/integration/production/test/index.test.js
-          node run-tests.js test/integration/basic/test/index.test.js
-          node run-tests.js test/acceptance/*
+      - run: node run-tests.js test/integration/production/test/index.test.js
+      - run: node run-tests.js test/integration/basic/test/index.test.js
+      - run: node run-tests.js test/acceptance/*
 
   testFirefox:
     name: Test Firefox (production)
