@@ -24,6 +24,12 @@ import {
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
+function buildCancellationError() {
+  return Object.assign(new Error('Routing cancelled'), {
+    cancelled: true,
+  })
+}
+
 export function addBasePath(path: string): string {
   return basePath
     ? path === '/'
@@ -523,42 +529,44 @@ export default class Router implements BaseRouter {
     Router.events.emit('routeChangeStart', as)
 
     // If shallow is true and the route exists in the router cache we reuse the previous result
-    return this.getRouteInfo(route, pathname, query, as).then((routeInfo) => {
-      const { error } = routeInfo
+    return this.getRouteInfo(route, pathname, query, as)
+      .then((routeInfo) => {
+        const { error } = routeInfo
 
-      if (error && error.cancelled) {
-        // An event already has been fired
-        return false
-      }
+        Router.events.emit('beforeHistoryChange', as)
+        this.changeState(method, url, as, options)
 
-      Router.events.emit('beforeHistoryChange', as)
-      this.changeState(method, url, as, options)
-
-      if (process.env.NODE_ENV !== 'production') {
-        const appComp: any = this.components['/_app'].Component
-        ;(window as any).next.isPrerendered =
-          appComp.getInitialProps === appComp.origGetInitialProps &&
-          !(routeInfo.Component as any).getInitialProps
-      }
-
-      return this.set(route, pathname!, query, cleanedAs, routeInfo).then(
-        () => {
-          if (error) {
-            Router.events.emit('routeChangeError', error, cleanedAs)
-            throw error
-          }
-
-          if (process.env.__NEXT_SCROLL_RESTORATION) {
-            if (manualScrollRestoration && '_N_X' in options) {
-              window.scrollTo(options._N_X, options._N_Y)
-            }
-          }
-          Router.events.emit('routeChangeComplete', as)
-
-          return true
+        if (process.env.NODE_ENV !== 'production') {
+          const appComp: any = this.components['/_app'].Component
+          ;(window as any).next.isPrerendered =
+            appComp.getInitialProps === appComp.origGetInitialProps &&
+            !(routeInfo.Component as any).getInitialProps
         }
-      )
-    })
+
+        return this.set(route, pathname!, query, cleanedAs, routeInfo).then(
+          () => {
+            if (error) {
+              Router.events.emit('routeChangeError', error, cleanedAs)
+              throw error
+            }
+
+            if (process.env.__NEXT_SCROLL_RESTORATION) {
+              if (manualScrollRestoration && '_N_X' in options) {
+                window.scrollTo(options._N_X, options._N_Y)
+              }
+            }
+            Router.events.emit('routeChangeComplete', as)
+
+            return true
+          }
+        )
+      })
+      .catch((err) => {
+        if (err.cancelled) {
+          return false
+        }
+        throw err
+      })
   }
 
   changeState(
@@ -602,6 +610,11 @@ export default class Router implements BaseRouter {
     as: string,
     loadErrorFail?: boolean
   ): Promise<RouteInfo> {
+    if (err.cancelled) {
+      // bubble up cancellation errors
+      throw err
+    }
+
     if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
       Router.events.emit('routeChangeError', err, as)
 
@@ -614,17 +627,8 @@ export default class Router implements BaseRouter {
       window.location.href = as
 
       // Changing the URL doesn't block executing the current code path.
-      // So, we need to mark it as cancelled and stop the routing logic.
-      const cancellationError = Object.assign(new Error(err.message), {
-        cancelled: true,
-      })
-      // @ts-ignore TODO: fix the control flow here
-      return { error: cancellationError }
-    }
-
-    if (err.cancelled) {
-      // @ts-ignore TODO: fix the control flow here
-      return { error: err }
+      // So let's throw a cancellation error stop the routing logic.
+      throw buildCancellationError()
     }
 
     try {
@@ -890,9 +894,7 @@ export default class Router implements BaseRouter {
 
   abortComponentLoad(as: string): void {
     if (this.clc) {
-      const e = new Error('Route Cancelled')
-      ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, as)
+      Router.events.emit('routeChangeError', buildCancellationError(), as)
       this.clc()
       this.clc = null
     }
