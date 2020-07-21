@@ -1,6 +1,8 @@
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 import { Canvas } from 'react-three-fiber'
+import { OrbitControls, StandardEffects } from 'drei'
+
 const Bird = dynamic(() => import('../components/Bird'), { ssr: false })
 
 const Birds = () => {
@@ -16,6 +18,7 @@ const Birds = () => {
         : bird === 'flamingo'
         ? 0.25 + Math.random()
         : 1 + Math.random() - 0.5
+
     return (
       <Bird
         key={i}
@@ -35,8 +38,10 @@ const BirdsPage = (props) => {
       <Canvas camera={{ position: [0, 0, 35] }}>
         <ambientLight intensity={2} />
         <pointLight position={[40, 40, 40]} />
+        <OrbitControls />
         <Suspense fallback={null}>
           <Birds />
+          <StandardEffects smaa />
         </Suspense>
       </Canvas>
     </>

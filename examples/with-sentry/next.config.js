@@ -16,8 +16,8 @@ process.env.SENTRY_DSN = SENTRY_DSN
 
 module.exports = withSourceMaps({
   webpack: (config, options) => {
-    // In `pages/_app.js`, Sentry is imported from @sentry/node. While
-    // @sentry/browser will run in a Node.js environment, @sentry/node will use
+    // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
+    // @sentry/node will run in a Node.js environment. @sentry/node will use
     // Node.js-only APIs to catch even more unhandled exceptions.
     //
     // This works well when Next.js is SSRing your page on a server with
