@@ -495,6 +495,7 @@ export default class Router implements BaseRouter {
     }
 
     const route = removePathTrailingSlash(pathname)
+    const { shallow = false } = options
 
     if (isDynamicRoute(route)) {
       const { pathname: asPathname } = parseRelativeUrl(cleanedAs)
@@ -529,7 +530,13 @@ export default class Router implements BaseRouter {
     Router.events.emit('routeChangeStart', as)
 
     try {
-      const routeInfo = await this.getRouteInfo(route, pathname, query, as)
+      const routeInfo = await this.getRouteInfo(
+        route,
+        pathname,
+        query,
+        as,
+        shallow
+      )
       const { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', as)
@@ -652,10 +659,15 @@ export default class Router implements BaseRouter {
     route: string,
     pathname: string,
     query: any,
-    as: string
+    as: string,
+    shallow: boolean = false
   ): Promise<RouteInfo> {
     try {
       const cachedRouteInfo = this.components[route]
+
+      if (shallow && cachedRouteInfo && this.route === route) {
+        return cachedRouteInfo
+      }
 
       const routeInfo = cachedRouteInfo
         ? cachedRouteInfo
