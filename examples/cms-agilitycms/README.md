@@ -13,7 +13,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Once you have access to [the environment variables you'll need](#step-15-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
 
 ### Related examples
 
@@ -37,7 +37,7 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-agilitycms cms-agilitycms-app
+npx create-next-app --example cms-agilitycms cms-agilitycms-app
 # or
 yarn create next-app --example cms-agilitycms cms-agilitycms-app
 ```
@@ -57,7 +57,7 @@ cd cms-agilitycms
 
 The key principle behind Agility CMS is that **Editors** should have full control of their pages and what content is on each page without getting into code.
 
-This means you'll not only be definining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
+This means you'll not only be defining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
 
 > **NOTE** - `Modules` and `Page Templates` in Agility CMS simply correspond to `React Components` in your website.
 
@@ -90,7 +90,7 @@ From within the Agility CMS Content Manager, navigate to **Shared Content** and 
 - **Content Definition** should be **Author**
 - **Display Name** should be set to **Authors**. This will also pre-populate **Reference Name** for you.
 
-### Step 4. Create a `Post` Content Definiton
+### Step 4. Create a `Post` Content Definition
 
 From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
 
@@ -150,7 +150,7 @@ Navigate to **Settings** > **Module Definitions** and click **New** to create a 
 - Set **Title** to `Intro`
 - Set **Description** to `Displays an intro message.`
 
-In this case, we are not adding any fields to control the output or behaviour, since the content is actually hard-coded in the template.
+In this case, we are not adding any fields to control the output or behavior, since the content is actually hard-coded in the template.
 
 Click **Save & Close** to save the definition.
 
@@ -161,7 +161,7 @@ Navigate to **Settings** > **Module Definitions** and click **New** to create a 
 - Set **Title** to `Hero Post`
 - Set **Description** to `Displays the latest Post.`
 
-In this case, we are not adding any fields to control the output or behaviour, since the latest post will be used by default and all of the data is associated to the post itself.
+In this case, we are not adding any fields to control the output or behavior, since the latest post will be used by default and all of the data is associated to the post itself.
 
 Click **Save & Close** to save the definition.
 
@@ -185,7 +185,7 @@ Navigate to **Settings** > **Module Definitions** and click **New** to create a 
 - Set **Title** to `Post Details`
 - Set **Description** to `Displays the details of a Post.`
 
-In this case, we are not adding any fields to control the output or behaviour, since the data is associated to the post itself.
+In this case, we are not adding any fields to control the output or behavior, since the data is associated to the post itself.
 
 Click **Save & Close** to save the definition.
 
@@ -312,7 +312,7 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
 
 ### Step 18. Try preview mode
 

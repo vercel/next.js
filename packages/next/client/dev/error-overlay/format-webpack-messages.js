@@ -32,6 +32,13 @@ function isLikelyASyntaxError(message) {
 
 // Cleans up webpack error messages.
 function formatMessage(message) {
+  // TODO: Replace this once webpack 5 is stable
+  if (typeof message === 'object' && message.message) {
+    message =
+      (message.moduleName ? message.moduleName + '\n' : '') +
+      (message.file ? message.file + '\n' : '') +
+      message.message
+  }
   let lines = message.split('\n')
 
   // Strip Webpack-added headers off errors/warnings

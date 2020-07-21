@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   getRedirectStatus,
+  normalizeRouteRegex,
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
@@ -47,6 +48,7 @@ import loadConfig, {
 import { BuildManifest } from '../next-server/server/get-page-files'
 import '../next-server/server/node-polyfill-fetch'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { getPagePath } from '../next-server/server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
@@ -73,7 +75,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import { getPagePath } from '../next-server/server/require'
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -96,7 +97,11 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-export default async function build(dir: string, conf = null): Promise<void> {
+export default async function build(
+  dir: string,
+  conf = null,
+  reactProductionProfiling = false
+): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
@@ -254,11 +259,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const buildCustomRoute = (
     r: {
       source: string
+      basePath?: false
       statusCode?: number
+      destination?: string
     },
     type: RouteType
   ) => {
     const keys: any[] = []
+
+    if (r.basePath !== false) {
+      r.source = `${config.basePath}${r.source}`
+
+      if (r.destination && r.destination.startsWith('/')) {
+        r.destination = `${config.basePath}${r.destination}`
+      }
+    }
+
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
       sensitive: false,
@@ -273,25 +289,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
             permanent: undefined,
           }
         : {}),
-      regex: routeRegex.source,
+      regex: normalizeRouteRegex(routeRegex.source),
     }
-  }
-
-  const firstOptionalCatchAllPage =
-    pageKeys.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f)) ?? null
-  if (
-    config.experimental?.optionalCatchAll !== true &&
-    firstOptionalCatchAllPage
-  ) {
-    const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-    throw new Error(msg)
   }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 3,
     pages404: true,
-    basePath: config.experimental.basePath,
+    basePath: config.basePath,
     redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map((r) => buildCustomRoute(r, 'rewrite')),
     headers: headers.map((r) => buildCustomRoute(r, 'header')),
@@ -301,7 +307,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         const routeRegex = getRouteRegex(page)
         return {
           page,
-          regex: routeRegex.re.source,
+          regex: normalizeRouteRegex(routeRegex.re.source),
           routeKeys: routeRegex.routeKeys,
           namedRegex: routeRegex.namedRegex,
         }
@@ -321,6 +327,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      reactProductionProfiling,
       isServer: false,
       config,
       target,
@@ -330,6 +337,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      reactProductionProfiling,
       isServer: true,
       config,
       target,
@@ -415,7 +423,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('__next_polyfill__') > -1
     ) {
       throw new Error(
-        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/vercel/next.js/invalid-resolve-alias'
+        '> webpack config.resolve.alias was incorrectly overridden. https://err.sh/vercel/next.js/invalid-resolve-alias'
       )
     }
     throw new Error('> Build failed because of webpack errors')
@@ -621,9 +629,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (isDynamicRoute(page)) {
         const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
 
-        dataRouteRegex = routeRegex.re.source.replace(
-          /\(\?:\\\/\)\?\$$/,
-          '\\.json$'
+        dataRouteRegex = normalizeRouteRegex(
+          routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
         )
         namedDataRouteRegex = routeRegex.namedRegex!.replace(
           /\(\?:\/\)\?\$$/,
@@ -631,13 +638,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
         )
         routeKeys = routeRegex.routeKeys
       } else {
-        dataRouteRegex = new RegExp(
-          `^${path.posix.join(
-            '/_next/data',
-            escapeStringRegexp(buildId),
-            `${pagePath}.json`
-          )}$`
-        ).source
+        dataRouteRegex = normalizeRouteRegex(
+          new RegExp(
+            `^${path.posix.join(
+              '/_next/data',
+              escapeStringRegexp(buildId),
+              `${pagePath}.json`
+            )}$`
+          ).source
+        )
       }
 
       return {
@@ -690,7 +699,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...config,
       initialPageRevalidationMap: {},
       // Default map will be the collection of automatic statically exported
-      // pages and SPR pages.
+      // pages and incremental pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
@@ -799,7 +808,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSsgFallback = ssgFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
-      let file = normalizePagePath(page)
+      const file = normalizePagePath(page)
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
@@ -834,11 +843,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
-            await moveExportedPage(page, route, route, true, 'html')
-            await moveExportedPage(page, route, route, true, 'json')
+            const pageFile = normalizePagePath(route)
+            await moveExportedPage(page, route, pageFile, true, 'html')
+            await moveExportedPage(page, route, pageFile, true, 'json')
 
             if (hasAmp) {
-              const ampPage = `${normalizePagePath(route)}.amp`
+              const ampPage = `${pageFile}.amp`
               await moveExportedPage(page, ampPage, ampPage, true, 'html')
               await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
@@ -897,14 +907,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       finalDynamicRoutes[tbdRoute] = {
-        routeRegex: getRouteRegex(tbdRoute).re.source,
+        routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
         dataRoute,
         fallback: ssgFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
-        dataRouteRegex: getRouteRegex(
-          dataRoute.replace(/\.json$/, '')
-        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+        dataRouteRegex: normalizeRouteRegex(
+          getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
+            /\(\?:\\\/\)\?\$$/,
+            '\\.json$'
+          )
+        ),
       }
     })
     const prerenderManifest: PrerenderManifest = {
