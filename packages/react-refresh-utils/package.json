@@ -20,7 +20,7 @@
   },
   "peerDependencies": {
     "react-refresh": "0.8.3",
-    "webpack": "^4|^5"
+    "webpack": "^4 || ^5"
   },
   "devDependencies": {
     "react-refresh": "0.8.3"
