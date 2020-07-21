@@ -596,10 +596,10 @@ export default class Router implements BaseRouter {
   }
 
   handleRouteInfoError(
+    err: Error & { code: any; cancelled: boolean },
     pathname: string,
     query: any,
     as: string,
-    err: Error & { code: any; cancelled: boolean },
     loadErrorFail?: boolean
   ): Promise<RouteInfo> {
     return new Promise((resolve) => {
@@ -657,78 +657,74 @@ export default class Router implements BaseRouter {
             }) as Promise<RouteInfo>
           })
           .catch((routeInfoErr) =>
-            this.handleRouteInfoError(pathname, query, as, routeInfoErr, true)
+            this.handleRouteInfoError(routeInfoErr, pathname, query, as, true)
           )
       )
     })
   }
 
-  getRouteInfo(
+  async getRouteInfo(
     route: string,
     pathname: string,
     query: any,
     as: string
   ): Promise<RouteInfo> {
-    return (new Promise((resolve, reject) => {
+    try {
       const cachedRouteInfo = this.components[route]
 
-      if (cachedRouteInfo) {
-        return resolve(cachedRouteInfo)
-      }
+      const routeInfo = cachedRouteInfo
+        ? cachedRouteInfo
+        : await this.fetchComponent(route).then(
+            (res) =>
+              ({
+                Component: res.page,
+                __N_SSG: res.mod.__N_SSG,
+                __N_SSP: res.mod.__N_SSP,
+              } as RouteInfo)
+          )
 
-      this.fetchComponent(route).then(
-        (res) =>
-          resolve({
-            Component: res.page,
-            __N_SSG: res.mod.__N_SSG,
-            __N_SSP: res.mod.__N_SSP,
-          }),
-        reject
-      )
-    }) as Promise<RouteInfo>)
-      .then((routeInfo: RouteInfo) => {
-        const { Component, __N_SSG, __N_SSP } = routeInfo
+      const { Component, __N_SSG, __N_SSP } = routeInfo
 
-        if (process.env.NODE_ENV !== 'production') {
-          const { isValidElementType } = require('react-is')
-          if (!isValidElementType(Component)) {
-            throw new Error(
-              `The default export is not a React Component in page: "${pathname}"`
-            )
-          }
-        }
-
-        let dataHref: string | undefined
-
-        if (__N_SSG || __N_SSP) {
-          dataHref = this.pageLoader.getDataHref(
-            formatWithValidation({ pathname, query }),
-            as,
-            __N_SSG
+      if (process.env.NODE_ENV !== 'production') {
+        const { isValidElementType } = require('react-is')
+        if (!isValidElementType(Component)) {
+          throw new Error(
+            `The default export is not a React Component in page: "${pathname}"`
           )
         }
+      }
 
-        return this._getData<RouteInfo>(() =>
+      let dataHref: string | undefined
+
+      if (__N_SSG || __N_SSP) {
+        dataHref = this.pageLoader.getDataHref(
+          formatWithValidation({ pathname, query }),
+          as,
           __N_SSG
-            ? this._getStaticData(dataHref!)
-            : __N_SSP
-            ? this._getServerData(dataHref!)
-            : this.getInitialProps(
-                Component,
-                // we provide AppTree later so this needs to be `any`
-                {
-                  pathname,
-                  query,
-                  asPath: as,
-                } as any
-              )
-        ).then((props) => {
-          routeInfo.props = props
-          this.components[route] = routeInfo
-          return routeInfo
-        })
-      })
-      .catch((err) => this.handleRouteInfoError(pathname, query, as, err))
+        )
+      }
+
+      const props = await this._getData<RouteInfo>(() =>
+        __N_SSG
+          ? this._getStaticData(dataHref!)
+          : __N_SSP
+          ? this._getServerData(dataHref!)
+          : this.getInitialProps(
+              Component,
+              // we provide AppTree later so this needs to be `any`
+              {
+                pathname,
+                query,
+                asPath: as,
+              } as any
+            )
+      )
+      routeInfo.props = props
+      this.components[route] = routeInfo
+      return routeInfo
+    } catch (err) {
+      return this.handleRouteInfoError(err, pathname, query, as)
+    }
   }
 
   set(
