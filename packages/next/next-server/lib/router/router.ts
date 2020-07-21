@@ -343,7 +343,7 @@ export default class Router implements BaseRouter {
 
     const { url, as, options, __N } = e.state
     if (!__N) {
-      // this history state wasn't created bny next.js so it can be ignored
+      // this history state wasn't created by next.js so it can be ignored
       return
     }
     const { pathname } = parseRelativeUrl(url)
