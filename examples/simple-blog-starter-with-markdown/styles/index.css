@@ -1,0 +1,43 @@
+@tailwind base;
+
+/* Write your own custom base styles here */
+:root {
+  --bg: #fafbfc;
+  --text: rgb(67, 67, 67);
+  --border: #d4d4d4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131415;
+    --text: #fafbfc;
+    --border: #343434;
+  }
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+header {
+  background-color: rgba(var(--bg), 0.8);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.post-preview {
+  border-top-color: var(--border);
+  border-top-width: thin;
+}
+
+/* Start purging... */
+@tailwind components;
+/* Stop purging. */
+
+/* Write you own custom component styles here */
+
+/* Start purging... */
+@tailwind utilities;
+/* Stop purging. */
+
+/* Your own custom utilities */
