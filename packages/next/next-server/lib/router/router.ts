@@ -595,72 +595,57 @@ export default class Router implements BaseRouter {
     }
   }
 
-  handleRouteInfoError(
+  async handleRouteInfoError(
     err: Error & { code: any; cancelled: boolean },
     pathname: string,
     query: any,
     as: string,
     loadErrorFail?: boolean
   ): Promise<RouteInfo> {
-    return new Promise((resolve) => {
-      if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
-        Router.events.emit('routeChangeError', err, as)
+    if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+      Router.events.emit('routeChangeError', err, as)
 
-        // If we can't load the page it could be one of following reasons
-        //  1. Page doesn't exists
-        //  2. Page does exist in a different zone
-        //  3. Internal error while loading the page
+      // If we can't load the page it could be one of following reasons
+      //  1. Page doesn't exists
+      //  2. Page does exist in a different zone
+      //  3. Internal error while loading the page
 
-        // So, doing a hard reload is the proper way to deal with this.
-        window.location.href = as
+      // So, doing a hard reload is the proper way to deal with this.
+      window.location.href = as
 
-        // Changing the URL doesn't block executing the current code path.
-        // So, we need to mark it as cancelled and stop the routing logic.
-        const cancellationError = Object.assign(new Error(err.message), err, {
-          cancelled: true,
-        })
-        // @ts-ignore TODO: fix the control flow here
-        return resolve({ error: cancellationError })
+      // Changing the URL doesn't block executing the current code path.
+      // So, we need to mark it as cancelled and stop the routing logic.
+      const cancellationError = Object.assign(new Error(err.message), {
+        cancelled: true,
+      })
+      // @ts-ignore TODO: fix the control flow here
+      return { error: cancellationError }
+    }
+
+    if (err.cancelled) {
+      // @ts-ignore TODO: fix the control flow here
+      return { error: err }
+    }
+
+    try {
+      const { page: Component } = await this.fetchComponent('/_error')
+      const routeInfo: RouteInfo = { Component, err, error: err }
+
+      try {
+        routeInfo.props = await this.getInitialProps(Component, {
+          err,
+          pathname,
+          query,
+        } as any)
+      } catch (gipErr) {
+        console.error('Error in error page `getInitialProps`: ', gipErr)
+        routeInfo.props = {}
       }
 
-      if (err.cancelled) {
-        // @ts-ignore TODO: fix the control flow here
-        return resolve({ error: err })
-      }
-
-      resolve(
-        this.fetchComponent('/_error')
-          .then((res) => {
-            const { page: Component } = res
-            const routeInfo: RouteInfo = { Component, err }
-            return new Promise((resolveRouteInfo) => {
-              this.getInitialProps(Component, {
-                err,
-                pathname,
-                query,
-              } as any).then(
-                (props) => {
-                  routeInfo.props = props
-                  routeInfo.error = err
-                  resolveRouteInfo(routeInfo)
-                },
-                (gipErr) => {
-                  console.error(
-                    'Error in error page `getInitialProps`: ',
-                    gipErr
-                  )
-                  routeInfo.error = err
-                  routeInfo.props = {}
-                  resolveRouteInfo(routeInfo)
-                }
-              )
-            }) as Promise<RouteInfo>
-          })
-          .catch((routeInfoErr) =>
-            this.handleRouteInfoError(routeInfoErr, pathname, query, as, true)
-          )
-      )
-    })
+      return routeInfo
+    } catch (routeInfoErr) {
+      return this.handleRouteInfoError(routeInfoErr, pathname, query, as, true)
+    }
   }
 
   async getRouteInfo(
