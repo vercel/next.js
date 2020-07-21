@@ -528,45 +528,41 @@ export default class Router implements BaseRouter {
 
     Router.events.emit('routeChangeStart', as)
 
-    // If shallow is true and the route exists in the router cache we reuse the previous result
-    return this.getRouteInfo(route, pathname, query, as)
-      .then((routeInfo) => {
-        const { error } = routeInfo
+    try {
+      const routeInfo = await this.getRouteInfo(route, pathname, query, as)
+      const { error } = routeInfo
 
-        Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, as, options)
+      Router.events.emit('beforeHistoryChange', as)
+      this.changeState(method, url, as, options)
 
-        if (process.env.NODE_ENV !== 'production') {
-          const appComp: any = this.components['/_app'].Component
-          ;(window as any).next.isPrerendered =
-            appComp.getInitialProps === appComp.origGetInitialProps &&
-            !(routeInfo.Component as any).getInitialProps
+      if (process.env.NODE_ENV !== 'production') {
+        const appComp: any = this.components['/_app'].Component
+        ;(window as any).next.isPrerendered =
+          appComp.getInitialProps === appComp.origGetInitialProps &&
+          !(routeInfo.Component as any).getInitialProps
+      }
+
+      await this.set(route, pathname!, query, cleanedAs, routeInfo)
+
+      if (error) {
+        Router.events.emit('routeChangeError', error, cleanedAs)
+        throw error
+      }
+
+      if (process.env.__NEXT_SCROLL_RESTORATION) {
+        if (manualScrollRestoration && '_N_X' in options) {
+          window.scrollTo(options._N_X, options._N_Y)
         }
+      }
+      Router.events.emit('routeChangeComplete', as)
 
-        return this.set(route, pathname!, query, cleanedAs, routeInfo).then(
-          () => {
-            if (error) {
-              Router.events.emit('routeChangeError', error, cleanedAs)
-              throw error
-            }
-
-            if (process.env.__NEXT_SCROLL_RESTORATION) {
-              if (manualScrollRestoration && '_N_X' in options) {
-                window.scrollTo(options._N_X, options._N_Y)
-              }
-            }
-            Router.events.emit('routeChangeComplete', as)
-
-            return true
-          }
-        )
-      })
-      .catch((err) => {
-        if (err.cancelled) {
-          return false
-        }
-        throw err
-      })
+      return true
+    } catch (err) {
+      if (err.cancelled) {
+        return false
+      }
+      throw err
+    }
   }
 
   changeState(
