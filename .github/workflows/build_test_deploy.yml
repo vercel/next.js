@@ -87,6 +87,8 @@ jobs:
       HEADLESS: true
 
     steps:
+      - uses: actions/checkout@v2
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       # Installing dependencies again since OS changed
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js test/integration/production/test/index.test.js
