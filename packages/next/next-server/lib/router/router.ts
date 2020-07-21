@@ -25,7 +25,7 @@ import {
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
-  return Object.assign(new Error('Routing cancelled'), {
+  return Object.assign(new Error('Route Cancelled'), {
     cancelled: true,
   })
 }
