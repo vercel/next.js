@@ -87,12 +87,8 @@ jobs:
       HEADLESS: true
 
     steps:
-      - uses: actions/cache@v1
-        id: restore-build
-        with:
-          path: '.'
-          key: ${{ github.sha }}
-
+      # Installing dependencies again since OS changed
+      - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js test/integration/production/test/index.test.js
       - run: node run-tests.js test/integration/basic/test/index.test.js
       - run: node run-tests.js test/acceptance/*
