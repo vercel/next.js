@@ -1,8 +1,6 @@
 # Create Next App
 
-The easiest way to get started with Next.js is by using `create-next-app`. This simple CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can quickly create a new app using the default Next.js template, or choose from one of the <a aria-label="Next.js Starter Templates" href="https://github.com/vercel/next.js/tree/canary/examples">templates available here.</a> 
-
-The following command will start the interactive experience for using `create-next-app`. The interactive experience will walk you through the process of creating the new app, and you can choose from the available templates directly from the command line:
+The easiest way to get started with Next.js is by using `create-next-app`. This simple CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can quickly create a new app using the default Next.js template, or choose from one of the <a aria-label="Next.js Starter Templates" href="https://github.com/vercel/next.js/tree/canary/examples">templates available here.</a> To get started, you can use the following command:
 
 ```bash
 npx create-next-app
