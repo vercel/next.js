@@ -2,6 +2,9 @@
 
 [MongoDB](https://mongodb.com/atlas) is a general purpose, document-based, distributed database built for modern application developers and for the cloud era. This example will show you how to connect to and use MongoDB as your backend for your Next.js app.
 
+- [MongoDB Atlas](https://mongodb.com/atlas)
+- [MongoDB Documentation](https://docs.mongodb.com/)
+
 ## Demo
 
 ## Deploy your own
@@ -39,7 +42,7 @@ cp .env.local.example .env.local
 Set each variable on `.env.local`:
 
 - `MONGODB_URI` - Your MongoDB connection string. If you are using [MongoDB Atlas](https://mongodb.com/atlas) you can find this by clicking the "Connect" button for your cluster.
-- `MONGODB_DB` - The name of the database you want to use.
+- `MONGODB_DB` - The name of the MongoDB database you want to use.
 
 ### Start Up Development Server
 
@@ -55,29 +58,20 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Navigate to [http://localhost:3000/api/hello](http://localhost:3000/api/hello) to test if your connection to MongoDB was successful. If it was you should see a response that looks like this:
+You will either see a message stating "You are connected to MongoDB" or "You are NOT connected to MongoDB". Ensure that you have provided the correct `MONGODB_URI` and `MONGODB_DB` environment variables.
 
-```json
-{
-  "ns": "test.test",
-  "size": 0,
-  "count": 0,
-  "storageSize": 0,
-  "nindexes": 0,
-  "totalIndexSize": 0,
-  "indexDetails": {},
-  "indexSizes": {},
-  "scaleFactor": 1,
-  "ok": 1,
-  "$clusterTime": {
-    "clusterTime": "6847589513905045623",
-    "signature": {
-      "hash": "fgIxihPon+Kg7i2a36XDddx3OOo=",
-      "keyId": "6830955492114694147"
-    }
-  },
-  "operationTime": "6847589513905045623"
-}
+When you are successfully connected, you can refer to the [MongoDB Node.js Driver docs](https://mongodb.github.io/node-mongodb-native/3.4/tutorials/collections/) for further instructions on how to query your database.
+
+For a super quick example you can use the `db` variable that exported from the `mongodb.js` util file to insert data by running:
+
+```js
+db.collection('YOUR-COLLECTION-NAME').insertOne({ hello: 'world' })
+```
+
+Additionally, you can query the data by running:
+
+```js
+db.collection('YOUR-COLLECTION-NAME').find().toArray()
 ```
 
 You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
@@ -85,18 +79,5 @@ You can start editing the page by modifying `pages/index.js`. The page auto-upda
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/import?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [MongoDB Atlas](https://mongodb.com/atlas)
-- [MongoDB Documentation](https://docs.mongodb.com/)
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.

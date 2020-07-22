@@ -3,9 +3,9 @@
 import { connectToDatabase } from '../../util/mongodb'
 
 export default async (req, res) => {
-  let db = await connectToDatabase()
+  let { client, db } = await connectToDatabase()
 
-  let data = await db.collection('test').stats()
+  let data = await client.isConnected() // Returns true or false
 
   res.statusCode = 200
   res.json(data)

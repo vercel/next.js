@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-export default function Home() {
+export default function Home({ data }) {
   return (
     <div className="container">
       <Head>
@@ -12,6 +12,15 @@ export default function Home() {
         <h1 className="title">
           Welcome to <a href="https://nextjs.org">Next.js with MongoDB!</a>
         </h1>
+
+        {data && <h2 className="subtitle">You are connected to MongoDB</h2>}
+
+        {!data && (
+          <h2 className="subtitle">
+            You are NOT connected to MongoDB. Check the <code>README.md</code>{' '}
+            for instructions.
+          </h2>
+        )}
 
         <p className="description">
           Get started by editing <code>pages/index.js</code>
@@ -124,6 +133,10 @@ export default function Home() {
           text-align: center;
         }
 
+        .subtitle {
+          font-size: 2rem;
+        }
+
         .description {
           line-height: 1.5;
           font-size: 1.5rem;
@@ -206,4 +219,13 @@ export default function Home() {
       `}</style>
     </div>
   )
+}
+
+export async function getServerSideProps(context) {
+  const res = await fetch('http://localhost:3000/api/hello')
+  const data = await res.json()
+
+  return {
+    props: { data },
+  }
 }
