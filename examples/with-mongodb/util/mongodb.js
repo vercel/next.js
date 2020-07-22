@@ -1,6 +1,5 @@
 import { MongoClient } from 'mongodb'
 
-console.log(process.env.MONGODB_URI)
 let uri = process.env.MONGODB_URI
 let cachedDb = null
 

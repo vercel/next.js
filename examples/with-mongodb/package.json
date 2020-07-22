@@ -1,7 +1,6 @@
 {
   "name": "with-mongodb",
   "version": "0.1.0",
-  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,8 +8,9 @@
   },
   "dependencies": {
     "mongodb": "^3.5.9",
-    "next": "9.4.4",
-    "react": "16.13.1",
-    "react-dom": "16.13.1"
-  }
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "license": "MIT"
 }
