@@ -3,5 +3,5 @@ export async function getServerSideProps({ query: { slug } }) {
 }
 
 export default function Page({ slug }) {
-  return <div>{slug.join('/')}</div>
+  return <div id="page">{slug.join('/')}</div>
 }

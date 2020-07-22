@@ -12,6 +12,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -21,12 +22,18 @@ let nextConfigContent
 let appPort
 let app
 
+function getPathWithNormalizedQuery(url) {
+  const parsed = new URL(url, 'http://n')
+  if (parsed.search) {
+    parsed.search = `?${parsed.searchParams}`
+  }
+  return parsed.pathname + parsed.search
+}
+
 const runTests = (isDev = false) => {
   const cases = [
     ['/hello//world', '/hello/world'],
-    ['//hello/world', '/hello/world'],
     ['/hello/world//', '/hello/world'],
-    ['//', '/'],
     ['/hello///world', '/hello/world'],
     ['/hello///world////foo', '/hello/world/foo'],
     ['/hello//world?foo=bar//baz', '/hello/world?foo=bar//baz'],
@@ -34,15 +41,25 @@ const runTests = (isDev = false) => {
 
   it.each(cases)('it should redirect %s to %s', async (from, to) => {
     const res = await fetchViaHTTP(appPort, from)
-    const location = new URL(res.url)
-    const locPathname = location.href.slice(location.origin.length)
-    expect(locPathname).toBe(to)
+    expect(getPathWithNormalizedQuery(res.url)).toBe(
+      getPathWithNormalizedQuery(to)
+    )
   })
 
   it.each(cases)('it should rewrite href %s to %s', async (from, to) => {
     const content = await renderViaHTTP(appPort, `/linker?href=${from}`)
     const $ = cheerio.load(content)
     expect($('#link').attr('href')).toBe(to)
+  })
+
+  it.each(cases)('it should navigate a href %s to %s', async (from, to) => {
+    const browser = await webdriver(appPort, `/linker?href=${from}`)
+    await browser.elementByCss('#link').click()
+    await browser.waitForElementByCss('#page')
+    const href = await browser.eval('window.location.href')
+    expect(getPathWithNormalizedQuery(href)).toBe(
+      getPathWithNormalizedQuery(to)
+    )
   })
 }
 

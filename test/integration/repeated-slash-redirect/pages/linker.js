@@ -14,7 +14,7 @@ export default function Linker({ href }) {
   }
   return (
     <div>
-      <Link href={href}>
+      <Link href="/[[...slug]]" as={href}>
         <a id="link">link to {href}</a>
       </Link>
       <button id="route-pusher" onClick={pushRoute}>
