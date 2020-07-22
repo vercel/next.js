@@ -20,7 +20,7 @@ jobs:
   #     - uses: actions/cache@v2
   #       id: cache-build
   #       with:
-  #         path: '.'
+  #         path: ${{ github.workspace }}
   #         key: ${{ github.sha }}
 
   testAll:
@@ -38,7 +38,7 @@ jobs:
       # - uses: actions/cache@v2
       #   id: restore-build
       #   with:
-      #     path: '.'
+      #     path: ${{ github.workspace }}
       #     key: ${{ github.sha }}
 
       - uses: actions/checkout@v2
