@@ -11,7 +11,7 @@ export const getStaticProps = () => {
 }
 
 export default function Index({ hello, nested }) {
-  const { query, pathname } = useRouter()
+  const { query, pathname, asPath } = useRouter()
   return (
     <>
       <h1 id="index-page">index page</h1>
@@ -19,6 +19,7 @@ export default function Index({ hello, nested }) {
       <p id="prop">{hello} world</p>
       <p id="query">{JSON.stringify(query)}</p>
       <p id="pathname">{pathname}</p>
+      <p id="as-path">{asPath}</p>
       <Link href="/hello">
         <a id="hello-link">to /hello</a>
       </Link>
