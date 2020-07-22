@@ -18,7 +18,7 @@ jobs:
       - uses: actions/cache@v2
         id: cache-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
 
   lint:
@@ -28,7 +28,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
       - run: yarn lint
 
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
       - run: ./check-pre-compiled.sh
 
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
 
       # TODO: remove after we fix watchpack watching too much
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
       - run: node run-tests.js test/integration/production/test/index.test.js
 
@@ -126,7 +126,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/test/index.test.js'
 
@@ -146,7 +146,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
 
@@ -160,7 +160,7 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ${{ github.workspace }}
+          path: ./*
           key: ${{ github.sha }}
 
       - run: ./publish-release.sh
