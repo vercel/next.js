@@ -55,6 +55,10 @@ The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/
 - React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead
 - `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md)
 
+### TypeScript
+
+If you’re using TypeScript, take a look at [our TypeScript documentation](/docs/basic-features/typescript#custom-document).
+
 ## Customizing `renderPage`
 
 > It should be noted that the only reason you should be customizing `renderPage` is for usage with **css-in-js** libraries that need to wrap the application to properly work with server-side rendering.
