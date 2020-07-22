@@ -128,14 +128,19 @@ With a [custom `Document`](/docs/advanced-features/custom-document), you can use
 
 ```tsx
 import Document, {
-  Html, Head, Main, NextScript,
+  Html,
+  Head,
+  Main,
+  NextScript,
   DocumentContext,
   DocumentInitialProps,
   /* DocumentProps, */
 } from 'next/document'
 
 class MyDocument extends Document {
-  static async getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
     const initialProps = await Document.getInitialProps(ctx)
     return { ...initialProps }
   }
