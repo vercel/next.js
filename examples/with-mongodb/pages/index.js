@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-export default function Home({ data }) {
+export default function Home({ isConnected }) {
   return (
     <div className="container">
       <Head>
@@ -13,9 +13,9 @@ export default function Home({ data }) {
           Welcome to <a href="https://nextjs.org">Next.js with MongoDB!</a>
         </h1>
 
-        {data && <h2 className="subtitle">You are connected to MongoDB</h2>}
-
-        {!data && (
+        {isConnected ? (
+          <h2 className="subtitle">You are connected to MongoDB</h2>
+        ) : (
           <h2 className="subtitle">
             You are NOT connected to MongoDB. Check the <code>README.md</code>{' '}
             for instructions.
@@ -223,9 +223,9 @@ export default function Home({ data }) {
 
 export async function getServerSideProps(context) {
   const res = await fetch('http://localhost:3000/api/hello')
-  const data = await res.json()
+  const isConnected = await res.json()
 
   return {
-    props: { data },
+    props: { isConnected },
   }
 }
