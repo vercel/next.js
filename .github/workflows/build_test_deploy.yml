@@ -13,13 +13,13 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v2
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - run: yarn install --frozen-lockfile --check-files
       - uses: actions/cache@v2
         id: cache-build
         with:
           path: '.'
           key: ${{ github.sha }}
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - run: yarn install --frozen-lockfile --check-files
 
   lint:
     runs-on: ubuntu-latest
