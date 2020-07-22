@@ -24,27 +24,6 @@ npx create-next-app --example with-sentry with-sentry
 yarn create next-app --example with-sentry with-sentry
 ```
 
-### Download Manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-sentry
-cd with-sentry
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
 ## Configuration
 
 ### Step 1. Enable error tracking
@@ -75,11 +54,11 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 ### Step 3. Automatic sourcemap upload (optional)
 
-**Using Vercel**
+#### Using Vercel
 
-- You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
+You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
 
-**Without Using Vercel**
+#### Without Using Vercel
 
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
 2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
