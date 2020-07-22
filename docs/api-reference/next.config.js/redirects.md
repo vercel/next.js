@@ -4,6 +4,13 @@ description: Add redirects to your Next.js app.
 
 # Redirects
 
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-routes-redirects">HTTP Redirects (URL forwarding)</a></li>
+  </ul>
+</details>
+
 Redirects allow you to redirect an incoming request path to a different destination path.
 
 Redirects are only available on the Node.js environment and do not affect client-side routing.
