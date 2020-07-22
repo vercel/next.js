@@ -122,6 +122,45 @@ function MyApp({ Component, pageProps }: AppProps) {
 export default MyApp
 ```
 
+## Custom `Document`
+
+With a [custom `Document`](/docs/advanced-features/custom-document), you can use the built-in types and change the file name to `./pages/_document.tsx` like so:
+
+```tsx
+import Document, {
+  Html, Head, Main, NextScript,
+  DocumentContext,
+  DocumentInitialProps,
+  /* DocumentProps, */
+} from 'next/document'
+
+class MyDocument extends Document {
+  static async getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    const initialProps = await Document.getInitialProps(ctx)
+    return { ...initialProps }
+  }
+
+  // constructor(props: DocumentProps) {
+  //   super(props)
+  //   const { __NEXT_DATA__ } = props
+  // }
+
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+}
+
+export default MyDocument
+```
+
 ## Path aliases and baseUrl
 
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
