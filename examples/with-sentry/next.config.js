@@ -60,10 +60,7 @@ module.exports = withSourceMaps({
           include: '.next',
           ignore: ['node_modules'],
           urlPrefix: '~/_next',
-          release:
-            VERCEL_GITHUB_COMMIT_SHA ||
-            VERCEL_GITLAB_COMMIT_SHA ||
-            VERCEL_BITBUCKET_COMMIT_SHA,
+          release: COMMIT_SHA,
         })
       )
     }
