@@ -163,6 +163,19 @@ describe('CLI Usage', () => {
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['start', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['start', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 
   describe('export', () => {
