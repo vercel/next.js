@@ -134,6 +134,19 @@ describe('CLI Usage', () => {
       )
       expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['dev', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['dev', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 
   describe('start', () => {
