@@ -46,17 +46,17 @@ Set each variable on `.env.local`:
 
 ### Run Next.js in development mode
 
-Navigate to your project directory and run either:
-
 ```bash
 npm install
 npm run dev
+
 # or
-yarn
+
+yarn install
 yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
 You will either see a message stating "You are connected to MongoDB" or "You are NOT connected to MongoDB". Ensure that you have provided the correct `MONGODB_URI` and `MONGODB_DB` environment variables.
 
