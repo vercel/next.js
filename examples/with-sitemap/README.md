@@ -1,9 +1,16 @@
 # With Sitemap example
 
 This example shows how to generate Sitemap for static [Next.js](https://nextjs.org/) paths.
-Everytime, you try to start a development server or make a build, you get an updated `sitemap.xml` file in `public` directory(`http://localhost:3000/sitemap.xml`).
+Every time, you try to start a development server or make a build, you get an updated `sitemap.xml` file in the `public` directory(`http://localhost:3000/sitemap.xml`).
 
-**Note**: Everytime you add or remove a page from `pages` directory, you need to restart the server, to update your `pages/sitemap.xml` file.
+The website URL can be changed from `.env` file in the project root.
+
+```
+# Used to add the domain to sitemap.xml, replace it with a real domain in production
+WEBSITE_URL=http://localhost:3000
+```
+
+**Note**: Every time you add or remove a page from the `pages` directory, you need to restart the server, to update your `pages/sitemap.xml` file.
 
 ## Deploy your own
 
