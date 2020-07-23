@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "9.4.5-canary.31",
+  "version": "9.4.5-canary.43",
   "keywords": [
     "react",
     "next",
@@ -40,12 +40,14 @@
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
     "got": "10.7.0",
-    "make-dir": "3.0.0",
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
     "tar": "4.4.10",
     "typescript": "3.8.3",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
+  },
+  "engines": {
+    "node": ">=10.13.0"
   }
 }

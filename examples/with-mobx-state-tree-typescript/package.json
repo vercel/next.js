@@ -9,6 +9,7 @@
   "dependencies": {
     "mobx": "^5.9.0",
     "mobx-react": "^5.4.3",
+    "mobx-react-lite": "^2.0.7",
     "mobx-state-tree": "^3.11.0",
     "next": "latest",
     "react": "16.13.1",
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.3.0",
+    "@types/node": "^14.0.23",
     "@types/react": "^16.4.12"
   },
   "license": "ISC"
