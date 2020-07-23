@@ -44,7 +44,7 @@ Set each variable on `.env.local`:
 - `MONGODB_URI` - Your MongoDB connection string. If you are using [MongoDB Atlas](https://mongodb.com/atlas) you can find this by clicking the "Connect" button for your cluster.
 - `MONGODB_DB` - The name of the MongoDB database you want to use.
 
-### Start Up Development Server
+### Run Next.js in development mode
 
 Navigate to your project directory and run either:
 
