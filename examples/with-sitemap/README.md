@@ -1,24 +1,45 @@
-### Sitemap for Static Next.Js App
+# With Sitemap example
 
-This is a static [Next.js](https://nextjs.org/) project which generates a sitemap for all the static paths.
-Everytime, you try to start a development server or make a build, you get an updated `sitemap.xml` file in `public` directory.
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-Open [http://localhost:3000/sitemap.xml](http://localhost:3000/sitemap.xml) with your browser to see the sitemap.
+This example shows how to generate Sitemap for static [Next.js](https://nextjs.org/) paths.
+Everytime, you try to start a development server or make a build, you get an updated `sitemap.xml` file in `public` directory(`http://localhost:3000/sitemap.xml`).
 
 **Note**: Everytime you add or remove a page from `pages` directory, you need to restart the server, to update your `pages/sitemap.xml` file.
 
-## Deploy on Vercel
+## Deploy your own
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/import?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy the example using [Vercel](https://vercel.com):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/hello-world)
+
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
+```bash
+npx create-next-app --example with-sitemap with-sitemap-app
+# or
+yarn create next-app --example with-sitemap with-sitemap-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-sitemap
+cd with-sitemap
+```
+
+Install it and run:
+
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
+
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
