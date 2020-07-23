@@ -15,9 +15,9 @@ Once you have access to the environment variables you'll need, deploy the exampl
 
 ## How to use
 
-Using `create-next-app`
+### Using `create-next-app`
 
-Execute `create-next-app` with npm or Yarn to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-mongodb with-mongodb
