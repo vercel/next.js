@@ -59,6 +59,19 @@ describe('CLI Usage', () => {
         /Compiles the application for production deployment/
       )
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['build', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['build', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 
   describe('dev', () => {
