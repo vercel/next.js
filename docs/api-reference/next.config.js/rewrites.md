@@ -7,7 +7,7 @@ description: Add rewrites to your Next.js app.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-routes-rewrites">Dynamic routes (Pretty URLs)</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/rewrites">Rewrites - Custom Routes</a></li>
   </ul>
 </details>
 
