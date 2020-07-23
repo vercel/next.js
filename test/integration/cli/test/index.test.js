@@ -192,5 +192,18 @@ describe('CLI Usage', () => {
       })
       expect(help.stdout).toMatch(/Exports the application/)
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['export', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['export', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 })
