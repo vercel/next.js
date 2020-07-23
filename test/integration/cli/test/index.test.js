@@ -206,4 +206,37 @@ describe('CLI Usage', () => {
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
     })
   })
+
+  describe('telemetry', () => {
+    test('--help', async () => {
+      const help = await runNextCommand(['telemetry', '--help'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Allows you to control Next\.js' telemetry collection/
+      )
+    })
+
+    test('-h', async () => {
+      const help = await runNextCommand(['telemetry', '-h'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Allows you to control Next\.js' telemetry collection/
+      )
+    })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['telemetry', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['telemetry', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+  })
 })
