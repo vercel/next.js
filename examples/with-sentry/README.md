@@ -58,6 +58,8 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
 
+> **Note: A Vercel project connected to a [Git integration](https://vercel.com/docs/v2/platform/deployments#git-integration) is required before adding the Sentry integration.
+
 #### Without Using Vercel
 
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
