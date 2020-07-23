@@ -62,20 +62,6 @@ You will either see a message stating "You are connected to MongoDB" or "You are
 
 When you are successfully connected, you can refer to the [MongoDB Node.js Driver docs](https://mongodb.github.io/node-mongodb-native/3.4/tutorials/collections/) for further instructions on how to query your database.
 
-For a super quick example you can use the `db` variable that exported from the `mongodb.js` util file to insert data by running:
-
-```js
-db.collection('YOUR-COLLECTION-NAME').insertOne({ hello: 'world' })
-```
-
-Additionally, you can query the data by running:
-
-```js
-db.collection('YOUR-COLLECTION-NAME').find().toArray()
-```
-
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
-
 ## Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
