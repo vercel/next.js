@@ -24,27 +24,6 @@ npx create-next-app --example with-sentry with-sentry
 yarn create next-app --example with-sentry with-sentry
 ```
 
-### Download Manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-sentry
-cd with-sentry
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
 ## Configuration
 
 ### Step 1. Enable error tracking
@@ -75,10 +54,19 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 ### Step 3. Automatic sourcemap upload (optional)
 
+#### Using Vercel
+
+You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
+
+> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/v2/platform/deployments#git-integration) is required before adding the Sentry integration.
+
+#### Without Using Vercel
+
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
-2. Save your Sentry Organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
-3. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
-4. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
+2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
+3. Save your git provider's commit SHA as either `VERCEL_GITHUB_COMMIT_SHA`, `VERCEL_GITLAB_COMMIT_SHA`, or `VERCEL_BITBUCKET_COMMIT_SHA` environment variable in `.env.local`.
+4. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
+5. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
 
 > **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
 
