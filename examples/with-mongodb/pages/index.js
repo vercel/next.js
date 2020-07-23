@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import { connectToDatabase } from '../util/mongodb'
 
 export default function Home({ isConnected }) {
   return (
@@ -222,8 +223,9 @@ export default function Home({ isConnected }) {
 }
 
 export async function getServerSideProps(context) {
-  const res = await fetch('http://localhost:3000/api/hello')
-  const isConnected = await res.json()
+  const { client } = await connectToDatabase()
+
+  const isConnected = await client.isConnected() // Returns true or false
 
   return {
     props: { isConnected },
