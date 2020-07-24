@@ -25,7 +25,7 @@ Visit <a aria-label="next.js learn" href="https://nextjs.org/docs">https://nextj
 
 ## Who is using Next.js?
 
-Next.js is used by the world's leading companies. You can check out the <a aria-label="Next.js Showcase" href="https://nextjs.org/showcase">full showcase here</a>.
+Next.js is used by the world's leading companies. Check out the [Next.js Showcase](https://nextjs.org/showcase) to learn more.
 
 ## Contributing
 
