@@ -21,7 +21,7 @@ Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://next
 
 ## Documentation
 
-Visit <a aria-label="next.js learn" href="https://nextjs.org/docs">https://nextjs.org/docs</a> to view the full documentation.
+Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.
 
 ## Who is using Next.js?
 
