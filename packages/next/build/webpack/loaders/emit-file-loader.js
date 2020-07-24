@@ -21,7 +21,7 @@ module.exports = function (content, sourceMap) {
   const context = query.context || this.rootContext || this.options.context
   const regExp = query.regExp
   const opts = { context, content, regExp }
-  const interpolateName = query.interpolateName || ((name) => name)
+  const interpolateName = query.interpolateName || ((inputName) => inputName)
   const interpolatedName = interpolateName(
     loaderUtils.interpolateName(this, name, opts),
     { name, opts }

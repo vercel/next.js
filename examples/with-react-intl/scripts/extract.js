@@ -1,12 +1,12 @@
 const { readFileSync, writeFileSync } = require('fs')
 const { resolve } = require('path')
 const glob = require('glob')
-const { execFileSync } = require('child_process')
+const spawn = require('cross-spawn')
 
 // formatjs cli doesn't currently support globbing, so we perform it ourselves
 // as a workaround. see https://github.com/formatjs/formatjs/issues/383
 const sourceFiles = glob.sync(process.argv[2])
-execFileSync('npx', [
+spawn.sync('npx', [
   'formatjs',
   'extract',
   '--messages-dir',

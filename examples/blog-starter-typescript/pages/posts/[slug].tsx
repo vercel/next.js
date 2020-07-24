@@ -1,4 +1,3 @@
-import React from 'react'
 import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Container from '../../components/container'
@@ -19,7 +18,7 @@ type Props = {
   preview?: boolean
 }
 
-const Post: React.FC<Props> = ({ post, morePosts, preview }) => {
+const Post = ({ post, morePosts, preview }: Props) => {
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />

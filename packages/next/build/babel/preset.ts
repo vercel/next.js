@@ -25,8 +25,8 @@ function styledJsxOptions(options: StyledJsxBabelOptions) {
   options.plugins = options.plugins.map(
     (plugin: StyledJsxPlugin): StyledJsxPlugin => {
       if (Array.isArray(plugin)) {
-        const [name, options] = plugin
-        return [require.resolve(name), options]
+        const [name, pluginOptions] = plugin
+        return [require.resolve(name), pluginOptions]
       }
 
       return require.resolve(plugin)

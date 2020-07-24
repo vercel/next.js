@@ -17,7 +17,7 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-carbon-components with-carbon-components-app
+npx create-next-app --example with-carbon-components with-carbon-components-app
 # or
 yarn create next-app --example with-carbon-components with-carbon-components-app
 ```
@@ -42,3 +42,11 @@ yarn dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+## Optimizations
+
+In this example we import carbon components in the `styles/custom-theme.scss` file like this:
+@import '~carbon-components/scss/globals/scss/styles.scss';
+
+When we start to consider the performance of this approach, however, it becomes clear that this will include every single bit of CSS that Carbon outputs. Sometimes, you totally need everything that the project provides, but for a good number of teams you may find yourself using only a subset of our components. Here is a great article about how you can optimize your application using carbon components:
+https://medium.com/carbondesign/minimal-css-with-carbon-b0c089ccfa71

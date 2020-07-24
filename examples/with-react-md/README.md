@@ -1,6 +1,6 @@
 # Example app with react-md
 
-This example features how you use [react-md](https://react-md.mlaursen.com/) (React Material Design) with Next.js.
+This example features how you use [react-md](https://react-md.dev/) (React Material Design) with Next.js.
 
 I recommend reading [layout-component](../layout-component) example next to learn how to reuse the layout across the pages.
 
@@ -19,7 +19,7 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-react-md with-react-md-app
+npx create-next-app --example with-react-md with-react-md-app
 # or
 yarn create next-app --example with-react-md with-react-md-app
 ```

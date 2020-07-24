@@ -1,54 +1,46 @@
-import { Component } from 'react'
+import { useState, useEffect } from 'react'
 
-export default class Home extends Component {
-  state = {
-    input: '',
-    message: null,
-  }
+const Home = () => {
+  const [input, setInput] = useState('')
+  const [message, setMessage] = useState(null)
 
-  componentDidMount() {
-    // start listening the channel message
-    global.ipcRenderer.on('message', this.handleMessage)
-  }
+  useEffect(() => {
+    const handleMessage = (event, message) => setMessage(message)
+    global.ipcRenderer.on('message', handleMessage)
 
-  componentWillUnmount() {
-    // stop listening the channel message
-    global.ipcRenderer.removeListener('message', this.handleMessage)
-  }
+    return () => {
+      global.ipcRenderer.removeListener('message', handleMessage)
+    }
+  }, [])
 
-  handleMessage = (event, message) => {
-    // receive a message from the main process and save it in the local state
-    this.setState({ message })
-  }
-
-  handleChange = (event) => {
-    this.setState({ input: event.target.value })
-  }
-
-  handleSubmit = (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault()
-    global.ipcRenderer.send('message', this.state.input)
-    this.setState({ message: null })
+    global.ipcRenderer.send('message', input)
+    setMessage(null)
   }
 
-  render() {
-    return (
-      <div>
-        <h1>Hello Electron!</h1>
+  return (
+    <div>
+      <h1>Hello Electron!</h1>
 
-        {this.state.message && <p>{this.state.message}</p>}
+      {message && <p>{message}</p>}
 
-        <form onSubmit={this.handleSubmit}>
-          <input type="text" onChange={this.handleChange} />
-        </form>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+        />
+      </form>
 
-        <style jsx>{`
-          h1 {
-            color: red;
-            font-size: 50px;
-          }
-        `}</style>
-      </div>
-    )
-  }
+      <style jsx>{`
+        h1 {
+          color: red;
+          font-size: 50px;
+        }
+      `}</style>
+    </div>
+  )
 }
+
+export default Home

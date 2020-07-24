@@ -7,7 +7,8 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 jest.setTimeout(1000 * 60 * 2)
 
-describe('Conformance system', () => {
+// Disabled given that @prateekbh is still reviewing this plugin
+describe.skip('Conformance system', () => {
   let build
   beforeAll(async () => {
     build = await nextBuild(appDir, [], {
@@ -30,11 +31,11 @@ describe('Conformance system', () => {
     )
   })
 
-  it('Should warn about changes to granularChunks config', async () => {
+  it('Should warn about changes to splitChunks config', async () => {
     const { stderr } = build
     expect(stderr).toContain(
-      '[BUILD CONFORMANCE ERROR]: The splitChunks config as part of the granularChunks flag has ' +
-        `been carefully crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
+      '[BUILD CONFORMANCE ERROR]: The splitChunks config has been carefully ' +
+        `crafted to optimize build size and build times. Please avoid changes to ${chalk.bold(
           'splitChunks.cacheGroups.vendors'
         )}`
     )

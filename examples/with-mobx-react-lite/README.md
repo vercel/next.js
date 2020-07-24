@@ -21,7 +21,7 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-mobx-react-lite with-mobx-react-lite-app
+npx create-next-app --example with-mobx-react-lite with-mobx-react-lite-app
 # or
 yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 ```
@@ -47,7 +47,7 @@ yarn dev
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-## Inplementation details
+## Implementation details
 
 The initial store data is returned from the `initializeData` function that recycles existing store data if it already exists.
 

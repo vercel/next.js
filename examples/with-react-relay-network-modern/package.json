@@ -13,8 +13,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dotenv": "^8.0.0",
-    "dotenv-webpack": "^1.5.4",
     "graphql": "^14.6.0",
     "next": "latest",
     "react": "^16.13.0",

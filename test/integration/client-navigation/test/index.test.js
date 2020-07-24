@@ -21,7 +21,9 @@ jest.setTimeout(1000 * 60 * 5)
 describe('Client Navigation', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
 
     const prerender = [
       '/async-props',
@@ -787,11 +789,12 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
-    it('should work with /index page', async () => {
+    it('should not work with /index page', async () => {
       const browser = await webdriver(context.appPort, '/index')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
       await browser.close()
     })
 
@@ -999,12 +1002,10 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
-    it('should 404 for <page>/', async () => {
+    it('should not 404 for <page>/', async () => {
       const browser = await webdriver(context.appPort, '/nav/about/')
-      expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
+      const text = await browser.elementByCss('p').text()
+      expect(text).toBe('This is the about page.')
       await browser.close()
     })
 
