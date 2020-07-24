@@ -1,11 +1,12 @@
-import styles from '../styles.module.css'
+import styles from '../../styles.module.css'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 
-export default function About() {
-  const { asPath, route } = useRouter()
+export default function News() {
+  const { asPath, route, query } = useRouter()
+  const slugs = query.slug
   return (
     <div className={styles.container}>
       <div className={styles.card}>
@@ -14,6 +15,7 @@ export default function About() {
         <p>
           {' '}
           This page was rendered from <Code>{`pages${route}.js`}</Code> file.
+          The passed down slugs are <Code>{slugs.join(',')}</Code>
         </p>
         <Link href="/">
           <a> &larr; Back home</a>
@@ -21,4 +23,10 @@ export default function About() {
       </div>
     </div>
   )
+}
+
+export async function getServerSideProps(context) {
+  return {
+    props: {},
+  }
 }
