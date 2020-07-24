@@ -1012,7 +1012,6 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
-    // this test is failing
     it('should 404 on wrong casing of url dynamic param', async () => {
       const browser = await webdriver(
         context.appPort,
