@@ -810,14 +810,19 @@ export default class Router implements BaseRouter {
     return new Promise((resolve, reject) => {
       const parsed = tryParseRelativeUrl(url)
 
-      if (!parsed) return
+      if (!parsed) {
+        resolve()
+        return
+      }
 
       const { pathname } = parsed
 
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') {
+        resolve()
         return
       }
+
       const route = removePathTrailingSlash(pathname)
       Promise.all([
         this.pageLoader.prefetchData(url, asPath),
