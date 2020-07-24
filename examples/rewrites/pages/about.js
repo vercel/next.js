@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 
 export default function About() {
-  const { asPath, route } = useRouter();
+  const { asPath, route } = useRouter()
   return (
     <div className={styles.container}>
       <div className={styles.card}>
@@ -13,8 +13,7 @@ export default function About() {
         <hr className={styles.hr} />
         <p>
           {' '}
-          This page was rendered from{' '}
-          <Code>{`pages${route}.js`}</Code> file.
+          This page was rendered from <Code>{`pages${route}.js`}</Code> file.
         </p>
         <Link href="/">
           <a> &larr; Back home</a>
