@@ -807,24 +807,22 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    try {
-      const parsed = tryParseRelativeUrl(url)
+    const parsed = tryParseRelativeUrl(url)
 
-      if (!parsed) return
+    if (!parsed) return
 
-      const { pathname } = parsed
+    const { pathname } = parsed
 
-      // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') {
-        return
-      }
+    // Prefetch is not supported in development mode because it would trigger on-demand-entries
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
 
-      const route = removePathTrailingSlash(pathname)
-      await Promise.all([
-        this.pageLoader.prefetchData(url, asPath),
-        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
-      ])
-    } catch (err) {}
+    const route = removePathTrailingSlash(pathname)
+    await Promise.all([
+      this.pageLoader.prefetchData(url, asPath),
+      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
+    ])
   }
 
   async fetchComponent(route: string): Promise<ComponentRes> {
