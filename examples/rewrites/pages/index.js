@@ -9,11 +9,11 @@ const Index = () => (
       <h1>Rewrites with Next.js</h1>
       <hr className={styles.hr} />
       <p>
-        Clicking on each of the <Code>Links</Code> below you'll see how{' '}
+        The links below are{' '}
         <a href="https://nextjs.org/docs/api-reference/next.config.js/rewrites">
-          rewrites can be used to perform custom routing
+          custom <Code>rewrites</Code>
         </a>{' '}
-        with Next.js
+        that map an incoming request path to a different destination path.
       </p>
       <nav>
         <ul className={styles.list}>
@@ -28,17 +28,24 @@ const Index = () => (
             </Link>
           </li>
           <li>
-            <Link href="/docs/[slug]" as="/docs/nextjs">
-              <a>Visit Next.js docs</a>
+            <Link href="/post/first-post">
+              <a>Visit /post/first-post</a>
             </Link>
           </li>
           <li>
-            <Link href="/blog/[...slug]" as="/blog/a/b/nextjs">
-              <a>Visit Next.js blog</a>
+            <Link href="/blog/2020/first-post">
+              <a>Visit /blog/2020/first-post</a>
             </Link>
+          </li>
+          <li>
+            <a href="/docs/page">Visit External URL</a>
           </li>
         </ul>
       </nav>
+      <p>
+        Open <Code>next.config.js</Code> to learn more about the rewrites that
+        match the links above.
+      </p>
       <hr className={styles.hr} />
     </div>
   </div>
