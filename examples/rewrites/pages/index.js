@@ -16,10 +16,10 @@ const Index = () => (
         with Next.js
       </p>
       <nav>
-        <Link href="/team">
+        <Link href="/about" as="/team">
           <a>Visit /team</a>
         </Link>
-        <Link href="/about-us">
+        <Link href="/about" as="/about-us">
           <a>Visit /about-us</a>
         </Link>
         <Link href="/docs/[slug]" as="/docs/nextjs">
