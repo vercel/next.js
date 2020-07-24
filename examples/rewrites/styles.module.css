@@ -16,10 +16,6 @@
   margin: 0 auto;
 }
 
-.container nav a {
-  padding-right: 1em;
-}
-
 .inlineCode {
   color: #be00ff;
   font-size: 16px;
@@ -35,4 +31,21 @@
   border: 0;
   border-top: 1px solid #eaeaea;
   margin: 1.5rem 0;
+}
+
+.list {
+  padding-left: 1.5rem;
+  margin: 1.25rem 0;
+  list-style-type: none;
+}
+
+.list li {
+  margin-bottom: 0.75rem;
+}
+
+.list li:before {
+  content: '-';
+  color: #999999;
+  position: absolute;
+  margin-left: -1rem;
 }

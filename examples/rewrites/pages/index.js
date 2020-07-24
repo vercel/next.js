@@ -16,18 +16,28 @@ const Index = () => (
         with Next.js
       </p>
       <nav>
-        <Link href="/about" as="/team">
-          <a>Visit /team</a>
-        </Link>
-        <Link href="/about" as="/about-us">
-          <a>Visit /about-us</a>
-        </Link>
-        <Link href="/docs/[slug]" as="/docs/nextjs">
-          <a>Visit Next.js docs</a>
-        </Link>
-        <Link href="/blog/[...slug]" as="/blog/a/b/nextjs">
-          <a>Visit Next.js blog</a>
-        </Link>
+        <ul className={styles.list}>
+          <li>
+            <Link href="/about" as="/team">
+              <a>Visit /team</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/about" as="/about-us">
+              <a>Visit /about-us</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/docs/[slug]" as="/docs/nextjs">
+              <a>Visit Next.js docs</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/blog/[...slug]" as="/blog/a/b/nextjs">
+              <a>Visit Next.js blog</a>
+            </Link>
+          </li>
+        </ul>
       </nav>
       <hr className={styles.hr} />
     </div>
