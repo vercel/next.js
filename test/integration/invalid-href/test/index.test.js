@@ -14,7 +14,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
+jest.setTimeout(1000 * 60 * 1)
 
 let app
 let appPort
@@ -22,6 +22,10 @@ const appDir = join(__dirname, '..')
 
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
+
+// This test doesn't seem to benefit from retries, let's disable them until the test gets fixed
+// to prevent long running times
+jest.retryTimes(0)
 
 const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
