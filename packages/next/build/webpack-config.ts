@@ -134,9 +134,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 }
 
 type ClientEntries = {
-  'main.js': string[]
-} & {
-  [key: string]: string
+  [key: string]: string | string[]
 }
 
 export default async function getBaseWebpackConfig(
@@ -149,6 +147,7 @@ export default async function getBaseWebpackConfig(
     pagesDir,
     tracer,
     target = 'server',
+    reactProductionProfiling = false,
     entrypoints,
   }: {
     buildId: string
@@ -158,6 +157,7 @@ export default async function getBaseWebpackConfig(
     pagesDir: string
     target?: string
     tracer?: any
+    reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
@@ -232,14 +232,16 @@ export default async function getBaseWebpackConfig(
         // Backwards compatibility
         'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
-          `.${path.sep}` +
-          path.relative(
-            dir,
-            path.join(
-              NEXT_PROJECT_ROOT_DIST_CLIENT,
-              dev ? `next-dev.js` : 'next.js'
+          `./` +
+          path
+            .relative(
+              dir,
+              path.join(
+                NEXT_PROJECT_ROOT_DIST_CLIENT,
+                dev ? `next-dev.js` : 'next.js'
+              )
             )
-          ),
+            .replace(/\\/g, '/'),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
           'polyfills.js'
@@ -273,7 +275,7 @@ export default async function getBaseWebpackConfig(
   }
 
   function getReactProfilingInProduction() {
-    if (config.reactProductionProfiling) {
+    if (reactProductionProfiling) {
       return {
         'react-dom$': 'react-dom/profiling',
         'scheduler/tracing': 'scheduler/tracing-profiling',
@@ -379,7 +381,7 @@ export default async function getBaseWebpackConfig(
         defaultVendors: false,
         framework: {
           chunks: 'all',
-          name: isWebpack5 ? 'static/chunks/framework' : 'framework',
+          name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
           // https://github.com/vercel/next.js/pull/9012
@@ -414,25 +416,21 @@ export default async function getBaseWebpackConfig(
               hash.update(module.libIdent({ context: dir }))
             }
 
-            return (
-              (isWebpack5 ? 'static/chunks/' : '') +
-              hash.digest('hex').substring(0, 8)
-            )
+            return hash.digest('hex').substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
         },
         commons: {
-          name: (isWebpack5 ? 'static/chunks/' : '') + 'commons',
+          name: 'commons',
           minChunks: totalPages,
           priority: 20,
         },
         shared: {
           name(module, chunks) {
             return (
-              (isWebpack5 ? 'static/chunks/' : '') +
-              (crypto
+              crypto
                 .createHash('sha1')
                 .update(
                   chunks.reduce(
@@ -442,8 +440,7 @@ export default async function getBaseWebpackConfig(
                     ''
                   )
                 )
-                .digest('hex') +
-                (isModuleCSS(module) ? '_CSS' : ''))
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
             )
           },
           priority: 10,
@@ -707,12 +704,14 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
-      ignored: ['.git/**', 'node_modules/**', '.git/**'],
+      ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
     },
     output: {
       path: outputPath,
       // On the server we don't use the chunkhash
-      filename: dev || isServer ? '[name].js' : '[name]-[chunkhash].js',
+      filename: isServer
+        ? '[name].js'
+        : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
       hotUpdateChunkFilename: isWebpack5
@@ -840,7 +839,7 @@ export default async function getBaseWebpackConfig(
             }
           : {}),
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
-          config.experimental.trailingSlash
+          config.trailingSlash
         ),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
@@ -862,6 +861,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
+        ),
+        'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
+          config.experimental.scrollRestoration
         ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         ...(isServer
@@ -942,7 +944,8 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      config.experimental.modern &&
+      !isWebpack5 &&
+        config.experimental.modern &&
         !isServer &&
         !dev &&
         (() => {
@@ -965,6 +968,7 @@ export default async function getBaseWebpackConfig(
           })
         })(),
       config.experimental.conformance &&
+        !isWebpack5 &&
         !dev &&
         new WebpackConformancePlugin({
           tests: [
@@ -1011,6 +1015,13 @@ export default async function getBaseWebpackConfig(
     delete webpackConfig.output?.futureEmitAssets
     // No longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
+
+    if (dev) {
+      if (!webpackConfig.optimization) {
+        webpackConfig.optimization = {}
+      }
+      webpackConfig.optimization.usedExports = false
+    }
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
@@ -1265,7 +1276,9 @@ export default async function getBaseWebpackConfig(
           : originalEntry
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
-        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        const originalFile = clientEntries[
+          CLIENT_STATIC_FILES_RUNTIME_MAIN
+        ] as string
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,

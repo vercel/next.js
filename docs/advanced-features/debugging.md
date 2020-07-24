@@ -40,7 +40,7 @@ ready - started server on http://localhost:3000
 
 ### Using Chrome DevTools
 
-Once you open a new tab in Google Chrome and go to `chrome://inspect`, you should see your Next.js application inside the "Remote Target" section. Now click "inspect" to open a screen that will be your debugging environement from now on.
+Once you open a new tab in Google Chrome and go to `chrome://inspect`, you should see your Next.js application inside the "Remote Target" section. Now click "inspect" to open a screen that will be your debugging environment from now on.
 
 ### Using the Debugger in Visual Studio Code
 
@@ -71,7 +71,7 @@ Now you can use the [`debugger`](https://developer.mozilla.org/en-US/docs/Web/Ja
 
 If you trigger the underlying code by refreshing the current page, clicking on a page link or fetching an API route, your code will be paused and the debugger window will pop up.
 
-To learn more on how to use a JavaScript debugger, take a look the following documentation:
+To learn more on how to use a JavaScript debugger, take a look at the following documentation:
 
 - [VS Code Node.js debugging: Breakpoints](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_breakpoints)
 - [Get Started with Debugging JavaScript in Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools/javascript)

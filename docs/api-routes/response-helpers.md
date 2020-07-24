@@ -25,3 +25,4 @@ The included helpers are:
 - `res.status(code)` - A function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 - `res.json(json)` - Sends a JSON response. `json` must be a valid JSON object
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
+- `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Found".

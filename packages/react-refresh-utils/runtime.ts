@@ -13,14 +13,6 @@ declare const self: Window & RefreshRuntimeGlobals
 // Hook into ReactDOM initialization
 RefreshRuntime.injectIntoGlobalHook(self)
 
-// noop fns to prevent runtime errors during initialization
-self.$RefreshReg$ = function () {}
-self.$RefreshSig$ = function () {
-  return function (type) {
-    return type
-  }
-}
-
 // Register global helpers
 self.$RefreshHelpers$ = RefreshHelpers
 

@@ -1,7 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { format, URLFormatOptions, UrlObject } from 'url'
+import { UrlObject } from 'url'
+import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
@@ -199,6 +200,12 @@ export interface NextApiRequest extends IncomingMessage {
   body: any
 
   env: Env
+
+  preview?: boolean
+  /**
+   * Preview data set on the request, if any
+   * */
+  previewData?: any
 }
 
 /**
@@ -219,6 +226,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>
+  redirect: (statusOrUrl: string | number, url?: string) => NextApiResponse<T>
 
   /**
    * Set preview data for Next.js' prerender mode
@@ -352,10 +360,7 @@ export const urlObjectKeys = [
   'slashes',
 ]
 
-export function formatWithValidation(
-  url: UrlObject,
-  options?: URLFormatOptions
-): string {
+export function formatWithValidation(url: UrlObject): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
@@ -368,7 +373,7 @@ export function formatWithValidation(
     }
   }
 
-  return format(url as URL, options)
+  return formatUrl(url)
 }
 
 export const SP = typeof performance !== 'undefined'
