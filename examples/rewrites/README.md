@@ -2,7 +2,7 @@
 
 This example shows how to use [rewrites in Next.js](https://nextjs.org/docs/api-reference/next.config.js/rewrites).
 
-The `Links` in the index page ([pages/index.js](pages/index.js)) will show you how to map an [incoming request path to a different destination path](https://github.com/vercel/next.js/blob/canary/docs/api-reference/next.config.js/rewrites.md#rewrites) , and how to [rewrite to an external url](https://github.com/vercel/next.js/canary/docs/api-reference/next.config.js/rewrites.md#rewriting-to-an-external-url).
+The `Links` in the index page ([pages/index.js](pages/index.js)) will show you how to map an [incoming request path to a different destination path](https://github.com/vercel/next.js/blob/canary/docs/api-reference/next.config.js/rewrites.md#rewrites) , [path matching](https://github.com/vercel/next.js/blob/canary/docs/api-reference/next.config.js/rewrites.md#path-matching) , and how to [rewrite to an external url](https://github.com/vercel/next.js/canary/docs/api-reference/next.config.js/rewrites.md#rewriting-to-an-external-url).
 
 ## Deploy your own
 

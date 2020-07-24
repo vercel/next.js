@@ -13,6 +13,10 @@ module.exports = {
         source: '/docs/:slug',
         destination: 'http://example.com/docs/:slug',
       },
+      {
+        source: '/blog/:slug*',
+        destination: '/news/:slug*',
+      },
     ]
   },
 }
