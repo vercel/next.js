@@ -38,6 +38,7 @@ npm run dev
 yarn
 yarn dev
 ```
+
 Your app should be up and running on [http://localhost:3000](http://localhost:3000) and the sitemap should now be available in [http://localhost:3000/sitemap.xml](http://localhost:3000/sitemap.xml)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 To change the website URL used by `sitemap.xml`, open the file `.env` and change the `WEBSITE_URL` environment variable:
