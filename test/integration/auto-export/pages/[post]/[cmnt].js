@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
   window.pathnames = []
 }
 
-export default () => {
+export default function Page() {
   if (typeof window !== 'undefined') {
     window.pathnames.push(window.location.pathname)
   }
