@@ -82,12 +82,11 @@ Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
 ### Optional catch all API routes
 
-> **Warning**: This feature is **experimental and may not work as expected**.
-> You must enable the `optionalCatchAll` experimental option to try it.
-
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
 For example, `pages/api/post/[[...slug]].js` will match `/api/post`, `/api/post/a`, `/api/post/a/b`, and so on.
+
+The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/api/post` in the example above).
 
 The `query` objects are as follows:
 

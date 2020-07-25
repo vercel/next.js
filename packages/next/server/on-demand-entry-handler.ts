@@ -1,15 +1,9 @@
 import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
 import { join, posix } from 'path'
-import { stringify } from 'querystring'
 import { parse } from 'url'
 import webpack from 'webpack'
-import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
-import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
-import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
-import { API_ROUTE } from '../lib/constants'
 import {
   normalizePagePath,
   normalizePathSep,
@@ -18,37 +12,29 @@ import { pageNotFoundError } from '../next-server/server/require'
 import { findPageFile } from './lib/find-page-file'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 
-const ADDED = Symbol('added')
-const BUILDING = Symbol('building')
-const BUILT = Symbol('built')
+export const ADDED = Symbol('added')
+export const BUILDING = Symbol('building')
+export const BUILT = Symbol('built')
 
-// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
-function addEntry(
-  compilation: webpack.compilation.Compilation,
-  context: string,
-  name: string,
-  entry: string[]
-) {
-  return new Promise((resolve, reject) => {
-    const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, (err: Error) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
-}
+export let entries: {
+  [page: string]: {
+    serverBundlePath: string
+    clientBundlePath: string
+    absolutePagePath: string
+    status?: typeof ADDED | typeof BUILDING | typeof BUILT
+    lastActiveTime?: number
+  }
+} = {}
 
 export default function onDemandEntryHandler(
-  devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
+  watcher: any,
   multiCompiler: webpack.MultiCompiler,
   {
-    buildId,
     pagesDir,
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
   }: {
-    buildId: string
     pagesDir: string
     pageExtensions: string[]
     maxInactiveAge: number
@@ -56,42 +42,16 @@ export default function onDemandEntryHandler(
   }
 ) {
   const { compilers } = multiCompiler
-  const invalidator = new Invalidator(devMiddleware, multiCompiler)
-  let entries: any = {}
+  const invalidator = new Invalidator(watcher, multiCompiler)
+
   let lastAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
-    compiler.hooks.make.tapPromise(
+    compiler.hooks.make.tap(
       'NextJsOnDemandEntries',
-      (compilation: webpack.compilation.Compilation) => {
+      (_compilation: webpack.compilation.Compilation) => {
         invalidator.startBuilding()
-
-        const allEntries = Object.keys(entries).map(async (page) => {
-          if (compiler.name === 'client' && page.match(API_ROUTE)) {
-            return
-          }
-          const { name, absolutePagePath } = entries[page]
-          const pageExists = await isWriteable(absolutePagePath)
-          if (!pageExists) {
-            // page was removed
-            delete entries[page]
-            return
-          }
-
-          entries[page].status = BUILDING
-          const pageLoaderOpts: ClientPagesLoaderOptions = {
-            page,
-            absolutePagePath,
-          }
-          return addEntry(compilation, compiler.context, name, [
-            compiler.name === 'client'
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath,
-          ])
-        })
-
-        return Promise.all(allEntries).catch((err) => console.error(err))
       }
     )
   }
@@ -134,12 +94,7 @@ export default function onDemandEntryHandler(
   })
 
   const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(
-      devMiddleware,
-      entries,
-      lastAccessPages,
-      maxInactiveAge
-    )
+    disposeInactiveEntries(watcher, lastAccessPages, maxInactiveAge)
   }, 5000)
 
   disposeHandler.unref()
@@ -211,8 +166,9 @@ export default function onDemandEntryHandler(
 
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
-      const bundleFile = `${normalizePagePath(pageUrl)}.js`
-      const name = join('static', buildId, 'pages', bundleFile)
+      const bundleFile = normalizePagePath(pageUrl)
+      const serverBundlePath = posix.join('pages', bundleFile)
+      const clientBundlePath = posix.join('pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
@@ -238,7 +194,12 @@ export default function onDemandEntryHandler(
 
         Log.event(`build page: ${normalizedPage}`)
 
-        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        entries[normalizedPage] = {
+          serverBundlePath,
+          clientBundlePath,
+          absolutePagePath,
+          status: ADDED,
+        }
         doneCallbacks!.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
@@ -250,33 +211,30 @@ export default function onDemandEntryHandler(
       })
     },
 
-    middleware() {
-      return (req: IncomingMessage, res: ServerResponse, next: Function) => {
-        if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
+    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
+      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
 
-        const { query } = parse(req.url!, true)
-        const page = query.page
-        if (!page) return next()
+      const { query } = parse(req.url!, true)
+      const page = query.page
+      if (!page) return next()
 
-        const runPing = () => {
-          const data = handlePing(query.page as string)
-          if (!data) return
-          res.write('data: ' + JSON.stringify(data) + '\n\n')
-        }
-        const pingInterval = setInterval(() => runPing(), 5000)
-
-        req.on('close', () => {
-          clearInterval(pingInterval)
-        })
-        next()
+      const runPing = () => {
+        const data = handlePing(query.page as string)
+        if (!data) return
+        res.write('data: ' + JSON.stringify(data) + '\n\n')
       }
+      const pingInterval = setInterval(() => runPing(), 5000)
+
+      req.on('close', () => {
+        clearInterval(pingInterval)
+      })
+      next()
     },
   }
 }
 
 function disposeInactiveEntries(
-  devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
-  entries: any,
+  watcher: any,
   lastAccessPages: any,
   maxInactiveAge: number
 ) {
@@ -294,7 +252,7 @@ function disposeInactiveEntries(
     // In that case, we should not dispose the current viewing page
     if (lastAccessPages.includes(page)) return
 
-    if (Date.now() - lastActiveTime > maxInactiveAge) {
+    if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
     }
   })
@@ -304,7 +262,7 @@ function disposeInactiveEntries(
       delete entries[page]
     })
     // disposing inactive page(s)
-    devMiddleware.invalidate()
+    watcher.invalidate()
   }
 }
 
@@ -312,16 +270,13 @@ function disposeInactiveEntries(
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler
-  private devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
+  private watcher: any
   private building: boolean
   private rebuildAgain: boolean
 
-  constructor(
-    devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
-    multiCompiler: webpack.MultiCompiler
-  ) {
+  constructor(watcher: any, multiCompiler: webpack.MultiCompiler) {
     this.multiCompiler = multiCompiler
-    this.devMiddleware = devMiddleware
+    this.watcher = watcher
     // contains an array of types of compilers currently building
     this.building = false
     this.rebuildAgain = false
@@ -341,9 +296,10 @@ class Invalidator {
     // Work around a bug in webpack, calling `invalidate` on Watching.js
     // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
     for (const compiler of this.multiCompiler.compilers) {
+      // @ts-ignore TODO: Check if this is still needed with webpack 5
       compiler.hooks.invalid.call()
     }
-    this.devMiddleware.invalidate()
+    this.watcher.invalidate()
   }
 
   startBuilding() {

@@ -18,6 +18,7 @@ const variables = [
   'ENV_FILE_EXPANDED',
   'ENV_FILE_EXPANDED_CONCAT',
   'ENV_FILE_EXPANDED_ESCAPED',
+  'ENV_FILE_KEY_EXCLAMATION',
 ]
 
 export async function getStaticProps() {
@@ -33,7 +34,7 @@ export async function getStaticProps() {
     // Do not pass any sensitive values here as they will
     // be made PUBLICLY available in `pageProps`
     props: { env: items },
-    unstable_revalidate: 1,
+    revalidate: 1,
   }
 }
 

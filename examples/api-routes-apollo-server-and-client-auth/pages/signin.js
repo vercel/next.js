@@ -1,11 +1,10 @@
 import { useState } from 'react'
+import { useRouter } from 'next/router'
 import Link from 'next/link'
-import { withApollo } from '../apollo/client'
 import gql from 'graphql-tag'
 import { useMutation, useApolloClient } from '@apollo/react-hooks'
-import Field from '../components/field'
 import { getErrorMessage } from '../lib/form'
-import { useRouter } from 'next/router'
+import Field from '../components/field'
 
 const SignInMutation = gql`
   mutation SignInMutation($email: String!, $password: String!) {
@@ -74,4 +73,4 @@ function SignIn() {
   )
 }
 
-export default withApollo(SignIn)
+export default SignIn

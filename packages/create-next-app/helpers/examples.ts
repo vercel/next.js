@@ -14,7 +14,7 @@ export type RepoInfo = {
 }
 
 export async function isUrlOk(url: string): Promise<boolean> {
-  const res = await got(url).catch((e) => e)
+  const res = await got.head(url).catch((e) => e)
   return res.statusCode === 200
 }
 
@@ -95,11 +95,4 @@ export function downloadAndExtractExample(
     got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
     tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
   )
-}
-
-export async function listExamples(): Promise<any> {
-  const res = await got(
-    'https://api.github.com/repositories/70107786/contents/examples'
-  )
-  return JSON.parse(res.body)
 }

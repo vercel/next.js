@@ -2,12 +2,14 @@ import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 
 export type BuildManifest = {
   devFiles: string[]
+  ampDevFiles: string[]
   polyfillFiles: string[]
   lowPriorityFiles: string[]
   pages: {
     '/_app': string[]
     [page: string]: string[]
   }
+  ampFirstPages: string[]
 }
 
 export function getPageFiles(

@@ -1,7 +1,7 @@
 import Cosmic from 'cosmicjs'
 
-const BUCKET_SLUG = process.env.NEXT_EXAMPLE_CMS_COSMIC_BUCKET_SLUG
-const READ_KEY = process.env.NEXT_EXAMPLE_CMS_COSMIC_READ_KEY
+const BUCKET_SLUG = process.env.COSMIC_BUCKET_SLUG
+const READ_KEY = process.env.COSMIC_READ_KEY
 
 const bucket = Cosmic().bucket({
   slug: BUCKET_SLUG,

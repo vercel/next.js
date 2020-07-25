@@ -46,6 +46,12 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       )
     }
 
+    if (actionInfo.isLocal) {
+      // make sure to use local repo location instead of the
+      // one provided in statsConfig
+      statsConfig.mainRepo = actionInfo.prRepo
+    }
+
     // clone main repository/ref
     if (!actionInfo.skipClone) {
       await cloneRepo(statsConfig.mainRepo, mainRepoDir)

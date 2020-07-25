@@ -17,7 +17,6 @@
     "remark-html": "10.0.0"
   },
   "devDependencies": {
-    "dotenv": "8.2.0",
     "postcss-preset-env": "^6.7.0",
     "tailwindcss": "^1.4.0"
   }

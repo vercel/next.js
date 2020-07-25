@@ -1,12 +1,7 @@
 import PropTypes from 'prop-types'
 import React, { useContext, Component } from 'react'
 import flush from 'styled-jsx/server'
-import {
-  AMP_RENDER_TARGET,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-} from '../next-server/lib/constants'
+import { AMP_RENDER_TARGET } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
   DocumentContext,
@@ -61,30 +56,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = process.env.__NEXT_PLUGINS
-      ? await import(
-          // @ts-ignore loader syntax
-          'next-plugin-loader?middleware=unstable-enhance-app-server!'
-        ).then((mod) => mod.default(ctx))
-      : []
-
     const enhanceApp = (App: any) => {
-      for (const enhancer of enhancers) {
-        App = enhancer(App)
-      }
       return (props: any) => <App {...props} />
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [
-      ...flush(),
-      ...(process.env.__NEXT_PLUGINS
-        ? await import(
-            // @ts-ignore loader syntax
-            'next-plugin-loader?middleware=unstable-get-styles-server!'
-          ).then((mod) => mod.default(ctx))
-        : []),
-    ]
+    const styles = [...flush()]
     return { html, head, styles }
   }
 
@@ -279,10 +256,19 @@ export class Head extends Component<
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
         const isReactHelmet = child?.props?.['data-react-helmet']
-        if (child?.type === 'title' && !isReactHelmet) {
-          console.warn(
-            "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
-          )
+        if (!isReactHelmet) {
+          if (child?.type === 'title') {
+            console.warn(
+              "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
+            )
+          } else if (
+            child?.type === 'meta' &&
+            child?.props?.name === 'viewport'
+          ) {
+            console.warn(
+              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-viewport-meta"
+            )
+          }
         }
         return child
       })
@@ -490,7 +476,12 @@ export class NextScript extends Component<OriginProps> {
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
   getDynamicChunks() {
-    const { dynamicImports, assetPrefix, files } = this.context._documentProps
+    const {
+      dynamicImports,
+      assetPrefix,
+      files,
+      isDevelopment,
+    } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dedupe(dynamicImports).map((bundle: any) => {
@@ -506,7 +497,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          async
+          async={!isDevelopment}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -522,7 +513,12 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files, buildManifest } = this.context._documentProps
+    const {
+      assetPrefix,
+      files,
+      buildManifest,
+      isDevelopment,
+    } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     const normalScripts = files?.filter((file) => file.endsWith('.js'))
@@ -544,7 +540,7 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          async
+          async={!isDevelopment}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
@@ -609,10 +605,9 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
-      const AmpDevFiles = [
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-        CLIENT_STATIC_FILES_RUNTIME_AMP,
-        CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+      const ampDevFiles = [
+        ...buildManifest.devFiles,
+        ...buildManifest.ampDevFiles,
       ]
 
       return (
@@ -633,19 +628,17 @@ export class NextScript extends Component<OriginProps> {
               data-ampdevmode
             />
           )}
-          {AmpDevFiles
-            ? AmpDevFiles.map((file) => (
-                <script
-                  key={file}
-                  src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-                  nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
-                  data-ampdevmode
-                />
-              ))
-            : null}
+          {ampDevFiles.map((file) => (
+            <script
+              key={file}
+              src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+              nonce={this.props.nonce}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
+              data-ampdevmode
+            />
+          ))}
         </>
       )
     }

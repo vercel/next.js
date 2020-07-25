@@ -13,7 +13,7 @@ module.exports = (phase) => {
     exportPathMap: function () {
       return {
         '/': { page: '/' },
-        '/index': { page: '/index' },
+        '/index': { page: '/' },
         '/about': { page: '/about' },
         '/button-link': { page: '/button-link' },
         '/hash-link': { page: '/hash-link' },

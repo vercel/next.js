@@ -34,11 +34,14 @@ export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have get
 
 export const SERVER_PROPS_EXPORT_ERROR = `pages with \`getServerSideProps\` can not be exported. See more info here: https://err.sh/next.js/gssp-export`
 
+export const GSP_NO_RETURNED_VALUE =
+  'Your `getStaticProps` function did not return an object. Did you forget to add a `return`?'
+export const GSSP_NO_RETURNED_VALUE =
+  'Your `getServerSideProps` function did not return an object. Did you forget to add a `return`?'
+
 export const UNSTABLE_REVALIDATE_RENAME_ERROR =
-  'The `revalidate` property is not yet available for general use.\n' +
-  'To try the experimental implementation, please use `unstable_revalidate` instead.\n' +
-  "We're excited for you to try this feature—please share all feedback on the RFC:\n" +
-  'https://nextjs.link/issg'
+  'The `unstable_revalidate` property is available for general use.\n' +
+  'Please use `revalidate` instead.'
 
 export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's component and must be exported from the page. See more info here: https://err.sh/next.js/gssp-component-member`
 

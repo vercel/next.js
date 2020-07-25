@@ -10,10 +10,12 @@
   },
   "license": "ISC",
   "dependencies": {
-    "carbon-components": "^9.6.4",
-    "carbon-components-react": "^6.19.1",
+    "@carbon/icons-react": "^10.3.0",
+    "carbon-components": "^10.3.0",
+    "carbon-components-react": "^7.3.0",
     "carbon-icons": "^7.0.7",
     "next": "latest",
+    "node-sass": "^4.12.0",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   }
