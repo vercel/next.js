@@ -43,6 +43,7 @@ describe('Client Navigation', () => {
       '/url-prop-override',
 
       '/dynamic/ssr',
+      '/dynamic/[slug]/route',
 
       '/nav',
       '/nav/about',
@@ -995,6 +996,27 @@ describe('Client Navigation', () => {
 
     it('should 404 on wrong casing', async () => {
       const browser = await webdriver(context.appPort, '/nAv/AbOuT')
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
+      await browser.close()
+    })
+
+    it('should get url dynamic param', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        '/dynamic/dynamic-part/route'
+      )
+      expect(await browser.elementByCss('p').text()).toBe('dynamic-part')
+      await browser.close()
+    })
+
+    it('should 404 on wrong casing of url dynamic param', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        '/dynamic/dynamic-part/RoUtE'
+      )
       expect(await browser.elementByCss('h1').text()).toBe('404')
       expect(await browser.elementByCss('h2').text()).toBe(
         'This page could not be found.'
