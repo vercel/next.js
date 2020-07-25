@@ -1,5 +1,7 @@
 # Example app with polyfills
 
+> ❗️ Warning: This example is not the suggested way to add polyfills and is known to cause issues with bundling. See [the browser support docs](https://nextjs.org/docs/basic-features/supported-browsers-features#custom-polyfills) for the correct way to load polyfills.
+
 Next.js supports modern browsers and IE 11. It loads required polyfills automatically. If you need to add custom polyfills, you can follow this example.
 
 ## Deploy your own
