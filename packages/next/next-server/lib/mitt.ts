@@ -14,38 +14,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type EventType =
-  | 'routeChangeStart'
-  | 'beforeHistoryChange'
-  | 'routeChangeComplete'
-  | 'routeChangeError'
-  | 'hashChangeStart'
-  | 'hashChangeComplete'
-
 type Handler = (...evts: any[]) => void
 
 export type MittEmitter = {
-  on(type: EventType | string, handler: Handler): void
-  off(type: EventType | string, handler: Handler): void
-  emit(type: EventType | string, ...evts: any[]): void
+  on(type: string, handler: Handler): void
+  off(type: string, handler: Handler): void
+  emit(type: string, ...evts: any[]): void
 }
 
 export default function mitt(): MittEmitter {
   const all: { [s: string]: Handler[] } = Object.create(null)
 
   return {
-    on(type: EventType | string, handler: Handler) {
+    on(type: string, handler: Handler) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
 
-    off(type: EventType | string, handler: Handler) {
+    off(type: string, handler: Handler) {
       if (all[type]) {
         // tslint:disable-next-line:no-bitwise
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
       }
     },
 
-    emit(type: EventType | string, ...evts: any[]) {
+    emit(type: string, ...evts: any[]) {
       // eslint-disable-next-line array-callback-return
       ;(all[type] || []).slice().map((handler: Handler) => {
         handler(...evts)

@@ -13,6 +13,14 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
+type RouterEvent =
+  | 'routeChangeStart'
+  | 'beforeHistoryChange'
+  | 'routeChangeComplete'
+  | 'routeChangeError'
+  | 'hashChangeStart'
+  | 'hashChangeComplete'
+
 export { Router, NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
@@ -38,7 +46,7 @@ const urlPropertyFields = [
   'isFallback',
   'basePath',
 ]
-const routerEvents = [
+const routerEvents: Array<RouterEvent> = [
   'routeChangeStart',
   'beforeHistoryChange',
   'routeChangeComplete',
