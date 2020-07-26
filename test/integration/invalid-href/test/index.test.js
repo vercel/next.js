@@ -94,57 +94,6 @@ const noError = async (pathname, click = false) => {
 }
 
 describe('Invalid hrefs', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      console.log('dev app started')
-    })
-    afterAll(() => killApp(app))
-
-    it('shows error when mailto: is used as href on Link', async () => {
-      await showsError('/first', firstErrorRegex)
-    })
-
-    it('shows error when mailto: is used as href on router.push', async () => {
-      await showsError('/first?method=push', firstErrorRegex, true)
-    })
-
-    it('shows error when mailto: is used as href on router.replace', async () => {
-      await showsError('/first?method=replace', firstErrorRegex, true)
-    })
-
-    it('shows error when https://google.com is used as href on Link', async () => {
-      await showsError('/second', secondErrorRegex)
-    })
-
-    it('shows error when http://google.com is used as href on router.push', async () => {
-      await showsError('/second?method=push', secondErrorRegex, true)
-    })
-
-    it('shows error when https://google.com is used as href on router.replace', async () => {
-      await showsError('/second?method=replace', secondErrorRegex, true)
-    })
-
-    it('shows error when dynamic route mismatch is used on Link', async () => {
-      await showsError(
-        '/dynamic-route-mismatch',
-        /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
-        true
-      )
-      await showsError(
-        '/dynamic-route-mismatch',
-        /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
-        true,
-        true
-      )
-    })
-
-    it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
-      await noError('/dynamic-route-mismatch-manual', true)
-    })
-  })
-
   describe('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
@@ -212,6 +161,60 @@ describe('Invalid hrefs', () => {
       const browser = await webdriver(appPort, '/third?method=replace')
       await browser.elementByCss('#click-me').click()
       await browser.waitForElementByCss('#is-done')
+    })
+  })
+
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      console.log('dev app started')
+    })
+    afterAll(() => killApp(app))
+
+    it('shows error when mailto: is used as href on Link', async () => {
+      await showsError('/first', firstErrorRegex)
+    })
+
+    it('shows error when mailto: is used as href on router.push', async () => {
+      await showsError('/first?method=push', firstErrorRegex, true)
+    })
+
+    it('shows error when mailto: is used as href on router.replace', async () => {
+      await showsError('/first?method=replace', firstErrorRegex, true)
+    })
+
+    it('shows error when https://google.com is used as href on Link', async () => {
+      await showsError('/second', secondErrorRegex)
+    })
+
+    it('shows error when http://google.com is used as href on router.push', async () => {
+      await showsError('/second?method=push', secondErrorRegex, true)
+    })
+
+    it('shows error when https://google.com is used as href on router.replace', async () => {
+      await showsError('/second?method=replace', secondErrorRegex, true)
+    })
+
+    it('shows error when dynamic route mismatch is used on Link', async () => {
+      await showsError(
+        '/dynamic-route-mismatch',
+        /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
+        true
+      )
+    })
+
+    it('shows warning when dynamic route mismatch is used on Link', async () => {
+      await showsError(
+        '/dynamic-route-mismatch',
+        /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
+        true,
+        true
+      )
+    })
+
+    it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
+      await noError('/dynamic-route-mismatch-manual', true)
     })
   })
 })
