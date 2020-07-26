@@ -85,3 +85,21 @@ class MyDocument extends Document {
 
 export default MyDocument
 ```
+
+## TypeScript
+
+You can use the built-in `DocumentContext` type and change the file name to `./pages/_document.tsx` like so:
+
+```tsx
+import Document, { DocumentContext } from 'next/document'
+
+class MyDocument extends Document {
+  static async getInitialProps(ctx: DocumentContext) {
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return initialProps
+  }
+}
+
+export default MyDocument
+```
