@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
-import gql from 'graphql-tag'
-import { useMutation } from '@apollo/react-hooks'
+import { gql, useMutation } from '@apollo/client'
 import { getErrorMessage } from '../lib/form'
 import Field from '../components/field'
 

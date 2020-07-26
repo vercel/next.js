@@ -92,6 +92,14 @@ export default class Chain {
     )
   }
 
+  waitForCondition(condition) {
+    return this.updateChain(() =>
+      this.browser.wait(async (driver) => {
+        return driver.executeScript('return ' + condition).catch(() => false)
+      })
+    )
+  }
+
   eval(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
