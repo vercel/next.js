@@ -62,9 +62,12 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 }
 
 const noError = async (pathname, click = false) => {
+  console.log('start test')
   const browser = await webdriver(appPort, '/')
+  console.log('navigated')
   try {
     await browser.waitForCondition('!!window.next.router')
+    console.log('router exists')
     await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
@@ -74,10 +77,11 @@ const noError = async (pathname, click = false) => {
         window.caughtErrors.push(error.message || 1)
       })
     })()`)
-    console.log('calling router.replace')
+    console.log('handlers initialized')
     await browser.eval(`window.next.router.replace('${pathname}')`)
-    console.log('called router.replace')
+    console.log('route replaced')
     await browser.waitForElementByCss('#click-me')
+    console.log('link found')
     if (click) {
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
@@ -94,6 +98,7 @@ describe('Invalid hrefs', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
+      console.log('dev app started')
     })
     afterAll(() => killApp(app))
 
@@ -145,6 +150,7 @@ describe('Invalid hrefs', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      console.log('production app started')
     })
     afterAll(() => killApp(app))
 
