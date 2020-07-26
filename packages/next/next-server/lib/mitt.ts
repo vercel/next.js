@@ -25,27 +25,27 @@ type EventType =
 type Handler = (...evts: any[]) => void
 
 export type MittEmitter = {
-  on(type: EventType, handler: Handler): void
-  off(type: EventType, handler: Handler): void
-  emit(type: EventType, ...evts: any[]): void
+  on(type: EventType | string, handler: Handler): void
+  off(type: EventType | string, handler: Handler): void
+  emit(type: EventType | string, ...evts: any[]): void
 }
 
 export default function mitt(): MittEmitter {
   const all: { [s: string]: Handler[] } = Object.create(null)
 
   return {
-    on(type: EventType, handler: Handler) {
+    on(type: EventType | string, handler: Handler) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
 
-    off(type: EventType, handler: Handler) {
+    off(type: EventType | string, handler: Handler) {
       if (all[type]) {
         // tslint:disable-next-line:no-bitwise
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
       }
     },
 
-    emit(type: EventType, ...evts: any[]) {
+    emit(type: EventType | string, ...evts: any[]) {
       // eslint-disable-next-line array-callback-return
       ;(all[type] || []).slice().map((handler: Handler) => {
         handler(...evts)
