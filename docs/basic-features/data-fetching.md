@@ -326,6 +326,13 @@ export default Post
 
 #### `fallback: true`
 
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://static-tweet.now.sh">Static generation of a large number of pages</a></li>
+  </ul>
+</details>
+
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time.
