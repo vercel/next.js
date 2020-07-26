@@ -73,8 +73,10 @@ const noError = async (pathname, click = false) => {
       window.addEventListener('unhandledrejection', function (error) {
         window.caughtErrors.push(error.message || 1)
       })
-      window.next.router.replace('${pathname}')
     })()`)
+    console.log('calling router.replace')
+    await browser.eval(`window.next.router.replace('${pathname}')`)
+    console.log('called router.replace')
     await browser.waitForElementByCss('#click-me')
     if (click) {
       await browser.elementByCss('#click-me').click()
