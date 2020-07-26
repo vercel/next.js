@@ -10,7 +10,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  waitFor,
+  check,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -18,6 +18,7 @@ jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
+let stderr
 const appDir = join(__dirname, '../')
 
 const DUMMY_PAGE = 'export default () => null'
@@ -187,9 +188,10 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/index.js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'You cannot define a route with the same specificity as a optional catch-all route'
+      await buildFn(appDir)
+      await check(
+        () => stderr,
+        /You cannot define a route with the same specificity as a optional catch-all route/
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -200,9 +202,10 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/nested.js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'You cannot define a route with the same specificity as a optional catch-all route'
+      await buildFn(appDir)
+      await check(
+        () => stderr,
+        /You cannot define a route with the same specificity as a optional catch-all route/
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -213,8 +216,8 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/nested/[...param].js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(/You cannot use both .+ at the same level/)
+      await buildFn(appDir)
+      await check(() => stderr, /You cannot use both .+ at the same level/)
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -224,9 +227,10 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/invalid/[[param]].js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'Optional route parameters are not yet supported'
+      await buildFn(appDir)
+      await check(
+        () => stderr,
+        /Optional route parameters are not yet supported/
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -245,14 +249,12 @@ describe('Dynamic Optional Routing', () => {
     runTests()
 
     runInvalidPagesTests(async (appDir) => {
-      let stderr = ''
+      stderr = ''
       await launchApp(appDir, await findPort(), {
         onStderr: (msg) => {
           stderr += msg
         },
       })
-      await waitFor(1000)
-      return { stderr }
     })
   })
 
@@ -272,9 +274,9 @@ describe('Dynamic Optional Routing', () => {
 
     runTests()
 
-    runInvalidPagesTests(async (appDir) =>
-      nextBuild(appDir, [], { stderr: true })
-    )
+    runInvalidPagesTests(async (appDir) => {
+      ;({ stderr } = await nextBuild(appDir, [], { stderr: true }))
+    })
 
     it('should fail to build when param is not explicitly defined', async () => {
       const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
