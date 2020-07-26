@@ -64,11 +64,7 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
   try {
-    await check(async () => {
-      const appReady = await browser.eval('!!window.next.router')
-      console.log('app ready: ', appReady)
-      return appReady ? 'ready' : 'nope'
-    }, 'ready')
+    await browser.waitForCondition('!!window.next.router')
     await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
