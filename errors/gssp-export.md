@@ -28,7 +28,11 @@ The `getServerSideProps` lifecycle is not compatible with `next export`, so you'
    }
    ```
 
+> **Note**: Removing `next export` does not mean your entire application is no longer static.
+> Pages that use `getStaticProps` or [no lifecycle](https://nextjs.org/docs/advanced-features/automatic-static-optimization) **will still be static**!
+
 ### Useful Links
 
+- [Automatic Static Optimization](https://nextjs.org/docs/advanced-features/automatic-static-optimization)
 - [`getStaticProps` documentation](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation)
 - [`exportPathMap` documentation](https://nextjs.org/docs/api-reference/next.config.js/exportPathMap)
