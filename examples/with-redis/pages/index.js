@@ -153,7 +153,7 @@ class Home extends React.Component {
 
                 <footer>
                     <a
-                        href="http://github.com/vercel/next.js/tree/canary/examples/with-lambda-store"
+                        href="http://github.com/vercel/next.js/tree/canary/examples/with-redis"
                         target="_blank"
                         rel="noopener noreferrer">
                         Powered by

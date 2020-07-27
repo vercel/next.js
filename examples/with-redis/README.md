@@ -1,4 +1,4 @@
-## Roadmap Voting Application - Example app using Lambda Store
+## Roadmap Voting Application - Example app using Redis (Lambda Store)
 
 [Lambda Store](https://lambda.store/) is a Serverless Redis cloud service. Redis enables you keep state with low latency and a simple API. With Lambda Store, you can use Redis with just paying what you use thanks to serverless pricing. 
 
