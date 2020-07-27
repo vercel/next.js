@@ -23,6 +23,7 @@
   },
   "license": "ISC",
   "devDependencies": {
+    "cross-spawn": "7.0.3",
     "next-transpile-modules": "^3.2.0"
   }
 }

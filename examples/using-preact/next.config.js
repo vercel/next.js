@@ -9,10 +9,16 @@ module.exports = withPrefresh({
       const test = /[\\/]node_modules[\\/](preact|preact-render-to-string|preact-context-provider)[\\/]/
       if (cacheGroups.framework) {
         cacheGroups.preact = Object.assign({}, cacheGroups.framework, { test })
-        cacheGroups.commons.name = 'framework'
-      } else {
-        cacheGroups.preact = { name: 'commons', chunks: 'all', test }
+        // if you want to merge the 2 small commons+framework chunks:
+        // cacheGroups.commons.name = 'framework';
       }
+    }
+
+    if (isServer) {
+      // mark `preact` stuffs as external for server bundle to prevent duplicate copies of preact
+      config.externals.push(
+        /^(preact|preact-render-to-string|preact-context-provider)([\\/]|$)/
+      )
     }
 
     // Install webpack aliases:

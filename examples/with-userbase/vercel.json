@@ -1,7 +1,0 @@
-{
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_USERBASE_APP_ID": "@userbase-app-id"
-    }
-  }
-}

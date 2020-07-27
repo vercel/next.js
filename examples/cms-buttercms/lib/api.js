@@ -1,5 +1,5 @@
 import Butter from 'buttercms'
-const butter = Butter(process.env.NEXT_EXAMPLE_CMS_BUTTERCMS_API_KEY)
+const butter = Butter(process.env.BUTTERCMS_API_KEY)
 
 export async function getPreviewPostBySlug(slug) {
   const postResponse = await butter.post.retrieve(slug, {

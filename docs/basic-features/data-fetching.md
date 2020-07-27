@@ -21,6 +21,7 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-cosmic">Cosmic Example</a> (<a href="https://next-blog-cosmic.now.sh/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-buttercms">ButterCMS Example</a> (<a href="https://next-blog-buttercms.now.sh/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.now.sh/">Demo</a>)</li>
     <li><a href="https://static-tweet.now.sh/">Static Tweet Demo</a></li>
   </ul>
 </details>
@@ -324,6 +325,13 @@ export default Post
 ```
 
 #### `fallback: true`
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://static-tweet.now.sh">Static generation of a large number of pages</a></li>
+  </ul>
+</details>
 
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 

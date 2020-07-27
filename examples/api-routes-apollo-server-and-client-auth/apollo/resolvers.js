@@ -27,7 +27,7 @@ export const resolvers = {
     async signIn(_parent, args, context, _info) {
       const user = await findUser({ email: args.input.email })
 
-      if (user && validatePassword(user, args.input.password)) {
+      if (user && (await validatePassword(user, args.input.password))) {
         const session = {
           id: user.id,
           email: user.email,
