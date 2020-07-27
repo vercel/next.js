@@ -572,38 +572,35 @@ export default class Router implements BaseRouter {
     }
   }
 
-  changeState(
-    method: HistoryMethod,
-    url: string,
-    as: string,
-    options = {}
-  ): void {
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof window.history === 'undefined') {
-        console.error(`Warning: window.history is not available.`)
-        return
-      }
+  changeState(): void {
+    // if (process.env.NODE_ENV !== 'production') {
+    //   if (typeof window.history === 'undefined') {
+    //     console.error(`Warning: window.history is not available.`)
+    //     return
+    //   }
 
-      if (typeof window.history[method] === 'undefined') {
-        console.error(`Warning: window.history.${method} is not available`)
-        return
-      }
-    }
+    //   if (typeof window.history[method] === 'undefined') {
+    //     console.error(`Warning: window.history.${method} is not available`)
+    //     return
+    //   }
+    // }
 
-    if (method !== 'pushState' || getURL() !== as) {
-      window.history[method](
-        {
-          url,
-          as,
-          options,
-        },
-        // Most browsers currently ignores this parameter, although they may use it in the future.
-        // Passing the empty string here should be safe against future changes to the method.
-        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
-        '',
-        as
-      )
-    }
+    // if (method !== 'pushState' || getURL() !== as) {
+    //   window.history[method](
+    //     {
+    //       url,
+    //       as,
+    //       options,
+    //       __N: true,
+    //     } as HistoryState,
+    //     // Most browsers currently ignores this parameter, although they may use it in the future.
+    //     // Passing the empty string here should be safe against future changes to the method.
+    //     // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+    //     '',
+    //     as
+    //   )
+    // }
+    console.log('This is a noop')
   }
 
   async handleRouteInfoError(
