@@ -1,9 +1,9 @@
 // import { NextPageContext } from 'next'
-import Layout from '../components/Layout'
-import { User } from '../interfaces'
-import { findData } from '../utils/sample-api'
-import ListDetail from '../components/ListDetail'
-import { GetServerSideProps } from 'next'
+import Layout from '../../components/Layout'
+import { User } from '../../interfaces'
+import { findAll, findData } from '../../utils/sample-api'
+import ListDetail from '../../components/ListDetail'
+import { GetStaticPaths, GetStaticProps } from 'next'
 
 type Props = {
   item?: User
@@ -30,10 +30,17 @@ const InitialPropsDetail = ({ item, errors }: Props) => {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const {
-    query: { id },
-  } = context
+export const getStaticPaths: GetStaticPaths = async () => {
+  const items: User[] = await findAll()
+  const paths = items.map((item) => `/detail/${item.id}`)
+  return { paths, fallback: false }
+}
+
+export const getStaticProps: GetStaticProps = async (context) => {
+  const id = context.params?.id
+  if (!id) {
+    throw new Error('Invalid page id')
+  }
 
   try {
     const item = await findData(Array.isArray(id) ? id[0] : id)
