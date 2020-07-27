@@ -24,7 +24,7 @@ Integration requires [Developer API Key](howto/developerapi.md) which can be cre
 
 Enter the API key and your registered email address in the integration setup page as below:
 
-<img src="/img/vercel/vercel1.png" width="800" />
+<img src="https://docs.lambda.store/img/vercel/vercel1.png" width="800" />
 
 
 #### Integration Dashboard
@@ -33,13 +33,13 @@ In next screen, your databases will be automatically listed.
 
 New database can be created from the Vercel Integration page as well as the Lambda Store Console.
 
-<img src="/img/vercel/vercel2.png" width="800" />
+<img src="https://docs.lambda.store/img/vercel/vercel2.png" width="800" />
 
 #### Create Database
 
 After clicking `New Database` button then create a database as below:
 
-<img src="/img/vercel/vercel3.png" width="800" />
+<img src="https://docs.lambda.store/img/vercel/vercel3.png" width="800" />
 
 
 #### Connect Database to Your Project
@@ -48,9 +48,9 @@ Select your project from the dropdown menu then click `Link To Project` for any 
 
 `REDIS_URL` will be automatically set as environment variable for your application. 
 
-<img src="/img/vercel/vercel4.png" width="800" />
+<img src="https://docs.lambda.store/img/vercel/vercel4.png" width="800" />
 
-<img src="/img/vercel/vercel5.png" width="800" />
+<img src="https://docs.lambda.store/img/vercel/vercel5.png" width="800" />
 
 You need to re-deploy your application for the environment variable to be effective. We will do this in the next step.
 
