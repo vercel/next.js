@@ -132,7 +132,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".red-text{color:purple;color:red;font-weight:bolder}.blue-text{color:orange;color:#00f;font-weight:bolder}"`
+        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
       )
     })
   })
@@ -564,7 +564,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -610,7 +610,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -656,7 +656,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -921,6 +921,46 @@ describe('CSS Support', () => {
         `window.getComputedStyle(document.querySelector('#blueText')).color`
       )
       expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+  })
+
+  // https://github.com/vercel/next.js/issues/15468
+  describe('CSS Property Ordering', () => {
+    const appDir = join(fixturesDir, 'next-issue-15468')
+
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the border width (property ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const width1 = await browser.eval(
+        `window.getComputedStyle(document.querySelector('.test1')).borderWidth`
+      )
+      expect(width1).toMatchInlineSnapshot(`"0px"`)
+
+      const width2 = await browser.eval(
+        `window.getComputedStyle(document.querySelector('.test2')).borderWidth`
+      )
+      expect(width2).toMatchInlineSnapshot(`"5px"`)
     })
   })
 
