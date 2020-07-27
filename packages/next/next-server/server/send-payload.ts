@@ -8,7 +8,10 @@ export function sendPayload(
   res: ServerResponse,
   payload: any,
   type: 'html' | 'json',
-  generateEtags: boolean,
+  {
+    generateEtags,
+    poweredByHeader,
+  }: { generateEtags: boolean; poweredByHeader: boolean },
   options?:
     | { private: true }
     | { private: boolean; stateful: true }
@@ -16,6 +19,10 @@ export function sendPayload(
 ): void {
   if (isResSent(res)) {
     return
+  }
+
+  if (poweredByHeader && type === 'html') {
+    res.setHeader('X-Powered-By', 'Next.js')
   }
 
   const etag = generateEtags ? generateETag(payload) : undefined
@@ -30,10 +37,12 @@ export function sendPayload(
     res.setHeader('ETag', etag)
   }
 
-  res.setHeader(
-    'Content-Type',
-    type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
-  )
+  if (!res.getHeader('Content-Type')) {
+    res.setHeader(
+      'Content-Type',
+      type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
+    )
+  }
   res.setHeader('Content-Length', Buffer.byteLength(payload))
   if (options != null) {
     if (options.private || options.stateful) {
@@ -61,5 +70,5 @@ export function sendPayload(
       )
     }
   }
-  res.end(payload)
+  res.end(req.method === 'HEAD' ? null : payload)
 }

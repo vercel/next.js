@@ -83,6 +83,7 @@ export function createEntrypoints(
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
     canonicalBase: config.canonicalBase,
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
