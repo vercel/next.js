@@ -2,26 +2,30 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
+  GSP_NO_RETURNED_VALUE,
+  GSSP_COMPONENT_MEMBER_ERROR,
+  GSSP_NO_RETURNED_VALUE,
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
-  GSSP_COMPONENT_MEMBER_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
+import { GetServerSideProps, GetStaticProps } from '../../types'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
   AMP_RENDER_TARGET,
-  STATIC_PROPS_ID,
   SERVER_PROPS_ID,
+  STATIC_PROPS_ID,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
+import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
-import { HeadManagerContext } from '../lib/head-manager-context'
 import mitt, { MittEmitter } from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
@@ -41,8 +45,6 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
-import { UnwrapPromise } from '../../lib/coalesced-function'
-import { GetStaticProps, GetServerSideProps } from '../../types'
 
 function noRouter() {
   const message =
@@ -341,15 +343,14 @@ export async function renderToHTML(
     pageIsDynamic &&
     didRewrite
   ) {
-    // TODO: add err.sh when rewrites go stable
-    // Behavior might change before then (prefer SSR in this case).
-    // If we decide to ship rewrites to the client we could solve this
-    // by running over the rewrites and getting the params.
+    // TODO: If we decide to ship rewrites to the client we could
+    // solve this by running over the rewrites and getting the params.
     throw new Error(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client`
+      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
+        `Using this will cause the page to fail to parse the params on the client\n` +
+        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
     )
   }
 
@@ -401,7 +402,11 @@ export async function renderToHTML(
     if (isAutoExport) {
       // remove query values except ones that will be set during export
       query = {
-        amp: query.amp,
+        ...(query.amp
+          ? {
+              amp: query.amp,
+            }
+          : {}),
       }
       req.url = pathname
       renderOpts.nextExport = true
@@ -517,11 +522,15 @@ export async function renderToHTML(
         throw staticPropsError
       }
 
+      if (data == null) {
+        throw new Error(GSP_NO_RETURNED_VALUE)
+      }
+
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'revalidate' && key !== 'props'
       )
 
-      if (invalidKeys.includes('revalidate')) {
+      if (invalidKeys.includes('unstable_revalidate')) {
         throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
       }
 
@@ -539,41 +548,41 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.unstable_revalidate === 'number') {
-        if (!Number.isInteger(data.unstable_revalidate)) {
+      if (typeof data.revalidate === 'number') {
+        if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.unstable_revalidate}', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
-                data.unstable_revalidate
+                data.revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.unstable_revalidate <= 0) {
+        } else if (data.revalidate <= 0) {
           throw new Error(
             `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.unstable_revalidate > 31536000) {
+        } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
           console.warn(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.unstable_revalidate === true) {
+      } else if (data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.unstable_revalidate = 1
+        data.revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.unstable_revalidate = false
+        data.revalidate = false
       }
 
       props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.unstable_revalidate
+      ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
 
@@ -601,6 +610,10 @@ export async function renderToHTML(
           delete serverSidePropsError.code
         }
         throw serverSidePropsError
+      }
+
+      if (data == null) {
+        throw new Error(GSSP_NO_RETURNED_VALUE)
       }
 
       const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
@@ -654,12 +667,17 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
-  const files = [
-    ...new Set([
-      ...getPageFiles(buildManifest, '/_app'),
-      ...(pathname !== '/_error' ? getPageFiles(buildManifest, pathname) : []),
-    ]),
-  ]
+  // AMP First pages do not have client-side JavaScript files
+  const files = ampState.ampFirst
+    ? []
+    : [
+        ...new Set([
+          ...getPageFiles(buildManifest, '/_app'),
+          ...(pathname !== '/_error'
+            ? getPageFiles(buildManifest, pathname)
+            : []),
+        ]),
+      ]
 
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}

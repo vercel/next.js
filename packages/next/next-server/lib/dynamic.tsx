@@ -25,6 +25,7 @@ export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
     error?: Error | null
     isLoading?: boolean
     pastDelay?: boolean
+    retry?: () => void
     timedOut?: boolean
   }) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
@@ -57,7 +58,7 @@ export function noSSR<P = {}>(
   delete loadableOptions.webpack
   delete loadableOptions.modules
 
-  // This check is neccesary to prevent react-loadable from initializing on the server
+  // This check is necessary to prevent react-loadable from initializing on the server
   if (!isServerSide) {
     return LoadableInitializer(loadableOptions)
   }
