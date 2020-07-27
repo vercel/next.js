@@ -163,7 +163,9 @@ export default async (appPort, path, waitHydration = true) => {
   // in safari and firefox so disabling freshWindow since our
   // tests shouldn't rely on it
   if (isChrome) {
+    console.log('freshWindow')
     await freshWindow()
+    console.log('freshWindow done')
   }
 
   const url = `http://${deviceIP}:${appPort}${path}`
