@@ -9,7 +9,7 @@ Roadmap Voting application is an example of how you can develop dynamic applicat
 
 You can deploy the example application to your [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) account using:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/svenanderson/next.js/tree/canary/examples/with-lambda-store)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-redis)
 
 ## Step-2 Integrate Lambda Store
 Your application is running but its backend is not configured. Now we will integrate Lambda Store.
