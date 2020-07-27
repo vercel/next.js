@@ -22,6 +22,7 @@ export type ServerlessLoaderQuery = {
   buildId: string
   assetPrefix: string
   generateEtags: string
+  poweredByHeader: string
   canonicalBase: string
   basePath: string
   runtimeConfig: string
@@ -43,6 +44,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
+    poweredByHeader,
     basePath,
     runtimeConfig,
     previewProps,
@@ -266,7 +268,6 @@ const nextServerlessLoader: loader.Loader = function () {
     const {parse: parseQs} = require('querystring')
     const {renderToHTML} = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
-    const {sendHTML} = require('next/dist/next-server/server/send-html');
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -494,9 +495,9 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendHTML(req, res, html, {generateEtags: ${
-            generateEtags === 'true' ? true : false
-          }})
+          sendPayload(req, res, html, 'html', {generateEtags: ${JSON.stringify(
+            generateEtags === 'true'
+          )}, poweredByHeader: ${JSON.stringify(poweredByHeader === 'true')}})
         }
       } catch(err) {
         console.error(err)
