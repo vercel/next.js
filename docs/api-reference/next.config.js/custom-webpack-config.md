@@ -4,7 +4,7 @@ description: Extend the default webpack config added by Next.js.
 
 # Custom Webpack Config
 
-Before continuing to add custom webpack configuration your application make sure Next.js doesn't already support your use-case:
+Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case:
 
 - [CSS imports](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
 - [CSS modules](/docs/basic-features/built-in-css-support#adding-component-level-css)
