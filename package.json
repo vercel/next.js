@@ -55,7 +55,7 @@
     "abort-controller": "3.0.0",
     "amphtml-validator": "1.0.30",
     "async-sema": "3.0.1",
-    "@babel/core": "7.10.4",
+    "@babel/core": "7.10.5",
     "babel-eslint": "10.0.3",
     "babel-jest": "24.9.0",
     "browserslist": "^4.8.3",
