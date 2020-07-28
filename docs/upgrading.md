@@ -104,7 +104,7 @@ Next.js now has the concept of page-level configuration, so the `withAmp` higher
 This change can be **automatically migrated by running the following commands in the root of your Next.js project:**
 
 ```bash
-curl -L https://github.com/zeit/next-codemod/archive/master.tar.gz | tar -xz --strip=2 next-codemod-master/transforms/withamp-to-config.js npx jscodeshift -t ./withamp-to-config.js pages/**/*.js
+curl -L https://github.com/vercel/next-codemod/archive/master.tar.gz | tar -xz --strip=2 next-codemod-master/transforms/withamp-to-config.js npx jscodeshift -t ./withamp-to-config.js pages/**/*.js
 ```
 
 To perform this migration by hand, or view what the codemod will produce, see below:
