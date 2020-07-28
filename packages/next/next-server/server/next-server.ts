@@ -52,7 +52,6 @@ import Router, {
   route,
   Route,
 } from './router'
-import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -830,7 +829,10 @@ export default class Server {
     html: string
   ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+    return sendPayload(req, res, html, 'html', {
+      generateEtags,
+      poweredByHeader,
+    })
   }
 
   public async render(
@@ -1013,7 +1015,10 @@ export default class Server {
         res,
         data,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1146,7 +1151,10 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
+      sendPayload(req, res, html, 'html', {
+        generateEtags: this.renderOpts.generateEtags,
+        poweredByHeader: this.renderOpts.poweredByHeader,
+      })
       return null
     }
 
@@ -1161,7 +1169,10 @@ export default class Server {
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,

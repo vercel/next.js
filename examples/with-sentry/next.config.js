@@ -10,14 +10,22 @@ const {
   SENTRY_PROJECT,
   SENTRY_AUTH_TOKEN,
   NODE_ENV,
+  VERCEL_GITHUB_COMMIT_SHA,
+  VERCEL_GITLAB_COMMIT_SHA,
+  VERCEL_BITBUCKET_COMMIT_SHA,
 } = process.env
+
+const COMMIT_SHA =
+  VERCEL_GITHUB_COMMIT_SHA ||
+  VERCEL_GITLAB_COMMIT_SHA ||
+  VERCEL_BITBUCKET_COMMIT_SHA
 
 process.env.SENTRY_DSN = SENTRY_DSN
 
 module.exports = withSourceMaps({
   webpack: (config, options) => {
-    // In `pages/_app.js`, Sentry is imported from @sentry/node. While
-    // @sentry/browser will run in a Node.js environment, @sentry/node will use
+    // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
+    // @sentry/node will run in a Node.js environment. @sentry/node will use
     // Node.js-only APIs to catch even more unhandled exceptions.
     //
     // This works well when Next.js is SSRing your page on a server with
@@ -44,6 +52,7 @@ module.exports = withSourceMaps({
       SENTRY_ORG &&
       SENTRY_PROJECT &&
       SENTRY_AUTH_TOKEN &&
+      COMMIT_SHA &&
       NODE_ENV === 'production'
     ) {
       config.plugins.push(
@@ -51,7 +60,7 @@ module.exports = withSourceMaps({
           include: '.next',
           ignore: ['node_modules'],
           urlPrefix: '~/_next',
-          release: options.buildId,
+          release: COMMIT_SHA,
         })
       )
     }

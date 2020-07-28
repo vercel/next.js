@@ -406,6 +406,24 @@ const runTests = (context, dev = false) => {
     }
   })
 
+  it('should have correct router paths on first load of /', async () => {
+    const browser = await webdriver(context.appPort, '/docs')
+    await browser.waitForElementByCss('#pathname')
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/')
+    const asPath = await browser.elementByCss('#as-path').text()
+    expect(asPath).toBe('/')
+  })
+
+  it('should have correct router paths on first load of /hello', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.waitForElementByCss('#pathname')
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/hello')
+    const asPath = await browser.elementByCss('#as-path').text()
+    expect(asPath).toBe('/hello')
+  })
+
   it('should fetch data for getStaticProps without reloading', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.eval('window.beforeNavigate = true')
@@ -485,6 +503,89 @@ const runTests = (context, dev = false) => {
 
       expect(text).toBe('Hello Other')
       expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/docs/other-page'],
+        ['beforeHistoryChange', '/docs/other-page'],
+        ['routeChangeComplete', '/docs/other-page'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events for hash changes', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#hash-change').click()
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['hashChangeStart', '/docs/hello#some-hash'],
+        ['hashChangeComplete', '/docs/hello#some-hash'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events for cancelled routes', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#slow-route')
+        .click()
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/docs/slow-route'],
+        ['routeChangeError', 'Route Cancelled', true, '/docs/slow-route'],
+        ['routeChangeStart', '/docs/other-page'],
+        ['beforeHistoryChange', '/docs/other-page'],
+        ['routeChangeComplete', '/docs/other-page'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events for failed route change', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#error-route').click()
+
+      await waitFor(2000)
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/docs/error-route'],
+        [
+          'routeChangeError',
+          'Failed to load static props',
+          null,
+          '/docs/error-route',
+        ],
+      ])
     } finally {
       await browser.close()
     }

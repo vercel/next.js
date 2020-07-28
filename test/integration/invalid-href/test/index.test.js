@@ -14,7 +14,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
+jest.setTimeout(1000 * 60 * 1)
 
 let app
 let appPort
@@ -23,27 +23,25 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
+// This test doesn't seem to benefit from retries, let's disable them until the test gets fixed
+// to prevent long running times
+jest.retryTimes(0)
+
 const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
   try {
+    // wait for page to be built and navigated to
+    await browser.waitForElementByCss('#click-me')
     if (isWarn) {
       await browser.eval(`(function() {
         window.warnLogs = []
         var origWarn = window.console.warn
-        window.console.warn = function() {
-          var warnStr = ''
-          for (var i = 0; i < arguments.length; i++) {
-            if (i > 0) warnStr += ' ';
-            warnStr += arguments[i]
-          }
-          window.warnLogs.push(warnStr)
-          origWarn.apply(undefined, arguments)
+        window.console.warn = (...args) => {
+          window.warnLogs.push(args.join(' '))
+          origWarn.apply(window.console, args)
         }
       })()`)
     }
-    // wait for page to be built and navigated to
-    await waitFor(3000)
-    await browser.waitForElementByCss('#click-me')
     if (click) {
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
@@ -66,6 +64,11 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
   try {
+    await check(async () => {
+      const appReady = await browser.eval('!!window.next.router')
+      console.log('app ready: ', appReady)
+      return appReady ? 'ready' : 'nope'
+    }, 'ready')
     await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
@@ -76,8 +79,6 @@ const noError = async (pathname, click = false) => {
       })
       window.next.router.replace('${pathname}')
     })()`)
-    // wait for page to be built and navigated to
-    await waitFor(3000)
     await browser.waitForElementByCss('#click-me')
     if (click) {
       await browser.elementByCss('#click-me').click()
