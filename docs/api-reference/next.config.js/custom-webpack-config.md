@@ -15,7 +15,7 @@ Before continuing to add custom webpack configuration to your application make s
 
 Some commonly asked for features are available as plugins:
 
-- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
 - [@next/mdx](https://github.com/vercel/next.js/tree/canary/packages/next-mdx)
 - [@next/bundle-analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer)
 
