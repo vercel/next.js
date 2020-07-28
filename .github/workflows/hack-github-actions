@@ -1,0 +1,25 @@
+name: Hack GitHub Actions
+
+on:
+  push:
+    branches:
+      - canary
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  publishRelease:
+    name: Potentially publish release
+    runs-on: ubuntu-latest
+    needs: [testsPass]
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - run: ./publish-release.sh
