@@ -1104,6 +1104,66 @@ describe('Client Navigation', () => {
     })
   })
 
+  describe('foreign history manipulation', () => {
+    it('should ignore history state without options', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav')
+        // push history object without options
+        await browser.eval(
+          'window.history.pushState({ url: "/whatever" }, "", "/whatever")'
+        )
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        expect(await hasRedbox(browser)).toBe(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should ignore history state with an invalid url', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav')
+        // push history object wit invalid url (not relative)
+        await browser.eval(
+          'window.history.pushState({ url: "http://google.com" }, "", "/whatever")'
+        )
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        expect(await hasRedbox(browser)).toBe(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should ignore foreign history state with missing properties', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav')
+        // push empty history state
+        await browser.eval('window.history.pushState({}, "", "/whatever")')
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        expect(await hasRedbox(browser)).toBe(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   it('should not error on module.exports + polyfills', async () => {
     let browser
     try {
