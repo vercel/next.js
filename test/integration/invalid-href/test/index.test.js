@@ -35,10 +35,10 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
     if (isWarn) {
       await browser.eval(`(function() {
         window.warnLogs = []
-        var origWarn = window.console.warn
+        window.origWarn = window.console.warn
         window.console.warn = (...args) => {
           window.warnLogs.push(args.join(' '))
-          origWarn.apply(window.console, args)
+          window.origWarn.apply(window.console, args)
         }
       })()`)
     }
@@ -58,6 +58,9 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
     }
   } finally {
     await browser.close()
+    if (isWarn) {
+      await browser.eval(`window.console.warn = window.origWarn`)
+    }
   }
 }
 
@@ -130,7 +133,7 @@ describe('Invalid hrefs', () => {
       )
     })
 
-    it.skip('shows warning when dynamic route mismatch is used on Link', async () => {
+    it('shows warning when dynamic route mismatch is used on Link', async () => {
       await showsError(
         '/dynamic-route-mismatch',
         /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
