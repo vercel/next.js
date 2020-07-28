@@ -129,8 +129,8 @@ module.exports = {
 
 To support importing `.less` or `.styl` files you can use the following plugins:
 
-- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
-- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
+- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-stylus](https://github.com/vercel/next-plugins/tree/master/packages/next-stylus)
 
 If using the less plugin, don't forget to add a dependency on less as well, otherwise you'll see an error like:
 
@@ -164,7 +164,7 @@ function HiThere() {
 export default HiThere
 ```
 
-We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS.
+We bundle [styled-jsx](https://github.com/vercel/styled-jsx) to provide support for isolated scoped CSS.
 The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 See the above examples for other popular CSS-in-JS solutions (like Styled Components).
@@ -202,7 +202,7 @@ function HelloWorld() {
 export default HelloWorld
 ```
 
-Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
+Please see the [styled-jsx documentation](https://github.com/vercel/styled-jsx) for more examples.
 
 ## FAQ
 

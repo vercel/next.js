@@ -1,8 +1,8 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
-import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
-import { join, normalize, relative as relativePath, sep } from 'path'
+import { WebpackHotMiddleware } from './hot-middleware'
+import { join, relative as relativePath } from 'path'
 import { UrlObject } from 'url'
 import webpack from 'webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
@@ -32,7 +32,11 @@ import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
 
-export async function renderScriptError(res: ServerResponse, error: Error) {
+export async function renderScriptError(
+  res: ServerResponse,
+  error: Error,
+  { verbose = true } = {}
+) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader(
     'Cache-Control',
@@ -48,7 +52,9 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
     return
   }
 
-  console.error(error.stack)
+  if (verbose) {
+    console.error(error.stack)
+  }
   res.statusCode = 500
   res.end('500 - Internal Error')
 }
@@ -84,7 +90,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/pages/:path*.js(\\.map|)'
+  '/_next/static/chunks/pages/:path*.js(\\.map|)'
 )
 
 // Recursively look up the issuer till it ends up at the root
@@ -135,9 +141,7 @@ export default class HotReloader {
   private buildId: string
   private middlewares: any[]
   private pagesDir: string
-  private webpackHotMiddleware:
-    | (NextHandleFunction & WebpackHotMiddleware.EventStream)
-    | null
+  private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: any
   private stats: any
   private serverStats: any
@@ -178,14 +182,14 @@ export default class HotReloader {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlObject
-  ) {
+  ): Promise<{ finished?: true }> {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
     // That's when the CORS support is needed.
     const { preflight } = addCorsSupport(req, res)
     if (preflight) {
-      return
+      return {}
     }
 
     // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
@@ -215,7 +219,7 @@ export default class HotReloader {
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0])
+          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
           return { finished: true }
         }
       }
@@ -262,11 +266,11 @@ export default class HotReloader {
 
     let additionalClientEntrypoints: { [file: string]: string } = {}
     additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] =
-      `.${sep}` +
+      `./` +
       relativePath(
         this.dir,
         join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-      )
+      ).replace(/\\/g, '/')
 
     additionalClientEntrypoints[
       CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
@@ -355,7 +359,7 @@ export default class HotReloader {
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.chunks.find(
-          (c) => c.name === normalize(`pages/_document`)
+          (c) => c.name === `pages/_document`
         )
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
@@ -416,13 +420,8 @@ export default class HotReloader {
       }
     )
 
-    this.webpackHotMiddleware = WebpackHotMiddleware(
-      multiCompiler.compilers[0],
-      {
-        path: '/_next/webpack-hmr',
-        log: false,
-        heartbeat: 2500,
-      }
+    this.webpackHotMiddleware = new WebpackHotMiddleware(
+      multiCompiler.compilers[0]
     )
 
     let booted = false
@@ -452,8 +451,8 @@ export default class HotReloader {
 
     this.middlewares = [
       // must come before hotMiddleware
-      this.onDemandEntries.middleware(),
-      this.webpackHotMiddleware,
+      this.onDemandEntries.middleware,
+      this.webpackHotMiddleware.middleware,
       errorOverlayMiddleware({ dir: this.dir }),
       getOverlayMiddleware({
         rootDirectory: this.dir,

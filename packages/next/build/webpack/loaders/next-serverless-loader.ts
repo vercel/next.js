@@ -6,6 +6,7 @@ import { loader } from 'webpack'
 import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
+  FONT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
@@ -22,6 +23,7 @@ export type ServerlessLoaderQuery = {
   buildId: string
   assetPrefix: string
   generateEtags: string
+  poweredByHeader: string
   canonicalBase: string
   basePath: string
   runtimeConfig: string
@@ -43,6 +45,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
+    poweredByHeader,
     basePath,
     runtimeConfig,
     previewProps,
@@ -56,6 +59,10 @@ const nextServerlessLoader: loader.Loader = function () {
     '/'
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
+  const fontManifest = join(distDir, 'serverless', FONT_MANIFEST).replace(
+    /\\/g,
+    '/'
+  )
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
@@ -90,7 +97,7 @@ const nextServerlessLoader: loader.Loader = function () {
     : ''
   const envLoading = `
     const { processEnv } = require('next/dist/lib/load-env-config')
-    processEnv(${loadedEnvFiles})
+    processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
   `
 
   const runtimeConfigImports = runtimeConfig
@@ -137,7 +144,9 @@ const nextServerlessLoader: loader.Loader = function () {
           const { parsedDestination } = prepareDestination(
             rewrite.destination,
             params,
-            parsedUrl.query
+            parsedUrl.query,
+            true,
+            "${basePath}"
           )
 
           Object.assign(parsedUrl.query, parsedDestination.query, params)
@@ -172,7 +181,8 @@ const nextServerlessLoader: loader.Loader = function () {
   const handleBasePath = basePath
     ? `
     // always strip the basePath if configured since it is required
-    req.url = req.url.replace(new RegExp('^${basePath}'), '')
+    req.url = req.url.replace(new RegExp('^${basePath}'), '') || '/'
+    parsedUrl.pathname = parsedUrl.pathname.replace(new RegExp('^${basePath}'), '') || '/'
   `
     : ''
 
@@ -204,12 +214,12 @@ const nextServerlessLoader: loader.Loader = function () {
         try {
           await initServer()
 
-          ${handleBasePath}
-
           // We need to trust the dynamic route params from the proxy
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parse(req.url, true))
+
+          ${handleBasePath}
 
           const params = ${
             pageIsDynamicRoute
@@ -261,15 +271,15 @@ const nextServerlessLoader: loader.Loader = function () {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
-    const {sendHTML} = require('next/dist/next-server/server/send-html');
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
     const Error = require('${absoluteErrorPath}').default;
     const App = require('${absoluteAppPath}').default;
+
     ${dynamicRouteImports}
     ${rewriteImports}
 
@@ -295,8 +305,6 @@ const nextServerlessLoader: loader.Loader = function () {
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
-
-      ${handleBasePath}
 
       const options = {
         App,
@@ -324,11 +332,20 @@ const nextServerlessLoader: loader.Loader = function () {
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
         const parsedUrl = handleRewrites(parse(req.url, true))
 
+        ${handleBasePath}
+
         if (parsedUrl.pathname.match(/_next\\/data/)) {
-          _nextData = true
-          parsedUrl.pathname = parsedUrl.pathname
-            .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
-            .replace(/\\.json$/, '')
+          const {
+            default: getRouteFromAssetPath,
+          } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
+          _nextData = true;
+          parsedUrl.pathname = getRouteFromAssetPath(
+            parsedUrl.pathname.replace(
+              new RegExp('/_next/data/${escapedBuildId}/'),
+              '/'
+            ),
+            '.json'
+          );
         }
 
         const renderOpts = Object.assign(
@@ -407,11 +424,18 @@ const nextServerlessLoader: loader.Loader = function () {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
+        if (process.env.__NEXT_OPTIMIZE_FONTS) {
+          renderOpts.optimizeFonts = true
+          renderOpts.fontManifest = require('${fontManifest}')
+          process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
+        }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            sendPayload(res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', {
+            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
+              generateEtags === 'true' ? true : false
+            }, {
               private: isPreviewMode,
               stateful: !!getServerSideProps,
               revalidate: renderOpts.revalidate,
@@ -482,7 +506,9 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendHTML(req, res, html, {generateEtags: ${generateEtags}})
+          sendPayload(req, res, html, 'html', {generateEtags: ${JSON.stringify(
+            generateEtags === 'true'
+          )}, poweredByHeader: ${JSON.stringify(poweredByHeader === 'true')}})
         }
       } catch(err) {
         console.error(err)

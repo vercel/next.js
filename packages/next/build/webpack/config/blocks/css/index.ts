@@ -102,7 +102,7 @@ export const css = curry(async function css(
   )
 
   // CSS Modules support must be enabled on the server and client so the class
-  // names are availble for SSR or Prerendering.
+  // names are available for SSR or Prerendering.
   fns.push(
     loader({
       oneOf: [
@@ -280,6 +280,7 @@ export const css = curry(async function css(
     // Extract CSS as CSS file(s) in the client-side production bundle.
     fns.push(
       plugin(
+        // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',

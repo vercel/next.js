@@ -18,7 +18,7 @@ export async function getStaticProps({ params }) {
       comment: params.comment,
       time: new Date().getTime(),
     },
-    unstable_revalidate: 2,
+    revalidate: 2,
   }
 }
 

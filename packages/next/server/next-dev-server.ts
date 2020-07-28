@@ -32,6 +32,7 @@ import { Telemetry } from '../telemetry/storage'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
+import { withCoalescedInvoke } from '../lib/coalesced-function'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -45,6 +46,9 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  protected staticPathsWorker: import('jest-worker').default & {
+    loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+  }
 
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
@@ -210,21 +214,6 @@ export default class DevServer extends Server {
               match: getRouteMatcher(getRouteRegex(page)),
             }))
 
-          const firstOptionalCatchAllPage =
-            this.dynamicRoutes.find((f) => /\[\[\.{3}[^\][/]*\]\]/.test(f.page))
-              ?.page ?? null
-          if (
-            this.nextConfig.experimental?.optionalCatchAll !== true &&
-            firstOptionalCatchAllPage
-          ) {
-            const msg = `Optional catch-all routes are currently experimental and cannot be used by default ("${firstOptionalCatchAllPage}").`
-            if (resolved) {
-              console.warn(msg)
-            } else {
-              throw new Error(msg)
-            }
-          }
-
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
           if (!resolved) {
@@ -288,6 +277,7 @@ export default class DevServer extends Server {
 
   protected async close(): Promise<void> {
     await this.stopWatcher()
+    await this.staticPathsWorker.end()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -347,6 +337,17 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
+
+    const { basePath } = this.nextConfig
+    let originalPathname: string | null = null
+
+    if (basePath && parsedUrl.pathname?.startsWith(basePath)) {
+      // strip basePath before handling dev bundles
+      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      originalPathname = parsedUrl.pathname
+      parsedUrl.pathname = parsedUrl.pathname!.slice(basePath.length) || '/'
+    }
+
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
@@ -355,11 +356,20 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
-      finished: false,
-    }
+    const { finished = false } = await this.hotReloader!.run(
+      req,
+      res,
+      parsedUrl
+    )
+
     if (finished) {
       return
+    }
+
+    if (originalPathname) {
+      // restore the path before continuing so that custom-routes can accurately determine
+      // if they should match against the basePath or not
+      parsedUrl.pathname = originalPathname
     }
 
     return super.run(req, res, parsedUrl)
@@ -404,7 +414,8 @@ export default class DevServer extends Server {
     fsRoutes.push({
       match: route('/:path*'),
       type: 'route',
-      name: 'Catchall public directory route',
+      requireBasePath: false,
+      name: 'catchall public directory route',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl
         if (!pathname) {
@@ -459,6 +470,30 @@ export default class DevServer extends Server {
     snippet = snippet.substring(0, snippet.indexOf('</script>'))
 
     return !snippet.includes('data-amp-development-mode-only')
+  }
+
+  protected async getStaticPaths(
+    pathname: string
+  ): Promise<{
+    staticPaths: string[] | undefined
+    hasStaticFallback: boolean
+  }> {
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+
+    const __getStaticPaths = async () => {
+      const paths = await this.staticPathsWorker.loadStaticPaths(
+        this.distDir,
+        pathname,
+        !this.renderOpts.dev && this._isLikeServerless
+      )
+      return paths
+    }
+    const { paths: staticPaths, fallback: hasStaticFallback } = (
+      await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
+    ).value
+
+    return { staticPaths, hasStaticFallback }
   }
 
   protected async ensureApiPage(pathname: string) {

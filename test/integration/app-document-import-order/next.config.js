@@ -17,6 +17,7 @@ module.exports = {
               enforce: true,
               priority: 10,
               chunks: 'all',
+              filename: 'static/chunks/[name].[chunkhash].js',
             },
             requiredByPage: {
               test: /requiredByPage.js/,
@@ -24,6 +25,7 @@ module.exports = {
               enforce: true,
               priority: 10,
               chunks: 'all',
+              filename: 'static/chunks/[name].[chunkhash].js',
             },
           },
         },

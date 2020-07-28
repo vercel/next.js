@@ -167,8 +167,8 @@ export default function onDemandEntryHandler(
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
       const bundleFile = normalizePagePath(pageUrl)
-      const serverBundlePath = join('pages', bundleFile)
-      const clientBundlePath = join('static', 'pages', bundleFile)
+      const serverBundlePath = posix.join('pages', bundleFile)
+      const clientBundlePath = posix.join('pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
@@ -211,26 +211,24 @@ export default function onDemandEntryHandler(
       })
     },
 
-    middleware() {
-      return (req: IncomingMessage, res: ServerResponse, next: Function) => {
-        if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
+    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
+      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
 
-        const { query } = parse(req.url!, true)
-        const page = query.page
-        if (!page) return next()
+      const { query } = parse(req.url!, true)
+      const page = query.page
+      if (!page) return next()
 
-        const runPing = () => {
-          const data = handlePing(query.page as string)
-          if (!data) return
-          res.write('data: ' + JSON.stringify(data) + '\n\n')
-        }
-        const pingInterval = setInterval(() => runPing(), 5000)
-
-        req.on('close', () => {
-          clearInterval(pingInterval)
-        })
-        next()
+      const runPing = () => {
+        const data = handlePing(query.page as string)
+        if (!data) return
+        res.write('data: ' + JSON.stringify(data) + '\n\n')
       }
+      const pingInterval = setInterval(() => runPing(), 5000)
+
+      req.on('close', () => {
+        clearInterval(pingInterval)
+      })
+      next()
     },
   }
 }
@@ -298,6 +296,7 @@ class Invalidator {
     // Work around a bug in webpack, calling `invalidate` on Watching.js
     // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
     for (const compiler of this.multiCompiler.compilers) {
+      // @ts-ignore TODO: Check if this is still needed with webpack 5
       compiler.hooks.invalid.call()
     }
     this.watcher.invalidate()
