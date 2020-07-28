@@ -53,6 +53,23 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
+function makeClickable(text: string): JSX.Element[] | string {
+  // Regex Checks for http:// or https://
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/gi
+  if (!linkRegex.test(text)) return text
+  return text.split(' ').map((word, index, array) => {
+    if (linkRegex.test(word)) {
+      return (
+        <>
+          <a href={word}>{word}</a>
+          {index === array.length - 1 ? ' ' : ''}
+        </>
+      )
+    }
+    return index === array.length - 1 ? <>{word}</> : <>{word} </>
+  })
+}
+
 async function getErrorByType(
   ev: SupportedErrorEvent
 ): Promise<ReadyErrorEvent> {
@@ -242,7 +259,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
             <p id="nextjs__container_errors_desc">
-              {activeError.error.name}: {activeError.error.message}
+              {activeError.error.name}:{' '}
+              {makeClickable(activeError.error.message)}
             </p>
             {isServerError ? (
               <div>
@@ -291,6 +309,9 @@ export const styles = css`
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
+  }
+  .nextjs-container-errors-header > p > a {
+    color: var(--color-ansi-red);
   }
 
   .nextjs-container-errors-body > h5:not(:first-child) {
