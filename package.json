@@ -109,7 +109,7 @@
     "react": "16.12.0",
     "react-dom": "16.12.0",
     "react-ssr-prepass": "1.0.8",
-    "release": "6.0.1",
+    "release": "6.2.0",
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
     "selenium-standalone": "6.17.0",
