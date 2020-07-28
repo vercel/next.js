@@ -374,6 +374,7 @@ describe('Dynamic Optional Routing', () => {
       const html = await render('/', { optionalName: '' })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('top level route param: undefined')
+      expect($('#keys').text()).toBe('[]')
     })
 
     it('should render top level optional catch-all one level', async () => {
@@ -392,6 +393,7 @@ describe('Dynamic Optional Routing', () => {
       const html = await render('/nested', { optionalName: '' })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('nested route param: undefined')
+      expect($('#keys').text()).toBe('[]')
     })
 
     it('should render nested optional catch-all one level', async () => {

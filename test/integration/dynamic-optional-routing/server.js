@@ -3,9 +3,14 @@ const http = require('http')
 const url = require('url')
 
 const server = http.createServer((req, res) => {
-  const render = (page) => {
+  const render = async (page) => {
     const mod = require(`./${path.join('.next/serverless/pages/', page)}`)
-    return (mod.render || mod.default || mod)(req, res)
+    try {
+      return await (mod.render || mod.default || mod)(req, res)
+    } catch (err) {
+      res.statusCode = 500
+      return res.end('internal error')
+    }
   }
 
   const { pathname } = url.parse(req.url)
@@ -27,7 +32,7 @@ const server = http.createServer((req, res) => {
       return render('/[[...optionalName]].js')
     }
     default: {
-      res.statusCode(404)
+      res.statusCode = 404
       return res.end('404')
     }
   }

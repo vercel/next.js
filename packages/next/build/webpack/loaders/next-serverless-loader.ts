@@ -87,17 +87,24 @@ const nextServerlessLoader: loader.Loader = function () {
             }
             if(routeRegex.groups[key].optional && !value) {
               value = undefined
+              delete query[key]
             }
             ${
               ''
               // query values from the proxy aren't already split into arrays
               // so make sure to normalize catch-all values
             }
-            if (value && typeof value === 'string' && routeRegex.groups[key].repeat) {
+            if (
+              value &&
+              typeof value === 'string' &&
+              routeRegex.groups[key].repeat
+            ) {
               value = value.split('/')
             }
 
-            prev[key] = value
+            if (value) {
+              prev[key] = value
+            }
             return prev
           }, {})
       }
