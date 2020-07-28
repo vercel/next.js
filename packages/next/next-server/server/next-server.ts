@@ -43,7 +43,7 @@ import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
-import { getPagePath } from './require'
+import { getPagePath, requireFontManifest } from './require'
 import Router, {
   DynamicRoutes,
   PageChecker,
@@ -52,7 +52,6 @@ import Router, {
   route,
   Route,
 } from './router'
-import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -64,6 +63,7 @@ import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
+import { FontManifest } from './font-utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -120,6 +120,8 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
+    optimizeFonts: boolean
+    fontManifest: FontManifest
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -166,6 +168,10 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts,
+      fontManifest: this.nextConfig.experimental.optimizeFonts
+        ? requireFontManifest(this.distDir, this._isLikeServerless)
+        : null,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -220,6 +226,16 @@ export default class Server {
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
+
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targetting both serverless and SSR by calling
+     * `process.env.__NEXT_OPTIMIZE_FONTS`.
+     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+     */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
   }
 
   protected currentPhase(): string {
@@ -253,13 +269,11 @@ export default class Server {
 
     const { basePath } = this.nextConfig
 
-    // if basePath is set require it be present
-    if (basePath && !req.url!.startsWith(basePath)) {
-      return this.render404(req, res, parsedUrl)
-    } else {
-      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
-      req.url = req.url!.replace(basePath, '')
+    if (basePath && req.url?.startsWith(basePath)) {
+      // store original URL to allow checking if basePath was
+      // provided or not
+      ;(req as any)._nextHadBasePath = true
+      req.url = req.url!.replace(basePath, '') || '/'
     }
 
     res.statusCode = 200
@@ -308,6 +322,7 @@ export default class Server {
   }
 
   protected generateRoutes(): {
+    basePath: string
     headers: Route[]
     rewrites: Route[]
     fsRoutes: Route[]
@@ -445,11 +460,17 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
+    const getCustomRouteBasePath = (r: { basePath?: false }) => {
+      return r.basePath !== false && this.renderOpts.dev
+        ? this.nextConfig.basePath
+        : ''
+    }
+
     const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
       ({
         ...r,
         type,
-        match: getCustomRouteMatcher(r.source),
+        match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
       } as Route & Rewrite & Header)
@@ -458,7 +479,13 @@ export default class Server {
       if (!value.includes(':')) {
         return value
       }
-      const { parsedDestination } = prepareDestination(value, params, {})
+      const { parsedDestination } = prepareDestination(
+        value,
+        params,
+        {},
+        false,
+        ''
+      )
 
       if (
         !parsedDestination.pathname ||
@@ -507,7 +534,9 @@ export default class Server {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
             params,
-            parsedUrl.query
+            parsedUrl.query,
+            false,
+            getCustomRouteBasePath(redirectRoute)
           )
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -531,6 +560,7 @@ export default class Server {
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
+        ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
         name: `Rewrite route`,
@@ -540,7 +570,8 @@ export default class Server {
             rewriteRoute.destination,
             params,
             parsedUrl.query,
-            true
+            true,
+            getCustomRouteBasePath(rewriteRoute)
           )
 
           // external rewrite, proxy it
@@ -560,8 +591,9 @@ export default class Server {
               finished: true,
             }
           }
-          ;(req as any)._nextDidRewrite = true
           ;(req as any)._nextRewroteUrl = newUrl
+          ;(req as any)._nextDidRewrite =
+            (req as any)._nextRewroteUrl !== req.url
 
           return {
             finished: false,
@@ -618,6 +650,7 @@ export default class Server {
       catchAllRoute,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
+      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
     }
   }
@@ -796,7 +829,10 @@ export default class Server {
     html: string
   ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+    return sendPayload(req, res, html, 'html', {
+      generateEtags,
+      poweredByHeader,
+    })
   }
 
   public async render(
@@ -979,7 +1015,10 @@ export default class Server {
         res,
         data,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1022,7 +1061,10 @@ export default class Server {
           renderResult = await (components.Component as any).renderReqToHTML(
             req,
             res,
-            'passthrough'
+            'passthrough',
+            {
+              fontManifest: this.renderOpts.fontManifest,
+            }
           )
 
           html = renderResult.html
@@ -1109,7 +1151,10 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
+      sendPayload(req, res, html, 'html', {
+        generateEtags: this.renderOpts.generateEtags,
+        poweredByHeader: this.renderOpts.poweredByHeader,
+      })
       return null
     }
 
@@ -1124,7 +1169,10 @@ export default class Server {
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,

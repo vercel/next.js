@@ -4,6 +4,7 @@ import {
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  FONT_MANIFEST,
 } from '../lib/constants'
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
@@ -53,4 +54,13 @@ export function requirePage(
     return promises.readFile(pagePath, 'utf8')
   }
   return require(pagePath)
+}
+
+export function requireFontManifest(distDir: string, serverless: boolean) {
+  const serverBuildPath = join(
+    distDir,
+    serverless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+  )
+  const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
+  return fontManifest
 }

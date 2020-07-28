@@ -3,7 +3,7 @@ export default function Avatar({ name, picture }) {
     <div className="flex items-center">
       {picture && (
         <img
-          src={`${picture}?auto=format,compress,enhance&w=48&h48`}
+          src={`${picture}?auto=format,compress,enhance&w=100&h=100`}
           className="w-12 h-12 rounded-full mr-4"
           alt={name}
         />
