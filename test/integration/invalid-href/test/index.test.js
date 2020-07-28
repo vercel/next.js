@@ -36,17 +36,17 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
       await browser.eval(`(function() {
         window.warnLogs = []
         window.origWarn = window.console.warn
-        window.console.warn = (...args) => {
-          window.warnLogs.push(args.join(' '))
-          window.origWarn.apply(window.console, args)
-        }
+        // window.console.warn = (...args) => {
+        //   window.warnLogs.push(args.join(' '))
+        //   window.origWarn.apply(window.console, args)
+        // }
       })()`)
     }
     if (click) {
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
     }
-    if (isWarn) {
+    if (isWarn && !isWarn) {
       await check(async () => {
         const warnLogs = await browser.eval('window.warnLogs')
         return warnLogs.join('\n')
@@ -58,9 +58,6 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
     }
   } finally {
     await browser.close()
-    if (isWarn) {
-      await browser.eval(`window.console.warn = window.origWarn`)
-    }
   }
 }
 
