@@ -45,6 +45,7 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { warn } from '../../build/output/log'
 
 function noRouter() {
   const message =
@@ -323,8 +324,8 @@ export async function renderToHTML(
     nextExportCommand &&
     (hasPageGetInitialProps || defaultAppGetInitialProps)
   ) {
-    console.log(
-      `Warning: Detected getInitialProps on page ${pathname} while running "next export". It's recommended to use getStaticProps which has a more correct behavior for static exporting: https://err.sh/next.js/vercel/next.js/getinitialprops-export`
+    warn(
+      ` Detected getInitialProps on page ${pathname} while running "next export". It's recommended to use getStaticProps which has a more correct behavior for static exporting: https://err.sh/next.js/vercel/next.js/getinitialprops-export`
     )
   }
 
