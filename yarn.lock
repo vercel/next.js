@@ -13455,10 +13455,10 @@ regjsparser@^0.6.4:
   dependencies:
     jsesc "~0.5.0"
 
-release@6.2.0:
-  version "6.2.0"
-  resolved "https://registry.yarnpkg.com/release/-/release-6.2.0.tgz#47b56a77fa39f4dde47f355d91289310f46c9409"
-  integrity sha512-tYuoyD4ID5aWyfVETRUVwOsE7Xw/+lmfItr1hBdQynSJ6dMJ8z8gjYLUl88FaAO2OfW8sRQWdPMCPydKI+8lfA==
+release@6.3.0:
+  version "6.3.0"
+  resolved "https://registry.yarnpkg.com/release/-/release-6.3.0.tgz#bbd351d7460948f1ed55ea02b4b2393f98a1637a"
+  integrity sha512-p2dQcsNzCwI0LMHFb/BAd49NrTbIlt2krjaDVHsjV40tScLIRHVatEtN+4MV4Xx9jKKGiZGoM2gtrSn6vJeM1g==
   dependencies:
     "@octokit/rest" "15.2.6"
     args "4.0.0"
