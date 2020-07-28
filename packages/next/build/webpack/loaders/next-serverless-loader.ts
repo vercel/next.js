@@ -6,6 +6,7 @@ import { loader } from 'webpack'
 import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
+  FONT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
@@ -58,6 +59,10 @@ const nextServerlessLoader: loader.Loader = function () {
     '/'
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
+  const fontManifest = join(distDir, 'serverless', FONT_MANIFEST).replace(
+    /\\/g,
+    '/'
+  )
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
@@ -266,7 +271,7 @@ const nextServerlessLoader: loader.Loader = function () {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
@@ -274,6 +279,7 @@ const nextServerlessLoader: loader.Loader = function () {
     const Document = require('${absoluteDocumentPath}').default;
     const Error = require('${absoluteErrorPath}').default;
     const App = require('${absoluteAppPath}').default;
+
     ${dynamicRouteImports}
     ${rewriteImports}
 
@@ -418,6 +424,11 @@ const nextServerlessLoader: loader.Loader = function () {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
+        if (process.env.__NEXT_OPTIMIZE_FONTS) {
+          renderOpts.optimizeFonts = true
+          renderOpts.fontManifest = require('${fontManifest}')
+          process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
+        }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
