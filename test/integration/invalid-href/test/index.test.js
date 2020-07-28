@@ -9,7 +9,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
-  // check,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -35,11 +35,11 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
     if (isWarn) {
       await browser.eval(`(function() {
         window.warnLogs = []
-        window.origWarn = window.console.warn
-        // window.console.warn = (...args) => {
-        //   window.warnLogs.push(args.join(' '))
-        //   window.origWarn.apply(window.console, args)
-        // }
+        var origWarn = window.console.warn
+        window.console.warn = (...args) => {
+          window.warnLogs.push(args.join(' '))
+          origWarn.apply(window.console, args)
+        }
       })()`)
     }
     if (click) {
@@ -47,10 +47,10 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
       await waitFor(500)
     }
     if (isWarn) {
-      // await check(async () => {
-      //   const warnLogs = await browser.eval('window.warnLogs')
-      //   return warnLogs.join('\n')
-      // }, regex)
+      await check(async () => {
+        const warnLogs = await browser.eval('window.warnLogs')
+        return warnLogs.join('\n')
+      }, regex)
     } else {
       expect(await hasRedbox(browser)).toBe(true)
       const errorContent = await getRedboxHeader(browser)
@@ -130,7 +130,7 @@ describe('Invalid hrefs', () => {
       )
     })
 
-    it('shows warning when dynamic route mismatch is used on Link', async () => {
+    it.skip('shows warning when dynamic route mismatch is used on Link', async () => {
       await showsError(
         '/dynamic-route-mismatch',
         /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
@@ -144,7 +144,7 @@ describe('Invalid hrefs', () => {
     })
   })
 
-  describe.skip('production mode', () => {
+  describe('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
