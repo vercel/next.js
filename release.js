@@ -1,14 +1,3 @@
-const fetch = require('node-fetch')
-
-// --------------------
-// Repo
-
-const owner = 'vercel'
-const repo = 'next.js'
-
-// --------------------
-// Config
-
 // section -> label
 const sectionLabelMap = {
   'Core Changes': 'type: next',
@@ -22,7 +11,7 @@ const fallbackSection = 'Misc Changes'
 
 const prNumberRegex = /\(#([-0-9]+)\)/
 
-const getCommitPullRequest = async (commit) => {
+const getCommitPullRequest = async (commit, github) => {
   const match = prNumberRegex.exec(commit.title)
 
   if (!match) {
@@ -30,15 +19,18 @@ const getCommitPullRequest = async (commit) => {
   }
 
   const number = parseInt(match[1], 10)
-  const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}`
-  const res = await fetch(url)
 
-  if (!res.ok) {
-    console.warn(`\n\n⚠️ Failed to fetch PR #${number}\n`)
+  if (!number) {
     return null
   }
 
-  return await res.json()
+  const { data } = await github.connection.pullRequests.get({
+    owner: github.repoDetails.user,
+    repo: github.repoDetails.repo,
+    number,
+  })
+
+  return data
 }
 
 const getSectionForPullRequest = (pullRequest) => {
@@ -64,6 +56,7 @@ const groupByLabels = async (commits, github) => {
 
   for (const commit of commits) {
     const pullRequest = await getCommitPullRequest(commit, github)
+    console.log({ pullRequest })
 
     if (pullRequest) {
       const section = getSectionForPullRequest(pullRequest)
@@ -153,9 +146,11 @@ const buildChangelog = (sections, authors) => {
 }
 
 module.exports = async (markdown, metadata) => {
-  const { commits, authors } = metadata
+  const { commits, authors, githubConnection, repoDetails } = metadata
 
-  const sections = await groupByLabels(commits.all)
+  const github = { connection: githubConnection, repoDetails }
+
+  const sections = await groupByLabels(commits.all, github)
   const changelog = buildChangelog(sections, authors)
 
   return changelog
