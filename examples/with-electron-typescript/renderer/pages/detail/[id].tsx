@@ -36,11 +36,8 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return { paths, fallback: false }
 }
 
-export const getStaticProps: GetStaticProps = async (context) => {
-  const id = context.params?.id
-  if (!id) {
-    throw new Error('Invalid page id')
-  }
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+  const { id } = params
 
   try {
     const item = await findData(Array.isArray(id) ? id[0] : id)
