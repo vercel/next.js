@@ -144,13 +144,15 @@ const freshWindow = async () => {
   console.log('windows closed')
   await browser.switchTo().window(initialWindow)
 
-  console.log('open fresh window x')
+  console.log('open fresh window')
   // now we open a fresh window
   await browser.get(`http://${deviceIP}:${global._newTabPort}`)
+  console.log('new window open')
 
   const newTabLink = await browser.findElement(By.css('#new'))
+  console.log('new tab link found')
   await newTabLink.click()
-  console.log('new window open')
+  console.log('new tab link clicked')
 
   allWindows = await browser.getAllWindowHandles()
   console.log('all windows')
