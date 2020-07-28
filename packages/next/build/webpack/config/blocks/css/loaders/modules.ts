@@ -35,7 +35,9 @@ export function getCssModuleLoader(
         mode: 'pure',
         // If under development, generate a friendly classname name so it's reasonably understandable.
         // Otherwise generate an optimized short class name for production.
-        getLocalIdent: getCssModuleLocalIdent(ctx.isDevelopment),
+        getLocalIdent: getCssModuleLocalIdent(
+          ctx.isDevelopment || !ctx.productionOptimizedCSSClassNames
+        ),
       },
     },
   })
