@@ -82,10 +82,18 @@ const nextServerlessLoader: loader.Loader = function () {
 
             ${
               ''
+              // non-provided optional values should be undefined so normalize
+              // them to undefined
+            }
+            if(routeRegex.groups[key].optional && !value) {
+              value = undefined
+            }
+            ${
+              ''
               // query values from the proxy aren't already split into arrays
               // so make sure to normalize catch-all values
             }
-            if (routeRegex.groups[key].repeat) {
+            if (value && typeof value === 'string' && routeRegex.groups[key].repeat) {
               value = value.split('/')
             }
 
