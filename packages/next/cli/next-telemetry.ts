@@ -1,22 +1,28 @@
 #!/usr/bin/env node
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-
+import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import { Telemetry } from '../telemetry/storage'
 
 const nextTelemetry: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--enable': Boolean,
-      '--disable': Boolean,
-      // Aliases
-      '-h': '--help',
-    },
-    { argv }
-  )
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--enable': Boolean,
+    '--disable': Boolean,
+    // Aliases
+    '-h': '--help',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
 
   if (args['--help']) {
     console.log(

@@ -59,6 +59,19 @@ describe('CLI Usage', () => {
         /Compiles the application for production deployment/
       )
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['build', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['build', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 
   describe('dev', () => {
@@ -121,6 +134,19 @@ describe('CLI Usage', () => {
       )
       expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['dev', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['dev', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 
   describe('start', () => {
@@ -137,6 +163,19 @@ describe('CLI Usage', () => {
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
     })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['start', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['start', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
   })
 
   describe('export', () => {
@@ -152,6 +191,52 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(/Exports the application/)
+    })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['export', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['export', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+  })
+
+  describe('telemetry', () => {
+    test('--help', async () => {
+      const help = await runNextCommand(['telemetry', '--help'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Allows you to control Next\.js' telemetry collection/
+      )
+    })
+
+    test('-h', async () => {
+      const help = await runNextCommand(['telemetry', '-h'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Allows you to control Next\.js' telemetry collection/
+      )
+    })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['telemetry', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['telemetry', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
     })
   })
 })

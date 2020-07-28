@@ -8,21 +8,26 @@ import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
 const nextDev: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--port': Number,
-      '--hostname': String,
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--port': Number,
+    '--hostname': String,
 
-      // Aliases
-      '-h': '--help',
-      '-p': '--port',
-      '-H': '--hostname',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-p': '--port',
+    '-H': '--hostname',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
     // tslint:disable-next-line
     console.log(`

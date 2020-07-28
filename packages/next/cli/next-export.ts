@@ -7,22 +7,27 @@ import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
 const nextExport: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--silent': Boolean,
-      '--outdir': String,
-      '--threads': Number,
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--silent': Boolean,
+    '--outdir': String,
+    '--threads': Number,
 
-      // Aliases
-      '-h': '--help',
-      '-s': '--silent',
-      '-o': '--outdir',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-s': '--silent',
+    '-o': '--outdir',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
     // tslint:disable-next-line
     console.log(`
