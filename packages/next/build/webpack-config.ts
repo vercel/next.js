@@ -53,7 +53,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-
+import FontStylesheetGatheringPlugin from './webpack/plugins/font-stylesheet-gathering-plugin'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
@@ -873,6 +873,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
+          config.experimental.optimizeFonts
+        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -978,6 +981,10 @@ export default async function getBaseWebpackConfig(
               inputChunkName.replace(/\.js$/, '.module.js'),
           })
         })(),
+      config.experimental.optimizeFonts &&
+        !dev &&
+        isServer &&
+        new FontStylesheetGatheringPlugin(),
       config.experimental.conformance &&
         !isWebpack5 &&
         !dev &&

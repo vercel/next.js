@@ -136,6 +136,21 @@ function reduceComponents(
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
+      if (process.env.__NEXT_OPTIMIZE_FONTS) {
+        if (
+          c.type === 'link' &&
+          c.props['href'] &&
+          // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
+          ['https://fonts.googleapis.com/css'].some((url) =>
+            c.props['href'].startsWith(url)
+          )
+        ) {
+          const newProps = { ...(c.props || {}) }
+          newProps['data-href'] = newProps['href']
+          newProps['href'] = undefined
+          return React.cloneElement(c, newProps)
+        }
+      }
       return React.cloneElement(c, { key })
     })
 }

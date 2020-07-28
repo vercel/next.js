@@ -13,6 +13,8 @@ import 'next/dist/next-server/server/node-polyfill-fetch'
 import { IncomingMessage, ServerResponse } from 'http'
 import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
+import { requireFontManifest } from '../next-server/server/require'
+import { FontManifest } from '../next-server/server/font-utils'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -44,6 +46,7 @@ interface ExportPageInput {
   serverRuntimeConfig: string
   subFolders: string
   serverless: boolean
+  optimizeFonts: boolean
 }
 
 interface ExportPageResults {
@@ -60,6 +63,8 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
+  optimizeFonts?: boolean
+  fontManifest?: FontManifest
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -78,6 +83,7 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
+  optimizeFonts,
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
@@ -211,7 +217,14 @@ export default async function exportPage({
           req,
           res,
           'export',
-          { ampPath },
+          {
+            ampPath,
+            /// @ts-ignore
+            optimizeFonts,
+            fontManifest: optimizeFonts
+              ? requireFontManifest(distDir, serverless)
+              : null,
+          },
           // @ts-ignore
           params
         )
@@ -246,7 +259,25 @@ export default async function exportPage({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
-        curRenderOpts = { ...components, ...renderOpts, ampPath, params }
+        /**
+         * This sets environment variable to be used at the time of static export by head.tsx.
+         * Using this from process.env allows targetting both serverless and SSR by calling
+         * `process.env.__NEXT_OPTIMIZE_FONTS`.
+         * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+         */
+        if (optimizeFonts) {
+          process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+        }
+        curRenderOpts = {
+          ...components,
+          ...renderOpts,
+          ampPath,
+          params,
+          optimizeFonts,
+          fontManifest: optimizeFonts
+            ? requireFontManifest(distDir, serverless)
+            : null,
+        }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }

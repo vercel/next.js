@@ -1,7 +1,10 @@
 import PropTypes from 'prop-types'
-import React, { useContext, Component } from 'react'
+import React, { useContext, Component, ReactNode } from 'react'
 import flush from 'styled-jsx/server'
-import { AMP_RENDER_TARGET } from '../next-server/lib/constants'
+import {
+  AMP_RENDER_TARGET,
+  OPTIMIZED_FONT_PROVIDERS,
+} from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
   DocumentContext,
@@ -236,6 +239,24 @@ export class Head extends Component<
         ))
   }
 
+  makeStylesheetInert(node: ReactNode): ReactNode {
+    return React.Children.map(node, (c: any) => {
+      if (
+        c.type === 'link' &&
+        c.props['href'] &&
+        OPTIMIZED_FONT_PROVIDERS.some((url) => c.props['href'].startsWith(url))
+      ) {
+        const newProps = { ...(c.props || {}) }
+        newProps['data-href'] = newProps['href']
+        newProps['href'] = undefined
+        return React.cloneElement(c, newProps)
+      } else if (c.props && c.props['children']) {
+        c.props['children'] = this.makeStylesheetInert(c.props['children'])
+      }
+      return c
+    })
+  }
+
   render() {
     const {
       styles,
@@ -278,6 +299,10 @@ export class Head extends Component<
         )
     }
 
+    if (process.env.__NEXT_OPTIMIZE_FONTS) {
+      children = this.makeStylesheetInert(children)
+    }
+
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
 
@@ -285,7 +310,6 @@ export class Head extends Component<
     head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
-
       if (inAmpMode) {
         let badProp: string = ''
 
@@ -435,7 +459,9 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {this.getCssLinks()}
+            {process.env.__NEXT_OPTIMIZE_FONTS
+              ? this.makeStylesheetInert(this.getCssLinks())
+              : this.getCssLinks()}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
             {this.context._documentProps.isDevelopment && (
