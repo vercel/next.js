@@ -1,6 +1,6 @@
 # Example app with react-md
 
-This example features how you use [react-md](https://react-md.dev/) (React Material Design) with Next.js.
+This example features how you use [react-md](https://react-md.dev/v1) (React Material Design) with Next.js.
 
 I recommend reading [layout-component](../layout-component) example next to learn how to reuse the layout across the pages.
 
@@ -10,7 +10,7 @@ I recommend reading [layout-component](../layout-component) example next to lear
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-md)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-md-v1)
 
 ## How to use
 
@@ -19,9 +19,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-react-md with-react-md-app
+npx create-next-app --example with-react-md-v1 with-react-md-app
 # or
-yarn create next-app --example with-react-md with-react-md-app
+yarn create next-app --example with-react-md-v1 with-react-md-app
 ```
 
 ### Download manually
@@ -29,8 +29,8 @@ yarn create next-app --example with-react-md with-react-md-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-md
-cd with-react-md
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-md-v1
+cd with-react-md-v1
 ```
 
 Install it and run:
