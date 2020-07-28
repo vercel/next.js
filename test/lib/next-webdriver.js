@@ -130,10 +130,8 @@ const getDeviceIP = async () => {
 // eslint-disable-next-line no-unused-vars
 const freshWindow = async () => {
   // First we close all extra windows left over
-  console.log('getAllWindowHandles')
   let allWindows = await browser.getAllWindowHandles()
-  console.log('closing windows')
-  console.log(allWindows)
+
   for (const win of allWindows) {
     if (win === initialWindow) continue
     try {
@@ -141,24 +139,16 @@ const freshWindow = async () => {
       await browser.close()
     } catch (_) {}
   }
-  console.log('windows closed')
   await browser.switchTo().window(initialWindow)
 
-  console.log('open fresh window')
   // now we open a fresh window
   await browser.get(`http://${deviceIP}:${global._newTabPort}`)
-  console.log('new window open')
 
   const newTabLink = await browser.findElement(By.css('#new'))
-  console.log('new tab link found')
   await newTabLink.click()
-  console.log('new tab link clicked')
 
   allWindows = await browser.getAllWindowHandles()
-  console.log('all windows')
-  console.log(allWindows)
   const newWindow = allWindows.find((win) => win !== initialWindow)
-  console.log('switching new window')
   await browser.switchTo().window(newWindow)
 }
 
@@ -173,9 +163,7 @@ export default async (appPort, path, waitHydration = true) => {
   // in safari and firefox so disabling freshWindow since our
   // tests shouldn't rely on it
   if (isChrome) {
-    console.log('freshWindow')
     await freshWindow()
-    console.log('freshWindow done')
   }
 
   const url = `http://${deviceIP}:${appPort}${path}`

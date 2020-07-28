@@ -64,7 +64,6 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     ),
   ]
 
-  /*
   if (groupArg) {
     const groupParts = groupArg.split('/')
     const groupPos = parseInt(groupParts[0], 10)
@@ -109,8 +108,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     } else {
       testNames = testNames.splice(offset, numPerGroup)
     }
-  }*/
-  testNames = ['test/integration/invalid-href/test/index.test.js']
+  }
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
   const sema = new Sema(concurrency, { capacity: testNames.length })

@@ -62,10 +62,12 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
 }
 
 const noError = async (pathname, click = false) => {
-  console.log('call webdriver')
   const browser = await webdriver(appPort, '/')
   try {
-    await browser.waitForCondition('!!window.next.router')
+    await check(async () => {
+      const appReady = await browser.eval('!!window.next.router')
+      return appReady ? 'ready' : 'nope'
+    }, 'ready')
     await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
@@ -74,8 +76,8 @@ const noError = async (pathname, click = false) => {
       window.addEventListener('unhandledrejection', function (error) {
         window.caughtErrors.push(error.message || 1)
       })
+      window.next.router.replace('${pathname}')
     })()`)
-    await browser.eval(`window.next.router.replace('${pathname}')`)
     await browser.waitForElementByCss('#click-me')
     if (click) {
       await browser.elementByCss('#click-me').click()
@@ -92,9 +94,7 @@ describe('Invalid hrefs', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      console.log('starting server...')
       app = await launchApp(appDir, appPort)
-      console.log('server started')
     })
     afterAll(() => killApp(app))
 
