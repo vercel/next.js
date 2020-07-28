@@ -1,11 +1,9 @@
 import PropTypes from 'prop-types'
-import React, { useContext, Component } from 'react'
+import React, { useContext, Component, ReactNode } from 'react'
 import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  OPTIMIZED_FONT_PROVIDERS,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
@@ -61,30 +59,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = process.env.__NEXT_PLUGINS
-      ? await import(
-          // @ts-ignore loader syntax
-          'next-plugin-loader?middleware=unstable-enhance-app-server!'
-        ).then((mod) => mod.default(ctx))
-      : []
-
     const enhanceApp = (App: any) => {
-      for (const enhancer of enhancers) {
-        App = enhancer(App)
-      }
       return (props: any) => <App {...props} />
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [
-      ...flush(),
-      ...(process.env.__NEXT_PLUGINS
-        ? await import(
-            // @ts-ignore loader syntax
-            'next-plugin-loader?middleware=unstable-get-styles-server!'
-          ).then((mod) => mod.default(ctx))
-        : []),
-    ]
+    const styles = [...flush()]
     return { html, head, styles }
   }
 
@@ -259,6 +239,24 @@ export class Head extends Component<
         ))
   }
 
+  makeStylesheetInert(node: ReactNode): ReactNode {
+    return React.Children.map(node, (c: any) => {
+      if (
+        c.type === 'link' &&
+        c.props['href'] &&
+        OPTIMIZED_FONT_PROVIDERS.some((url) => c.props['href'].startsWith(url))
+      ) {
+        const newProps = { ...(c.props || {}) }
+        newProps['data-href'] = newProps['href']
+        newProps['href'] = undefined
+        return React.cloneElement(c, newProps)
+      } else if (c.props && c.props['children']) {
+        c.props['children'] = this.makeStylesheetInert(c.props['children'])
+      }
+      return c
+    })
+  }
+
   render() {
     const {
       styles,
@@ -279,10 +277,19 @@ export class Head extends Component<
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
         const isReactHelmet = child?.props?.['data-react-helmet']
-        if (child?.type === 'title' && !isReactHelmet) {
-          console.warn(
-            "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
-          )
+        if (!isReactHelmet) {
+          if (child?.type === 'title') {
+            console.warn(
+              "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
+            )
+          } else if (
+            child?.type === 'meta' &&
+            child?.props?.name === 'viewport'
+          ) {
+            console.warn(
+              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-viewport-meta"
+            )
+          }
         }
         return child
       })
@@ -292,6 +299,10 @@ export class Head extends Component<
         )
     }
 
+    if (process.env.__NEXT_OPTIMIZE_FONTS) {
+      children = this.makeStylesheetInert(children)
+    }
+
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
 
@@ -299,7 +310,6 @@ export class Head extends Component<
     head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
-
       if (inAmpMode) {
         let badProp: string = ''
 
@@ -449,7 +459,9 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {this.getCssLinks()}
+            {process.env.__NEXT_OPTIMIZE_FONTS
+              ? this.makeStylesheetInert(this.getCssLinks())
+              : this.getCssLinks()}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
             {this.context._documentProps.isDevelopment && (
@@ -619,10 +631,9 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
-      const AmpDevFiles = [
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-        CLIENT_STATIC_FILES_RUNTIME_AMP,
-        CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+      const ampDevFiles = [
+        ...buildManifest.devFiles,
+        ...buildManifest.ampDevFiles,
       ]
 
       return (
@@ -643,19 +654,17 @@ export class NextScript extends Component<OriginProps> {
               data-ampdevmode
             />
           )}
-          {AmpDevFiles
-            ? AmpDevFiles.map((file) => (
-                <script
-                  key={file}
-                  src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-                  nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
-                  data-ampdevmode
-                />
-              ))
-            : null}
+          {ampDevFiles.map((file) => (
+            <script
+              key={file}
+              src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+              nonce={this.props.nonce}
+              crossOrigin={
+                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+              }
+              data-ampdevmode
+            />
+          ))}
         </>
       )
     }

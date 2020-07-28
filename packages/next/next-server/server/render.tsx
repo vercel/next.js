@@ -46,6 +46,8 @@ import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
 import { warn } from '../../build/output/log'
+import postProcess from '../lib/post-process'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 
 function noRouter() {
   const message =
@@ -145,6 +147,8 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  optimizeFonts: boolean
+  fontManifest?: FontManifest
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -271,6 +275,7 @@ export async function renderToHTML(
     pageConfig = {},
     Component,
     buildManifest,
+    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -282,6 +287,13 @@ export async function renderToHTML(
     basePath,
     nextExportCommand,
   } = renderOpts
+
+  const getFontDefinition = (url: string): string => {
+    if (fontManifest) {
+      return getFontDefinitionFromManifest(url, fontManifest)
+    }
+    return ''
+  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -353,15 +365,14 @@ export async function renderToHTML(
     pageIsDynamic &&
     didRewrite
   ) {
-    // TODO: add err.sh when rewrites go stable
-    // Behavior might change before then (prefer SSR in this case).
-    // If we decide to ship rewrites to the client we could solve this
-    // by running over the rewrites and getting the params.
+    // TODO: If we decide to ship rewrites to the client we could
+    // solve this by running over the rewrites and getting the params.
     throw new Error(
       `Rewrites don't support${
         isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
-        `Using this will cause the page to fail to parse the params on the client`
+      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
+        `Using this will cause the page to fail to parse the params on the client\n` +
+        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
     )
   }
 
@@ -413,7 +424,11 @@ export async function renderToHTML(
     if (isAutoExport) {
       // remove query values except ones that will be set during export
       query = {
-        amp: query.amp,
+        ...(query.amp
+          ? {
+              amp: query.amp,
+            }
+          : {}),
       }
       req.url = pathname
       renderOpts.nextExport = true
@@ -534,10 +549,10 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'unstable_revalidate' && key !== 'props'
+        (key) => key !== 'revalidate' && key !== 'props'
       )
 
-      if (invalidKeys.includes('revalidate')) {
+      if (invalidKeys.includes('unstable_revalidate')) {
         throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
       }
 
@@ -555,41 +570,41 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.unstable_revalidate === 'number') {
-        if (!Number.isInteger(data.unstable_revalidate)) {
+      if (typeof data.revalidate === 'number') {
+        if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.unstable_revalidate}', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
-                data.unstable_revalidate
+                data.revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.unstable_revalidate <= 0) {
+        } else if (data.revalidate <= 0) {
           throw new Error(
             `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.unstable_revalidate > 31536000) {
+        } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
           console.warn(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.unstable_revalidate === true) {
+      } else if (data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.unstable_revalidate = 1
+        data.revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.unstable_revalidate = false
+        data.revalidate = false
       }
 
       props.pageProps = Object.assign({}, props.pageProps, data.props)
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.unstable_revalidate
+      ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
 
@@ -789,6 +804,16 @@ export async function renderToHTML(
       await renderOpts.ampValidator(html, pathname)
     }
   }
+
+  html = await postProcess(
+    html,
+    {
+      getFontDefinition,
+    },
+    {
+      optimizeFonts: renderOpts.optimizeFonts,
+    }
+  )
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link

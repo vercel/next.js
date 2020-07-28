@@ -4,12 +4,18 @@ description: Extend the default webpack config added by Next.js.
 
 # Custom Webpack Config
 
+Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case:
+
+- [CSS imports](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
+- [CSS modules](/docs/basic-features/built-in-css-support#adding-component-level-css)
+- [Sass/SCSS imports](/docs/basic-features/built-in-css-support#sass-support)
+- [Sass/SCSS modules](/docs/basic-features/built-in-css-support#sass-support)
+- [preact](https://github.com/vercel/next.js/tree/canary/examples/using-preact)
+- [Customizing babel configuration](/docs/advanced-features/customizing-babel-config)
+
 Some commonly asked for features are available as plugins:
 
-- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
-- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
-- [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
+- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
 - [@next/mdx](https://github.com/vercel/next.js/tree/canary/packages/next-mdx)
 - [@next/bundle-analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer)
 
@@ -20,12 +26,8 @@ module.exports = {
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Note: we provide webpack above so you should not `require` it
     // Perform customizations to webpack config
-    // Important: return the modified config
     config.plugins.push(new webpack.IgnorePlugin(/\/__tests__\//))
-    return config
-  },
-  webpackDevMiddleware: (config) => {
-    // Perform customizations to webpack dev middleware config
+
     // Important: return the modified config
     return config
   },
