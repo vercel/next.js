@@ -43,7 +43,7 @@ import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
-import { getPagePath } from './require'
+import { getPagePath, requireFontManifest } from './require'
 import Router, {
   DynamicRoutes,
   PageChecker,
@@ -52,7 +52,6 @@ import Router, {
   route,
   Route,
 } from './router'
-import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -64,6 +63,7 @@ import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
+import { FontManifest } from './font-utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -120,6 +120,8 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
+    optimizeFonts: boolean
+    fontManifest: FontManifest
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -166,6 +168,10 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts,
+      fontManifest: this.nextConfig.experimental.optimizeFonts
+        ? requireFontManifest(this.distDir, this._isLikeServerless)
+        : null,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -220,6 +226,16 @@ export default class Server {
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
+
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targetting both serverless and SSR by calling
+     * `process.env.__NEXT_OPTIMIZE_FONTS`.
+     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+     */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
   }
 
   protected currentPhase(): string {
@@ -813,7 +829,10 @@ export default class Server {
     html: string
   ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+    return sendPayload(req, res, html, 'html', {
+      generateEtags,
+      poweredByHeader,
+    })
   }
 
   public async render(
@@ -996,7 +1015,10 @@ export default class Server {
         res,
         data,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1039,7 +1061,10 @@ export default class Server {
           renderResult = await (components.Component as any).renderReqToHTML(
             req,
             res,
-            'passthrough'
+            'passthrough',
+            {
+              fontManifest: this.renderOpts.fontManifest,
+            }
           )
 
           html = renderResult.html
@@ -1126,7 +1151,10 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
+      sendPayload(req, res, html, 'html', {
+        generateEtags: this.renderOpts.generateEtags,
+        poweredByHeader: this.renderOpts.poweredByHeader,
+      })
       return null
     }
 
@@ -1141,7 +1169,10 @@ export default class Server {
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
