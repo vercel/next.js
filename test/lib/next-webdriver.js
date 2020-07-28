@@ -144,7 +144,7 @@ const freshWindow = async () => {
   console.log('windows closed')
   await browser.switchTo().window(initialWindow)
 
-  console.log('open fresh window')
+  console.log('open fresh window x')
   // now we open a fresh window
   await browser.get(`http://${deviceIP}:${global._newTabPort}`)
 
