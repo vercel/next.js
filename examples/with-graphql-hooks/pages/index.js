@@ -25,6 +25,6 @@ export async function getStaticProps() {
     props: {
       initialGraphQLState: client.cache.getInitialState(),
     },
-    unstable_revalidate: 1,
+    revalidate: 1,
   }
 }
