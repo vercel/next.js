@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { findPort, killApp, launchApp } from 'next-test-utils'
+import { findPort, killApp, launchApp, hasRedbox } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -21,14 +21,16 @@ describe('Clickable error link', () => {
   it('Shows error which is clickable and redirects', async () => {
     const browser = await webdriver(appPort, '/first')
 
-    await browser.eval(`(function () {
-          document.querySelector("nextjs-portal")
-          .shadowRoot
-          .querySelector("#nextjs__container_errors_desc > a").click()
-          })()
-        `)
-    const url = await browser.url()
+    await hasRedbox(browser)
 
+    await browser.eval(`(function () {
+      document.querySelector("nextjs-portal")
+      .shadowRoot
+      .querySelector("#nextjs__container_errors_desc > a").click()
+      })()
+    `)
+
+    const url = await browser.url()
     expect(url).toBe('https://nextjs.org/')
   })
 })
