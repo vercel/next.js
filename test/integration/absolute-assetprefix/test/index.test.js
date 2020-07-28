@@ -116,6 +116,8 @@ describe('absolute assetPrefix with path prefix', () => {
     await browser.waitForElementByCss('#gssp-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('foo')
-    expect(cdnAccessLog).toContain(`/_next/data/${buildId}/gssp.json?prop=foo`)
+    expect(cdnAccessLog).not.toContain(
+      `/_next/data/${buildId}/gssp.json?prop=foo`
+    )
   })
 })
