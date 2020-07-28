@@ -92,7 +92,9 @@ describe('Invalid hrefs', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
+      console.log('starting server...')
       app = await launchApp(appDir, appPort)
+      console.log('server started')
     })
     afterAll(() => killApp(app))
 
