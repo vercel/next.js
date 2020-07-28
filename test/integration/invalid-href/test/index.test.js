@@ -130,7 +130,7 @@ describe('Invalid hrefs', () => {
       )
     })
 
-    it('shows warning when dynamic route mismatch is used on Link', async () => {
+    it.skip('shows warning when dynamic route mismatch is used on Link', async () => {
       await showsError(
         '/dynamic-route-mismatch',
         /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
