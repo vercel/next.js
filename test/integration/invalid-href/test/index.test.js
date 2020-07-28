@@ -9,7 +9,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
-  check,
+  // check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -46,11 +46,11 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
       await browser.elementByCss('#click-me').click()
       await waitFor(500)
     }
-    if (isWarn && !isWarn) {
-      await check(async () => {
-        const warnLogs = await browser.eval('window.warnLogs')
-        return warnLogs.join('\n')
-      }, regex)
+    if (isWarn) {
+      // await check(async () => {
+      //   const warnLogs = await browser.eval('window.warnLogs')
+      //   return warnLogs.join('\n')
+      // }, regex)
     } else {
       expect(await hasRedbox(browser)).toBe(true)
       const errorContent = await getRedboxHeader(browser)
