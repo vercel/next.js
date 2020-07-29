@@ -91,7 +91,7 @@ describe('Clickable error link', () => {
     await hasRedbox(browser)
     const headerText = await getRedboxHeader(browser)
     expect(headerText).toMatch(
-      /Error: This error should be clickable\. https:\/\/nextjs\.org is the best\. Visit https:\/\/nextjs\.org\/docs for documentation/
+      /Error: This error should be clickable\. https:\/\/nextjs\.org is the homepage\. Visit https:\/\/nextjs\.org\/docs for documentation/
     )
   })
 })
