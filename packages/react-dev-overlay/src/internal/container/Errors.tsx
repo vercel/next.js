@@ -62,7 +62,7 @@ function makeClickable(text: string): JSX.Element[] | string {
       return (
         <>
           <a href={word}>{word}</a>
-          {index === array.length - 1 ? ' ' : ''}
+          {index === array.length - 1 ? '' : ' '}
         </>
       )
     }
