@@ -26,7 +26,7 @@ import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
-import mitt, { MittEmitter } from '../lib/mitt'
+import mitt from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
@@ -61,7 +61,7 @@ class ServerRouter implements NextRouter {
   events: any
   isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
-  static events: MittEmitter = mitt()
+  static events = mitt<string>()
 
   constructor(
     pathname: string,

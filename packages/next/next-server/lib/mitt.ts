@@ -15,29 +15,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // See the LICENSE at the top of the file
 
 type Handler = (...evts: any[]) => void
-
-export type MittEmitter = {
-  on(type: string, handler: Handler): void
-  off(type: string, handler: Handler): void
-  emit(type: string, ...evts: any[]): void
-}
-
-export default function mitt(): MittEmitter {
-  const all: { [s: string]: Handler[] } = Object.create(null)
-
+export default function mitt<T extends string>() {
+  const all: Record<T, Handler[]> = Object.create(null)
   return {
-    on(type: string, handler: Handler) {
+    on(type: T, handler: Handler) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
-
-    off(type: string, handler: Handler) {
+    off(type: T, handler: Handler) {
       if (all[type]) {
         // tslint:disable-next-line:no-bitwise
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
       }
     },
-
-    emit(type: string, ...evts: any[]) {
+    emit(type: T, ...evts: any[]) {
       // eslint-disable-next-line array-callback-return
       ;(all[type] || []).slice().map((handler: Handler) => {
         handler(...evts)

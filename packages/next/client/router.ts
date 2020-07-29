@@ -1,6 +1,9 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../next-server/lib/router/router'
+import Router, {
+  NextRouter,
+  RouterEvent,
+} from '../next-server/lib/router/router'
 import { RouterContext } from '../next-server/lib/router-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
@@ -12,14 +15,6 @@ type SingletonRouterBase = {
   readyCallbacks: Array<() => any>
   ready(cb: () => any): void
 }
-
-type RouterEvent =
-  | 'routeChangeStart'
-  | 'beforeHistoryChange'
-  | 'routeChangeComplete'
-  | 'routeChangeError'
-  | 'hashChangeStart'
-  | 'hashChangeComplete'
 
 export { Router, NextRouter }
 

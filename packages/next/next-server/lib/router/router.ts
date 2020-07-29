@@ -3,7 +3,7 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
-import mitt, { MittEmitter } from '../mitt'
+import mitt from '../mitt'
 import {
   AppContextType,
   formatWithValidation,
@@ -108,6 +108,14 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
   >
 
+export type RouterEvent =
+  | 'routeChangeStart'
+  | 'beforeHistoryChange'
+  | 'routeChangeComplete'
+  | 'routeChangeError'
+  | 'hashChangeStart'
+  | 'hashChangeComplete'
+
 export type PrefetchOptions = {
   priority?: boolean
 }
@@ -189,13 +197,15 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter
+  // Backwards compat for Router.router.events
+  // TODO: Should be remove the following major version as it was never documented
+  events = Router.events
   _wrapApp: (App: ComponentType) => any
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
 
-  static events: MittEmitter = mitt()
+  static events = mitt<RouterEvent>()
 
   constructor(
     pathname: string,
@@ -240,10 +250,6 @@ export default class Router implements BaseRouter {
     }
 
     this.components['/_app'] = { Component: App }
-
-    // Backwards compat for Router.router.events
-    // TODO: Should be remove the following major version as it was never documented
-    this.events = Router.events
 
     this.pageLoader = pageLoader
     this.pathname = pathname
