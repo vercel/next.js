@@ -4,7 +4,7 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
-<details>
+<details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/rewrites">Rewrites</a></li>
