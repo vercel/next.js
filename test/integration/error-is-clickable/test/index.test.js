@@ -1,6 +1,12 @@
 /* eslint-env jest */
 
-import { findPort, killApp, launchApp, hasRedbox } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  hasRedbox,
+  getRedboxHeader,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -32,5 +38,14 @@ describe('Clickable error link', () => {
 
     const url = await browser.url()
     expect(url).toBe('https://nextjs.org/')
+  })
+
+  it('Shows error message correctly', async () => {
+    const browser = await webdriver(appPort, '/first')
+    await hasRedbox(browser)
+    const headerText = await getRedboxHeader(browser)
+    expect(headerText).toMatch(
+      /Error: This error should be clickable\. https:\/\/nextjs\.org is the best/
+    )
   })
 })
