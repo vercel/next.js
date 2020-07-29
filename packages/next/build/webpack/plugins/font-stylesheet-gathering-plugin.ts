@@ -15,7 +15,7 @@ interface VisitorMap {
   [key: string]: (path: NodePath) => void
 }
 
-export default class FontStylesheetGatheringPlugin {
+export class FontStylesheetGatheringPlugin {
   compiler?: Compiler
   gatheredStylesheets: Array<string> = []
 
