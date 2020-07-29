@@ -696,11 +696,21 @@ export default class Router implements BaseRouter {
         }
       }
 
+      let dataHref: string | undefined
+
+      if (__N_SSG || __N_SSP) {
+        dataHref = this.pageLoader.getDataHref(
+          formatWithValidation({ pathname, query }),
+          as,
+          __N_SSG
+        )
+      }
+
       const props = await this._getData<RouteInfo>(() =>
         __N_SSG
-          ? this._getStaticData(pathname, query, as)
+          ? this._getStaticData(dataHref!)
           : __N_SSP
-          ? this._getServerData(pathname, query, as)
+          ? this._getServerData(dataHref!)
           : this.getInitialProps(
               Component,
               // we provide AppTree later so this needs to be `any`
@@ -864,16 +874,7 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData(
-    pathname: string,
-    query: ParsedUrlQuery,
-    as: string
-  ): Promise<object> {
-    const dataHref = this.pageLoader.getDataHref(
-      formatWithValidation({ pathname, query }),
-      as,
-      true
-    )
+  _getStaticData(dataHref: string): Promise<object> {
     const { href: cacheKey } = new URL(dataHref, window.location.href)
     if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
       return Promise.resolve(this.sdc[cacheKey])
@@ -884,17 +885,8 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getServerData(
-    pathname: string,
-    query: ParsedUrlQuery,
-    as: string
-  ): Promise<object> {
-    const dataHref = this.pageLoader.getDataHref(
-      formatWithValidation({ pathname, query }),
-      as,
-      false
-    )
-    return fetchNextData(addBasePath(dataHref), this.isSsr)
+  _getServerData(dataHref: string): Promise<object> {
+    return fetchNextData(dataHref, this.isSsr)
   }
 
   getInitialProps(
