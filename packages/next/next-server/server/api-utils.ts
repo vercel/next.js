@@ -68,7 +68,8 @@ export async function apiResolver(
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
-    apiRes.redirect = (statusOrUrl, url) => redirect(apiRes, statusOrUrl, url)
+    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
+      redirect(apiRes, statusOrUrl, url)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
