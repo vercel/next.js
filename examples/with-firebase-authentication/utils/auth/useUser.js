@@ -22,7 +22,6 @@ const useUser = () => {
       .signOut()
       .then(() => {
         // Sign-out successful.
-        setUser()
         router.push('/auth')
       })
       .catch((e) => {
@@ -41,6 +40,7 @@ const useUser = () => {
         setUser(userData)
       } else {
         removeUserCookie()
+        setUser()
       }
     })
 
