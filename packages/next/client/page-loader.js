@@ -63,10 +63,9 @@ function appendLink(href, rel, as) {
 }
 
 export default class PageLoader {
-  constructor(buildId, assetPrefix, basePath, initialPage) {
+  constructor(buildId, assetPrefix, initialPage) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
-    this.basePath = basePath
 
     this.pageCache = {}
     this.pageRegisterEvents = mitt()
@@ -128,7 +127,7 @@ export default class PageLoader {
 
     const getHrefForSlug = (/** @type string */ path) => {
       const dataRoute = getAssetPathFromRoute(path, '.json')
-      return `${ssg ? this.assetPrefix : this.basePath}/_next/data/${
+      return `${ssg ? this.assetPrefix : ''}/_next/data/${
         this.buildId
       }${dataRoute}${ssg ? '' : search || ''}`
     }

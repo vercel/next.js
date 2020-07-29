@@ -9,7 +9,7 @@ import { RouterContext } from '../next-server/lib/router-context'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
-import { delBasePath, basePath } from '../next-server/lib/router/router'
+import { delBasePath } from '../next-server/lib/router/router'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -63,7 +63,7 @@ if (
   asPath = delBasePath(asPath)
 }
 
-const pageLoader = new PageLoader(buildId, prefix, basePath, page)
+const pageLoader = new PageLoader(buildId, prefix, page)
 const register = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
