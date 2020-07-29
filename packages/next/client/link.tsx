@@ -166,14 +166,15 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const [childElm, setChildElm] = React.useState<Element>()
 
   const router = useRouter()
+  const pathname = (router && router.pathname) || '/'
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(router.pathname, props.href)
+    const resolvedHref = resolveHref(pathname, props.href)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(router.pathname, props.as) : resolvedHref,
+      as: props.as ? resolveHref(pathname, props.as) : resolvedHref,
     }
-  }, [router.pathname, props.href, props.as])
+  }, [pathname, props.href, props.as])
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
