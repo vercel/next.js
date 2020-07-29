@@ -3,7 +3,7 @@
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="/examples/with-zones">With Zones</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-zones">With Zones</a></li>
   </ul>
 </details>
 
