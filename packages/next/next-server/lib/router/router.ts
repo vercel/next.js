@@ -367,7 +367,7 @@ export default class Router implements BaseRouter {
         )
       }
     }
-    this.change('replaceState', url, as, options)
+    this.change('replaceState', delBasePath(url), delBasePath(as), options)
   }
 
   update(route: string, mod: any) {
@@ -413,7 +413,6 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as: Url = url, options = {}) {
-    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -424,16 +423,16 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as: Url = url, options = {}) {
-    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
 
   async change(
     method: HistoryMethod,
-    url: string,
-    as: string,
+    urlIn: Url,
+    asIn: Url,
     options: any
   ): Promise<boolean> {
+    let { url, as } = prepareUrlAs(this, urlIn, asIn)
     if (!options._h) {
       this.isSsr = false
     }
