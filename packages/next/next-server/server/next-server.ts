@@ -479,25 +479,40 @@ export default class Server {
       if (!value.includes(':')) {
         return value
       }
-      const { parsedDestination } = prepareDestination(
-        value,
-        params,
-        {},
-        false,
-        ''
-      )
 
-      if (
-        !parsedDestination.pathname ||
-        !parsedDestination.pathname.startsWith('/')
-      ) {
-        // the value needs to start with a forward-slash to be compiled
-        // correctly
-        return compilePathToRegex(`/${value}`, { validate: false })(
-          params
-        ).substr(1)
+      for (const key of Object.keys(params)) {
+        if (value.includes(`:${key}`)) {
+          value = value
+            .replace(
+              new RegExp(`:${key}\\*`, 'g'),
+              `:${key}--ESCAPED_PARAM_ASTERISKS`
+            )
+            .replace(
+              new RegExp(`:${key}\\?`, 'g'),
+              `:${key}--ESCAPED_PARAM_QUESTION`
+            )
+            .replace(
+              new RegExp(`:${key}\\+`, 'g'),
+              `:${key}--ESCAPED_PARAM_PLUS`
+            )
+            .replace(
+              new RegExp(`:${key}(?!\\w)`, 'g'),
+              `--ESCAPED_PARAM_COLON${key}`
+            )
+        }
       }
-      return formatUrl(parsedDestination)
+      value = value
+        .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+        .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+        .replace(/--ESCAPED_PARAM_COLON/g, ':')
+        .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+        .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      return compilePathToRegex(`/${value}`, { validate: false })(
+        params
+      ).substr(1)
     }
 
     // Headers come very first
