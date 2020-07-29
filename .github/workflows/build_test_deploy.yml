@@ -105,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - run: cat package.json | jq '.resolutions.webpack = "^5.0.0-beta.22"' | sponge package.json
+      - run: cat package.json | jq '.resolutions.webpack = "^5.0.0-beta.22"' > package.json.tmp && mv package.json.tmp package.json
       - run: yarn install --check-files
       - run: node run-tests.js test/integration/production/test/index.test.js
       - run: node run-tests.js test/integration/basic/test/index.test.js
