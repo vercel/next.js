@@ -92,3 +92,5 @@ module.exports = {
   },
 }
 ```
+
+In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Note: to ensure IE11 compatibility a `Refresh` header is automatically added for the 308 status code.
