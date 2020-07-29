@@ -56,7 +56,6 @@ const groupByLabels = async (commits, github) => {
 
   for (const commit of commits) {
     const pullRequest = await getCommitPullRequest(commit, github)
-    console.log({ pullRequest })
 
     if (pullRequest) {
       const section = getSectionForPullRequest(pullRequest)
