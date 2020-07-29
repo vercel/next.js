@@ -53,7 +53,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-function makeClickable(text) {
+function makeClickable(text: string): JSX.Element[] | string {
   // Regex Checks for http:// or https://
   const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/gi
   if (!linkRegex.test(text)) return text
