@@ -6,6 +6,7 @@ import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/querys
 import { parseRelativeUrl } from './../next-server/lib/router/utils/parse-relative-url'
 import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
+import { addBasePath } from '../next-server/lib/router/router'
 
 function hasRel(rel, link) {
   try {
@@ -30,6 +31,12 @@ const relPrefetch =
       'prefetch'
 
 const hasNoModule = 'noModule' in document.createElement('script')
+
+const requestIdleCallback =
+  window.requestIdleCallback ||
+  function (cb) {
+    return setTimeout(cb, 1)
+  }
 
 /** @param {string} route */
 function normalizeRoute(route) {
@@ -121,9 +128,9 @@ export default class PageLoader {
 
     const getHrefForSlug = (/** @type string */ path) => {
       const dataRoute = getAssetPathFromRoute(path, '.json')
-      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}${
-        ssg ? '' : search || ''
-      }`
+      return addBasePath(
+        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
+      )
     }
 
     let isDynamic = isDynamicRoute(route),
@@ -184,19 +191,20 @@ export default class PageLoader {
   prefetchData(href, asPath) {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
-    return this.promisedSsgManifest.then(
-      (s, _dataHref) =>
+    return this.promisedSsgManifest.then((s, _dataHref) => {
+      requestIdleCallback(() => {
         // Check if the route requires a data file
         s.has(route) &&
-        // Try to generate data href, noop when falsy
-        (_dataHref = this.getDataHref(href, asPath, true)) &&
-        // noop when data has already been prefetched (dedupe)
-        !document.querySelector(
-          `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
-        ) &&
-        // Inject the `<link rel=prefetch>` tag for above computed `href`.
-        appendLink(_dataHref, relPrefetch, 'fetch')
-    )
+          // Try to generate data href, noop when falsy
+          (_dataHref = this.getDataHref(href, asPath, true)) &&
+          // noop when data has already been prefetched (dedupe)
+          !document.querySelector(
+            `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
+          ) &&
+          // Inject the `<link rel=prefetch>` tag for above computed `href`.
+          appendLink(_dataHref, relPrefetch, 'fetch')
+      })
+    })
   }
 
   loadPage(route) {
