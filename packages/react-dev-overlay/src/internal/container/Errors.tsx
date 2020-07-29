@@ -61,7 +61,7 @@ function makeClickable(text: string): JSX.Element[] | string {
     if (linkRegex.test(word)) {
       return (
         <>
-          <a href={word}>{word}</a>
+          <a href={word}>{word} </a>
           {index === array.length - 1 ? ' ' : ''}
         </>
       )
