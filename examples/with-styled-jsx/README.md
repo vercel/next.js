@@ -1,6 +1,6 @@
 # styled-jsx example
 
-Next.js ships with [styled-jsx](https://github.com/vercel/styled-jsx) allowing you to write scope styled components with full css support. This is important for the modularity and code size of your bundles and also for the learning curve of the framework. If you know css you can write styled-jsx right away.
+Next.js ships with [styled-jsx](https://github.com/vercel/styled-jsx) allowing you to write scoped styled components with full CSS support. This is important for the modularity and code size of your bundles and also for the learning curve of the framework. If you know CSS you can write `styled-jsx` right away.
 
 ## Deploy your own
 
