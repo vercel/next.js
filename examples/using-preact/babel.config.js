@@ -1,3 +1,3 @@
 module.exports = {
-  presets: ['@babel/preset-env']
+  presets: ['next/babel']
 };
