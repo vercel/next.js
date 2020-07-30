@@ -5,7 +5,7 @@ export type DialogProps = {
   type: 'error' | 'warning'
   'aria-labelledby': string
   'aria-describedby': string
-  onClose: (e: MouseEvent | TouchEvent) => void
+  onClose?: (e: MouseEvent | TouchEvent) => void
 }
 
 const Dialog: React.FC<DialogProps> = function Dialog({
