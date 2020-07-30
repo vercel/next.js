@@ -53,21 +53,33 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-function makeClickable(text: string): JSX.Element[] | string {
-  // Regex Checks for http:// or https://
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/gi
-  if (!linkRegex.test(text)) return text
-  return text.split(' ').map((word, index, array) => {
-    if (linkRegex.test(word)) {
-      return (
-        <>
-          <a href={word}>{word}</a>
-          {index === array.length - 1 ? '' : ' '}
-        </>
-      )
-    }
-    return index === array.length - 1 ? <>{word}</> : <>{word} </>
-  })
+const HotlinkedText: React.FC<{
+  text: string
+}> = function HotlinkedText(props) {
+  const { text } = props
+
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/i
+  return (
+    <>
+      {linkRegex.test(text)
+        ? text.split(' ').map((word, index, array) => {
+            if (linkRegex.test(word)) {
+              return (
+                <React.Fragment key={`link-${index}`}>
+                  <a href={word}>{word}</a>
+                  {index === array.length - 1 ? '' : ' '}
+                </React.Fragment>
+              )
+            }
+            return index === array.length - 1 ? (
+              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
+            ) : (
+              <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
+            )
+          })
+        : text}
+    </>
+  )
 }
 
 async function getErrorByType(
@@ -260,7 +272,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
             </h1>
             <p id="nextjs__container_errors_desc">
               {activeError.error.name}:{' '}
-              {makeClickable(activeError.error.message)}
+              <HotlinkedText text={activeError.error.message} />
             </p>
             {isServerError ? (
               <div>
