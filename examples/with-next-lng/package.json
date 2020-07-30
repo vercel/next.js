@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@mies-co/next-lng": "^0.0.9",
+    "@mies-co/next-lng": "^0.0.23",
     "next": "canary",
     "react": "^16.13.0",
     "react-dom": "^16.13.0"
