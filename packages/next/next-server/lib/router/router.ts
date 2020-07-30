@@ -267,14 +267,14 @@ export default class Router implements BaseRouter {
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//') {
+      const browserUrl = getURL()
+      if (as.substr(0, 2) !== '//' && browserUrl.startsWith(basePath)) {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
-
         this.changeState(
           'replaceState',
-          formatWithValidation({ pathname: addBasePath(pathname), query }),
-          getURL()
+          formatWithValidation({ pathname, query }),
+          delBasePath(browserUrl)
         )
       }
 
@@ -336,8 +336,8 @@ export default class Router implements BaseRouter {
       const { pathname, query } = this
       this.changeState(
         'replaceState',
-        formatWithValidation({ pathname: addBasePath(pathname), query }),
-        getURL()
+        formatWithValidation({ pathname, query }),
+        delBasePath(getURL())
       )
       return
     }
@@ -368,7 +368,7 @@ export default class Router implements BaseRouter {
         )
       }
     }
-    this.change('replaceState', delBasePath(url), delBasePath(as), options)
+    this.change('replaceState', url, as, options)
   }
 
   update(route: string, mod: any) {
@@ -434,7 +434,6 @@ export default class Router implements BaseRouter {
     options: any
   ): Promise<boolean> {
     let { url, as } = prepareUrlAs(this.pathname, urlIn, asIn)
-    const browserUrl = addBasePath(url)
     let browserAs = addBasePath(as)
 
     if (!options._h) {
@@ -471,7 +470,7 @@ export default class Router implements BaseRouter {
     if (!options._h && this.onlyAHashChange(as)) {
       this.asPath = as
       Router.events.emit('hashChangeStart', browserAs)
-      this.changeState(method, browserUrl, browserAs, options)
+      this.changeState(method, url, as, options)
       this.scrollToHash(as)
       Router.events.emit('hashChangeComplete', browserAs)
       return true
@@ -538,7 +537,7 @@ export default class Router implements BaseRouter {
       const { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', browserAs)
-      this.changeState(method, browserUrl, browserAs, options)
+      this.changeState(method, url, as, options)
 
       if (process.env.NODE_ENV !== 'production') {
         const appComp: any = this.components['/_app'].Component
@@ -600,7 +599,7 @@ export default class Router implements BaseRouter {
         // Passing the empty string here should be safe against future changes to the method.
         // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
         '',
-        as
+        addBasePath(as)
       )
     }
   }
