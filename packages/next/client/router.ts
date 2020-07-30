@@ -88,7 +88,7 @@ coreMethodFields.forEach((field) => {
 
 routerEvents.forEach((event) => {
   singletonRouter.ready(() => {
-    Router.events.on(event, (...args) => {
+    Router.events.on(event, (...args: any[]) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
         1
       )}`
