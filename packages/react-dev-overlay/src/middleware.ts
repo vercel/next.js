@@ -17,7 +17,7 @@ import { launchEditor } from './internal/helpers/launchEditor'
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
   stats(): webpack.Stats | null
-  serverStats(): webpack.Statsn | null
+  serverStats(): webpack.Stats | null
 }
 
 export type OriginalStackFrameResponse = {
