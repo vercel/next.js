@@ -4,6 +4,8 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
+> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
