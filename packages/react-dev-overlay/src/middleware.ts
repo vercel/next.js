@@ -98,6 +98,10 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const compilation = isServerSide
         ? options.serverStats()?.compilation
         : options.stats()?.compilation
+      if (compilation == null) {
+        return null
+      }
+
       const module = [...compilation.modules].find(
         (searchModule) => searchModule.id === id
       )
