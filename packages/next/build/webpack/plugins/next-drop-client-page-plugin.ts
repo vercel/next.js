@@ -15,6 +15,53 @@ export const ampFirstEntryNamesMap: WeakMap<
 
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
+// Recursively look up the issuer till it ends up at the root
+function findEntryModule(
+  compilation: any,
+  mod: any
+): CompilationType.Module | null {
+  const queue = new Set([mod])
+  for (const module of queue) {
+    if (isWebpack5) {
+      // @ts-ignore TODO: webpack 5 types
+      const incomingConnections = compilation.moduleGraph.getIncomingConnections(
+        module
+      )
+
+      for (const incomingConnection of incomingConnections) {
+        if (!incomingConnection.originModule) return module
+        queue.add(incomingConnection.originModule)
+      }
+      continue
+    }
+
+    for (const reason of module.reasons) {
+      if (!reason.module) return module
+      queue.add(reason.module)
+    }
+  }
+
+  return null
+}
+
+// Add metadata onto the entry module for any given module.
+// Allows for pushing up metadata to the entrypoint that can be reused later.
+function addEntryModuleMetaData(
+  compilation: any,
+  module: any,
+  key: string,
+  value: any
+) {
+  const entryModule = findEntryModule(compilation, module)
+
+  if (!entryModule) {
+    return
+  }
+
+  // @ts-ignore buildInfo exists on Module
+  entryModule.buildInfo[key] = value
+}
+
 // Prevents outputting client pages when they are not needed
 export class DropClientPage implements Plugin {
   ampPages = new Set()
@@ -23,48 +70,16 @@ export class DropClientPage implements Plugin {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
-        // Recursively look up the issuer till it ends up at the root
-        function findEntryModule(mod: any): CompilationType.Module | null {
-          const queue = new Set([mod])
-          for (const module of queue) {
-            if (isWebpack5) {
-              // @ts-ignore TODO: webpack 5 types
-              const incomingConnections = compilation.moduleGraph.getIncomingConnections(
-                module
-              )
-
-              for (const incomingConnection of incomingConnections) {
-                if (!incomingConnection.originModule) return module
-                queue.add(incomingConnection.originModule)
-              }
-              continue
-            }
-
-            for (const reason of module.reasons) {
-              if (!reason.module) return module
-              queue.add(reason.module)
-            }
-          }
-
-          return null
-        }
-
         function handler(parser: any) {
-          function markAsAmpFirst() {
-            const entryModule = findEntryModule(parser.state.module)
-
-            if (!entryModule) {
-              return
-            }
-
-            // @ts-ignore buildInfo exists on Module
-            entryModule.buildInfo.NEXT_ampFirst = true
-          }
-
           if (isWebpack5) {
             parser.hooks.preDeclarator.tap(PLUGIN_NAME, (declarator: any) => {
               if (declarator?.id?.name === STRING_LITERAL_DROP_BUNDLE) {
-                markAsAmpFirst()
+                addEntryModuleMetaData(
+                  compilation,
+                  parser.state.module,
+                  'NEXT_ampFirst',
+                  true
+                )
               }
             })
             return
