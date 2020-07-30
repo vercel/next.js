@@ -2,9 +2,8 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
-  Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
-  sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
 * {
@@ -87,8 +86,8 @@ code {
   border-radius: 5px;
   padding: 0.75rem;
   font-size: 1.1rem;
-  font-family: Menlo, Monaco, Lucida Console, Liberation Mono,
-  DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
+  font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono,
+    Bitstream Vera Sans Mono, Courier New, monospace;
 }
 
 .grid {
@@ -114,10 +113,10 @@ code {
 }
 
 .logo {
-  width: 5.0em;
+  width: 5em;
 }
 
-.upvotediv{
+.upvotediv {
   color: #0070f3;
   float: right;
   font-size: 1.9rem;
@@ -130,7 +129,7 @@ code {
 .upvotediv:hover,
 .upvotediv:focus,
 .upvotediv:active {
-  color: #E40D34;
+  color: #e40d34;
 }
 
 .noborder {
