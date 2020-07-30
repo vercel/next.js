@@ -209,7 +209,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
-  if (errors.length < 1) {
+  if (errors.length < 1 || activeError == null) {
     return null
   }
 
@@ -252,14 +252,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
         type="error"
         aria-labelledby="nextjs__container_errors_label"
         aria-describedby="nextjs__container_errors_desc"
-        onClose={!isServerError && minimize}
+        onClose={isServerError ? undefined : minimize}
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={!isServerError && minimize}
+              close={isServerError ? undefined : minimize}
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
