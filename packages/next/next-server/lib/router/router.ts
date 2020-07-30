@@ -205,7 +205,7 @@ export default class Router implements BaseRouter {
   isFallback: boolean
   _inFlightRoute?: string
 
-  static events = mitt<RouterEvent>()
+  static events = mitt<RouterEvent, (url: string) => void>()
 
   constructor(
     pathname: string,
