@@ -9,13 +9,20 @@ import {
 } from '../../../next-server/server/font-utils'
 // @ts-ignore
 import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
-import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
+import {
+  FONT_MANIFEST,
+  OPTIMIZED_FONT_PROVIDERS,
+} from '../../../next-server/lib/constants'
+
+const NormalModule = require('webpack/lib/NormalModule')
+const JsonParser = require('webpack/lib/JsonParser')
+const JsonGenerator = require('webpack/lib/JsonGenerator')
 
 interface VisitorMap {
   [key: string]: (path: NodePath) => void
 }
 
-export default class FontStylesheetGatheringPlugin {
+export class FontStylesheetGatheringPlugin {
   compiler?: Compiler
   gatheredStylesheets: Array<string> = []
 
@@ -95,6 +102,79 @@ export default class FontStylesheetGatheringPlugin {
     }
   }
 
+  private getFontManifestPath(compilation: CompilationType.Compilation) {
+    /// @ts-ignore
+    return `${compilation.options.output.path}/${FONT_MANIFEST}`
+  }
+
+  /**
+   * Creates a fake JSON module for serverless case.
+   * This is used because at the time of next-serverless compilation the font-manifest is not available on disk.
+   */
+  private createFakeModule(compilation: CompilationType.Compilation) {
+    const filePath = this.getFontManifestPath(compilation)
+    return new NormalModule({
+      type: 'json',
+      parser: new JsonParser({}),
+      generator: new JsonGenerator(),
+      loaders: [],
+      rawRequest: 'private-dot-next/serverless/font-manifest.json',
+      request: filePath,
+      userRequest: filePath,
+      resource: filePath,
+    })
+  }
+
+  private buildFakeModule(
+    fakeJSONModule: any,
+    compilation: CompilationType.Compilation,
+    moduleContent: string
+  ) {
+    /**
+     * Pathching the file system because it will try to look for
+     * the file on disk as soon as we request a "build" for the module.
+     * Note: We cannot just patch the filesystem in the very beginning
+     * and supply a dummy response because we dont have the response at the beginning.
+     */
+    const fs = compilation.inputFileSystem
+    const readFile = fs.readFile.bind(fs)
+    /// @ts-ignore
+    fs.readFile = (path, callback) => {
+      console.log({ path })
+      if (path === fakeJSONModule.resource) {
+        return callback(undefined, moduleContent)
+      }
+      readFile(path, callback)
+    }
+
+    /**
+     * Start build for the module
+     */
+    fakeJSONModule.build(
+      {},
+      compilation,
+      compilation.resolverFactory.get(),
+      fs,
+      () => {
+        /// @ts-ignore
+        compilation.addModule(fakeJSONModule)
+        const pageModules = compilation.modules.filter(
+          (module) =>
+            module.rawRequest &&
+            module.rawRequest.startsWith('next-serverless-loader?page=')
+        )
+        pageModules.forEach((pageModule) => {
+          pageModule.dependencies.find(
+            (module: any) =>
+              module.request &&
+              module.request ===
+                'private-dot-next/serverless/font-manifest.json'
+          ).module = fakeJSONModule
+        })
+      }
+    )
+  }
+
   public apply(compiler: Compiler) {
     this.compiler = compiler
     compiler.hooks.normalModuleFactory.tap(
@@ -119,6 +199,16 @@ export default class FontStylesheetGatheringPlugin {
           compilation.assets['font-manifest.json'] = new RawSource(
             JSON.stringify(manifestContent, null, '  ')
           )
+
+          /// @ts-ignore
+          if (!compilation.findModule(this.getFontManifestPath(compilation))) {
+            const fakeJSONModule = this.createFakeModule(compilation)
+            this.buildFakeModule(
+              fakeJSONModule,
+              compilation,
+              JSON.stringify(manifestContent, null, '  ')
+            )
+          }
           modulesFinished()
         }
       )
