@@ -18,17 +18,27 @@ type Listeners = {
   [K in keyof EventMap]?: Array<(p: EventMap[K]) => void>
 }
 
-type EventMap = Record<string, any>
-type EventKey<T extends EventMap> = string & keyof T
-type EventReceiver<T> = (params: T) => void
+type ArgumentTypes<F extends Function> = F extends (...args: infer A) => any
+  ? A
+  : never
 
-interface Emitter<T extends EventMap> {
-  on<K extends EventKey<T>>(eventName: K, fn: EventReceiver<T[K]>): void
-  off<K extends EventKey<T>>(eventName: K, fn: EventReceiver<T[K]>): void
-  emit<K extends EventKey<T>>(eventName: K, params: T[K]): void
+type EventMap = Record<string, any>
+type EventHandlersMap = Record<string, any>
+type EventKey<T extends EventMap> = string & keyof T
+
+interface Emitter<T extends EventMap, H extends Record<string, any>> {
+  on<K extends EventKey<T>>(eventName: K, fn: H[K]): void
+  off<K extends EventKey<T>>(eventName: K, fn: H[K]): void
+  emit<K extends EventKey<T>>(
+    eventName: K,
+    ...params: ArgumentTypes<H[K]>
+  ): void
 }
 
-export default function mitt<T extends EventMap>(): Emitter<T> {
+export default function mitt<
+  T extends EventMap,
+  H extends EventHandlersMap
+>(): Emitter<T, H> {
   const all: Listeners = Object.create(null)
 
   return {

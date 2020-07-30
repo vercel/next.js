@@ -116,6 +116,16 @@ export type RouterEvent =
   | 'hashChangeStart'
   | 'hashChangeComplete'
 
+export type RouterEventMap = Record<RouterEvent, any>
+type RouterHandlersMap = {
+  routeChangeStart: (url: string) => void
+  beforeHistoryChange: (url: string) => void
+  routeChangeComplete: (url: string) => void
+  routeChangeError: (err: any, url: string) => void
+  hashChangeStart: (url: string) => void
+  hashChangeComplete: (url: string) => void
+}
+
 export type PrefetchOptions = {
   priority?: boolean
 }
@@ -205,7 +215,7 @@ export default class Router implements BaseRouter {
   isFallback: boolean
   _inFlightRoute?: string
 
-  static events = mitt<RouterEvent, (url: string) => void>()
+  static events = mitt<RouterEventMap, RouterHandlersMap>()
 
   constructor(
     pathname: string,
