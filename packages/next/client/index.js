@@ -57,6 +57,7 @@ if (
   !(
     page === '/_error' &&
     hydrateProps &&
+    hydrateProps.pageProps &&
     hydrateProps.pageProps.statusCode === '404'
   )
 ) {
