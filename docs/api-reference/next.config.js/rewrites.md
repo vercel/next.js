@@ -4,6 +4,13 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/rewrites">Rewrites</a></li>
+  </ul>
+</details>
+
 Rewrites allow you to map an incoming request path to a different destination path.
 
 Rewrites are only available on the Node.js environment and do not affect client-side routing.
@@ -56,6 +63,23 @@ module.exports = {
       {
         source: '/blog/:slug*',
         destination: '/news/:slug*', // Matched parameters can be used in the destination
+      },
+    ]
+  },
+}
+```
+
+### Regex Path Matching
+
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/old-blog/:post(\\d{1,})',
+        destination: '/blog/:post', // Matched parameters can be used in the destination
       },
     ]
   },

@@ -53,6 +53,35 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
+const HotlinkedText: React.FC<{
+  text: string
+}> = function HotlinkedText(props) {
+  const { text } = props
+
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/i
+  return (
+    <>
+      {linkRegex.test(text)
+        ? text.split(' ').map((word, index, array) => {
+            if (linkRegex.test(word)) {
+              return (
+                <React.Fragment key={`link-${index}`}>
+                  <a href={word}>{word}</a>
+                  {index === array.length - 1 ? '' : ' '}
+                </React.Fragment>
+              )
+            }
+            return index === array.length - 1 ? (
+              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
+            ) : (
+              <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
+            )
+          })
+        : text}
+    </>
+  )
+}
+
 async function getErrorByType(
   ev: SupportedErrorEvent
 ): Promise<ReadyErrorEvent> {
@@ -180,7 +209,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
-  if (errors.length < 1) {
+  if (errors.length < 1 || activeError == null) {
     return null
   }
 
@@ -223,14 +252,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
         type="error"
         aria-labelledby="nextjs__container_errors_label"
         aria-describedby="nextjs__container_errors_desc"
-        onClose={minimize}
+        onClose={isServerError ? undefined : minimize}
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={minimize}
+              close={isServerError ? undefined : minimize}
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
@@ -242,7 +271,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
             <p id="nextjs__container_errors_desc">
-              {activeError.error.name}: {activeError.error.message}
+              {activeError.error.name}:{' '}
+              <HotlinkedText text={activeError.error.message} />
             </p>
             {isServerError ? (
               <div>
@@ -291,6 +321,9 @@ export const styles = css`
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
+  }
+  .nextjs-container-errors-header > p > a {
+    color: var(--color-ansi-red);
   }
 
   .nextjs-container-errors-body > h5:not(:first-child) {

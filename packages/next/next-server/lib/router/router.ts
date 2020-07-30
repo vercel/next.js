@@ -341,7 +341,11 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const { url, as, options } = e.state
+    const { url, as, options, __N } = e.state
+    if (!__N) {
+      // this history state wasn't created by next.js so it can be ignored
+      return
+    }
     const { pathname } = parseRelativeUrl(url)
 
     // Make sure we don't re-render on initial load,
@@ -596,6 +600,7 @@ export default class Router implements BaseRouter {
           url,
           as,
           options,
+          __N: true,
         },
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
@@ -802,28 +807,27 @@ export default class Router implements BaseRouter {
    * @param url the href of prefetched page
    * @param asPath the as path of the prefetched page
    */
-  prefetch(
+  async prefetch(
     url: string,
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const parsed = tryParseRelativeUrl(url)
+    const parsed = tryParseRelativeUrl(url)
 
-      if (!parsed) return
+    if (!parsed) return
 
-      const { pathname } = parsed
+    const { pathname } = parsed
 
-      // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') {
-        return
-      }
-      const route = removePathTrailingSlash(pathname)
-      Promise.all([
-        this.pageLoader.prefetchData(url, asPath),
-        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
-      ]).then(() => resolve(), reject)
-    })
+    // Prefetch is not supported in development mode because it would trigger on-demand-entries
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
+
+    const route = removePathTrailingSlash(pathname)
+    await Promise.all([
+      this.pageLoader.prefetchData(url, asPath),
+      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
+    ])
   }
 
   async fetchComponent(route: string): Promise<ComponentRes> {
