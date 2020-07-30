@@ -252,14 +252,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
         type="error"
         aria-labelledby="nextjs__container_errors_label"
         aria-describedby="nextjs__container_errors_desc"
-        onClose={minimize}
+        onClose={!isServerError && minimize}
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={minimize}
+              close={!isServerError && minimize}
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
