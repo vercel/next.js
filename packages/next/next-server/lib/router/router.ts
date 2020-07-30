@@ -629,7 +629,7 @@ export default class Router implements BaseRouter {
             throw err
           }
         })
-      })
+    })
   }
 
   changeState(
