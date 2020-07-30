@@ -298,7 +298,7 @@ export default async function exportApp(
   }
 
   if (prerenderManifest && !options.buildExport) {
-    const fallbackTruePages = new Set()
+    const fallbackEnabledPages = new Set()
 
     for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
       // only error if page is included in path map
@@ -307,15 +307,15 @@ export default async function exportApp(
       }
 
       if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
-        fallbackTruePages.add(key)
+        fallbackEnabledPages.add(key)
       }
     }
 
-    if (fallbackTruePages.size) {
+    if (fallbackEnabledPages.size) {
       throw new Error(
-        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
-          '\n'
-        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+        `Found pages with \`fallback\` enabled:\n${[
+          ...fallbackEnabledPages,
+        ].join('\n')}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
       )
     }
   }
