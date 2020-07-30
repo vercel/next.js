@@ -479,12 +479,19 @@ export class Head extends Component<
   }
 }
 
-export function Main() {
+export function Main(
+  props: React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLDivElement>,
+    HTMLDivElement
+  >
+) {
   const { inAmpMode, html } = useContext(
     DocumentComponentContext
   )._documentProps
   if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  return (
+    <div {...props} id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  )
 }
 
 export class NextScript extends Component<OriginProps> {
