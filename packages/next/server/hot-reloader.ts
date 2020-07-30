@@ -143,8 +143,8 @@ export default class HotReloader {
   private pagesDir: string
   private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: any
-  private stats: any
-  private serverStats: any
+  private stats: webpack.Stats | null
+  private serverStats: webpack.Stats | null
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
@@ -471,7 +471,7 @@ export default class HotReloader {
   public async getCompilationErrors(page: string) {
     const normalizedPage = normalizePathSep(page)
 
-    if (this.stats.hasErrors()) {
+    if (this.stats?.hasErrors()) {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation)
 
