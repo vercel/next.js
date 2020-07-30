@@ -247,7 +247,7 @@ export default class Router implements BaseRouter {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.pathname = pathname
+    this.pathname = removePathTrailingSlash(pathname)
     this.query = query
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
@@ -732,7 +732,7 @@ export default class Router implements BaseRouter {
     this.isFallback = false
 
     this.route = route
-    this.pathname = pathname
+    this.pathname = removePathTrailingSlash(pathname)
     this.query = query
     this.asPath = as
     return this.notify(data)
