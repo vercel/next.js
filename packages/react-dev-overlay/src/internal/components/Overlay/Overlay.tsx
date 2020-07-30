@@ -1,4 +1,6 @@
+// @ts-ignore
 import allyDisable from 'ally.js/maintain/disabled'
+// @ts-ignore
 import allyTrap from 'ally.js/maintain/tab-focus'
 import * as React from 'react'
 import { lock, unlock } from './body-locker'
@@ -17,8 +19,8 @@ const Overlay: React.FC<OverlayProps> = function Overlay({
     }
   }, [])
 
-  const [overlay, setOverlay] = React.useState<HTMLElement | null>(null)
-  const onOverlay = React.useCallback((el: HTMLElement) => {
+  const [overlay, setOverlay] = React.useState<HTMLDivElement | null>(null)
+  const onOverlay = React.useCallback((el: HTMLDivElement) => {
     setOverlay(el)
   }, [])
 

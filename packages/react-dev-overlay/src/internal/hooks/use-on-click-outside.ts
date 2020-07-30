@@ -2,10 +2,10 @@ import * as React from 'react'
 
 export function useOnClickOutside(
   el: Node | null,
-  handler: (e: MouseEvent | TouchEvent) => void
+  handler: ((e: MouseEvent | TouchEvent) => void) | undefined
 ) {
   React.useEffect(() => {
-    if (el == null) {
+    if (el == null || handler == null) {
       return
     }
 
@@ -19,11 +19,11 @@ export function useOnClickOutside(
     }
 
     const root = el.getRootNode()
-    root.addEventListener('mousedown', listener)
-    root.addEventListener('touchstart', listener)
+    root.addEventListener('mousedown', listener as EventListener)
+    root.addEventListener('touchstart', listener as EventListener)
     return function () {
-      root.removeEventListener('mousedown', listener)
-      root.removeEventListener('touchstart', listener)
+      root.removeEventListener('mousedown', listener as EventListener)
+      root.removeEventListener('touchstart', listener as EventListener)
     }
   }, [handler, el])
 }

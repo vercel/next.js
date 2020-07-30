@@ -14,9 +14,9 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
   next,
   close,
 }) {
-  const buttonLeft = React.useRef<HTMLButtonElement>()
-  const buttonRight = React.useRef<HTMLButtonElement>()
-  const buttonClose = React.useRef<HTMLButtonElement>()
+  const buttonLeft = React.useRef<HTMLButtonElement | null>(null)
+  const buttonRight = React.useRef<HTMLButtonElement | null>(null)
+  const buttonClose = React.useRef<HTMLButtonElement | null>(null)
 
   const [nav, setNav] = React.useState<HTMLElement | null>(null)
   const onNav = React.useCallback((el: HTMLElement) => {
@@ -54,16 +54,18 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
           }
         }
 
-        close()
+        if (close) {
+          close()
+        }
       }
     }
 
-    root.addEventListener('keydown', handler)
+    root.addEventListener('keydown', handler as EventListener)
     if (root !== d) {
       d.addEventListener('keydown', handler)
     }
     return function () {
-      root.removeEventListener('keydown', handler)
+      root.removeEventListener('keydown', handler as EventListener)
       if (root !== d) {
         d.removeEventListener('keydown', handler)
       }
@@ -83,11 +85,11 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
       const a = root.activeElement
 
       if (previous == null) {
-        if (a === buttonLeft.current) {
+        if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
       } else if (next == null) {
-        if (a === buttonRight.current) {
+        if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
@@ -142,7 +144,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         &nbsp;
         {children}
       </nav>
-      {close && (
+      {close ? (
         <button
           ref={buttonClose}
           type="button"
@@ -174,7 +176,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
             </svg>
           </span>
         </button>
-      )}
+      ) : null}
     </div>
   )
 }

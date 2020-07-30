@@ -10,6 +10,7 @@ import {
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // eslint-disable-next-line import/no-extraneous-dependencies
+// @ts-ignore
 import webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
@@ -97,6 +98,10 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const compilation = isServerSide
         ? options.serverStats()?.compilation
         : options.stats()?.compilation
+      if (compilation == null) {
+        return null
+      }
+
       const module = [...compilation.modules].find(
         (searchModule) => searchModule.id === id
       )
@@ -112,7 +117,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     res: ServerResponse,
     next: Function
   ) {
-    const { pathname, query } = url.parse(req.url, true)
+    const { pathname, query } = url.parse(req.url!, true)
 
     if (pathname === '/__nextjs_original-stack-frame') {
       const frame = (query as unknown) as StackFrame & {
@@ -171,7 +176,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         const consumer = await new SourceMapConsumer(source.map())
         pos = consumer.originalPositionFor({
           line: frameLine,
-          column: frameColumn,
+          column: frameColumn ?? 0,
         })
         if (pos.source) {
           posSourceContent =
@@ -215,7 +220,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         pos.line
           ? (codeFrameColumns(
               posSourceContent,
-              { start: { line: pos.line, column: pos.column } },
+              { start: { line: pos.line, column: pos.column ?? 0 } },
               { forceColor: true }
             ) as string)
           : null
