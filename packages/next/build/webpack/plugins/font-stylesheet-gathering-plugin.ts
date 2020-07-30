@@ -163,7 +163,13 @@ export class FontStylesheetGatheringPlugin {
             module.rawRequest &&
             module.rawRequest.startsWith('next-serverless-loader?page=')
         )
+
+        /**
+         * This fake module needs to be added as a dependency
+         * module of all the serverless page modules.
+         */
         pageModules.forEach((pageModule) => {
+          // The dependency is already created just the module is null.
           pageModule.dependencies.find(
             (module: any) =>
               module.request &&
