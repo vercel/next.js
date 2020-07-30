@@ -14,24 +14,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type Handler = (...evts: any[]) => void
-export default function mitt<T extends string, H extends Handler = Handler>() {
-  const all: Record<T, H[]> = Object.create(null)
+type Listeners = {
+  [K in keyof EventMap]?: Array<(p: EventMap[K]) => void>
+}
+
+type EventMap = Record<string, any>
+type EventKey<T extends EventMap> = string & keyof T
+type EventReceiver<T> = (params: T) => void
+
+interface Emitter<T extends EventMap> {
+  on<K extends EventKey<T>>(eventName: K, fn: EventReceiver<T[K]>): void
+  off<K extends EventKey<T>>(eventName: K, fn: EventReceiver<T[K]>): void
+  emit<K extends EventKey<T>>(eventName: K, params: T[K]): void
+}
+
+export default function mitt<T extends EventMap>(): Emitter<T> {
+  const all: Listeners = Object.create(null)
+
   return {
-    on(type: T, handler: H) {
+    on(type, handler) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
-    off(type: T, handler: H) {
-      if (all[type]) {
-        // tslint:disable-next-line:no-bitwise
-        all[type].splice(all[type].indexOf(handler) >>> 0, 1)
-      }
+    off(type, handler) {
+      // tslint:disable-next-line:no-bitwise
+      all[type]?.splice((all[type] || []).indexOf(handler) >>> 0, 1)
     },
-    emit(type: T, ...evts: any[]) {
-      // eslint-disable-next-line array-callback-return
-      ;(all[type] || []).slice().map((handler: H) => {
-        handler(...evts)
-      })
+    emit(type, ...evts) {
+      ;(all[type] || []).slice().map(
+        // eslint-disable-next-line array-callback-return
+        (handler) => {
+          handler(...evts)
+        }
+      )
     },
   }
 }
