@@ -15,13 +15,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // See the LICENSE at the top of the file
 
 type Handler = (...evts: any[]) => void
-export default function mitt<T extends string>() {
-  const all: Record<T, Handler[]> = Object.create(null)
+export default function mitt<T extends string, H extends Handler = Handler>() {
+  const all: Record<T, H[]> = Object.create(null)
   return {
-    on(type: T, handler: Handler) {
+    on(type: T, handler: H) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
-    off(type: T, handler: Handler) {
+    off(type: T, handler: H) {
       if (all[type]) {
         // tslint:disable-next-line:no-bitwise
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
@@ -29,7 +29,7 @@ export default function mitt<T extends string>() {
     },
     emit(type: T, ...evts: any[]) {
       // eslint-disable-next-line array-callback-return
-      ;(all[type] || []).slice().map((handler: Handler) => {
+      ;(all[type] || []).slice().map((handler: H) => {
         handler(...evts)
       })
     },
