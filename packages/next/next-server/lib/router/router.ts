@@ -48,7 +48,7 @@ type Url = UrlObject | string
  * Resolves a given hyperlink with a certain router state (basePath not included).
  * Preserves absolute urls.
  */
-export function resolveHref(currentPath: string, href: Url): string {
+function resolveHref(currentPath: string, href: Url): string {
   // we use a dummy base url for relative urls
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
@@ -61,12 +61,13 @@ export function resolveHref(currentPath: string, href: Url): string {
     : finalUrl.href
 }
 
-function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
+export function prepareUrlAs(routerPath: string, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
+  const href = resolveHref(routerPath, url)
   return {
-    url: addBasePath(resolveHref(router.pathname, url)),
-    as: as ? addBasePath(resolveHref(router.pathname, as)) : as,
+    url: href,
+    as: as ? resolveHref(routerPath, as) : href,
   }
 }
 
@@ -432,7 +433,10 @@ export default class Router implements BaseRouter {
     asIn: Url,
     options: any
   ): Promise<boolean> {
-    let { url, as } = prepareUrlAs(this, urlIn, asIn)
+    let { url, as } = prepareUrlAs(this.pathname, urlIn, asIn)
+    const browserUrl = addBasePath(url)
+    let browserAs = addBasePath(as)
+
     if (!options._h) {
       this.isSsr = false
     }
@@ -448,7 +452,7 @@ export default class Router implements BaseRouter {
         .rewriteUrlForNextExport
       // @ts-ignore this is temporarily global (attached to window)
       if (__NEXT_DATA__.nextExport) {
-        as = rewriteUrlForNextExport(as)
+        browserAs = rewriteUrlForNextExport(browserAs)
       }
     }
 
@@ -456,8 +460,7 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    const cleanedAs = delBasePath(as)
-    this._inFlightRoute = as
+    this._inFlightRoute = browserAs
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -465,13 +468,22 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    if (!options._h && this.onlyAHashChange(cleanedAs)) {
-      this.asPath = cleanedAs
-      Router.events.emit('hashChangeStart', as)
-      this.changeState(method, url, as, options)
-      this.scrollToHash(cleanedAs)
-      Router.events.emit('hashChangeComplete', as)
+    if (!options._h && this.onlyAHashChange(as)) {
+      this.asPath = as
+      Router.events.emit('hashChangeStart', browserAs)
+      this.changeState(method, browserUrl, browserAs, options)
+      this.scrollToHash(as)
+      Router.events.emit('hashChangeComplete', browserAs)
       return true
+    }
+
+    // If asked to change the current URL we should reload the current page
+    // (not location.reload() but reload getInitialProps and other Next.js stuffs)
+    // We also need to set the method = replaceState always
+    // as this should not go into the history (That's how browsers work)
+    // We should compare the new asPath to the current asPath, not the url
+    if (!this.urlIsNew(as)) {
+      method = 'replaceState'
     }
 
     const parsed = tryParseRelativeUrl(url)
@@ -480,28 +492,11 @@ export default class Router implements BaseRouter {
 
     let { pathname, searchParams } = parsed
     const query = searchParamsToUrlQuery(searchParams)
-
-    // url and as should always be prefixed with basePath by this
-    // point by either next/link or router.push/replace so strip the
-    // basePath from the pathname to match the pages dir 1-to-1
-    pathname = pathname
-      ? removePathTrailingSlash(delBasePath(pathname))
-      : pathname
-
-    // If asked to change the current URL we should reload the current page
-    // (not location.reload() but reload getInitialProps and other Next.js stuffs)
-    // We also need to set the method = replaceState always
-    // as this should not go into the history (That's how browsers work)
-    // We should compare the new asPath to the current asPath, not the url
-    if (!this.urlIsNew(cleanedAs)) {
-      method = 'replaceState'
-    }
-
     const route = removePathTrailingSlash(pathname)
     const { shallow = false } = options
 
     if (isDynamicRoute(route)) {
-      const { pathname: asPathname } = parseRelativeUrl(cleanedAs)
+      const { pathname: asPathname } = parseRelativeUrl(as)
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
       if (!routeMatch) {
@@ -530,20 +525,20 @@ export default class Router implements BaseRouter {
       }
     }
 
-    Router.events.emit('routeChangeStart', as)
+    Router.events.emit('routeChangeStart', browserAs)
 
     try {
       const routeInfo = await this.getRouteInfo(
         route,
         pathname,
         query,
-        as,
+        browserAs,
         shallow
       )
       const { error } = routeInfo
 
-      Router.events.emit('beforeHistoryChange', as)
-      this.changeState(method, url, as, options)
+      Router.events.emit('beforeHistoryChange', browserAs)
+      this.changeState(method, browserUrl, browserAs, options)
 
       if (process.env.NODE_ENV !== 'production') {
         const appComp: any = this.components['/_app'].Component
@@ -552,10 +547,10 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo)
+      await this.set(route, pathname!, query, as, routeInfo)
 
       if (error) {
-        Router.events.emit('routeChangeError', error, cleanedAs)
+        Router.events.emit('routeChangeError', error, browserAs)
         throw error
       }
 
@@ -564,7 +559,7 @@ export default class Router implements BaseRouter {
           window.scrollTo(options._N_X, options._N_Y)
         }
       }
-      Router.events.emit('routeChangeComplete', as)
+      Router.events.emit('routeChangeComplete', browserAs)
 
       return true
     } catch (err) {

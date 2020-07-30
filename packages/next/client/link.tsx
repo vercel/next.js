@@ -5,7 +5,7 @@ import { UrlObject } from 'url'
 import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
 import { execOnce, getLocationOrigin } from '../next-server/lib/utils'
 import { useRouter } from './router'
-import { addBasePath, resolveHref } from '../next-server/lib/router/router'
+import { addBasePath, prepareUrlAs } from '../next-server/lib/router/router'
 
 /**
  * Detects whether a given url is from the same origin as the current page (browser only).
@@ -168,13 +168,10 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const router = useRouter()
   const pathname = (router && router.pathname) || '/'
 
-  const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(pathname, props.href)
-    return {
-      href: resolvedHref,
-      as: props.as ? resolveHref(pathname, props.as) : resolvedHref,
-    }
-  }, [pathname, props.href, props.as])
+  const { url: href, as } = React.useMemo(
+    () => prepareUrlAs(pathname, props.href, props.as),
+    [pathname, props.href, props.as]
+  )
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
