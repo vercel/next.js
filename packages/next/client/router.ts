@@ -2,7 +2,7 @@
 import React from 'react'
 import Router, {
   NextRouter,
-  RouterEvent,
+  RouterEventMap,
 } from '../next-server/lib/router/router'
 import { RouterContext } from '../next-server/lib/router-context'
 
@@ -41,7 +41,7 @@ const urlPropertyFields = [
   'isFallback',
   'basePath',
 ]
-const routerEvents: Array<RouterEvent> = [
+const routerEvents: Array<keyof RouterEventMap> = [
   'routeChangeStart',
   'beforeHistoryChange',
   'routeChangeComplete',

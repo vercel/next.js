@@ -124,15 +124,6 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
   >
 
-export type RouterEvent =
-  | 'routeChangeStart'
-  | 'beforeHistoryChange'
-  | 'routeChangeComplete'
-  | 'routeChangeError'
-  | 'hashChangeStart'
-  | 'hashChangeComplete'
-
-export type RouterEventMap = Record<RouterEvent, any>
 export type RouterHandlersMap = {
   routeChangeStart: (url: string) => void
   beforeHistoryChange: (url: string) => void
@@ -141,6 +132,7 @@ export type RouterHandlersMap = {
   hashChangeStart: (url: string) => void
   hashChangeComplete: (url: string) => void
 }
+export type RouterEventMap = Record<keyof RouterHandlersMap, any>
 
 export type PrefetchOptions = {
   priority?: boolean
