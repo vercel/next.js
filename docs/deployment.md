@@ -40,7 +40,7 @@ By using the DPS workflow, in addition to doing _code reviews_, you can do _depl
 For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully supported out of the box.
 
 - Every page can either use [Static Generation](/docs/basic-features/pages.md#static-generation) or [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering).
-- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts, etc) will automatically be served from the [Vercel Smart CDN](https://vercel.com/smart-cdn), which is blazingly fast.
+- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts, etc) will automatically be served from the [Vercel's Edge Network](https://vercel.com/docs/v2/edge-network/overview), which is blazingly fast.
 - Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated Serverless Functions. This allows page rendering and API requests to scale infinitely.
 
 ### Custom Domains, Environment Variables, Automatic HTTPS, and more
