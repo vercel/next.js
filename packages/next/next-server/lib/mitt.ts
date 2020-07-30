@@ -14,19 +14,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type Listeners = {
+export type Listeners = {
   [K in keyof EventMap]?: Array<(p: EventMap[K]) => void>
 }
 
-type ArgumentTypes<F extends Function> = F extends (...args: infer A) => any
+export type ArgumentTypes<F extends Function> = F extends (
+  ...args: infer A
+) => any
   ? A
   : never
 
-type EventMap = Record<string, any>
-type EventHandlersMap = Record<string, any>
-type EventKey<T extends EventMap> = string & keyof T
+export type EventMap = Record<string, any>
+export type EventHandlersMap = Record<string, any>
+export type EventKey<T extends EventMap> = string & keyof T
 
-interface Emitter<T extends EventMap, H extends Record<string, any>> {
+export interface Emitter<T extends EventMap, H extends Record<string, any>> {
   on<K extends EventKey<T>>(eventName: K, fn: H[K]): void
   off<K extends EventKey<T>>(eventName: K, fn: H[K]): void
   emit<K extends EventKey<T>>(

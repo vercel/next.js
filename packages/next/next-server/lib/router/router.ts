@@ -117,7 +117,7 @@ export type RouterEvent =
   | 'hashChangeComplete'
 
 export type RouterEventMap = Record<RouterEvent, any>
-type RouterHandlersMap = {
+export type RouterHandlersMap = {
   routeChangeStart: (url: string) => void
   beforeHistoryChange: (url: string) => void
   routeChangeComplete: (url: string) => void
