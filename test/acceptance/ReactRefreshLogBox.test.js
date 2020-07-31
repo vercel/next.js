@@ -848,3 +848,197 @@ test('scss syntax errors', async () => {
 
   await cleanup()
 })
+
+test('logbox: anchors links in error messages', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('end http://nextjs.org')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header = await session.getRedboxDescription()
+  expect(header).toMatchInlineSnapshot(`"Error: end http://nextjs.org"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(1)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('http://nextjs.org start')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header2 = await session.getRedboxDescription()
+  expect(header2).toMatchInlineSnapshot(`"Error: http://nextjs.org start"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(1)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('middle http://nextjs.org end')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header3 = await session.getRedboxDescription()
+  expect(header3).toMatchInlineSnapshot(`"Error: middle http://nextjs.org end"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(1)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('multiple http://nextjs.org links http://example.com')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header4 = await session.getRedboxDescription()
+  expect(header4).toMatchInlineSnapshot(
+    `"Error: multiple http://nextjs.org links http://example.com"`
+  )
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(2)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(2)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://example.com/"`)
+
+  await cleanup()
+})

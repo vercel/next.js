@@ -178,7 +178,7 @@ function testWithTrailingSlash() {
 describe('Trailing slashes', () => {
   describe('dev mode, trailingSlash: false', () => {
     beforeAll(async () => {
-      nextConfig.replace('// <placeholder>', 'trailingSlash: false')
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -192,7 +192,7 @@ describe('Trailing slashes', () => {
 
   describe('dev mode, trailingSlash: true', () => {
     beforeAll(async () => {
-      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -206,7 +206,7 @@ describe('Trailing slashes', () => {
 
   describe('production mode, trailingSlash: false', () => {
     beforeAll(async () => {
-      nextConfig.replace('// <placeholder>', 'trailingSlash: false')
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -238,7 +238,7 @@ describe('Trailing slashes', () => {
 
   describe('production mode, trailingSlash: true', () => {
     beforeAll(async () => {
-      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -258,13 +258,13 @@ describe('Trailing slashes', () => {
         expect.objectContaining({
           redirects: expect.arrayContaining([
             expect.objectContaining({
-              source: '/:path*/:file.:ext/',
-              destination: '/:path*/:file.:ext',
+              source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+              destination: '/:file',
               statusCode: 308,
             }),
             expect.objectContaining({
-              source: '/:path*/:notfile([^/.]+)',
-              destination: '/:path*/:notfile/',
+              source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+              destination: '/:notfile/',
               statusCode: 308,
             }),
           ]),
@@ -275,7 +275,7 @@ describe('Trailing slashes', () => {
 
   describe('dev mode, with basepath, trailingSlash: true', () => {
     beforeAll(async () => {
-      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       nextConfig.replace('// basePath:', 'basePath:')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -300,7 +300,7 @@ describe('Trailing slashes', () => {
 
   describe('production mode, with basepath, trailingSlash: true', () => {
     beforeAll(async () => {
-      nextConfig.replace('// <placeholder>', 'trailingSlash: true')
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       nextConfig.replace('// basePath:', 'basePath:')
       await nextBuild(appDir)
       appPort = await findPort()

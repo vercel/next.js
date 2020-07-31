@@ -32,7 +32,11 @@ import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
 
-export async function renderScriptError(res: ServerResponse, error: Error) {
+export async function renderScriptError(
+  res: ServerResponse,
+  error: Error,
+  { verbose = true } = {}
+) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader(
     'Cache-Control',
@@ -48,7 +52,9 @@ export async function renderScriptError(res: ServerResponse, error: Error) {
     return
   }
 
-  console.error(error.stack)
+  if (verbose) {
+    console.error(error.stack)
+  }
   res.statusCode = 500
   res.end('500 - Internal Error')
 }
@@ -137,8 +143,10 @@ export default class HotReloader {
   private pagesDir: string
   private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: any
-  private stats: any
-  private serverStats: any
+  private stats: webpack.Stats | null
+  private serverStats: webpack.Stats | null
+  private clientError: Error | null = null
+  private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
@@ -213,7 +221,7 @@ export default class HotReloader {
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0])
+          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
           return { finished: true }
         }
       }
@@ -343,9 +351,17 @@ export default class HotReloader {
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
+    multiCompiler.compilers[1].hooks.failed.tap(
+      'NextjsHotReloaderForServer',
+      (err: Error) => {
+        this.serverError = err
+        this.serverStats = null
+      }
+    )
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
+        this.serverError = null
         this.serverStats = stats
 
         const { compilation } = stats
@@ -378,9 +394,19 @@ export default class HotReloader {
       }
     )
 
+    multiCompiler.compilers[0].hooks.failed.tap(
+      'NextjsHotReloaderForClient',
+      (err: Error) => {
+        this.clientError = err
+        this.stats = null
+      }
+    )
     multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
       (stats) => {
+        this.clientError = null
+        this.stats = stats
+
         const { compilation } = stats
         const chunkNames = new Set(
           compilation.chunks
@@ -409,7 +435,6 @@ export default class HotReloader {
           }
         }
 
-        this.stats = stats
         this.prevChunkNames = chunkNames
       }
     )
@@ -465,7 +490,9 @@ export default class HotReloader {
   public async getCompilationErrors(page: string) {
     const normalizedPage = normalizePathSep(page)
 
-    if (this.stats.hasErrors()) {
+    if (this.clientError || this.serverError) {
+      return [this.clientError || this.serverError]
+    } else if (this.stats?.hasErrors()) {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation)
 
@@ -492,6 +519,9 @@ export default class HotReloader {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
+    }
+    if (this.serverError || this.clientError) {
+      return Promise.reject(this.serverError || this.clientError)
     }
     return this.onDemandEntries.ensurePage(page)
   }

@@ -37,8 +37,8 @@ const defaultConfig: { [key: string]: any } = {
   basePath: '',
   exportTrailingSlash: false,
   sassOptions: {},
+  trailingSlash: false,
   experimental: {
-    trailingSlash: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -52,6 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
+    optimizeFonts: false,
     scrollRestoration: false,
   },
   future: {

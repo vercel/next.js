@@ -391,6 +391,7 @@ export default async function exportApp(
         subFolders,
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
+        optimizeFonts: nextConfig.experimental.optimizeFonts,
       })
 
       for (const validation of result.ampValidations || []) {

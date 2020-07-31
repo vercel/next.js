@@ -6,6 +6,7 @@ import {
   // @ts-ignore exists in webpack 5
   RuntimeGlobals,
   version,
+  // @ts-ignore exists in webpack 5
   compilation as Compilation,
 } from 'webpack'
 
