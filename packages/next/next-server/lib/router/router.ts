@@ -22,7 +22,7 @@ import {
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
-const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+export const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
