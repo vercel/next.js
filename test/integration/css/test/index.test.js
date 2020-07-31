@@ -531,7 +531,9 @@ describe('CSS Support', () => {
       expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
       /* ensure CSS preloaded first */
-      const allPreloads = [].slice.call($('link[rel="preload"]'))
+      const allPreloads = [].slice.call(
+        $('link[rel="preload"][as="style"], link[rel="stylesheet"]')
+      )
       const styleIndexes = allPreloads.flatMap((p, i) =>
         p.attribs.as === 'style' ? i : []
       )
