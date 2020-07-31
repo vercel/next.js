@@ -4,6 +4,8 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
+> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -63,6 +65,23 @@ module.exports = {
       {
         source: '/blog/:slug*',
         destination: '/news/:slug*', // Matched parameters can be used in the destination
+      },
+    ]
+  },
+}
+```
+
+### Regex Path Matching
+
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/old-blog/:post(\\d{1,})',
+        destination: '/blog/:post', // Matched parameters can be used in the destination
       },
     ]
   },
