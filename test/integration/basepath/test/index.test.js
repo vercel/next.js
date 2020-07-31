@@ -212,6 +212,7 @@ const runTests = (context, dev = false) => {
   it('should not update URL for a 404', async () => {
     const browser = await webdriver(context.appPort, '/missing')
     const pathname = await browser.eval(() => window.location.pathname)
+    expect(await browser.eval(() => window.next.router.asPath)).toBe('/missing')
     expect(pathname).toBe('/missing')
   })
 

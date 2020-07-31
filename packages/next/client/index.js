@@ -58,7 +58,7 @@ if (
     page === '/_error' &&
     hydrateProps &&
     hydrateProps.pageProps &&
-    hydrateProps.pageProps.statusCode === '404'
+    hydrateProps.pageProps.statusCode === 404
   )
 ) {
   asPath = delBasePath(asPath)
