@@ -141,9 +141,10 @@ export class Head extends Component<
     const cssFiles =
       files && files.length ? files.filter((f) => f.endsWith('.css')) : []
 
-    const cssLinkElements: JSX.Element[] = []
+    const cssPreloadLinkElements: JSX.Element[] = []
+    const cssStylesheetLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
-      cssLinkElements.push(
+      cssPreloadLinkElements.push(
         <link
           key={`${file}-preload`}
           nonce={this.props.nonce}
@@ -155,7 +156,9 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-        />,
+        />
+      )
+      cssStylesheetLinkElements.push(
         <link
           key={file}
           nonce={this.props.nonce}
@@ -169,6 +172,9 @@ export class Head extends Component<
         />
       )
     })
+    const cssLinkElements = cssPreloadLinkElements.concat(
+      cssStylesheetLinkElements
+    )
 
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
