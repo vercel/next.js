@@ -216,6 +216,27 @@ const runTests = (context, dev = false) => {
     expect(pathname).toBe('/missing')
   })
 
+  it('should handle 404 urls that start with basePath', async () => {
+    const browser = await webdriver(context.appPort, '/docshello')
+    expect(await browser.eval(() => window.next.router.asPath)).toBe(
+      '/docshello'
+    )
+    expect(await browser.eval(() => window.location.pathname)).toBe(
+      '/docshello'
+    )
+  })
+
+  it('should navigating back to a non-basepath 404 that starts with basepath', async () => {
+    const browser = await webdriver(context.appPort, '/docshello')
+    await browser.eval(() => window.next.router.push('/hello'))
+    await browser.waitForElementByCss('#pathname')
+    await browser.back()
+    check(() => browser.eval(() => window.location.pathname), '/docshello')
+    expect(await browser.eval(() => window.next.router.asPath)).toBe(
+      '/docshello'
+    )
+  })
+
   it('should update dynamic params after mount correctly', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello-dynamic')
     const text = await browser.elementByCss('#slug').text()

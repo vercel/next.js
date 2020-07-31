@@ -22,12 +22,16 @@ import {
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
-export const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
     cancelled: true,
   })
+}
+
+export function hasBasePath(path: string): boolean {
+  return path === basePath || path.startsWith(basePath + '/')
 }
 
 export function addBasePath(path: string): string {
@@ -268,7 +272,7 @@ export default class Router implements BaseRouter {
       const browserUrl = getURL()
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//' && browserUrl.startsWith(basePath)) {
+      if (as.substr(0, 2) !== '//' && hasBasePath(browserUrl)) {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         // if it doesn't start with the basePath, it's to be treated as an external url
@@ -335,14 +339,17 @@ export default class Router implements BaseRouter {
       // Actually, for (1) we don't need to nothing. But it's hard to detect that event.
       // So, doing the following for (1) does no harm.
       const browserUrl = getURL()
-      if (browserUrl.startsWith(basePath)) {
-        // if it doesn't start with the basePath, it's to be treated as an external url
+      console.log(document.location.href, e)
+      if (hasBasePath(browserUrl)) {
         const { pathname, query } = this
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname, query }),
           delBasePath(browserUrl)
         )
+      } else {
+        // if it doesn't start with the basePath, it's to be treated as an external url
+        window.location.reload()
       }
       return
     }
