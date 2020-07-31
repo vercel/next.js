@@ -607,10 +607,10 @@ describe('SCSS Support', () => {
       expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
       /* ensure CSS preloaded first */
-      const allPreloads = [].slice.call(
+      const styleLinks = [].slice.call(
         $('link[rel="preload"][as="style"], link[rel="stylesheet"]')
       )
-      const styleIndexes = allPreloads.flatMap((p, i) =>
+      const styleIndexes = styleLinks.flatMap((p, i) =>
         p.attribs.as === 'style' ? i : []
       )
       expect(styleIndexes).toEqual([0])
