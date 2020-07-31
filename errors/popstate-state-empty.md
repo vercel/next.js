@@ -7,7 +7,7 @@ When using the browser back button the popstate event is triggered. Next.js sees
 
 #### Possible Ways to Fix It
 
-The only known cause of this issue is manually manipulating `window.history` instead of using `next/router`. Starting from version 9.5, Next.js will ignore `popstate` events that contain `event.state` not ceated by its own router.
+The only known cause of this issue is manually manipulating `window.history` instead of using `next/router`. Starting from version 9.5, Next.js will ignore `popstate` events that contain `event.state` not created by its own router.
 
 ### Useful Links
 
