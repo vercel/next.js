@@ -459,11 +459,11 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {!disableRuntimeJS && this.getPreloadDynamicChunks()}
+            {!disableRuntimeJS && this.getPreloadMainLinks()}
             {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks())
               : this.getCssLinks()}
-            {!disableRuntimeJS && this.getPreloadDynamicChunks()}
-            {!disableRuntimeJS && this.getPreloadMainLinks()}
             {this.context._documentProps.isDevelopment && (
               // this element is used to mount development styles so the
               // ordering matches production
