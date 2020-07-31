@@ -222,8 +222,9 @@ export default class Router implements BaseRouter {
       isFallback: boolean
     }
   ) {
+    this.pathname = removePathTrailingSlash(pathname)
     // represents the current component key
-    this.route = removePathTrailingSlash(pathname)
+    this.route = this.pathname
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -247,7 +248,6 @@ export default class Router implements BaseRouter {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.pathname = removePathTrailingSlash(pathname)
     this.query = query
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
@@ -267,14 +267,14 @@ export default class Router implements BaseRouter {
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      const browserUrl = getURL()
-      if (as.substr(0, 2) !== '//' && browserUrl.startsWith(basePath)) {
+      if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
+
         this.changeState(
           'replaceState',
-          formatWithValidation({ pathname, query }),
-          delBasePath(browserUrl)
+          formatWithValidation({ pathname: addBasePath(pathname), query }),
+          getURL()
         )
       }
 
@@ -336,8 +336,8 @@ export default class Router implements BaseRouter {
       const { pathname, query } = this
       this.changeState(
         'replaceState',
-        formatWithValidation({ pathname, query }),
-        delBasePath(getURL())
+        formatWithValidation({ pathname: addBasePath(pathname), query }),
+        getURL()
       )
       return
     }
@@ -368,7 +368,7 @@ export default class Router implements BaseRouter {
         )
       }
     }
-    this.change('replaceState', url, as, options)
+    this.change('replaceState', delBasePath(url), delBasePath(as), options)
   }
 
   update(route: string, mod: any) {
@@ -434,6 +434,7 @@ export default class Router implements BaseRouter {
     options: any
   ): Promise<boolean> {
     let { url, as } = prepareUrlAs(this.pathname, urlIn, asIn)
+    const browserUrl = addBasePath(url)
     let browserAs = addBasePath(as)
 
     if (!options._h) {
@@ -470,7 +471,7 @@ export default class Router implements BaseRouter {
     if (!options._h && this.onlyAHashChange(as)) {
       this.asPath = as
       Router.events.emit('hashChangeStart', browserAs)
-      this.changeState(method, url, as, options)
+      this.changeState(method, browserUrl, browserAs, options)
       this.scrollToHash(as)
       Router.events.emit('hashChangeComplete', browserAs)
       return true
@@ -490,8 +491,9 @@ export default class Router implements BaseRouter {
     if (!parsed) return false
 
     let { pathname, searchParams } = parsed
+    pathname = removePathTrailingSlash(pathname)
+    const route = pathname
     const query = searchParamsToUrlQuery(searchParams)
-    const route = removePathTrailingSlash(pathname)
     const { shallow = false } = options
 
     if (isDynamicRoute(route)) {
@@ -537,7 +539,7 @@ export default class Router implements BaseRouter {
       const { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', browserAs)
-      this.changeState(method, url, as, options)
+      this.changeState(method, browserUrl, browserAs, options)
 
       if (process.env.NODE_ENV !== 'production') {
         const appComp: any = this.components['/_app'].Component
@@ -599,7 +601,7 @@ export default class Router implements BaseRouter {
         // Passing the empty string here should be safe against future changes to the method.
         // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
         '',
-        addBasePath(as)
+        as
       )
     }
   }
@@ -732,7 +734,7 @@ export default class Router implements BaseRouter {
     this.isFallback = false
 
     this.route = route
-    this.pathname = removePathTrailingSlash(pathname)
+    this.pathname = pathname
     this.query = query
     this.asPath = as
     return this.notify(data)
