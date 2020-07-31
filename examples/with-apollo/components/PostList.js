@@ -4,7 +4,7 @@ import PostUpvoter from './PostUpvoter'
 
 export const ALL_POSTS_QUERY = gql`
   query allPosts($first: Int!, $skip: Int!) {
-    allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
+    allPosts(orderBy: { createdAt: desc }, first: $first, skip: $skip) {
       id
       title
       votes
@@ -58,7 +58,7 @@ export default function PostList() {
             <div>
               <span>{index + 1}. </span>
               <a href={post.url}>{post.title}</a>
-              <PostUpvoter id={post.id} votes={post.votes} />
+              <PostUpvoter id={'voter-' + post.id} votes={post.votes} />
             </div>
           </li>
         ))}
