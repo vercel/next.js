@@ -710,6 +710,7 @@ export default async function getBaseWebpackConfig(
       ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
     },
     output: {
+      ...(isWebpack5 ? { ecmaVersion: 5 } : {}),
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
