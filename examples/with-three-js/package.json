@@ -16,6 +16,6 @@
     "three": "0.118.3"
   },
   "devDependencies": {
-    "next-transpile-modules": "3.3.0"
+    "next-transpile-modules": "4.0.2"
   }
 }

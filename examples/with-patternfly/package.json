@@ -10,7 +10,7 @@
   "dependencies": {
     "@patternfly/react-core": "^3.112.3",
     "next": "latest",
-    "next-transpile-modules": "^3.0.2",
+    "next-transpile-modules": "^4.0.2",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
