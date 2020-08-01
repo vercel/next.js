@@ -35,7 +35,6 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   basePath: '',
-  exportTrailingSlash: false,
   sassOptions: {},
   trailingSlash: false,
   experimental: {
@@ -150,6 +149,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     },
     {}
   )
+
+  if (typeof config.exportTrailingSlash !== 'undefined') {
+    console.warn(
+      'Warning: the `exportTrailingSlash` option is deprecated. Please use the `trailingSlash` option'
+    )
+    if (typeof config.trailingSlash === 'undefined') {
+      config.trailingSlash = config.exportTrailingSlash
+    }
+    delete config.exportTrailingSlash
+  }
 
   const result = { ...defaultConfig, ...config }
 
