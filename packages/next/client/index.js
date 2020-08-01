@@ -17,11 +17,8 @@ import measureWebVitals from './performance-relayer'
 /// <reference types="react-dom/experimental" />
 
 if (!('finally' in Promise.prototype)) {
-  require('next/dist/build/polyfills/finally-polyfill.min')
-}
-
-if (!('fromEntries' in Object)) {
-  Object.fromEntries = require('next/dist/build/polyfills/object.from-entries/index')
+  // eslint-disable-next-line no-extend-native
+  Promise.prototype.finally = require('next/dist/build/polyfills/finally-polyfill.min')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)

@@ -104,7 +104,7 @@ describe('Build Output', () => {
       expect(parseFloat(err404FirstLoad) - 63).toBeLessThanOrEqual(0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll) - 59.4).toBeLessThanOrEqual(0)
+      expect(parseFloat(sharedByAll) - 59.3).toBeLessThanOrEqual(0)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
@@ -118,7 +118,7 @@ describe('Build Output', () => {
       expect(parseFloat(webpackSize) - 752).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
-      expect(parseFloat(mainSize) - 6.6).toBeLessThanOrEqual(0)
+      expect(parseFloat(mainSize) - 6.5).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
       expect(parseFloat(frameworkSize) - 41).toBeLessThanOrEqual(0)
