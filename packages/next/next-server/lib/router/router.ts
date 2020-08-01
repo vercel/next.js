@@ -272,14 +272,17 @@ export default class Router implements BaseRouter {
       const browserUrl = getURL()
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//' && hasBasePath(browserUrl)) {
+      if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         // if it doesn't start with the basePath, it's to be treated as an external url
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname, query }),
-          delBasePath(browserUrl)
+          browserUrl,
+          {
+            _b: false,
+          }
         )
       }
 
@@ -339,18 +342,15 @@ export default class Router implements BaseRouter {
       // Actually, for (1) we don't need to nothing. But it's hard to detect that event.
       // So, doing the following for (1) does no harm.
       const browserUrl = getURL()
-      console.log(document.location.href, e)
-      if (hasBasePath(browserUrl)) {
-        const { pathname, query } = this
-        this.changeState(
-          'replaceState',
-          formatWithValidation({ pathname, query }),
-          delBasePath(browserUrl)
-        )
-      } else {
-        // if it doesn't start with the basePath, it's to be treated as an external url
-        window.location.reload()
-      }
+      const { pathname, query } = this
+      this.changeState(
+        'replaceState',
+        formatWithValidation({ pathname, query }),
+        browserUrl,
+        {
+          _b: false,
+        }
+      )
       return
     }
 
@@ -579,7 +579,7 @@ export default class Router implements BaseRouter {
     method: HistoryMethod,
     url: string,
     as: string,
-    options = {}
+    options: any = {}
   ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
@@ -593,7 +593,9 @@ export default class Router implements BaseRouter {
       }
     }
 
-    const browserAs = addBasePath(as)
+    // _b is an internal option that indicates whether the basePath needs to be
+    // added. Defaults to true
+    const browserAs = options._b === false ? as : addBasePath(as)
     if (method !== 'pushState' || getURL() !== browserAs) {
       window.history[method](
         {
