@@ -269,7 +269,6 @@ export default class Router implements BaseRouter {
     this.isFallback = isFallback
 
     if (typeof window !== 'undefined') {
-      const browserUrl = getURL()
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
       if (as.substr(0, 2) !== '//') {
@@ -279,7 +278,7 @@ export default class Router implements BaseRouter {
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname, query }),
-          browserUrl,
+          getURL(),
           {
             _b: false,
           }
@@ -341,12 +340,11 @@ export default class Router implements BaseRouter {
       // But we can simply replace the state with the new changes.
       // Actually, for (1) we don't need to nothing. But it's hard to detect that event.
       // So, doing the following for (1) does no harm.
-      const browserUrl = getURL()
       const { pathname, query } = this
       this.changeState(
         'replaceState',
         formatWithValidation({ pathname, query }),
-        browserUrl,
+        getURL(),
         {
           _b: false,
         }
