@@ -286,14 +286,11 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
-        // if it doesn't start with the basePath, it's to be treated as an external url
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname, query }),
           getURL(),
-          {
-            _b: false,
-          } as any
+          { _b: false } as any
         )
       }
 
@@ -359,9 +356,7 @@ export default class Router implements BaseRouter {
         'replaceState',
         formatWithValidation({ pathname, query }),
         getURL(),
-        {
-          _b: false,
-        } as any
+        { _b: false } as any
       )
       return
     }
