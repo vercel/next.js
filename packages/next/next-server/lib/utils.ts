@@ -46,6 +46,16 @@ export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
 >
 
+type MetricName =
+  | 'FCP'
+  | 'LCP'
+  | 'CLS'
+  | 'FID'
+  | 'TTFB'
+  | 'Next.js-hydration'
+  | 'Next.js-route-change-to-render'
+  | 'Next.js-render'
+
 /**
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
  * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
@@ -53,7 +63,7 @@ export type AppTreeType = ComponentType<
 export type NextWebVitalsMetric = {
   id: string
   label: string
-  name: string
+  name: MetricName
   startTime: number
   value: number
 }
