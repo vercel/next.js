@@ -360,13 +360,6 @@ export default class Router implements BaseRouter {
       return
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof url === 'undefined' || typeof as === 'undefined') {
-        console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
-        )
-      }
-    }
     this.change('replaceState', url, as, options)
   }
 
