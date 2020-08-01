@@ -25,52 +25,33 @@ yarn create next-app --example auth0 auth0
 
 4. Save the settings
 
-### Configuring Next.js
-
-In the Next.js configuration file (`next.config.js`) you'll see that different environment variables are being assigned.
-
 ### Local Development
 
-For local development you'll want to create a `.env` file with the necessary settings.
+For local development you'll want to create a `.env.local` file with the necessary settings. Refer .emv.local.example file for the settings.
 
 The required settings can be found on the Auth0 application's settings page:
 
 ```
-AUTH0_DOMAIN=YOUR_AUTH0_DOMAIN
-AUTH0_CLIENT_ID=YOUR_AUTH0_CLIENT_ID
+NEXT_PUBLIC_AUTH0_DOMAIN=YOUR_AUTH0_DOMAIN
+NEXT_PUBLIC_AUTH0_CLIENT_ID=YOUR_AUTH0_CLIENT_ID
 AUTH0_CLIENT_SECRET=YOUR_AUTH0_CLIENT_SECRET
 
 SESSION_COOKIE_SECRET=viloxyf_z2GW6K4CT-KQD_MoLEA2wqv5jWuq4Jd0P7ymgG5GJGMpvMneXZzhK3sL (at least 32 characters, used to encrypt the cookie)
-
-REDIRECT_URI=http://localhost:3000/api/callback
-POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
+NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000/api/callback
+NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
 ```
 
 ### Hosting on Vercel
 
-When deploying this example to Vercel you'll want to update the `vercel.json` configuration file.
+When deploying this example to Vercel you can configure secrets in the Environment Variables section of the project in the Vercel dashboard.
 
-```json
-{
-  "build": {
-    "env": {
-      "AUTH0_DOMAIN": "YOUR_AUTH0_DOMAIN",
-      "AUTH0_CLIENT_ID": "YOUR_AUTH0_CLIENT_ID",
-      "AUTH0_CLIENT_SECRET": "@auth0_client_secret",
-      "REDIRECT_URI": "https://my-website.now.sh/api/callback",
-      "POST_LOGOUT_REDIRECT_URI": "https://my-website.now.sh/",
-      "SESSION_COOKIE_SECRET": "@session_cookie_secret",
-      "SESSION_COOKIE_LIFETIME": 7200
-    }
-  }
-}
 ```
 
-- `AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`.
-- `AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
+- `NEXT_PUBLIC_AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`.
+- `NEXT_PUBLIC_AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
 - `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
-- `REDIRECT_URI` - The url where Auth0 redirects back to, make sure a consistent url is used here.
-- `POST_LOGOUT_REDIRECT_URI` - Where to redirect after logging out
+- `NEXT_PUBLIC_REDIRECT_URI` - The url where Auth0 redirects back to, make sure a consistent url is used here.
+- `NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI` - Where to redirect after logging out
 - `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.now.sh/32) to generate a value.
 - `SESSION_COOKIE_LIFETIME` - How long a session lasts in seconds. The default is 2 hours.
 
@@ -79,13 +60,17 @@ The `@auth0_client_secret` and `@session_cookie_secret` are [Vercel environment 
 You can create the `@auth0_client_secret` by running:
 
 ```
+
 now secrets add auth0_client_secret PLACE_YOUR_AUTH0_CLIENT_SECRET
+
 ```
 
 And create the `session_cookie_secret` by generating a value [here](https://generate-secret.now.sh/32) and running:
 
 ```
+
 now secrets add session_cookie_secret PLACE_YOUR_SESSION_COOKIE_SECRET
+
 ```
 
 ## About this sample
@@ -98,3 +83,4 @@ This sample tries to cover a few topics:
 - Loading the user on the client side and using fast/cached SSR pages (`/pages/index.js`)
 - API Routes which can load the current user (`/pages/api/me.js`)
 - Using hooks to make the user available throughout the application (`/lib/user.js`)
+```

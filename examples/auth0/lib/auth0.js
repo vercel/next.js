@@ -13,6 +13,6 @@ export default initAuth0({
     'http://localhost:3000/',
   session: {
     cookieSecret: process.env.SESSION_COOKIE_SECRET,
-    cookieLifetime: 7200,
+    cookieLifetime: process.env.SESSION_COOKIE_LIFETIME || 7200,
   },
 })
