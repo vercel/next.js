@@ -310,6 +310,11 @@ export default class Router implements BaseRouter {
     }
   }
 
+  // @deprecated backwards compatibility even though it's a private method.
+  static _rewriteUrlForNextExport(url: string): string {
+    return resolveHref('/', url)
+  }
+
   onPopState = (e: PopStateEvent): void => {
     if (!e.state) {
       // We get state as undefined for two reasons.
