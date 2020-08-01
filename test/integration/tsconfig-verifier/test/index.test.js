@@ -30,7 +30,7 @@ describe('tsconfig.json verifier', () => {
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
-            \\"es2019\\"
+            \\"esnext\\"
           ],
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
@@ -74,7 +74,7 @@ describe('tsconfig.json verifier', () => {
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
-            \\"es2019\\"
+            \\"esnext\\"
           ],
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
@@ -141,7 +141,7 @@ describe('tsconfig.json verifier', () => {
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
-            \\"es2019\\"
+            \\"esnext\\"
           ],
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
@@ -189,7 +189,7 @@ describe('tsconfig.json verifier', () => {
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
-            \\"es2019\\"
+            \\"esnext\\"
           ],
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
@@ -234,7 +234,7 @@ describe('tsconfig.json verifier', () => {
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
-            \\"es2019\\"
+            \\"esnext\\"
           ],
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
