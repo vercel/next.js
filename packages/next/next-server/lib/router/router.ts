@@ -22,6 +22,18 @@ import {
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 
+interface TransitionOptions {
+  shallow?: boolean
+}
+
+interface NextHistoryState {
+  url: string
+  as: string
+  options: TransitionOptions
+}
+
+type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
+
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
@@ -127,7 +139,7 @@ type RouteInfo = {
 
 type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
 
-type BeforePopStateCallback = (state: any) => boolean
+type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
@@ -325,7 +337,9 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
-    if (!e.state) {
+    const state = e.state as HistoryState
+
+    if (!state) {
       // We get state as undefined for two reasons.
       //  1. With older safari (< 8) and older chrome (< 34)
       //  2. When the URL changed with #
@@ -344,11 +358,12 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const { url, as, options, __N } = e.state
-    if (!__N) {
-      // this history state wasn't created by next.js so it can be ignored
+    if (!state.__N) {
       return
     }
+
+    const { url, as, options } = state
+
     const { pathname } = parseRelativeUrl(url)
 
     // Make sure we don't re-render on initial load,
@@ -359,7 +374,7 @@ export default class Router implements BaseRouter {
 
     // If the downstream application returns falsy, return.
     // They will then be responsible for handling the event.
-    if (this._bps && !this._bps(e.state)) {
+    if (this._bps && !this._bps(state)) {
       return
     }
 
@@ -408,7 +423,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: Url, as: Url = url, options = {}) {
+  push(url: Url, as: Url = url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
@@ -419,7 +434,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: Url, as: Url = url, options = {}) {
+  replace(url: Url, as: Url = url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
@@ -428,9 +443,9 @@ export default class Router implements BaseRouter {
     method: HistoryMethod,
     url: string,
     as: string,
-    options: any
+    options: TransitionOptions
   ): Promise<boolean> {
-    if (!options._h) {
+    if (!(options as any)._h) {
       this.isSsr = false
     }
     // marking route changes as a navigation start entry
@@ -462,7 +477,7 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    if (!options._h && this.onlyAHashChange(cleanedAs)) {
+    if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as)
       this.changeState(method, url, as, options)
@@ -558,7 +573,7 @@ export default class Router implements BaseRouter {
 
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration && '_N_X' in options) {
-          window.scrollTo(options._N_X, options._N_Y)
+          window.scrollTo((options as any)._N_X, (options as any)._N_Y)
         }
       }
       Router.events.emit('routeChangeComplete', as)
@@ -576,7 +591,7 @@ export default class Router implements BaseRouter {
     method: HistoryMethod,
     url: string,
     as: string,
-    options = {}
+    options: TransitionOptions = {}
   ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
@@ -597,7 +612,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
-        },
+        } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
         // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
@@ -610,7 +625,7 @@ export default class Router implements BaseRouter {
   async handleRouteInfoError(
     err: Error & { code: any; cancelled: boolean },
     pathname: string,
-    query: any,
+    query: ParsedUrlQuery,
     as: string,
     loadErrorFail?: boolean
   ): Promise<RouteInfo> {
@@ -728,7 +743,7 @@ export default class Router implements BaseRouter {
   set(
     route: string,
     pathname: string,
-    query: any,
+    query: ParsedUrlQuery,
     as: string,
     data: RouteInfo
   ): Promise<void> {
