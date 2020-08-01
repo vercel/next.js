@@ -26,8 +26,8 @@ function getDesiredCompilerOptions(
       suggested: [
         'dom',
         'dom.iterable',
-        'es2019', // Advance as browsers evolve, with `@next/polyfill-nomodule`
-      ]
+        'es2018', // Advance as browsers evolve, with `@next/polyfill-nomodule`
+      ],
     },
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
