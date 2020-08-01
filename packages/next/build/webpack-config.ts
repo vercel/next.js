@@ -888,7 +888,10 @@ export default async function getBaseWebpackConfig(
               // pre-webpack era (common in server-side code)
               'global.GENTLY': JSON.stringify(false),
             }
-          : undefined),
+          : {
+              // Replace `globalThis` with `window` in browser environments
+              globalThis: 'window',
+            }),
         // stub process.env with proxy to warn a missing value is
         // being accessed in development mode
         ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
