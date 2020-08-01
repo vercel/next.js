@@ -79,6 +79,7 @@
     "@babel/types": "7.9.6",
     "@next/react-dev-overlay": "9.5.2-canary.1",
     "@next/react-refresh-utils": "9.5.2-canary.1",
+    "@ungap/from-entries": "0.2.0",
     "ast-types": "0.13.2",
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",

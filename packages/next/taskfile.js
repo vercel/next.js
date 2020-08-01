@@ -19,6 +19,14 @@ export async function finally_polyfill(task, opts) {
     .target('dist/build/polyfills')
 }
 
+export async function fromEntries_polyfill(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@ungap/from-entries'))
+    )
+    .target('dist/build/polyfills/object.from-entries')
+}
+
 export async function unfetch(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('unfetch')))
@@ -29,6 +37,7 @@ export async function browser_polyfills(task) {
   await task.parallel([
     'next__polyfill_nomodule',
     'finally_polyfill',
+    'fromEntries_polyfill',
     'unfetch',
   ])
 }

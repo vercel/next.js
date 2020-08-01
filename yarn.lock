@@ -3046,6 +3046,11 @@
     semver "^7.3.2"
     tsutils "^3.17.1"
 
+"@ungap/from-entries@0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@ungap/from-entries/-/from-entries-0.2.0.tgz#7627a6c4fcd602dac1ac2619360c3903fef3a9c5"
+  integrity sha512-1Uq5t17ucRke/+/6oj26+3+ORnT1WDN2USGt9P/7BPDVlmhUf7skuwR80rxER/tiMdJxcntvg+QjB5vYN5M21A==
+
 "@webassemblyjs/ast@1.9.0":
   version "1.9.0"
   resolved "https://registry.yarnpkg.com/@webassemblyjs/ast/-/ast-1.9.0.tgz#bd850604b4042459a5a41cd7d338cbed695ed964"

@@ -21,6 +21,10 @@ if (!('finally' in Promise.prototype)) {
   Promise.prototype.finally = require('next/dist/build/polyfills/finally-polyfill.min')
 }
 
+if (!('fromEntries' in Object)) {
+  Object.fromEntries = require('next/dist/build/polyfills/object.from-entries/index')
+}
+
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 window.__NEXT_DATA__ = data
 
