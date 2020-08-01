@@ -312,7 +312,13 @@ export default class Router implements BaseRouter {
 
   // @deprecated backwards compatibility even though it's a private method.
   static _rewriteUrlForNextExport(url: string): string {
-    return resolveHref('/', url)
+    if (process.env.__NEXT_TRAILING_SLASH) {
+      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
+        .rewriteUrlForNextExport
+      return rewriteUrlForNextExport(url)
+    } else {
+      return url
+    }
   }
 
   onPopState = (e: PopStateEvent): void => {
