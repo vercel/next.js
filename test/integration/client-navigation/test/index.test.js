@@ -10,6 +10,7 @@ import {
   launchApp,
   renderViaHTTP,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -123,6 +124,15 @@ describe('Client Navigation', () => {
 
       expect(counterText).toBe('Counter: 1')
       await browser.close()
+    })
+
+    it('should navigate an absolute url', async () => {
+      const browser = await webdriver(context.appPort, '/absolute-url')
+      await browser.waitForElementByCss('#absolute-link').click()
+      await check(
+        () => browser.eval(() => window.location.origin),
+        'https://vercel.com'
+      )
     })
   })
 
@@ -871,6 +881,24 @@ describe('Client Navigation', () => {
 
         expect(asPath).toBe('/nav/as-path-using-router')
         await browser.close()
+      })
+
+      it('should navigate an absolute url on push', async () => {
+        const browser = await webdriver(context.appPort, '/absolute-url')
+        await browser.waitForElementByCss('#router-push').click()
+        await check(
+          () => browser.eval(() => window.location.origin),
+          'https://vercel.com'
+        )
+      })
+
+      it('should navigate an absolute url on replace', async () => {
+        const browser = await webdriver(context.appPort, '/absolute-url')
+        await browser.waitForElementByCss('#router-replace').click()
+        await check(
+          () => browser.eval(() => window.location.origin),
+          'https://vercel.com'
+        )
       })
     })
 

@@ -11,6 +11,7 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
+  isLocalURL,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -93,9 +94,11 @@ function tryParseRelativeUrl(
     return parseRelativeUrl(url)
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
-      throw new Error(
-        `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-      )
+      setTimeout(() => {
+        throw new Error(
+          `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
+        )
+      }, 0)
     }
     return null
   }
@@ -445,6 +448,11 @@ export default class Router implements BaseRouter {
     as: string,
     options: TransitionOptions
   ): Promise<boolean> {
+    if (!isLocalURL(url)) {
+      window.location.href = url
+      return false
+    }
+
     if (!(options as any)._h) {
       this.isSsr = false
     }

@@ -3,18 +3,9 @@ declare const __NEXT_DATA__: any
 import React, { Children } from 'react'
 import { UrlObject } from 'url'
 import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
-import { execOnce, getLocationOrigin } from '../next-server/lib/utils'
+import { execOnce, isLocalURL } from '../next-server/lib/utils'
 import { useRouter } from './router'
 import { addBasePath, resolveHref } from '../next-server/lib/router/router'
-
-/**
- * Detects whether a given url is from the same origin as the current page (browser only).
- */
-function isLocal(url: string): boolean {
-  const locationOrigin = getLocationOrigin()
-  const resolved = new URL(url, locationOrigin)
-  return resolved.origin === locationOrigin
-}
 
 type Url = string | UrlObject
 
@@ -89,6 +80,7 @@ function prefetch(
   options?: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') return
+  if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
@@ -122,11 +114,6 @@ function linkClicked(
       (e.nativeEvent && e.nativeEvent.which === 2))
   ) {
     // ignore click for new tab / new window behavior
-    return
-  }
-
-  if (!isLocal(href)) {
-    // ignore click if it's outside our scope (e.g. https://google.com)
     return
   }
 
@@ -177,7 +164,13 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }, [pathname, props.href, props.as])
 
   React.useEffect(() => {
-    if (p && IntersectionObserver && childElm && childElm.tagName) {
+    if (
+      p &&
+      IntersectionObserver &&
+      childElm &&
+      childElm.tagName &&
+      isLocalURL(href)
+    ) {
       // Join on an invalid URI character
       const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
@@ -224,6 +217,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   if (p) {
     childProps.onMouseEnter = (e: React.MouseEvent) => {
+      if (!isLocalURL(href)) return
       if (child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }

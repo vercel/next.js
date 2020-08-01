@@ -20,9 +20,6 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 
-const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
-const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
-
 // This test doesn't seem to benefit from retries, let's disable them until the test gets fixed
 // to prevent long running times
 jest.retryTimes(0)
@@ -99,24 +96,8 @@ describe('Invalid hrefs', () => {
       await noError('/first')
     })
 
-    it('does not show error in production when mailto: is used as href on router.push', async () => {
-      await noError('/first?method=push', true)
-    })
-
-    it('does not show error in production when mailto: is used as href on router.replace', async () => {
-      await noError('/first?method=replace', true)
-    })
-
     it('does not show error in production when https://google.com is used as href on Link', async () => {
       await noError('/second')
-    })
-
-    it('does not show error in production when http://google.com is used as href on router.push', async () => {
-      await noError('/second?method=push', true)
-    })
-
-    it('does not show error in production when https://google.com is used as href on router.replace', async () => {
-      await noError('/second?method=replace', true)
     })
 
     it('shows error when dynamic route mismatch is used on Link', async () => {
@@ -142,18 +123,6 @@ describe('Invalid hrefs', () => {
         await browser.close()
       }
     })
-
-    it('makes sure that router push with bad links resolve', async () => {
-      const browser = await webdriver(appPort, '/third')
-      await browser.elementByCss('#click-me').click()
-      await browser.waitForElementByCss('#is-done')
-    })
-
-    it('makes sure that router replace with bad links resolve', async () => {
-      const browser = await webdriver(appPort, '/third?method=replace')
-      await browser.elementByCss('#click-me').click()
-      await browser.waitForElementByCss('#is-done')
-    })
   })
 
   describe('dev mode', () => {
@@ -163,28 +132,12 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp(app))
 
-    it('shows error when mailto: is used as href on Link', async () => {
-      await showsError('/first', firstErrorRegex)
+    it('does not show error when mailto: is used as href on Link', async () => {
+      await noError('/first')
     })
 
-    it('shows error when mailto: is used as href on router.push', async () => {
-      await showsError('/first?method=push', firstErrorRegex, true)
-    })
-
-    it('shows error when mailto: is used as href on router.replace', async () => {
-      await showsError('/first?method=replace', firstErrorRegex, true)
-    })
-
-    it('shows error when https://google.com is used as href on Link', async () => {
-      await showsError('/second', secondErrorRegex)
-    })
-
-    it('shows error when http://google.com is used as href on router.push', async () => {
-      await showsError('/second?method=push', secondErrorRegex, true)
-    })
-
-    it('shows error when https://google.com is used as href on router.replace', async () => {
-      await showsError('/second?method=replace', secondErrorRegex, true)
+    it('does not show error when https://google.com is used as href on Link', async () => {
+      await noError('/second')
     })
 
     it('shows error when dynamic route mismatch is used on Link', async () => {
