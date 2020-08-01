@@ -22,7 +22,13 @@ function getDesiredCompilerOptions(
     // These are suggested values and will be set when not present in the
     // tsconfig.json
     target: { suggested: 'es5' },
-    lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
+    lib: {
+      suggested: [
+        'dom',
+        'dom.iterable',
+        'es2019', // Advance as browsers evolve, with `@next/polyfill-nomodule`
+      ]
+    },
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
