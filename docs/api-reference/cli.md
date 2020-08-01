@@ -48,7 +48,7 @@ NODE_OPTIONS='--inspect' next
 
 The first load is colored green, yellow, or red. Aim for green for performant applications.
 
-With Next.js 9.5, you can now **enable production profiling for React** with the `--profile` flag in `next build`:
+You can enable production profiling for React with the `--profile` flag in `next build`. This requires Next.js 9.5:
 
 ```bash
 next build --profile
