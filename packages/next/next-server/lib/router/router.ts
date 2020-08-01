@@ -30,6 +30,10 @@ function buildCancellationError() {
   })
 }
 
+export function hasBasePath(path: string): boolean {
+  return path === basePath || path.startsWith(basePath + '/')
+}
+
 export function addBasePath(path: string): string {
   return basePath
     ? path === '/'
@@ -269,7 +273,6 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
-
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
@@ -450,7 +453,7 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    const cleanedAs = delBasePath(as)
+    const cleanedAs = hasBasePath(as) ? delBasePath(as) : as
     this._inFlightRoute = as
 
     // If the url change is only related to a hash change
