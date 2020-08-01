@@ -17,8 +17,7 @@ import measureWebVitals from './performance-relayer'
 /// <reference types="react-dom/experimental" />
 
 if (!('finally' in Promise.prototype)) {
-  // eslint-disable-next-line no-extend-native
-  Promise.prototype.finally = require('next/dist/build/polyfills/finally-polyfill.min')
+  require('next/dist/build/polyfills/finally-polyfill.min')
 }
 
 if (!('fromEntries' in Object)) {
