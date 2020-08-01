@@ -490,7 +490,7 @@ export default class DevServer extends Server {
         !this.renderOpts.dev && this._isLikeServerless,
         {
           publicRuntimeConfig,
-          serverRuntimeConfig
+          serverRuntimeConfig,
         }
       )
       return paths
