@@ -31,7 +31,7 @@ export function initializeApollo(initialState = null) {
   if (initialState) {
     // Get existing cache, loaded during client side data fetching
     const existingCache = _apolloClient.extract()
-    // Restore the cache using the data passed from getStaticProps/getServerSideProps 
+    // Restore the cache using the data passed from getStaticProps/getServerSideProps
     // combined with the existing cached data
     _apolloClient.cache.restore({ ...existingCache, ...initialState })
   }
