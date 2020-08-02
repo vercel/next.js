@@ -27,6 +27,9 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
   // function is re-used or we are running in `next start` mode
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
+  const origEnv = Object.assign({}, process.env)
+  const parsed: dotenv.DotenvParseOutput = {}
+
   for (const envFile of loadedEnvFiles) {
     try {
       let result: DotenvConfigOutput = {}
@@ -38,7 +41,14 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
         log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
       }
 
-      Object.assign(process.env, result.parsed)
+      for (const key of Object.keys(result.parsed || {})) {
+        if (
+          typeof parsed[key] === 'undefined' &&
+          typeof origEnv[key] === 'undefined'
+        ) {
+          parsed[key] = result.parsed?.[key]!
+        }
+      }
     } catch (err) {
       log.error(
         `Failed to load env from ${path.join(dir || '', envFile.path)}`,
@@ -47,7 +57,7 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
     }
   }
 
-  return process.env as Env
+  return Object.assign(process.env, parsed)
 }
 
 export function loadEnvConfig(
