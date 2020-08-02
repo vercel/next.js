@@ -24,9 +24,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# auth0 env
-.env
-
 # local env files
 .env.local
 .env.development.local
