@@ -51,6 +51,7 @@ const runTests = (mode = 'dev') => {
     expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
     expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
     expect(data.ENV_FILE_KEY_EXCLAMATION).toBe('hello!')
+    expect(data.ENV_FILE_EMPTY_FIRST).toBe(isTestEnv ? '' : '$escaped')
   }
 
   it('should have process environment override .env', async () => {
