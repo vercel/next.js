@@ -17,8 +17,7 @@ export default class PagesManifestPlugin implements Plugin {
     this.serverless = serverless
   }
 
-  createAssets(compilation: any) {
-    const assets: { [name: string]: any } = {}
+  createAssets(compilation: any, assets: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
 
@@ -49,7 +48,6 @@ export default class PagesManifestPlugin implements Plugin {
     }
 
     assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages, null, 2))
-    return assets
   }
 
   apply(compiler: Compiler): void {
@@ -63,27 +61,15 @@ export default class PagesManifestPlugin implements Plugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            const additionalAssets = this.createAssets(compilation)
-            return {
-              ...assets,
-              ...additionalAssets,
-            }
+            this.createAssets(compilation, assets)
           }
         )
       })
       return
     }
 
-    compiler.hooks.emit.tapAsync(
-      'NextJsPagesManifest',
-      (compilation: any, callback: any) => {
-        const additionalAssets = this.createAssets(compilation)
-        compilation.assets = {
-          ...compilation.assets,
-          ...additionalAssets,
-        }
-        callback()
-      }
-    )
+    compiler.hooks.emit.tap('NextJsPagesManifest', (compilation: any) => {
+      this.createAssets(compilation, compilation.assets)
+    })
   }
 }

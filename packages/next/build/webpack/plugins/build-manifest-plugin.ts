@@ -69,8 +69,7 @@ export default class BuildManifestPlugin {
     this.modern = options.modern
   }
 
-  createAssets(compilation: any) {
-    const assets: { [name: string]: any } = {}
+  createAssets(compilation: any, assets: any) {
     const namedChunks: Map<string, CompilationType.Chunk> =
       compilation.namedChunks
     const assetMap: BuildManifest = {
@@ -213,27 +212,15 @@ export default class BuildManifestPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            const additionalAssets = this.createAssets(compilation)
-            return {
-              ...assets,
-              ...additionalAssets,
-            }
+            this.createAssets(compilation, assets)
           }
         )
       })
       return
     }
 
-    compiler.hooks.emit.tapAsync(
-      'NextJsBuildManifest',
-      (compilation: any, callback: any) => {
-        const additionalAssets = this.createAssets(compilation)
-        compilation.assets = {
-          ...compilation.assets,
-          ...additionalAssets,
-        }
-        callback()
-      }
-    )
+    compiler.hooks.emit.tap('NextJsBuildManifest', (compilation: any) => {
+      this.createAssets(compilation, compilation.assets)
+    })
   }
 }

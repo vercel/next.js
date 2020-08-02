@@ -106,8 +106,7 @@ export class ReactLoadablePlugin {
     this.filename = opts.filename
   }
 
-  createAssets(compiler: any, compilation: any) {
-    const assets: { [name: string]: any } = {}
+  createAssets(compiler: any, compilation: any, assets: any) {
     const manifest = buildManifest(compiler, compilation)
     var json = JSON.stringify(manifest, null, 2)
     assets[this.filename] = {
@@ -132,11 +131,7 @@ export class ReactLoadablePlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            const additionalAssets = this.createAssets(compiler, compilation)
-            return {
-              ...assets,
-              ...additionalAssets,
-            }
+            this.createAssets(compiler, compilation, assets)
           }
         )
       })
@@ -144,11 +139,7 @@ export class ReactLoadablePlugin {
     }
 
     compiler.hooks.emit.tap('ReactLoadableManifest', (compilation: any) => {
-      const additionalAssets = this.createAssets(compiler, compilation)
-      compilation.assets = {
-        ...compilation.assets,
-        ...additionalAssets,
-      }
+      this.createAssets(compiler, compilation, compilation.assets)
     })
   }
 }
