@@ -1,7 +1,7 @@
-const redis = require('redis')
-const { promisify } = require('util')
+import redis from 'redis'
+import { promisify } from 'util'
 
-module.exports = async (req, res) => {
+export default async function list(req, res) {
   const client = redis.createClient({
     url: process.env.REDIS_URL,
   })
@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
   const id = body['id']
   let ip = req.headers['x-forwarded-for']
   const saddAsync = promisify(client.sadd).bind(client)
-  let c = await saddAsync('s:' + id, ip)
+  let c = await saddAsync('s:' + id, ip ? ip : '-')
   if (c === 0) {
     client.quit()
     res.json({

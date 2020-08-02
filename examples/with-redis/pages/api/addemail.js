@@ -1,8 +1,7 @@
-const redis = require('redis')
-const { promisify } = require('util')
-const { v4: uuidv4 } = require('uuid')
+import redis from 'redis'
+import { promisify } from 'util'
 
-module.exports = async (req, res) => {
+export default async function addEmail(req, res) {
   const client = redis.createClient({
     url: process.env.REDIS_URL,
   })
@@ -30,6 +29,6 @@ module.exports = async (req, res) => {
 }
 
 function validateEmail(email) {
-  const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+  const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
   return re.test(String(email).toLowerCase())
 }

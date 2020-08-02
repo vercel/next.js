@@ -1,8 +1,8 @@
-const redis = require('redis')
-const { promisify } = require('util')
-const { v4: uuidv4 } = require('uuid')
+import redis from 'redis'
+import { promisify } from 'util'
+import { v4 as uuidv4 } from 'uuid'
 
-module.exports = async (req, res) => {
+export default async function create(req, res) {
   const client = redis.createClient({
     url: process.env.REDIS_URL,
   })
