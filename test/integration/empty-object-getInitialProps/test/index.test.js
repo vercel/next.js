@@ -8,6 +8,7 @@ import {
   launchApp,
   killApp,
   waitFor,
+  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -49,20 +50,24 @@ describe('Empty Project', () => {
 
   it('should show empty object warning during client transition', async () => {
     const browser = await webdriver(appPort, '/static')
-    await browser.eval(`(function() {
-      window.gotWarn = false
-      const origWarn = console.warn
-      window.console.warn = function () {
-        if (arguments[0].match(/returned an empty object from \`getInitialProps\`/)) {
-          window.gotWarn = true
+    try {
+      await browser.eval(`(function() {
+        window.gotWarn = false
+        const origWarn = console.warn
+        window.console.warn = function () {
+          if (arguments[0].match(/returned an empty object from \`getInitialProps\`/)) {
+            window.gotWarn = true
+          }
+          origWarn.apply(this, arguments)
         }
-        origWarn.apply(this, arguments)
-      }
-      window.next.router.replace('/another')
-    })()`)
-    await waitFor(1000)
-    const gotWarn = await browser.eval(`window.gotWarn`)
-    expect(gotWarn).toBe(true)
-    await browser.close()
+        window.next.router.replace('/another')
+      })()`)
+      await check(async () => {
+        const gotWarn = await browser.eval(`window.gotWarn`)
+        return gotWarn ? 'pass' : 'fail'
+      }, 'pass')
+    } finally {
+      await browser.close()
+    }
   })
 })

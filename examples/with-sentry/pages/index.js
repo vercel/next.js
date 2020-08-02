@@ -41,14 +41,6 @@ const Index = () => (
             Open in a new tab
           </a>
         </li>
-        <li>
-          There is a top-of-module Promise that rejects, but its result is not
-          awaited. Sentry should record Error('Server Test 4'). Note this will
-          also be recorded on the client side, once the page is hydrated.{' '}
-          <a href="/server/test4" target="_blank">
-            Open in a new tab
-          </a>
-        </li>
       </ul>
 
       <li>Client exceptions</li>
