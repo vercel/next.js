@@ -15,6 +15,7 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
+import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
@@ -261,7 +262,9 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
-    jsConfig = parseJsonFile(tsConfigPath)
+    const ts = (await import(typeScriptPath)) as typeof import('typescript')
+    const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath)
+    jsConfig = { compilerOptions: tsConfig.options }
   }
 
   const jsConfigPath = path.join(dir, 'jsconfig.json')
@@ -707,6 +710,7 @@ export default async function getBaseWebpackConfig(
       ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
     },
     output: {
+      ...(isWebpack5 ? { ecmaVersion: 5 } : {}),
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
@@ -802,6 +806,14 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       hasReactRefresh && new ReactRefreshWebpackPlugin(),
+      // Makes sure `Buffer` is polyfilled in client-side bundles (same behavior as webpack 4)
+      isWebpack5 &&
+        !isServer &&
+        new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'] }),
+      // Makes sure `process` is polyfilled in client-side bundles (same behavior as webpack 4)
+      isWebpack5 &&
+        !isServer &&
+        new webpack.ProvidePlugin({ process: ['process'] }),
       // This plugin makes sure `output.filename` is used for entry chunks
       !isWebpack5 && new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
@@ -861,6 +873,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
+        ),
+        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
+          config.experimental.optimizeFonts
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -966,6 +981,15 @@ export default async function getBaseWebpackConfig(
             chunkFilename: (inputChunkName: string) =>
               inputChunkName.replace(/\.js$/, '.module.js'),
           })
+        })(),
+      config.experimental.optimizeFonts &&
+        !dev &&
+        isServer &&
+        (function () {
+          const {
+            FontStylesheetGatheringPlugin,
+          } = require('./webpack/plugins/font-stylesheet-gathering-plugin')
+          return new FontStylesheetGatheringPlugin()
         })(),
       config.experimental.conformance &&
         !isWebpack5 &&

@@ -23,7 +23,7 @@ export type __ApiPreviewProps = {
 export async function apiResolver(
   req: IncomingMessage,
   res: ServerResponse,
-  params: any,
+  query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
   propagateError: boolean,
@@ -45,7 +45,7 @@ export async function apiResolver(
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
     // Parsing query string
-    setLazyProp({ req: apiReq, params }, 'query', getQueryParser(req))
+    apiReq.query = query
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
       tryGetPreviewData(req, res, apiContext)
@@ -68,7 +68,8 @@ export async function apiResolver(
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
-    apiRes.redirect = (statusOrUrl, url) => redirect(apiRes, statusOrUrl, url)
+    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
+      redirect(apiRes, statusOrUrl, url)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
