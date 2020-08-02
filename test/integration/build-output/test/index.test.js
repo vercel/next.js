@@ -91,37 +91,37 @@ describe('Build Output', () => {
       }
 
       // should be no bigger than 265 bytes
-      expect(parseFloat(indexSize)).toBeLessThanOrEqual(265)
-      expect(indexSize.endsWith(' B')).toBe(true)
+      expect(parseFloat(indexSize) - 265).toBeLessThanOrEqual(0)
+      expect(indexSize.endsWith('B')).toBe(true)
 
       // should be no bigger than 60 kb
-      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(60)
+      expect(parseFloat(indexFirstLoad) - 60).toBeLessThanOrEqual(0)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404Size)).toBeLessThanOrEqual(3.6)
+      expect(parseFloat(err404Size) - 3.6).toBeLessThanOrEqual(0)
       expect(err404Size.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404FirstLoad)).toBeLessThanOrEqual(63)
+      expect(parseFloat(err404FirstLoad) - 63).toBeLessThanOrEqual(0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll)).toBeLessThanOrEqual(59.3)
+      expect(parseFloat(sharedByAll) - 59.3).toBeLessThanOrEqual(0)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
         expect(parseFloat(_appSize)).toBe(1)
         expect(_appSize.endsWith('kB')).toBe(true)
       } else {
-        expect(parseFloat(_appSize)).toBeLessThanOrEqual(1000)
+        expect(parseFloat(_appSize) - 1000).toBeLessThanOrEqual(0)
         expect(_appSize.endsWith(' B')).toBe(true)
       }
 
-      expect(parseFloat(webpackSize)).toBeLessThanOrEqual(752)
+      expect(parseFloat(webpackSize) - 752).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
-      expect(parseFloat(mainSize)).toBeLessThanOrEqual(6.5)
+      expect(parseFloat(mainSize) - 6.5).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(frameworkSize)).toBeLessThanOrEqual(41)
+      expect(parseFloat(frameworkSize) - 41).toBeLessThanOrEqual(0)
       expect(frameworkSize.endsWith('kB')).toBe(true)
     })
 
