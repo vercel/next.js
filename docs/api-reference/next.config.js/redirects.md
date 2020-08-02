@@ -4,6 +4,8 @@ description: Add redirects to your Next.js app.
 
 # Redirects
 
+> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+
 Redirects allow you to redirect an incoming request path to a different destination path.
 
 Redirects are only available on the Node.js environment and do not affect client-side routing.
@@ -66,6 +68,24 @@ module.exports = {
 }
 ```
 
+### Regex Path Matching
+
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+
+```js
+module.exports = {
+  async redirects() {
+    return [
+      {
+        source: '/old-blog/:post(\\d{1,})',
+        destination: '/blog/:post', // Matched parameters can be used in the destination
+        permanent: false,
+      },
+    ]
+  },
+}
+```
+
 ### Redirects with basePath support
 
 When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with redirects each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the redirect:
@@ -92,3 +112,5 @@ module.exports = {
   },
 }
 ```
+
+In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Note: to ensure IE11 compatibility a `Refresh` header is automatically added for the 308 status code.
