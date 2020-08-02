@@ -30,6 +30,7 @@ export class ServerlessPlugin {
           const dynamicChunks = chunk.getAllAsyncChunks()
           for (const dynamicChunk of dynamicChunks) {
             if (isWebpack5) {
+              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
               for (const module of compilation.chunkGraph.getChunkModulesIterable(
                 chunk
               )) {
