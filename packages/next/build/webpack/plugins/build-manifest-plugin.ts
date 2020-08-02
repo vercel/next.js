@@ -60,7 +60,8 @@ export default class BuildManifestPlugin {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
       (compilation: any, callback: any) => {
-        const chunks: CompilationType.Chunk[] = compilation.chunks
+        const namedChunks: Map<string, CompilationType.Chunk> =
+          compilation.namedChunks
         const assetMap: BuildManifest = {
           polyfillFiles: [],
           devFiles: [],
@@ -82,21 +83,19 @@ export default class BuildManifestPlugin {
           }
         }
 
-        const mainJsChunk = chunks.find(
-          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
-        )
+        const mainJsChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
 
         const mainJsFiles: string[] = mainJsChunk?.files.filter(isJsFile) ?? []
 
-        const polyfillChunk = chunks.find(
-          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+        const polyfillChunk = namedChunks.get(
+          CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
 
         // Create a separate entry  for polyfills
         assetMap.polyfillFiles = polyfillChunk?.files.filter(isJsFile) ?? []
 
-        const reactRefreshChunk = chunks.find(
-          (c) => c.name === CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+        const reactRefreshChunk = namedChunks.get(
+          CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
         )
         assetMap.devFiles = reactRefreshChunk?.files.filter(isJsFile) ?? []
 
