@@ -33,7 +33,10 @@
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
     "next": "node packages/next/dist/bin/next",
-    "debug": "node --inspect packages/next/dist/bin/next"
+    "debug": "node --inspect packages/next/dist/bin/next",
+    "ncu": "yarn run ncu:root && yarn run ncu:ws",
+    "ncu:root": "npx yarn-tool ncu -u",
+    "ncu:ws": "npx yarn-tool ws exec yarn-tool ncu -- -u"
   },
   "pre-commit": "lint-staged",
   "devDependencies": {
