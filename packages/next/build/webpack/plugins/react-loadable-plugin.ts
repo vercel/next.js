@@ -21,11 +21,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import {
+import webpack, {
   Compiler,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   compilation as CompilationType,
 } from 'webpack'
+
+const isWebpack5 = parseInt(webpack.version!) === 5
 
 function buildManifest(
   _compiler: Compiler,
@@ -88,22 +90,49 @@ export class ReactLoadablePlugin {
     this.filename = opts.filename
   }
 
+  createAssets(compiler: any, compilation: any) {
+    const assets: { [name: string]: any } = {}
+    const manifest = buildManifest(compiler, compilation)
+    var json = JSON.stringify(manifest, null, 2)
+    assets[this.filename] = {
+      source() {
+        return json
+      },
+      size() {
+        return json.length
+      },
+    }
+    return assets
+  }
+
   apply(compiler: Compiler) {
-    compiler.hooks.emit.tapAsync(
-      'ReactLoadableManifest',
-      (compilation, callback) => {
-        const manifest = buildManifest(compiler, compilation)
-        var json = JSON.stringify(manifest, null, 2)
-        compilation.assets[this.filename] = {
-          source() {
-            return json
+    if (isWebpack5) {
+      compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: 'ReactLoadableManifest',
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
-          size() {
-            return json.length
-          },
-        }
-        callback()
+          (assets: any) => {
+            const additionalAssets = this.createAssets(compiler, compilation)
+            return {
+              ...assets,
+              ...additionalAssets,
+            }
+          }
+        )
+      })
+      return
+    }
+
+    compiler.hooks.emit.tap('ReactLoadableManifest', (compilation: any) => {
+      const additionalAssets = this.createAssets(compiler, compilation)
+      compilation.assets = {
+        ...compilation.assets,
+        ...additionalAssets,
       }
-    )
+    })
   }
 }
