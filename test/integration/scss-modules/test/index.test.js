@@ -14,6 +14,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 1)
 
@@ -21,6 +22,7 @@ const fixturesDir = join(__dirname, '../../scss-fixtures')
 
 describe('Basic SCSS Module Support', () => {
   const appDir = join(fixturesDir, 'basic-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
@@ -28,6 +30,11 @@ describe('Basic SCSS Module Support', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -36,6 +43,7 @@ describe('Basic SCSS Module Support', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -75,6 +83,7 @@ describe('Basic SCSS Module Support', () => {
 
 describe('3rd Party CSS Module Support', () => {
   const appDir = join(fixturesDir, '3rd-party-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
@@ -82,6 +91,11 @@ describe('3rd Party CSS Module Support', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -90,6 +104,7 @@ describe('3rd Party CSS Module Support', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -162,6 +177,7 @@ describe('Has CSS Module in computed styles in Development', () => {
 
 describe('Has CSS Module in computed styles in Production', () => {
   const appDir = join(fixturesDir, 'prod-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
@@ -169,6 +185,11 @@ describe('Has CSS Module in computed styles in Production', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -177,6 +198,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -291,6 +313,7 @@ describe('Invalid CSS Global Module Usage in node_modules', () => {
 
 describe('Valid CSS Module Usage from within node_modules', () => {
   const appDir = join(fixturesDir, 'nm-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
@@ -302,6 +325,11 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -310,6 +338,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -344,6 +373,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
 describe('Valid Nested CSS Module Usage from within node_modules', () => {
   const appDir = join(fixturesDir, 'nm-module-nested')
+  const nextConfig = join(appDir, 'next.config.js')
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
@@ -355,6 +385,11 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -363,6 +398,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -398,14 +434,23 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 describe('CSS Module Composes Usage (Basic)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-basic')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
+  })
+  afterAll(async () => {
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -431,14 +476,23 @@ describe('CSS Module Composes Usage (Basic)', () => {
 describe('CSS Module Composes Usage (External)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-external')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
+  })
+  afterAll(async () => {
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -463,6 +517,7 @@ describe('CSS Module Composes Usage (External)', () => {
 
 describe('Dynamic Route CSS Module Usage', () => {
   const appDir = join(fixturesDir, 'dynamic-route-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
@@ -471,13 +526,21 @@ describe('Dynamic Route CSS Module Usage', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
-  afterAll(() => killApp(app))
+  afterAll(async () => {
+    await killApp(app)
+    await fs.remove(nextConfig)
+  })
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
@@ -511,6 +574,7 @@ describe('Dynamic Route CSS Module Usage', () => {
 
 describe('Catch-all Route CSS Module Usage', () => {
   const appDir = join(fixturesDir, 'catch-all-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
@@ -519,13 +583,21 @@ describe('Catch-all Route CSS Module Usage', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
-  afterAll(() => killApp(app))
+  afterAll(async () => {
+    await killApp(app)
+    await fs.remove(nextConfig)
+  })
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
