@@ -29,6 +29,22 @@ import webpack, {
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
+function getModulesIterable(compilation: any, chunk: any) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getChunkModulesIterable(chunk)
+  }
+
+  return chunk.modulesIterable
+}
+
+function getModuleId(compilation: any, module: any) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getModuleId(module)
+  }
+
+  return module.id
+}
+
 function buildManifest(
   _compiler: Compiler,
   compilation: CompilationType.Compilation
@@ -49,8 +65,8 @@ function buildManifest(
             return
           }
 
-          for (const module of chunk.modulesIterable) {
-            let id = module.id
+          for (const module of getModulesIterable(compilation, chunk)) {
+            let id = getModuleId(compilation, module)
 
             if (!manifest[request]) {
               manifest[request] = []

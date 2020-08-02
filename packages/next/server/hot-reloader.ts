@@ -407,9 +407,9 @@ export default class HotReloader {
 
         const { compilation } = stats
         const chunkNames = new Set(
-          compilation.chunks
-            .map((c) => c.name)
-            .filter((name) => !!getRouteFromEntrypoint(name))
+          [...compilation.namedChunks.keys()].filter(
+            (name) => !!getRouteFromEntrypoint(name)
+          )
         )
 
         if (this.prevChunkNames) {

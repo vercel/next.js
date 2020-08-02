@@ -47,6 +47,17 @@ function isJsFile(file: string): boolean {
   return !file.endsWith('.hot-update.js') && file.endsWith('.js')
 }
 
+function getFilesArray(files: any) {
+  if (!files) {
+    return []
+  }
+  if (isWebpack5) {
+    return Array.from(files)
+  }
+
+  return files
+}
+
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -85,17 +96,21 @@ export default class BuildManifestPlugin {
 
     const mainJsChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
 
-    const mainJsFiles: string[] = mainJsChunk?.files.filter(isJsFile) ?? []
+    const mainJsFiles: string[] = getFilesArray(mainJsChunk?.files).filter(
+      isJsFile
+    )
 
     const polyfillChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
 
     // Create a separate entry  for polyfills
-    assetMap.polyfillFiles = polyfillChunk?.files.filter(isJsFile) ?? []
+    assetMap.polyfillFiles = getFilesArray(polyfillChunk?.files).filter(
+      isJsFile
+    )
 
     const reactRefreshChunk = namedChunks.get(
       CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
     )
-    assetMap.devFiles = reactRefreshChunk?.files.filter(isJsFile) ?? []
+    assetMap.devFiles = getFilesArray(reactRefreshChunk?.files).filter(isJsFile)
 
     for (const entrypoint of compilation.entrypoints.values()) {
       const isAmpRuntime = entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
