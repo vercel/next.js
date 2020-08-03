@@ -9,8 +9,8 @@ const Login = () => {
 
   const [errorMsg, setErrorMsg] = useState('')
 
-  async function handleSubmit(e) {
-    event.preventDefault()
+  async function handleSubmit (e) {
+    e.preventDefault()
 
     if (errorMsg) setErrorMsg('')
 
