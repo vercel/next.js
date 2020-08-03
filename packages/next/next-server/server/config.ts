@@ -35,7 +35,6 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   basePath: '',
-  exportTrailingSlash: false,
   sassOptions: {},
   trailingSlash: false,
   experimental: {
@@ -73,6 +72,17 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+    )
+    if (typeof userConfig.trailingSlash === 'undefined') {
+      userConfig.trailingSlash = userConfig.exportTrailingSlash
+    }
+    delete userConfig.exportTrailingSlash
+  }
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = userConfig[key]

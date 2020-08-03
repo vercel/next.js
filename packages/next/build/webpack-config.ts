@@ -861,9 +861,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
         ),
-        'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
-          config.exportTrailingSlash
-        ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
