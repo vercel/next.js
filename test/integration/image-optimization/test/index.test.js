@@ -18,33 +18,34 @@ let appPort
 let app
 
 function runTests() {
-  it('should add a preload tag for first two hero images on static page', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    console.log('HTML IS ' + html)
-    expect(html).toEqual('foo')
-    // expect(html).not.toContain(
-    //   '<link rel="preload" href="main-image-1.jpg"/>'
-    // )
-    // expect(html).not.toContain(
-    //   '<link rel="preload" href="main-image-2.jpg"/>'
-    // )
-    // expect(html).not.toContain(
-    //   '<link rel="preload" href="main-image-3.jpg"/>'
-    // )
+  describe('On a static page', () => {
+    checkImagesOnPage('/')
   })
-  it('should add a preload tag for first two hero images on SSR page', async () => {
-    const html = await renderViaHTTP(appPort, '/stars')
-    console.log('HTML (SSR) IS ' + html)
-    expect(html).toEqual('foo')
-    // expect(html).not.toContain(
-    //   '<link rel="preload" href="main-image-1.jpg"/>'
-    // )
-    // expect(html).not.toContain(
-    //   '<link rel="preload" href="main-image-2.jpg"/>'
-    // )
-    // expect(html).not.toContain(
-    //   '<link rel="preload" href="main-image-3.jpg"/>'
-    // )
+
+  describe('On an SSR page', () => {
+    checkImagesOnPage('/stars')
+  })
+}
+
+function checkImagesOnPage(path) {
+  it('should not preload tiny images', async () => {
+    const html = await renderViaHTTP(appPort, path)
+    expect(html).not.toContain('<link rel="preload" href="tiny-image.jpg"/>')
+  })
+  it('should not preload hidden images', async () => {
+    const html = await renderViaHTTP(appPort, path)
+    expect(html).not.toContain(
+      '<link rel="preload" href="hidden-image-1.jpg"/>'
+    )
+    expect(html).not.toContain(
+      '<link rel="preload" href="hidden-image-2.jpg"/>'
+    )
+  })
+  it('should preload exactly two eligible images', async () => {
+    const html = await renderViaHTTP(appPort, path)
+    expect(html).toContain('<link rel="preload" href="main-image-1.jpg"/>')
+    expect(html).toContain('<link rel="preload" href="main-image-2.jpg"/>')
+    expect(html).not.toContain('<link rel="preload" href="main-image-3.jpg"/>')
   })
 }
 
