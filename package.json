@@ -32,7 +32,7 @@
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
-    "next": "node packages/next/dist/bin/next",
+    "next": "node --trace-deprecation packages/next/dist/bin/next",
     "debug": "node --inspect packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
