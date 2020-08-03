@@ -763,7 +763,7 @@ export default async function build(
 
         return defaultMap
       },
-      exportTrailingSlash: false,
+      trailingSlash: false,
     }
 
     await exportApp(dir, exportOptions, exportConfig)
@@ -985,7 +985,7 @@ export default async function build(
     JSON.stringify({
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
-      exportTrailingSlash: config.exportTrailingSlash === true,
+      exportTrailingSlash: config.trailingSlash === true,
     }),
     'utf8'
   )
