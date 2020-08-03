@@ -582,6 +582,8 @@ export default class Router implements BaseRouter {
             }
           }
 
+          Router.events.emit('routeChangeStart', as)
+
           try {
             const routeInfo = await this.getRouteInfo(
               route,
