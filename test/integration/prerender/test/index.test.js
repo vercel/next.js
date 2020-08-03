@@ -428,6 +428,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should SSR blocking path correctly (blocking)', async () => {
+    const html = await renderViaHTTP(appPort, '/blocking-fallback/random-path')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    expect($('p').text()).toBe('Post: random-path')
+  })
+
+  it('should SSR blocking path correctly (pre-rendered)', async () => {
+    const html = await renderViaHTTP(appPort, '/blocking-fallback-some/a')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    expect($('p').text()).toBe('Post: a')
+  })
+
   it('should have gsp in __NEXT_DATA__', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
@@ -739,6 +753,11 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       expect(html).toMatch(/About:.*?en/)
     })
 
+    it("should allow rewriting to SSG page with fallback: 'blocking'", async () => {
+      const html = await renderViaHTTP(appPort, '/blocked-create')
+      expect(html).toMatch(/Post:.*?blocked-create/)
+    })
+
     it('should fetch /_next/data correctly with mismatched href and as', async () => {
       const browser = await webdriver(appPort, '/')
 
@@ -831,6 +850,28 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 
       // make another request to ensure it's still not
       const html2 = await renderViaHTTP(appPort, '/blog/post-1')
+      const $2 = cheerio.load(html2)
+      expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    })
+
+    it('should never show fallback for page not in getStaticPaths when blocking', async () => {
+      const html = await renderViaHTTP(appPort, '/blocking-fallback-some/asf')
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+
+      // make another request to ensure it still is
+      const html2 = await renderViaHTTP(appPort, '/blocking-fallback-some/asf')
+      const $2 = cheerio.load(html2)
+      expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    })
+
+    it('should not show fallback for page in getStaticPaths when blocking', async () => {
+      const html = await renderViaHTTP(appPort, '/blocking-fallback-some/b')
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+
+      // make another request to ensure it's still not
+      const html2 = await renderViaHTTP(appPort, '/blocking-fallback-some/b')
       const $2 = cheerio.load(html2)
       expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
     })
@@ -972,6 +1013,11 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     it('should show fallback before invalid JSON is returned from getStaticProps', async () => {
       const html = await renderViaHTTP(appPort, '/non-json/foobar')
       expect(html).toContain('"isFallback":true')
+    })
+
+    it('should not fallback before invalid JSON is returned from getStaticProps when blocking fallback', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json-blocking/foobar')
+      expect(html).toContain('"isFallback":false')
     })
 
     it('should show error for invalid JSON returned from getStaticProps on SSR', async () => {
@@ -1563,6 +1609,10 @@ describe('SSG Prerender', () => {
               {
                 source: '/about',
                 destination: '/lang/en/about'
+              },
+              {
+                source: '/blocked-create',
+                destination: '/blocking-fallback/blocked-create',
               }
             ]
           }
@@ -1665,6 +1715,10 @@ describe('SSG Prerender', () => {
               {
                 source: '/about',
                 destination: '/lang/en/about'
+              },
+              {
+                source: '/blocked-create',
+                destination: '/blocking-fallback/blocked-create',
               }
             ]
           }
