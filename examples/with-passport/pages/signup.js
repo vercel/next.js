@@ -9,7 +9,7 @@ const Signup = () => {
 
   const [errorMsg, setErrorMsg] = useState('')
 
-  async function handleSubmit (e) {
+  async function handleSubmit(e) {
     e.preventDefault()
 
     if (errorMsg) setErrorMsg('')
