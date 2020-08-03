@@ -52,7 +52,6 @@ import Router, {
   route,
   Route,
 } from './router'
-import { sendHTML } from './send-html'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -275,13 +274,11 @@ export default class Server {
 
     const { basePath } = this.nextConfig
 
-    // if basePath is set require it be present
-    if (basePath && !req.url!.startsWith(basePath)) {
-      return this.render404(req, res, parsedUrl)
-    } else {
-      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
-      req.url = req.url!.replace(basePath, '')
+    if (basePath && req.url?.startsWith(basePath)) {
+      // store original URL to allow checking if basePath was
+      // provided or not
+      ;(req as any)._nextHadBasePath = true
+      req.url = req.url!.replace(basePath, '') || '/'
     }
 
     res.statusCode = 200
@@ -330,6 +327,7 @@ export default class Server {
   }
 
   protected generateRoutes(): {
+    basePath: string
     headers: Route[]
     rewrites: Route[]
     fsRoutes: Route[]
@@ -467,11 +465,17 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
+    const getCustomRouteBasePath = (r: { basePath?: false }) => {
+      return r.basePath !== false && this.renderOpts.dev
+        ? this.nextConfig.basePath
+        : ''
+    }
+
     const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
       ({
         ...r,
         type,
-        match: getCustomRouteMatcher(r.source),
+        match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
       } as Route & Rewrite & Header)
@@ -480,19 +484,40 @@ export default class Server {
       if (!value.includes(':')) {
         return value
       }
-      const { parsedDestination } = prepareDestination(value, params, {})
 
-      if (
-        !parsedDestination.pathname ||
-        !parsedDestination.pathname.startsWith('/')
-      ) {
-        // the value needs to start with a forward-slash to be compiled
-        // correctly
-        return compilePathToRegex(`/${value}`, { validate: false })(
-          params
-        ).substr(1)
+      for (const key of Object.keys(params)) {
+        if (value.includes(`:${key}`)) {
+          value = value
+            .replace(
+              new RegExp(`:${key}\\*`, 'g'),
+              `:${key}--ESCAPED_PARAM_ASTERISKS`
+            )
+            .replace(
+              new RegExp(`:${key}\\?`, 'g'),
+              `:${key}--ESCAPED_PARAM_QUESTION`
+            )
+            .replace(
+              new RegExp(`:${key}\\+`, 'g'),
+              `:${key}--ESCAPED_PARAM_PLUS`
+            )
+            .replace(
+              new RegExp(`:${key}(?!\\w)`, 'g'),
+              `--ESCAPED_PARAM_COLON${key}`
+            )
+        }
       }
-      return formatUrl(parsedDestination)
+      value = value
+        .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+        .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+        .replace(/--ESCAPED_PARAM_COLON/g, ':')
+        .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+        .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      return compilePathToRegex(`/${value}`, { validate: false })(
+        params
+      ).substr(1)
     }
 
     // Headers come very first
@@ -529,7 +554,9 @@ export default class Server {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
             params,
-            parsedUrl.query
+            parsedUrl.query,
+            false,
+            getCustomRouteBasePath(redirectRoute)
           )
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -553,6 +580,7 @@ export default class Server {
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
+        ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
         name: `Rewrite route`,
@@ -562,7 +590,8 @@ export default class Server {
             rewriteRoute.destination,
             params,
             parsedUrl.query,
-            true
+            true,
+            getCustomRouteBasePath(rewriteRoute)
           )
 
           // external rewrite, proxy it
@@ -582,8 +611,9 @@ export default class Server {
               finished: true,
             }
           }
-          ;(req as any)._nextDidRewrite = true
           ;(req as any)._nextRewroteUrl = newUrl
+          ;(req as any)._nextDidRewrite =
+            (req as any)._nextRewroteUrl !== req.url
 
           return {
             finished: false,
@@ -640,6 +670,7 @@ export default class Server {
       catchAllRoute,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
+      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
     }
   }
@@ -818,7 +849,10 @@ export default class Server {
     html: string
   ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+    return sendPayload(req, res, html, 'html', {
+      generateEtags,
+      poweredByHeader,
+    })
   }
 
   public async render(
@@ -1001,7 +1035,10 @@ export default class Server {
         res,
         data,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1134,7 +1171,10 @@ export default class Server {
         html = renderResult.html
       }
 
-      sendPayload(req, res, html, 'html', this.renderOpts.generateEtags)
+      sendPayload(req, res, html, 'html', {
+        generateEtags: this.renderOpts.generateEtags,
+        poweredByHeader: this.renderOpts.poweredByHeader,
+      })
       return null
     }
 
@@ -1149,7 +1189,10 @@ export default class Server {
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
-        this.renderOpts.generateEtags,
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,

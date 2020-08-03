@@ -1,5 +1,5 @@
 import chalk from 'next/dist/compiled/chalk'
-import { join } from 'path'
+import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
@@ -83,6 +83,7 @@ export function createEntrypoints(
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
     canonicalBase: config.canonicalBase,
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
@@ -103,8 +104,8 @@ export function createEntrypoints(
     const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
 
-    const clientBundlePath = join('static', 'pages', bundleFile)
-    const serverBundlePath = join('pages', bundleFile)
+    const clientBundlePath = posix.join('pages', bundleFile)
+    const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 

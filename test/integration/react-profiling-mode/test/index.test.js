@@ -40,7 +40,7 @@ describe('React Profiling Mode', () => {
         }
       `
       )
-      await nextBuild(appDir)
+      await nextBuild(appDir, ['--profile'])
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })

@@ -7,6 +7,7 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
+  initNextServerScript,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 
@@ -25,9 +26,23 @@ const fsExists = (file) =>
     .then(() => true)
     .catch(() => false)
 
+async function getBuildId() {
+  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+}
+
+const startServerlessEmulator = async (dir, port) => {
+  const scriptPath = join(dir, 'server.js')
+  const env = Object.assign(
+    {},
+    { ...process.env },
+    { PORT: port, BUILD_ID: await getBuildId() }
+  )
+  return initNextServerScript(scriptPath, /ready on/i, env)
+}
+
 function runTests() {
   it('should inline the google fonts for static pages', async () => {
-    const html = await renderViaHTTP(appPort, '/')
+    const html = await renderViaHTTP(appPort, '/index')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
     expect(html).toContain(
       '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css?family=Voces"/>'
@@ -91,5 +106,24 @@ describe('Font optimization for serverless apps', () => {
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(() => killApp(app))
+  runTests()
+})
+
+describe('Font optimization for emulated serverless apps', () => {
+  beforeAll(async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
+      'utf8'
+    )
+    await nextBuild(appDir)
+    appPort = await findPort()
+    await startServerlessEmulator(appDir, appPort)
+    builtServerPagesDir = join(appDir, '.next', 'serverless')
+    builtPage = (file) => join(builtServerPagesDir, file)
+  })
+  afterAll(async () => {
+    await fs.remove(nextConfig)
+  })
   runTests()
 })

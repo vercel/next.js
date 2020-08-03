@@ -3,7 +3,6 @@ import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
-import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
 type WithInAmpMode = {
   inAmpMode?: boolean
@@ -141,12 +140,15 @@ function reduceComponents(
         if (
           c.type === 'link' &&
           c.props['href'] &&
-          OPTIMIZED_FONT_PROVIDERS.some((url) =>
+          // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
+          ['https://fonts.googleapis.com/css'].some((url) =>
             c.props['href'].startsWith(url)
           )
         ) {
-          c.props['data-href'] = c.props['href']
-          delete c.props['href']
+          const newProps = { ...(c.props || {}) }
+          newProps['data-href'] = newProps['href']
+          newProps['href'] = undefined
+          return React.cloneElement(c, newProps)
         }
       }
       return React.cloneElement(c, { key })

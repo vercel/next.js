@@ -9,7 +9,7 @@ type postProcessOptions = {
 }
 
 type renderOptions = {
-  getFontDefinition?: (url: string) => Promise<string>
+  getFontDefinition?: (url: string) => string
 }
 
 type postProcessData = {
@@ -137,7 +137,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         // The font is already optimized and probably the response is cached
         continue
       }
-      const fontContent = await options.getFontDefinition(url)
+      const fontContent = options.getFontDefinition(url)
       result = result.replace(
         '</head>',
         `<style data-href="${url}">${fontContent.replace(
@@ -151,8 +151,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 }
 
 class ImageOptimizerMiddleware implements PostProcessMiddleware {
-  inspect() // originalDom: HTMLElement,
-  // _data: postProcessData,
+  inspect() // _data: postProcessData, // originalDom: HTMLElement,
   // options: renderOptions
   {
     return
