@@ -866,6 +866,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.experimental.optimizeFonts
         ),
+        'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
+          config.experimental.optimizeImages
+        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),

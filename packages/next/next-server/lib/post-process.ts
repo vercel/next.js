@@ -5,6 +5,7 @@ const MIDDLEWARE_TIME_BUDGET = 10
 
 type postProcessOptions = {
   optimizeFonts: boolean
+  optimizeImages: boolean
 }
 
 type renderOptions = {
@@ -149,6 +150,22 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
+class ImageOptimizerMiddleware implements PostProcessMiddleware {
+  inspect() // originalDom: HTMLElement,
+  // _data: postProcessData,
+  // options: renderOptions
+  {
+    return
+  }
+  mutate = async () =>
+    // markup: string,
+    // _data: postProcessData,
+    // options: renderOptions
+    {
+      return 'foo'
+    }
+}
+
 // Initialization
 registerPostProcessor(
   'Inline-Fonts',
@@ -156,6 +173,13 @@ registerPostProcessor(
   // Using process.env because passing Experimental flag through loader is not possible.
   // @ts-ignore
   (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
+)
+
+registerPostProcessor(
+  'Preload Images',
+  new ImageOptimizerMiddleware(),
+  // @ts-ignore
+  (options) => options.optimizeImages || process.env.__NEXT_OPTIMIZE_IMAGES
 )
 
 export default processHTML
