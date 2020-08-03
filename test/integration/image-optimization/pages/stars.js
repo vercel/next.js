@@ -3,6 +3,8 @@ function Home({ stars }) {
     <div className="container">
       <main>
         <div>
+          <link rel="preload" href="already-preloaded.jpg" />
+          <img src="already-preloaded.jpg" />
           <img src="tiny-image.jpg" width="20" height="20" />
           <img src="hidden-image-1.jpg" hidden />
           <div hidden>

@@ -168,10 +168,12 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
   }
   mutate = async (markup: string, _data: postProcessData) => {
     let result = markup
-    let imagePreloadTags = _data.preloads.images.reduce(
-      (acc, imgHref) => acc + `<link rel="preload" href="${imgHref}"/>`,
-      ''
-    )
+    let imagePreloadTags = _data.preloads.images
+      .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
+      .reduce(
+        (acc, imgHref) => acc + `<link rel="preload" href="${imgHref}"/>`,
+        ''
+      )
     return result.replace(
       /<link rel="preload"/,
       `${imagePreloadTags}<link rel="preload"`
@@ -185,6 +187,11 @@ function isImgEligible(imgElement: HTMLElement): boolean {
     imageIsNotTooSmall(imgElement) &&
     imageIsNotHidden(imgElement)
   )
+}
+
+function preloadTagAlreadyExists(html: string, href: string) {
+  const regex = new RegExp(`<link[^>]*href[^>]*${href}`)
+  return html.match(regex)
 }
 
 function imageIsNotTooSmall(imgElement: HTMLElement): boolean {
