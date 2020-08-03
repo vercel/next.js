@@ -111,7 +111,7 @@
     "use-subscription": "1.4.1",
     "watchpack": "2.0.0-beta.13",
     "web-vitals": "0.2.1",
-    "webpack": "4.44.0",
+    "webpack": "4.44.1",
     "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
@@ -205,7 +205,7 @@
     "strip-ansi": "6.0.0",
     "taskr": "1.1.0",
     "terser": "4.4.2",
-    "terser-webpack-plugin": "gist:1b826e8b64f73158df99990d1b4624fa",
+    "terser-webpack-plugin": "3.0.8",
     "text-table": "0.2.0",
     "thread-loader": "2.1.3",
     "typescript": "3.8.3",
