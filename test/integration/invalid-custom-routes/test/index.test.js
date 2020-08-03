@@ -213,7 +213,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `\`destination\` must start with \`http://\` or \`https://\` when basePath is false for route {"source":"/hello","destination":"/world","basePath":false}`
+      `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
     )
 
     expect(stderr).toContain('Invalid rewrites found')

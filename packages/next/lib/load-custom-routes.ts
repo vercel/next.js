@@ -170,6 +170,23 @@ function checkCustomRoutes(
       continue
     }
 
+    if (
+      type === 'rewrite' &&
+      (route as Rewrite).basePath === false &&
+      !(
+        (route as Rewrite).destination.startsWith('http://') ||
+        (route as Rewrite).destination.startsWith('https://')
+      )
+    ) {
+      console.error(
+        `The route ${
+          (route as Rewrite).source
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
+      )
+      numInvalidRoutes++
+      continue
+    }
+
     const keys = Object.keys(route)
     const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
@@ -200,17 +217,6 @@ function checkCustomRoutes(
       ) {
         invalidParts.push(
           '`destination` does not start with `/`, `http://`, or `https://`'
-        )
-      } else if (
-        type === 'rewrite' &&
-        _route.basePath === false &&
-        !(
-          _route.destination.startsWith('http://') ||
-          _route.destination.startsWith('https://')
-        )
-      ) {
-        invalidParts.push(
-          '`destination` must start with `http://` or `https://` when basePath is false'
         )
       }
     }
