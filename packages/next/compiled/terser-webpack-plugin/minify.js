@@ -23,8 +23,6 @@ const buildTerserOptions = ({
   /* eslint-enable camelcase */
   safari10
 } = {}) => ({
-  ecma,
-  warnings,
   parse: { ...parse
   },
   compress: typeof compress === 'boolean' ? compress : { ...compress
@@ -36,15 +34,17 @@ const buildTerserOptions = ({
     beautify: false,
     ...output
   },
-  module,
   // Ignoring sourceMap from options
   sourceMap: null,
-  toplevel,
-  nameCache,
-  ie8,
+  ecma,
   keep_classnames,
   keep_fnames,
-  safari10
+  ie8,
+  module,
+  nameCache,
+  safari10,
+  toplevel,
+  warnings
 });
 
 function isObject(value) {
@@ -97,7 +97,7 @@ const buildComments = (options, terserOptions, extractedComments) => {
 
         if (condition[key] === 'some') {
           condition[key] = (astNode, comment) => {
-            return comment.type === 'comment2' && /@preserve|@lic|@cc_on|^\**!/i.test(comment.value);
+            return (comment.type === 'comment2' || comment.type === 'comment1') && /@preserve|@lic|@cc_on|^\**!/i.test(comment.value);
           };
 
           break;

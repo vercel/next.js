@@ -662,7 +662,8 @@ export default async function getBaseWebpackConfig(
           '@ampproject/toolbox-optimizer', // except this one
         ],
     optimization: {
-      noEmitOnErrors: dev,
+      // Webpack 5 uses a new property for the same functionality
+      ...(isWebpack5 ? { emitOnErrors: !dev } : { noEmitOnErrors: dev }),
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer ? false : splitChunksConfig,
