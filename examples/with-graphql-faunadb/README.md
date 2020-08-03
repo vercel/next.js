@@ -63,7 +63,7 @@ yarn
 yarn dev
 ```
 
-Make sure to leave us a guestbook message in our [live demo](https://with-graphql-faunadb.now.sh/)! 😉
+Your app should be up and running on [http://localhost:3000](http://localhost:3000)!
 
 ### Deploy
 

@@ -141,6 +141,38 @@ const runTests = (context, dev = false) => {
     expect(html).toContain('getServerSideProps')
   })
 
+  it('should have correct asPath for rewrite without basePath', async () => {
+    const browser = await webdriver(context.appPort, '/rewrite-no-basePath')
+    expect(await browser.eval(() => window.location.pathname)).toBe(
+      '/rewrite-no-basePath'
+    )
+    expect(await browser.eval(() => window.next.router.asPath)).toBe(
+      '/rewrite-no-basePath'
+    )
+    expect(await browser.eval(() => window.next.router.pathname)).toBe('/gssp')
+  })
+
+  it('should have correct asPath for rewrite without basePath on back()', async () => {
+    const browser = await webdriver(context.appPort, '/rewrite-no-basePath')
+    await browser.eval(() => (window.navigationMarker = true))
+    await browser.eval(() => window.next.router.push('/hello'))
+    await check(
+      () => browser.eval(() => window.location.pathname),
+      '/docs/hello'
+    )
+    await browser.back()
+    await check(
+      () => browser.eval(() => window.location.pathname),
+      '/rewrite-no-basePath'
+    )
+    await check(
+      () => browser.eval(() => window.next.router.asPath),
+      '/rewrite-no-basePath'
+    )
+    expect(await browser.eval(() => window.next.router.pathname)).toBe('/gssp')
+    expect(await browser.eval(() => window.navigationMarker)).toBe(true)
+  })
+
   it('should redirect with basePath by default', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -212,7 +244,29 @@ const runTests = (context, dev = false) => {
   it('should not update URL for a 404', async () => {
     const browser = await webdriver(context.appPort, '/missing')
     const pathname = await browser.eval(() => window.location.pathname)
+    expect(await browser.eval(() => window.next.router.asPath)).toBe('/missing')
     expect(pathname).toBe('/missing')
+  })
+
+  it('should handle 404 urls that start with basePath', async () => {
+    const browser = await webdriver(context.appPort, '/docshello')
+    expect(await browser.eval(() => window.next.router.asPath)).toBe(
+      '/docshello'
+    )
+    expect(await browser.eval(() => window.location.pathname)).toBe(
+      '/docshello'
+    )
+  })
+
+  it('should navigating back to a non-basepath 404 that starts with basepath', async () => {
+    const browser = await webdriver(context.appPort, '/docshello')
+    await browser.eval(() => window.next.router.push('/hello'))
+    await browser.waitForElementByCss('#pathname')
+    await browser.back()
+    check(() => browser.eval(() => window.location.pathname), '/docshello')
+    expect(await browser.eval(() => window.next.router.asPath)).toBe(
+      '/docshello'
+    )
   })
 
   it('should update dynamic params after mount correctly', async () => {
@@ -324,6 +378,30 @@ const runTests = (context, dev = false) => {
     )
   })
 
+  it('should redirect trailing slash correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    const { pathname } = new URL(res.headers.get('location'))
+    expect(pathname).toBe('/docs/hello')
+  })
+
+  it('should redirect trailing slash on root correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/docs/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    const { pathname } = new URL(res.headers.get('location'))
+    expect(pathname).toBe('/docs')
+  })
+
   it('should 404 when manually adding basePath with <Link>', async () => {
     const browser = await webdriver(
       context.appPort,
@@ -380,6 +458,24 @@ const runTests = (context, dev = false) => {
     } finally {
       await browser.close()
     }
+  })
+
+  it('should have correct router paths on first load of /', async () => {
+    const browser = await webdriver(context.appPort, '/docs')
+    await browser.waitForElementByCss('#pathname')
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/')
+    const asPath = await browser.elementByCss('#as-path').text()
+    expect(asPath).toBe('/')
+  })
+
+  it('should have correct router paths on first load of /hello', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    await browser.waitForElementByCss('#pathname')
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/hello')
+    const asPath = await browser.elementByCss('#as-path').text()
+    expect(asPath).toBe('/hello')
   })
 
   it('should fetch data for getStaticProps without reloading', async () => {
@@ -461,6 +557,89 @@ const runTests = (context, dev = false) => {
 
       expect(text).toBe('Hello Other')
       expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/docs/other-page'],
+        ['beforeHistoryChange', '/docs/other-page'],
+        ['routeChangeComplete', '/docs/other-page'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events for hash changes', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#hash-change').click()
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['hashChangeStart', '/docs/hello#some-hash'],
+        ['hashChangeComplete', '/docs/hello#some-hash'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events for cancelled routes', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#slow-route')
+        .click()
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/docs/slow-route'],
+        ['routeChangeError', 'Route Cancelled', true, '/docs/slow-route'],
+        ['routeChangeStart', '/docs/other-page'],
+        ['beforeHistoryChange', '/docs/other-page'],
+        ['routeChangeComplete', '/docs/other-page'],
+      ])
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should use urls with basepath in router events for failed route change', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#error-route').click()
+
+      await waitFor(2000)
+
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', '/docs/error-route'],
+        [
+          'routeChangeError',
+          'Failed to load static props',
+          null,
+          '/docs/error-route',
+        ],
+      ])
     } finally {
       await browser.close()
     }

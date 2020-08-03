@@ -83,6 +83,7 @@ export function createEntrypoints(
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
     canonicalBase: config.canonicalBase,
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
@@ -103,7 +104,7 @@ export function createEntrypoints(
     const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
 
-    const clientBundlePath = posix.join('static', 'pages', bundleFile)
+    const clientBundlePath = posix.join('pages', bundleFile)
     const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)

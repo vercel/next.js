@@ -277,6 +277,7 @@ export default class DevServer extends Server {
 
   protected async close(): Promise<void> {
     await this.stopWatcher()
+    await this.staticPathsWorker.end()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -338,13 +339,13 @@ export default class DevServer extends Server {
     await this.devReady
 
     const { basePath } = this.nextConfig
-    let removedBasePath = false
+    let originalPathname: string | null = null
 
     if (basePath && parsedUrl.pathname?.startsWith(basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
-      removedBasePath = true
+      originalPathname = parsedUrl.pathname
+      parsedUrl.pathname = parsedUrl.pathname!.slice(basePath.length) || '/'
     }
 
     const { pathname } = parsedUrl
@@ -355,18 +356,20 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
-      finished: false,
-    }
+    const { finished = false } = await this.hotReloader!.run(
+      req,
+      res,
+      parsedUrl
+    )
+
     if (finished) {
       return
     }
 
-    // re-add basePath before continuing only if we removed it
-    // so that custom-routes can accurately determine if they should
-    // match against the basePath or not
-    if (removedBasePath) {
-      parsedUrl.pathname = `${basePath}${parsedUrl.pathname}`
+    if (originalPathname) {
+      // restore the path before continuing so that custom-routes can accurately determine
+      // if they should match against the basePath or not
+      parsedUrl.pathname = originalPathname
     }
 
     return super.run(req, res, parsedUrl)

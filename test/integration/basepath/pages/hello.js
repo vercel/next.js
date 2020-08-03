@@ -58,6 +58,23 @@ export default () => (
     >
       click me for error
     </div>
+    <br />
+    <div id="as-path">{useRouter().asPath}</div>
+    <Link href="/slow-route">
+      <a id="slow-route">
+        <h1>Slow route</h1>
+      </a>
+    </Link>
+    <Link href="/error-route">
+      <a id="error-route">
+        <h1>Error route</h1>
+      </a>
+    </Link>
+    <Link href="/hello#some-hash">
+      <a id="hash-change">
+        <h1>Hash change</h1>
+      </a>
+    </Link>
     <Link href="/something-else" as="/hello">
       <a id="something-else-link">to something else</a>
     </Link>

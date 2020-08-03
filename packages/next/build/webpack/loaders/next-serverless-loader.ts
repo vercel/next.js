@@ -6,6 +6,7 @@ import { loader } from 'webpack'
 import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
+  FONT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
@@ -22,6 +23,7 @@ export type ServerlessLoaderQuery = {
   buildId: string
   assetPrefix: string
   generateEtags: string
+  poweredByHeader: string
   canonicalBase: string
   basePath: string
   runtimeConfig: string
@@ -43,6 +45,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
+    poweredByHeader,
     basePath,
     runtimeConfig,
     previewProps,
@@ -56,6 +59,10 @@ const nextServerlessLoader: loader.Loader = function () {
     '/'
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
+  const fontManifest = join(distDir, 'serverless', FONT_MANIFEST).replace(
+    /\\/g,
+    '/'
+  )
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
@@ -75,14 +82,29 @@ const nextServerlessLoader: loader.Loader = function () {
 
             ${
               ''
+              // non-provided optional values should be undefined so normalize
+              // them to undefined
+            }
+            if(routeRegex.groups[key].optional && !value) {
+              value = undefined
+              delete query[key]
+            }
+            ${
+              ''
               // query values from the proxy aren't already split into arrays
               // so make sure to normalize catch-all values
             }
-            if (routeRegex.groups[key].repeat) {
+            if (
+              value &&
+              typeof value === 'string' &&
+              routeRegex.groups[key].repeat
+            ) {
               value = value.split('/')
             }
 
-            prev[key] = value
+            if (value) {
+              prev[key] = value
+            }
             return prev
           }, {})
       }
@@ -264,15 +286,15 @@ const nextServerlessLoader: loader.Loader = function () {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
-    const {sendHTML} = require('next/dist/next-server/server/send-html');
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
     const Error = require('${absoluteErrorPath}').default;
     const App = require('${absoluteAppPath}').default;
+
     ${dynamicRouteImports}
     ${rewriteImports}
 
@@ -328,10 +350,17 @@ const nextServerlessLoader: loader.Loader = function () {
         ${handleBasePath}
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
-          _nextData = true
-          parsedUrl.pathname = parsedUrl.pathname
-            .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
-            .replace(/\\.json$/, '')
+          const {
+            default: getRouteFromAssetPath,
+          } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
+          _nextData = true;
+          parsedUrl.pathname = getRouteFromAssetPath(
+            parsedUrl.pathname.replace(
+              new RegExp('/_next/data/${escapedBuildId}/'),
+              '/'
+            ),
+            '.json'
+          );
         }
 
         const renderOpts = Object.assign(
@@ -410,6 +439,11 @@ const nextServerlessLoader: loader.Loader = function () {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
+        if (process.env.__NEXT_OPTIMIZE_FONTS) {
+          renderOpts.optimizeFonts = true
+          renderOpts.fontManifest = require('${fontManifest}')
+          process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
+        }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
@@ -487,9 +521,9 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendHTML(req, res, html, {generateEtags: ${
-            generateEtags === 'true' ? true : false
-          }})
+          sendPayload(req, res, html, 'html', {generateEtags: ${JSON.stringify(
+            generateEtags === 'true'
+          )}, poweredByHeader: ${JSON.stringify(poweredByHeader === 'true')}})
         }
       } catch(err) {
         console.error(err)
