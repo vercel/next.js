@@ -1559,6 +1559,80 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         expect(newJson).toMatch(/post-2/)
         expect(newJson).toMatch(/comment-3/)
       })
+
+      it('should handle revalidating HTML correctly with blocking', async () => {
+        const route = '/blocking-fallback/pewpew'
+        const initialHtml = await renderViaHTTP(appPort, route)
+        expect(initialHtml).toMatch(/Post:.*?pewpew/)
+
+        let newHtml = await renderViaHTTP(appPort, route)
+        expect(newHtml).toBe(initialHtml)
+
+        await waitFor(2 * 1000)
+        await renderViaHTTP(appPort, route)
+
+        await waitFor(2 * 1000)
+        newHtml = await renderViaHTTP(appPort, route)
+        expect(newHtml === initialHtml).toBe(false)
+        expect(newHtml).toMatch(/Post:.*?pewpew/)
+      })
+
+      it('should handle revalidating JSON correctly with blocking', async () => {
+        const route = `/_next/data/${buildId}/blocking-fallback/pewpewdata.json`
+        const initialJson = await renderViaHTTP(appPort, route)
+        expect(initialJson).toMatch(/pewpewdata/)
+
+        let newJson = await renderViaHTTP(appPort, route)
+        expect(newJson).toBe(initialJson)
+
+        await waitFor(2 * 1000)
+        await renderViaHTTP(appPort, route)
+
+        await waitFor(2 * 1000)
+        newJson = await renderViaHTTP(appPort, route)
+        expect(newJson === initialJson).toBe(false)
+        expect(newJson).toMatch(/pewpewdata/)
+      })
+
+      it('should handle revalidating HTML correctly with blocking and seed', async () => {
+        const route = '/blocking-fallback/a'
+        const initialHtml = await renderViaHTTP(appPort, route)
+        const $initial = cheerio.load(initialHtml)
+        expect($initial('p').text()).toBe('Post: a')
+
+        let newHtml = await renderViaHTTP(appPort, route)
+        expect(newHtml).toBe(initialHtml)
+
+        await waitFor(2 * 1000)
+        await renderViaHTTP(appPort, route)
+
+        await waitFor(2 * 1000)
+        newHtml = await renderViaHTTP(appPort, route)
+        expect(newHtml === initialHtml).toBe(false)
+        const $new = cheerio.load(newHtml)
+        expect($new('p').text()).toBe('Post: a')
+      })
+
+      it('should handle revalidating JSON correctly with blocking and seed', async () => {
+        const route = `/_next/data/${buildId}/blocking-fallback/b.json`
+        const initialJson = await renderViaHTTP(appPort, route)
+        expect(JSON.parse(initialJson)).toMatchObject({
+          pageProps: { params: { slug: 'b' } },
+        })
+
+        let newJson = await renderViaHTTP(appPort, route)
+        expect(newJson).toBe(initialJson)
+
+        await waitFor(2 * 1000)
+        await renderViaHTTP(appPort, route)
+
+        await waitFor(2 * 1000)
+        newJson = await renderViaHTTP(appPort, route)
+        expect(newJson === initialJson).toBe(false)
+        expect(JSON.parse(newJson)).toMatchObject({
+          pageProps: { params: { slug: 'b' } },
+        })
+      })
     }
 
     it('should not fetch prerender data on mount', async () => {
