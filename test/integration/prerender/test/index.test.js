@@ -1285,6 +1285,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         {
           namedDataRouteRegex: `^/_next/data/${escapeRegex(
             buildId
+          )}/non\\-json\\-blocking/(?<p>[^/]+?)\\.json$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/non\\-json\\-blocking\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/non-json-blocking/[p]',
+          routeKeys: {
+            p: 'p',
+          },
+        },
+        {
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
           )}/non\\-json/(?<p>[^/]+?)\\.json$`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
@@ -1412,6 +1426,16 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           ),
           fallback: false,
           routeRegex: normalizeRegEx('^\\/lang\\/([^\\/]+?)\\/about(?:\\/)?$'),
+        },
+        '/non-json-blocking/[p]': {
+          dataRoute: `/_next/data/${buildId}/non-json-blocking/[p].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\-blocking\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/non-json-blocking/[p].html',
+          routeRegex: normalizeRegEx(
+            '^\\/non\\-json\\-blocking\\/([^\\/]+?)(?:\\/)?$'
+          ),
         },
         '/non-json/[p]': {
           dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
@@ -1990,6 +2014,7 @@ describe('SSG Prerender', () => {
       '/blocking-fallback/[slug].js',
       '/blocking-fallback-once/[slug].js',
       '/blocking-fallback-some/[slug].js',
+      '/non-json-blocking/[p].js',
     ]
 
     const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
