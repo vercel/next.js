@@ -9,14 +9,7 @@ import {
 } from '../../../next-server/server/font-utils'
 // @ts-ignore
 import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
-import {
-  FONT_MANIFEST,
-  OPTIMIZED_FONT_PROVIDERS,
-} from '../../../next-server/lib/constants'
-
-const NormalModule = require('webpack/lib/NormalModule')
-const JsonParser = require('webpack/lib/JsonParser')
-const JsonGenerator = require('webpack/lib/JsonGenerator')
+import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 
 interface VisitorMap {
   [key: string]: (path: NodePath) => void
@@ -25,6 +18,7 @@ interface VisitorMap {
 export class FontStylesheetGatheringPlugin {
   compiler?: Compiler
   gatheredStylesheets: Array<string> = []
+  manifestContent: FontManifest = []
 
   private parserHandler = (
     factory: CompilationType.NormalModuleFactory
@@ -102,85 +96,6 @@ export class FontStylesheetGatheringPlugin {
     }
   }
 
-  private getFontManifestPath(compilation: CompilationType.Compilation) {
-    /// @ts-ignore
-    return `${compilation.options.output.path}/${FONT_MANIFEST}`
-  }
-
-  /**
-   * Creates a fake JSON module for serverless case.
-   * This is used because at the time of next-serverless compilation the font-manifest is not available on disk.
-   */
-  private createFakeModule(compilation: CompilationType.Compilation) {
-    const filePath = this.getFontManifestPath(compilation)
-    return new NormalModule({
-      type: 'json',
-      parser: new JsonParser({}),
-      generator: new JsonGenerator(),
-      loaders: [],
-      rawRequest: 'private-dot-next/serverless/font-manifest.json',
-      request: filePath,
-      userRequest: filePath,
-      resource: filePath,
-    })
-  }
-
-  private buildFakeModule(
-    fakeJSONModule: any,
-    compilation: CompilationType.Compilation,
-    moduleContent: string
-  ) {
-    /**
-     * Pathching the file system because it will try to look for
-     * the file on disk as soon as we request a "build" for the module.
-     * Note: We cannot just patch the filesystem in the very beginning
-     * and supply a dummy response because we dont have the response at the beginning.
-     */
-    const fs = compilation.inputFileSystem
-    const readFile = fs.readFile.bind(fs)
-    /// @ts-ignore
-    fs.readFile = (path, callback) => {
-      console.log({ path })
-      if (path === fakeJSONModule.resource) {
-        return callback(undefined, moduleContent)
-      }
-      readFile(path, callback)
-    }
-
-    /**
-     * Start build for the module
-     */
-    fakeJSONModule.build(
-      {},
-      compilation,
-      compilation.resolverFactory.get(),
-      fs,
-      () => {
-        /// @ts-ignore
-        compilation.addModule(fakeJSONModule)
-        const pageModules = compilation.modules.filter(
-          (module) =>
-            module.rawRequest &&
-            module.rawRequest.startsWith('next-serverless-loader?page=')
-        )
-
-        /**
-         * This fake module needs to be added as a dependency
-         * module of all the serverless page modules.
-         */
-        pageModules.forEach((pageModule) => {
-          // The dependency is already created just the module is null.
-          pageModule.dependencies.find(
-            (module: any) =>
-              module.request &&
-              module.request ===
-                'private-dot-next/serverless/font-manifest.json'
-          ).module = fakeJSONModule
-        })
-      }
-    )
-  }
-
   public apply(compiler: Compiler) {
     this.compiler = compiler
     compiler.hooks.normalModuleFactory.tap(
@@ -188,33 +103,34 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
+      const mainTemplate = compilation.mainTemplate
+      mainTemplate.hooks.requireExtensions.tap(
+        this.constructor.name,
+        (source: string) => {
+          return `${source}
+      // Font manifest declaration
+      ${mainTemplate.requireFn}.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
+            this.manifestContent
+          )};`
+        }
+      )
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (_: any, modulesFinished: Function) => {
           const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
-          let manifestContent: FontManifest = []
 
+          this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
-            manifestContent.push({
+            this.manifestContent.push({
               url: this.gatheredStylesheets[promiseIndex],
               content: await fontDefinitionPromises[promiseIndex],
             })
           }
           compilation.assets['font-manifest.json'] = new RawSource(
-            JSON.stringify(manifestContent, null, '  ')
+            JSON.stringify(this.manifestContent, null, '  ')
           )
-
-          /// @ts-ignore
-          if (!compilation.findModule(this.getFontManifestPath(compilation))) {
-            const fakeJSONModule = this.createFakeModule(compilation)
-            this.buildFakeModule(
-              fakeJSONModule,
-              compilation,
-              JSON.stringify(manifestContent, null, '  ')
-            )
-          }
           modulesFinished()
         }
       )
