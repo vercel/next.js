@@ -141,38 +141,6 @@ const runTests = (context, dev = false) => {
     expect(html).toContain('getServerSideProps')
   })
 
-  it('should have correct asPath for rewrite without basePath', async () => {
-    const browser = await webdriver(context.appPort, '/rewrite-no-basePath')
-    expect(await browser.eval(() => window.location.pathname)).toBe(
-      '/rewrite-no-basePath'
-    )
-    expect(await browser.eval(() => window.next.router.asPath)).toBe(
-      '/rewrite-no-basePath'
-    )
-    expect(await browser.eval(() => window.next.router.pathname)).toBe('/gssp')
-  })
-
-  it('should have correct asPath for rewrite without basePath on back()', async () => {
-    const browser = await webdriver(context.appPort, '/rewrite-no-basePath')
-    await browser.eval(() => (window.navigationMarker = true))
-    await browser.eval(() => window.next.router.push('/hello'))
-    await check(
-      () => browser.eval(() => window.location.pathname),
-      '/docs/hello'
-    )
-    await browser.back()
-    await check(
-      () => browser.eval(() => window.location.pathname),
-      '/rewrite-no-basePath'
-    )
-    await check(
-      () => browser.eval(() => window.next.router.asPath),
-      '/rewrite-no-basePath'
-    )
-    expect(await browser.eval(() => window.next.router.pathname)).toBe('/gssp')
-    expect(await browser.eval(() => window.navigationMarker)).toBe(true)
-  })
-
   it('should redirect with basePath by default', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -258,8 +226,9 @@ const runTests = (context, dev = false) => {
     )
   })
 
-  it('should navigating back to a non-basepath 404 that starts with basepath', async () => {
+  it('should navigate back to a non-basepath 404 that starts with basepath', async () => {
     const browser = await webdriver(context.appPort, '/docshello')
+    await browser.eval(() => (window.navigationMarker = true))
     await browser.eval(() => window.next.router.push('/hello'))
     await browser.waitForElementByCss('#pathname')
     await browser.back()
@@ -267,6 +236,7 @@ const runTests = (context, dev = false) => {
     expect(await browser.eval(() => window.next.router.asPath)).toBe(
       '/docshello'
     )
+    expect(await browser.eval(() => window.navigationMarker)).toBe(true)
   })
 
   it('should update dynamic params after mount correctly', async () => {

@@ -201,6 +201,17 @@ function checkCustomRoutes(
         invalidParts.push(
           '`destination` does not start with `/`, `http://`, or `https://`'
         )
+      } else if (
+        type === 'rewrite' &&
+        _route.basePath === false &&
+        !(
+          _route.destination.startsWith('http://') ||
+          _route.destination.startsWith('https://')
+        )
+      ) {
+        invalidParts.push(
+          '`destination` must start with `http://` or `https://` when basePath is false'
+        )
       }
     }
 

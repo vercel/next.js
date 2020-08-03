@@ -12,11 +12,6 @@ module.exports = {
         destination: '/gssp',
       },
       {
-        source: '/rewrite-no-basepath',
-        destination: '/gssp',
-        basePath: false,
-      },
-      {
         source: '/rewrite/chain-1',
         destination: '/rewrite/chain-2',
       },

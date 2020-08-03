@@ -155,6 +155,12 @@ const runTests = () => {
           source: '/hello/world/(.*)',
           destination: '/:0',
         },
+        {
+          // basePath with relative destination
+          source: '/hello',
+          destination: '/world',
+          basePath: false,
+        },
         // invalid objects
         null,
         'string',
@@ -205,6 +211,11 @@ const runTests = () => {
     expect(stderr).not.toContain(
       'Valid redirect statusCode values are 301, 302, 303, 307, 308'
     )
+
+    expect(stderr).toContain(
+      `\`destination\` must start with \`http://\` or \`https://\` when basePath is false for route {"source":"/hello","destination":"/world","basePath":false}`
+    )
+
     expect(stderr).toContain('Invalid rewrites found')
   })
 
