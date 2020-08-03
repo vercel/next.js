@@ -1507,6 +1507,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       expect(initialHtml).toBe(newHtml)
     })
 
+    it('should not revalidate when set to false in blocking fallback mode', async () => {
+      const route = '/blocking-fallback-once/test-no-revalidate'
+
+      const initialHtml = await renderViaHTTP(appPort, route)
+      let newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+
+      newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+
+      newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+    })
+
     if (!isEmulatedServerless) {
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
