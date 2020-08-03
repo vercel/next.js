@@ -2,9 +2,11 @@ import getConfig from 'next/config'
 
 const config = getConfig()
 
-export default ({ Component, pageProps }) => (
-  <>
-    <p id="app-config">{JSON.stringify(config)}</p>
-    <Component {...pageProps} />
-  </>
-)
+export default function App({ Component, pageProps }) {
+  return (
+    <>
+      <p id="app-config">{JSON.stringify(config)}</p>
+      <Component {...pageProps} />
+    </>
+  )
+}

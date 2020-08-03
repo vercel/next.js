@@ -55,9 +55,9 @@ function parseUrlForPages(urlprefix, directory) {
 }
 
 /**
- * Takes a url and does the following things.
- *  - replace `index.html` with `/`
- *  - Makes sure all URLs are have a trainiling `/`
+ * Takes a URL and does the following things.
+ *  - Replaces `index.html` with `/`
+ *  - Makes sure all URLs are have a trailing `/`
  *  - Removes query string
  * @param {string} url
  */
@@ -68,7 +68,7 @@ function normalizeURL(url) {
   url = url.split('?')[0]
   url = url.split('#')[0]
   url = url = url.replace(/(\/index\.html)$/, '/')
-  // empty URLs should not be trailed with `/`, e.g. `#heading`
+  // Empty URLs should not be trailed with `/`, e.g. `#heading`
   if (url === '') {
     return url
   }

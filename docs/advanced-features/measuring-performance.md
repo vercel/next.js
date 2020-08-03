@@ -30,8 +30,8 @@ The `metric` object returned to the function consists of a number of properties:
 
 - `id`: Unique identifier for the metric in the context of the current page load
 - `name`: Metric name
-- `startTime`: First recorded timestamp of the performance entry (if applicable)
-- `value`: Value, or duration, of performance entry
+- `startTime`: First recorded timestamp of the performance entry in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp) (if applicable)
+- `value`: Value, or duration in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp), of the performance entry
 - `label`: Type of metric (`web-vital` or `custom`)
 
 There are two types of metrics that are tracked:
