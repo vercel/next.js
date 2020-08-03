@@ -4,6 +4,8 @@ description: Add custom HTTP headers to your Next.js app.
 
 # Headers
 
+> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+
 Headers allow you to set custom HTTP headers for an incoming request path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
@@ -85,6 +87,28 @@ module.exports = {
         ],
       },
       ,
+    ]
+  },
+}
+```
+
+### Regex Path Matching
+
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/blog/:post(\\d{1,})',
+        headers: [
+          {
+            key: 'x-post',
+            value: ':post',
+          },
+        ],
+      },
     ]
   },
 }

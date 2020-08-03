@@ -45,6 +45,8 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import postProcess from '../lib/post-process'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 
 function noRouter() {
   const message =
@@ -143,6 +145,8 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  optimizeFonts: boolean
+  fontManifest?: FontManifest
   devOnlyCacheBusterQueryString?: string
 }
 
@@ -280,6 +284,7 @@ export async function renderToHTML(
     pageConfig = {},
     Component,
     buildManifest,
+    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -291,6 +296,13 @@ export async function renderToHTML(
     basePath,
     devOnlyCacheBusterQueryString,
   } = renderOpts
+
+  const getFontDefinition = (url: string): string => {
+    if (fontManifest) {
+      return getFontDefinitionFromManifest(url, fontManifest)
+    }
+    return ''
+  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -793,6 +805,16 @@ export async function renderToHTML(
       await renderOpts.ampValidator(html, pathname)
     }
   }
+
+  html = await postProcess(
+    html,
+    {
+      getFontDefinition,
+    },
+    {
+      optimizeFonts: renderOpts.optimizeFonts,
+    }
+  )
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
