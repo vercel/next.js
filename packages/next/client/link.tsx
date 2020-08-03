@@ -237,20 +237,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     childProps.href = addBasePath(as)
   }
 
-  // Add the ending slash to the paths. So, we can serve the
-  // "<page>/index.html" directly.
-  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-    const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
-      .rewriteUrlForNextExport
-    if (
-      childProps.href &&
-      typeof __NEXT_DATA__ !== 'undefined' &&
-      __NEXT_DATA__.nextExport
-    ) {
-      childProps.href = rewriteUrlForNextExport(childProps.href)
-    }
-  }
-
   return React.cloneElement(child, childProps)
 }
 

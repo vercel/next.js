@@ -128,7 +128,7 @@ export default async function exportApp(
     )
   }
 
-  const subFolders = nextConfig.exportTrailingSlash
+  const subFolders = nextConfig.trailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
   if (!options.silent && !options.buildExport) {
