@@ -75,6 +75,8 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
+import * as Log from './output/log'
+
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -126,17 +128,13 @@ export default async function build(
       // Intentionally not piping to stderr in case people fail in CI when
       // stderr is detected.
       console.log(
-        chalk.bold.yellow(`Warning: `) +
-          chalk.bold(
-            `No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
-          )
+        `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
       )
-      console.log('')
     }
   }
 
   const buildSpinner = createSpinner({
-    prefixText: 'Creating an optimized production build',
+    prefixText: `${Log.prefixes.info} Creating an optimized production build`,
   })
 
   const telemetry = new Telemetry({ distDir })
@@ -243,16 +241,10 @@ export default async function build(
   })
 
   if (nestedReservedPages.length) {
-    console.warn(
-      '\n' +
-        chalk.bold.yellow(`Warning: `) +
-        chalk.bold(
-          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
-        ) +
+    Log.warn(
+      `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
         nestedReservedPages.join('\n') +
-        chalk.bold(
-          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
-        )
+        `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
     )
   }
 
@@ -354,11 +346,8 @@ export default async function build(
       (clientConfig.optimization.minimizer &&
         clientConfig.optimization.minimizer.length === 0))
   ) {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.bold(
-          `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
-        )
+    Log.warn(
+      `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
     )
   }
 
@@ -389,7 +378,6 @@ export default async function build(
   if (buildSpinner) {
     buildSpinner.stopAndPersist()
   }
-  console.log()
 
   result = formatWebpackMessages(result)
 
@@ -435,16 +423,16 @@ export default async function build(
     )
 
     if (result.warnings.length > 0) {
-      console.warn(chalk.yellow('Compiled with warnings.\n'))
+      Log.warn('Compiled with warnings\n')
       console.warn(result.warnings.join('\n\n'))
       console.warn()
     } else {
-      console.log(chalk.green('Compiled successfully.\n'))
+      Log.info('Compiled successfully')
     }
   }
 
   const postCompileSpinner = createSpinner({
-    prefixText: 'Preparing to optimize pages',
+    prefixText: `${Log.prefixes.info} Collecting page data`,
   })
 
   const manifestPath = path.join(
@@ -687,7 +675,6 @@ export default async function build(
   const tbdPrerenderRoutes: string[] = []
 
   if (postCompileSpinner) postCompileSpinner.stopAndPersist()
-  console.log()
 
   if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
@@ -698,7 +685,7 @@ export default async function build(
       threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
-      statusMessage: 'Automatically optimizing pages',
+      statusMessage: 'Generating static pages',
     }
     const exportConfig: any = {
       ...config,
@@ -751,7 +738,7 @@ export default async function build(
     await exportApp(dir, exportOptions, exportConfig)
 
     const postBuildSpinner = createSpinner({
-      prefixText: 'Finalizing page optimization',
+      prefixText: `${Log.prefixes.info} Finalizing page optimization`,
     })
 
     // remove server bundles that were exported
