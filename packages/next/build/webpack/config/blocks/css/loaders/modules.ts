@@ -40,6 +40,7 @@ export function getCssModuleLoader(
         // character?
         getLocalIdent: getCssModuleLocalIdent,
       },
+      ...ctx.cssOptions,
     },
   })
 

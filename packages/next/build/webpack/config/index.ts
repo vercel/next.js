@@ -11,6 +11,7 @@ export async function build(
     isDevelopment,
     isServer,
     assetPrefix,
+    cssOptions,
     sassOptions,
     productionBrowserSourceMaps,
   }: {
@@ -19,6 +20,7 @@ export async function build(
     isDevelopment: boolean
     isServer: boolean
     assetPrefix: string
+    cssOptions: any
     sassOptions: any
     productionBrowserSourceMaps: boolean
   }
@@ -35,6 +37,7 @@ export async function build(
         ? assetPrefix.slice(0, -1)
         : assetPrefix
       : '',
+    cssOptions,
     sassOptions,
     productionBrowserSourceMaps,
   }

@@ -12,6 +12,7 @@ export type ConfigurationContext = {
 
   assetPrefix: string
 
+  cssOptions: any
   sassOptions: any
   productionBrowserSourceMaps: boolean
 }

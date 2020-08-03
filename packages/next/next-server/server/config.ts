@@ -36,6 +36,7 @@ const defaultConfig: { [key: string]: any } = {
   },
   basePath: '',
   exportTrailingSlash: false,
+  cssOptions: {},
   sassOptions: {},
   trailingSlash: false,
   experimental: {
