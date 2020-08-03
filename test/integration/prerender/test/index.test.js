@@ -142,6 +142,16 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 1,
     srcRoute: null,
   },
+  '/blocking-fallback-some/a': {
+    dataRoute: `/_next/data/${buildId}/blocking-fallback-some/a.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/blocking-fallback-some/[slug]',
+  },
+  '/blocking-fallback-some/b': {
+    dataRoute: `/_next/data/${buildId}/blocking-fallback-some/b.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/blocking-fallback-some/[slug]',
+  },
   '/blog': {
     dataRoute: `/_next/data/${buildId}/blog.json`,
     initialRevalidateSeconds: 10,
@@ -1059,6 +1069,42 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         },
         {
           dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blocking\\-fallback/(?<slug>[^/]+?)\\.json$`,
+          page: '/blocking-fallback/[slug]',
+          routeKeys: { slug: 'slug' },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blocking\\-fallback\\-once\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blocking\\-fallback\\-once/(?<slug>[^/]+?)\\.json$`,
+          page: '/blocking-fallback-once/[slug]',
+          routeKeys: { slug: 'slug' },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blocking\\-fallback\\-some\\/([^\\/]+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/blocking\\-fallback\\-some/(?<slug>[^/]+?)\\.json$`,
+          page: '/blocking-fallback-some/[slug]',
+          routeKeys: { slug: 'slug' },
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
           ),
           page: '/blog',
@@ -1247,6 +1293,36 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       expect(manifest.version).toBe(2)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
+        '/blocking-fallback-once/[slug]': {
+          dataRoute: `/_next/data/${buildId}/blocking-fallback-once/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-once\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: null,
+          routeRegex: normalizeRegEx(
+            '^\\/blocking\\-fallback\\-once\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
+        '/blocking-fallback-some/[slug]': {
+          dataRoute: `/_next/data/${buildId}/blocking-fallback-some/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-some\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: null,
+          routeRegex: normalizeRegEx(
+            '^\\/blocking\\-fallback\\-some\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
+        '/blocking-fallback/[slug]': {
+          dataRoute: `/_next/data/${buildId}/blocking-fallback/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: null,
+          routeRegex: normalizeRegEx(
+            '^\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
         '/blog/[post]': {
           fallback: '/blog/[post].html',
           dataRoute: `/_next/data/${buildId}/blog/[post].json`,
@@ -1768,10 +1844,16 @@ describe('SSG Prerender', () => {
       '/blog/[post]/index.js',
       '/fallback-only/[slug].js',
     ]
+    const fallbackBlockingPages = [
+      '/blocking-fallback/[slug].js',
+      '/blocking-fallback-once/[slug].js',
+      '/blocking-fallback-some/[slug].js',
+    ]
 
     const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
 
     const fallbackTruePageContents = {}
+    const fallbackBlockingPageContents = {}
 
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
@@ -1802,6 +1884,18 @@ describe('SSG Prerender', () => {
         )
       }
 
+      for (const page of fallbackBlockingPages) {
+        const pagePath = join(appDir, 'pages', page)
+        fallbackBlockingPageContents[page] = await fs.readFile(pagePath, 'utf8')
+        await fs.writeFile(
+          pagePath,
+          fallbackBlockingPageContents[page].replace(
+            "fallback: 'unstable_blocking'",
+            'fallback: false'
+          )
+        )
+      }
+
       for (const page of brokenPages) {
         const pagePath = join(appDir, 'pages', page)
         await fs.rename(pagePath, `${pagePath}.bak`)
@@ -1819,8 +1913,12 @@ describe('SSG Prerender', () => {
 
       for (const page of fallbackTruePages) {
         const pagePath = join(appDir, 'pages', page)
-
         await fs.writeFile(pagePath, fallbackTruePageContents[page])
+      }
+
+      for (const page of fallbackBlockingPages) {
+        const pagePath = join(appDir, 'pages', page)
+        await fs.writeFile(pagePath, fallbackBlockingPageContents[page])
       }
 
       for (const page of brokenPages) {
