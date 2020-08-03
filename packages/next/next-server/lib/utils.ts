@@ -178,6 +178,7 @@ export type DocumentProps = DocumentInitialProps & {
   canonicalBase: string
   headTags: any[]
   unstable_runtimeJS?: false
+  devOnlyCacheBusterQueryString: string
 }
 
 /**
