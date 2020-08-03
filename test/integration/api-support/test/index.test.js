@@ -236,6 +236,11 @@ function runTests(dev = false) {
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
+  it('should show friendly error for redirect', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {})
+    expect(res.status).toEqual(307)
+  })
+
   it('should redirect with status code 307', async () => {
     const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {
       redirect: 'manual',
