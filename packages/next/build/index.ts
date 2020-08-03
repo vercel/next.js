@@ -91,7 +91,7 @@ export type DynamicSsgRoute = {
 }
 
 export type PrerenderManifest = {
-  version: 3
+  version: 2
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   preview: __ApiPreviewProps
@@ -924,7 +924,7 @@ export default async function build(
       }
     })
     const prerenderManifest: PrerenderManifest = {
-      version: 3,
+      version: 2,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
       preview: previewProps,
@@ -942,7 +942,7 @@ export default async function build(
     })
   } else {
     const prerenderManifest: PrerenderManifest = {
-      version: 3,
+      version: 2,
       routes: {},
       dynamicRoutes: {},
       preview: previewProps,
