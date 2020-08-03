@@ -36,13 +36,17 @@ cd with-firebase
 ### Configuration
 
 1. [Create a Firebase project](https://console.firebase.google.com/u/0/) and add a new app to it.
-2. Create a `.env` file and copy the contents of `.env.example` into it:
+2. Create a `.env.local` file and copy the contents of `.env.local.example` into it:
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-3. Set each variable on `.env` with your Firebase Configuration (found in "Project settings").
+3. Set each variable on `.env.local` with your Firebase Configuration (found in "Project settings").
+
+### Hosting on Vercel
+
+When deploying this example to Vercel you can configure secrets in the Environment Variables section of the project in the Vercel dashboard.
 
 Install it and run:
 
