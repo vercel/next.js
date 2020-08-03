@@ -22,7 +22,7 @@
     "graphql": "15.0.0",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "next-transpile-modules": "3.2.0",
+    "next-transpile-modules": "4.0.2",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
     "react-relay": "0.0.0-experimental-8cc94ddc",
