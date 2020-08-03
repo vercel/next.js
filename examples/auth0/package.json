@@ -9,7 +9,6 @@
   "license": "MIT",
   "dependencies": {
     "@auth0/nextjs-auth0": "^0.6.0",
-    "dotenv": "^8.2.0",
     "next": "latest",
     "react": "^16.12.0",
     "react-dom": "^16.12.0"

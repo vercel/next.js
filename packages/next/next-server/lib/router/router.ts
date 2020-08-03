@@ -325,17 +325,6 @@ export default class Router implements BaseRouter {
     }
   }
 
-  // @deprecated backwards compatibility even though it's a private method.
-  static _rewriteUrlForNextExport(url: string): string {
-    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
-        .rewriteUrlForNextExport
-      return rewriteUrlForNextExport(url)
-    } else {
-      return url
-    }
-  }
-
   onPopState = (e: PopStateEvent): void => {
     const state = e.state as HistoryState
 
@@ -451,17 +440,6 @@ export default class Router implements BaseRouter {
     // marking route changes as a navigation start entry
     if (ST) {
       performance.mark('routeChange')
-    }
-
-    // Add the ending slash to the paths. So, we can serve the
-    // "<page>/index.html" directly for the SSR page.
-    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
-        .rewriteUrlForNextExport
-      // @ts-ignore this is temporarily global (attached to window)
-      if (__NEXT_DATA__.nextExport) {
-        as = rewriteUrlForNextExport(as)
-      }
     }
 
     if (this._inFlightRoute) {
