@@ -8,11 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "9.2.1",
-    "react": "16.12.0",
-    "react-dom": "16.12.0",
-    "react-three-fiber": "4.0.12",
-    "three": "0.112.1"
+    "drei": "0.0.60",
+    "next": "9.4.4",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-three-fiber": "4.2.12",
+    "three": "0.118.3"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "next-transpile-modules": "4.0.2"
+  }
 }

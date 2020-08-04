@@ -46,6 +46,24 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/multi-rewrites/)
   })
 
+  it('should handle param like headers properly', async () => {
+    const res = await fetchViaHTTP(appPort, '/my-other-header/my-path')
+    expect(res.headers.get('x-path')).toBe('my-path')
+    expect(res.headers.get('somemy-path')).toBe('hi')
+    expect(res.headers.get('x-test')).toBe('some:value*')
+    expect(res.headers.get('x-test-2')).toBe('value*')
+    expect(res.headers.get('x-test-3')).toBe(':value?')
+    expect(res.headers.get('x-test-4')).toBe(':value+')
+    expect(res.headers.get('x-test-5')).toBe('something https:')
+    expect(res.headers.get('x-test-6')).toBe(':hello(world)')
+    expect(res.headers.get('x-test-7')).toBe('hello(world)')
+    expect(res.headers.get('x-test-8')).toBe('hello{1,}')
+    expect(res.headers.get('x-test-9')).toBe(':hello{1,2}')
+    expect(res.headers.get('content-security-policy')).toBe(
+      "default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com/my-path"
+    )
+  })
+
   it('should not match dynamic route immediately after applying header', async () => {
     const res = await fetchViaHTTP(appPort, '/blog/post-321')
     expect(res.headers.get('x-something')).toBe('applied-everywhere')
@@ -348,7 +366,7 @@ const runTests = (isDev = false) => {
   it('should apply params header key/values with URL that has port', async () => {
     const res = await fetchViaHTTP(appPort, '/with-params/url2/first')
     expect(res.headers.get('x-url')).toBe(
-      'https://example.com:8080/?hello=first'
+      'https://example.com:8080?hello=first'
     )
   })
 
@@ -667,6 +685,47 @@ const runTests = (isDev = false) => {
                 key: 'some:path',
                 value: 'hi',
               },
+              {
+                key: 'x-test',
+                value: 'some:value*',
+              },
+              {
+                key: 'x-test-2',
+                value: 'value*',
+              },
+              {
+                key: 'x-test-3',
+                value: ':value?',
+              },
+              {
+                key: 'x-test-4',
+                value: ':value+',
+              },
+              {
+                key: 'x-test-5',
+                value: 'something https:',
+              },
+              {
+                key: 'x-test-6',
+                value: ':hello(world)',
+              },
+              {
+                key: 'x-test-7',
+                value: 'hello(world)',
+              },
+              {
+                key: 'x-test-8',
+                value: 'hello{1,}',
+              },
+              {
+                key: 'x-test-9',
+                value: ':hello{1,2}',
+              },
+              {
+                key: 'content-security-policy',
+                value:
+                  "default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com/:path",
+              },
             ],
             regex: normalizeRegEx('^\\/my-other-header(?:\\/([^\\/]+?))$'),
             source: '/my-other-header/:path',
@@ -893,6 +952,14 @@ const runTests = (isDev = false) => {
             },
           },
           {
+            namedRegex: '^/auto\\-export/(?<slug>[^/]+?)(?:/)?$',
+            page: '/auto-export/[slug]',
+            regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
             namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
@@ -964,6 +1031,27 @@ describe('Custom routes', () => {
   afterAll(async () => {
     externalServer.close()
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+  })
+
+  describe('no-op rewrite', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        env: {
+          ADD_NOOP_REWRITE: 'true',
+        },
+      })
+    })
+    afterAll(() => killApp(app))
+
+    it('should not show error for no-op rewrite and auto export dynamic route', async () => {
+      const browser = await webdriver(appPort, '/auto-export/my-slug')
+      const html = await browser.eval(() => document.documentElement.innerHTML)
+      expect(html).not.toContain(
+        `Rewrites don't support auto-exported dynamic pages yet`
+      )
+      expect(html).toContain(`auto-export my-slug`)
+    })
   })
 
   describe('dev mode', () => {

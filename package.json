@@ -29,11 +29,11 @@
     "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
-    "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
+    "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
-    "next": "node packages/next/dist/bin/next",
-    "debug": "node --inspect-brk packages/next/dist/bin/next"
+    "next": "node --trace-deprecation packages/next/dist/bin/next",
+    "debug": "node --inspect packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
   "devDependencies": {
@@ -58,7 +58,7 @@
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "10.0.3",
     "babel-jest": "24.9.0",
-    "browserslist": "^4.8.3",
+    "browserslist": "^4.13.0",
     "browserstack-local": "1.4.0",
     "caniuse-lite": "^1.0.30001019",
     "cheerio": "0.22.0",
@@ -109,11 +109,11 @@
     "react": "16.12.0",
     "react-dom": "16.12.0",
     "react-ssr-prepass": "1.0.8",
-    "release": "6.0.1",
+    "release": "6.3.0",
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
-    "selenium-standalone": "6.17.0",
-    "selenium-webdriver": "4.0.0-alpha.5",
+    "selenium-standalone": "6.18.0",
+    "selenium-webdriver": "4.0.0-alpha.7",
     "shell-quote": "1.7.2",
     "styled-components": "5.1.0",
     "styled-jsx-plugin-postcss": "2.0.1",
@@ -122,7 +122,9 @@
     "tree-kill": "1.2.1",
     "typescript": "3.8.3",
     "wait-port": "0.2.2",
-    "webpack-bundle-analyzer": "3.6.1"
+    "web-streams-polyfill": "2.1.1",
+    "webpack-bundle-analyzer": "3.6.1",
+    "worker-loader": "2.0.0"
   },
   "resolutions": {
     "browserslist": "^4.8.3",

@@ -21,9 +21,9 @@ It is vital that you know the deployment URL and define it in the environment fi
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example next-auth with-next-auth-app
+npx create-next-app --example with-next-auth with-next-auth-app
 # or
-yarn create next-app --example next-auth with-next-auth-app
+yarn create next-app --example with-next-auth with-next-auth-app
 ```
 
 ### Download manually
@@ -31,8 +31,8 @@ yarn create next-app --example next-auth with-next-auth-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/next-auth
-cd next-auth
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-next-auth
+cd with-next-auth
 ```
 
 Install it and run:
