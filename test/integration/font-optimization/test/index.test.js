@@ -82,6 +82,10 @@ describe('Font optimization for SSR apps', () => {
       `module.exports = { experimental: {optimizeFonts: true} }`,
       'utf8'
     )
+
+    if (fs.pathExistsSync(join(appDir, '.next'))) {
+      await fs.remove(join(appDir, '.next'))
+    }
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
