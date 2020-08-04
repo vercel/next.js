@@ -52,6 +52,7 @@ export interface PageInfo {
   isSsg: boolean
   ssgPageRoutes: string[] | null
   hasSsgFallback: boolean
+  initialRevalidateSeconds: number | false
 }
 
 export async function printTreeView(
@@ -153,7 +154,11 @@ export async function printTreeView(
           : pageInfo?.isSsg
           ? '●'
           : 'λ'
-      } ${item}`,
+      } ${
+        pageInfo?.initialRevalidateSeconds
+          ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
+          : item
+      }`,
       pageInfo
         ? ampFirst
           ? chalk.cyan('AMP')
@@ -268,6 +273,13 @@ export async function printTreeView(
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+        [
+          '',
+          '(ISR)',
+          `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],

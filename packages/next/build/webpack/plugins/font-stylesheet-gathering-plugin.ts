@@ -18,6 +18,7 @@ interface VisitorMap {
 export class FontStylesheetGatheringPlugin {
   compiler?: Compiler
   gatheredStylesheets: Array<string> = []
+  manifestContent: FontManifest = []
 
   private parserHandler = (
     factory: CompilationType.NormalModuleFactory
@@ -102,22 +103,42 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
+      // @ts-ignore
+      if (compilation.options.output.path.endsWith('serverless')) {
+        /**
+         * Inline font manifest for serverless case only.
+         * For target: server drive the manifest through physical file and less of webpack magic.
+         */
+        const mainTemplate = compilation.mainTemplate
+        mainTemplate.hooks.requireExtensions.tap(
+          this.constructor.name,
+          (source: string) => {
+            return `${source}
+                // Font manifest declaration
+                ${
+                  mainTemplate.requireFn
+                }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
+              this.manifestContent
+            )};`
+          }
+        )
+      }
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (_: any, modulesFinished: Function) => {
           const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
-          let manifestContent: FontManifest = []
 
+          this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
-            manifestContent.push({
+            this.manifestContent.push({
               url: this.gatheredStylesheets[promiseIndex],
               content: await fontDefinitionPromises[promiseIndex],
             })
           }
           compilation.assets['font-manifest.json'] = new RawSource(
-            JSON.stringify(manifestContent, null, '  ')
+            JSON.stringify(this.manifestContent, null, '  ')
           )
           modulesFinished()
         }
