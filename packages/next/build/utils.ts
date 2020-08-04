@@ -26,6 +26,7 @@ import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -51,7 +52,6 @@ export interface PageInfo {
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
-  hasSsgFallback: boolean
   initialRevalidateSeconds: number | false
 }
 
@@ -531,7 +531,9 @@ export async function getJsPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   getStaticPaths: GetStaticPaths
-): Promise<{ paths: string[]; fallback: boolean }> {
+): Promise<
+  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & { paths: string[] }
+> {
   const prerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
@@ -567,7 +569,12 @@ export async function buildStaticPaths(
     )
   }
 
-  if (typeof staticPathsResult.fallback !== 'boolean') {
+  if (
+    !(
+      typeof staticPathsResult.fallback === 'boolean' ||
+      staticPathsResult.fallback === 'unstable_blocking'
+    )
+  ) {
     throw new Error(
       `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
         expectedReturnVal
@@ -668,7 +675,7 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | undefined
+  prerenderFallback?: boolean | 'unstable_blocking' | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -743,7 +750,7 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | undefined
+    let prerenderFallback: boolean | 'unstable_blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,

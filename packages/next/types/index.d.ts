@@ -100,7 +100,7 @@ export type GetStaticPaths<
   P extends ParsedUrlQuery = ParsedUrlQuery
 > = () => Promise<{
   paths: Array<string | { params: P }>
-  fallback: boolean
+  fallback: boolean | 'unstable_blocking'
 }>
 
 export type GetServerSidePropsContext<

@@ -87,7 +87,7 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-  fallback: string | false
+  fallback: string | null | false
   dataRoute: string
   dataRouteRegex: string
 }
@@ -443,7 +443,8 @@ export default async function build(
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()
-  const ssgFallbackPages = new Set<string>()
+  const ssgStaticFallbackPages = new Set<string>()
+  const ssgBlockingFallbackPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
@@ -498,7 +499,6 @@ export default async function build(
       let isStatic = false
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
-      let hasSsgFallback: boolean = false
 
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
@@ -554,9 +554,11 @@ export default async function build(
               additionalSsgPaths.set(page, workerResult.prerenderRoutes)
               ssgPageRoutes = workerResult.prerenderRoutes
             }
-            if (workerResult.prerenderFallback) {
-              hasSsgFallback = true
-              ssgFallbackPages.add(page)
+
+            if (workerResult.prerenderFallback === 'unstable_blocking') {
+              ssgBlockingFallbackPages.add(page)
+            } else if (workerResult.prerenderFallback === true) {
+              ssgStaticFallbackPages.add(page)
             }
           } else if (workerResult.hasServerProps) {
             serverPropsPages.add(page)
@@ -591,7 +593,6 @@ export default async function build(
         isSsg,
         isHybridAmp,
         ssgPageRoutes,
-        hasSsgFallback,
         initialRevalidateSeconds: false,
       })
     })
@@ -706,7 +707,7 @@ export default async function build(
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
 
-            if (ssgFallbackPages.has(page)) {
+            if (ssgStaticFallbackPages.has(page)) {
               // Override the rendering for the dynamic page to be treated as a
               // fallback render.
               defaultMap[page] = { page, query: { __nextFallback: true } }
@@ -802,14 +803,14 @@ export default async function build(
 
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
-      const isSsgFallback = ssgFallbackPages.has(page)
+      const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
       const file = normalizePagePath(page)
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
-      if (!(isSsg && isDynamic && !isSsgFallback)) {
+      if (!(isSsg && isDynamic && !isStaticSsgFallback)) {
         await moveExportedPage(page, page, file, isSsg, 'html')
       }
 
@@ -921,7 +922,9 @@ export default async function build(
       finalDynamicRoutes[tbdRoute] = {
         routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
         dataRoute,
-        fallback: ssgFallbackPages.has(tbdRoute)
+        fallback: ssgBlockingFallbackPages.has(tbdRoute)
+          ? null
+          : ssgStaticFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
         dataRouteRegex: normalizeRouteRegex(
