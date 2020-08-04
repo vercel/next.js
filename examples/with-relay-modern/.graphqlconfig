@@ -2,7 +2,7 @@
   "schemaPath": "schema/schema.graphql",
   "extensions": {
     "endpoints": {
-      "dev": "https://graphql-with-prisma-relay.weakky.vercel.app/api"
+      "dev": "https://nextjs-graphql-with-prisma-relay.vercel.app/api"
     }
   }
 }
