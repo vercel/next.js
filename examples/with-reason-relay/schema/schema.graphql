@@ -22,10 +22,14 @@ type BlogPostConnection {
 }
 
 type BlogPostEdge {
-  """https://facebook.github.io/relay/graphql/connections.htm#sec-Cursor"""
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Cursor
+  """
   cursor: String!
 
-  """https://facebook.github.io/relay/graphql/connections.htm#sec-Node"""
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Node
+  """
   node: BlogPost!
 }
 
@@ -101,10 +105,14 @@ type UserConnection {
 }
 
 type UserEdge {
-  """https://facebook.github.io/relay/graphql/connections.htm#sec-Cursor"""
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Cursor
+  """
   cursor: String!
 
-  """https://facebook.github.io/relay/graphql/connections.htm#sec-Node"""
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Node
+  """
   node: User!
 }
 
@@ -113,18 +121,26 @@ type Viewer {
   allBlogPosts(
     orderBy: BlogPostOrderBy
 
-    """Returns the first n elements from the list."""
+    """
+    Returns the first n elements from the list.
+    """
     first: Int!
 
-    """Returns the elements in the list that come after the specified cursor"""
+    """
+    Returns the elements in the list that come after the specified cursor
+    """
     after: String
   ): BlogPostConnection!
   User(id: String!): User!
   allUsers(
-    """Returns the first n elements from the list."""
+    """
+    Returns the first n elements from the list.
+    """
     first: Int!
 
-    """Returns the elements in the list that come after the specified cursor"""
+    """
+    Returns the elements in the list that come after the specified cursor
+    """
     after: String
   ): UserConnection!
 }
