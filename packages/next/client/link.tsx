@@ -95,6 +95,17 @@ function prefetch(
   prefetched[href + '%' + as] = true
 }
 
+function isNewTabRequest(event: React.MouseEvent) {
+  const { target } = event.currentTarget as HTMLAnchorElement
+  return (
+    (target && target !== '_self') ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    (event.nativeEvent && event.nativeEvent.which === 2)
+  )
+}
+
 function linkClicked(
   e: React.MouseEvent,
   router: NextRouter,
@@ -104,15 +115,9 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean
 ): void {
-  const { nodeName, target } = e.currentTarget as HTMLAnchorElement
-  if (
-    nodeName === 'A' &&
-    ((target && target !== '_self') ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      (e.nativeEvent && e.nativeEvent.which === 2))
-  ) {
+  const { nodeName } = e.currentTarget
+
+  if (nodeName === 'A' && (isNewTabRequest(e) || !isLocalURL(href))) {
     // ignore click for new tab / new window behavior
     return
   }
