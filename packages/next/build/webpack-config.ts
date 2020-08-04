@@ -27,6 +27,7 @@ import {
 import { execOnce } from '../next-server/lib/utils'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
+import * as Log from './output/log'
 import {
   collectPlugins,
   PluginMetaData,
@@ -136,6 +137,46 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 
 type ClientEntries = {
   [key: string]: string | string[]
+}
+
+export function attachReactRefresh(
+  webpackConfig: webpack.Configuration,
+  targetLoader: webpack.RuleSetUseItem
+) {
+  let injections = 0
+  const reactRefreshLoaderName = '@next/react-refresh-utils/loader'
+  const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
+  webpackConfig.module?.rules.forEach((rule) => {
+    const curr = rule.use
+    // When the user has configured `defaultLoaders.babel` for a input file:
+    if (curr === targetLoader) {
+      ++injections
+      rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
+    } else if (
+      Array.isArray(curr) &&
+      curr.some((r) => r === targetLoader) &&
+      // Check if loader already exists:
+      !curr.some(
+        (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
+      )
+    ) {
+      ++injections
+      const idx = curr.findIndex((r) => r === targetLoader)
+      // Clone to not mutate user input
+      rule.use = [...curr]
+
+      // inject / input: [other, babel] output: [other, refresh, babel]:
+      rule.use.splice(idx, 0, reactRefreshLoader)
+    }
+  })
+
+  if (injections) {
+    Log.info(
+      `automatically enabled Fast Refresh for ${injections} custom loader${
+        injections > 1 ? 's' : ''
+      }`
+    )
+  }
 }
 
 export default async function getBaseWebpackConfig(
@@ -1178,6 +1219,11 @@ export default async function getBaseWebpackConfig(
     }
   } else {
     await __overrideCssConfiguration(dir, !dev, webpackConfig)
+  }
+
+  // Inject missing React Refresh loaders so that development mode is fast:
+  if (hasReactRefresh) {
+    attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 
   // check if using @zeit/next-typescript and show warning
