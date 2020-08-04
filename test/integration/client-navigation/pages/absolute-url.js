@@ -2,7 +2,14 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export default function Page() {
+export async function getServerSideProps({ query: { port } }) {
+  if (!port) {
+    throw new Error('port required')
+  }
+  return { props: { port } }
+}
+
+export default function Page({ port }) {
   const router = useRouter()
   return (
     <>
@@ -18,6 +25,22 @@ export default function Page() {
       <button
         id="router-replace"
         onClick={() => router.replace('https://vercel.com/')}
+      >
+        Go replace
+      </button>
+
+      <Link href={`http://localhost:${port}/nav/about`}>
+        <a id="absolute-local-link">Go</a>
+      </Link>
+      <button
+        id="router-local-push"
+        onClick={() => router.push(`http://localhost:${port}/nav/about`)}
+      >
+        Go push
+      </button>
+      <button
+        id="router-local-replace"
+        onClick={() => router.replace(`http://localhost:${port}/nav/about`)}
       >
         Go replace
       </button>

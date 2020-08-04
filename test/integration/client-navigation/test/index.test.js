@@ -127,12 +127,29 @@ describe('Client Navigation', () => {
     })
 
     it('should navigate an absolute url', async () => {
-      const browser = await webdriver(context.appPort, '/absolute-url')
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
       await browser.waitForElementByCss('#absolute-link').click()
       await check(
         () => browser.eval(() => window.location.origin),
         'https://vercel.com'
       )
+    })
+
+    it('should navigate an absolute local url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+      await browser.eval(() => (window._didNotNavigate = true))
+      await browser.waitForElementByCss('#absolute-local-link').click()
+      await check(
+        () => browser.eval(() => window.location.pathname),
+        '/nav/about'
+      )
+      expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
     })
   })
 
@@ -884,7 +901,10 @@ describe('Client Navigation', () => {
       })
 
       it('should navigate an absolute url on push', async () => {
-        const browser = await webdriver(context.appPort, '/absolute-url')
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
         await browser.waitForElementByCss('#router-push').click()
         await check(
           () => browser.eval(() => window.location.origin),
@@ -893,12 +913,43 @@ describe('Client Navigation', () => {
       })
 
       it('should navigate an absolute url on replace', async () => {
-        const browser = await webdriver(context.appPort, '/absolute-url')
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
         await browser.waitForElementByCss('#router-replace').click()
         await check(
           () => browser.eval(() => window.location.origin),
           'https://vercel.com'
         )
+      })
+
+      it('should navigate an absolute local url on push', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
+        await browser.eval(() => (window._didNotNavigate = true))
+        await browser.waitForElementByCss('#router-local-push').click()
+        await check(
+          () => browser.eval(() => window.location.pathname),
+          '/nav/about'
+        )
+        expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
+      })
+
+      it('should navigate an absolute local url on replace', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
+        await browser.eval(() => (window._didNotNavigate = true))
+        await browser.waitForElementByCss('#router-local-replace').click()
+        await check(
+          () => browser.eval(() => window.location.pathname),
+          '/nav/about'
+        )
+        expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
       })
     })
 
