@@ -11,7 +11,7 @@ const appDir = join(__dirname, '..')
 describe('jsconfig.json', () => {
   it('should build normally', async () => {
     const res = await await nextBuild(appDir, [], { stdout: true })
-    expect(res.stdout).toMatch(/Compiled successfully\./)
+    expect(res.stdout).toMatch(/Compiled successfully/)
   })
 
   it('should fail on invalid jsconfig.json', async () => {
