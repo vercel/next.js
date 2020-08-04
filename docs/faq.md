@@ -76,5 +76,4 @@ description: Get to know more about Next.js with the frequently asked questions.
 <details>
   <summary>Can I make a Next.js Progressive Web App?</summary>
    <p>Yes! Here's an <a href="https://github.com/vercel/next.js/tree/canary/examples/progressive-web-app">example</a>.</p>
-
 </details>
