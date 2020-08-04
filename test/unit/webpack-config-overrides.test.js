@@ -58,7 +58,10 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: [expect.stringMatching('react-refresh-utils/loader.js'), 'rr'],
+            use: [
+              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              'rr',
+            ],
           },
         ],
       },
@@ -77,7 +80,10 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: [expect.stringMatching('react-refresh-utils/loader.js'), 'rr'],
+            use: [
+              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              'rr',
+            ],
           },
         ],
       },
@@ -98,7 +104,7 @@ describe('webpack-config attachReactRefresh', () => {
           {
             use: [
               'bla',
-              expect.stringMatching('react-refresh-utils/loader.js'),
+              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
               'rr',
             ],
           },
@@ -120,7 +126,7 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              expect.stringMatching('react-refresh-utils/loader.js'),
+              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
               'rr',
               'bla',
             ],
@@ -146,7 +152,7 @@ describe('webpack-config attachReactRefresh', () => {
               'hehe',
               'haha',
               'rawr',
-              expect.stringMatching('react-refresh-utils/loader.js'),
+              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
               'rr',
               'lol',
               'bla',
