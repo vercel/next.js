@@ -70,12 +70,16 @@ export function resolveHref(currentPath: string, href: Url): string {
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
-  const finalUrl = new URL(urlAsString, base)
-  finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
-  // if the origin didn't change, it means we received a relative href
-  return finalUrl.origin === base.origin
-    ? finalUrl.href.slice(finalUrl.origin.length)
-    : finalUrl.href
+  try {
+    const finalUrl = new URL(urlAsString, base)
+    finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    // if the origin didn't change, it means we received a relative href
+    return finalUrl.origin === base.origin
+      ? finalUrl.href.slice(finalUrl.origin.length)
+      : finalUrl.href
+  } catch (_) {
+    return urlAsString
+  }
 }
 
 function prepareUrlAs(router: NextRouter, url: Url, as: Url) {

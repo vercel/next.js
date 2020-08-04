@@ -290,8 +290,12 @@ export function getURL() {
  */
 export function isLocalURL(url: string): boolean {
   const locationOrigin = getLocationOrigin()
-  const resolved = new URL(url, locationOrigin)
-  return resolved.origin === locationOrigin
+  try {
+    const resolved = new URL(url, locationOrigin)
+    return resolved.origin === locationOrigin
+  } catch (_) {
+    return false
+  }
 }
 
 export function getDisplayName<P>(Component: ComponentType<P>) {

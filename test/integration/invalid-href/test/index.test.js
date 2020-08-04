@@ -10,7 +10,9 @@ import {
   nextStart,
   waitFor,
   check,
+  fetchViaHTTP,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -123,6 +125,16 @@ describe('Invalid hrefs', () => {
         await browser.close()
       }
     })
+
+    it("doesn't fail on invalid url", async () => {
+      await noError('/third')
+    })
+
+    it('renders a link with invalid href', async () => {
+      const res = await fetchViaHTTP(appPort, '/third')
+      const $ = cheerio.load(await res.text())
+      expect($('#click-me').attr('href')).toBe('https://')
+    })
   })
 
   describe('dev mode', () => {
@@ -150,6 +162,10 @@ describe('Invalid hrefs', () => {
 
     it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
       await noError('/dynamic-route-mismatch-manual', true)
+    })
+
+    it("doesn't fail on invalid url", async () => {
+      await noError('/third')
     })
 
     it('shows warning when dynamic route mismatch is used on Link', async () => {
