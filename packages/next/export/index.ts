@@ -12,6 +12,7 @@ import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
+import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
@@ -97,6 +98,7 @@ interface ExportOptions {
   threads?: number
   pages?: string[]
   buildExport?: boolean
+  statusMessage?: string
 }
 
 export default async function exportApp(
@@ -104,13 +106,6 @@ export default async function exportApp(
   options: ExportOptions,
   configuration?: any
 ): Promise<void> {
-  function log(message: string): void {
-    if (options.silent) {
-      return
-    }
-    console.log(message)
-  }
-
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
@@ -136,7 +131,9 @@ export default async function exportApp(
   const subFolders = nextConfig.trailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
-  log(`> using build directory: ${distDir}`)
+  if (!options.silent && !options.buildExport) {
+    Log.info(`using build directory: ${distDir}`)
+  }
 
   if (!existsSync(distDir)) {
     throw new Error(
@@ -213,13 +210,20 @@ export default async function exportApp(
 
   // Copy static directory
   if (!options.buildExport && existsSync(join(dir, 'static'))) {
-    log('  copying "static" directory')
+    if (!options.silent) {
+      Log.info('Copying "static" directory')
+    }
     await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
   }
 
   // Copy .next/static directory
-  if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
-    log('  copying "static build" directory')
+  if (
+    !options.buildExport &&
+    existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))
+  ) {
+    if (!options.silent) {
+      Log.info('Copying "static build" directory')
+    }
     await recursiveCopy(
       join(distDir, CLIENT_STATIC_FILES_PATH),
       join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
@@ -228,9 +232,11 @@ export default async function exportApp(
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log(
-      `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
-    )
+    if (!options.silent) {
+      Log.info(
+        `No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+      )
+    }
     nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
       return defaultMap
     }
@@ -264,7 +270,9 @@ export default async function exportApp(
     nextExport: true,
   }
 
-  log(`  launching ${threads} workers`)
+  if (!options.silent && !options.buildExport) {
+    Log.info(`Launching ${threads} workers`)
+  }
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {
     dev: false,
     dir,
@@ -322,27 +330,35 @@ export default async function exportApp(
 
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
-    log(
-      chalk.bold.red(`Warning`) +
-        ': ' +
+    if (!options.silent) {
+      Log.warn(
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
         ) +
-        `\n` +
-        chalk.yellow(
-          `This command is meant for static-only hosts, and is` +
-            ' ' +
-            chalk.bold(`not necessary to make your application static.`)
-        ) +
-        `\n` +
-        chalk.yellow(
-          `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
-        ) +
-        `\nLearn more: https://err.sh/vercel/next.js/api-routes-static-export`
-    )
+          `\n` +
+          chalk.yellow(
+            `This command is meant for static-only hosts, and is` +
+              ' ' +
+              chalk.bold(`not necessary to make your application static.`)
+          ) +
+          `\n` +
+          chalk.yellow(
+            `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+          ) +
+          `\n` +
+          chalk.yellow(
+            `Learn more: https://err.sh/vercel/next.js/api-routes-static-export`
+          )
+      )
+    }
   }
 
-  const progress = !options.silent && createProgress(filteredPaths.length)
+  const progress =
+    !options.silent &&
+    createProgress(
+      filteredPaths.length,
+      `${Log.prefixes.info} ${options.statusMessage}`
+    )
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
@@ -353,7 +369,9 @@ export default async function exportApp(
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
   if (!options.buildExport && existsSync(publicDir)) {
-    log('  copying "public" directory')
+    if (!options.silent) {
+      Log.info('Copying "public" directory')
+    }
     await recursiveCopy(publicDir, outDir, {
       filter(path) {
         // Exclude paths used by pages
@@ -476,8 +494,6 @@ export default async function exportApp(
         .join('\n\t')}`
     )
   }
-  // Add an empty line to the console for the better readability.
-  log('')
 
   writeFileSync(
     join(distDir, EXPORT_DETAIL),

@@ -36,7 +36,7 @@ describe('Non-Standard NODE_ENV', () => {
     let output = ''
 
     app = await launchApp(appDir, await findPort(), {
-      onStdout(msg) {
+      onStderr(msg) {
         output += msg || ''
       },
     })
@@ -52,7 +52,7 @@ describe('Non-Standard NODE_ENV', () => {
       env: {
         NODE_ENV: 'development',
       },
-      onStdout(msg) {
+      onStderr(msg) {
         output += msg || ''
       },
     })
@@ -69,7 +69,7 @@ describe('Non-Standard NODE_ENV', () => {
         NODE_ENV: 'development',
       },
       {
-        onStdout(msg) {
+        onStderr(msg) {
           output += msg || ''
         },
       }
@@ -86,7 +86,7 @@ describe('Non-Standard NODE_ENV', () => {
       env: {
         NODE_ENV: 'abc',
       },
-      onStdout(msg) {
+      onStderr(msg) {
         output += msg || ''
       },
     })
@@ -103,7 +103,7 @@ describe('Non-Standard NODE_ENV', () => {
         NODE_ENV: 'abc',
       },
       {
-        onStdout(msg) {
+        onStderr(msg) {
           output += msg || ''
         },
       }

@@ -16,15 +16,11 @@ const appDir = join(__dirname, '../')
 
 describe('no duplicate compile error output', () => {
   it('should not show compile error on page refresh', async () => {
-    let stdout = ''
     let stderr = ''
 
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: true },
-      onStdout(msg) {
-        stdout += msg || ''
-      },
       onStderr(msg) {
         stderr += msg || ''
       },
@@ -63,12 +59,11 @@ describe('no duplicate compile error output', () => {
     const correctMessagesRegex = /error - [^\r\n]+\r?\n[^\r\n]+Unexpected token/g
     const totalMessagesRegex = /Unexpected token/g
 
-    const correctMessages = getRegexCount(stdout, correctMessagesRegex)
-    const totalMessages = getRegexCount(stdout, totalMessagesRegex)
+    const correctMessages = getRegexCount(stderr, correctMessagesRegex)
+    const totalMessages = getRegexCount(stderr, totalMessagesRegex)
 
     expect(correctMessages).toBeGreaterThanOrEqual(1)
     expect(correctMessages).toBe(totalMessages)
-    expect(stderr).toBe('')
 
     await killApp(app)
   })
