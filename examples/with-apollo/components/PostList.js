@@ -58,7 +58,7 @@ export default function PostList() {
             <div>
               <span>{index + 1}. </span>
               <a href={post.url}>{post.title}</a>
-              <PostUpvoter id={'voter-' + post.id} votes={post.votes} />
+              <PostUpvoter id={post.id} votes={post.votes} />
             </div>
           </li>
         ))}
