@@ -117,6 +117,13 @@ npm install sass
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
 
+> **Note**: Sass supports [two different syntaxes](https://sass-lang.com/documentation/syntax), each with their own extension.
+> The `.scss` extension requires you use the [SCSS syntax](https://sass-lang.com/documentation/syntax#scss),
+> while the `.sass` extension requires you use the [Indented Syntax ("Sass")](https://sass-lang.com/documentation/syntax#the-indented-syntax).
+>
+> If you're not sure which to choose, start with the `.scss` extension which is a superset of CSS, and doesn't require you learn the
+> Indented Syntax ("Sass").
+
 ### Customizing Sass Options
 
 If you want to configure the Sass compiler you can do so by using `sassOptions` in `next.config.js`.
