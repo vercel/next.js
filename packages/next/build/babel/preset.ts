@@ -182,6 +182,7 @@ module.exports = (
       require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
       [require('@babel/plugin-proposal-numeric-separator').default, false],
+      require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
     overrides: [
       {
