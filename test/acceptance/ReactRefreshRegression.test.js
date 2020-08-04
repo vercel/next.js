@@ -280,3 +280,41 @@ test('shows an overlay for a server-side error', async () => {
 
   await cleanup()
 })
+
+// https://github.com/vercel/next.js/issues/13574
+test('custom loader (mdx) should have Fast Refresh enabled', async () => {
+  const files = new Map()
+  files.set(
+    'next.config.js',
+    `
+      const withMDX = require("@next/mdx")({
+        extension: /\\.mdx?$/,
+      });
+      module.exports = withMDX({
+        pageExtensions: ["js", "mdx"],
+      });
+    `
+  )
+  files.set('pages/index.mdx', `Hello World!`)
+
+  const [session, cleanup] = await sandbox(undefined, files, false)
+  expect(
+    await session.evaluate(() => document.querySelector('#__next').textContent)
+  ).toBe('Hello World!')
+
+  let didNotReload = await session.patch('pages/index.mdx', `Hello Foo!`)
+  expect(didNotReload).toBe(true)
+  expect(await session.hasRedbox()).toBe(false)
+  expect(
+    await session.evaluate(() => document.querySelector('#__next').textContent)
+  ).toBe('Hello Foo!')
+
+  didNotReload = await session.patch('pages/index.mdx', `Hello Bar!`)
+  expect(didNotReload).toBe(true)
+  expect(await session.hasRedbox()).toBe(false)
+  expect(
+    await session.evaluate(() => document.querySelector('#__next').textContent)
+  ).toBe('Hello Bar!')
+
+  await cleanup()
+})
