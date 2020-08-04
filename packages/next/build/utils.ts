@@ -279,7 +279,7 @@ export async function printTreeView(
         [
           '',
           '(ISR)',
-          `Incremental static regenaration ( uses revalidate in ${chalk.cyan(
+          `incremental static regeneration ( uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
