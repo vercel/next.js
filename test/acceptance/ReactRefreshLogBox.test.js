@@ -678,6 +678,35 @@ test('unterminated JSX', async () => {
   await cleanup()
 })
 
+test('Module not found', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      import Comp from 'b'
+
+      export default () => {
+        return (
+          <div>
+            <Comp>lol</Comp>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.js
+    Module not found: Can't resolve 'b' in '${session.sandboxDirectory}'"
+  `)
+
+  await cleanup()
+})
+
 test('conversion to class component (1)', async () => {
   const [session, cleanup] = await sandbox()
 
