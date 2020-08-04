@@ -103,17 +103,26 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
-      const mainTemplate = compilation.mainTemplate
-      mainTemplate.hooks.requireExtensions.tap(
-        this.constructor.name,
-        (source: string) => {
-          return `${source}
-      // Font manifest declaration
-      ${mainTemplate.requireFn}.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
-            this.manifestContent
-          )};`
-        }
-      )
+      // @ts-ignore
+      if (compilation.options.output.path.endsWith('serverless')) {
+        /**
+         * Inline font manifest for serverless case only.
+         * For target: server drive the manifest through physical file and less of webpack magic.
+         */
+        const mainTemplate = compilation.mainTemplate
+        mainTemplate.hooks.requireExtensions.tap(
+          this.constructor.name,
+          (source: string) => {
+            return `${source}
+                // Font manifest declaration
+                ${
+                  mainTemplate.requireFn
+                }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
+              this.manifestContent
+            )};`
+          }
+        )
+      }
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (_: any, modulesFinished: Function) => {

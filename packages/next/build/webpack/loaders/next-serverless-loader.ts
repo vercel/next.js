@@ -440,7 +440,7 @@ const nextServerlessLoader: loader.Loader = function () {
            * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
            * font-stylesheet-gathering-plugin
            */
-          renderOpts.fontManifest = renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__;
+          renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__;
           process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
