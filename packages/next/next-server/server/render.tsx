@@ -148,6 +148,7 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  devOnlyCacheBusterQueryString?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -184,6 +185,7 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    devOnlyCacheBusterQueryString,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -204,6 +206,7 @@ function renderDocument(
     customServer?: boolean
     gip?: boolean
     appGip?: boolean
+    devOnlyCacheBusterQueryString: string
   }
 ): string {
   return (
@@ -242,6 +245,7 @@ function renderDocument(
           assetPrefix,
           headTags,
           unstable_runtimeJS,
+          devOnlyCacheBusterQueryString,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -265,6 +269,13 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
+  // In dev we invalidate the cache by appending a timestamp to the resource URL.
+  // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+  renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
+    ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
+    : ''
+
   const {
     err,
     dev = false,
@@ -284,6 +295,7 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
+    devOnlyCacheBusterQueryString,
   } = renderOpts
 
   const getFontDefinition = (url: string): string => {
@@ -777,6 +789,7 @@ export async function renderToHTML(
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
+    devOnlyCacheBusterQueryString,
   })
 
   if (inAmpMode && html) {
