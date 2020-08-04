@@ -87,7 +87,7 @@
     "cacache": "13.0.1",
     "chokidar": "2.1.8",
     "css-loader": "3.5.3",
-    "cssnano-simple": "1.0.5",
+    "cssnano-simple": "1.0.6",
     "find-cache-dir": "3.3.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
