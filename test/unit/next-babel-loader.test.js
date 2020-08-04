@@ -19,6 +19,7 @@ const babel = async (
     resourcePath = 'index.js',
     hasModern = false,
     development = false,
+    hasReactRefresh = false,
   } = {}
 ) => {
   let isAsync = false
