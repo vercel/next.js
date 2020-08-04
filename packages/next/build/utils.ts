@@ -276,6 +276,13 @@ export async function printTreeView(
             'getStaticProps'
           )})`,
         ],
+        [
+          '',
+          '(ISR)',
+          `Incremental static regenaration ( uses revalidate interval in ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
       ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
