@@ -3,7 +3,7 @@ import { renderStatic } from 'glamor/server'
 
 class MyDocument extends Document {
   static async getInitialProps({ renderPage }) {
-    const page = renderPage()
+    const page = await renderPage()
     const { css, ids } = renderStatic(() => page.html || page.errorHtml)
     return { ...page, css, ids }
   }

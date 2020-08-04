@@ -15,7 +15,7 @@ export default class MyDocument extends Document {
   static async getInitialProps({ renderPage }) {
     AppRegistry.registerComponent(config.name, () => Main)
     const { getStyleElement } = AppRegistry.getApplication(config.name)
-    const page = renderPage()
+    const page = await renderPage()
     const styles = [
       <style dangerouslySetInnerHTML={{ __html: normalizeNextElements }} />,
       getStyleElement(),
