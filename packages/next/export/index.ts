@@ -133,7 +133,7 @@ export default async function exportApp(
     )
   }
 
-  const subFolders = nextConfig.exportTrailingSlash
+  const subFolders = nextConfig.trailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
   log(`> using build directory: ${distDir}`)
@@ -388,6 +388,7 @@ export default async function exportApp(
         subFolders,
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
+        optimizeFonts: nextConfig.experimental.optimizeFonts,
       })
 
       for (const validation of result.ampValidations || []) {

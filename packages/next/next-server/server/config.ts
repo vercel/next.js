@@ -2,10 +2,9 @@ import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
-
+import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
-import * as Log from '../../build/output/log'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -36,10 +35,9 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   basePath: '',
-  exportTrailingSlash: false,
   sassOptions: {},
+  trailingSlash: false,
   experimental: {
-    trailingSlash: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -53,7 +51,8 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
-    optionalCatchAll: false,
+    optimizeFonts: false,
+    scrollRestoration: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -73,6 +72,17 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+    )
+    if (typeof userConfig.trailingSlash === 'undefined') {
+      userConfig.trailingSlash = userConfig.exportTrailingSlash
+    }
+    delete userConfig.exportTrailingSlash
+  }
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = userConfig[key]

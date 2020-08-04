@@ -136,16 +136,31 @@ export async function sandbox(id = nanoid(), initialFiles = new Map()) {
         } while (expected)
         return false
       },
+      async getRedboxDescription() {
+        return await this.evaluate(() => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+            )
+          const root = portal.shadowRoot
+          return root
+            .querySelector('#nextjs__container_errors_desc')
+            .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        })
+      },
       async getRedboxSource(includeHeader = false) {
         const header = includeHeader
           ? await this.evaluate(() => {
               const portal = [].slice
                 .call(document.querySelectorAll('nextjs-portal'))
                 .find((p) =>
-                  p.shadowRoot.querySelector('[data-nextjs-dialog-header')
+                  p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
                 )
               const root = portal.shadowRoot
-              return root.querySelector('[data-nextjs-dialog-header]').innerText
+              return root
+                .querySelector('[data-nextjs-dialog-header]')
+                .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
             })
           : ''
 
