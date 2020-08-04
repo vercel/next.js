@@ -32,6 +32,12 @@ export default function Page({ port }) {
       <Link href={`http://localhost:${port}/nav/about`}>
         <a id="absolute-local-link">Go</a>
       </Link>
+      <Link
+        href={`http://localhost:${port}/dynamic/[slug]/route`}
+        as={`http://localhost:${port}/dynamic/hello/route`}
+      >
+        <a id="absolute-local-dynamic-link">Go</a>
+      </Link>
       <button
         id="router-local-push"
         onClick={() => router.push(`http://localhost:${port}/nav/about`)}

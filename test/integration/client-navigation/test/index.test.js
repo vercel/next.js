@@ -145,9 +145,24 @@ describe('Client Navigation', () => {
       )
       await browser.eval(() => (window._didNotNavigate = true))
       await browser.waitForElementByCss('#absolute-local-link').click()
-      await check(
-        () => browser.eval(() => window.location.pathname),
-        '/nav/about'
+      const text = await browser
+        .waitForElementByCss('.nav-about')
+        .elementByCss('p')
+        .text()
+
+      expect(text).toBe('This is the about page.')
+      expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
+    })
+
+    it('should navigate an absolute local url with as', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+      await browser.eval(() => (window._didNotNavigate = true))
+      await browser.waitForElementByCss('#absolute-local-dynamic-link').click()
+      expect(await browser.waitForElementByCss('#dynamic-page').text()).toBe(
+        'hello'
       )
       expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
     })
@@ -931,10 +946,11 @@ describe('Client Navigation', () => {
         )
         await browser.eval(() => (window._didNotNavigate = true))
         await browser.waitForElementByCss('#router-local-push').click()
-        await check(
-          () => browser.eval(() => window.location.pathname),
-          '/nav/about'
-        )
+        const text = await browser
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p')
+          .text()
+        expect(text).toBe('This is the about page.')
         expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
       })
 
@@ -945,10 +961,11 @@ describe('Client Navigation', () => {
         )
         await browser.eval(() => (window._didNotNavigate = true))
         await browser.waitForElementByCss('#router-local-replace').click()
-        await check(
-          () => browser.eval(() => window.location.pathname),
-          '/nav/about'
-        )
+        const text = await browser
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p')
+          .text()
+        expect(text).toBe('This is the about page.')
         expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
       })
     })
