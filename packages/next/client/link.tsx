@@ -166,14 +166,15 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const [childElm, setChildElm] = React.useState<Element>()
 
   const router = useRouter()
+  const pathname = (router && router.pathname) || '/'
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(router.pathname, props.href)
+    const resolvedHref = resolveHref(pathname, props.href)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(router.pathname, props.as) : resolvedHref,
+      as: props.as ? resolveHref(pathname, props.as) : resolvedHref,
     }
-  }, [router.pathname, props.href, props.as])
+  }, [pathname, props.href, props.as])
 
   React.useEffect(() => {
     if (p && IntersectionObserver && childElm && childElm.tagName) {
@@ -234,20 +235,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
     childProps.href = addBasePath(as)
-  }
-
-  // Add the ending slash to the paths. So, we can serve the
-  // "<page>/index.html" directly.
-  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-    const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
-      .rewriteUrlForNextExport
-    if (
-      childProps.href &&
-      typeof __NEXT_DATA__ !== 'undefined' &&
-      __NEXT_DATA__.nextExport
-    ) {
-      childProps.href = rewriteUrlForNextExport(childProps.href)
-    }
   }
 
   return React.cloneElement(child, childProps)

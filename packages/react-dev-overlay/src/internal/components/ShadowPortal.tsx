@@ -14,7 +14,7 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
   let [, forceUpdate] = React.useState()
 
   React.useLayoutEffect(() => {
-    const ownerDocument = mountNode.current.ownerDocument
+    const ownerDocument = mountNode.current!.ownerDocument!
     portalNode.current = ownerDocument.createElement('nextjs-portal')
     shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
     ownerDocument.body.appendChild(portalNode.current)
