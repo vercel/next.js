@@ -12,6 +12,10 @@
   transform: translate3d(0px, 0px);
 }
 
+.css-grid-shorthand {
+  grid-column: span 2;
+}
+
 .g-docs-sidenav .filter::-webkit-input-placeholder {
   opacity: 80%;
 }
