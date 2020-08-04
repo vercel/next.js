@@ -13,7 +13,7 @@ module.exports = {
       },
       {
         source: '/rewrite-no-basepath',
-        destination: '/gssp',
+        destination: 'http://localhost:__EXTERNAL_APP_PORT__/page.html',
         basePath: false,
       },
       {
