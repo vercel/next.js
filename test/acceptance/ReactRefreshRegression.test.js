@@ -254,3 +254,29 @@ test('can fast refresh a page with config', async () => {
 
   await cleanup()
 })
+
+// https://github.com/vercel/next.js/issues/11504
+test('shows an overlay for a server-side error', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'pages/index.js',
+    `export default function () { throw new Error('pre boom'); }`
+  )
+
+  const didNotReload = await session.patch(
+    'pages/index.js',
+    `export default function () { throw new Error('boom'); }`
+  )
+  expect(didNotReload).toBe(false)
+
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const source = await session.getRedboxSource()
+  expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    "> 1 | export default function () { throw new Error('boom'); }
+        |                                   ^"
+  `)
+
+  await cleanup()
+})
