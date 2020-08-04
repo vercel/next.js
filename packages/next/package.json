@@ -62,6 +62,7 @@
     "@babel/code-frame": "7.8.3",
     "@babel/core": "7.7.7",
     "@babel/plugin-proposal-class-properties": "7.8.3",
+    "@babel/plugin-proposal-export-namespace-from": "7.10.4",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.8.3",
     "@babel/plugin-proposal-numeric-separator": "7.8.3",
     "@babel/plugin-proposal-object-rest-spread": "7.9.6",

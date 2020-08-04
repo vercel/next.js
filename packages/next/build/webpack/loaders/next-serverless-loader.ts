@@ -6,7 +6,6 @@ import { loader } from 'webpack'
 import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
-  FONT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
@@ -59,10 +58,6 @@ const nextServerlessLoader: loader.Loader = function () {
     '/'
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
-  const fontManifest = join(distDir, 'serverless', FONT_MANIFEST).replace(
-    /\\/g,
-    '/'
-  )
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
@@ -441,7 +436,11 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (process.env.__NEXT_OPTIMIZE_FONTS) {
           renderOpts.optimizeFonts = true
-          renderOpts.fontManifest = require('${fontManifest}')
+          /**
+           * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
+           * font-stylesheet-gathering-plugin
+           */
+          renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__;
           process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
