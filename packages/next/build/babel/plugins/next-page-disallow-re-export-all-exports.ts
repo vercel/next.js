@@ -1,26 +1,17 @@
-import { PluginObj, NodePath, types } from '@babel/core'
+import { NodePath, PluginObj, types } from '@babel/core'
 
-interface ConfigState {
-  cwd: string
-  filename: string
-}
-
-export default function NextPageDisallowReExportAllExports(): PluginObj<
-  ConfigState
-> {
+export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
   return {
     visitor: {
-      ExportAllDeclaration(_path: NodePath<types.ExportAllDeclaration>, state) {
-        const filename = (state.filename || '').split(state.cwd || '').pop()
-
-        if (
-          filename?.startsWith('/src/pages') ||
-          filename?.startsWith('/pages')
-        ) {
-          throw new Error(
-            `Re-exporting all exports from a page is disallowed. Happened in ${filename}. See: https://err.sh/vercel/next.js/export-all-in-page.md`
-          )
-        }
+      ExportAllDeclaration(path: NodePath<types.ExportAllDeclaration>) {
+        const err = new SyntaxError(
+          `Using \`export * from '...'\` in a page is disallowed. Please use \`export { default } from '...'\` instead.\n` +
+            `Read more: https://err.sh/next.js/export-all-in-page`
+        )
+        ;(err as any).code = 'BABEL_PARSE_ERROR'
+        ;(err as any).loc =
+          path.node.loc?.start ?? path.node.loc?.end ?? path.node.loc
+        throw err
       },
     },
   }
