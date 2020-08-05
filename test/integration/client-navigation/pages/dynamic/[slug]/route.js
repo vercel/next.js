@@ -8,6 +8,6 @@ export default class DynamicRoute extends React.Component {
   }
 
   render() {
-    return <p>{this.props.query.slug}</p>
+    return <p id="dynamic-page">{this.props.query.slug}</p>
   }
 }
