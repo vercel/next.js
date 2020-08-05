@@ -122,6 +122,7 @@ export default class Server {
     basePath: string
     optimizeFonts: boolean
     fontManifest: FontManifest
+    optimizeImages: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -172,6 +173,7 @@ export default class Server {
       fontManifest: this.nextConfig.experimental.optimizeFonts
         ? requireFontManifest(this.distDir, this._isLikeServerless)
         : null,
+      optimizeImages: this.nextConfig.experimental.optimizeImages,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -235,6 +237,9 @@ export default class Server {
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeImages) {
+      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
   }
 

@@ -2,9 +2,12 @@ import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
 const MIDDLEWARE_TIME_BUDGET = 10
+const MAXIMUM_IMAGE_PRELOADS = 2
+const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
 type postProcessOptions = {
   optimizeFonts: boolean
+  optimizeImages: boolean
 }
 
 type renderOptions = {
@@ -149,6 +152,83 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
+class ImageOptimizerMiddleware implements PostProcessMiddleware {
+  inspect(originalDom: HTMLElement, _data: postProcessData) {
+    const imgElements = originalDom.querySelectorAll('img')
+    let eligibleImages: Array<HTMLElement> = []
+    for (let i = 0; i < imgElements.length; i++) {
+      if (isImgEligible(imgElements[i])) {
+        eligibleImages.push(imgElements[i])
+      }
+      if (eligibleImages.length >= MAXIMUM_IMAGE_PRELOADS) {
+        break
+      }
+    }
+    _data.preloads.images = eligibleImages.map((el) => el.getAttribute('src'))
+  }
+  mutate = async (markup: string, _data: postProcessData) => {
+    let result = markup
+    let imagePreloadTags = _data.preloads.images
+      .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
+      .reduce(
+        (acc, imgHref) => acc + `<link rel="preload" href="${imgHref}"/>`,
+        ''
+      )
+    return result.replace(
+      /<link rel="preload"/,
+      `${imagePreloadTags}<link rel="preload"`
+    )
+  }
+}
+
+function isImgEligible(imgElement: HTMLElement): boolean {
+  return (
+    imgElement.hasAttribute('src') &&
+    imageIsNotTooSmall(imgElement) &&
+    imageIsNotHidden(imgElement)
+  )
+}
+
+function preloadTagAlreadyExists(html: string, href: string) {
+  const regex = new RegExp(`<link[^>]*href[^>]*${href}`)
+  return html.match(regex)
+}
+
+function imageIsNotTooSmall(imgElement: HTMLElement): boolean {
+  // Skip images without both height and width--we don't know enough to say if
+  // they are too small
+  if (
+    !(imgElement.hasAttribute('height') && imgElement.hasAttribute('width'))
+  ) {
+    return true
+  }
+  try {
+    if (
+      parseInt(imgElement.getAttribute('height')) *
+        parseInt(imgElement.getAttribute('width')) <=
+      IMAGE_PRELOAD_SIZE_THRESHOLD
+    ) {
+      return false
+    }
+  } catch (err) {
+    return true
+  }
+  return true
+}
+
+// Traverse up the dom from each image to see if it or any of it's
+// ancestors have the hidden attribute.
+function imageIsNotHidden(imgElement: HTMLElement): boolean {
+  let activeElement = imgElement
+  while (activeElement.parentNode) {
+    if (activeElement.hasAttribute('hidden')) {
+      return false
+    }
+    activeElement = activeElement.parentNode as HTMLElement
+  }
+  return true
+}
+
 // Initialization
 registerPostProcessor(
   'Inline-Fonts',
@@ -156,6 +236,13 @@ registerPostProcessor(
   // Using process.env because passing Experimental flag through loader is not possible.
   // @ts-ignore
   (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
+)
+
+registerPostProcessor(
+  'Preload Images',
+  new ImageOptimizerMiddleware(),
+  // @ts-ignore
+  (options) => options.optimizeImages || process.env.__NEXT_OPTIMIZE_IMAGES
 )
 
 export default processHTML

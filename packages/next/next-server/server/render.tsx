@@ -147,6 +147,7 @@ export type RenderOptsPartial = {
   unstable_runtimeJS?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
+  optimizeImages: boolean
   devOnlyCacheBusterQueryString?: string
 }
 
@@ -813,6 +814,7 @@ export async function renderToHTML(
     },
     {
       optimizeFonts: renderOpts.optimizeFonts,
+      optimizeImages: renderOpts.optimizeImages,
     }
   )
 
