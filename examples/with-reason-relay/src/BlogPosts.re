@@ -1,6 +1,6 @@
 module Fragment = [%relay.fragment {|
   fragment BlogPosts_fragment on Viewer {
-    allBlogPosts(first: 10, orderBy: createdAt_DESC) {
+    allBlogPosts(first: 10, orderBy: { createdAt: desc }) {
       edges {
         node {
           ...BlogPostPreview_fragment

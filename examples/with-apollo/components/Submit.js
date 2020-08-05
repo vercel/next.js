@@ -31,7 +31,7 @@ export default function Submit() {
           query: ALL_POSTS_QUERY,
           variables: allPostsQueryVars,
         })
-        // Update the cache with the new post at the top of the
+        // Update the cache with the new post at the top of the list
         proxy.writeQuery({
           query: ALL_POSTS_QUERY,
           data: {

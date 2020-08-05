@@ -3,7 +3,6 @@
   "version": "3.0.4",
   "description": "Example of Next.js with Relay Modern SSR",
   "scripts": {
-    "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
     "dev": "next",
     "build": "bsb -make-world",
     "next": "next",
@@ -34,7 +33,6 @@
   },
   "devDependencies": {
     "babel-plugin-relay": "^9.0.0",
-    "graphcool": "^1.4.0",
     "graphql-cli": "^3.0.14",
     "relay-compiler": "9.0.0"
   },

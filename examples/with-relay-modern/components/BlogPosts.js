@@ -15,7 +15,7 @@ const BlogPosts = ({ viewer }) => (
 export default createFragmentContainer(BlogPosts, {
   viewer: graphql`
     fragment BlogPosts_viewer on Viewer {
-      allBlogPosts(first: 10, orderBy: createdAt_DESC) {
+      allBlogPosts(first: 10, orderBy: { createdAt: desc }) {
         edges {
           node {
             ...BlogPostPreview_post
