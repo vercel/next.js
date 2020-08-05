@@ -454,22 +454,27 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect('gsp' in JSON.parse($('#__NEXT_DATA__').text())).toBe(false)
   })
 
-  it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
+  it('should not supply query values to params or useRouter non-dynamic page SSR except path', async () => {
     const html = await renderViaHTTP(appPort, '/something?hello=world')
     const $ = cheerio.load(html)
     const query = $('#query').text()
     expect(JSON.parse(query)).toEqual({})
     const params = $('#params').text()
-    expect(JSON.parse(params)).toEqual({})
+    const paramsWithOutPath = JSON.parse(params)
+    delete paramsWithOutPath.path
+    expect(paramsWithOutPath).toEqual({})
   })
 
-  it('should not supply query values to params in /_next/data request', async () => {
+  it('should not supply query values to params in /_next/data request except path', async () => {
     const data = JSON.parse(
       await renderViaHTTP(
         appPort,
         `/_next/data/${buildId}/something.json?hello=world`
       )
     )
+    const paramsWithOutPath = data.pageProps.params
+    delete paramsWithOutPath.path
+
     expect(data.pageProps.params).toEqual({})
   })
 
