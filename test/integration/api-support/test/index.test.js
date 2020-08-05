@@ -236,9 +236,9 @@ function runTests(dev = false) {
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
-  it('should show friendly error for redirect', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/redirect-error', null, {})
-    expect(stderr).toContain(`URL argument not provided to res.redirect make sure to pass it as a second argument when setting the status code e.g. res.redirect(307, '/redirect-destination')`)
+  it('should show friendly error for invalid redirect', async () => {
+    await fetchViaHTTP(appPort, '/api/redirect-error', null, {})
+    expect(stderr).toContain(`Invalid redirect arguments. Make sure the second argument is a URL when setting the status code e.g. res.redirect(307, '/redirect-destination').`)
   })
 
   it('should redirect with status code 307', async () => {
