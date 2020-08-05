@@ -6,8 +6,6 @@ description: Add client and server runtime configuration to your Next.js app.
 
 > Generally you'll want to use [build-time environment variables](/docs/api-reference/next.config.js/environment-variables.md) to provide your configuration. The reason for this is that runtime configuration adds rendering / initialization overhead and is incompatible with [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
-> Runtime configuration is not available when using the [`serverless` target](/docs/api-reference/next.config.js/build-target.md#serverless-target).
-
 To add runtime configuration to your app open `next.config.js` and add the `publicRuntimeConfig` and `serverRuntimeConfig` configs:
 
 ```js
