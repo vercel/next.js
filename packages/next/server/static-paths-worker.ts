@@ -2,6 +2,8 @@ import { buildStaticPaths } from '../build/utils'
 import { loadComponents } from '../next-server/server/load-components'
 import '../next-server/server/node-polyfill-fetch'
 
+type RuntimeConfig = any
+
 let workerWasUsed = false
 
 // we call getStaticPaths in a separate process to ensure
@@ -10,13 +12,17 @@ let workerWasUsed = false
 export async function loadStaticPaths(
   distDir: string,
   pathname: string,
-  serverless: boolean
+  serverless: boolean,
+  config: RuntimeConfig
 ) {
   // we only want to use each worker once to prevent any invalid
   // caches
   if (workerWasUsed) {
     process.exit(1)
   }
+
+  // update work memory runtime-config
+  require('./../next-server/lib/runtime-config').setConfig(config)
 
   const components = await loadComponents(distDir, pathname, serverless)
 
