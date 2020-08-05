@@ -40,6 +40,7 @@ export async function sandbox(
 
   return [
     {
+      sandboxDirectory,
       async write(fileName, content) {
         // Update the file on filesystem
         const fullFileName = path.join(sandboxDirectory, fileName)
