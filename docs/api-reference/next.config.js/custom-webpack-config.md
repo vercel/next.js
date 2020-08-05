@@ -4,7 +4,7 @@ description: Extend the default webpack config added by Next.js.
 
 # Custom Webpack Config
 
-Before continuing to add custom webpack configuration your application make sure Next.js doesn't already support your use-case:
+Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case:
 
 - [CSS imports](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
 - [CSS modules](/docs/basic-features/built-in-css-support#adding-component-level-css)
@@ -15,7 +15,7 @@ Before continuing to add custom webpack configuration your application make sure
 
 Some commonly asked for features are available as plugins:
 
-- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
 - [@next/mdx](https://github.com/vercel/next.js/tree/canary/packages/next-mdx)
 - [@next/bundle-analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer)
 

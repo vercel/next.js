@@ -29,6 +29,8 @@ yarn create next-app
 
 After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
 
+For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/create-next-app.md)
+
 ## Manual Setup
 
 Install `next`, `react` and `react-dom` in your project:
@@ -41,7 +43,7 @@ Open `package.json` and add the following `scripts`:
 
 ```json
 "scripts": {
-  "dev": "next",
+  "dev": "next dev",
   "build": "next build",
   "start": "next start"
 }
@@ -49,11 +51,11 @@ Open `package.json` and add the following `scripts`:
 
 These scripts refer to the different stages of developing an application:
 
-- `dev` - Runs `next` which starts Next.js in development mode
-- `build` - Runs `next build` which builds the application for production usage
-- `start` - Runs `next start` which starts a Next.js production server
+- `dev` - Runs [`next dev`](/docs/api-reference/cli#development) which starts Next.js in development mode
+- `build` - Runs [`next build`](/docs/api-reference/cli#build) which builds the application for production usage
+- `start` - Runs [`next start`](/docs/api-reference/cli#production) which starts a Next.js production server
 
-Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
+Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
 
 Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even add dynamic route parameters with the filename.
 
