@@ -16,6 +16,12 @@ const styles = css`
     overflow-y: hidden;
   }
 
+  @media (max-height: 812px) {
+    [data-nextjs-dialog-overlay] {
+      max-height: calc(100% - 15px);
+    }
+  }
+
   @media (min-width: 576px) {
     [data-nextjs-dialog] {
       max-width: 540px;
