@@ -2,15 +2,15 @@
 
 #### Why This Error Occurred
 
-The following export breaks Next.js compilation of pages:
+The following export can potentially break Next.js' compilation of pages:
 
-```js
+```ts
 export * from '...'
 ```
 
-Node.js code may be leaked to the browser build causing an error. For example, the next two pages:
+This is because Node.js code may be leaked to the browser build, causing an error. For example, the following two pages:
 
-```js
+```ts
 // pages/one.js
 import fs from 'fs'
 
@@ -24,12 +24,12 @@ export function getStaticProps() {
 }
 ```
 
-```js
+```ts
 // pages/two.js
 export * from './one'
 ```
 
-Will cause the following error:
+Would cause cause the following error:
 
 ```
 Module not found: Can't resolve 'fs' in './pages/two.js'
@@ -37,4 +37,18 @@ Module not found: Can't resolve 'fs' in './pages/two.js'
 
 #### Possible Ways to Fix It
 
-Remove `export * from '...'` from Next.js pages.
+Update your page to re-export the default component only:
+
+```ts
+export { default } from './other-page'
+```
+
+If the other page uses `getServerSideProps` or `getStaticProps`, you can re-export those individually too:
+
+```ts
+export { default, getServerSideProps } from './other-page'
+// or
+export { default, getStaticProps } from './other-page'
+// or
+export { default, getStaticProps, getStaticPaths } from './other-page/[dynamic]'
+```
