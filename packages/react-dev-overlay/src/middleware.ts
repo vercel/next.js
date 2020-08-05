@@ -72,26 +72,30 @@ async function findOriginalSourcePositionAndContent(
   position: { line: number; column: number | null }
 ) {
   const consumer = await new SourceMapConsumer(webpackSource.map())
-  const sourcePosition: NullableMappedPosition = consumer.originalPositionFor({
-    line: position.line,
-    column: position.column ?? 0,
-  })
+  try {
+    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
+      {
+        line: position.line,
+        column: position.column ?? 0,
+      }
+    )
 
-  if (!sourcePosition.source) {
-    return null
-  }
+    if (!sourcePosition.source) {
+      return null
+    }
 
-  const sourceContent: string | null =
-    consumer.sourceContentFor(
-      sourcePosition.source,
-      /* returnNullOnMissing */ true
-    ) ?? null
+    const sourceContent: string | null =
+      consumer.sourceContentFor(
+        sourcePosition.source,
+        /* returnNullOnMissing */ true
+      ) ?? null
 
-  consumer.destroy()
-
-  return {
-    sourcePosition,
-    sourceContent,
+    return {
+      sourcePosition,
+      sourceContent,
+    }
+  } finally {
+    consumer.destroy()
   }
 }
 
