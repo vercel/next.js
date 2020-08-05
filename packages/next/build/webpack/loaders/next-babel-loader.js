@@ -172,6 +172,14 @@ module.exports = babelLoader.custom((babel) => {
           { type: 'plugin' }
         )
         options.plugins.push(pageConfigPlugin)
+
+        const diallowExportAll = babel.createConfigItem(
+          [
+            require('../../babel/plugins/next-page-disallow-re-export-all-exports'),
+          ],
+          { type: 'plugin' }
+        )
+        options.plugins.push(diallowExportAll)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {
