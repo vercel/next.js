@@ -22,6 +22,11 @@ const Nav = () => (
           <a className="nav-link">About</a>
         </ActiveLink>
       </li>
+      <li>
+        <ActiveLink activeClassName="active" href="/[slug]" as="/slug">
+          <a className="nav-link">Slug</a>
+        </ActiveLink>
+      </li>
     </ul>
   </nav>
 )
