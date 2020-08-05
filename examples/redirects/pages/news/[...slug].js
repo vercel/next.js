@@ -13,9 +13,6 @@ const News = ({ props }) => {
         <h1>Path: {asPath}</h1>
         <hr className={styles.hr} />
         <p>
-          You were redirected here from <Code>/old-blog/first-post</Code>
-        </p>
-        <p>
           This page was rendered by <Code>{`pages${route}.js`}</Code>.
         </p>
         <p>
