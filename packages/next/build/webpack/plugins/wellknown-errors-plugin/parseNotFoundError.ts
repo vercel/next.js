@@ -30,9 +30,15 @@ export async function getNotFoundError(
       return input
     }
 
-    const errorMessage = input.message.replace(/ in '.*?'/, '')
+    const errorMessage = input.error.message
+      .replace(/ in '.*?'/, '')
+      .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
 
-    const message = errorMessage + '\n' + result.originalCodeFrame
+    const message =
+      chalk.red.bold('Module not found') +
+      `: ${errorMessage}` +
+      '\n' +
+      result.originalCodeFrame
 
     return new SimpleWebpackError(
       `${chalk.cyan(fileName)}:${chalk.yellow(
