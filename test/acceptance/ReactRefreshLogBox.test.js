@@ -700,8 +700,14 @@ test('Module not found', async () => {
 
   const source = await session.getRedboxSource()
   expect(source).toMatchInlineSnapshot(`
-    "./index.js
-    Module not found: Can't resolve 'b' in '${session.sandboxDirectory}'"
+    "./index.js:2:6
+    Can't resolve 'b'
+      1 | 
+    > 2 |       import Comp from 'b'
+        |      ^
+      3 | 
+      4 |       export default () => {
+      5 |         return ("
   `)
 
   await cleanup()
