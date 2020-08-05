@@ -789,6 +789,41 @@ describe('Client Navigation', () => {
     })
   })
 
+  describe('with querystring relative urls', () => {
+    it('should work with Link', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#link').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'foo')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should work with router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#router-push').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'bar')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should work with router.replace', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#router-replace').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'baz')
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+
   describe('with getInitialProp redirect', () => {
     it('should redirect the page via client side', async () => {
       const browser = await webdriver(context.appPort, '/nav')
