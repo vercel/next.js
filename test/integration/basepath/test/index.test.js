@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import url from 'url'
 import {
   nextServer,
@@ -21,6 +21,7 @@ import {
   getRedboxSource,
   hasRedbox,
   fetchViaHTTP,
+  startStaticServer,
 } from 'next-test-utils'
 import fs, {
   readFileSync,
@@ -33,6 +34,23 @@ import cheerio from 'cheerio'
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
+
+let externalApp
+
+const nextConfig = new File(resolve(appDir, 'next.config.js'))
+
+beforeAll(async () => {
+  externalApp = await startStaticServer(resolve(__dirname, '../external'))
+  nextConfig.replace(
+    '__EXTERNAL_APP_PORT__',
+    String(externalApp.address().port)
+  )
+})
+
+afterAll(async () => {
+  nextConfig.restore()
+  externalApp.close()
+})
 
 const runTests = (context, dev = false) => {
   if (dev) {
@@ -138,39 +156,7 @@ const runTests = (context, dev = false) => {
 
   it('should rewrite without basePath when set to false', async () => {
     const html = await renderViaHTTP(context.appPort, '/rewrite-no-basePath')
-    expect(html).toContain('getServerSideProps')
-  })
-
-  it('should have correct asPath for rewrite without basePath', async () => {
-    const browser = await webdriver(context.appPort, '/rewrite-no-basePath')
-    expect(await browser.eval(() => window.location.pathname)).toBe(
-      '/rewrite-no-basePath'
-    )
-    expect(await browser.eval(() => window.next.router.asPath)).toBe(
-      '/rewrite-no-basePath'
-    )
-    expect(await browser.eval(() => window.next.router.pathname)).toBe('/gssp')
-  })
-
-  it('should have correct asPath for rewrite without basePath on back()', async () => {
-    const browser = await webdriver(context.appPort, '/rewrite-no-basePath')
-    await browser.eval(() => (window.navigationMarker = true))
-    await browser.eval(() => window.next.router.push('/hello'))
-    await check(
-      () => browser.eval(() => window.location.pathname),
-      '/docs/hello'
-    )
-    await browser.back()
-    await check(
-      () => browser.eval(() => window.location.pathname),
-      '/rewrite-no-basePath'
-    )
-    await check(
-      () => browser.eval(() => window.next.router.asPath),
-      '/rewrite-no-basePath'
-    )
-    expect(await browser.eval(() => window.next.router.pathname)).toBe('/gssp')
-    expect(await browser.eval(() => window.navigationMarker)).toBe(true)
+    expect(html).toContain('hello from external')
   })
 
   it('should redirect with basePath by default', async () => {
@@ -258,8 +244,9 @@ const runTests = (context, dev = false) => {
     )
   })
 
-  it('should navigating back to a non-basepath 404 that starts with basepath', async () => {
+  it('should navigate back to a non-basepath 404 that starts with basepath', async () => {
     const browser = await webdriver(context.appPort, '/docshello')
+    await browser.eval(() => (window.navigationMarker = true))
     await browser.eval(() => window.next.router.push('/hello'))
     await browser.waitForElementByCss('#pathname')
     await browser.back()
@@ -267,6 +254,7 @@ const runTests = (context, dev = false) => {
     expect(await browser.eval(() => window.next.router.asPath)).toBe(
       '/docshello'
     )
+    expect(await browser.eval(() => window.navigationMarker)).toBe(true)
   })
 
   it('should update dynamic params after mount correctly', async () => {
@@ -1008,7 +996,11 @@ describe('basePath production', () => {
   let app
 
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await nextBuild(appDir, [], {
+      env: {
+        EXTERNAL_APP: `http://localhost:${externalApp.address().port}`,
+      },
+    })
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
@@ -1027,8 +1019,6 @@ describe('basePath production', () => {
 describe('basePath serverless', () => {
   let context = {}
   let app
-
-  const nextConfig = new File(join(appDir, 'next.config.js'))
 
   beforeAll(async () => {
     await nextConfig.replace(
