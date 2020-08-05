@@ -235,8 +235,8 @@ export function redirect(
     url = statusOrUrl
     statusOrUrl = 307
   }
-  if (typeof statusOrUrl === 'number' && typeof url !== 'string') {
-    throw new Error(`URL argument not provided to res.redirect make sure to pass it as a second argument when setting the status code e.g. res.redirect(307, '/redirect-destination')`)
+  if (typeof url !== 'string') {
+    throw new Error(`Invalid redirect arguments. Make sure the second argument is a URL when setting the status code e.g. res.redirect(307, '/redirect-destination').`)
   }
   res.writeHead(statusOrUrl, { Location: url }).end()
   return res
