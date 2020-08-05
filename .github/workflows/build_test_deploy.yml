@@ -79,6 +79,7 @@ jobs:
 
   testMacOS:
     name: macOS (Basic, Production, Acceptance)
+    if: github.ref == 'canary'
     runs-on: macos-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
