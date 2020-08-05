@@ -53,7 +53,7 @@ export async function getStaticProps() {
 > # .env
 > HOSTNAME=localhost
 > PORT=8080
-> HOST=http://$HOST:$PORT
+> HOST=http://$HOSTNAME:$PORT
 > ```
 >
 > If you are trying to use a variable with a `$` in the actual value, it needs to be escaped like so: `\$`.
