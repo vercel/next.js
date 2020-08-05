@@ -77,24 +77,6 @@ jobs:
     steps:
       - run: exit 0
 
-  testMacOS:
-    name: macOS (Basic, Production, Acceptance)
-    if: github.ref == 'canary'
-    runs-on: macos-latest
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
-      HEADLESS: true
-
-    steps:
-      - uses: actions/checkout@v2
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      # Installing dependencies again since OS changed
-      - run: yarn install --frozen-lockfile --check-files || yarn install --frozen-lockfile --check-files
-      - run: node run-tests.js test/integration/production/test/index.test.js
-      - run: node run-tests.js test/integration/basic/test/index.test.js
-      - run: node run-tests.js test/acceptance/*
-
   testWebpack5:
     name: webpack 5 (Basic, Production, Acceptance)
     runs-on: ubuntu-latest
