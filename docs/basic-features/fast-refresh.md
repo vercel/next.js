@@ -105,6 +105,4 @@ screen!
 
 Sometimes, this can lead to unexpected results. For example, even a `useEffect`
 with an empty array of dependencies would still re-run once during Fast Refresh.
-However, writing code resilient to occasional re-running of `useEffect` is a
-good practice even without Fast Refresh. This makes it easier for you to later
-introduce new dependencies to it.
+This is a good practice because it not only ensures you always write resilient code but also because it's enforced by React Strict Mode. To learn more about React Strict Mode refer to the React Strict Mode docs https://reactjs.org/docs/strict-mode.html.
