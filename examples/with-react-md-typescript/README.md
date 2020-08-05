@@ -7,8 +7,7 @@ app featuring:
   `react-md` theme and feature toggles
 - [app.scss](./styles/app.scss) global styles that conditionally apply the dark theme
   based on the user's OS preferences
-- a custom [\_app.tsx](./pages/_app.tsx) that imports the Roboto font from
-  [Google Fonts](https://fonts.google.com) and uses a persistent layout
+- a custom [\_app.tsx](./pages/_app.tsx) that uses a persistent layout
 - a reusable [Layout.tsx](./components/Layout/Layout.tsx) that:
   - updates all the icons to use `SVGIcon`s instead of `FontIcon`s
   - initializes the `Layout` component from `react-md` with navigation items
