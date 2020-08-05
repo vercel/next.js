@@ -238,7 +238,12 @@ function runTests(dev = false) {
 
   it('should show friendly error for invalid redirect', async () => {
     await fetchViaHTTP(appPort, '/api/redirect-error', null, {})
-    expect(stderr).toContain(`Invalid redirect arguments. Make sure the second argument is a URL when setting the status code e.g. res.redirect(307, '/redirect-destination').`)
+    expect(stderr).toContain(`Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`)
+  })
+
+  it('should show friendly error in case of passing null as first argument redirect', async () => {
+    await fetchViaHTTP(appPort, '/api/redirect-null', null, {})
+    expect(stderr).toContain(`Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`)
   })
 
   it('should redirect with status code 307', async () => {
