@@ -25,6 +25,7 @@ export default async function handler(
         payment_method_types: ['card'],
         amount: formatAmountForStripe(amount, CURRENCY),
         currency: CURRENCY,
+        description: process.env.STRIPE_PAYMENT_DESCRIPTION ?? '',
       }
       const payment_intent: Stripe.PaymentIntent = await stripe.paymentIntents.create(
         params
