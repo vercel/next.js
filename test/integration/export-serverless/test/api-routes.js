@@ -15,12 +15,12 @@ export default function (context) {
 
     it('Should throw if a route is matched', async () => {
       const outdir = join(context.appDir, 'outApi')
-      const { stdout } = await runNextCommand(
+      const { stderr } = await runNextCommand(
         ['export', context.appDir, '--outdir', outdir],
-        { stdout: true }
+        { stderr: true }
       )
 
-      expect(stdout).toContain(
+      expect(stderr).toContain(
         'https://err.sh/vercel/next.js/api-routes-static-export'
       )
     })

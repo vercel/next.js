@@ -1,6 +1,6 @@
 import chalk from 'next/dist/compiled/chalk'
 
-const prefixes = {
+export const prefixes = {
   wait: chalk.cyan('wait') + '  -',
   error: chalk.red('error') + ' -',
   warn: chalk.yellow('warn') + '  -',
@@ -14,11 +14,11 @@ export function wait(...message: string[]) {
 }
 
 export function error(...message: string[]) {
-  console.log(prefixes.error, ...message)
+  console.error(prefixes.error, ...message)
 }
 
 export function warn(...message: string[]) {
-  console.log(prefixes.warn, ...message)
+  console.warn(prefixes.warn, ...message)
 }
 
 export function ready(...message: string[]) {
