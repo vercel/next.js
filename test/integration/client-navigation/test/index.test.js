@@ -10,6 +10,7 @@ import {
   launchApp,
   renderViaHTTP,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -744,6 +745,41 @@ describe('Client Navigation', () => {
       expect(stackLength).toBe(3)
 
       await browser.close()
+    })
+  })
+
+  describe('with querystring relative urls', () => {
+    it('should work with Link', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#link').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'foo')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should work with router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#router-push').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'bar')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should work with router.replace', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#router-replace').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'baz')
+      } finally {
+        await browser.close()
+      }
     })
   })
 
