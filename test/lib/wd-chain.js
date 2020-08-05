@@ -10,9 +10,8 @@ export default class Chain {
       this.promise = Promise.resolve()
     }
     this.promise = this.promise.then(nextCall)
-    this.then = (cb) => this.promise.then(cb)
-    this.catch = (cb) => this.promise.catch(cb)
-    this.finally = (cb) => this.promise.finally(cb)
+    this.then = (...args) => this.promise.then(...args)
+    this.catch = (...args) => this.promise.catch(...args)
     return this
   }
 

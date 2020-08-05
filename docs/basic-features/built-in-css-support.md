@@ -4,6 +4,14 @@ description: Next.js supports including CSS files as Global CSS or CSS Modules, 
 
 # Built-In CSS Support
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/basic-css">Basic CSS Example</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss">With Tailwind CSS</a></li>
+  </ul>
+</details>
+
 Next.js allows you to import CSS files from a JavaScript file.
 This is possible because Next.js extends the concept of [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) beyond JavaScript.
 
@@ -109,6 +117,13 @@ npm install sass
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
 
+> **Note**: Sass supports [two different syntaxes](https://sass-lang.com/documentation/syntax), each with their own extension.
+> The `.scss` extension requires you use the [SCSS syntax](https://sass-lang.com/documentation/syntax#scss),
+> while the `.sass` extension requires you use the [Indented Syntax ("Sass")](https://sass-lang.com/documentation/syntax#the-indented-syntax).
+>
+> If you're not sure which to choose, start with the `.scss` extension which is a superset of CSS, and doesn't require you learn the
+> Indented Syntax ("Sass").
+
 ### Customizing Sass Options
 
 If you want to configure the Sass compiler you can do so by using `sassOptions` in `next.config.js`.
@@ -143,8 +158,10 @@ Error: Cannot find module 'less'
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/basic-css">Styled JSX</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx">Styled JSX</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styled-components">Styled Components</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-emotion">Emotion</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion">Tailwind CSS + Emotion</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styletron">Styletron</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-glamor">Glamor</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cxs">Cxs</a></li>
