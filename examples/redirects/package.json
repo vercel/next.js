@@ -1,5 +1,5 @@
 {
-  "name": "rewrites",
+  "name": "redirects",
   "version": "1.0.0",
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,5 @@
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
-  },
-  "license": "MIT"
+  }
 }
