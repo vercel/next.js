@@ -5,6 +5,10 @@ import { findAll, findData } from '../../utils/sample-api'
 import ListDetail from '../../components/ListDetail'
 import { GetStaticPaths, GetStaticProps } from 'next'
 
+type Params = {
+  id?: string
+}
+
 type Props = {
   item?: User
   errors?: string
@@ -37,7 +41,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
 }
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
-  const { id } = params
+  const { id } = params as Params
 
   try {
     const item = await findData(Array.isArray(id) ? id[0] : id)
