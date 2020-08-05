@@ -13,8 +13,10 @@ export async function getNotFoundError(
     return false
   }
 
-  const loc = input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-  const originalSource = input.origin.originalSource()
+  const loc = input.loc
+    ? input.loc
+    : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
+  const originalSource = input.module.originalSource()
 
   try {
     const result = await createOriginalStackFrame({
