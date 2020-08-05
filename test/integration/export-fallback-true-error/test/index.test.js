@@ -17,9 +17,9 @@ describe('Export error for fallback: true', () => {
 
   it('should have error during next export', async () => {
     const { stderr } = await nextExport(appDir, { outdir }, { stderr: true })
-    expect(stderr).toContain('Found pages with `fallback: true`')
+    expect(stderr).toContain('Found pages with `fallback` enabled')
     expect(stderr).toContain(
-      'Pages with `fallback: true` in `getStaticPaths` can not be exported'
+      'Pages with `fallback` enabled in `getStaticPaths` can not be exported'
     )
     expect(stderr).toContain('/[slug]')
   })
