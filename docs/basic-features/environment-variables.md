@@ -56,7 +56,7 @@ export async function getStaticProps() {
 > HOST=http://$HOST:$PORT
 > ```
 >
-> If you are trying to use a variable with a `$` in the actual value, it needs to be escaped like so: '\\\$`.
+> If you are trying to use a variable with a `$` in the actual value, it needs to be escaped like so: `\$`.
 >
 > For example:
 >
