@@ -11,6 +11,7 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
+  getLocationOrigin,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -47,7 +48,8 @@ export function hasBasePath(path: string): boolean {
 }
 
 export function addBasePath(path: string): string {
-  return basePath
+  // we only add the basepath on relative urls
+  return basePath && path.startsWith('/')
     ? path === '/'
       ? normalizePathTrailingSlash(basePath)
       : basePath + path
@@ -56,6 +58,21 @@ export function addBasePath(path: string): string {
 
 export function delBasePath(path: string): string {
   return path.slice(basePath.length) || '/'
+}
+
+/**
+ * Detects whether a given url is routable by the Next.js router (browser only).
+ */
+export function isLocalURL(url: string): boolean {
+  if (url.startsWith('/')) return true
+  try {
+    // absolute urls can be local if they are on the same origin
+    const locationOrigin = getLocationOrigin()
+    const resolved = new URL(url, locationOrigin)
+    return resolved.origin === locationOrigin && hasBasePath(resolved.pathname)
+  } catch (_) {
+    return false
+  }
 }
 
 type Url = UrlObject | string
@@ -69,12 +86,16 @@ export function resolveHref(currentPath: string, href: Url): string {
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
-  const finalUrl = new URL(urlAsString, base)
-  finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
-  // if the origin didn't change, it means we received a relative href
-  return finalUrl.origin === base.origin
-    ? finalUrl.href.slice(finalUrl.origin.length)
-    : finalUrl.href
+  try {
+    const finalUrl = new URL(urlAsString, base)
+    finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    // if the origin didn't change, it means we received a relative href
+    return finalUrl.origin === base.origin
+      ? finalUrl.href.slice(finalUrl.origin.length)
+      : finalUrl.href
+  } catch (_) {
+    return urlAsString
+  }
 }
 
 function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
@@ -93,9 +114,11 @@ function tryParseRelativeUrl(
     return parseRelativeUrl(url)
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
-      throw new Error(
-        `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-      )
+      setTimeout(() => {
+        throw new Error(
+          `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
+        )
+      }, 0)
     }
     return null
   }
@@ -434,6 +457,11 @@ export default class Router implements BaseRouter {
     as: string,
     options: TransitionOptions
   ): Promise<boolean> {
+    if (!isLocalURL(url)) {
+      window.location.href = url
+      return false
+    }
+
     if (!(options as any)._h) {
       this.isSsr = false
     }

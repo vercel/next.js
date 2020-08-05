@@ -4,7 +4,7 @@
 
 In this simple example, we integrate Apollo seamlessly with [Next.js data fetching methods](https://nextjs.org/docs/basic-features/data-fetching) to fetch queries in the server and hydrate them in the browser.
 
-This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
+This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.
 
 ## Demo
 

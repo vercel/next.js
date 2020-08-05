@@ -10,7 +10,9 @@ import {
   nextStart,
   waitFor,
   check,
+  fetchViaHTTP,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -19,9 +21,6 @@ jest.setTimeout(1000 * 60 * 1)
 let app
 let appPort
 const appDir = join(__dirname, '..')
-
-const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
-const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
 // This test doesn't seem to benefit from retries, let's disable them until the test gets fixed
 // to prevent long running times
@@ -99,24 +98,8 @@ describe('Invalid hrefs', () => {
       await noError('/first')
     })
 
-    it('does not show error in production when mailto: is used as href on router.push', async () => {
-      await noError('/first?method=push', true)
-    })
-
-    it('does not show error in production when mailto: is used as href on router.replace', async () => {
-      await noError('/first?method=replace', true)
-    })
-
     it('does not show error in production when https://google.com is used as href on Link', async () => {
       await noError('/second')
-    })
-
-    it('does not show error in production when http://google.com is used as href on router.push', async () => {
-      await noError('/second?method=push', true)
-    })
-
-    it('does not show error in production when https://google.com is used as href on router.replace', async () => {
-      await noError('/second?method=replace', true)
     })
 
     it('shows error when dynamic route mismatch is used on Link', async () => {
@@ -143,16 +126,14 @@ describe('Invalid hrefs', () => {
       }
     })
 
-    it('makes sure that router push with bad links resolve', async () => {
-      const browser = await webdriver(appPort, '/third')
-      await browser.elementByCss('#click-me').click()
-      await browser.waitForElementByCss('#is-done')
+    it("doesn't fail on invalid url", async () => {
+      await noError('/third')
     })
 
-    it('makes sure that router replace with bad links resolve', async () => {
-      const browser = await webdriver(appPort, '/third?method=replace')
-      await browser.elementByCss('#click-me').click()
-      await browser.waitForElementByCss('#is-done')
+    it('renders a link with invalid href', async () => {
+      const res = await fetchViaHTTP(appPort, '/third')
+      const $ = cheerio.load(await res.text())
+      expect($('#click-me').attr('href')).toBe('https://')
     })
   })
 
@@ -163,28 +144,12 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp(app))
 
-    it('shows error when mailto: is used as href on Link', async () => {
-      await showsError('/first', firstErrorRegex)
+    it('does not show error when mailto: is used as href on Link', async () => {
+      await noError('/first')
     })
 
-    it('shows error when mailto: is used as href on router.push', async () => {
-      await showsError('/first?method=push', firstErrorRegex, true)
-    })
-
-    it('shows error when mailto: is used as href on router.replace', async () => {
-      await showsError('/first?method=replace', firstErrorRegex, true)
-    })
-
-    it('shows error when https://google.com is used as href on Link', async () => {
-      await showsError('/second', secondErrorRegex)
-    })
-
-    it('shows error when http://google.com is used as href on router.push', async () => {
-      await showsError('/second?method=push', secondErrorRegex, true)
-    })
-
-    it('shows error when https://google.com is used as href on router.replace', async () => {
-      await showsError('/second?method=replace', secondErrorRegex, true)
+    it('does not show error when https://google.com is used as href on Link', async () => {
+      await noError('/second')
     })
 
     it('shows error when dynamic route mismatch is used on Link', async () => {
@@ -197,6 +162,10 @@ describe('Invalid hrefs', () => {
 
     it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
       await noError('/dynamic-route-mismatch-manual', true)
+    })
+
+    it("doesn't fail on invalid url", async () => {
+      await noError('/third')
     })
 
     it('shows warning when dynamic route mismatch is used on Link', async () => {
