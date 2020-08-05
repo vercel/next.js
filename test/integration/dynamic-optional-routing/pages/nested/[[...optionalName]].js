@@ -1,3 +1,5 @@
+import { useRouter } from 'next/router'
+
 export async function getServerSideProps({ query }) {
   return {
     props: {
@@ -16,6 +18,7 @@ export default function Page(props) {
           : `[${props.query.optionalName.join('|')}]`}
       </div>
       <div id="keys">{JSON.stringify(Object.keys(props.query))}</div>
+      <div id="asPath">{useRouter().asPath}</div>
     </>
   )
 }
