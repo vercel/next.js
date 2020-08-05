@@ -23,7 +23,7 @@ describe('Re-export all exports from page is disallowed', () => {
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
 
     expect(stderr).toMatch(
-      /https:\/\/err\.sh\/vercel\/next\.js\/re-export-all-exports-from-page-is-disallowed/
+      /https:\/\/err\.sh\/vercel\/next\.js\/export-all-in-page/
     )
   })
 
@@ -34,7 +34,7 @@ describe('Re-export all exports from page is disallowed', () => {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
 
       expect(stderr).not.toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/re-export-all-exports-from-page-is-disallowed/
+        /https:\/\/err\.sh\/vercel\/next\.js\/export-all-in-page/
       )
     } finally {
       await uncomment()

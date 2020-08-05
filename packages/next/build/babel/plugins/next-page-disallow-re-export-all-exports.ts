@@ -18,7 +18,7 @@ export default function NextPageDisallowReExportAllExports(): PluginObj<
           filename?.startsWith('/pages')
         ) {
           throw new Error(
-            `Re-exporting all exports from a page is disallowed. Happened in ${filename}. See: https://err.sh/vercel/next.js/re-export-all-exports-from-page-is-disallowed.md`
+            `Re-exporting all exports from a page is disallowed. Happened in ${filename}. See: https://err.sh/vercel/next.js/export-all-in-page.md`
           )
         }
       },
