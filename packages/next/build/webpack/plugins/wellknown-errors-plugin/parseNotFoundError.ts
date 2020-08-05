@@ -30,7 +30,7 @@ export async function getNotFoundError(
       return input
     }
 
-    const errorMessage = input.error.message.replace(/ in '.*?'/, '')
+    const errorMessage = input.message.replace(/ in '.*?'/, '')
 
     const message = errorMessage + '\n' + result.originalCodeFrame
 

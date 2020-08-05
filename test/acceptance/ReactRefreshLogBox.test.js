@@ -701,7 +701,7 @@ test('Module not found', async () => {
   const source = await session.getRedboxSource()
   expect(source).toMatchInlineSnapshot(`
     "./index.js:2:6
-    Can't resolve 'b'
+    Module not found: Can't resolve 'b'
       1 | 
     > 2 |       import Comp from 'b'
         |      ^
