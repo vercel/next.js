@@ -1,9 +1,11 @@
-declare const __NEXT_DATA__: any
-
 import React, { Children } from 'react'
 import { UrlObject } from 'url'
-import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
-import { execOnce, isLocalURL } from '../next-server/lib/utils'
+import {
+  PrefetchOptions,
+  NextRouter,
+  isLocalURL,
+} from '../next-server/lib/router/router'
+import { execOnce } from '../next-server/lib/utils'
 import { useRouter } from './router'
 import { addBasePath, resolveHref } from '../next-server/lib/router/router'
 

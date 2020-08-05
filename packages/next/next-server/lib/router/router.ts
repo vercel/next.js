@@ -11,7 +11,7 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
-  isLocalURL,
+  getLocationOrigin,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -48,7 +48,8 @@ export function hasBasePath(path: string): boolean {
 }
 
 export function addBasePath(path: string): string {
-  return basePath
+  // we only add the basepath on relative urls
+  return basePath && path.startsWith('/')
     ? path === '/'
       ? normalizePathTrailingSlash(basePath)
       : basePath + path
@@ -57,6 +58,21 @@ export function addBasePath(path: string): string {
 
 export function delBasePath(path: string): string {
   return path.slice(basePath.length) || '/'
+}
+
+/**
+ * Detects whether a given url is routable by the Next.js router (browser only).
+ */
+export function isLocalURL(url: string): boolean {
+  if (url.startsWith('/')) return true
+  try {
+    // absolute urls can be local if they are on the same origin
+    const locationOrigin = getLocationOrigin()
+    const resolved = new URL(url, locationOrigin)
+    return resolved.origin === locationOrigin && hasBasePath(resolved.pathname)
+  } catch (_) {
+    return false
+  }
 }
 
 type Url = UrlObject | string

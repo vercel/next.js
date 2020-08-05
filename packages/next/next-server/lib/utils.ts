@@ -285,19 +285,6 @@ export function getURL() {
   return href.substring(origin.length)
 }
 
-/**
- * Detects whether a given url is from the same origin as the current page (browser only).
- */
-export function isLocalURL(url: string): boolean {
-  const locationOrigin = getLocationOrigin()
-  try {
-    const resolved = new URL(url, locationOrigin)
-    return resolved.origin === locationOrigin
-  } catch (_) {
-    return false
-  }
-}
-
 export function getDisplayName<P>(Component: ComponentType<P>) {
   return typeof Component === 'string'
     ? Component
