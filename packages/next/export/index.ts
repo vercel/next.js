@@ -407,6 +407,7 @@ export default async function exportApp(
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
         optimizeFonts: nextConfig.experimental.optimizeFonts,
+        optimizeImages: nextConfig.experimental.optimizeImages,
       })
 
       for (const validation of result.ampValidations || []) {

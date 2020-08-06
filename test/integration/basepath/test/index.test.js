@@ -390,6 +390,45 @@ const runTests = (context, dev = false) => {
     expect(pathname).toBe('/docs')
   })
 
+  it('should navigate an absolute url', async () => {
+    const browser = await webdriver(context.appPort, `/docs/absolute-url`)
+    await browser.waitForElementByCss('#absolute-link').click()
+    await check(
+      () => browser.eval(() => window.location.origin),
+      'https://vercel.com'
+    )
+  })
+
+  it('should navigate an absolute local url with basePath', async () => {
+    const browser = await webdriver(
+      context.appPort,
+      `/docs/absolute-url-basepath?port=${context.appPort}`
+    )
+    await browser.eval(() => (window._didNotNavigate = true))
+    await browser.waitForElementByCss('#absolute-link').click()
+    const text = await browser
+      .waitForElementByCss('#something-else-page')
+      .text()
+
+    expect(text).toBe('something else')
+    expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
+  })
+
+  it('should navigate an absolute local url without basePath', async () => {
+    const browser = await webdriver(
+      context.appPort,
+      `/docs/absolute-url-no-basepath?port=${context.appPort}`
+    )
+    await browser.waitForElementByCss('#absolute-link').click()
+    await check(
+      () => browser.eval(() => location.pathname),
+      '/rewrite-no-basepath'
+    )
+    const text = await browser.elementByCss('body').text()
+
+    expect(text).toBe('hello from external')
+  })
+
   it('should 404 when manually adding basePath with <Link>', async () => {
     const browser = await webdriver(
       context.appPort,
