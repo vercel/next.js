@@ -46,6 +46,27 @@ export async function getStaticProps() {
 }
 ```
 
+> **Note**: Next.js will automatically expand variables (`$VAR`) inside of your `.env*` files.
+> This allows you to reference other secrets, like so:
+>
+> ```bash
+> # .env
+> HOSTNAME=localhost
+> PORT=8080
+> HOST=http://$HOSTNAME:$PORT
+> ```
+>
+> If you are trying to use a variable with a `$` in the actual value, it needs to be escaped like so: `\$`.
+>
+> For example:
+>
+> ```bash
+> # .env
+> A=abc
+> WRONG=pre$A # becomes "preabc"
+> CORRECT=pre\$A # becomes "pre$A"
+> ```
+
 ## Exposing Environment Variables to the Browser
 
 By default all environment variables loaded through `.env.local` are only available in the Node.js environment, meaning they won't be exposed to the browser.
