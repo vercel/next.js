@@ -37,7 +37,7 @@ exports['default'] = {
       maxTaskProcessors: 0,
       // how often should we check the event loop to spawn more taskProcessors?
       checkTimeout: 500,
-      // how many ms would constitue an event loop delay to halt taskProcessors spawning?
+      // how many ms would constitutes an event loop delay to halt taskProcessors spawning?
       maxEventLoopDelay: 5,
       // When we kill off a taskProcessor, should we disconnect that local redis connection?
       toDisconnectProcessors: true,

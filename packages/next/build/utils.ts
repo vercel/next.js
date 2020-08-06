@@ -20,11 +20,13 @@ import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -50,7 +52,7 @@ export interface PageInfo {
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
-  hasSsgFallback: boolean
+  initialRevalidateSeconds: number | false
 }
 
 export async function printTreeView(
@@ -152,7 +154,11 @@ export async function printTreeView(
           : pageInfo?.isSsg
           ? '●'
           : 'λ'
-      } ${item}`,
+      } ${
+        pageInfo?.initialRevalidateSeconds
+          ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
+          : item
+      }`,
       pageInfo
         ? ampFirst
           ? chalk.cyan('AMP')
@@ -267,6 +273,13 @@ export async function printTreeView(
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+        [
+          '',
+          '(ISR)',
+          `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
@@ -518,7 +531,9 @@ export async function getJsPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   getStaticPaths: GetStaticPaths
-): Promise<{ paths: string[]; fallback: boolean }> {
+): Promise<
+  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & { paths: string[] }
+> {
   const prerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
@@ -554,7 +569,12 @@ export async function buildStaticPaths(
     )
   }
 
-  if (typeof staticPathsResult.fallback !== 'boolean') {
+  if (
+    !(
+      typeof staticPathsResult.fallback === 'boolean' ||
+      staticPathsResult.fallback === 'unstable_blocking'
+    )
+  ) {
     throw new Error(
       `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
         expectedReturnVal
@@ -631,8 +651,8 @@ export async function buildStaticPaths(
           .replace(
             replaced,
             repeat
-              ? (paramValue as string[]).map(encodeURIComponent).join('/')
-              : encodeURIComponent(paramValue as string)
+              ? (paramValue as string[]).map(escapePathDelimiters).join('/')
+              : escapePathDelimiters(paramValue as string)
           )
           .replace(/(?!^)\/$/, '')
       })
@@ -655,7 +675,7 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | undefined
+  prerenderFallback?: boolean | 'unstable_blocking' | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -730,7 +750,7 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | undefined
+    let prerenderFallback: boolean | 'unstable_blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,

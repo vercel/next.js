@@ -190,6 +190,10 @@ declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
 }
+declare module 'next/dist/compiled/semver' {
+  import m from 'semver'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -207,10 +211,7 @@ declare module 'next/dist/compiled/unistore' {
   export = m
 }
 
-declare module 'next/dist/compiled/terser-webpack-plugin' {
-  import m from 'terser-webpack-plugin'
-  export = m
-}
+declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m

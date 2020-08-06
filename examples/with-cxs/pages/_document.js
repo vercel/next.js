@@ -3,7 +3,7 @@ import cxs from 'cxs/lite'
 
 export default class MyDocument extends Document {
   static async getInitialProps({ renderPage }) {
-    const page = renderPage()
+    const page = await renderPage()
     const style = cxs.getCss()
     return { ...page, style }
   }
