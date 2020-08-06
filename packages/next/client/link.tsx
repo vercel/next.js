@@ -179,17 +179,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
           props[key] == null ||
           (typeof props[key] !== 'string' && typeof props[key] !== 'object')
         ) {
-          if (typeof window === 'undefined') {
-            // In development, we need to let `<Link>` render on the server.
-            // Otherwise, it's impossible to track down the error.
-            props = { ...props, href: '' }
-          } else {
-            throw createPropError({
-              key,
-              expected: '`string` or `object`',
-              actual: props[key] === null ? 'null' : typeof props[key],
-            })
-          }
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: props[key] === null ? 'null' : typeof props[key],
+          })
         }
       } else {
         // TypeScript trick for type-guarding:
