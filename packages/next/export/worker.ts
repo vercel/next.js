@@ -13,6 +13,8 @@ import 'next/dist/next-server/server/node-polyfill-fetch'
 import { IncomingMessage, ServerResponse } from 'http'
 import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
+import { requireFontManifest } from '../next-server/server/require'
+import { FontManifest } from '../next-server/server/font-utils'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -33,11 +35,10 @@ interface PathMap {
   query?: { [key: string]: string | string[] }
 }
 
-interface ExortPageInput {
+interface ExportPageInput {
   path: string
   pathMap: PathMap
   distDir: string
-  buildId: string
   outDir: string
   pagesDataDir: string
   renderOpts: RenderOpts
@@ -45,6 +46,8 @@ interface ExortPageInput {
   serverRuntimeConfig: string
   subFolders: string
   serverless: boolean
+  optimizeFonts: boolean
+  optimizeImages: boolean
 }
 
 interface ExportPageResults {
@@ -61,6 +64,9 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
+  optimizeFonts?: boolean
+  optimizeImages?: boolean
+  fontManifest?: FontManifest
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -72,7 +78,6 @@ export default async function exportPage({
   path,
   pathMap,
   distDir,
-  buildId,
   outDir,
   pagesDataDir,
   renderOpts,
@@ -80,7 +85,9 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
-}: ExortPageInput): Promise<ExportPageResults> {
+  optimizeFonts,
+  optimizeImages,
+}: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
   }
@@ -181,7 +188,6 @@ export default async function exportPage({
       })
       const { Component: mod, getServerSideProps } = await loadComponents(
         distDir,
-        buildId,
         page,
         serverless
       )
@@ -214,7 +220,16 @@ export default async function exportPage({
           req,
           res,
           'export',
-          { ampPath },
+          {
+            ampPath,
+            /// @ts-ignore
+            optimizeFonts,
+            /// @ts-ignore
+            optimizeImages,
+            fontManifest: optimizeFonts
+              ? requireFontManifest(distDir, serverless)
+              : null,
+          },
           // @ts-ignore
           params
         )
@@ -226,12 +241,7 @@ export default async function exportPage({
         throw new Error(`Failed to render serverless page`)
       }
     } else {
-      const components = await loadComponents(
-        distDir,
-        buildId,
-        page,
-        serverless
-      )
+      const components = await loadComponents(distDir, page, serverless)
 
       if (components.getServerSideProps) {
         throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
@@ -254,25 +264,47 @@ export default async function exportPage({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
-        curRenderOpts = { ...components, ...renderOpts, ampPath, params }
+        /**
+         * This sets environment variable to be used at the time of static export by head.tsx.
+         * Using this from process.env allows targetting both serverless and SSR by calling
+         * `process.env.__NEXT_OPTIMIZE_FONTS`.
+         * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+         */
+        if (optimizeFonts) {
+          process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+        }
+        if (optimizeImages) {
+          process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+        }
+        curRenderOpts = {
+          ...components,
+          ...renderOpts,
+          ampPath,
+          params,
+          optimizeFonts,
+          optimizeImages,
+          fontManifest: optimizeFonts
+            ? requireFontManifest(distDir, serverless)
+            : null,
+        }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
 
     const validateAmp = async (
-      html: string,
-      page: string,
+      rawAmpHtml: string,
+      ampPageName: string,
       validatorPath?: string
     ) => {
       const validator = await AmpHtmlValidator.getInstance(validatorPath)
-      const result = validator.validateString(html)
+      const result = validator.validateString(rawAmpHtml)
       const errors = result.errors.filter((e) => e.severity === 'ERROR')
       const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
       if (warnings.length || errors.length) {
         results.ampValidations.push({
-          page,
+          page: ampPageName,
           result: {
             errors,
             warnings,
@@ -348,7 +380,7 @@ export default async function exportPage({
   } catch (error) {
     console.error(
       `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
-        error
+        error.stack
     )
     return { ...results, error: true }
   }

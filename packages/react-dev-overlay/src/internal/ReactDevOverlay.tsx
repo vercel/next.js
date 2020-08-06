@@ -41,7 +41,9 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   }
 }
 
-function ReactDevOverlay({ children }) {
+const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
+  children,
+}) {
   const [state, dispatch] = React.useReducer<
     React.Reducer<OverlayState, Bus.BusEvent>
   >(reducer, { nextId: 1, buildError: null, errors: [] })
@@ -54,7 +56,7 @@ function ReactDevOverlay({ children }) {
   }, [dispatch])
 
   const onComponentError = React.useCallback(
-    (error: Error, componentStack: string | null) => {
+    (_error: Error, _componentStack: string | null) => {
       // TODO: special handling
     },
     []
@@ -76,7 +78,7 @@ function ReactDevOverlay({ children }) {
           <ComponentStyles />
 
           {hasBuildError ? (
-            <BuildError message={state.buildError} />
+            <BuildError message={state.buildError!} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
           ) : undefined}

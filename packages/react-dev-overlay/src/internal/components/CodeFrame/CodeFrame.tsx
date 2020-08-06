@@ -16,7 +16,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
     const prefixLength = lines
       .map((line) => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
       .filter(Boolean)
-      .map((v) => v.pop())
+      .map((v) => v!.pop()!)
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
 
     if (prefixLength > 1) {
@@ -43,15 +43,21 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   const open = React.useCallback(() => {
     const params = new URLSearchParams()
     for (const key in stackFrame) {
-      params.append(key, (stackFrame[key] ?? '').toString())
+      params.append(key, ((stackFrame as any)[key] ?? '').toString())
     }
 
-    self.fetch(`/__nextjs_launch-editor?${params.toString()}`).then(
-      () => {},
-      () => {
-        // TODO: report error
-      }
-    )
+    self
+      .fetch(
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_launch-editor?${params.toString()}`
+      )
+      .then(
+        () => {},
+        () => {
+          // TODO: report error
+        }
+      )
   }, [stackFrame])
 
   // TODO: make the caret absolute

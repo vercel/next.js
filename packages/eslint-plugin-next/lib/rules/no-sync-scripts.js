@@ -7,12 +7,13 @@ module.exports = function (context) {
       if (node.attributes.length === 0) {
         return
       }
-
+      const attributeNames = node.attributes
+        .filter((attr) => attr.type === 'JSXAttribute')
+        .map((attr) => attr.name.name)
       if (
-        node.attributes.find((attr) => attr.name.name === 'src') &&
-        !node.attributes.find(
-          (attr) => attr.name.name === 'async' || attr.name.name === 'defer'
-        )
+        attributeNames.includes('src') &&
+        !attributeNames.includes('async') &&
+        !attributeNames.includes('defer')
       ) {
         context.report({
           node,

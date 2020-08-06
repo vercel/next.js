@@ -11,7 +11,7 @@ export type LoadedEnvFiles = Array<{
 }>
 
 let combinedEnv: Env | undefined = undefined
-let loadedEnvFiles: LoadedEnvFiles = []
+let cachedLoadedEnvFiles: LoadedEnvFiles = []
 
 export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
   // don't reload env if we already have since this breaks escaped
@@ -27,6 +27,9 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
   // function is re-used or we are running in `next start` mode
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
+  const origEnv = Object.assign({}, process.env)
+  const parsed: dotenv.DotenvParseOutput = {}
+
   for (const envFile of loadedEnvFiles) {
     try {
       let result: DotenvConfigOutput = {}
@@ -38,7 +41,14 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
         log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
       }
 
-      Object.assign(process.env, result.parsed)
+      for (const key of Object.keys(result.parsed || {})) {
+        if (
+          typeof parsed[key] === 'undefined' &&
+          typeof origEnv[key] === 'undefined'
+        ) {
+          parsed[key] = result.parsed?.[key]!
+        }
+      }
     } catch (err) {
       log.error(
         `Failed to load env from ${path.join(dir || '', envFile.path)}`,
@@ -47,7 +57,7 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
     }
   }
 
-  return process.env as Env
+  return Object.assign(process.env, parsed)
 }
 
 export function loadEnvConfig(
@@ -59,7 +69,7 @@ export function loadEnvConfig(
 } {
   // don't reload env if we already have since this breaks escaped
   // environment values e.g. \$ENV_FILE_KEY
-  if (combinedEnv) return { combinedEnv, loadedEnvFiles }
+  if (combinedEnv) return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -86,7 +96,7 @@ export function loadEnvConfig(
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      loadedEnvFiles.push({
+      cachedLoadedEnvFiles.push({
         path: envFile,
         contents,
       })
@@ -96,6 +106,6 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(loadedEnvFiles, dir)
-  return { combinedEnv, loadedEnvFiles }
+  combinedEnv = processEnv(cachedLoadedEnvFiles, dir)
+  return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

@@ -8,7 +8,7 @@ function MyApp({ Component, pageProps }) {
   const [user, setUser] = useState()
 
   useEffect(() => {
-    userbase.init({ appId: process.env.USERBASE_APP_ID })
+    userbase.init({ appId: process.env.NEXT_PUBLIC_USERBASE_APP_ID })
   }, [])
 
   return (

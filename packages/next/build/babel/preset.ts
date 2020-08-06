@@ -25,8 +25,8 @@ function styledJsxOptions(options: StyledJsxBabelOptions) {
   options.plugins = options.plugins.map(
     (plugin: StyledJsxPlugin): StyledJsxPlugin => {
       if (Array.isArray(plugin)) {
-        const [name, options] = plugin
-        return [require.resolve(name), options]
+        const [name, pluginOptions] = plugin
+        return [require.resolve(name), pluginOptions]
       }
 
       return require.resolve(plugin)
@@ -182,6 +182,7 @@ module.exports = (
       require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
       [require('@babel/plugin-proposal-numeric-separator').default, false],
+      require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
     overrides: [
       {

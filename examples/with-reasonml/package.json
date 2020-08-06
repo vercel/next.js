@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "next": "latest",
-    "next-transpile-modules": "^3.0.2",
+    "next-transpile-modules": "^4.0.2",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "reason-react": "^0.7.0"

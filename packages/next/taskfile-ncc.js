@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join } = require('path')
@@ -17,7 +18,9 @@ module.exports = function (task) {
       Object.keys(assets).forEach((key) => {
         let data = assets[key].source
 
-        if (join(file.dir, key).endsWith('terser-webpack-plugin/worker.js')) {
+        if (
+          join(file.dir, key).endsWith('terser-webpack-plugin/dist/minify.js')
+        ) {
           data = Buffer.from(
             data
               .toString()

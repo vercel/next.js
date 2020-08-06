@@ -3,19 +3,19 @@ const clientGlobs = [
     name: 'Client Bundles (main, webpack, commons)',
     globs: [
       '.next/static/runtime/+(main|webpack)-!(*.module.js)',
-      '.next/static/chunks/!(*.module.js)',
+      '.next/static/chunks/!(polyfills-*|*.module.js)',
     ],
   },
   {
     name: 'Client Bundles (main, webpack, commons) Modern',
     globs: [
       '.next/static/runtime/+(main|webpack)-*.module.js',
-      '.next/static/chunks/*.module.js',
+      '.next/static/chunks/!(polyfills-*)*.module.js',
     ],
   },
   {
     name: 'Legacy Client Bundles (polyfills)',
-    globs: ['.next/static/runtime/+(polyfills)-!(*.module.js)'],
+    globs: ['.next/static/chunks/+(polyfills)-!(*.module.js)'],
   },
   {
     name: 'Client Pages',
@@ -112,8 +112,7 @@ module.exports = {
                 return config
               },
               experimental: {
-                modern: true,
-                granularChunks: true
+                modern: true
               }
             }
           `,
@@ -128,8 +127,7 @@ module.exports = {
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
               experimental: {
-                modern: true,
-                granularChunks: true
+                modern: true
               }
             }
           `,
@@ -164,8 +162,7 @@ module.exports = {
               generateBuildId: () => 'BUILD_ID',
               target: 'serverless',
               experimental: {
-                modern: true,
-                granularChunks: true
+                modern: true
               }
             }
           `,

@@ -21,7 +21,7 @@ Deploy the example using [Vercel Now](https://vercel.com/docs/now-cli#commands/o
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-magic with-magic-app
+npx create-next-app --example with-magic with-magic-app
 # or
 yarn create next-app --example with-magic with-magic-app
 ```
@@ -32,22 +32,21 @@ Login to the [Magic Dashboard](https://dashboard.magic.link/) and get the keys o
 
 ![Magic Dashboard](https://gblobscdn.gitbook.com/assets%2F-M1XNjqusnKyXZc7t7qQ%2F-M3HsSftOAghkNs-ttU3%2F-M3HsllfdwdDmeFXBK3U%2Fdashboard-pk.png?alt=media&token=4d6e7543-ae20-4355-951c-c6421b8f1b5f)
 
-Next, copy the `.env.example` file in this directory to .env (which will be ignored by Git):
+Next, copy the `.env.local.example` file in this directory to .env.local (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
-- `MAGIC_PUBLISHABLE_KEY` should look like `pk_test_abc` or `pk_live_ABC`
+- `NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY` should look like `pk_test_abc` or `pk_live_ABC`
 - `MAGIC_SECRET_KEY` should look like `sk_test_ABC` or `sk_live_ABC`
 
-To deploy on Vercel, you need to set the environment variables with **Now Secrets** using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/now-cli#commands/secrets)).
+To deploy on Vercel, you need to set up the environment variables with the [Environment Variables UI](https://vercel.com/blog/environment-variables-ui) using the [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/env)).
 
-Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<MAGIC_PUBLISHABLE_KEY>` and `<MAGIC_SECRET_KEY>` with the corresponding strings in `.env`:
+Install [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, link your project and run the following command to add the `NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY` and `MAGIC_SECRET_KEY` environment variables.
 
 ```bash
-now secrets add next_example_magic_publishable_key <MAGIC_PUBLISHABLE_KEY>
-now secrets add next_example_magic_secret_key <MAGIC_SECRET_KEY>
+vercel env add
 ```

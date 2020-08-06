@@ -1,5 +1,4 @@
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import { gql, useMutation } from '@apollo/client'
 import { ALL_POSTS_QUERY, allPostsQueryVars } from './PostList'
 
 const CREATE_POST_MUTATION = gql`
@@ -32,7 +31,7 @@ export default function Submit() {
           query: ALL_POSTS_QUERY,
           variables: allPostsQueryVars,
         })
-        // Update the cache with the new post at the top of the
+        // Update the cache with the new post at the top of the list
         proxy.writeQuery({
           query: ALL_POSTS_QUERY,
           data: {

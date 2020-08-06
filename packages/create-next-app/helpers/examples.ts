@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import got from 'got'
 import tar from 'tar'
 import { Stream } from 'stream'
@@ -13,7 +14,7 @@ export type RepoInfo = {
 }
 
 export async function isUrlOk(url: string): Promise<boolean> {
-  const res = await got(url).catch((e) => e)
+  const res = await got.head(url).catch((e) => e)
   return res.statusCode === 200
 }
 
@@ -82,7 +83,7 @@ export function downloadAndExtractRepo(
   )
 }
 
-export async function downloadAndExtractExample(
+export function downloadAndExtractExample(
   root: string,
   name: string
 ): Promise<void> {
@@ -90,29 +91,8 @@ export async function downloadAndExtractExample(
     throw new Error('This is an internal example for testing the CLI.')
   }
 
-  try {
-    return await pipeline(
-      got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
-      tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
-    )
-  } catch (err) {
-    // TODO: remove after this change has been landed
-    if (err?.response?.statusCode === 404) {
-      return pipeline(
-        got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
-        tar.extract({ cwd: root, strip: 3 }, [
-          `next.js-canary/examples/${name}`,
-        ])
-      )
-    } else {
-      throw err
-    }
-  }
-}
-
-export async function listExamples(): Promise<any> {
-  const res = await got(
-    'https://api.github.com/repositories/70107786/contents/examples'
+  return pipeline(
+    got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
+    tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
   )
-  return JSON.parse(res.body)
 }
