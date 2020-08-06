@@ -14,7 +14,7 @@ module.exports = {
         source: '/post/:slug',
         destination: '/news/:slug',
       },
-      // Wildcard Path Matching - will match `/news/a` and `/news/a/b`
+      // Wildcard Path Matching - will match `/blog/a` and `/blog/a/b`
       {
         source: '/blog/:slug*',
         destination: '/news/:slug*',

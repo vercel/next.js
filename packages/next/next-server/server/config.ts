@@ -52,6 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     pageEnv: false,
     productionBrowserSourceMaps: false,
     optimizeFonts: false,
+    optimizeImages: false,
     scrollRestoration: false,
   },
   future: {
@@ -238,9 +239,8 @@ export default function loadConfig(
     )
 
     if (Object.keys(userConfig).length === 0) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          'Detected next.config.js, no exported configuration found. https://err.sh/vercel/next.js/empty-configuration'
+      Log.warn(
+        'Detected next.config.js, no exported configuration found. https://err.sh/vercel/next.js/empty-configuration'
       )
     }
 

@@ -21,7 +21,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import { UrlObject } from 'url'
-import { encode as encodeQuerystring } from 'querystring'
+import { ParsedUrlQuery } from 'querystring'
+import * as querystring from './querystring'
 
 const slashedProtocols = /https?|ftp|gopher|file/
 
@@ -45,8 +46,7 @@ export function formatUrl(urlObj: UrlObject) {
   }
 
   if (query && typeof query === 'object') {
-    // query = '' + new URLSearchParams(query);
-    query = encodeQuerystring(query)
+    query = String(querystring.urlQueryToSearchParams(query as ParsedUrlQuery))
   }
 
   let search = urlObj.search || (query && `?${query}`) || ''
