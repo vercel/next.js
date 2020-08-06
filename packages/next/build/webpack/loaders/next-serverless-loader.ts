@@ -22,6 +22,7 @@ export type ServerlessLoaderQuery = {
   buildId: string
   assetPrefix: string
   generateEtags: string
+  poweredByHeader: string
   canonicalBase: string
   basePath: string
   runtimeConfig: string
@@ -43,6 +44,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
+    poweredByHeader,
     basePath,
     runtimeConfig,
     previewProps,
@@ -64,25 +66,44 @@ const nextServerlessLoader: loader.Loader = function () {
     JSON.parse(previewProps) as __ApiPreviewProps
   )
 
+  const defaultRouteRegex = pageIsDynamicRoute
+    ? `
+      const defaultRouteRegex = getRouteRegex("${page}")
+    `
+    : ''
+
   const collectDynamicRouteParams = pageIsDynamicRoute
     ? `
       function collectDynamicRouteParams(query) {
-        const routeRegex = getRouteRegex("${page}")
-
-        return Object.keys(routeRegex.groups)
+        return Object.keys(defaultRouteRegex.groups)
           .reduce((prev, key) => {
             let value = query[key]
 
             ${
               ''
+              // non-provided optional values should be undefined so normalize
+              // them to undefined
+            }
+            if(defaultRouteRegex.groups[key].optional && !value) {
+              value = undefined
+              delete query[key]
+            }
+            ${
+              ''
               // query values from the proxy aren't already split into arrays
               // so make sure to normalize catch-all values
             }
-            if (routeRegex.groups[key].repeat) {
+            if (
+              value &&
+              typeof value === 'string' &&
+              defaultRouteRegex.groups[key].repeat
+            ) {
               value = value.split('/')
             }
 
-            prev[key] = value
+            if (value) {
+              prev[key] = value
+            }
             return prev
           }, {})
       }
@@ -194,11 +215,14 @@ const nextServerlessLoader: loader.Loader = function () {
         runtimeConfigSetter
       }
       ${dynamicRouteImports}
-      const { parse } = require('url')
+      const { parse: parseUrl } = require('url')
       const { apiResolver } = require('next/dist/next-server/server/api-utils')
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
+
+      ${defaultRouteRegex}
+
       ${collectDynamicRouteParams}
 
       ${handleRewrites}
@@ -210,7 +234,7 @@ const nextServerlessLoader: loader.Loader = function () {
           // We need to trust the dynamic route params from the proxy
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
-          const parsedUrl = handleRewrites(parse(req.url, true))
+          const parsedUrl = handleRewrites(parseUrl(req.url, true))
 
           ${handleBasePath}
 
@@ -262,17 +286,17 @@ const nextServerlessLoader: loader.Loader = function () {
       // this needs to be called first so its available for any other imports
       runtimeConfigSetter
     }
-    const {parse} = require('url')
+    const {parse: parseUrl, format: formatUrl} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
-    const {sendHTML} = require('next/dist/next-server/server/send-html');
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
     const Error = require('${absoluteErrorPath}').default;
     const App = require('${absoluteAppPath}').default;
+
     ${dynamicRouteImports}
     ${rewriteImports}
 
@@ -291,6 +315,7 @@ const nextServerlessLoader: loader.Loader = function () {
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
+    ${defaultRouteRegex}
     ${collectDynamicRouteParams}
     ${handleRewrites}
 
@@ -323,7 +348,7 @@ const nextServerlessLoader: loader.Loader = function () {
         // We need to trust the dynamic route params from the proxy
         // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
-        const parsedUrl = handleRewrites(parse(req.url, true))
+        const parsedUrl = handleRewrites(parseUrl(req.url, true))
 
         ${handleBasePath}
 
@@ -412,11 +437,32 @@ const nextServerlessLoader: loader.Loader = function () {
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
 
+        // make sure to normalize req.url on Vercel to strip dynamic params
+        // from the query which are added during routing
+        if (trustQuery) {
+          const _parsedUrl = parseUrl(req.url, true)
+          delete _parsedUrl.search
+
+          for (const param of Object.keys(defaultRouteRegex.groups)) {
+            delete _parsedUrl.query[param]
+          }
+          req.url = formatUrl(_parsedUrl)
+        }
+
         const isFallback = parsedUrl.query.__nextFallback
 
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
+        if (process.env.__NEXT_OPTIMIZE_FONTS) {
+          renderOpts.optimizeFonts = true
+          /**
+           * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
+           * font-stylesheet-gathering-plugin
+           */
+          renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__;
+          process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
+        }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (!renderMode) {
@@ -441,7 +487,7 @@ const nextServerlessLoader: loader.Loader = function () {
         return result
       } catch (err) {
         if (!parsedUrl) {
-          parsedUrl = parse(req.url, true)
+          parsedUrl = parseUrl(req.url, true)
         }
 
         if (err.code === 'ENOENT') {
@@ -494,9 +540,9 @@ const nextServerlessLoader: loader.Loader = function () {
         await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendHTML(req, res, html, {generateEtags: ${
-            generateEtags === 'true' ? true : false
-          }})
+          sendPayload(req, res, html, 'html', {generateEtags: ${JSON.stringify(
+            generateEtags === 'true'
+          )}, poweredByHeader: ${JSON.stringify(poweredByHeader === 'true')}})
         }
       } catch(err) {
         console.error(err)
