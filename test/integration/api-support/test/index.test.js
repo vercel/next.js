@@ -430,12 +430,12 @@ function runTests(dev = false) {
     })
   } else {
     it('should show warning with next export', async () => {
-      const { stdout } = await nextExport(
+      const { stderr } = await nextExport(
         appDir,
         { outdir: join(appDir, 'out') },
-        { stdout: true }
+        { stderr: true }
       )
-      expect(stdout).toContain(
+      expect(stderr).toContain(
         'https://err.sh/vercel/next.js/api-routes-static-export'
       )
     })
