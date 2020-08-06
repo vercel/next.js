@@ -29,7 +29,7 @@ export function getStaticProps() {
 export * from './one'
 ```
 
-Would cause cause the following error:
+Would cause the following error:
 
 ```
 Module not found: Can't resolve 'fs' in './pages/two.js'
