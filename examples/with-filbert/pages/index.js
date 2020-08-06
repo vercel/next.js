@@ -57,7 +57,7 @@ export default function Home() {
           
         `}
       />
-      <img src="/filbert.png" width="150" alt="filbert" />
+      <img src="https://raw.githubusercontent.com/kuldeepkeshwar/filbert-js/master/filbert.png" width="150" alt="filbert" />
       <Heading>
         <a target="_black" href="https://filbert-js.vercel.app/">
           {' '}
