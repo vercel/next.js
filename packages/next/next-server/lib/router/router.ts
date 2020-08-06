@@ -16,7 +16,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { searchParamsToUrlQuery } from './utils/search-params-to-url-query'
+import { searchParamsToUrlQuery } from './utils/querystring'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import {
   removePathTrailingSlash,

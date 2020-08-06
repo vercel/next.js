@@ -1,6 +1,6 @@
 /* global location */
 import { createRouter, makePublicRouterInstance } from 'next/router'
-import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import * as querystring from '../next-server/lib/router/utils/querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
@@ -99,10 +99,12 @@ class Container extends React.Component {
       router.replace(
         router.pathname +
           '?' +
-          stringifyQs({
-            ...router.query,
-            ...parseQs(location.search.substr(1)),
-          }),
+          String(
+            querystring.assign(
+              querystring.urlQueryToSearchParams(router.query),
+              new URLSearchParams(location.search)
+            )
+          ),
         asPath,
         {
           // WARNING: `_h` is an internal option for handing Next.js
