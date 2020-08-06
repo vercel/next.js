@@ -59,14 +59,13 @@ const nextDev: cliCommand = (argv) => {
   const port = args['--port'] || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
-  startedDevelopmentServer(appUrl)
-
   startServer(
     { dir, dev: true, isNextDevCommand: true },
     port,
     args['--hostname']
   )
     .then(async (app) => {
+      startedDevelopmentServer(appUrl)
       await app.prepare()
     })
     .catch((err) => {
