@@ -1,4 +1,4 @@
-import { CMS_NAME } from '../lib/constants'
+import { CMS_NAME, CMS_URL } from '../lib/constants'
 
 export default function Intro() {
   return (
@@ -14,7 +14,14 @@ export default function Intro() {
         >
           Next.js
         </a>{' '}
-        and {CMS_NAME}.
+        and{' '}
+        <a
+          href={CMS_URL}
+          className="underline hover:text-success duration-200 transition-colors"
+        >
+          {CMS_NAME}
+        </a>
+        .
       </h4>
     </section>
   )
