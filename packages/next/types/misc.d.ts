@@ -190,6 +190,10 @@ declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
 }
+declare module 'next/dist/compiled/semver' {
+  import m from 'semver'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
