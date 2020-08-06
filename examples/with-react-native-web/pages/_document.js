@@ -26,9 +26,7 @@ export default class MyDocument extends Document {
   render() {
     return (
       <html style={{ height: '100%' }}>
-        <Head>
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-        </Head>
+        <Head />
         <body style={{ height: '100%', overflow: 'hidden' }}>
           <Main />
           <NextScript />
