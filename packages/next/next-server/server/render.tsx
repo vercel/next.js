@@ -337,7 +337,7 @@ export async function renderToHTML(
     (hasPageGetInitialProps || defaultAppGetInitialProps)
   ) {
     warn(
-      `Detected getInitialProps on page ${pathname} while running "next export". It's recommended to use getStaticProps which has a more correct behavior for static exporting: https://err.sh/next.js/vercel/next.js/getinitialprops-export`
+      `Detected getInitialProps on page ${pathname} while running "next export". It's recommended to use getStaticProps which has a more correct behavior for static exporting: https://err.sh/vercel/next.js/getinitialprops-export`
     )
   }
 
