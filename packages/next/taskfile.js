@@ -488,6 +488,14 @@ export async function ncc_comment_json(task, opts) {
     .target('compiled/comment-json')
 }
 
+externals['semver'] = 'next/dist/compiled/semver'
+export async function ncc_semver(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('semver')))
+    .ncc({ packageName: 'semver', externals })
+    .target('compiled/semver')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -560,6 +568,7 @@ export async function ncc(task) {
       'ncc_unistore',
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
+      'ncc_semver',
     ])
 }
 
