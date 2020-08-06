@@ -7,8 +7,6 @@ import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
-import semver from 'next/dist/compiled/semver'
-import { getPackageVersion } from '../lib/get-package-version'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -60,6 +58,11 @@ const nextDev: cliCommand = (argv) => {
   }
 
   async function preflight() {
+    const { getPackageVersion } = await import('../lib/get-package-version')
+    const semver = await import('next/dist/compiled/semver').then(
+      (res) => res.default
+    )
+
     const reactVersion: string | null = await getPackageVersion({
       cwd: dir,
       name: 'react',
@@ -84,46 +87,44 @@ const nextDev: cliCommand = (argv) => {
   const port = args['--port'] || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
-  preflight()
-    // Ignore preflight errors:
-    .catch(() => {})
-    .then(() => {
-      startedDevelopmentServer(appUrl)
+  startedDevelopmentServer(appUrl)
 
-      startServer(
-        { dir, dev: true, isNextDevCommand: true },
-        port,
-        args['--hostname']
-      )
-        .then(async (app) => {
-          await app.prepare()
-        })
-        .catch((err) => {
-          if (err.code === 'EADDRINUSE') {
-            let errorMessage = `Port ${port} is already in use.`
-            const pkgAppPath = require('next/dist/compiled/find-up').sync(
-              'package.json',
-              {
-                cwd: dir,
-              }
-            )
-            const appPackage = require(pkgAppPath)
-            if (appPackage.scripts) {
-              const nextScript = Object.entries(appPackage.scripts).find(
-                (scriptLine) => scriptLine[1] === 'next'
-              )
-              if (nextScript) {
-                errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
-              }
-            }
-            // tslint:disable-next-line
-            console.error(errorMessage)
-          } else {
-            // tslint:disable-next-line
-            console.error(err)
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    port,
+    args['--hostname']
+  )
+    .then(async (app) => {
+      // Start preflight after server is listening and ignore errors:
+      preflight().catch(() => {})
+      // Finalize server bootup:
+      await app.prepare()
+    })
+    .catch((err) => {
+      if (err.code === 'EADDRINUSE') {
+        let errorMessage = `Port ${port} is already in use.`
+        const pkgAppPath = require('next/dist/compiled/find-up').sync(
+          'package.json',
+          {
+            cwd: dir,
           }
-          process.nextTick(() => process.exit(1))
-        })
+        )
+        const appPackage = require(pkgAppPath)
+        if (appPackage.scripts) {
+          const nextScript = Object.entries(appPackage.scripts).find(
+            (scriptLine) => scriptLine[1] === 'next'
+          )
+          if (nextScript) {
+            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+          }
+        }
+        // tslint:disable-next-line
+        console.error(errorMessage)
+      } else {
+        // tslint:disable-next-line
+        console.error(err)
+      }
+      process.nextTick(() => process.exit(1))
     })
 }
 
