@@ -4,8 +4,11 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
+import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
+import semver from 'next/dist/compiled/semver'
+import { getPackageVersion } from '../lib/get-package-version'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -56,44 +59,71 @@ const nextDev: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  async function preflight() {
+    const reactVersion: string | null = await getPackageVersion({
+      cwd: dir,
+      name: 'react',
+    })
+    if (reactVersion && semver.lt(reactVersion, '16.10.0')) {
+      Log.warn(
+        'Fast Refresh is disabled in your application due to an outdated `react` version. Please upgrade 16.10 or newer!'
+      )
+    } else {
+      const reactDomVersion: string | null = await getPackageVersion({
+        cwd: dir,
+        name: 'react-dom',
+      })
+      if (reactDomVersion && semver.lt(reactDomVersion, '16.10.0')) {
+        Log.warn(
+          'Fast Refresh is disabled in your application due to an outdated `react-dom` version. Please upgrade 16.10 or newer!'
+        )
+      }
+    }
+  }
+
   const port = args['--port'] || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
-  startedDevelopmentServer(appUrl)
+  preflight()
+    // Ignore preflight errors:
+    .catch(() => {})
+    .then(() => {
+      startedDevelopmentServer(appUrl)
 
-  startServer(
-    { dir, dev: true, isNextDevCommand: true },
-    port,
-    args['--hostname']
-  )
-    .then(async (app) => {
-      await app.prepare()
-    })
-    .catch((err) => {
-      if (err.code === 'EADDRINUSE') {
-        let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('next/dist/compiled/find-up').sync(
-          'package.json',
-          {
-            cwd: dir,
+      startServer(
+        { dir, dev: true, isNextDevCommand: true },
+        port,
+        args['--hostname']
+      )
+        .then(async (app) => {
+          await app.prepare()
+        })
+        .catch((err) => {
+          if (err.code === 'EADDRINUSE') {
+            let errorMessage = `Port ${port} is already in use.`
+            const pkgAppPath = require('next/dist/compiled/find-up').sync(
+              'package.json',
+              {
+                cwd: dir,
+              }
+            )
+            const appPackage = require(pkgAppPath)
+            if (appPackage.scripts) {
+              const nextScript = Object.entries(appPackage.scripts).find(
+                (scriptLine) => scriptLine[1] === 'next'
+              )
+              if (nextScript) {
+                errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+              }
+            }
+            // tslint:disable-next-line
+            console.error(errorMessage)
+          } else {
+            // tslint:disable-next-line
+            console.error(err)
           }
-        )
-        const appPackage = require(pkgAppPath)
-        if (appPackage.scripts) {
-          const nextScript = Object.entries(appPackage.scripts).find(
-            (scriptLine) => scriptLine[1] === 'next'
-          )
-          if (nextScript) {
-            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
-          }
-        }
-        // tslint:disable-next-line
-        console.error(errorMessage)
-      } else {
-        // tslint:disable-next-line
-        console.error(err)
-      }
-      process.nextTick(() => process.exit(1))
+          process.nextTick(() => process.exit(1))
+        })
     })
 }
 
