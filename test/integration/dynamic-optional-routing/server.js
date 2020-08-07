@@ -16,6 +16,8 @@ const server = http.createServer((req, res) => {
   const { pathname } = url.parse(req.url)
 
   switch (pathname) {
+    case '/about':
+      return render('/about.js')
     case '/api/post':
     case '/api/post/hello':
     case '/api/post/hello/world': {
