@@ -1,0 +1,18 @@
+{
+  "name": "with-sitemap",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "globby": "^11.0.1"
+  },
+  "license": "MIT"
+}

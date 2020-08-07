@@ -1,6 +1,6 @@
 /* global location */
 import { createRouter, makePublicRouterInstance } from 'next/router'
-import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import * as querystring from '../next-server/lib/router/utils/querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
@@ -9,7 +9,7 @@ import { RouterContext } from '../next-server/lib/router-context'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
-import { delBasePath } from '../next-server/lib/router/router'
+import { hasBasePath, delBasePath } from '../next-server/lib/router/router'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -52,14 +52,7 @@ envConfig.setConfig({
 let asPath = getURL()
 
 // make sure not to attempt stripping basePath for 404s
-if (
-  page !== '/404' &&
-  !(
-    page === '/_error' &&
-    hydrateProps &&
-    hydrateProps.pageProps.statusCode === '404'
-  )
-) {
+if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
@@ -106,10 +99,12 @@ class Container extends React.Component {
       router.replace(
         router.pathname +
           '?' +
-          stringifyQs({
-            ...router.query,
-            ...parseQs(location.search.substr(1)),
-          }),
+          String(
+            querystring.assign(
+              querystring.urlQueryToSearchParams(router.query),
+              new URLSearchParams(location.search)
+            )
+          ),
         asPath,
         {
           // WARNING: `_h` is an internal option for handing Next.js

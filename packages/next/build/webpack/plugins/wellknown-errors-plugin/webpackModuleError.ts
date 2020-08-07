@@ -5,6 +5,7 @@ import { compilation as CompilationType } from 'webpack'
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
+import { getNotFoundError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function getFileData(
@@ -40,14 +41,15 @@ function getFileData(
   return ['<unknown>', null]
 }
 
-export function getModuleBuildError(
+export async function getModuleBuildError(
   compilation: CompilationType.Compilation,
   input: any
-): SimpleWebpackError | false {
+): Promise<SimpleWebpackError | false> {
   if (
     !(
       typeof input === 'object' &&
-      input?.name === 'ModuleBuildError' &&
+      (input?.name === 'ModuleBuildError' ||
+        input?.name === 'ModuleNotFoundError') &&
       Boolean(input.module) &&
       input.error instanceof Error
     )
@@ -57,6 +59,15 @@ export function getModuleBuildError(
 
   const err: Error = input.error
   const [sourceFilename, sourceContent] = getFileData(compilation, input.module)
+
+  const notFoundError = await getNotFoundError(
+    compilation,
+    input,
+    sourceFilename
+  )
+  if (notFoundError !== false) {
+    return notFoundError
+  }
 
   const babel = getBabelError(sourceFilename, err)
   if (babel !== false) {
