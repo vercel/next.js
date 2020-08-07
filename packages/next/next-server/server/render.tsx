@@ -45,6 +45,8 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import postProcess from '../lib/post-process'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 
 function noRouter() {
   const message =
@@ -143,6 +145,10 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  optimizeFonts: boolean
+  fontManifest?: FontManifest
+  optimizeImages: boolean
+  devOnlyCacheBusterQueryString?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -179,6 +185,7 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    devOnlyCacheBusterQueryString,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -199,6 +206,7 @@ function renderDocument(
     customServer?: boolean
     gip?: boolean
     appGip?: boolean
+    devOnlyCacheBusterQueryString: string
   }
 ): string {
   return (
@@ -237,6 +245,7 @@ function renderDocument(
           assetPrefix,
           headTags,
           unstable_runtimeJS,
+          devOnlyCacheBusterQueryString,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -260,6 +269,13 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
+  // In dev we invalidate the cache by appending a timestamp to the resource URL.
+  // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+  renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
+    ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
+    : ''
+
   const {
     err,
     dev = false,
@@ -269,6 +285,7 @@ export async function renderToHTML(
     pageConfig = {},
     Component,
     buildManifest,
+    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -278,7 +295,15 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
+    devOnlyCacheBusterQueryString,
   } = renderOpts
+
+  const getFontDefinition = (url: string): string => {
+    if (fontManifest) {
+      return getFontDefinitionFromManifest(url, fontManifest)
+    }
+    return ''
+  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -764,6 +789,7 @@ export async function renderToHTML(
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
+    devOnlyCacheBusterQueryString,
   })
 
   if (inAmpMode && html) {
@@ -780,6 +806,17 @@ export async function renderToHTML(
       await renderOpts.ampValidator(html, pathname)
     }
   }
+
+  html = await postProcess(
+    html,
+    {
+      getFontDefinition,
+    },
+    {
+      optimizeFonts: renderOpts.optimizeFonts,
+      optimizeImages: renderOpts.optimizeImages,
+    }
+  )
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link

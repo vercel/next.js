@@ -17,6 +17,12 @@ const styles = css`
     padding: 10vh 15px 0;
   }
 
+  @media (max-height: 812px) {
+    [data-nextjs-dialog-overlay] {
+      padding: 15px 15px 0;
+    }
+  }
+
   [data-nextjs-dialog-backdrop] {
     position: fixed;
     top: 0;
