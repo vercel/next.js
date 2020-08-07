@@ -30,7 +30,7 @@ yarn create next-app --example with-redis with-redis-app
 
 ## Configuration
 
-A data store with Redis is required for the app to work. In the steps above we'll integrate Lambda Store as the data store.
+A data store with Redis is required for the app to work. In the steps below we'll integrate Lambda Store as the data store.
 
 ### Without Vercel
 
@@ -68,17 +68,17 @@ The integration requires a [Developer API Key](howto/developerapi.md) that can b
 
 Enter the API key and your registered email address in the integration setup page:
 
-<img src="https://docs.lambda.store/img/vercel/vercel1.png" width="800" />
+![setup](./docs/lstr1.png)
 
 #### Step 4. Create a Database
 
 In the next page of the integration setup, your databases will be automatically listed. A new database can be created from the Vercel Integration page as well as in the Lambda Store Console:
 
-<img src="https://docs.lambda.store/img/vercel/vercel2.png" width="800" />
+![new db](./docs/lstr2.png)
 
 Click the **New Database**, you should be able to see the page below:
 
-<img src="https://docs.lambda.store/img/vercel/vercel3.png" width="800" />
+![new db form](./docs/lstr3.png)
 
 Fill out the form and click on **Create** to have your new database.
 
@@ -88,8 +88,8 @@ Select your project from the dropdown menu then click on **Link To Project** for
 
 `REDIS_URL` will be automatically set as an environment variable for your application.
 
-<img src="https://docs.lambda.store/img/vercel/vercel4.png" width="800" />
+![link project](./docs/lstr4.png)
 
-<img src="https://docs.lambda.store/img/vercel/vercel5.png" width="800" />
+![redis url env](./docs/lstr5.png)
 
 **Important:** You will need to re-deploy your application for the change to be effective.
