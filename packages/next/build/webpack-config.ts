@@ -27,6 +27,7 @@ import {
 import { execOnce } from '../next-server/lib/utils'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
+import * as Log from './output/log'
 import {
   collectPlugins,
   PluginMetaData,
@@ -53,7 +54,6 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
@@ -136,6 +136,46 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 
 type ClientEntries = {
   [key: string]: string | string[]
+}
+
+export function attachReactRefresh(
+  webpackConfig: webpack.Configuration,
+  targetLoader: webpack.RuleSetUseItem
+) {
+  let injections = 0
+  const reactRefreshLoaderName = '@next/react-refresh-utils/loader'
+  const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
+  webpackConfig.module?.rules.forEach((rule) => {
+    const curr = rule.use
+    // When the user has configured `defaultLoaders.babel` for a input file:
+    if (curr === targetLoader) {
+      ++injections
+      rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
+    } else if (
+      Array.isArray(curr) &&
+      curr.some((r) => r === targetLoader) &&
+      // Check if loader already exists:
+      !curr.some(
+        (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
+      )
+    ) {
+      ++injections
+      const idx = curr.findIndex((r) => r === targetLoader)
+      // Clone to not mutate user input
+      rule.use = [...curr]
+
+      // inject / input: [other, babel] output: [other, refresh, babel]:
+      rule.use.splice(idx, 0, reactRefreshLoader)
+    }
+  })
+
+  if (injections) {
+    Log.info(
+      `automatically enabled Fast Refresh for ${injections} custom loader${
+        injections > 1 ? 's' : ''
+      }`
+    )
+  }
 }
 
 export default async function getBaseWebpackConfig(
@@ -250,7 +290,7 @@ export default async function getBaseWebpackConfig(
       } as ClientEntries)
     : undefined
 
-  let typeScriptPath
+  let typeScriptPath: string | undefined
   try {
     typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
@@ -262,7 +302,7 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
-    const ts = (await import(typeScriptPath)) as typeof import('typescript')
+    const ts = (await import(typeScriptPath!)) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath)
     jsConfig = { compilerOptions: tsConfig.options }
   }
@@ -882,6 +922,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.experimental.optimizeFonts
         ),
+        'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
+          config.experimental.optimizeImages
+        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -1178,6 +1221,11 @@ export default async function getBaseWebpackConfig(
     }
   } else {
     await __overrideCssConfiguration(dir, !dev, webpackConfig)
+  }
+
+  // Inject missing React Refresh loaders so that development mode is fast:
+  if (hasReactRefresh) {
+    attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 
   // check if using @zeit/next-typescript and show warning
