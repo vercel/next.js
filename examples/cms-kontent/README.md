@@ -53,7 +53,7 @@ cd cms-starter
 
 ### Step 1. Create an account on ButterCMS
 
-First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=ondrejch@utm_campaign=next_js).
+First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=devrel).
 
 After signing up, [create an empty project](https://docs.kontent.ai/tutorials/set-up-kontent/projects/manage-projects#a-creating-projects).
 
@@ -71,20 +71,22 @@ For this example you need to create a content model that defines an `author` and
 1. Copy `Project ID` and `Management API` key
 1. Install [Kontent Backup Manager](https://github.com/Kentico/kontent-backup-manager-js) and import data to newly created project from kontent-backup.zip file (place appropriate values for apiKey and projectId arguments):
 
-    ```sh
-    npm i -g @kentico/kontent-backup-manager
-    kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-backup
-    ```
+   ```sh
+   npm i -g @kentico/kontent-backup-manager
+   kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-backup
+   ```
 
-    > **:bulb: Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import-from-file) for importing the content.**
+   > **:bulb: Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import-from-file) for importing the content.**
+
 1. Go to your Kontent project and publish all the imported items.
-    > You could deactivate Management API key, it is not necessary any more.
+   > You could deactivate Management API key, it is not necessary any more.
 
 #### Create the content models and it's data manually
 
 ##### Create an `Author` content type
 
 From your Kontent project, go to **Content models** and add a new `Content type`:
+
 > you don't have to modify the element configuration unless specified
 
 - Content type name: `Author`
@@ -100,6 +102,7 @@ The content type should looks like that:
 ##### Create an `Post` content type
 
 From your Kontent project, go to **Content models** and add a new content type:
+
 > you don't have to modify the element configuration unless specified
 
 - Content type name: `Post`
@@ -108,7 +111,7 @@ From your Kontent project, go to **Content models** and add a new content type:
   - `Date` - **Date & time** element
   - `Excerpt` - **Text** element
   - `Content` - **Rich Text** element
-  - `Cover Image` - **Asset Text** element - configure to allow to select `At most 1` asset and `Limit file types` only to `Adjustable images`  - `Content` - `Slug` - **URL slug** element - auto-generated from `Title` element
+  - `Cover Image` - **Asset Text** element - configure to allow to select `At most 1` asset and `Limit file types` only to `Adjustable images` - `Content` - `Slug` - **URL slug** element - auto-generated from `Title` element
   - `Author` - **Linked items** element - configure to accept `Exactly 1` item of type `Author`
 
 Save the content type and continue.
@@ -148,7 +151,6 @@ Then set each variable on `.env.local` from `Project settings` > `API keys`:
 - `KONTENT_PROJECT_ID` - Project ID from the `API keys` section.
 - `KONTENT_PREVIEW_SECRET` - Can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - `KONTENT_PREVIEW_API_KEY` - one of the Preview API keys from the `API keys` section.
-
 
 ### Step 5. Run Next.js in development mode
 
@@ -203,7 +205,6 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentful&env=CONTENTFUL_SPACE_ID,CONTENTFUL_ACCESS_TOKEN,CONTENTFUL_PREVIEW_ACCESS_TOKEN,CONTENTFUL_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Contentful&envLink=https://vercel.link/cms-contentful-env)
-
 
 ## Notes
 
