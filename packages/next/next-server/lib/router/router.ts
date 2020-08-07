@@ -22,9 +22,9 @@ import {
   removePathTrailingSlash,
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import { prepareDestination } from '../../server/router'
 import pathMatch from '../../server/lib/path-match'
 import { Rewrite } from '../../../lib/load-custom-routes'
+import prepareDestination from './utils/prepare-destination'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -503,6 +503,7 @@ export default class Router implements BaseRouter {
     if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as)
+      // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
       this.notify(this.components[this.route])
@@ -510,14 +511,21 @@ export default class Router implements BaseRouter {
       return true
     }
 
-    const { rewrites } = await this._routesManifest
     const pages = await this.pageLoader.getPageList()
+    const { rewrites } = await this._routesManifest
 
-    const parsed = tryParseRelativeUrl(url)
+    let parsed = tryParseRelativeUrl(url)
 
     if (!parsed) return false
 
     let { pathname, searchParams } = parsed
+
+    if (!pages.includes(pathname)) {
+      parsed = this._resolveHref(parsed, pages) as typeof parsed
+      pathname = parsed.pathname
+      url = formatWithValidation(parsed)
+    }
+
     const query = searchParamsToUrlQuery(searchParams)
 
     // url and as should always be prefixed with basePath by this
@@ -874,6 +882,23 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
+  _resolveHref(parsedHref: UrlObject, pages: string[]) {
+    const { pathname } = parsedHref
+    // handle resolving href for dynamic routes
+    if (!pages.includes(pathname!)) {
+      for (let page of pages) {
+        page = addBasePath(page)
+
+        if (isDynamicRoute(page) && getRouteRegex(page).re.test(pathname!)) {
+          console.log('resolved href to', page)
+          parsedHref.pathname = page
+          break
+        }
+      }
+    }
+    return parsedHref
+  }
+
   /**
    * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
@@ -885,11 +910,20 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    const parsed = tryParseRelativeUrl(url)
+    let parsed = tryParseRelativeUrl(url)
 
     if (!parsed) return
 
-    const { pathname } = parsed
+    let { pathname } = parsed
+
+    const pages = await this.pageLoader.getPageList()
+
+    if (!pages.includes(pathname)) {
+      parsed = this._resolveHref(parsed, pages) as typeof parsed
+      pathname = parsed.pathname
+      url = formatWithValidation(parsed)
+      console.log('prefetching', { pathname, url })
+    }
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {

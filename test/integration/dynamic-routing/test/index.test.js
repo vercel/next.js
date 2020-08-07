@@ -86,8 +86,11 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1').click()
       await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
@@ -137,8 +140,11 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1-comment-1').click()
       await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)

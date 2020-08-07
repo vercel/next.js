@@ -5,7 +5,7 @@ const Page = () => {
   return (
     <div>
       <h3>My blog</h3>
-      <Link href="/[name]" as="/post-1">
+      <Link href="/post-1">
         <a id="view-post-1">View post 1</a>
       </Link>
       <br />
@@ -13,7 +13,7 @@ const Page = () => {
         <a id="view-post-1-comments">View post 1 comments</a>
       </Link>
       <br />
-      <Link href="/[name]/[comment]" as="/post-1/comment-1">
+      <Link href="/post-1/comment-1">
         <a id="view-post-1-comment-1">View comment 1 on post 1</a>
       </Link>
       <br />
