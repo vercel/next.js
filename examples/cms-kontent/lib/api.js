@@ -1,14 +1,9 @@
-import fs from 'fs'
-import { join } from 'path'
-import matter from 'gray-matter'
-import { DeliveryClient } from "@kentico/kontent-delivery";
-
-const postsDirectory = join(process.cwd(), '_posts')
+import { DeliveryClient } from '@kentico/kontent-delivery'
 
 const client = new DeliveryClient({
   projectId: process.env.KONTENT_PROJECT_ID,
   previewApiKey: process.env.KONTENT_PREVIEW_API_KEY,
-});
+})
 
 function parseAuthor(author) {
   return {
@@ -18,7 +13,6 @@ function parseAuthor(author) {
 }
 
 function parsePost(post) {
-
   return {
     title: post.title.value,
     slug: post.slug.value,
@@ -31,37 +25,38 @@ function parsePost(post) {
 }
 
 export async function getAllPostSlugs() {
-  const postsResponse = await client.items()
-    .type("post")
-    .elementsParameter(["slug"])
-    .toPromise();
+  const postsResponse = await client
+    .items()
+    .type('post')
+    .elementsParameter(['slug'])
+    .toPromise()
 
-  return postsResponse.items
-    .map(post => post.slug.value);
+  return postsResponse.items.map((post) => post.slug.value)
 }
 
 export async function getPostBySlug(slug, preview) {
-  const post = await client.items()
+  const post = await client
+    .items()
     .queryConfig({
-      usePreviewMode: !!preview
+      usePreviewMode: !!preview,
     })
-    .type("post")
-    .equalsFilter("elements.slug", slug)
+    .type('post')
+    .equalsFilter('elements.slug', slug)
     .toPromise()
-    .then(result => result.getFirstItem())
-    .then(post => parsePost(post))
-  return post;
+    .then((result) => result.getFirstItem())
+    .then((post) => parsePost(post))
+  return post
 }
 
 export async function getAllPosts(preview) {
-  const postsResponse = await client.items()
+  const postsResponse = await client
+    .items()
     .queryConfig({
-      usePreviewMode: !!preview
+      usePreviewMode: !!preview,
     })
-    .type("post")
-    .orderByDescending("elements.date")
-    .toPromise();
+    .type('post')
+    .orderByDescending('elements.date')
+    .toPromise()
 
-  return postsResponse.items
-    .map(post => parsePost(post));
+  return postsResponse.items.map((post) => parsePost(post))
 }

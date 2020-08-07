@@ -7,7 +7,9 @@ export default async function preview(req, res) {
     req.query.secret !== process.env.KONTENT_PREVIEW_SECRET ||
     !req.query.slug
   ) {
-    return res.status(401).json({ message: 'Invalid token or slug not specified' })
+    return res
+      .status(401)
+      .json({ message: 'Invalid token or slug not specified' })
   }
 
   // Fetch the headless CMS to check if the provided `slug` exists
