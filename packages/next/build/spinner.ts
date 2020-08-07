@@ -7,7 +7,8 @@ const dotsSpinner = {
 
 export default function createSpinner(
   text: string | { prefixText: string },
-  options: ora.Options = {}
+  options: ora.Options = {},
+  logFn: (...data: any[]) => void = console.log
 ) {
   let spinner: undefined | ora.Ora
   let prefixText = text && typeof text === 'object' && text.prefixText
@@ -55,7 +56,7 @@ export default function createSpinner(
       return spinner!
     }
   } else if (prefixText || text) {
-    console.log(prefixText ? prefixText + '...' : text)
+    logFn(prefixText ? prefixText + '...' : text)
   }
 
   return spinner

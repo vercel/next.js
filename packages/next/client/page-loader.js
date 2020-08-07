@@ -2,10 +2,11 @@ import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/search-params-to-url-query'
+import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/querystring'
 import { parseRelativeUrl } from './../next-server/lib/router/utils/parse-relative-url'
 import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
+import { addBasePath } from '../next-server/lib/router/router'
 
 function hasRel(rel, link) {
   try {
@@ -127,9 +128,9 @@ export default class PageLoader {
 
     const getHrefForSlug = (/** @type string */ path) => {
       const dataRoute = getAssetPathFromRoute(path, '.json')
-      return `${this.assetPrefix}/_next/data/${this.buildId}${dataRoute}${
-        ssg ? '' : search || ''
-      }`
+      return addBasePath(
+        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
+      )
     }
 
     let isDynamic = isDynamicRoute(route),

@@ -122,6 +122,7 @@ export default class Server {
     basePath: string
     optimizeFonts: boolean
     fontManifest: FontManifest
+    optimizeImages: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -172,6 +173,7 @@ export default class Server {
       fontManifest: this.nextConfig.experimental.optimizeFonts
         ? requireFontManifest(this.distDir, this._isLikeServerless)
         : null,
+      optimizeImages: this.nextConfig.experimental.optimizeImages,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -235,6 +237,9 @@ export default class Server {
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeImages) {
+      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
   }
 
@@ -479,25 +484,40 @@ export default class Server {
       if (!value.includes(':')) {
         return value
       }
-      const { parsedDestination } = prepareDestination(
-        value,
-        params,
-        {},
-        false,
-        ''
-      )
 
-      if (
-        !parsedDestination.pathname ||
-        !parsedDestination.pathname.startsWith('/')
-      ) {
-        // the value needs to start with a forward-slash to be compiled
-        // correctly
-        return compilePathToRegex(`/${value}`, { validate: false })(
-          params
-        ).substr(1)
+      for (const key of Object.keys(params)) {
+        if (value.includes(`:${key}`)) {
+          value = value
+            .replace(
+              new RegExp(`:${key}\\*`, 'g'),
+              `:${key}--ESCAPED_PARAM_ASTERISKS`
+            )
+            .replace(
+              new RegExp(`:${key}\\?`, 'g'),
+              `:${key}--ESCAPED_PARAM_QUESTION`
+            )
+            .replace(
+              new RegExp(`:${key}\\+`, 'g'),
+              `:${key}--ESCAPED_PARAM_PLUS`
+            )
+            .replace(
+              new RegExp(`:${key}(?!\\w)`, 'g'),
+              `--ESCAPED_PARAM_COLON${key}`
+            )
+        }
       }
-      return formatUrl(parsedDestination)
+      value = value
+        .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+        .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+        .replace(/--ESCAPED_PARAM_COLON/g, ':')
+        .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+        .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      return compilePathToRegex(`/${value}`, { validate: false })(
+        params
+      ).substr(1)
     }
 
     // Headers come very first
@@ -922,18 +942,25 @@ export default class Server {
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
-    hasStaticFallback: boolean
+    fallbackMode: 'static' | 'blocking' | false
   }> {
     // `staticPaths` is intentionally set to `undefined` as it should've
     // been caught when checking disk data.
     const staticPaths = undefined
 
     // Read whether or not fallback should exist from the manifest.
-    const hasStaticFallback =
-      typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
-      'string'
+    const fallbackField = this.getPrerenderManifest().dynamicRoutes[pathname]
+      .fallback
 
-    return { staticPaths, hasStaticFallback }
+    return {
+      staticPaths,
+      fallbackMode:
+        typeof fallbackField === 'string'
+          ? 'static'
+          : fallbackField === null
+          ? 'blocking'
+          : false,
+    }
   }
 
   private async renderToHTMLWithComponents(
@@ -1098,14 +1125,16 @@ export default class Server {
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
 
-    const { staticPaths, hasStaticFallback } = hasStaticPaths
+    const { staticPaths, fallbackMode } = hasStaticPaths
       ? await this.getStaticPaths(pathname)
-      : { staticPaths: undefined, hasStaticFallback: false }
+      : { staticPaths: undefined, fallbackMode: false }
 
     // When we did not respond from cache, we need to choose to block on
     // rendering or return a skeleton.
     //
     // * Data requests always block.
+    //
+    // * Blocking mode fallback always blocks.
     //
     // * Preview mode toggles all pages to be resolved in a blocking manner.
     //
@@ -1116,6 +1145,7 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      fallbackMode !== 'blocking' &&
       ssgCacheKey &&
       !didRespond &&
       !isDataReq &&
@@ -1130,7 +1160,7 @@ export default class Server {
         // getStaticPaths.
         (isProduction || staticPaths) &&
         // When fallback isn't present, abort this render so we 404
-        !hasStaticFallback
+        fallbackMode !== 'static'
       ) {
         throw new NoFallbackError()
       }

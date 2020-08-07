@@ -108,5 +108,6 @@ The `query` objects are as follows:
   - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
   - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
+- When routing to a dynamic route using `Link` or `router`, you will need to specify the `href` as the dynamic route, for example `/post/[pid]` and `as` as the decorator for the URL, for example `/post/abc`.
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
