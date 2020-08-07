@@ -48,11 +48,11 @@ Next, create a file called `.env.local` in the root directory and copy your conn
 REDIS_URL="YOUR_REDIS_CONNECTION_STRING"
 ```
 
-Your app is now connected to a remove Redis database!
+Your app is now connected to a remote Redis database!
 
 ### Using Vercel
 
-You can add the Lambda Store integration to your Vercel account. Once you set up the integration, you do not have to visit the Lambda Store console anymore. Follow the next steps to setup the integration:
+You can add the Lambda Store integration to your Vercel account. Once you set up the integration you won't have to visit the Lambda Store console anymore. Follow the next steps to setup the integration:
 
 #### Step 1. Deploy Your Local Project
 
@@ -62,7 +62,7 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Visit Vercel [Lambda Store Integration](https://vercel.com/integrations/lambdastore) page and click the `Add` button.
 
-#### Step 3. Configure Integration
+#### Step 3. Configure the Integration
 
 The integration requires a [Developer API Key](howto/developerapi.md) that can be created from the [Lambda Store console](https://console.lambda.store).
 
