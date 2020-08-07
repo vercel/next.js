@@ -6,7 +6,8 @@ import { DeliveryClient } from "@kentico/kontent-delivery";
 const postsDirectory = join(process.cwd(), '_posts')
 
 const client = new DeliveryClient({
-  projectId: process.env.KONTENT_PROJECT_ID
+  projectId: process.env.KONTENT_PROJECT_ID,
+  previewApiKey: process.env.KONTENT_PREVIEW_API_KEY,
 });
 
 function parseAuthor(author) {
@@ -39,8 +40,11 @@ export async function getAllPostSlugs() {
     .map(post => post.slug.value);
 }
 
-export async function getPostBySlug(slug) {
+export async function getPostBySlug(slug, preview) {
   const post = await client.items()
+    .queryConfig({
+      usePreviewMode: !!preview
+    })
     .type("post")
     .equalsFilter("elements.slug", slug)
     .toPromise()
@@ -49,8 +53,11 @@ export async function getPostBySlug(slug) {
   return post;
 }
 
-export async function getAllPosts() {
+export async function getAllPosts(preview) {
   const postsResponse = await client.items()
+    .queryConfig({
+      usePreviewMode: !!preview
+    })
     .type("post")
     .orderByDescending("elements.date")
     .toPromise();
