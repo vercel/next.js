@@ -370,6 +370,12 @@ describe('Dynamic Optional Routing', () => {
       }).then((res) => res.text())
     }
 
+    it('should render normal (non-dynamic) page', async () => {
+      const html = await render('/about')
+      const $ = cheerio.load(html)
+      expect($('#content').text()).toBe('about')
+    })
+
     it('should render top level optional catch-all root', async () => {
       const html = await render('/', { optionalName: '' })
       const $ = cheerio.load(html)
