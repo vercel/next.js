@@ -40,7 +40,7 @@ First, create an account and a database in the [Lambda Store console](https://co
 
 To connect to Redis, you will need your Redis connection string. You can get the connection string by clicking on **Connect** in the Database page within the Lambda Store dashboard as below:
 
-<img src="https://docs.lambda.store/img/vercel/vercel5.png" width="800" />
+![setup without vercel](./docs/lstr6.png)
 
 Next, create a file called `.env.local` in the root directory and copy your connection string:
 
