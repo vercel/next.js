@@ -1,11 +1,21 @@
 /* eslint-env jest */
 
-import { runNextCommand, runNextCommandDev, findPort } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  runNextCommand,
+  runNextCommandDev,
+} from 'next-test-utils'
 import { join } from 'path'
 import pkg from 'next/package'
+import http from 'http'
+
 jest.setTimeout(1000 * 60 * 5)
 
 const dir = join(__dirname, '..')
+const dirOldReact = join(__dirname, '../old-react')
+const dirOldReactDom = join(__dirname, '../old-react-dom')
 
 describe('CLI Usage', () => {
   describe('no command', () => {
@@ -117,6 +127,39 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test('-p conflict', async () => {
+      const port = await findPort()
+
+      let app = http.createServer((_, res) => {
+        res.writeHead(200, { 'Content-Type': 'text/plain' })
+        res.end('OK')
+      })
+      await new Promise((resolve, reject) => {
+        // This code catches EADDRINUSE error if the port is already in use
+        app.on('error', reject)
+        app.on('listening', () => resolve())
+        app.listen(port)
+      })
+      let stdout = '',
+        stderr = ''
+      await launchApp(dir, port, {
+        stdout: true,
+        stderr: true,
+        onStdout(msg) {
+          stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+      await new Promise((resolve) => app.close(resolve))
+      expect(stderr).toMatch('already in use')
+      expect(stdout).not.toMatch('ready')
+      expect(stdout).not.toMatch('started')
+      expect(stdout).not.toMatch(`${port}`)
+      expect(stdout).toBeFalsy()
+    })
+
     test('--hostname', async () => {
       const port = await findPort()
       const output = await runNextCommandDev(
@@ -175,6 +218,44 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('too old of react version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirOldReact, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).toMatch(
+        'Fast Refresh is disabled in your application due to an outdated `react` version'
+      )
+      expect(stderr).not.toMatch(`react-dom`)
+
+      await killApp(instance)
+    })
+
+    test('too old of react-dom version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirOldReactDom, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).toMatch(
+        'Fast Refresh is disabled in your application due to an outdated `react-dom` version'
+      )
+      expect(stderr).not.toMatch('`react`')
+
+      await killApp(instance)
     })
   })
 

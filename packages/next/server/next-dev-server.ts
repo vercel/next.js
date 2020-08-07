@@ -507,24 +507,38 @@ export default class DevServer extends Server {
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
-    hasStaticFallback: boolean
+    fallbackMode: false | 'static' | 'blocking'
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
+      const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
         pathname,
-        !this.renderOpts.dev && this._isLikeServerless
+        !this.renderOpts.dev && this._isLikeServerless,
+        {
+          publicRuntimeConfig,
+          serverRuntimeConfig,
+        }
       )
       return paths
     }
-    const { paths: staticPaths, fallback: hasStaticFallback } = (
+    const { paths: staticPaths, fallback } = (
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
     ).value
 
-    return { staticPaths, hasStaticFallback }
+    return {
+      staticPaths,
+      fallbackMode:
+        fallback === 'unstable_blocking'
+          ? 'blocking'
+          : fallback === true
+          ? 'static'
+          : false,
+    }
   }
 
   protected async ensureApiPage(pathname: string) {
