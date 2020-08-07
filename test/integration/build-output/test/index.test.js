@@ -26,7 +26,7 @@ describe('Build Output', () => {
 
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
@@ -98,13 +98,13 @@ describe('Build Output', () => {
       expect(parseFloat(indexFirstLoad) - 60).toBeLessThanOrEqual(0)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404Size) - 3.4).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404Size) - 3.6).toBeLessThanOrEqual(0)
       expect(err404Size.endsWith('kB')).toBe(true)
 
       expect(parseFloat(err404FirstLoad) - 63).toBeLessThanOrEqual(0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll) - 59).toBeLessThanOrEqual(0)
+      expect(parseFloat(sharedByAll) - 59.4).toBeLessThanOrEqual(0)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
@@ -149,7 +149,7 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\/_app [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
@@ -177,7 +177,7 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/amp .* AMP/)
       expect(stdout).toMatch(/\/hybrid [ 0-9.]* B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
@@ -203,7 +203,7 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/λ \/404 [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')

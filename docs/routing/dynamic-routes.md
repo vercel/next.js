@@ -83,13 +83,13 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 { "slug": ["a", "b"] }
 ```
 
-> A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
-
 ### Optional catch all routes
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
 For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
+
+The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/post` in the example above).
 
 The `query` objects are as follows:
 
@@ -99,6 +99,8 @@ The `query` objects are as follows:
 { "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
 ```
 
+> A good example of optional catch all routes is the Next.js docs, a single page called [pages/docs/[[...slug]].js](https://github.com/vercel/next-site/blob/master/pages/docs/%5B%5B...slug%5D%5D.js) takes care of all the docs you're currently looking at.
+
 ## Caveats
 
 - Predefined routes take precedence over dynamic routes, and dynamic routes over catch all routes. Take a look at the following examples:
@@ -106,5 +108,6 @@ The `query` objects are as follows:
   - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
   - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
+- When routing to a dynamic route using `Link` or `router`, you will need to specify the `href` as the dynamic route, for example `/post/[pid]` and `as` as the decorator for the URL, for example `/post/abc`.
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.

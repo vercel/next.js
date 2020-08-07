@@ -10,7 +10,8 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  waitFor,
+  check,
+  initNextServerScript,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -18,6 +19,7 @@ jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
+let stderr
 const appDir = join(__dirname, '../')
 
 const DUMMY_PAGE = 'export default () => null'
@@ -187,9 +189,10 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/index.js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'You cannot define a route with the same specificity as a optional catch-all route'
+      await buildFn(appDir)
+      await check(
+        () => stderr,
+        /You cannot define a route with the same specificity as a optional catch-all route/
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -200,9 +203,10 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/nested.js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'You cannot define a route with the same specificity as a optional catch-all route'
+      await buildFn(appDir)
+      await check(
+        () => stderr,
+        /You cannot define a route with the same specificity as a optional catch-all route/
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -213,8 +217,8 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/nested/[...param].js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(/You cannot use both .+ at the same level/)
+      await buildFn(appDir)
+      await check(() => stderr, /You cannot use both .+ at the same level/)
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -224,9 +228,10 @@ function runInvalidPagesTests(buildFn) {
     const invalidRoute = appDir + 'pages/invalid/[[param]].js'
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
-      const { stderr } = await buildFn(appDir)
-      await expect(stderr).toMatch(
-        'Optional route parameters are not yet supported'
+      await buildFn(appDir)
+      await check(
+        () => stderr,
+        /Optional route parameters are not yet supported/
       )
     } finally {
       await fs.unlink(invalidRoute)
@@ -245,14 +250,12 @@ describe('Dynamic Optional Routing', () => {
     runTests()
 
     runInvalidPagesTests(async (appDir) => {
-      let stderr = ''
+      stderr = ''
       await launchApp(appDir, await findPort(), {
         onStderr: (msg) => {
           stderr += msg
         },
       })
-      await waitFor(1000)
-      return { stderr }
     })
   })
 
@@ -272,9 +275,9 @@ describe('Dynamic Optional Routing', () => {
 
     runTests()
 
-    runInvalidPagesTests(async (appDir) =>
-      nextBuild(appDir, [], { stderr: true })
-    )
+    runInvalidPagesTests(async (appDir) => {
+      ;({ stderr } = await nextBuild(appDir, [], { stderr: true }))
+    })
 
     it('should fail to build when param is not explicitly defined', async () => {
       const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
@@ -320,7 +323,7 @@ describe('Dynamic Optional Routing', () => {
       origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless' }`
+        `module.exports = { target: 'experimental-serverless-trace' }`
       )
 
       await nextBuild(appDir)
@@ -333,5 +336,112 @@ describe('Dynamic Optional Routing', () => {
       await killApp(app)
     })
     runTests()
+  })
+
+  describe('raw serverless mode', () => {
+    let origNextConfig
+
+    beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { target: 'experimental-serverless-trace' }`
+      )
+
+      await nextBuild(appDir)
+
+      appPort = await findPort()
+      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
+        ...process.env,
+        PORT: appPort,
+      })
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
+
+    const render = (path, query) => {
+      return fetchViaHTTP(appPort, path, query, {
+        headers: {
+          // force relying on query values
+          'x-vercel-id': 'hi',
+        },
+      }).then((res) => res.text())
+    }
+
+    it('should render normal (non-dynamic) page', async () => {
+      const html = await render('/about')
+      const $ = cheerio.load(html)
+      expect($('#content').text()).toBe('about')
+    })
+
+    it('should render top level optional catch-all root', async () => {
+      const html = await render('/', { optionalName: '' })
+      const $ = cheerio.load(html)
+      expect($('#route').text()).toBe('top level route param: undefined')
+      expect($('#keys').text()).toBe('[]')
+      expect($('#asPath').text()).toBe('/')
+    })
+
+    it('should render top level optional catch-all one level', async () => {
+      const html = await render('/hello', { optionalName: 'hello' })
+      const $ = cheerio.load(html)
+      expect($('#route').text()).toBe('top level route param: [hello]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/hello')
+    })
+
+    it('should render top level optional catch-all two levels', async () => {
+      const html = await render('/hello/world', { optionalName: 'hello/world' })
+      const $ = cheerio.load(html)
+      expect($('#route').text()).toBe('top level route param: [hello|world]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/hello/world')
+    })
+
+    it('should render nested optional catch-all root', async () => {
+      const html = await render('/nested', { optionalName: '' })
+      const $ = cheerio.load(html)
+      expect($('#route').text()).toBe('nested route param: undefined')
+      expect($('#keys').text()).toBe('[]')
+      expect($('#asPath').text()).toBe('/nested')
+    })
+
+    it('should render nested optional catch-all one level', async () => {
+      const html = await render('/nested/hello', { optionalName: 'hello' })
+      const $ = cheerio.load(html)
+      expect($('#route').text()).toBe('nested route param: [hello]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/nested/hello')
+    })
+
+    it('should render nested optional catch-all two levels', async () => {
+      const html = await render('/nested/hello/world', {
+        optionalName: 'hello/world',
+      })
+      const $ = cheerio.load(html)
+      expect($('#route').text()).toBe('nested route param: [hello|world]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/nested/hello/world')
+    })
+
+    it('should render optional catch-all api root', async () => {
+      const text = await render('/api/post', { slug: '' })
+      const data = JSON.parse(text)
+      expect(data).toEqual({})
+    })
+
+    it('should render optional catch-all api root one level', async () => {
+      const text = await render('/api/post/hello', { slug: 'hello' })
+      const data = JSON.parse(text)
+      expect(data).toEqual({ slug: ['hello'] })
+    })
+
+    it('should render optional catch-all api root two levels', async () => {
+      const text = await render('/api/post/hello', { slug: 'hello/world' })
+      const data = JSON.parse(text)
+      expect(data).toEqual({ slug: ['hello', 'world'] })
+    })
   })
 })
