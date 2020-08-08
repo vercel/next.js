@@ -1,0 +1,21 @@
+{
+  "name": "example",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": "true",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "postbuild": "next-sitemap"
+  },
+  "dependencies": {
+    "next": "^9.5.1",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "@types/react": "^16.9.44",
+    "next-sitemap": "*"
+  }
+}
