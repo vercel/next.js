@@ -18,13 +18,5 @@ const HomePage = () => {
 // getServerSideProps is necessary for useLng and t to work properly
 export { getServerSideProps }
 
-// Uncomment if you need getInitialProps
-// getInitialProps is also supported, it is automatically handled by next-lng
-// HomePage.getInitialProps = async () => {
-//   return {
-//     something: true,
-//   }
-// }
-
 // withLng provides the React Context so we can use useLng() lower in the hierarchy
 export default withLng(HomePage)
