@@ -1,6 +1,6 @@
 # next-sitemap example
 
-Sitemap generator for next.js. `next-sitemap` will generate a sitemap file for all pages (including all pre-rendered/static pages).
+Sitemap generator for next.js. `next-sitemap` will generate a sitemap file for all pages (including all pre-rendered/static pages). [Documentation](https://github.com/iamvishnusankar/next-sitemap)
 
 ## Deploy your own
 
