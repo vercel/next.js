@@ -3,7 +3,7 @@
 Next.js was conceived to make it easy to create universal apps. That's why fetching data
 on the server and the client when necessary is so easy with Next.
 
-Using `getStaticProps` fetches data at built time from a page, Next.js will pre-render this page at build time.
+Using `getStaticProps` fetches data at build time from a page, Next.js will pre-render this page at build time.
 
 ## Deploy your own
 
