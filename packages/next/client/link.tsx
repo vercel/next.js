@@ -104,6 +104,7 @@ function isNewTabRequest(event: React.MouseEvent) {
     event.metaKey ||
     event.ctrlKey ||
     event.shiftKey ||
+    event.altKey ||
     (event.nativeEvent && event.nativeEvent.which === 2)
   )
 }
