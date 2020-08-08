@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
-  "private": "true",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -15,7 +15,7 @@
     "react-dom": "^16.13.1"
   },
   "devDependencies": {
-    "@types/react": "^16.9.44",
+    "@types/react": "^16.9.45",
     "next-sitemap": "*"
   }
 }

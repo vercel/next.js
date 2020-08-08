@@ -12,8 +12,8 @@ const DynamicPage: React.FC = () => {
 export const getStaticProps: GetStaticProps = async () => {
   return {
     props: {
-      dynamic: 'hello'
-    }
+      dynamic: 'hello',
+    },
   }
 }
 
@@ -21,10 +21,10 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return {
     paths: [...Array(10000)].map((_, index) => ({
       params: {
-        dynamic: `page-${index}`
-      }
+        dynamic: `page-${index}`,
+      },
     })),
-    fallback: false
+    fallback: false,
   }
 }
 
