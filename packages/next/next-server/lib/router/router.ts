@@ -23,8 +23,8 @@ import {
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 import pathMatch from '../../server/lib/path-match'
-import { Rewrite } from '../../../lib/load-custom-routes'
 import prepareDestination from './utils/prepare-destination'
+import { denormalizePagePath } from '../../server/normalize-page-path'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -238,7 +238,7 @@ export default class Router implements BaseRouter {
   isFallback: boolean
   _inFlightRoute?: string
   _routesManifest: Promise<{
-    rewrites: Rewrite[]
+    rewrites: import('../../../lib/load-custom-routes').Rewrite[]
   }>
 
   static events: MittEmitter = mitt()
@@ -884,14 +884,20 @@ export default class Router implements BaseRouter {
 
   _resolveHref(parsedHref: UrlObject, pages: string[]) {
     const { pathname } = parsedHref
-    // handle resolving href for dynamic routes
-    if (!pages.includes(pathname!)) {
-      for (let page of pages) {
-        page = addBasePath(page)
+    const cleanPathname = denormalizePagePath(delBasePath(pathname!))
 
-        if (isDynamicRoute(page) && getRouteRegex(page).re.test(pathname!)) {
-          console.log('resolved href to', page)
-          parsedHref.pathname = page
+    if (cleanPathname === '/404' || cleanPathname === '/_error') {
+      return parsedHref
+    }
+
+    // handle resolving href for dynamic routes
+    if (!pages.includes(cleanPathname!)) {
+      for (let page of pages) {
+        if (
+          isDynamicRoute(page) &&
+          getRouteRegex(page).re.test(cleanPathname!)
+        ) {
+          parsedHref.pathname = addBasePath(page)
           break
         }
       }
@@ -922,7 +928,6 @@ export default class Router implements BaseRouter {
       parsed = this._resolveHref(parsed, pages) as typeof parsed
       pathname = parsed.pathname
       url = formatWithValidation(parsed)
-      console.log('prefetching', { pathname, url })
     }
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
