@@ -1027,6 +1027,13 @@ describe('basePath development', () => {
       })
     })
   })
+
+  it('should respect basePath in amphtml link rel', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/amp-hybrid')
+    const $ = cheerio.load(html)
+    const expectedAmpHtmlUrl = '/docs/amp-hybrid?amp=1'
+    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
+  })
 })
 
 describe('basePath production', () => {
@@ -1053,6 +1060,13 @@ describe('basePath production', () => {
   afterAll(() => stopApp(server))
 
   runTests(context)
+
+  it('should respect basePath in amphtml link rel', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/amp-hybrid')
+    const $ = cheerio.load(html)
+    const expectedAmpHtmlUrl = '/docs/amp-hybrid.amp'
+    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
+  })
 })
 
 describe('basePath serverless', () => {

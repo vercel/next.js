@@ -199,6 +199,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (result.assetPrefix === '') {
           result.assetPrefix = result.basePath
         }
+
+        if (result.amp.canonicalBase === '') {
+          result.amp.canonicalBase = result.basePath
+        }
       }
     }
   }
