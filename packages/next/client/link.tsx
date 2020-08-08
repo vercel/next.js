@@ -104,7 +104,7 @@ function isModifiedEvent(event: React.MouseEvent) {
     event.metaKey ||
     event.ctrlKey ||
     event.shiftKey ||
-    event.altKey ||
+    event.altKey || // triggers resource download
     (event.nativeEvent && event.nativeEvent.which === 2)
   )
 }
