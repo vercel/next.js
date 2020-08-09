@@ -5,7 +5,7 @@ function Home() {
 
 export const config = {
   foo: 'bar',
-  amp: 'hybrid',
+  amp: "hybrid"
 }
 
-export default Home
+export default Home;

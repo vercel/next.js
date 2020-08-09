@@ -1,7 +1,7 @@
-import { withRouter } from 'next/router'
+import { withRouter } from "next/router";
 class Plan extends React.Component {
   render() {
-    const { router } = this.props
+    const { router} = this.props
 
     return (
       <Page>
@@ -20,8 +20,8 @@ class Plan extends React.Component {
           url={router}
         />
       </Page>
-    )
+    );
   }
 }
 
-export default withRouter(withAppContainer(withAuthRequired(Plan, 'signup')))
+export default withRouter(withAppContainer(withAuthRequired(Plan, 'signup')));

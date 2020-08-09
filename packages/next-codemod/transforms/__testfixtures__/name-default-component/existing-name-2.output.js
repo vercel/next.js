@@ -1,13 +1,13 @@
 class ExistingName2Input {
-  render() {}
+	render() {}
 }
 
 class nested {
-  render() {
-    const ExistingName2InputComponent = null
-  }
+	render() {
+		const ExistingName2InputComponent = null;
+	}
 }
 
-const ExistingName2InputComponent = () => <div>Anonymous function</div>
+const ExistingName2InputComponent = () => <div>Anonymous function</div>;
 
-export default ExistingName2InputComponent
+export default ExistingName2InputComponent;

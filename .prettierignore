@@ -9,3 +9,5 @@ packages/react-dev-overlay/lib/**
 **/__tmp__/**
 lerna.json
 .github/actions/next-stats-action/.work
+packages/next-codemod/transforms/__testfixtures__/**/*
+packages/next-codemod/transforms/__tests__/**/*

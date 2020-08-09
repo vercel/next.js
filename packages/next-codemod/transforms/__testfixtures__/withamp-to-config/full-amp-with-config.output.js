@@ -1,4 +1,4 @@
-import { useAmp } from 'next/amp'
+import { useAmp } from 'next/amp';
 
 function Home() {
   const config = {}
@@ -7,7 +7,7 @@ function Home() {
 
 export const config = {
   foo: 'bar',
-  amp: true,
+  amp: true
 }
 
-export default Home
+export default Home;

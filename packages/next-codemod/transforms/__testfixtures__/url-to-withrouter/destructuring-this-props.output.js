@@ -1,7 +1,9 @@
-import { withRouter } from 'next/router'
+import { withRouter } from "next/router";
 class AddonsPage extends React.Component {
   render() {
-    const { router } = this.props
+    const {
+      router
+    } = this.props
     return (
       <Page>
         <Header
@@ -18,10 +20,8 @@ class AddonsPage extends React.Component {
           url={router}
         />
       </Page>
-    )
+    );
   }
 }
 
-export default withRouter(
-  withAppContainer(withAuthRequired(withError(AddonsPage)))
-)
+export default withRouter(withAppContainer(withAuthRequired(withError(AddonsPage))));

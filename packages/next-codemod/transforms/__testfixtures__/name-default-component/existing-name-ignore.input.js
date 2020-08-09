@@ -1,4 +1,4 @@
-const ExistingNameIgnoreInput = null
-const ExistingNameIgnoreInputComponent = null
+const ExistingNameIgnoreInput = null;
+const ExistingNameIgnoreInputComponent = null;
 
-export default () => <div>Anonymous function</div>
+export default () => <div>Anonymous function</div>;

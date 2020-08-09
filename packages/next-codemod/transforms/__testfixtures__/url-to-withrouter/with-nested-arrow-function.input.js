@@ -5,17 +5,17 @@ export default withAppContainer(
         const { props, state } = this
 
         return (
-          <Header
-            inverse={true}
-            user={props.user}
-            pathname={props.url.pathname}
-            onLogout={() => {
-              props.onUser(null)
-              props.url.push('/login')
-            }}
-            onLogoRightClick={() => props.url.push('/logos')}
-          />
-        )
+            <Header
+              inverse={true}
+              user={props.user}
+              pathname={props.url.pathname}
+              onLogout={() => {
+                props.onUser(null)
+                props.url.push('/login')
+              }}
+              onLogoRightClick={() => props.url.push('/logos')}
+            />
+    	)
       }
     }
   )
