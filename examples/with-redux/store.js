@@ -41,7 +41,7 @@ const reducer = (state = initialState, action) => {
 function initStore(preloadedState = initialState) {
   return createStore(
     reducer,
-    preloadedState,
+    { ...initialState, ...preloadedState },
     composeWithDevTools(applyMiddleware())
   )
 }
@@ -53,8 +53,8 @@ export const initializeStore = (preloadedState) => {
   // with the current state in the store, and create a new store
   if (preloadedState && store) {
     _store = initStore({
-      ...store.getState(),
       ...preloadedState,
+      ...store.getState(),
     })
     // Reset the current store
     store = undefined
