@@ -13,7 +13,7 @@
     "testsafari": "cross-env BROWSER_NAME=safari yarn testonly",
     "testfirefox": "cross-env BROWSER_NAME=firefox yarn testonly",
     "testie": "cross-env BROWSER_NAME=\"internet explorer\" yarn testonly",
-    "testall": "yarn run testonly -- --ci --forceExit",
+    "testall": "yarn run testonly -- --ci --forceExit && lerna run --scope @next/codemod test",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "pretest": "yarn run lint",
     "git-reset": "git reset --hard HEAD",
