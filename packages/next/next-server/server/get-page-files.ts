@@ -1,5 +1,4 @@
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
-import { Rewrite } from '../../lib/load-custom-routes'
 
 export type BuildManifest = {
   devFiles: string[]
@@ -11,7 +10,6 @@ export type BuildManifest = {
     [page: string]: string[]
   }
   ampFirstPages: string[]
-  rewrites: Rewrite[]
 }
 
 export function getPageFiles(

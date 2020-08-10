@@ -24,10 +24,11 @@ const isWebpack5 = parseInt(webpack.version!) === 5
 // reduced version to send to the client.
 function generateClientManifest(
   assetMap: BuildManifest,
-  isModern: boolean
+  isModern: boolean,
+  rewrites: Rewrite[]
 ): string {
   const clientManifest: { [s: string]: string[] | Rewrite[] } = {
-    __rewrites: assetMap.rewrites,
+    __rewrites: rewrites,
   }
   const appDependencies = new Set(assetMap.pages['/_app'])
 
@@ -117,7 +118,6 @@ export default class BuildManifestPlugin {
       lowPriorityFiles: [],
       pages: { '/_app': [] },
       ampFirstPages: [],
-      rewrites: this.rewrites,
     }
 
     const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
@@ -222,7 +222,8 @@ export default class BuildManifestPlugin {
     assets[clientManifestPath] = new RawSource(
       `self.__BUILD_MANIFEST = ${generateClientManifest(
         assetMap,
-        false
+        false,
+        this.rewrites
       )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     )
 
@@ -232,7 +233,8 @@ export default class BuildManifestPlugin {
       assets[modernClientManifestPath] = new RawSource(
         `self.__BUILD_MANIFEST = ${generateClientManifest(
           assetMap,
-          true
+          true,
+          this.rewrites
         )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
       )
     }

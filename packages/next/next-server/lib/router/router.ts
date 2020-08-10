@@ -510,8 +510,9 @@ export default class Router implements BaseRouter {
 
     let { pathname, searchParams } = parsed
 
-    if (!pages.includes(pathname)) {
-      parsed = this._resolveHref(parsed, pages) as typeof parsed
+    parsed = this._resolveHref(parsed, pages) as typeof parsed
+
+    if (parsed.pathname !== pathname) {
       pathname = parsed.pathname
       url = formatWithValidation(parsed)
     }
@@ -888,8 +889,9 @@ export default class Router implements BaseRouter {
 
     const pages = await this.pageLoader.getPageList()
 
-    if (!pages.includes(pathname)) {
-      parsed = this._resolveHref(parsed, pages) as typeof parsed
+    parsed = this._resolveHref(parsed, pages) as typeof parsed
+
+    if (parsed.pathname !== pathname) {
       pathname = parsed.pathname
       url = formatWithValidation(parsed)
     }
