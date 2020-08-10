@@ -39,6 +39,7 @@ const externals = {
 
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
+  'caniuse-lite': 'caniuse-lite',
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
