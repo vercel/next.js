@@ -13,6 +13,10 @@ import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
+import {
+  isDynamicRoute,
+  getSortedRoutes,
+} from '../../../next-server/lib/router/utils'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
@@ -27,7 +31,23 @@ function generateClientManifest(
   }
   const appDependencies = new Set(assetMap.pages['/_app'])
 
-  Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
+  const pageKeys = Object.keys(assetMap.pages)
+  const dynamicPages: string[] = []
+
+  const sortedRoutes = [
+    ...pageKeys.filter((page) => {
+      if (isDynamicRoute(page)) {
+        dynamicPages.push(page)
+        return false
+      }
+      return true
+    }),
+    ...getSortedRoutes(dynamicPages),
+  ]
+
+  sortedRoutes.forEach((page) => {
+    const dependencies = assetMap.pages[page]
+
     if (page === '/_app') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event

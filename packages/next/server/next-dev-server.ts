@@ -216,20 +216,6 @@ export default class DevServer extends Server {
           `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
         )
 
-        // we write a separate manifest with all pages for the client in
-        // dev mode so that we can match a page after a rewrite on the client
-        // before it has been built and is populated in the _buildManifest
-        fs.promises
-          .writeFile(
-            clientRoutesManifestPath,
-            JSON.stringify({
-              pages: routedPages,
-            })
-          )
-          .catch((err) =>
-            console.error('Failed to update dev client pages manifest', err)
-          )
-
         try {
           this.dynamicRoutes = getSortedRoutes(routedPages)
             .filter(isDynamicRoute)
@@ -237,6 +223,23 @@ export default class DevServer extends Server {
               page,
               match: getRouteMatcher(getRouteRegex(page)),
             }))
+
+          // we write a separate manifest with all pages for the client in
+          // dev mode so that we can match a page after a rewrite on the client
+          // before it has been built and is populated in the _buildManifest
+          fs.promises
+            .writeFile(
+              clientRoutesManifestPath,
+              JSON.stringify({
+                pages: [
+                  ...routedPages.filter((page) => !isDynamicRoute(page)),
+                  ...this.dynamicRoutes.map((r) => r.page),
+                ],
+              })
+            )
+            .catch((err) =>
+              console.error('Failed to update dev client pages manifest', err)
+            )
 
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
