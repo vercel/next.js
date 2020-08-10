@@ -35,7 +35,7 @@ function checkGitStatus(force) {
     if (force) {
       console.log(`WARNING: ${errorMessage}. Forcibly continuing.`)
     } else {
-      console.log('Thank you for using react-codemods!')
+      console.log('Thank you for using @next/codemod!')
       console.log(
         chalk.yellow(
           '\nBut before we continue, please stash or commit your git changes.'
@@ -121,12 +121,12 @@ function expandFilePathsIfNeeded(filesBeforeExpansion) {
 function run() {
   const cli = meow(
     {
-      description: 'Codemods for updating React APIs.',
+      description: 'Codemods for updating Next.js apps.',
       help: `
     Usage
-      $ npx @next/codeod <transform> <path> <...options>
-        transform    One of the choices from https://github.com/reactjs/react-codemod 
-        path         Files or directory to transform. Can be a glob like src/**.test.js
+      $ npx @next/codemod <transform> <path> <...options>
+        transform    One of the choices from https://github.com/vercel/next.js/tree/canary/packages/next-codemod
+        path         Files or directory to transform. Can be a glob like pages/**.js
     Options
       --force            Bypass Git safety checks and forcibly run codemods
       --dry              Dry run (no changes are made to files)
