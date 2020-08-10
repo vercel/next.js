@@ -89,7 +89,7 @@
     "chokidar": "2.1.8",
     "crypto-browserify": "3.12.0",
     "css-loader": "3.5.3",
-    "cssnano-simple": "1.0.6",
+    "cssnano-simple": "1.0.7",
     "find-cache-dir": "3.3.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
