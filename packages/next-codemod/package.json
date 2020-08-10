@@ -3,11 +3,18 @@
   "version": "9.5.2-canary.11",
   "license": "MIT",
   "dependencies": {
-    "jscodeshift": "^0.6.4"
+    "chalk": "4.1.0",
+    "execa": "4.0.3",
+    "globby": "11.0.1",
+    "inquirer": "7.3.3",
+    "is-git-clean": "1.1.0",
+    "jscodeshift": "^0.6.4",
+    "meow": "7.0.1"
   },
   "scripts": {
     "prepublish": "tsc -d -p tsconfig.json",
     "build": "tsc -d -w -p tsconfig.json",
     "test": "jest"
-  }
+  },
+  "bin": "./bin/next-codemod.js"
 }
