@@ -43,6 +43,7 @@ export default function I18n({ children, locale, lngDict }) {
     if (locale) {
       i18nWrapper.locale(locale, lngDict)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lngDict, locale])
 
   return (
