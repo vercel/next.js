@@ -336,7 +336,7 @@ export default async function build(
     JSON.stringify(routesManifest),
     'utf8'
   )
-  const hasRewrites = rewrites.length > 1
+  const hasRewrites = rewrites.length > 0
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {

@@ -547,8 +547,11 @@ export default class Router implements BaseRouter {
 
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
-    let resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+    let resolvedAs = as
 
+    if (process.env.__NEXT_HAS_REWRITES) {
+      resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+    }
     resolvedAs = delBasePath(resolvedAs)
 
     if (isDynamicRoute(route)) {
