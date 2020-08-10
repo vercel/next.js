@@ -18,13 +18,12 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import { parseRelativeUrl } from './utils/parse-relative-url'
+import { denormalizePagePath } from '../../server/denormalize-page-path'
+import resolveRewrites from './utils/resolve-rewrites'
 import {
   removePathTrailingSlash,
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import pathMatch from '../../server/lib/path-match'
-import prepareDestination from './utils/prepare-destination'
-import { denormalizePagePath } from '../../server/denormalize-page-path'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -38,7 +37,6 @@ interface NextHistoryState {
 
 type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
 
-const customRouteMatcher = pathMatch(true)
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
@@ -549,36 +547,7 @@ export default class Router implements BaseRouter {
 
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
-    let resolvedAs = as
-
-    if (!pages.includes(resolvedAs)) {
-      for (const rewrite of rewrites) {
-        const matcher = customRouteMatcher(rewrite.source)
-        const params = matcher(resolvedAs)
-
-        if (params) {
-          if (!rewrite.destination) {
-            // this is a proxied rewrite which isn't handled on the client
-            break
-          }
-          const destRes = prepareDestination(
-            rewrite.destination,
-            params,
-            query,
-            true,
-            rewrite.basePath === false ? '' : this.basePath
-          )
-          resolvedAs = destRes.parsedDestination.pathname!
-          Object.assign(query, destRes.parsedDestination.query)
-
-          if (pages.includes(resolvedAs)) {
-            // check if we now match a page as this means we are done
-            // resolving the rewrites
-            break
-          }
-        }
-      }
-    }
+    let resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
 
     resolvedAs = delBasePath(resolvedAs)
 

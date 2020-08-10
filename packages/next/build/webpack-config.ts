@@ -190,6 +190,7 @@ export default async function getBaseWebpackConfig(
     target = 'server',
     reactProductionProfiling = false,
     entrypoints,
+    hasRewrites = true,
   }: {
     buildId: string
     config: any
@@ -200,6 +201,7 @@ export default async function getBaseWebpackConfig(
     tracer?: any
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
+    hasRewrites?: boolean
   }
 ): Promise<webpack.Configuration> {
   const productionBrowserSourceMaps =
@@ -326,6 +328,10 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  const clientResolveRewrites = require.resolve(
+    'next/dist/next-server/lib/router/utils/resolve-rewrites'
+  )
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
@@ -361,6 +367,9 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
       ...getReactProfilingInProduction(),
+      [clientResolveRewrites]: hasRewrites
+        ? clientResolveRewrites
+        : 'next/dist/client/dev/noop.js',
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: isWebpack5
@@ -929,6 +938,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.scrollRestoration
         ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
+        'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

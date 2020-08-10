@@ -336,6 +336,7 @@ export default async function build(
     JSON.stringify(routesManifest),
     'utf8'
   )
+  const hasRewrites = rewrites.length > 1
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -347,6 +348,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.client,
+      hasRewrites,
     }),
     getBaseWebpackConfig(dir, {
       tracer,
@@ -357,6 +359,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.server,
+      hasRewrites,
     }),
   ])
 
