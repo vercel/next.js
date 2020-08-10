@@ -115,13 +115,16 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
           tag.hasAttribute('data-href') &&
-          OPTIMIZED_FONT_PROVIDERS.some((url) =>
-            tag.getAttribute('data-href').startsWith(url)
-          )
+          OPTIMIZED_FONT_PROVIDERS.some((url) => {
+            const dataHref = tag.getAttribute('data-href')
+            return dataHref ? dataHref.startsWith(url) : false
+          })
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')
-        this.fontDefinitions.push(url)
+        if (url) {
+          this.fontDefinitions.push(url)
+        }
       })
   }
   mutate = async (
@@ -164,7 +167,15 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
         break
       }
     }
-    _data.preloads.images = eligibleImages.map((el) => el.getAttribute('src'))
+
+    _data.preloads.images = []
+
+    for (const imgEl of eligibleImages) {
+      const src = imgEl.getAttribute('src')
+      if (src) {
+        _data.preloads.images.push(src)
+      }
+    }
   }
   mutate = async (markup: string, _data: postProcessData) => {
     let result = markup
@@ -203,9 +214,14 @@ function imageIsNotTooSmall(imgElement: HTMLElement): boolean {
     return true
   }
   try {
+    const heightAttr = imgElement.getAttribute('height')
+    const widthAttr = imgElement.getAttribute('width')
+    if (!heightAttr || !widthAttr) {
+      return true
+    }
+
     if (
-      parseInt(imgElement.getAttribute('height')) *
-        parseInt(imgElement.getAttribute('width')) <=
+      parseInt(heightAttr) * parseInt(widthAttr) <=
       IMAGE_PRELOAD_SIZE_THRESHOLD
     ) {
       return false

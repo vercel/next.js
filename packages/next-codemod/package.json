@@ -1,0 +1,13 @@
+{
+  "name": "@next/codemod",
+  "version": "1.1.0",
+  "license": "MIT",
+  "dependencies": {
+    "jscodeshift": "^0.6.4"
+  },
+  "scripts": {
+    "prepublish": "tsc -d -p tsconfig.json",
+    "build": "tsc -d -w -p tsconfig.json",
+    "test": "jest"
+  }
+}
