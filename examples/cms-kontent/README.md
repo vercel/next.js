@@ -35,9 +35,9 @@ Once you have access to [the environment variables you'll need](#step-4-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example blog-kontent blog-kontent-app
+npx create-next-app --example blog-kontent cms-kontent-app
 # or
-yarn create next-app --example blog-kontent blog-kontent-app
+yarn create next-app --example blog-kontent cms-kontent-app
 ```
 
 ### Download manually
@@ -46,7 +46,7 @@ Download the example:
 
 ```bash
 curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-kontent
-cd cms-starter
+cd cms-kontent
 ```
 
 ## Configuration
@@ -160,7 +160,7 @@ npm run dev
 
 # or
 
-yarn install
+yarn
 yarn dev
 ```
 
