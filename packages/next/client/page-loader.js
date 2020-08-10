@@ -1,12 +1,12 @@
 import mitt from '../next-server/lib/mitt'
-import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
-import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
-import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
-import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/querystring'
-import { parseRelativeUrl } from './../next-server/lib/router/utils/parse-relative-url'
+import { addBasePath, markLoadingError } from '../next-server/lib/router/router'
 import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
-import { addBasePath } from '../next-server/lib/router/router'
+import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
+import { parseRelativeUrl } from './../next-server/lib/router/utils/parse-relative-url'
+import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/querystring'
+import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
+import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
 
 function hasRel(rel, link) {
   try {
@@ -16,9 +16,7 @@ function hasRel(rel, link) {
 }
 
 function pageLoadError(route) {
-  const error = new Error(`Error loading ${route}`)
-  error.code = 'PAGE_LOAD_ERROR'
-  return error
+  return markLoadingError(new Error(`Error loading ${route}`))
 }
 
 const relPrefetch =

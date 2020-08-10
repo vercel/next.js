@@ -10,6 +10,16 @@ module.exports = {
         destination: '/:lang/about',
         permanent: false,
       },
+      {
+        source: '/nonexistent',
+        destination: '/about',
+        permanent: false,
+      },
+      {
+        source: '/shadowed-page',
+        destination: '/about',
+        permanent: false,
+      },
     ]
   },
 }
