@@ -26,7 +26,7 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
   </ul>
 </details>
 
-In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we’ll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven’t done so.
+In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we’ll talk in depth about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven’t done so.
 
 We’ll talk about the three unique Next.js functions you can use to fetch data for pre-rendering:
 
@@ -104,7 +104,7 @@ export default Blog
 You should use `getStaticProps` if:
 
 - The data required to render the page is available at build time ahead of a user’s request.
-- The data comes from headless CMS.
+- The data comes from a headless CMS.
 - The data can be publicly cached (not user-specific).
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
 
@@ -159,7 +159,7 @@ export default Blog
   </ul>
 </details>
 
-With [`getStaticProps`](#getstaticprops-static-generation) you don't have to stop relying in dynamic content, as **static content can also be dynamic**. Incremental Static Regeneration allows you to update _existing_ pages by re-rendering them in the background as traffic comes in.
+With [`getStaticProps`](#getstaticprops-static-generation) you don't have to stop relying on dynamic content, as **static content can also be dynamic**. Incremental Static Regeneration allows you to update _existing_ pages by re-rendering them in the background as traffic comes in.
 
 Inspired by [stale-while-revalidate](https://tools.ietf.org/html/rfc5861), background regeneration ensures traffic is served uninterruptedly, always from static storage, and the newly built page is pushed only after it's done generating.
 
@@ -341,7 +341,7 @@ Note that the value for each `params` must match the parameters used in the page
 
 - If the page name is `pages/posts/[postId]/[commentId]`, then `params` should contain `postId` and `commentId`.
 - If the page name uses catch-all routes, for example `pages/[...slug]`, then `params` should contain `slug` which is an array. For example, if this array is `['foo', 'bar']`, then Next.js will statically generate the page at `/foo/bar`.
-- If the page uses an optional catch-all route, supply `null`, `[]`, `undefined` or `false` to render the rootmost route. For example, if you supply `slug: false` for `pages/[[...slug]]`, Next.js will statically generate the page `/`.
+- If the page uses an optional catch-all route, supply `null`, `[]`, `undefined` or `false` to render the root-most route. For example, if you supply `slug: false` for `pages/[[...slug]]`, Next.js will statically generate the page `/`.
 
 #### The `fallback` key (required)
 
@@ -605,7 +605,7 @@ export default Page
 
 #### Only runs on server-side
 
-`getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps` , then:
+`getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
 - When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
