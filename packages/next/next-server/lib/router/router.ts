@@ -98,6 +98,11 @@ export function resolveHref(currentPath: string, href: Url): string {
   }
 }
 
+const PAGE_LOAD_ERROR = Symbol('PAGE_LOAD_ERROR')
+export function markLoadingError(err: Error): Error {
+  return Object.defineProperty(err, PAGE_LOAD_ERROR, {})
+}
+
 function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
@@ -205,7 +210,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
     if (!isServerRender) {
-      ;(err as any).code = 'PAGE_LOAD_ERROR'
+      markLoadingError(err)
     }
     throw err
   })
@@ -641,7 +646,7 @@ export default class Router implements BaseRouter {
       throw err
     }
 
-    if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+    if (PAGE_LOAD_ERROR in err || loadErrorFail) {
       Router.events.emit('routeChangeError', err, as)
 
       // If we can't load the page it could be one of following reasons
