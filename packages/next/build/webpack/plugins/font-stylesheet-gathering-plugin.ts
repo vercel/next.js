@@ -139,7 +139,6 @@ export class FontStylesheetGatheringPlugin {
           for (let promiseIndex in fontDefinitionPromises) {
             const css = await fontDefinitionPromises[promiseIndex]
             const content = await minifyCss(css)
-            console.log({ content })
             this.manifestContent.push({
               url: this.gatheredStylesheets[promiseIndex],
               content,
