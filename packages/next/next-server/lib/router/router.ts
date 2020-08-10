@@ -572,7 +572,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  changeState(): void {
+  changeState(arg1: any, arg2: any, arg3: any, arg4?: any): void {
     // if (process.env.NODE_ENV !== 'production') {
     //   if (typeof window.history === 'undefined') {
     //     console.error(`Warning: window.history is not available.`)
@@ -600,6 +600,11 @@ export default class Router implements BaseRouter {
     //     as
     //   )
     // }
+    console.log('arg1', arg1)
+    console.log('arg2', arg2)
+    console.log('arg3', arg3)
+    console.log('arg4', arg4)
+
     console.log('This is a noop')
   }
 
