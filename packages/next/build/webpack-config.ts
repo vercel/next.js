@@ -1115,6 +1115,12 @@ export default async function getBaseWebpackConfig(
     productionBrowserSourceMaps,
   })
 
+  if (!webpackConfig) {
+    throw new Error(
+      'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.'
+    )
+  }
+
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
