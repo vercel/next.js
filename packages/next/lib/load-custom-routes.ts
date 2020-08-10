@@ -1,13 +1,8 @@
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
-import devalue from 'next/dist/compiled/devalue'
 import { parse as parseUrl } from 'url'
-import { promises } from 'fs'
-import path from 'path'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
-  CLIENT_STATIC_FILES_PATH,
-  CLIENT_ROUTES_MANIFEST,
 } from '../next-server/lib/constants'
 
 export type Rewrite = {
@@ -421,39 +416,4 @@ export default async function loadCustomRoutes(
     rewrites,
     redirects,
   }
-}
-
-export async function writeClientRoutesManifest(
-  rewrites: Rewrite[],
-  buildId: string,
-  distDir: string
-) {
-  // TODO: should public files be sent in case they match and the
-  // rewrites chain should be broken?
-  const clientRoutesManifest = {
-    rewrites: rewrites.map((r) => {
-      const rewrite = { ...r }
-
-      if (!rewrite.destination.startsWith('/')) {
-        delete rewrite.destination
-      }
-      return rewrite
-    }),
-  }
-  const clientRoutesManifestPath = path.join(
-    distDir,
-    `${CLIENT_STATIC_FILES_PATH}/${buildId}/${CLIENT_ROUTES_MANIFEST}`
-  )
-
-  const clientRoutesManifestContent = `self.__ROUTES_MANIFEST=${devalue(
-    clientRoutesManifest
-  )};self.__ROUTES_MANIFEST_CB&&self.__ROUTES_MANIFEST_CB()`
-
-  await promises.mkdir(path.dirname(clientRoutesManifestPath), {
-    recursive: true,
-  })
-  await promises.writeFile(
-    clientRoutesManifestPath,
-    clientRoutesManifestContent
-  )
 }

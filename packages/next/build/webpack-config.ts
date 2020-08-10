@@ -54,6 +54,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { Rewrite } from '../lib/load-custom-routes'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
@@ -190,7 +191,7 @@ export default async function getBaseWebpackConfig(
     target = 'server',
     reactProductionProfiling = false,
     entrypoints,
-    hasRewrites = true,
+    rewrites,
   }: {
     buildId: string
     config: any
@@ -201,13 +202,15 @@ export default async function getBaseWebpackConfig(
     tracer?: any
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
-    hasRewrites?: boolean
+    rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
   const productionBrowserSourceMaps =
     config.experimental.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
+
+  const hasRewrites = rewrites.length > 0
 
   if (config.experimental.plugins) {
     plugins = await collectPlugins(dir, config.env, config.plugins)
@@ -1020,6 +1023,7 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new BuildManifestPlugin({
           buildId,
+          rewrites,
           modern: config.experimental.modern,
         }),
       tracer &&

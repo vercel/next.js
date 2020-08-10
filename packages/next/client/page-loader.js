@@ -80,17 +80,16 @@ export default class PageLoader {
       this.loadingRoutes[initialPage] = true
     }
 
-    if (process.env.NODE_ENV === 'production') {
-      this.promisedBuildManifest = new Promise((resolve) => {
-        if (window.__BUILD_MANIFEST) {
+    this.promisedBuildManifest = new Promise((resolve) => {
+      if (window.__BUILD_MANIFEST) {
+        resolve(window.__BUILD_MANIFEST)
+      } else {
+        window.__BUILD_MANIFEST_CB = () => {
           resolve(window.__BUILD_MANIFEST)
-        } else {
-          window.__BUILD_MANIFEST_CB = () => {
-            resolve(window.__BUILD_MANIFEST)
-          }
         }
-      })
-    }
+      }
+    })
+
     /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise((resolve) => {
       if (window.__SSG_MANIFEST) {
@@ -109,6 +108,7 @@ export default class PageLoader {
         Object.keys(buildManifest)
       )
     } else {
+      // fetch fresh page list in development
       return fetch(
         `${this.assetPrefix}/_next/static/${this.buildId}/_devPagesManifest.json`
       )

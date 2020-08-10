@@ -235,9 +235,6 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
-  _routesManifest: Promise<{
-    rewrites: import('../../../lib/load-custom-routes').Rewrite[]
-  }>
 
   static events: MittEmitter = mitt()
 
@@ -306,16 +303,6 @@ export default class Router implements BaseRouter {
     this.isSsr = true
 
     this.isFallback = isFallback
-
-    this._routesManifest = new Promise((resolve) => {
-      if ((window as any).__ROUTES_MANIFEST) {
-        resolve((window as any).__ROUTES_MANIFEST)
-      } else {
-        ;(window as any).__ROUTES_MANIFEST_CB = () => {
-          resolve((window as any).__ROUTES_MANIFEST)
-        }
-      }
-    })
 
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
@@ -510,7 +497,7 @@ export default class Router implements BaseRouter {
     }
 
     const pages = await this.pageLoader.getPageList()
-    const { rewrites } = await this._routesManifest
+    const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
 
     let parsed = tryParseRelativeUrl(url)
 

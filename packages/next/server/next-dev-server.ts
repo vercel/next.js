@@ -14,10 +14,7 @@ import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
-import loadCustomRoutes, {
-  CustomRoutes,
-  writeClientRoutesManifest,
-} from '../lib/load-custom-routes'
+import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -284,16 +281,13 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
+      rewrites: this.customRoutes.rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
-
-    // this must come after starting the hot-reloader since it clears
-    // the static folder on start
-    await writeClientRoutesManifest(rewrites, this.buildId, this.distDir)
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(

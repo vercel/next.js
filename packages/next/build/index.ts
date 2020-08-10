@@ -20,8 +20,6 @@ import loadCustomRoutes, {
   normalizeRouteRegex,
   Redirect,
   RouteType,
-  writeClientRoutesManifest,
-  Rewrite,
 } from '../lib/load-custom-routes'
 import { loadEnvConfig } from '../lib/load-env-config'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -336,7 +334,6 @@ export default async function build(
     JSON.stringify(routesManifest),
     'utf8'
   )
-  const hasRewrites = rewrites.length > 0
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -348,7 +345,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.client,
-      hasRewrites,
+      rewrites,
     }),
     getBaseWebpackConfig(dir, {
       tracer,
@@ -359,7 +356,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.server,
-      hasRewrites,
+      rewrites,
     }),
   ])
 
@@ -991,12 +988,6 @@ export default async function build(
       'utf8'
     )
   }
-
-  await writeClientRoutesManifest(
-    (routesManifest.rewrites as any) as Rewrite[],
-    buildId,
-    distDir
-  )
 
   await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),

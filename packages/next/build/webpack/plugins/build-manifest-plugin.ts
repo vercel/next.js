@@ -8,11 +8,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
+import { Rewrite } from '../../../lib/load-custom-routes'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
@@ -22,7 +22,9 @@ function generateClientManifest(
   assetMap: BuildManifest,
   isModern: boolean
 ): string {
-  const clientManifest: { [s: string]: string[] } = {}
+  const clientManifest: { [s: string]: string[] | Rewrite[] } = {
+    __rewrites: assetMap.rewrites,
+  }
   const appDependencies = new Set(assetMap.pages['/_app'])
 
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
@@ -64,10 +66,25 @@ function getFilesArray(files: any) {
 export default class BuildManifestPlugin {
   private buildId: string
   private modern: boolean
+  private rewrites: Rewrite[]
 
-  constructor(options: { buildId: string; modern: boolean }) {
+  constructor(options: {
+    buildId: string
+    modern: boolean
+    rewrites: Rewrite[]
+  }) {
     this.buildId = options.buildId
     this.modern = options.modern
+    // TODO: should public files be sent in case they match and the
+    // rewrites chain should be broken?
+    this.rewrites = options.rewrites.map((r) => {
+      const rewrite = { ...r }
+
+      if (!rewrite.destination.startsWith('/')) {
+        delete rewrite.destination
+      }
+      return rewrite
+    })
   }
 
   createAssets(compilation: any, assets: any) {
@@ -80,6 +97,7 @@ export default class BuildManifestPlugin {
       lowPriorityFiles: [],
       pages: { '/_app': [] },
       ampFirstPages: [],
+      rewrites: this.rewrites,
     }
 
     const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
@@ -165,10 +183,6 @@ export default class BuildManifestPlugin {
     const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
     assetMap.lowPriorityFiles.push(ssgManifestPath)
     assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
-
-    const clientRoutesManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${CLIENT_ROUTES_MANIFEST}`
-
-    assetMap.lowPriorityFiles.push(clientRoutesManifestPath)
 
     if (this.modern) {
       const ssgManifestPathModern = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
