@@ -359,11 +359,11 @@ export default async function getBaseWebpackConfig(
       ...(isServer
         ? {}
         : {
-            stream: 'stream-browserify',
-            path: 'path-browserify',
-            crypto: 'crypto-browserify',
-            buffer: 'buffer',
-            vm: 'vm-browserify',
+            stream: require.resolve('stream-browserify'),
+            path: require.resolve('path-browserify'),
+            crypto: require.resolve('crypto-browserify'),
+            buffer: require.resolve('buffer'),
+            vm: require.resolve('vm-browserify'),
             next: NEXT_PROJECT_ROOT,
           }),
       [PAGES_DIR_ALIAS]: pagesDir,
