@@ -929,7 +929,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.reactMode
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.experimental.optimizeFonts
+          config.experimental.optimizeFonts && !dev
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
