@@ -1,8 +1,17 @@
 import { DeliveryClient } from '@kentico/kontent-delivery'
+import { name, version } from '../package.json'
+
+const sourceTrackingHeaderName = 'X-KC-SOURCE'
 
 const client = new DeliveryClient({
   projectId: process.env.KONTENT_PROJECT_ID,
   previewApiKey: process.env.KONTENT_PREVIEW_API_KEY,
+  globalHeaders: (_queryConfig) => [
+    {
+      header: sourceTrackingHeaderName,
+      value: `@vercel/next.js/example/${name};${version}`,
+    },
+  ],
 })
 
 function parseAuthor(author) {
