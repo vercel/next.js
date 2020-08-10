@@ -43,7 +43,7 @@ export default function I18n({ children, locale, lngDict }) {
     if (locale) {
       i18nWrapper.locale(locale, lngDict)
     }
-  }, [i18nWrapper, lngDict, locale])
+  }, [lngDict, locale])
 
   return (
     <I18nContext.Provider value={i18nWrapper}>{children}</I18nContext.Provider>
