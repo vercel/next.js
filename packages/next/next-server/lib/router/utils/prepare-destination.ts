@@ -1,5 +1,6 @@
-import { parse as parseUrl } from 'url'
 import { ParsedUrlQuery } from 'querystring'
+import { searchParamsToUrlQuery } from './querystring'
+import { parseRelativeUrl } from './parse-relative-url'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 
 type Params = { [param: string]: any }
@@ -11,8 +12,44 @@ export default function prepareDestination(
   appendParamsToQuery: boolean,
   basePath: string
 ) {
-  const parsedDestination = parseUrl(destination, true)
+  let parsedDestination: {
+    query?: ParsedUrlQuery
+    protocol?: string
+    hostname?: string
+    port?: string
+  } & ReturnType<typeof parseRelativeUrl> = {} as any
+
+  if (destination.startsWith('/')) {
+    parsedDestination = parseRelativeUrl(destination)
+  } else {
+    const {
+      pathname,
+      searchParams,
+      hash,
+      hostname,
+      port,
+      protocol,
+      search,
+      href,
+    } = new URL(destination)
+
+    parsedDestination = {
+      pathname,
+      searchParams,
+      hash,
+      protocol,
+      hostname,
+      port,
+      search,
+      href,
+    }
+  }
+
+  parsedDestination.query = searchParamsToUrlQuery(
+    parsedDestination.searchParams
+  )
   const destQuery = parsedDestination.query
+
   let destinationCompiler = compilePathToRegex(
     `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
     // we don't validate while compiling the destination since we should
@@ -58,8 +95,8 @@ export default function prepareDestination(
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    parsedDestination.path = `${pathname}${parsedDestination.search}`
     delete parsedDestination.search
+    delete parsedDestination.searchParams
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(

@@ -24,7 +24,7 @@ import {
 } from '../../../client/normalize-trailing-slash'
 import pathMatch from '../../server/lib/path-match'
 import prepareDestination from './utils/prepare-destination'
-import { denormalizePagePath } from '../../server/normalize-page-path'
+import { denormalizePagePath } from '../../server/denormalize-page-path'
 
 interface TransitionOptions {
   shallow?: boolean

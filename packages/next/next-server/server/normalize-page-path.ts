@@ -1,10 +1,14 @@
-import { posix } from 'path'
-
-export function normalizePathSep(path: string): string {
-  return path.replace(/\\/g, '/')
-}
+export { normalizePathSep, denormalizePagePath } from './denormalize-page-path'
 
 export function normalizePagePath(page: string): string {
+  let posix
+
+  // prevents path from being polyfilled in the browser since
+  // this method isn't used client side
+  if (typeof window === 'undefined') {
+    posix = require('path').posix
+  }
+
   // If the page is `/` we need to append `/index`, otherwise the returned directory root will be bundles instead of pages
   if (page === '/') {
     page = '/index'
@@ -21,16 +25,6 @@ export function normalizePagePath(page: string): string {
     throw new Error(
       `Requested and resolved page mismatch: ${page} ${resolvedPage}`
     )
-  }
-  return page
-}
-
-export function denormalizePagePath(page: string) {
-  page = normalizePathSep(page)
-  if (page.startsWith('/index/')) {
-    page = page.slice(6)
-  } else if (page === '/index') {
-    page = '/'
   }
   return page
 }
