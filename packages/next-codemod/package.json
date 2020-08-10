@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "9.5.2-canary.10",
+  "version": "9.5.2-canary.11",
   "license": "MIT",
   "dependencies": {
     "jscodeshift": "^0.6.4"
