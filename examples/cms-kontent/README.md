@@ -51,7 +51,7 @@ cd cms-starter
 
 ## Configuration
 
-### Step 1. Create an account on ButterCMS
+### Step 1. Create an account on Kontent
 
 First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=devrel).
 
