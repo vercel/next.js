@@ -12,8 +12,9 @@
   "author": "Kuldeep Keshwar",
   "license": "ISC",
   "dependencies": {
-    "@filbert-js/core": "^0.0.4",
-    "@filbert-js/server-stylesheet": "^0.0.4",
+    "@filbert-js/core": "latest",
+    "@filbert-js/macro": "latest",
+    "@filbert-js/server-stylesheet": "latest",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
