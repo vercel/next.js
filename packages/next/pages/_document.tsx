@@ -85,7 +85,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
         <Head />
         <body>
           <Main />
-          <NextScript />
+          {!process.env.__NEXT_DEFER_SCRIPTS && <NextScript />}
         </body>
       </Html>
     )
@@ -466,6 +466,7 @@ export class Head extends Component<
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
+        {process.env.__NEXT_DEFER_SCRIPTS && <NextScript />}
       </head>
     )
   }
