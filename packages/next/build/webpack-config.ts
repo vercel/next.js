@@ -359,11 +359,11 @@ export default async function getBaseWebpackConfig(
       ...(isServer
         ? {}
         : {
-            stream: 'stream-browserify',
-            path: 'path-browserify',
-            crypto: 'crypto-browserify',
-            buffer: 'buffer',
-            vm: 'vm-browserify',
+            stream: require.resolve('stream-browserify'),
+            path: require.resolve('path-browserify'),
+            crypto: require.resolve('crypto-browserify'),
+            buffer: require.resolve('buffer'),
+            vm: require.resolve('vm-browserify'),
             next: NEXT_PROJECT_ROOT,
           }),
       [PAGES_DIR_ALIAS]: pagesDir,
@@ -929,7 +929,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.reactMode
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.experimental.optimizeFonts
+          config.experimental.optimizeFonts && !dev
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
