@@ -88,6 +88,14 @@ const groupByLabels = async (commits, github) => {
   return sections
 }
 
+function cleanupPRTitle(title) {
+  if (title.startsWith('[Docs] ')) {
+    return title.replace('[Docs] ', '')
+  }
+
+  return title
+}
+
 const buildChangelog = (sections, authors) => {
   let text = ''
 
@@ -105,7 +113,7 @@ const buildChangelog = (sections, authors) => {
     for (const change of changes) {
       const numberText = change.number != null ? `: #${change.number}` : ''
 
-      text += `- ${change.title}${numberText}\n`
+      text += `- ${cleanupPRTitle(change.title)}${numberText}\n`
     }
 
     text += '\n'
