@@ -231,10 +231,7 @@ export default class DevServer extends Server {
             .writeFile(
               clientRoutesManifestPath,
               JSON.stringify({
-                pages: [
-                  ...routedPages.filter((page) => !isDynamicRoute(page)),
-                  ...this.dynamicRoutes.map((r) => r.page),
-                ],
+                pages: getSortedRoutes(routedPages),
               })
             )
             .catch((err) =>

@@ -102,13 +102,13 @@ export default class PageLoader {
 
   getPageList() {
     if (process.env.NODE_ENV === 'production') {
-      return this.promisedBuildManifest.then((buildManifest) =>
-        Object.keys(buildManifest)
+      return this.promisedBuildManifest.then(
+        (buildManifest) => buildManifest.__sortedPages
       )
     } else {
       // fetch fresh page list in development
       return fetch(
-        `${this.assetPrefix}/_next/static/${this.buildId}/_devPagesManifest.json`
+        `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
       )
         .then((res) => res.json())
         .then((manifest) => manifest.pages)

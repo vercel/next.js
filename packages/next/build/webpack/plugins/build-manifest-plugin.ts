@@ -13,10 +13,7 @@ import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
-import {
-  isDynamicRoute,
-  getSortedRoutes,
-} from '../../../next-server/lib/router/utils'
+import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
@@ -31,22 +28,9 @@ function generateClientManifest(
     __rewrites: rewrites,
   }
   const appDependencies = new Set(assetMap.pages['/_app'])
+  const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
 
-  const pageKeys = Object.keys(assetMap.pages)
-  const dynamicPages: string[] = []
-
-  const sortedRoutes = [
-    ...pageKeys.filter((page) => {
-      if (isDynamicRoute(page)) {
-        dynamicPages.push(page)
-        return false
-      }
-      return true
-    }),
-    ...getSortedRoutes(dynamicPages),
-  ]
-
-  sortedRoutes.forEach((page) => {
+  sortedPageKeys.forEach((page) => {
     const dependencies = assetMap.pages[page]
 
     if (page === '/_app') return
@@ -63,6 +47,10 @@ function generateClientManifest(
       clientManifest[page] = filteredDeps
     }
   })
+  // provide the sorted pages as an array so we don't rely on the object's keys
+  // being in order and we don't slow down look-up time for page assets
+  clientManifest.__sortedPages = sortedPageKeys
+
   return devalue(clientManifest)
 }
 
@@ -96,11 +84,11 @@ export default class BuildManifestPlugin {
   }) {
     this.buildId = options.buildId
     this.modern = options.modern
-    // TODO: should public files be sent in case they match and the
-    // rewrites chain should be broken?
     this.rewrites = options.rewrites.map((r) => {
       const rewrite = { ...r }
 
+      // omit external rewrite destinations since these aren't
+      // handled client-side
       if (!rewrite.destination.startsWith('/')) {
         delete rewrite.destination
       }
