@@ -145,10 +145,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       const fontContent = options.getFontDefinition(url)
       result = result.replace(
         '</head>',
-        `<style data-href="${url}">${fontContent.replace(
-          /(\n)/g,
-          ''
-        )}</style></head>`
+        `<style data-href="${url}">${fontContent}</style></head>`
       )
     }
     return result
