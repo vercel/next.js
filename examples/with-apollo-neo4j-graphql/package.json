@@ -1,0 +1,19 @@
+{
+  "name": "with-apollo-neo4j-graphql",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@apollo/client": "3.1.3",
+    "apollo-server-micro": "2.16.1",
+    "neo4j-driver": "4.1.1",
+    "neo4j-graphql-js": "2.15.1",
+    "next": "9.5.2",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  },
+  "license": "MIT"
+}
