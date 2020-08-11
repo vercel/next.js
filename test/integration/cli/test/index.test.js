@@ -1,10 +1,11 @@
 /* eslint-env jest */
 
 import {
+  findPort,
+  killApp,
+  launchApp,
   runNextCommand,
   runNextCommandDev,
-  findPort,
-  launchApp,
 } from 'next-test-utils'
 import { join } from 'path'
 import pkg from 'next/package'
@@ -13,6 +14,8 @@ import http from 'http'
 jest.setTimeout(1000 * 60 * 5)
 
 const dir = join(__dirname, '..')
+const dirOldReact = join(__dirname, '../old-react')
+const dirOldReactDom = join(__dirname, '../old-react-dom')
 
 describe('CLI Usage', () => {
   describe('no command', () => {
@@ -215,6 +218,44 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('too old of react version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirOldReact, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).toMatch(
+        'Fast Refresh is disabled in your application due to an outdated `react` version'
+      )
+      expect(stderr).not.toMatch(`react-dom`)
+
+      await killApp(instance)
+    })
+
+    test('too old of react-dom version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirOldReactDom, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).toMatch(
+        'Fast Refresh is disabled in your application due to an outdated `react-dom` version'
+      )
+      expect(stderr).not.toMatch('`react`')
+
+      await killApp(instance)
     })
   })
 

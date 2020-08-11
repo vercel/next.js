@@ -290,7 +290,7 @@ export default async function getBaseWebpackConfig(
       } as ClientEntries)
     : undefined
 
-  let typeScriptPath
+  let typeScriptPath: string | undefined
   try {
     typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
@@ -302,7 +302,7 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
-    const ts = (await import(typeScriptPath)) as typeof import('typescript')
+    const ts = (await import(typeScriptPath!)) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath)
     jsConfig = { compilerOptions: tsConfig.options }
   }
@@ -356,7 +356,16 @@ export default async function getBaseWebpackConfig(
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
-      next: NEXT_PROJECT_ROOT,
+      ...(isServer
+        ? {}
+        : {
+            stream: require.resolve('stream-browserify'),
+            path: require.resolve('path-browserify'),
+            crypto: require.resolve('crypto-browserify'),
+            buffer: require.resolve('buffer'),
+            vm: require.resolve('vm-browserify'),
+            next: NEXT_PROJECT_ROOT,
+          }),
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -920,7 +929,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.reactMode
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.experimental.optimizeFonts
+          config.experimental.optimizeFonts && !dev
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages

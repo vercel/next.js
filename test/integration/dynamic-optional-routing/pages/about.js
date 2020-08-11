@@ -1,3 +1,9 @@
 export default function Page(props) {
-  return <div>about</div>
+  return <div id="content">about</div>
+}
+
+export const getServerSideProps = () => {
+  return {
+    props: {},
+  }
 }

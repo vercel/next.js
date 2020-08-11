@@ -97,13 +97,14 @@ function prefetch(
   prefetched[href + '%' + as] = true
 }
 
-function isNewTabRequest(event: React.MouseEvent) {
+function isModifiedEvent(event: React.MouseEvent) {
   const { target } = event.currentTarget as HTMLAnchorElement
   return (
     (target && target !== '_self') ||
     event.metaKey ||
     event.ctrlKey ||
     event.shiftKey ||
+    event.altKey || // triggers resource download
     (event.nativeEvent && event.nativeEvent.which === 2)
   )
 }
@@ -119,8 +120,8 @@ function linkClicked(
 ): void {
   const { nodeName } = e.currentTarget
 
-  if (nodeName === 'A' && (isNewTabRequest(e) || !isLocalURL(href))) {
-    // ignore click for new tab / new window behavior
+  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+    // ignore click for browser’s default behavior
     return
   }
 

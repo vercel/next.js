@@ -1,6 +1,6 @@
 # FaunaDB Graphql Starter Example -- The FaunaDB Guestbook
 
-This simple Guestbook SPA example shows you how to use [FaunaDB's GraphQL endpoint](https://docs.fauna.com/fauna/current/api/graphql/) in your Next.js project. [[Live demo](https://with-graphql-faunadb.now.sh/)].
+This simple Guestbook SPA example shows you how to use [FaunaDB's GraphQL endpoint](https://docs.fauna.com/fauna/current/api/graphql/) in your Next.js project.
 
 ## Deploy your own
 

@@ -16,7 +16,7 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { searchParamsToUrlQuery } from './utils/search-params-to-url-query'
+import { searchParamsToUrlQuery } from './utils/querystring'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import {
   removePathTrailingSlash,
@@ -96,6 +96,11 @@ export function resolveHref(currentPath: string, href: Url): string {
   } catch (_) {
     return urlAsString
   }
+}
+
+const PAGE_LOAD_ERROR = Symbol('PAGE_LOAD_ERROR')
+export function markLoadingError(err: Error): Error {
+  return Object.defineProperty(err, PAGE_LOAD_ERROR, {})
 }
 
 function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
@@ -205,7 +210,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
     if (!isServerRender) {
-      ;(err as any).code = 'PAGE_LOAD_ERROR'
+      markLoadingError(err)
     }
     throw err
   })
@@ -488,6 +493,7 @@ export default class Router implements BaseRouter {
       Router.events.emit('hashChangeStart', as)
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
+      this.notify(this.components[this.route])
       Router.events.emit('hashChangeComplete', as)
       return true
     }
@@ -640,7 +646,7 @@ export default class Router implements BaseRouter {
       throw err
     }
 
-    if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+    if (PAGE_LOAD_ERROR in err || loadErrorFail) {
       Router.events.emit('routeChangeError', err, as)
 
       // If we can't load the page it could be one of following reasons
