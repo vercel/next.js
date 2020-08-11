@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import Link from 'next/link'
 import { useEffect } from 'react'
 import { useUser } from '../context/userContext'
 import firebase from '../firebase/clientApp'
@@ -6,6 +7,8 @@ import firebase from '../firebase/clientApp'
 export default function Home() {
   // Our custom hook to get context values
   const { loadingUser, user } = useUser()
+
+  const username = 'nextjs_user'
 
   useEffect(() => {
     if (!loadingUser) {
@@ -26,6 +29,10 @@ export default function Home() {
       <main>
         <h1 className="title">Next.js w/ Firebase Client-Side</h1>
         <p className="description">Fill in your credentials to get started</p>
+
+        <Link href={`/profile/${username}`} passHref>
+          <a>Go to SSR Page</a>
+        </Link>
       </main>
 
       <style jsx>{`
@@ -67,8 +74,8 @@ export default function Home() {
         }
 
         a {
-          color: inherit;
-          text-decoration: none;
+          color: blue;
+          font-size: 1.5em;
         }
 
         .title a {
