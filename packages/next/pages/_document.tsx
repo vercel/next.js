@@ -133,19 +133,23 @@ export class Head extends Component<
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
+      if (!process.env.__NEXT_DEFER_SCRIPTS) {
+        cssLinkElements.push(
+          <link
+            key={`${file}-preload`}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${devOnlyCacheBusterQueryString}`}
+            as="style"
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
+          />
+        )
+      }
       cssLinkElements.push(
-        <link
-          key={`${file}-preload`}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
-          as="style"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />,
         <link
           key={file}
           nonce={this.props.nonce}
@@ -201,6 +205,10 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(): JSX.Element[] | null {
+    // for defer scripts we shift defer script in head and thus does not need prelaods.
+    if (process.env.__NEXT_DEFER_SCRIPTS) {
+      return null
+    }
     const { assetPrefix, files, devOnlyCacheBusterQueryString } = this.context
 
     const preloadFiles =
