@@ -1,4 +1,4 @@
-# Next.js Codemod
+# Next.js Codemods
 
 Next.js provides Codemod transformations to help upgrade your Next.js codebase when a feature is deprecated.
 
