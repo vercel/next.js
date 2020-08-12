@@ -1,21 +1,24 @@
+import type { ClientSsgManifest } from '../build'
+import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
+import type { MittEmitter } from '../next-server/lib/mitt'
 import { addBasePath, markLoadingError } from '../next-server/lib/router/router'
 import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
-import getAssetPathFromRoute from './../next-server/lib/router/utils/get-asset-path-from-route'
-import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
-import { parseRelativeUrl } from './../next-server/lib/router/utils/parse-relative-url'
-import { searchParamsToUrlQuery } from './../next-server/lib/router/utils/querystring'
-import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
-import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
+import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
+import { searchParamsToUrlQuery } from '../next-server/lib/router/utils/querystring'
+import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 
-function hasRel(rel, link) {
+function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
     link = document.createElement('link')
     return link.relList.supports(rel)
   } catch {}
 }
 
-function pageLoadError(route) {
+function pageLoadError(route: string) {
   return markLoadingError(new Error(`Error loading ${route}`))
 }
 
@@ -30,14 +33,13 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
-const requestIdleCallback =
-  window.requestIdleCallback ||
-  function (cb) {
+const requestIdleCallback: (fn: () => void) => void =
+  (window as any).requestIdleCallback ||
+  function (cb: () => void) {
     return setTimeout(cb, 1)
   }
 
-/** @param {string} route */
-function normalizeRoute(route) {
+function normalizeRoute(route: string) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
@@ -46,10 +48,15 @@ function normalizeRoute(route) {
   return route.replace(/\/$/, '')
 }
 
-function appendLink(href, rel, as) {
-  return new Promise((res, rej, link) => {
+function appendLink(
+  href: string,
+  rel: string,
+  as?: string,
+  link?: HTMLLinkElement
+): Promise<any> {
+  return new Promise((res, rej) => {
     link = document.createElement('link')
-    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
+    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
     link.href = href
     link.rel = rel
     if (as) link.as = as
@@ -61,8 +68,18 @@ function appendLink(href, rel, as) {
   })
 }
 
+type PageCacheEntry = { error?: any; page?: any; mod?: any }
+
 export default class PageLoader {
-  constructor(buildId, assetPrefix, initialPage) {
+  private buildId: string
+  private assetPrefix: string
+  private pageCache: Record<string, PageCacheEntry>
+  private pageRegisterEvents: MittEmitter
+  private loadingRoutes: Record<string, boolean>
+  private promisedBuildManifest?: Promise<ClientBuildManifest>
+  private promisedSsgManifest?: Promise<ClientSsgManifest>
+
+  constructor(buildId: string, assetPrefix: string, initialPage: string) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
@@ -80,35 +97,36 @@ export default class PageLoader {
 
     if (process.env.NODE_ENV === 'production') {
       this.promisedBuildManifest = new Promise((resolve) => {
-        if (window.__BUILD_MANIFEST) {
-          resolve(window.__BUILD_MANIFEST)
+        if ((window as any).__BUILD_MANIFEST) {
+          resolve((window as any).__BUILD_MANIFEST)
         } else {
-          window.__BUILD_MANIFEST_CB = () => {
-            resolve(window.__BUILD_MANIFEST)
+          ;(window as any).__BUILD_MANIFEST_CB = () => {
+            resolve((window as any).__BUILD_MANIFEST)
           }
         }
       })
     }
     /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise((resolve) => {
-      if (window.__SSG_MANIFEST) {
-        resolve(window.__SSG_MANIFEST)
+      if ((window as any).__SSG_MANIFEST) {
+        resolve((window as any).__SSG_MANIFEST)
       } else {
-        window.__SSG_MANIFEST_CB = () => {
-          resolve(window.__SSG_MANIFEST)
+        ;(window as any).__SSG_MANIFEST_CB = () => {
+          resolve((window as any).__SSG_MANIFEST)
         }
       }
     })
   }
 
   // Returns a promise for the dependencies for a particular route
-  getDependencies(route) {
-    return this.promisedBuildManifest.then((m) => {
+  getDependencies(route: string): Promise<string[]> {
+    return this.promisedBuildManifest!.then((m) => {
       return m[route]
         ? m[route].map((url) => `${this.assetPrefix}/_next/${encodeURI(url)}`)
-        : this.pageRegisterEvents.emit(route, {
+        : (this.pageRegisterEvents.emit(route, {
             error: pageLoadError(route),
-          }) ?? []
+          }),
+          [])
     })
   }
 
@@ -116,7 +134,7 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href, asPath, ssg) {
+  getDataHref(href: string, asPath: string, ssg: boolean) {
     const { pathname: hrefPathname, searchParams, search } = parseRelativeUrl(
       href
     )
@@ -124,15 +142,15 @@ export default class PageLoader {
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
-    const getHrefForSlug = (/** @type string */ path) => {
+    const getHrefForSlug = (path: string) => {
       const dataRoute = getAssetPathFromRoute(path, '.json')
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )
     }
 
-    let isDynamic = isDynamicRoute(route),
-      interpolatedRoute
+    let isDynamic: boolean = isDynamicRoute(route),
+      interpolatedRoute: string | undefined
     if (isDynamic) {
       const dynamicRegex = getRouteRegex(route)
       const dynamicGroups = dynamicRegex.groups
@@ -161,11 +179,11 @@ export default class PageLoader {
             (optional || param in dynamicMatches) &&
             // Interpolate group into data URL if present
             (interpolatedRoute =
-              interpolatedRoute.replace(
+              interpolatedRoute!.replace(
                 replaced,
                 repeat
-                  ? value.map(escapePathDelimiters).join('/')
-                  : escapePathDelimiters(value)
+                  ? (value as string[]).map(escapePathDelimiters).join('/')
+                  : escapePathDelimiters(value as string)
               ) || '/')
           )
         })
@@ -186,26 +204,28 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href, asPath) {
+  prefetchData(href: string, asPath: string) {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
-    return this.promisedSsgManifest.then((s, _dataHref) => {
-      requestIdleCallback(() => {
-        // Check if the route requires a data file
-        s.has(route) &&
-          // Try to generate data href, noop when falsy
-          (_dataHref = this.getDataHref(href, asPath, true)) &&
-          // noop when data has already been prefetched (dedupe)
-          !document.querySelector(
-            `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
-          ) &&
-          // Inject the `<link rel=prefetch>` tag for above computed `href`.
-          appendLink(_dataHref, relPrefetch, 'fetch')
-      })
-    })
+    return this.promisedSsgManifest!.then(
+      (s: ClientSsgManifest, _dataHref?: string) => {
+        requestIdleCallback(() => {
+          // Check if the route requires a data file
+          s.has(route) &&
+            // Try to generate data href, noop when falsy
+            (_dataHref = this.getDataHref(href, asPath, true)) &&
+            // noop when data has already been prefetched (dedupe)
+            !document.querySelector(
+              `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
+            ) &&
+            // Inject the `<link rel=prefetch>` tag for above computed `href`.
+            appendLink(_dataHref, relPrefetch, 'fetch')
+        })
+      }
+    )
   }
 
-  loadPage(route) {
+  loadPage(route: string) {
     route = normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
@@ -217,7 +237,7 @@ export default class PageLoader {
         return
       }
 
-      const fire = ({ error, page, mod }) => {
+      const fire = ({ error, page, mod }: PageCacheEntry) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
 
@@ -267,12 +287,12 @@ export default class PageLoader {
     })
   }
 
-  loadScript(url, route) {
+  loadScript(url: string, route: string) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
       script.type = 'module'
     }
-    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
     script.src = url
     script.onerror = () => {
       this.pageRegisterEvents.emit(route, { error: pageLoadError(url) })
@@ -281,7 +301,7 @@ export default class PageLoader {
   }
 
   // This method if called by the route code.
-  registerPage(route, regFn) {
+  registerPage(route: string, regFn: () => any) {
     const register = () => {
       try {
         const mod = regFn()
@@ -297,18 +317,18 @@ export default class PageLoader {
     if (process.env.NODE_ENV !== 'production') {
       // Wait for webpack to become idle if it's not.
       // More info: https://github.com/vercel/next.js/pull/1511
-      if (module.hot && module.hot.status() !== 'idle') {
+      if ((module as any).hot && (module as any).hot.status() !== 'idle') {
         console.log(
           `Waiting for webpack to become "idle" to initialize the page: "${route}"`
         )
 
-        const check = (status) => {
+        const check = (status: string) => {
           if (status === 'idle') {
-            module.hot.removeStatusHandler(check)
+            ;(module as any).hot.removeStatusHandler(check)
             register()
           }
         }
-        module.hot.status(check)
+        ;(module as any).hot.status(check)
         return
       }
     }
@@ -320,11 +340,11 @@ export default class PageLoader {
    * @param {string} route
    * @param {boolean} [isDependency]
    */
-  prefetch(route, isDependency) {
+  prefetch(route: string, isDependency?: boolean): Promise<void> {
     // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
     // License: Apache 2.0
     let cn
-    if ((cn = navigator.connection)) {
+    if ((cn = (navigator as any).connection)) {
       // Don't prefetch if using 2G or if Save-Data is enabled.
       if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
