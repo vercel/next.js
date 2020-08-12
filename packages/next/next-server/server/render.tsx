@@ -672,6 +672,27 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
+  // we preload the buildManifest for auto-export dynamic pages
+  // to speed up hydrating query values
+  let filteredBuildManifest = buildManifest
+  const additionalFiles: string[] = []
+
+  if (isAutoExport && pageIsDynamic) {
+    filteredBuildManifest = {
+      ...buildManifest,
+      lowPriorityFiles: buildManifest.lowPriorityFiles.filter((file) => {
+        if (
+          file.endsWith('_buildManifest.js') ||
+          file.endsWith('_buildManifest.module.js')
+        ) {
+          additionalFiles.push(file)
+          return false
+        }
+        return true
+      }),
+    }
+  }
+
   // AMP First pages do not have client-side JavaScript files
   const files = ampState.ampFirst
     ? []
@@ -682,6 +703,7 @@ export async function renderToHTML(
             ? getPageFiles(buildManifest, pathname)
             : []),
         ]),
+        ...additionalFiles,
       ]
 
   const renderPage: RenderPage = (
@@ -748,6 +770,7 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
       process.env.NODE_ENV === 'production'
