@@ -253,7 +253,6 @@ export default class Server {
       this.onErrorMiddleware({ err })
     }
     if (this.quiet) return
-    // tslint:disable-next-line
     console.error(err)
   }
 
