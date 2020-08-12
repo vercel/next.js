@@ -73,6 +73,27 @@ function runTests() {
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
     )
   })
+
+  it('should minify the css', async () => {
+    const snapshotJson = JSON.parse(
+      await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
+        encoding: 'utf-8',
+      })
+    )
+    const testJson = JSON.parse(
+      await fs.readFile(builtPage('font-manifest.json'), { encoding: 'utf-8' })
+    )
+    const testCss = {}
+    testJson.forEach((fontDefinition) => {
+      testCss[fontDefinition.url] = fontDefinition.content
+    })
+    const snapshotCss = {}
+    snapshotJson.forEach((fontDefinition) => {
+      snapshotCss[fontDefinition.url] = fontDefinition.content
+    })
+
+    expect(testCss).toStrictEqual(snapshotCss)
+  })
 }
 
 describe('Font optimization for SSR apps', () => {
