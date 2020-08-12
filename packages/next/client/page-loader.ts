@@ -11,25 +11,6 @@ import { searchParamsToUrlQuery } from '../next-server/lib/router/utils/querystr
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 
-type RequestIdleCallbackHandle = any
-type RequestIdleCallbackOptions = {
-  timeout: number
-}
-type RequestIdleCallbackDeadline = {
-  readonly didTimeout: boolean
-  timeRemaining: () => number
-}
-
-declare global {
-  interface Window {
-    requestIdleCallback: (
-      callback: (deadline: RequestIdleCallbackDeadline) => void,
-      opts?: RequestIdleCallbackOptions
-    ) => RequestIdleCallbackHandle
-    cancelIdleCallback: (handle: RequestIdleCallbackHandle) => void
-  }
-}
-
 function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
     link = document.createElement('link')
@@ -52,9 +33,9 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
-const requestIdleCallback =
-  window.requestIdleCallback ||
-  function (cb: (deadline: RequestIdleCallbackDeadline) => void) {
+const requestIdleCallback: (fn: () => void) => void =
+  (window as any).requestIdleCallback ||
+  function (cb: () => void) {
     return setTimeout(cb, 1)
   }
 
