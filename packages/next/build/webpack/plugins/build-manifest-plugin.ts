@@ -49,7 +49,7 @@ function generateClientManifest(
   })
   // provide the sorted pages as an array so we don't rely on the object's keys
   // being in order and we don't slow down look-up time for page assets
-  clientManifest.__sortedPages = sortedPageKeys
+  clientManifest.sortedPages = sortedPageKeys
 
   return devalue(clientManifest)
 }

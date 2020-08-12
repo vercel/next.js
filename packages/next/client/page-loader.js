@@ -103,7 +103,7 @@ export default class PageLoader {
   getPageList() {
     if (process.env.NODE_ENV === 'production') {
       return this.promisedBuildManifest.then(
-        (buildManifest) => buildManifest.__sortedPages
+        (buildManifest) => buildManifest.sortedPages
       )
     } else {
       // fetch fresh page list in development
