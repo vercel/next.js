@@ -78,6 +78,7 @@ export default class PageLoader {
   private loadingRoutes: Record<string, boolean>
   private promisedBuildManifest?: Promise<ClientBuildManifest>
   private promisedSsgManifest?: Promise<ClientSsgManifest>
+  private promisedDevPagesManifest?: Promise<any>
 
   constructor(buildId: string, assetPrefix: string, initialPage: string) {
     this.buildId = buildId
@@ -123,12 +124,24 @@ export default class PageLoader {
         (buildManifest) => buildManifest.sortedPages
       )
     } else {
-      // fetch fresh page list in development
-      return fetch(
-        `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
-      )
-        .then((res) => res.json())
-        .then((manifest) => manifest.pages)
+      if ((window as any).__DEV_PAGES_MANIFEST) {
+        return (window as any).__DEV_PAGES_MANIFEST.pages
+      } else {
+        if (!this.promisedDevPagesManifest) {
+          this.promisedDevPagesManifest = fetch(
+            `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+          )
+            .then((res) => res.json())
+            .then((manifest) => {
+              ;(window as any).__DEV_PAGES_MANIFEST = manifest
+              return manifest.pages
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch devPagesManifest`, err)
+            })
+        }
+        return this.promisedDevPagesManifest
+      }
     }
   }
 

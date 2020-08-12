@@ -217,7 +217,16 @@ export default class DevServer extends Server {
           // we serve a separate manifest with all pages for the client in
           // dev mode so that we can match a page after a rewrite on the client
           // before it has been built and is populated in the _buildManifest
-          this.sortedRoutes = getSortedRoutes(routedPages)
+          const sortedRoutes = getSortedRoutes(routedPages)
+
+          if (
+            !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            // emit the change so clients fetch the update
+            this.hotReloader!.send(undefined, { devPagesManifest: true })
+          }
+          this.sortedRoutes = sortedRoutes
+
           this.dynamicRoutes = this.sortedRoutes
             .filter(isDynamicRoute)
             .map((page) => ({

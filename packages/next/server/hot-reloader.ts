@@ -516,7 +516,7 @@ export default class HotReloader {
     return []
   }
 
-  private send(action: string, ...args: any[]): void {
+  public send(action?: string, ...args: any[]): void {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 
