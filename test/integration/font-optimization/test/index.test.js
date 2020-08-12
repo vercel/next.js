@@ -74,6 +74,14 @@ function runTests() {
     )
   })
 
+  it('should skip this optimization forr AMP pages', async () => {
+    const html = await renderViaHTTP(appPort, '/amp')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Voces">'
+    )
+  })
+
   it('should minify the css', async () => {
     const snapshotJson = JSON.parse(
       await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
