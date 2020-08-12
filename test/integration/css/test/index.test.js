@@ -1051,4 +1051,115 @@ describe('CSS Support', () => {
       expect(cssMapFiles.length).toBe(1)
     })
   })
+
+  // https://github.com/vercel/next.js/issues/12445
+  describe('CSS Modules Composes Ordering', () => {
+    const appDir = join(fixturesDir, 'composes-ordering')
+    let app, appPort
+
+    function tests() {
+      async function checkBlackTitle(browser) {
+        await browser.waitForElementByCss('#black-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#black-title')).color`
+        )
+        expect(titleColor).toBe('rgb(17, 17, 17)')
+      }
+      async function checkRedTitle(browser) {
+        await browser.waitForElementByCss('#red-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red-title')).color`
+        )
+        expect(titleColor).toBe('rgb(255, 0, 0)')
+      }
+
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkBlackTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav from index)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+          await browser.waitForElementByCss('#link-other').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+          await checkRedTitle(browser)
+
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkBlackTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav from other)', async () => {
+        const browser = await webdriver(appPort, '/other')
+        try {
+          await checkRedTitle(browser)
+          await browser.waitForElementByCss('#link-index').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-other')
+          await checkBlackTitle(browser)
+
+          // Navigate back to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkRedTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Development Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
 })
