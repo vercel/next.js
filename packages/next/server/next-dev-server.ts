@@ -50,6 +50,8 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  protected sortedRoutes?: string[]
+
   protected staticPathsWorker: import('jest-worker').default & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
@@ -211,32 +213,17 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        const clientRoutesManifestPath = pathJoin(
-          this.distDir,
-          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
-        )
-
         try {
-          this.dynamicRoutes = getSortedRoutes(routedPages)
+          // we serve a separate manifest with all pages for the client in
+          // dev mode so that we can match a page after a rewrite on the client
+          // before it has been built and is populated in the _buildManifest
+          this.sortedRoutes = getSortedRoutes(routedPages)
+          this.dynamicRoutes = this.sortedRoutes
             .filter(isDynamicRoute)
             .map((page) => ({
               page,
               match: getRouteMatcher(getRouteRegex(page)),
             }))
-
-          // we write a separate manifest with all pages for the client in
-          // dev mode so that we can match a page after a rewrite on the client
-          // before it has been built and is populated in the _buildManifest
-          fs.promises
-            .writeFile(
-              clientRoutesManifestPath,
-              JSON.stringify({
-                pages: getSortedRoutes(routedPages),
-              })
-            )
-            .catch((err) =>
-              console.error('Failed to update dev client pages manifest', err)
-            )
 
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
@@ -430,6 +417,26 @@ export default class DevServer extends Server {
       fn: async (req, res, params) => {
         const p = pathJoin(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
+        return {
+          finished: true,
+        }
+      },
+    })
+
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            pages: this.sortedRoutes,
+          })
+        )
         return {
           finished: true,
         }
