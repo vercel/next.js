@@ -1,20 +1,13 @@
-declare const __NEXT_DATA__: any
-
 import React, { Children } from 'react'
 import { UrlObject } from 'url'
-import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
-import { execOnce, getLocationOrigin } from '../next-server/lib/utils'
+import {
+  PrefetchOptions,
+  NextRouter,
+  isLocalURL,
+} from '../next-server/lib/router/router'
+import { execOnce } from '../next-server/lib/utils'
 import { useRouter } from './router'
 import { addBasePath, resolveHref } from '../next-server/lib/router/router'
-
-/**
- * Detects whether a given url is from the same origin as the current page (browser only).
- */
-function isLocal(url: string): boolean {
-  const locationOrigin = getLocationOrigin()
-  const resolved = new URL(url, locationOrigin)
-  return resolved.origin === locationOrigin
-}
 
 type Url = string | UrlObject
 
@@ -89,6 +82,7 @@ function prefetch(
   options?: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') return
+  if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
@@ -103,6 +97,18 @@ function prefetch(
   prefetched[href + '%' + as] = true
 }
 
+function isModifiedEvent(event: React.MouseEvent) {
+  const { target } = event.currentTarget as HTMLAnchorElement
+  return (
+    (target && target !== '_self') ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey || // triggers resource download
+    (event.nativeEvent && event.nativeEvent.which === 2)
+  )
+}
+
 function linkClicked(
   e: React.MouseEvent,
   router: NextRouter,
@@ -112,21 +118,10 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean
 ): void {
-  const { nodeName, target } = e.currentTarget as HTMLAnchorElement
-  if (
-    nodeName === 'A' &&
-    ((target && target !== '_self') ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      (e.nativeEvent && e.nativeEvent.which === 2))
-  ) {
-    // ignore click for new tab / new window behavior
-    return
-  }
+  const { nodeName } = e.currentTarget
 
-  if (!isLocal(href)) {
-    // ignore click if it's outside our scope (e.g. https://google.com)
+  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+    // ignore click for browser’s default behavior
     return
   }
 
@@ -166,17 +161,24 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const [childElm, setChildElm] = React.useState<Element>()
 
   const router = useRouter()
+  const pathname = (router && router.pathname) || '/'
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(router.pathname, props.href)
+    const resolvedHref = resolveHref(pathname, props.href)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(router.pathname, props.as) : resolvedHref,
+      as: props.as ? resolveHref(pathname, props.as) : resolvedHref,
     }
-  }, [router.pathname, props.href, props.as])
+  }, [pathname, props.href, props.as])
 
   React.useEffect(() => {
-    if (p && IntersectionObserver && childElm && childElm.tagName) {
+    if (
+      p &&
+      IntersectionObserver &&
+      childElm &&
+      childElm.tagName &&
+      isLocalURL(href)
+    ) {
       // Join on an invalid URI character
       const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
@@ -223,6 +225,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   if (p) {
     childProps.onMouseEnter = (e: React.MouseEvent) => {
+      if (!isLocalURL(href)) return
       if (child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }
@@ -234,20 +237,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
     childProps.href = addBasePath(as)
-  }
-
-  // Add the ending slash to the paths. So, we can serve the
-  // "<page>/index.html" directly.
-  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-    const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
-      .rewriteUrlForNextExport
-    if (
-      childProps.href &&
-      typeof __NEXT_DATA__ !== 'undefined' &&
-      __NEXT_DATA__.nextExport
-    ) {
-      childProps.href = rewriteUrlForNextExport(childProps.href)
-    }
   }
 
   return React.cloneElement(child, childProps)

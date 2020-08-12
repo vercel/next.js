@@ -11,16 +11,29 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
+  getLocationOrigin,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { searchParamsToUrlQuery } from './utils/search-params-to-url-query'
+import { searchParamsToUrlQuery } from './utils/querystring'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import {
   removePathTrailingSlash,
   normalizePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
+
+interface TransitionOptions {
+  shallow?: boolean
+}
+
+interface NextHistoryState {
+  url: string
+  as: string
+  options: TransitionOptions
+}
+
+type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -30,8 +43,13 @@ function buildCancellationError() {
   })
 }
 
+export function hasBasePath(path: string): boolean {
+  return path === basePath || path.startsWith(basePath + '/')
+}
+
 export function addBasePath(path: string): string {
-  return basePath
+  // we only add the basepath on relative urls
+  return basePath && path.startsWith('/')
     ? path === '/'
       ? normalizePathTrailingSlash(basePath)
       : basePath + path
@@ -40,6 +58,21 @@ export function addBasePath(path: string): string {
 
 export function delBasePath(path: string): string {
   return path.slice(basePath.length) || '/'
+}
+
+/**
+ * Detects whether a given url is routable by the Next.js router (browser only).
+ */
+export function isLocalURL(url: string): boolean {
+  if (url.startsWith('/')) return true
+  try {
+    // absolute urls can be local if they are on the same origin
+    const locationOrigin = getLocationOrigin()
+    const resolved = new URL(url, locationOrigin)
+    return resolved.origin === locationOrigin && hasBasePath(resolved.pathname)
+  } catch (_) {
+    return false
+  }
 }
 
 type Url = UrlObject | string
@@ -53,12 +86,21 @@ export function resolveHref(currentPath: string, href: Url): string {
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
-  const finalUrl = new URL(urlAsString, base)
-  finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
-  // if the origin didn't change, it means we received a relative href
-  return finalUrl.origin === base.origin
-    ? finalUrl.href.slice(finalUrl.origin.length)
-    : finalUrl.href
+  try {
+    const finalUrl = new URL(urlAsString, base)
+    finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    // if the origin didn't change, it means we received a relative href
+    return finalUrl.origin === base.origin
+      ? finalUrl.href.slice(finalUrl.origin.length)
+      : finalUrl.href
+  } catch (_) {
+    return urlAsString
+  }
+}
+
+const PAGE_LOAD_ERROR = Symbol('PAGE_LOAD_ERROR')
+export function markLoadingError(err: Error): Error {
+  return Object.defineProperty(err, PAGE_LOAD_ERROR, {})
 }
 
 function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
@@ -77,9 +119,11 @@ function tryParseRelativeUrl(
     return parseRelativeUrl(url)
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
-      throw new Error(
-        `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-      )
+      setTimeout(() => {
+        throw new Error(
+          `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
+        )
+      }, 0)
     }
     return null
   }
@@ -123,7 +167,7 @@ type RouteInfo = {
 
 type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
 
-type BeforePopStateCallback = (state: any) => boolean
+type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
@@ -166,7 +210,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
     if (!isServerRender) {
-      ;(err as any).code = 'PAGE_LOAD_ERROR'
+      markLoadingError(err)
     }
     throw err
   })
@@ -269,7 +313,6 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
-
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
@@ -310,19 +353,10 @@ export default class Router implements BaseRouter {
     }
   }
 
-  // @deprecated backwards compatibility even though it's a private method.
-  static _rewriteUrlForNextExport(url: string): string {
-    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
-        .rewriteUrlForNextExport
-      return rewriteUrlForNextExport(url)
-    } else {
-      return url
-    }
-  }
-
   onPopState = (e: PopStateEvent): void => {
-    if (!e.state) {
+    const state = e.state as HistoryState
+
+    if (!state) {
       // We get state as undefined for two reasons.
       //  1. With older safari (< 8) and older chrome (< 34)
       //  2. When the URL changed with #
@@ -341,7 +375,12 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const { url, as, options } = e.state
+    if (!state.__N) {
+      return
+    }
+
+    const { url, as, options } = state
+
     const { pathname } = parseRelativeUrl(url)
 
     // Make sure we don't re-render on initial load,
@@ -352,17 +391,10 @@ export default class Router implements BaseRouter {
 
     // If the downstream application returns falsy, return.
     // They will then be responsible for handling the event.
-    if (this._bps && !this._bps(e.state)) {
+    if (this._bps && !this._bps(state)) {
       return
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof url === 'undefined' || typeof as === 'undefined') {
-        console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
-        )
-      }
-    }
     this.change('replaceState', url, as, options)
   }
 
@@ -408,7 +440,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: Url, as: Url = url, options = {}) {
+  push(url: Url, as: Url = url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
@@ -419,7 +451,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: Url, as: Url = url, options = {}) {
+  replace(url: Url, as: Url = url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
@@ -428,9 +460,14 @@ export default class Router implements BaseRouter {
     method: HistoryMethod,
     url: string,
     as: string,
-    options: any
+    options: TransitionOptions
   ): Promise<boolean> {
-    if (!options._h) {
+    if (!isLocalURL(url)) {
+      window.location.href = url
+      return false
+    }
+
+    if (!(options as any)._h) {
       this.isSsr = false
     }
     // marking route changes as a navigation start entry
@@ -438,22 +475,11 @@ export default class Router implements BaseRouter {
       performance.mark('routeChange')
     }
 
-    // Add the ending slash to the paths. So, we can serve the
-    // "<page>/index.html" directly for the SSR page.
-    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
-        .rewriteUrlForNextExport
-      // @ts-ignore this is temporarily global (attached to window)
-      if (__NEXT_DATA__.nextExport) {
-        as = rewriteUrlForNextExport(as)
-      }
-    }
-
     if (this._inFlightRoute) {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    const cleanedAs = delBasePath(as)
+    const cleanedAs = hasBasePath(as) ? delBasePath(as) : as
     this._inFlightRoute = as
 
     // If the url change is only related to a hash change
@@ -462,11 +488,12 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    if (!options._h && this.onlyAHashChange(cleanedAs)) {
+    if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as)
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
+      this.notify(this.components[this.route])
       Router.events.emit('hashChangeComplete', as)
       return true
     }
@@ -558,7 +585,7 @@ export default class Router implements BaseRouter {
 
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration && '_N_X' in options) {
-          window.scrollTo(options._N_X, options._N_Y)
+          window.scrollTo((options as any)._N_X, (options as any)._N_Y)
         }
       }
       Router.events.emit('routeChangeComplete', as)
@@ -576,7 +603,7 @@ export default class Router implements BaseRouter {
     method: HistoryMethod,
     url: string,
     as: string,
-    options = {}
+    options: TransitionOptions = {}
   ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
@@ -596,7 +623,8 @@ export default class Router implements BaseRouter {
           url,
           as,
           options,
-        },
+          __N: true,
+        } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
         // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
@@ -609,7 +637,7 @@ export default class Router implements BaseRouter {
   async handleRouteInfoError(
     err: Error & { code: any; cancelled: boolean },
     pathname: string,
-    query: any,
+    query: ParsedUrlQuery,
     as: string,
     loadErrorFail?: boolean
   ): Promise<RouteInfo> {
@@ -618,7 +646,7 @@ export default class Router implements BaseRouter {
       throw err
     }
 
-    if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+    if (PAGE_LOAD_ERROR in err || loadErrorFail) {
       Router.events.emit('routeChangeError', err, as)
 
       // If we can't load the page it could be one of following reasons
@@ -727,7 +755,7 @@ export default class Router implements BaseRouter {
   set(
     route: string,
     pathname: string,
-    query: any,
+    query: ParsedUrlQuery,
     as: string,
     data: RouteInfo
   ): Promise<void> {

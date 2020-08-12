@@ -132,7 +132,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".red-text{color:purple;color:red;font-weight:bolder}.blue-text{color:orange;color:#00f;font-weight:bolder}"`
+        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
       )
     })
   })
@@ -163,7 +163,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
+        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
       )
 
       // Contains a source map
@@ -184,7 +184,7 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,mDACE,WACF",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
@@ -198,6 +198,10 @@ describe('CSS Support', () => {
 
         .transform-parsing {
           transform: translate3d(0px, 0px);
+        }
+
+        .css-grid-shorthand {
+          grid-column: span 2;
         }
 
         .g-docs-sidenav .filter::-webkit-input-placeholder {
@@ -564,7 +568,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -610,7 +614,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -656,7 +660,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -921,6 +925,46 @@ describe('CSS Support', () => {
         `window.getComputedStyle(document.querySelector('#blueText')).color`
       )
       expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
+  })
+
+  // https://github.com/vercel/next.js/issues/15468
+  describe('CSS Property Ordering', () => {
+    const appDir = join(fixturesDir, 'next-issue-15468')
+
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the border width (property ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const width1 = await browser.eval(
+        `window.getComputedStyle(document.querySelector('.test1')).borderWidth`
+      )
+      expect(width1).toMatchInlineSnapshot(`"0px"`)
+
+      const width2 = await browser.eval(
+        `window.getComputedStyle(document.querySelector('.test2')).borderWidth`
+      )
+      expect(width2).toMatchInlineSnapshot(`"5px"`)
     })
   })
 
