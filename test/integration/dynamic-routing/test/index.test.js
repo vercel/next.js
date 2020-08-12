@@ -579,9 +579,9 @@ function runTests(dev) {
       )
 
       await check(async () => {
-        const contents = await fs.readFile(
-          join(appDir, '.next/static/development/_devPagesManifest.json'),
-          'utf8'
+        const contents = await renderViaHTTP(
+          appPort,
+          '/_next/static/development/_devPagesManifest.json'
         )
         return contents.includes('added-later') ? 'success' : 'fail'
       }, 'success')
