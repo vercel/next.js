@@ -69,10 +69,11 @@ function appendLink(
   })
 }
 
-export type GoodPageCache = { page: ComponentType; mod: any }
+export type GoodPageCache = { page: ComponentType; mod: any; css: string[] }
 export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
+  private initialPage: string
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
@@ -83,6 +84,8 @@ export default class PageLoader {
   private promisedDevPagesManifest?: Promise<any>
 
   constructor(buildId: string, assetPrefix: string, initialPage: string) {
+    this.initialPage = initialPage
+
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
@@ -294,13 +297,21 @@ export default class PageLoader {
               ) {
                 this.loadScript(d, route)
               }
+
+              // Prefetch CSS as it'll be needed when the page JavaScript
+              // evaluates. This will only trigger if explicit prefetching is
+              // disabled for a <Link>... prefetching in this case is desirable
+              // because we *know* it's going to be used very soon (page was
+              // loaded).
               if (
                 d.endsWith('.css') &&
-                !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
+                !document.querySelector(
+                  `link[rel="${relPrefetch}"][href^="${d}"]`
+                )
               ) {
-                appendLink(d, 'stylesheet').catch(() => {
-                  // FIXME: handle failure
-                  // Right now, this is needed to prevent an unhandled rejection.
+                // TODO: test this prefetch
+                appendLink(d, relPrefetch, 'style').catch(() => {
+                  /* ignore prefetch error */
                 })
               }
             })
@@ -334,10 +345,14 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = () => {
+    const register = (cssFiles: string[]) => {
       try {
         const mod = regFn()
-        const pageData = { page: mod.default || mod, mod }
+        const pageData: PageCacheEntry = {
+          page: mod.default || mod,
+          mod,
+          css: cssFiles,
+        }
         this.pageCache[route] = pageData
         this.pageRegisterEvents.emit(route, pageData)
       } catch (error) {
@@ -357,7 +372,10 @@ export default class PageLoader {
         const check = (status: string) => {
           if (status === 'idle') {
             ;(module as any).hot.removeStatusHandler(check)
-            register()
+            register(
+              /* css is handled via style-loader in development */
+              []
+            )
           }
         }
         ;(module as any).hot.status(check)
@@ -365,7 +383,20 @@ export default class PageLoader {
       }
     }
 
-    register()
+    const promisedDeps: Promise<string[]> =
+      route === '/_app' || route === this.initialPage
+        ? Promise.resolve([
+            /* FIXME: we need to resolve the initial CSS files */
+          ])
+        : // TODO: test this doesn't block register of initial page
+          this.getDependencies(route)
+    promisedDeps.then(
+      (deps) => register(deps.filter((d) => d.endsWith('.css'))),
+      (error) => {
+        this.pageCache[route] = { error }
+        this.pageRegisterEvents.emit(route, { error })
+      }
+    )
   }
 
   /**
