@@ -103,7 +103,6 @@ export type NEXT_DATA = {
 /**
  * `Next` context
  */
-// tslint:disable-next-line interface-name
 export interface NextPageContext {
   /**
    * Error object if encountered during rendering

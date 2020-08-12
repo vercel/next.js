@@ -94,9 +94,7 @@ routerEvents.forEach((event) => {
         try {
           _singletonRouter[eventField](...args)
         } catch (err) {
-          // tslint:disable-next-line:no-console
           console.error(`Error when running the Router event: ${eventField}`)
-          // tslint:disable-next-line:no-console
           console.error(`${err.message}\n${err.stack}`)
         }
       }

@@ -20,7 +20,6 @@ export function getPageFiles(
   let files = buildManifest.pages[normalizedPage]
 
   if (!files) {
-    // tslint:disable-next-line
     console.warn(
       `Could not find files for ${normalizedPage} in .next/build-manifest.json`
     )
