@@ -17,6 +17,8 @@ import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
+export type ClientBuildManifest = Record<string, string[]>
+
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 function generateClientManifest(
@@ -24,8 +26,9 @@ function generateClientManifest(
   isModern: boolean,
   rewrites: Rewrite[]
 ): string {
-  const clientManifest: { [s: string]: string[] | Rewrite[] } = {
-    __rewrites: rewrites,
+  const clientManifest: ClientBuildManifest = {
+    // TODO: update manifest type to include rewrites
+    __rewrites: rewrites as any,
   }
   const appDependencies = new Set(assetMap.pages['/_app'])
   const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
