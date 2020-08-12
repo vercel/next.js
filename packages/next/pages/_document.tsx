@@ -464,6 +464,7 @@ export class Head extends Component<
               : this.getCssLinks()}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks()}
+            {process.env.__NEXT_DEFER_SCRIPTS && <NextScript />}
             {this.context.isDevelopment && (
               // this element is used to mount development styles so the
               // ordering matches production
@@ -474,7 +475,6 @@ export class Head extends Component<
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
-        {process.env.__NEXT_DEFER_SCRIPTS && <NextScript />}
       </head>
     )
   }
