@@ -17,7 +17,7 @@ const nextClientPagesLoader: loader.Loader = function () {
     (window.__NEXT_P = window.__NEXT_P || []).push([
       ${stringifiedPage},
       function () {
-        return require(${stringifiedAbsolutePagePath});
+        return import(${stringifiedAbsolutePagePath});
       }
     ]);
   `
