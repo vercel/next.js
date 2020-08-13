@@ -39,7 +39,7 @@ declare global {
 }
 
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
-type RenderErrorProps = Omit<RenderRouteInfo, 'Component'>
+type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 if (!('finally' in Promise.prototype)) {
   ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
@@ -102,6 +102,7 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
+let cachedStyleSheets: string[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -233,7 +234,10 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   let initialErr = hydrateErr
 
   try {
-    ;({ page: CachedComponent } = await pageLoader.loadPage(page))
+    ;({
+      page: CachedComponent,
+      styleSheets: cachedStyleSheets,
+    } = await pageLoader.loadPage(page))
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -291,11 +295,12 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
+    initialStyleSheets: cachedStyleSheets,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: ({ Component, props, err }, App) =>
-      render({ App, Component, props, err }),
+    subscription: ({ Component, styleSheets, props, err }, App) =>
+      render({ App, Component, styleSheets, props, err }),
   })
 
   // call init-client middleware
@@ -314,6 +319,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   const renderCtx = {
     App: CachedApp,
     Component: CachedComponent,
+    styleSheets: cachedStyleSheets,
     props: hydrateProps,
     err: initialErr,
   }
@@ -364,6 +370,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
       App: () => null,
       props: {},
       Component: () => null,
+      styleSheets: [],
     })
   }
   if (process.env.__NEXT_PLUGINS) {
@@ -383,30 +390,33 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-  return pageLoader.loadPage('/_error').then(({ page: ErrorComponent }) => {
-    // In production we do a normal render with the `ErrorComponent` as component.
-    // If we've gotten here upon initial render, we can use the props from the server.
-    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      Component: ErrorComponent,
-      AppTree,
-      router,
-      ctx: { err, pathname: page, query, asPath, AppTree },
-    }
-    return Promise.resolve(
-      renderErrorProps.props
-        ? renderErrorProps.props
-        : loadGetInitialProps(App, appCtx)
-    ).then((initProps) =>
-      doRender({
-        ...renderErrorProps,
-        err,
+  return pageLoader
+    .loadPage('/_error')
+    .then(({ page: ErrorComponent, styleSheets }) => {
+      // In production we do a normal render with the `ErrorComponent` as component.
+      // If we've gotten here upon initial render, we can use the props from the server.
+      // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+      const AppTree = wrapApp(App)
+      const appCtx = {
         Component: ErrorComponent,
-        props: initProps,
-      })
-    )
-  })
+        AppTree,
+        router,
+        ctx: { err, pathname: page, query, asPath, AppTree },
+      }
+      return Promise.resolve(
+        renderErrorProps.props
+          ? renderErrorProps.props
+          : loadGetInitialProps(App, appCtx)
+      ).then((initProps) =>
+        doRender({
+          ...renderErrorProps,
+          err,
+          Component: ErrorComponent,
+          styleSheets,
+          props: initProps,
+        })
+      )
+    })
 }
 
 // If hydrate does not exist, eg in preact.
@@ -523,6 +533,7 @@ const wrapApp = (App: AppComponent) => (
   const appProps: AppProps = {
     ...wrappedAppProps,
     Component: CachedComponent,
+    styleSheets: cachedStyleSheets,
     err: hydrateErr,
     router,
   }
@@ -533,7 +544,13 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-async function doRender({ App, Component, props, err }: RenderRouteInfo) {
+async function doRender({
+  App,
+  Component,
+  props,
+  err,
+  styleSheets,
+}: RenderRouteInfo) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -561,6 +578,7 @@ async function doRender({ App, Component, props, err }: RenderRouteInfo) {
     }
   })
 
+  console.log('render with', styleSheets)
   const elem = (
     <Root callback={resolvePromise!}>
       <AppContainer>

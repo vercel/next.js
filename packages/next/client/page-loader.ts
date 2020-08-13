@@ -69,7 +69,11 @@ function appendLink(
   })
 }
 
-export type GoodPageCache = { page: ComponentType; mod: any; css: string[] }
+export type GoodPageCache = {
+  page: ComponentType
+  mod: any
+  styleSheets: string[]
+}
 export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
@@ -345,13 +349,13 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = (cssFiles: string[]) => {
+    const register = (styleSheets: string[]) => {
       try {
         const mod = regFn()
         const pageData: PageCacheEntry = {
           page: mod.default || mod,
           mod,
-          css: cssFiles,
+          styleSheets,
         }
         this.pageCache[route] = pageData
         this.pageRegisterEvents.emit(route, pageData)
