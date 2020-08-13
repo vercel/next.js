@@ -15,13 +15,15 @@ import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
+export type ClientBuildManifest = Record<string, string[]>
+
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 function generateClientManifest(
   assetMap: BuildManifest,
   isModern: boolean
 ): string {
-  const clientManifest: { [s: string]: string[] } = {}
+  const clientManifest: ClientBuildManifest = {}
   const appDependencies = new Set(assetMap.pages['/_app'])
 
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
