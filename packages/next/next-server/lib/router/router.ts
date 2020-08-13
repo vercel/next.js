@@ -397,31 +397,6 @@ export default class Router implements BaseRouter {
     this.change('replaceState', url, as, options)
   }
 
-  update(route: string, mod: any) {
-    const Component: ComponentType = mod.default || mod
-    const data = this.components[route]
-    if (!data) {
-      throw new Error(`Cannot update unavailable route: ${route}`)
-    }
-
-    const newData = Object.assign({}, data, {
-      Component,
-      __N_SSG: mod.__N_SSG,
-      __N_SSP: mod.__N_SSP,
-    })
-    this.components[route] = newData
-
-    // pages/_app.js updated
-    if (route === '/_app') {
-      this.notify(this.components[this.route])
-      return
-    }
-
-    if (route === this.route) {
-      this.notify(newData)
-    }
-  }
-
   reload(): void {
     window.location.reload()
   }
