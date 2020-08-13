@@ -17,7 +17,6 @@ import {
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
-import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
@@ -477,7 +476,6 @@ export default class HotReloader {
       // must come before hotMiddleware
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
-      errorOverlayMiddleware({ dir: this.dir }),
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
