@@ -69,7 +69,7 @@ const nextDev: cliCommand = (argv) => {
     if (
       reactVersion &&
       semver.lt(reactVersion, '16.10.0') &&
-      semver.coerce(reactVersion).version !== '0.0.0'
+      semver.coerce(reactVersion)?.version !== '0.0.0'
     ) {
       Log.warn(
         'Fast Refresh is disabled in your application due to an outdated `react` version. Please upgrade 16.10 or newer!' +
@@ -83,7 +83,7 @@ const nextDev: cliCommand = (argv) => {
       if (
         reactDomVersion &&
         semver.lt(reactDomVersion, '16.10.0') &&
-        semver.coerce(reactDomVersion).version !== '0.0.0'
+        semver.coerce(reactDomVersion)?.version !== '0.0.0'
       ) {
         Log.warn(
           'Fast Refresh is disabled in your application due to an outdated `react-dom` version. Please upgrade 16.10 or newer!' +
