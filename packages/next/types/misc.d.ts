@@ -6,7 +6,6 @@ declare module 'cssnano-simple' {
   const cssnanoSimple: Plugin<{}>
   export = cssnanoSimple
 }
-declare module 'launch-editor'
 declare module 'styled-jsx/server'
 declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
@@ -128,10 +127,6 @@ declare module 'next/dist/compiled/json5' {
 }
 declare module 'next/dist/compiled/jsonwebtoken' {
   import m from 'jsonwebtoken'
-  export = m
-}
-declare module 'next/dist/compiled/launch-editor' {
-  import m from 'launch-editor'
   export = m
 }
 declare module 'next/dist/compiled/lodash.curry' {
