@@ -1,5 +1,3 @@
-import fetch from 'isomorphic-unfetch'
-
 export default async function f<JSON = any> (
   input: RequestInfo,
   init?: RequestInit
