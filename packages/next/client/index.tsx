@@ -533,7 +533,6 @@ const wrapApp = (App: AppComponent) => (
   const appProps: AppProps = {
     ...wrappedAppProps,
     Component: CachedComponent,
-    styleSheets: cachedStyleSheets,
     err: hydrateErr,
     router,
   }
