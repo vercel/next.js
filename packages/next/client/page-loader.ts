@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
@@ -68,7 +69,7 @@ function appendLink(
   })
 }
 
-export type GoodPageCache = { page: any; mod: any }
+export type GoodPageCache = { page: ComponentType; mod: any }
 export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
