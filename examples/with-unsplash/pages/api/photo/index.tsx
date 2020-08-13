@@ -4,7 +4,7 @@ import Unsplash, { toJson } from 'unsplash-js'
 import fetch from 'node-fetch'
 global.fetch = fetch
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+export default function getPhotos(req: NextApiRequest, res: NextApiResponse) {
   return new Promise((resolve) => {
     const u = new Unsplash({ accessKey: process.env.UNSPLASH_ACCESS_KEY })
 

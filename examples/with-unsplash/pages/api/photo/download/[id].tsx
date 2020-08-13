@@ -4,7 +4,7 @@ import request from 'request'
 import fetch from 'node-fetch'
 global.fetch = fetch
 
-export default (req: NextApiRequest, res: NextApiResponse) => {
+export default function download(req: NextApiRequest, res: NextApiResponse) {
   const {
     query: { id },
   } = req

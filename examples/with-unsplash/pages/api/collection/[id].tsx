@@ -4,7 +4,10 @@ import Unsplash, { toJson } from 'unsplash-js'
 import fetch from 'node-fetch'
 global.fetch = fetch
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+export default function getCollection(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const {
     query: { id },
   } = req
