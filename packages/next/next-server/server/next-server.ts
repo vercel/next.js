@@ -917,6 +917,9 @@ export default class Server {
     ].filter(Boolean)
     for (const pagePath of paths) {
       try {
+        const path = require('path')
+        path.relative(process.cwd(), someFilePath);
+        console.log(this.distDir)
         const components = await loadComponents(
           this.distDir,
           pagePath!,
@@ -974,11 +977,11 @@ export default class Server {
     if (pathname === '/404') {
       res.statusCode = 404
     }
-    if (components.Component.default) {
-      components.Component = require('next/dynamic').default(
-        components.Component.default
-      )
-    }
+    // if (components.Component.default) {
+    //   components.Component = require('next/dynamic').default(
+    //     components.Component.default
+    //   )
+    // }
     console.log(components.Component)
     console.log(components.Component.constructor)
     // handle static page
