@@ -1,11 +1,11 @@
-const DOMAttributeNames = {
+const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
   httpEquiv: 'http-equiv',
 }
 
-function reactElementToDOM({ type, props }) {
+function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
@@ -27,9 +27,11 @@ function reactElementToDOM({ type, props }) {
   return el
 }
 
-function updateElements(type, components) {
+function updateElements(type: string, components: JSX.Element[]) {
   const headEl = document.getElementsByTagName('head')[0]
-  const headCountEl = headEl.querySelector('meta[name=next-head-count]')
+  const headCountEl: HTMLMetaElement = headEl.querySelector(
+    'meta[name=next-head-count]'
+  ) as HTMLMetaElement
   if (process.env.NODE_ENV !== 'production') {
     if (!headCountEl) {
       console.error(
@@ -40,44 +42,46 @@ function updateElements(type, components) {
   }
 
   const headCount = Number(headCountEl.content)
-  const oldTags = []
+  const oldTags: Element[] = []
 
   for (
     let i = 0, j = headCountEl.previousElementSibling;
     i < headCount;
-    i++, j = j.previousElementSibling
+    i++, j = j!.previousElementSibling
   ) {
-    if (j.tagName.toLowerCase() === type) {
-      oldTags.push(j)
+    if (j!.tagName.toLowerCase() === type) {
+      oldTags.push(j!)
     }
   }
-  const newTags = components.map(reactElementToDOM).filter((newTag) => {
-    for (let k = 0, len = oldTags.length; k < len; k++) {
-      const oldTag = oldTags[k]
-      if (oldTag.isEqualNode(newTag)) {
-        oldTags.splice(k, 1)
-        return false
+  const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
+    (newTag) => {
+      for (let k = 0, len = oldTags.length; k < len; k++) {
+        const oldTag = oldTags[k]
+        if (oldTag.isEqualNode(newTag)) {
+          oldTags.splice(k, 1)
+          return false
+        }
       }
+      return true
     }
-    return true
-  })
+  )
 
-  oldTags.forEach((t) => t.parentNode.removeChild(t))
+  oldTags.forEach((t) => t.parentNode!.removeChild(t))
   newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
 
 export default function initHeadManager() {
-  let updatePromise = null
+  let updatePromise: Promise<void> | null = null
 
   return {
     mountedInstances: new Set(),
-    updateHead: (head) => {
+    updateHead: (head: JSX.Element[]) => {
       const promise = (updatePromise = Promise.resolve().then(() => {
         if (promise !== updatePromise) return
 
         updatePromise = null
-        const tags = {}
+        const tags: Record<string, JSX.Element[]> = {}
 
         head.forEach((h) => {
           const components = tags[h.type] || []
