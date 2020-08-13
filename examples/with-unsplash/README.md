@@ -4,7 +4,7 @@ This is an example of how [Unsplash](https://unsplash.com/) can be used with `Ne
 
 ## Demo
 
-[https://nextjs-with-unsplash.vercel.app/](https://nextjs-with-unsplash.vercel.app/)
+[https://nextjs-with-unsplash.vercel.app](https://nextjs-with-unsplash.vercel.app/)
 
 ## Deploy your own
 
