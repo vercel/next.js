@@ -1,13 +1,13 @@
 .container {
-	padding: 0 1rem;
-	margin: 3rem auto 6rem;
+  padding: 0 1rem;
+  margin: 3rem auto 6rem;
 }
 
 .headerHomeImage {
-	width: 8rem;
-	height: 8rem;
+  width: 8rem;
+  height: 8rem;
 }
 
 .backToHome {
-	margin: 3rem 0 0;
+  margin: 3rem 0 0;
 }

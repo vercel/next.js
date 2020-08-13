@@ -1,5 +1,5 @@
 import useSWR from 'swr'
-import fetcher from "libs/fetcher"
+import fetcher from 'libs/fetcher'
 import styles from './Gallery.module.css'
 import UImage from 'components/UImage'
 
@@ -8,7 +8,10 @@ interface GalleryProps {
 }
 
 const Gallery = ({ id_collection }: GalleryProps) => {
-  const { data, error } = useSWR('/api/photo' + (id_collection ? `/${id_collection}` : ''), fetcher)
+  const { data, error } = useSWR(
+    '/api/photo' + (id_collection ? `/${id_collection}` : ''),
+    fetcher
+  )
 
   if (error) return <div>failed to load</div>
 

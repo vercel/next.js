@@ -11,32 +11,26 @@ const User = () => {
 
   return (
     <header className={styles.header}>
-      <Link href='/'>
+      <Link href="/">
         <a>
-          {
-            data &&
+          {data && (
             <img
               src={data.profile_image.large}
               className={`${styles.headerImage} ${styles.borderCircle}`}
               alt={data.name}
             />
-          }
+          )}
         </a>
       </Link>
       <h2 className={styles.headingLg}>
-        <Link href='/'>
-          <a>
-            {data ? data.name : ''}
-          </a>
+        <Link href="/">
+          <a>{data ? data.name : ''}</a>
         </Link>
       </h2>
 
       {data ? <Social user={data} /> : ''}
 
-      <p>
-        {data ? data.bio : ''}
-      </p>
-
+      <p>{data ? data.bio : ''}</p>
     </header>
   )
 }

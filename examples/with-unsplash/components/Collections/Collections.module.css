@@ -1,4 +1,3 @@
-
 .chips {
   padding: 12px 0;
   text-align: center;
@@ -19,7 +18,6 @@ a.chip:hover {
   background: #ccc;
 }
 
-
 .chip_remove {
   display: inline-block;
   background: #aaa;
@@ -36,7 +34,7 @@ a.chip:hover {
 
 .chip_remove:after {
   color: #333;
-  content: "x";
+  content: 'x';
 }
 
 .chip_remove:hover {

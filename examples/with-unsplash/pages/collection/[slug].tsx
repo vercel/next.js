@@ -6,10 +6,11 @@ import { useRouter } from 'next/router'
 
 const Collection = () => {
   const router = useRouter()
-  const collection_id = router.query.id ? parseInt(router.query.id.toString()) : null
+  const collection_id = router.query.id
+    ? parseInt(router.query.id.toString())
+    : null
   return (
     <Layout>
-
       <Head>
         <title>{siteTitle}</title>
       </Head>
@@ -17,7 +18,6 @@ const Collection = () => {
       <Collections id_collection={collection_id} />
 
       <Gallery id_collection={collection_id} />
-
     </Layout>
   )
 }

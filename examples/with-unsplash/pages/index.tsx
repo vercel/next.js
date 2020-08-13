@@ -7,7 +7,6 @@ import Collections from 'components/Collections'
 const Home = () => {
   return (
     <Layout>
-
       <Head>
         <title>{siteTitle}</title>
       </Head>
@@ -17,7 +16,6 @@ const Home = () => {
       <Collections />
 
       <Gallery />
-
     </Layout>
   )
 }

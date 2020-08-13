@@ -1,10 +1,10 @@
-.img{
+.img {
   display: inline-block;
   width: 100%;
   margin: 5px 0;
 }
 
-.actions{
+.actions {
   position: relative;
   bottom: 55px;
   right: 10px;
@@ -14,7 +14,7 @@
   float: left;
 }
 
-.actions a{
+.actions a {
   background-color: #fff;
   padding: 5px;
   border-radius: 5px;

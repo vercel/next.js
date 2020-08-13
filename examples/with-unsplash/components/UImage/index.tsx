@@ -6,7 +6,7 @@ const Uimage = ({ id, urls, altDescription }) => {
     <div key={`uimg_container_${id}`}>
       <img className={styles.img} src={urls.small} alt={altDescription} />
       <div className={styles.actions}>
-        <UIcon url={`/api/photo/download/${id}`} name='download' />
+        <UIcon url={`/api/photo/download/${id}`} name="download" />
       </div>
     </div>
   )

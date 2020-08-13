@@ -10,9 +10,9 @@ const Stats = () => {
   return (
     <div className={styles.stats_container}>
       <strong>Stats </strong>
-      downloads: {data ? data.downloads.total : '...'} |
-      views: {data ? data.views.total : '...'} |
-      likes: {data ? data.likes.total : '...'}
+      downloads: {data ? data.downloads.total : '...'} | views:{' '}
+      {data ? data.views.total : '...'} | likes:{' '}
+      {data ? data.likes.total : '...'}
     </div>
   )
 }
