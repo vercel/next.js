@@ -157,16 +157,21 @@ export type PrefetchOptions = {
   priority?: boolean
 }
 
-type RouteInfo = {
+export type PrivateRouteInfo = {
   Component: ComponentType
   __N_SSG?: boolean
   __N_SSP?: boolean
-  props?: any
+  props?: Record<string, any>
   err?: Error
   error?: any
 }
 
-type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
+export type AppProps = Pick<PrivateRouteInfo, 'Component' | 'err'> & {
+  router: Router
+} & Record<string, any>
+export type AppComponent = ComponentType<AppProps>
+
+type Subscription = (data: PrivateRouteInfo, App: AppComponent) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
@@ -227,7 +232,7 @@ export default class Router implements BaseRouter {
   /**
    * Map of all components loaded in `Router`
    */
-  components: { [pathname: string]: RouteInfo }
+  components: { [pathname: string]: PrivateRouteInfo }
   // Static Data Cache
   sdc: { [asPath: string]: object } = {}
   sub: Subscription
@@ -235,7 +240,7 @@ export default class Router implements BaseRouter {
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
-  _wrapApp: (App: ComponentType) => any
+  _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
@@ -260,8 +265,8 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
-      App: ComponentType
-      wrapApp: (App: ComponentType) => any
+      App: AppComponent
+      wrapApp: (App: AppComponent) => any
       err?: Error
       isFallback: boolean
     }
@@ -284,7 +289,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    this.components['/_app'] = { Component: App }
+    this.components['/_app'] = { Component: App as ComponentType }
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
@@ -640,7 +645,7 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery,
     as: string,
     loadErrorFail?: boolean
-  ): Promise<RouteInfo> {
+  ): Promise<PrivateRouteInfo> {
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -664,7 +669,7 @@ export default class Router implements BaseRouter {
 
     try {
       const { page: Component } = await this.fetchComponent('/_error')
-      const routeInfo: RouteInfo = { Component, err, error: err }
+      const routeInfo: PrivateRouteInfo = { Component, err, error: err }
 
       try {
         routeInfo.props = await this.getInitialProps(Component, {
@@ -689,7 +694,7 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     shallow: boolean = false
-  ): Promise<RouteInfo> {
+  ): Promise<PrivateRouteInfo> {
     try {
       const cachedRouteInfo = this.components[route]
 
@@ -697,7 +702,7 @@ export default class Router implements BaseRouter {
         return cachedRouteInfo
       }
 
-      const routeInfo: RouteInfo = cachedRouteInfo
+      const routeInfo: PrivateRouteInfo = cachedRouteInfo
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
             Component: res.page,
@@ -726,7 +731,7 @@ export default class Router implements BaseRouter {
         )
       }
 
-      const props = await this._getData<RouteInfo>(() =>
+      const props = await this._getData<PrivateRouteInfo>(() =>
         __N_SSG
           ? this._getStaticData(dataHref!)
           : __N_SSP
@@ -754,7 +759,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    data: RouteInfo
+    data: PrivateRouteInfo
   ): Promise<void> {
     this.isFallback = false
 
@@ -947,7 +952,7 @@ export default class Router implements BaseRouter {
     ctx: NextPageContext
   ): Promise<any> {
     const { Component: App } = this.components['/_app']
-    const AppTree = this._wrapApp(App)
+    const AppTree = this._wrapApp(App as AppComponent)
     ctx.AppTree = AppTree
     return loadGetInitialProps<AppContextType<Router>>(App, {
       AppTree,
@@ -965,7 +970,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: RouteInfo): Promise<void> {
-    return this.sub(data, this.components['/_app'].Component)
+  notify(data: PrivateRouteInfo): Promise<void> {
+    return this.sub(data, this.components['/_app'].Component as AppComponent)
   }
 }
