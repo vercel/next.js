@@ -16,7 +16,11 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  CLIENT_STATIC_FILES_PATH,
+  DEV_CLIENT_PAGES_MANIFEST,
+} from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -46,6 +50,8 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  protected sortedRoutes?: string[]
+
   protected staticPathsWorker: import('jest-worker').default & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
@@ -206,8 +212,22 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
         try {
-          this.dynamicRoutes = getSortedRoutes(routedPages)
+          // we serve a separate manifest with all pages for the client in
+          // dev mode so that we can match a page after a rewrite on the client
+          // before it has been built and is populated in the _buildManifest
+          const sortedRoutes = getSortedRoutes(routedPages)
+
+          if (
+            !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            // emit the change so clients fetch the update
+            this.hotReloader!.send(undefined, { devPagesManifest: true })
+          }
+          this.sortedRoutes = sortedRoutes
+
+          this.dynamicRoutes = this.sortedRoutes
             .filter(isDynamicRoute)
             .map((page) => ({
               page,
@@ -257,6 +277,7 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
+      rewrites: this.customRoutes.rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -405,6 +426,26 @@ export default class DevServer extends Server {
       fn: async (req, res, params) => {
         const p = pathJoin(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
+        return {
+          finished: true,
+        }
+      },
+    })
+
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            pages: this.sortedRoutes,
+          })
+        )
         return {
           finished: true,
         }
