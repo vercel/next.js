@@ -36,7 +36,7 @@ const Collections = ({ id_collection }: CollectionProps) => {
           :
 
           <Link
-            href={`/collection/[slug]?id=${id}`}
+            href={{ pathname: '/collection/[slug]', query: { id: id } }}
             as={`/collection/${slug}?id=${id}`}
             key={`collection_${slug}`}>
 
@@ -44,7 +44,6 @@ const Collections = ({ id_collection }: CollectionProps) => {
               {title}
             </a>
           </Link>
-
       ))}
     </div>
   )

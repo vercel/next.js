@@ -4,7 +4,7 @@ import styles from './Gallery.module.css'
 import UImage from 'components/UImage'
 
 interface GalleryProps {
-  id_collection?: string
+  id_collection?: number
 }
 
 const Gallery = ({ id_collection }: GalleryProps) => {
