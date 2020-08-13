@@ -8,7 +8,7 @@ This is a full-stack Slack clone example using:
 - Backend:
   - [app.supabase.io](https://app.supabase.io/): hosted Postgres database with restful API for usage with Supabase.js.
 
-![Demo animation gif](./public/slack-clone-demo.gif)
+![Demo animation gif](./docs/slack-clone-demo.gif)
 
 This example is a clone of the [Slack Clone example](https://github.com/supabase/supabase/tree/master/examples/slack-clone) in the supabase repo, feel free to check it out!
 
