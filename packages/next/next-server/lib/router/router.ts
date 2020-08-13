@@ -696,16 +696,13 @@ export default class Router implements BaseRouter {
         return cachedRouteInfo
       }
 
-      const routeInfo = cachedRouteInfo
+      const routeInfo: RouteInfo = cachedRouteInfo
         ? cachedRouteInfo
-        : await this.fetchComponent(route).then(
-            (res) =>
-              ({
-                Component: res.page,
-                __N_SSG: res.mod.__N_SSG,
-                __N_SSP: res.mod.__N_SSP,
-              } as RouteInfo)
-          )
+        : await this.fetchComponent(route).then((res) => ({
+            Component: res.page,
+            __N_SSG: res.mod.__N_SSG,
+            __N_SSP: res.mod.__N_SSP,
+          }))
 
       const { Component, __N_SSG, __N_SSP } = routeInfo
 
