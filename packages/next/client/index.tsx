@@ -1,5 +1,4 @@
 /* global location */
-import type { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
@@ -16,6 +15,7 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -33,20 +33,7 @@ declare global {
 
     /* prod */
     __NEXT_PRELOADREADY?: (ids?: string[]) => void
-
-    __NEXT_DATA__: {
-      props: Record<string, any>
-      err?: Error
-      page: string
-      query: ParsedUrlQuery
-      buildId: string
-      assetPrefix?: string
-      runtimeConfig?: object
-      dynamicIds?: string[]
-      isFallback?: boolean
-      nextExport?: boolean
-    }
-
+    __NEXT_DATA__: NEXT_DATA
     __NEXT_P: any[]
   }
 }
