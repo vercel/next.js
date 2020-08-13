@@ -3,25 +3,26 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
+import {
+  normalizePathTrailingSlash,
+  removePathTrailingSlash,
+} from '../../../client/normalize-trailing-slash'
+import type { GoodPageCache } from '../../../client/page-loader'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
   formatWithValidation,
+  getLocationOrigin,
   getURL,
   loadGetInitialProps,
   NextPageContext,
   ST,
-  getLocationOrigin,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
+import { parseRelativeUrl } from './utils/parse-relative-url'
+import { searchParamsToUrlQuery } from './utils/querystring'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { searchParamsToUrlQuery } from './utils/querystring'
-import { parseRelativeUrl } from './utils/parse-relative-url'
-import {
-  removePathTrailingSlash,
-  normalizePathTrailingSlash,
-} from '../../../client/normalize-trailing-slash'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -128,8 +129,6 @@ function tryParseRelativeUrl(
     return null
   }
 }
-
-type ComponentRes = { page: ComponentType; mod: any }
 
 export type BaseRouter = {
   route: string
@@ -697,16 +696,13 @@ export default class Router implements BaseRouter {
         return cachedRouteInfo
       }
 
-      const routeInfo = cachedRouteInfo
+      const routeInfo: RouteInfo = cachedRouteInfo
         ? cachedRouteInfo
-        : await this.fetchComponent(route).then(
-            (res) =>
-              ({
-                Component: res.page,
-                __N_SSG: res.mod.__N_SSG,
-                __N_SSP: res.mod.__N_SSP,
-              } as RouteInfo)
-          )
+        : await this.fetchComponent(route).then((res) => ({
+            Component: res.page,
+            __N_SSG: res.mod.__N_SSG,
+            __N_SSP: res.mod.__N_SSP,
+          }))
 
       const { Component, __N_SSG, __N_SSP } = routeInfo
 
@@ -853,7 +849,7 @@ export default class Router implements BaseRouter {
     ])
   }
 
-  async fetchComponent(route: string): Promise<ComponentRes> {
+  async fetchComponent(route: string): Promise<GoodPageCache> {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
