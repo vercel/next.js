@@ -84,7 +84,9 @@ if (hasBasePath(asPath)) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(buildId, prefix, page)
+const pageLoader = new PageLoader(buildId, prefix, page, [
+  /* FIXME: page styles */
+])
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall

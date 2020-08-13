@@ -78,6 +78,7 @@ export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private initialPage: string
+  private initialStyleSheets: string[]
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
@@ -87,8 +88,14 @@ export default class PageLoader {
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
 
-  constructor(buildId: string, assetPrefix: string, initialPage: string) {
+  constructor(
+    buildId: string,
+    assetPrefix: string,
+    initialPage: string,
+    initialStyleSheets: string[]
+  ) {
     this.initialPage = initialPage
+    this.initialStyleSheets = initialStyleSheets
 
     this.buildId = buildId
     this.assetPrefix = assetPrefix
@@ -388,10 +395,10 @@ export default class PageLoader {
     }
 
     const promisedDeps: Promise<string[]> =
-      route === '/_app' || route === this.initialPage
-        ? Promise.resolve([
-            /* FIXME: we need to resolve the initial CSS files */
-          ])
+      route === '/_app'
+        ? Promise.resolve([])
+        : route === this.initialPage
+        ? Promise.resolve(this.initialStyleSheets)
         : // TODO: test this doesn't block register of initial page
           this.getDependencies(route)
     promisedDeps.then(
