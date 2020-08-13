@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
@@ -68,7 +69,8 @@ function appendLink(
   })
 }
 
-type PageCacheEntry = { error?: any; page?: any; mod?: any }
+export type GoodPageCache = { page: ComponentType; mod: any }
+export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private buildId: string
@@ -252,26 +254,29 @@ export default class PageLoader {
     )
   }
 
-  loadPage(route: string) {
+  loadPage(route: string): Promise<GoodPageCache> {
     route = normalizeRoute(route)
 
-    return new Promise((resolve, reject) => {
+    return new Promise<GoodPageCache>((resolve, reject) => {
       // If there's a cached version of the page, let's use it.
       const cachedPage = this.pageCache[route]
       if (cachedPage) {
-        const { error, page, mod } = cachedPage
-        error ? reject(error) : resolve({ page, mod })
+        if ('error' in cachedPage) {
+          reject(cachedPage.error)
+        } else {
+          resolve(cachedPage)
+        }
         return
       }
 
-      const fire = ({ error, page, mod }: PageCacheEntry) => {
+      const fire = (pageToCache: PageCacheEntry) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
 
-        if (error) {
-          reject(error)
+        if ('error' in pageToCache) {
+          reject(pageToCache.error)
         } else {
-          resolve({ page, mod })
+          resolve(pageToCache)
         }
       }
 
