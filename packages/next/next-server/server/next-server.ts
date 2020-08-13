@@ -974,7 +974,13 @@ export default class Server {
     if (pathname === '/404') {
       res.statusCode = 404
     }
-
+    if (components.Component.default) {
+      components.Component = require('next/dynamic').default(
+        components.Component.default
+      )
+    }
+    console.log(components.Component)
+    console.log(components.Component.constructor)
     // handle static page
     if (typeof components.Component === 'string') {
       return components.Component
