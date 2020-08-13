@@ -292,7 +292,7 @@ export default class PageLoader {
                 d.endsWith('.js') &&
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
-                  this.loadScript(d, route)
+                this.loadScript(d, route)
               }
               if (
                 d.endsWith('.css') &&
