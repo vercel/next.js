@@ -1,27 +1,66 @@
 /* global location */
-import { createRouter, makePublicRouterInstance } from 'next/router'
-import * as querystring from '../next-server/lib/router/utils/querystring'
+import type { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
+import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
+import type Router from '../next-server/lib/router/router'
+import type {
+  AppComponent,
+  AppProps,
+  PrivateRouteInfo,
+} from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
-import { hasBasePath, delBasePath } from '../next-server/lib/router/router'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import measureWebVitals from './performance-relayer'
+import { createRouter, makePublicRouterInstance } from './router'
 
 /// <reference types="react-dom/experimental" />
 
-if (!('finally' in Promise.prototype)) {
-  // eslint-disable-next-line no-extend-native
-  Promise.prototype.finally = require('next/dist/build/polyfills/finally-polyfill.min')
+declare let __webpack_public_path__: string
+
+declare global {
+  interface Window {
+    /* test fns */
+    __NEXT_HYDRATED?: boolean
+    __NEXT_HYDRATED_CB?: () => void
+
+    /* prod */
+    __NEXT_PRELOADREADY?: (ids?: string[]) => void
+
+    __NEXT_DATA__: {
+      props: Record<string, any>
+      err?: Error
+      page: string
+      query: ParsedUrlQuery
+      buildId: string
+      assetPrefix?: string
+      runtimeConfig?: object
+      dynamicIds?: string[]
+      isFallback?: boolean
+      nextExport?: boolean
+    }
+
+    __NEXT_P: any[]
+  }
 }
 
-const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
+type RenderErrorProps = Omit<RenderRouteInfo, 'Component'>
+
+if (!('finally' in Promise.prototype)) {
+  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
+}
+
+const data: typeof window['__NEXT_DATA__'] = JSON.parse(
+  document.getElementById('__NEXT_DATA__')!.textContent!
+)
 window.__NEXT_DATA__ = data
 
 export const version = process.env.__NEXT_VERSION
@@ -56,28 +95,32 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
+type RegisterFn = (input: [string, () => void]) => void
+
 const pageLoader = new PageLoader(buildId, prefix, page)
-const register = ([r, f]) => pageLoader.registerPage(r, f)
+const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
   // latency in hydrating the page, but reduce the total blocking time.
   window.__NEXT_P.map((p) => setTimeout(() => register(p), 0))
 }
 window.__NEXT_P = []
-window.__NEXT_P.push = register
+;(window.__NEXT_P as any).push = register
 
 const headManager = initHeadManager()
 const appElement = document.getElementById('__next')
 
-let lastAppProps
-let lastRenderReject
-let webpackHMR
-export let router
-let CachedComponent
-let CachedApp, onPerfEntry
+let lastAppProps: AppProps
+let lastRenderReject: (() => void) | null
+let webpackHMR: any
+export let router: Router
+let CachedComponent: React.ComponentType
+let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
-class Container extends React.Component {
-  componentDidCatch(componentErr, info) {
+class Container extends React.Component<{
+  fn: (err: Error, info?: any) => void
+}> {
+  componentDidCatch(componentErr: Error, info: any) {
     this.props.fn(componentErr, info)
   }
 
@@ -107,6 +150,7 @@ class Container extends React.Component {
           ),
         asPath,
         {
+          // @ts-ignore
           // WARNING: `_h` is an internal option for handing Next.js
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
@@ -149,8 +193,7 @@ class Container extends React.Component {
   render() {
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
-    }
-    if (process.env.NODE_ENV !== 'production') {
+    } else {
       const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
@@ -159,13 +202,13 @@ class Container extends React.Component {
 
 export const emitter = mitt()
 
-export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
+export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
-    webpackHMR = passedWebpackHMR
+    webpackHMR = opts.webpackHMR
   }
   const { page: app, mod } = await pageLoader.loadPage('/_app')
-  CachedApp = app
+  CachedApp = app as AppComponent
 
   if (mod && mod.reportWebVitals) {
     onPerfEntry = ({
@@ -230,13 +273,13 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
             // Generate a new error object. We `throw` it because some browsers
             // will set the `stack` when thrown, and we want to ensure ours is
             // not overridden when we re-throw it below.
-            throw new Error(initialErr.message)
+            throw new Error(initialErr!.message)
           } catch (e) {
             error = e
           }
 
-          error.name = initialErr.name
-          error.stack = initialErr.stack
+          error.name = initialErr!.name
+          error.stack = initialErr!.stack
 
           const node = getNodeError(error)
           throw node
@@ -263,13 +306,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     Component: CachedComponent,
     wrapApp,
     err: initialErr,
-    isFallback,
+    isFallback: Boolean(isFallback),
     subscription: ({ Component, props, err }, App) =>
       render({ App, Component, props, err }),
   })
 
   // call init-client middleware
   if (process.env.__NEXT_PLUGINS) {
+    // @ts-ignore
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-init-client!')
       .then((initClientModule) => {
@@ -290,14 +334,12 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'production') {
     render(renderCtx)
     return emitter
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
+  } else {
     return { emitter, render, renderCtx }
   }
 }
 
-export async function render(renderingProps) {
+export async function render(renderingProps: RenderRouteInfo) {
   if (renderingProps.err) {
     await renderError(renderingProps)
     return
@@ -319,7 +361,7 @@ export async function render(renderingProps) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(renderErrorProps) {
+export function renderError(renderErrorProps: RenderErrorProps) {
   const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
@@ -335,10 +377,10 @@ export function renderError(renderErrorProps) {
       App: () => null,
       props: {},
       Component: () => null,
-      err: null,
     })
   }
   if (process.env.__NEXT_PLUGINS) {
+    // @ts-ignore
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-error-client!')
       .then((onClientErrorModule) => {
@@ -382,15 +424,15 @@ export function renderError(renderErrorProps) {
 
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
-let reactRoot = null
-function renderReactElement(reactEl, domEl) {
+let reactRoot: any = null
+function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? ReactDOM.unstable_createRoot(domEl, opts)
-          : ReactDOM.unstable_createBlockingRoot(domEl, opts)
+          ? (ReactDOM as any).unstable_createRoot(domEl, opts)
+          : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
     }
     reactRoot.render(reactEl)
   } else {
@@ -468,7 +510,9 @@ function clearMarks() {
   ].forEach((mark) => performance.clearMarks(mark))
 }
 
-function AppContainer({ children }) {
+function AppContainer({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
   return (
     <Container
       fn={(error) =>
@@ -486,8 +530,10 @@ function AppContainer({ children }) {
   )
 }
 
-const wrapApp = (App) => (wrappedAppProps) => {
-  const appProps = {
+const wrapApp = (App: AppComponent) => (
+  wrappedAppProps: Record<string, any>
+) => {
+  const appProps: AppProps = {
     ...wrappedAppProps,
     Component: CachedComponent,
     err: hydrateErr,
@@ -500,15 +546,20 @@ const wrapApp = (App) => (wrappedAppProps) => {
   )
 }
 
-async function doRender({ App, Component, props, err }) {
+async function doRender({ App, Component, props, err }: RenderRouteInfo) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { ...props, Component, err, router }
+  const appProps: AppProps = {
+    ...props,
+    Component,
+    err,
+    router,
+  }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  let resolvePromise
+  let resolvePromise: () => void
   const renderPromise = new Promise((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
@@ -524,7 +575,7 @@ async function doRender({ App, Component, props, err }) {
   })
 
   const elem = (
-    <Root callback={resolvePromise}>
+    <Root callback={resolvePromise!}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -538,15 +589,20 @@ async function doRender({ App, Component, props, err }) {
     ) : (
       elem
     ),
-    appElement
+    appElement!
   )
 
   await renderPromise
 }
 
-function Root({ callback, children }) {
+function Root({
+  callback,
+  children,
+}: React.PropsWithChildren<{
+  callback: () => void
+}>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
   React.useLayoutEffect(() => callback(), [callback])
-  return children
+  return children as React.ReactElement
 }
