@@ -329,7 +329,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
@@ -358,23 +357,6 @@ export async function renderToHTML(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
     }
-  }
-
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    (isAutoExport || isFallback) &&
-    pageIsDynamic &&
-    didRewrite
-  ) {
-    // TODO: If we decide to ship rewrites to the client we could
-    // solve this by running over the rewrites and getting the params.
-    throw new Error(
-      `Rewrites don't support${
-        isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
-        `Using this will cause the page to fail to parse the params on the client\n` +
-        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
-    )
   }
 
   if (hasPageGetInitialProps && isSSG) {
@@ -690,6 +672,27 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
+  // we preload the buildManifest for auto-export dynamic pages
+  // to speed up hydrating query values
+  let filteredBuildManifest = buildManifest
+  const additionalFiles: string[] = []
+
+  if (isAutoExport && pageIsDynamic) {
+    filteredBuildManifest = {
+      ...buildManifest,
+      lowPriorityFiles: buildManifest.lowPriorityFiles.filter((file) => {
+        if (
+          file.endsWith('_buildManifest.js') ||
+          file.endsWith('_buildManifest.module.js')
+        ) {
+          additionalFiles.push(file)
+          return false
+        }
+        return true
+      }),
+    }
+  }
+
   // AMP First pages do not have client-side JavaScript files
   const files = ampState.ampFirst
     ? []
@@ -700,6 +703,7 @@ export async function renderToHTML(
             ? getPageFiles(buildManifest, pathname)
             : []),
         ]),
+        ...additionalFiles,
       ]
 
   const renderPage: RenderPage = (
@@ -766,6 +770,7 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
       process.env.NODE_ENV === 'production'

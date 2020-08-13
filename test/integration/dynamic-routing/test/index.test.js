@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import fs from 'fs-extra'
 import {
   renderViaHTTP,
@@ -13,6 +13,7 @@ import {
   nextBuild,
   nextStart,
   normalizeRegEx,
+  check,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
@@ -86,8 +87,28 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1').click()
       await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page successfully no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
@@ -137,8 +158,28 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1-comment-1').click()
       await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a nested dynamic page successfully no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-comment-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
@@ -354,8 +395,28 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#ssg-catch-all-multi').click()
       await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#ssg-catch-all-multi-no-as').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#all-ssg-content').text()
       expect(text).toBe('{"rest":["hello1","hello2"]}')
@@ -501,6 +562,39 @@ function runTests(dev) {
   })
 
   if (dev) {
+    it('should resolve dynamic route href for page added later', async () => {
+      const browser = await webdriver(appPort, '/')
+      const addLaterPage = join(appDir, 'pages/added-later/[slug].js')
+
+      await fs.mkdir(dirname(addLaterPage)).catch(() => {})
+      await fs.writeFile(
+        addLaterPage,
+        `
+        import { useRouter } from 'next/router'
+
+        export default function Page() {
+          return <p id='added-later'>slug: {useRouter().query.slug}</p>
+        }
+      `
+      )
+
+      await check(async () => {
+        const contents = await renderViaHTTP(
+          appPort,
+          '/_next/static/development/_devPagesManifest.json'
+        )
+        return contents.includes('added-later') ? 'success' : 'fail'
+      }, 'success')
+
+      await browser.elementByCss('#added-later-link').click()
+      await browser.waitForElementByCss('#added-later')
+
+      const text = await browser.elementByCss('#added-later').text()
+
+      await fs.remove(dirname(addLaterPage))
+      expect(text).toBe('slug: first')
+    })
+
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
       let text = await browser.eval(`document.documentElement.innerHTML`)

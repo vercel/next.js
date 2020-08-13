@@ -23,6 +23,8 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { denormalizePagePath } from '../../server/denormalize-page-path'
+import resolveRewrites from './utils/resolve-rewrites'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -465,6 +467,7 @@ export default class Router implements BaseRouter {
     if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as)
+      // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
       this.notify(this.components[this.route])
@@ -472,11 +475,25 @@ export default class Router implements BaseRouter {
       return true
     }
 
-    const parsed = tryParseRelativeUrl(url)
+    // The build manifest needs to be loaded before auto-static dynamic pages
+    // get their query parameters to allow ensuring they can be parsed properly
+    // when rewritten to
+    const pages = await this.pageLoader.getPageList()
+    const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
+
+    let parsed = tryParseRelativeUrl(url)
 
     if (!parsed) return false
 
     let { pathname, searchParams } = parsed
+
+    parsed = this._resolveHref(parsed, pages) as typeof parsed
+
+    if (parsed.pathname !== pathname) {
+      pathname = parsed.pathname
+      url = formatWithValidation(parsed)
+    }
+
     const query = searchParamsToUrlQuery(searchParams)
 
     // url and as should always be prefixed with basePath by this
@@ -498,8 +515,17 @@ export default class Router implements BaseRouter {
     const route = removePathTrailingSlash(pathname)
     const { shallow = false } = options
 
+    // we need to resolve the as value using rewrites for dynamic SSG
+    // pages to allow building the data URL correctly
+    let resolvedAs = as
+
+    if (process.env.__NEXT_HAS_REWRITES) {
+      resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+    }
+    resolvedAs = delBasePath(resolvedAs)
+
     if (isDynamicRoute(route)) {
-      const { pathname: asPathname } = parseRelativeUrl(cleanedAs)
+      const { pathname: asPathname } = parseRelativeUrl(resolvedAs)
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
       if (!routeMatch) {
@@ -795,6 +821,29 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
+  _resolveHref(parsedHref: UrlObject, pages: string[]) {
+    const { pathname } = parsedHref
+    const cleanPathname = denormalizePagePath(delBasePath(pathname!))
+
+    if (cleanPathname === '/404' || cleanPathname === '/_error') {
+      return parsedHref
+    }
+
+    // handle resolving href for dynamic routes
+    if (!pages.includes(cleanPathname!)) {
+      for (let page of pages) {
+        if (
+          isDynamicRoute(page) &&
+          getRouteRegex(page).re.test(cleanPathname!)
+        ) {
+          parsedHref.pathname = addBasePath(page)
+          break
+        }
+      }
+    }
+    return parsedHref
+  }
+
   /**
    * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
@@ -806,11 +855,20 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    const parsed = tryParseRelativeUrl(url)
+    let parsed = tryParseRelativeUrl(url)
 
     if (!parsed) return
 
-    const { pathname } = parsed
+    let { pathname } = parsed
+
+    const pages = await this.pageLoader.getPageList()
+
+    parsed = this._resolveHref(parsed, pages) as typeof parsed
+
+    if (parsed.pathname !== pathname) {
+      pathname = parsed.pathname
+      url = formatWithValidation(parsed)
+    }
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {

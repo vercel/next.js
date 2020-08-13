@@ -549,6 +549,7 @@ export class NextScript extends Component<OriginProps> {
           ? { type: 'module' }
           : { noModule: true }
       }
+
       return (
         <script
           key={file}
