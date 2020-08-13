@@ -4,51 +4,23 @@ This is a full-stack Slack clone example using:
 
 - Frontend:
   - Next.js.
-  - [Supabase.js](https://supabase.io/docs/library/getting-started) for user management and realtime data syncing.
+  - [Supabase](https://supabase.io/docs/library/getting-started) for user management and realtime data syncing.
 - Backend:
-  - [app.supabase.io/](https://app.supabase.io/): hosted Postgres database with restful API for usage with Supabase.js.
-
-## Demo
-
-- Live demo: http://supabase-slack-clone.supabase.vercel.app/
-- CodeSandbox: https://codesandbox.io/s/github/supabase/supabase/tree/master/examples/slack-clone
-- Video tutorial: https://www.loom.com/share/31eec9b656e44b8d87c88bde8a465676
+  - [app.supabase.io](https://app.supabase.io/): hosted Postgres database with restful API for usage with Supabase.js.
 
 ![Demo animation gif](./public/slack-clone-demo.gif)
 
+This example is a clone of the [Slack Clone example](https://github.com/supabase/supabase/tree/master/examples/slack-clone) in the supabase repo, feel free to check it out!
+
 ## Deploy your own
 
-### 1. Create new project
+Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-Sign up to Supabase - [https://app.supabase.io](https://app.supabase.io) and create a new project. Wait for your database to start.
-
-### 2. Run "Slack Clone" Quickstart
-
-Once your database has started, run the "Slack Clone" quickstart.
-
-![Slack Clone Quick Start](https://user-images.githubusercontent.com/10214025/88916135-1b1d7a00-d298-11ea-82e7-e2c18314e805.png)
-
-### 3. Get the URL and Key
-
-Go to the Project Settings (the cog icon), open the API tab, and find your API URL and `anon` key, you'll need these in the next step.
-
-The `anon` key is your client-side API key. It allows "anonymous access" to your database, until the user has logged in. Once they have logged in, the keys will switch to the user's own login token. This enables row level security for your data. Read more about this [below](#postgres-row-level-security).
-
-![image](https://user-images.githubusercontent.com/10214025/88916245-528c2680-d298-11ea-8a71-708f93e1ce4f.png)
-
-**_NOTE_**: The `service_role` key has full access to your data, bypassing any security policies. These keys have to be kept secret and are meant to be used in server environments and never on a client or browser.
-
-### 4. Deploy the Next.js client
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https%3A%2F%2Fgithub.com%2Fsupabase%2Fsupabase%2Ftree%2Fmaster%2Fexamples%2Fslack-clone&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Find%20the%20Supabase%20URL%20and%20key%20in%20the%20your%20auto-generated%20docs%20at%20app.supabase.io&project-name=supabase-slack-clone&repo-name=supabase-slack-clone)
-
-You will be asked for a `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_KEY`. Use the API URL and `anon` key from [step 3](#3-get-the-url-and-key).
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Required%20to%20connect%20the%20app%to%Supabase&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db%23step-3-set-up-environment-variables&project-name=supabase-slack-clone&repo-name=supabase-slack-clone)
 
 ## How to use
 
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example locally:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-supabase-auth-realtime-db realtime-chat-app
@@ -56,43 +28,68 @@ npx create-next-app --example with-supabase-auth-realtime-db realtime-chat-app
 yarn create next-app --example with-supabase-auth-realtime-db realtime-chat-app
 ```
 
-### Download manually
+## Configuration
 
-Download the example:
+### Step 1. Create a new Supabase project
 
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-supabase-auth-realtime-db
-cd with-supabase-auth-realtime-db
-```
+Sign up to Supabase - [https://app.supabase.io](https://app.supabase.io) and create a new project. Wait for your database to start.
 
-### Required configuration
+### Step 2. Run the "Slack Clone" Quickstart
 
-Copy the `.env.local.example` file into a file named `.env.local` in the root directory of the example:
+Once your database has started, run the "Slack Clone" quickstart.
+
+![Slack Clone Quick Start](https://user-images.githubusercontent.com/10214025/88916135-1b1d7a00-d298-11ea-82e7-e2c18314e805.png)
+
+### Step 3. Set up environment variables
+
+In your Supabase project, go to Project Settings (the cog icon), open the API tab, and find your **API URL** and **anon** key, you'll need these in the next step.
+
+![image](https://user-images.githubusercontent.com/10214025/88916245-528c2680-d298-11ea-8a71-708f93e1ce4f.png)
+
+Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Set your Supabase details from from [step 3](#3-get-the-url-and-key) above:
+Then set each variable on `.env.local`:
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=<replace-with-your-API-url>
-NEXT_PUBLIC_SUPABASE_KEY=<replace-with-your-anon-key>
-```
+- `NEXT_PUBLIC_SUPABASE_URL` should be the **API URL**
+- `NEXT_PUBLIC_SUPABASE_KEY` should be the **anon** key
 
-### Run the development server
+The **anon** key is your client-side API key. It allows "anonymous access" to your database, until the user has logged in. Once they have logged in, the keys will switch to the user's own login token. This enables row level security for your data. Read more about this [below](#postgres-row-level-security).
 
-Now install the dependencies and start the development server.
+> **_NOTE_**: The `service_role` key has full access to your data, bypassing any security policies. These keys have to be kept secret and are meant to be used in server environments and never on a client or browser.
+
+### Step 4. Run Next.js in development mode
 
 ```bash
 npm install
 npm run dev
+
 # or
-yarn
+
+yarn install
 yarn dev
 ```
 
-Visit http://localhost:3000 and start chatting! Open a channel across two browser tabs to see everything getting updated in realtime 🥳
+Visit [http://localhost:3000](http://localhost:3000) and start chatting! Open a channel across two browser tabs to see everything getting updated in realtime 🥳. If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+
+### Step 5. Deploy on Vercel
+
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+#### Deploy Your Local Project
+
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Required%20to%20connect%20the%20app%to%Supabase&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db%23step-3-set-up-environment-variables&project-name=supabase-slack-clone&repo-name=supabase-slack-clone)
 
 ## Supabase details
 
@@ -140,9 +137,3 @@ CREATE POLICY "Allow logged-in read access" on public.messages USING ( auth.role
 CREATE POLICY "Allow individual insert access" on public.messages FOR INSERT WITH CHECK ( auth.uid() = user_id );
 CREATE POLICY "Allow individual update access" on public.messages FOR UPDATE USING ( auth.uid() = user_id );
 ```
-
-## Authors
-
-- [Supabase](https://supabase.io)
-
-Supabase is open source, we'd love for you to follow along and get involved at https://github.com/supabase/supabase
