@@ -10,7 +10,7 @@ const pathWrapper = (app, pathName, opts) => async (
   { raw, query, params },
   h
 ) => {
-  const html = await app.renderToHTML(
+  const html = await app.render(
     raw.req,
     raw.res,
     pathName,
