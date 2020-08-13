@@ -831,15 +831,16 @@ export default class Router implements BaseRouter {
 
     // handle resolving href for dynamic routes
     if (!pages.includes(cleanPathname!)) {
-      for (let page of pages) {
+      // eslint-disable-next-line array-callback-return
+      pages.some((page) => {
         if (
           isDynamicRoute(page) &&
           getRouteRegex(page).re.test(cleanPathname!)
         ) {
           parsedHref.pathname = addBasePath(page)
-          break
+          return true
         }
-      }
+      })
     }
     return parsedHref
   }
