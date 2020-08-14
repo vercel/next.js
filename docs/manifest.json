@@ -22,12 +22,24 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
+            },
+            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
             },
             {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
+            },
+            {
+              "title": "Environment Variables",
+              "path": "/docs/basic-features/environment-variables.md"
+            },
+            {
+              "title": "Supported Browsers and Features",
+              "path": "/docs/basic-features/supported-browsers-features.md"
             }
           ]
         },
@@ -97,6 +109,10 @@
               "path": "/docs/advanced-features/static-html-export.md"
             },
             {
+              "title": "Absolute Imports and Module Path Aliases",
+              "path": "/docs/advanced-features/module-path-aliases.md"
+            },
+            {
               "title": "AMP Support",
               "routes": [
                 {
@@ -152,6 +168,18 @@
             {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
+            },
+            {
+              "title": "Measuring performance",
+              "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Debugging",
+              "path": "/docs/advanced-features/debugging.md"
+            },
+            {
+              "title": "Codemods",
+              "path": "/docs/advanced-features/codemods.md"
             }
           ]
         },
@@ -167,6 +195,10 @@
       "heading": true,
       "routes": [
         { "title": "CLI", "path": "/docs/api-reference/cli.md" },
+        {
+          "title": "Create Next App",
+          "path": "/docs/api-reference/create-next-app.md"
+        },
         {
           "title": "next/router",
           "path": "/docs/api-reference/next/router.md"
@@ -202,6 +234,22 @@
             {
               "title": "Environment Variables",
               "path": "/docs/api-reference/next.config.js/environment-variables.md"
+            },
+            {
+              "title": "Base Path",
+              "path": "/docs/api-reference/next.config.js/basepath.md"
+            },
+            {
+              "title": "Rewrites",
+              "path": "/docs/api-reference/next.config.js/rewrites.md"
+            },
+            {
+              "title": "Redirects",
+              "path": "/docs/api-reference/next.config.js/redirects.md"
+            },
+            {
+              "title": "Custom Headers",
+              "path": "/docs/api-reference/next.config.js/headers.md"
             },
             {
               "title": "Custom Page Extensions",
@@ -258,6 +306,14 @@
             {
               "title": "exportPathMap",
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
+            },
+            {
+              "title": "Trailing Slash",
+              "path": "/docs/api-reference/next.config.js/trailing-slash.md"
+            },
+            {
+              "title": "React Strict Mode",
+              "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
             }
           ]
         }

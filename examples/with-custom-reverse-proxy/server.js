@@ -28,23 +28,23 @@ app
 
     // Set up the proxy.
     if (dev && devProxy) {
-      const proxyMiddleware = require('http-proxy-middleware')
-      Object.keys(devProxy).forEach(function(context) {
-        server.use(proxyMiddleware(context, devProxy[context]))
+      const { createProxyMiddleware } = require('http-proxy-middleware')
+      Object.keys(devProxy).forEach(function (context) {
+        server.use(context, createProxyMiddleware(devProxy[context]))
       })
     }
 
     // Default catch-all handler to allow Next.js to handle all other routes
     server.all('*', (req, res) => handle(req, res))
 
-    server.listen(port, err => {
+    server.listen(port, (err) => {
       if (err) {
         throw err
       }
       console.log(`> Ready on port ${port} [${env}]`)
     })
   })
-  .catch(err => {
+  .catch((err) => {
     console.log('An error occurred, unable to start the server')
     console.log(err)
   })

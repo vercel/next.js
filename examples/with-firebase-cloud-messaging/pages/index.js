@@ -1,13 +1,12 @@
-import React, { Component } from 'react'
+import { useEffect } from 'react'
 import { firebaseCloudMessaging } from '../utils/webPush'
 
-class Index extends Component {
-  componentDidMount() {
+const Index = () => {
+  useEffect(() => {
     firebaseCloudMessaging.init()
-  }
-  render() {
-    return <div>Next.js with firebase cloud messaging.</div>
-  }
+  }, [])
+
+  return <div>Next.js with firebase cloud messaging.</div>
 }
 
 export default Index

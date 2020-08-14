@@ -18,6 +18,7 @@
     "@lingui/cli": "latest",
     "@lingui/loader": "latest",
     "@lingui/macro": "latest",
+    "babel-core": "^7.0.0-bridge.0",
     "babel-plugin-macros": "^2.4.0"
   },
   "lingui": {

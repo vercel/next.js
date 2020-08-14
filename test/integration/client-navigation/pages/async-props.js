@@ -11,7 +11,7 @@ export default class AsyncProps extends React.Component {
 }
 
 function fetchData() {
-  const p = new Promise(resolve => {
+  const p = new Promise((resolve) => {
     setTimeout(() => resolve({ name: 'Diego Milito' }), 10)
   })
   return p

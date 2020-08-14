@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   findPort,
@@ -9,7 +9,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 const warningText = `You are using a non-standard "NODE_ENV" value in your environment`
@@ -36,7 +36,7 @@ describe('Non-Standard NODE_ENV', () => {
     let output = ''
 
     app = await launchApp(appDir, await findPort(), {
-      onStdout(msg) {
+      onStderr(msg) {
         output += msg || ''
       },
     })
@@ -52,7 +52,7 @@ describe('Non-Standard NODE_ENV', () => {
       env: {
         NODE_ENV: 'development',
       },
-      onStdout(msg) {
+      onStderr(msg) {
         output += msg || ''
       },
     })
@@ -69,7 +69,7 @@ describe('Non-Standard NODE_ENV', () => {
         NODE_ENV: 'development',
       },
       {
-        onStdout(msg) {
+        onStderr(msg) {
           output += msg || ''
         },
       }
@@ -86,7 +86,7 @@ describe('Non-Standard NODE_ENV', () => {
       env: {
         NODE_ENV: 'abc',
       },
-      onStdout(msg) {
+      onStderr(msg) {
         output += msg || ''
       },
     })
@@ -103,7 +103,7 @@ describe('Non-Standard NODE_ENV', () => {
         NODE_ENV: 'abc',
       },
       {
-        onStdout(msg) {
+        onStderr(msg) {
           output += msg || ''
         },
       }

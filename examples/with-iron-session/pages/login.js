@@ -1,4 +1,3 @@
-import React from 'react'
 import { useState } from 'react'
 import useUser from '../lib/useUser'
 import Layout from '../components/Layout'

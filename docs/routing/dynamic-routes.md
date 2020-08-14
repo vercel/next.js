@@ -7,7 +7,7 @@ description: Dynamic Routes are pages that allow you to add custom params to you
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
 
@@ -54,14 +54,14 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 { "pid": "abc", "comment": "a-comment" }
 ```
 
-Client-side navigations to a dynamic route can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes).
+**Note:** Client-side navigations to a dynamic route (including [catch all routes](#catch-all-routes)) can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes). Read our docs for [Linking between pages](/docs/routing/introduction#linking-between-pages) to learn more.
 
 ### Catch all routes
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/catch-all-routes">Catch All Routes</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/catch-all-routes">Catch All Routes</a></li>
   </ul>
 </details>
 
@@ -83,7 +83,23 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 { "slug": ["a", "b"] }
 ```
 
-> A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
+### Optional catch all routes
+
+Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
+
+For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
+
+The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/post` in the example above).
+
+The `query` objects are as follows:
+
+```json
+{ } // GET `/post` (empty object)
+{ "slug": ["a"] } // `GET /post/a` (single-element array)
+{ "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
+```
+
+> A good example of optional catch all routes is the Next.js docs, a single page called [pages/docs/[[...slug]].js](https://github.com/vercel/next-site/blob/master/pages/docs/%5B%5B...slug%5D%5D.js) takes care of all the docs you're currently looking at.
 
 ## Caveats
 
@@ -92,5 +108,6 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
   - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
   - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
+- When routing to a dynamic route using `Link` or `router`, you will need to specify the `href` as the dynamic route, for example `/post/[pid]` and `as` as the decorator for the URL, for example `/post/abc`.
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.

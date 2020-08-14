@@ -9,7 +9,7 @@ const messages = defineMessages({
   },
 })
 
-export default ({ title, children }) => {
+export default function Layout({ title, children }) {
   const intl = useIntl()
 
   return (

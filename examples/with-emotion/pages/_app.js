@@ -1,4 +1,3 @@
-import * as React from 'react'
 import NextApp from 'next/app'
 import { CacheProvider } from '@emotion/core'
 

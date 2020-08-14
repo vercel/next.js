@@ -14,6 +14,7 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
+import { isNodeError } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import {
   getOriginalStackFrames,
@@ -41,7 +42,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}`
+      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
     default: {
     }
@@ -50,6 +51,35 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _: never = event
   return ''
+}
+
+const HotlinkedText: React.FC<{
+  text: string
+}> = function HotlinkedText(props) {
+  const { text } = props
+
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/i
+  return (
+    <>
+      {linkRegex.test(text)
+        ? text.split(' ').map((word, index, array) => {
+            if (linkRegex.test(word)) {
+              return (
+                <React.Fragment key={`link-${index}`}>
+                  <a href={word}>{word}</a>
+                  {index === array.length - 1 ? '' : ' '}
+                </React.Fragment>
+              )
+            }
+            return index === array.length - 1 ? (
+              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
+            ) : (
+              <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
+            )
+          })
+        : text}
+    </>
+  )
 }
 
 async function getErrorByType(
@@ -63,7 +93,10 @@ async function getErrorByType(
         id,
         runtime: true,
         error: event.reason,
-        frames: await getOriginalStackFrames(event.frames),
+        frames: await getOriginalStackFrames(
+          isNodeError(event.reason),
+          event.frames
+        ),
       }
     }
     default: {
@@ -119,11 +152,11 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
       return
     }
     getErrorByType(nextError).then(
-      resolved => {
+      (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
-        setLookups(m => ({ ...m, [resolved.id]: resolved }))
+        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
       },
       () => {
         // TODO: handle this, though an edge case
@@ -135,12 +168,14 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   const [activeIdx, setActiveIndex] = React.useState<number>(0)
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()
-    setActiveIndex(v => Math.max(0, v - 1))
+    setActiveIndex((v) => Math.max(0, v - 1))
   }, [])
   const next = React.useCallback(
     (e?: MouseEvent | TouchEvent) => {
       e?.preventDefault()
-      setActiveIndex(v => Math.max(0, Math.min(readyErrors.length - 1, v + 1)))
+      setActiveIndex((v) =>
+        Math.max(0, Math.min(readyErrors.length - 1, v + 1))
+      )
     },
     [readyErrors.length]
   )
@@ -174,7 +209,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
-  if (errors.length < 1) {
+  if (errors.length < 1 || activeError == null) {
     return null
   }
 
@@ -202,26 +237,29 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <span>{readyErrors.length} errors</span>
+          <span>
+            {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
+          </span>
         </div>
       </Toast>
     )
   }
 
+  const isServerError = isNodeError(activeError.error)
   return (
     <Overlay>
       <Dialog
         type="error"
         aria-labelledby="nextjs__container_errors_label"
         aria-describedby="nextjs__container_errors_desc"
-        onClose={minimize}
+        onClose={isServerError ? undefined : minimize}
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={minimize}
+              close={isServerError ? undefined : minimize}
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
@@ -229,13 +267,24 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
             </LeftRightDialogHeader>
-            <h4 id="nextjs__container_errors_label">Unhandled Runtime Error</h4>
+            <h1 id="nextjs__container_errors_label">
+              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+            </h1>
             <p id="nextjs__container_errors_desc">
-              {activeError.error.name}: {activeError.error.message}
+              {activeError.error.name}:{' '}
+              <HotlinkedText text={activeError.error.message} />
             </p>
+            {isServerError ? (
+              <div>
+                <small>
+                  This error happened while generating the page. Any console
+                  logs will be displayed in the terminal window.
+                </small>
+              </div>
+            ) : undefined}
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError error={activeError} />
+            <RuntimeError key={activeError.id.toString()} error={activeError} />
           </DialogBody>
         </DialogContent>
       </Dialog>
@@ -244,26 +293,44 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 }
 
 export const styles = css`
-  .nextjs-container-errors-header > h4 {
-    line-height: 1.5;
+  .nextjs-container-errors-header > h1 {
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
     margin: 0;
-    margin-top: 1rem;
+    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
   }
   .nextjs-container-errors-header small {
-    color: #757575;
-    margin-left: 9px;
+    font-size: var(--size-font-small);
+    color: var(--color-accents-1);
+    margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header > p {
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font-small);
+    line-height: var(--size-font-big);
+    font-weight: bold;
     margin: 0;
-    color: #6a6a6a;
+    margin-top: var(--size-gap-half);
+    color: var(--color-ansi-red);
+    white-space: pre-wrap;
+  }
+  .nextjs-container-errors-header > div > small {
+    margin: 0;
+    margin-top: var(--size-gap-half);
+  }
+  .nextjs-container-errors-header > p > a {
+    color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body {
-    margin-top: 1.5rem;
+  .nextjs-container-errors-body > h5:not(:first-child) {
+    margin-top: calc(var(--size-gap-double) + var(--size-gap));
+  }
+  .nextjs-container-errors-body > h5 {
+    margin-bottom: var(--size-gap);
   }
 
   .nextjs-toast-errors-parent {
@@ -279,6 +346,6 @@ export const styles = css`
     justify-content: flex-start;
   }
   .nextjs-toast-errors > svg {
-    margin-right: 0.5rem;
+    margin-right: var(--size-gap);
   }
 `

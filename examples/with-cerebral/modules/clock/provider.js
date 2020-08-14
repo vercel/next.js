@@ -2,7 +2,7 @@
 const SECOND = 1000
 let timer = null
 
-export default context => {
+export default function provider(context) {
   context.clock = {
     start(signalPath) {
       const signal = context.controller.getSignal(signalPath)

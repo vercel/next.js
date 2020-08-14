@@ -60,7 +60,7 @@ cache:
 
 #### Netlify CI
 
-Use [Netlify Plugins (beta)](https://www.netlify.com/build/plugins-beta/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
+Use [Netlify Plugins](https://www.netlify.com/products/build/plugins/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
 
 #### AWS CodeBuild
 
@@ -78,7 +78,7 @@ cache:
 Using GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
 
 ```yaml
-uses: actions/cache@v1
+uses: actions/cache@v2
 with:
   path: ${{ github.workspace }}/.next/cache
   key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}

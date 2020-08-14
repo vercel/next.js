@@ -1,4 +1,3 @@
-import React from 'react'
 import { PageTransition } from 'next-page-transitions'
 
 import Loader from '../components/Loader'

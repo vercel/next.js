@@ -5,10 +5,13 @@ import {
   AppContextType,
   AppInitialProps,
   AppPropsType,
+  NextWebVitalsMetric,
 } from '../next-server/lib/utils'
 import { Router } from '../client/router'
 
 export { AppInitialProps }
+
+export { NextWebVitalsMetric }
 
 export type AppContext = AppContextType<Router>
 
@@ -63,13 +66,13 @@ let warnUrl: () => void
 if (process.env.NODE_ENV !== 'production') {
   warnContainer = execOnce(() => {
     console.warn(
-      `Warning: the \`Container\` in \`_app\` has been deprecated and should be removed. https://err.sh/zeit/next.js/app-container-deprecated`
+      `Warning: the \`Container\` in \`_app\` has been deprecated and should be removed. https://err.sh/vercel/next.js/app-container-deprecated`
     )
   })
 
   warnUrl = execOnce(() => {
     console.error(
-      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`
+      `Warning: the 'url' property is deprecated. https://err.sh/vercel/next.js/url-deprecated`
     )
   })
 }

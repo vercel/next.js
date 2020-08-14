@@ -1,9 +1,7 @@
-import * as React from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import { NextPage } from 'next'
 
-const IndexPage: NextPage = () => {
+const IndexPage = () => {
   return (
     <Layout title="Home | Next.js + TypeScript + Electron Example">
       <h1>Hello Next.js 👋</h1>

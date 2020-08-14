@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import Person from '../components/Person'
 
-const fetcher = url => fetch(url).then(res => res.json())
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
 export default function Index() {
   const { data, error } = useSWR('/api/people', fetcher)

@@ -6,7 +6,7 @@ function MyApp({ Component, pageProps }) {
     <SWRConfig
       value={{
         fetcher: fetch,
-        onError: err => {
+        onError: (err) => {
           console.error(err)
         },
       }}

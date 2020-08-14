@@ -16,7 +16,7 @@ const server = http2.createSecureServer({
 })
 
 app.prepare().then(() => {
-  server.on('error', err => console.error(err))
+  server.on('error', (err) => console.error(err))
 
   // Process the various routes based on `req`
   // `/`      -> Render index.js

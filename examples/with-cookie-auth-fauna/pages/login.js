@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import Router from 'next/router'
 import Layout from '../components/layout'
 
@@ -49,7 +49,7 @@ function Login() {
             id="email"
             name="email"
             value={userData.email}
-            onChange={event =>
+            onChange={(event) =>
               setUserData(
                 Object.assign({}, userData, { email: event.target.value })
               )
@@ -62,7 +62,7 @@ function Login() {
             id="password"
             name="password"
             value={userData.password}
-            onChange={event =>
+            onChange={(event) =>
               setUserData(
                 Object.assign({}, userData, { password: event.target.value })
               )

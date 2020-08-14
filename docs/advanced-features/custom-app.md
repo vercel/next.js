@@ -38,9 +38,12 @@ export default MyApp
 
 The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
 
-`pageProps` is an object with the initial props that were preloaded for your page, it's an empty object if the page is not using [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md).
+`pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/basic-features/data-fetching.md), otherwise it's an empty object.
 
-> Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+### Caveats
+
+- If your app is running and you just added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
+- Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).
 
 ### TypeScript
 

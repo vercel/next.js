@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -15,7 +15,7 @@ import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
 const nextConfigPath = join(appDir, 'next.config.js')
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const cleanUp = () => fs.remove(nextConfigPath)
 

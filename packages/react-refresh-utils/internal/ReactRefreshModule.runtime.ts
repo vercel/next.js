@@ -16,13 +16,17 @@ declare const module: {
 
 // This function gets unwrapped into global scope, which is why we don't invert
 // if-blocks. Also, you cannot use `return`.
-export default function() {
+export default function () {
   // Legacy CSS implementations will `eval` browser code in a Node.js context
   // to extract CSS. For backwards compatibility, we need to check we're in a
   // browser context before continuing.
-  if (typeof self !== 'undefined') {
-    const currentExports = module.__proto__.exports
-    const prevExports = module.hot.data?.prevExports ?? null
+  if (
+    typeof self !== 'undefined' &&
+    // AMP / No-JS mode does not inject these helpers:
+    '$RefreshHelpers$' in self
+  ) {
+    var currentExports = module.__proto__.exports
+    var prevExports = module.hot.data?.prevExports ?? null
 
     // This cannot happen in MainTemplate because the exports mismatch between
     // templating and execution.
@@ -36,7 +40,7 @@ export default function() {
     if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {
       // Save the previous exports on update so we can compare the boundary
       // signatures.
-      module.hot.dispose(data => {
+      module.hot.dispose(function (data) {
         data.prevExports = currentExports
       })
       // Unconditionally accept an update to this module, we'll check if it's
@@ -70,7 +74,7 @@ export default function() {
       // new exports made it ineligible for being a boundary.
       // We only care about the case when we were _previously_ a boundary,
       // because we already accepted this update (accidental side effect).
-      const isNoLongerABoundary = prevExports !== null
+      var isNoLongerABoundary = prevExports !== null
       if (isNoLongerABoundary) {
         module.hot.invalidate()
       }

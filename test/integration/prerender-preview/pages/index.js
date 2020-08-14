@@ -8,7 +8,7 @@ export function getStaticProps({ preview, previewData }) {
   }
 }
 
-export default function({ hasProps, preview, previewData }) {
+export default function ({ hasProps, preview, previewData }) {
   if (!hasProps) {
     return <pre id="props-pre">Has No Props</pre>
   }

@@ -62,13 +62,13 @@ function LoginModal({ toggle, modalType, setUser }) {
           type="text"
           placeholder="Username"
           value={username}
-          onChange={e => setUsername(e.target.value)}
+          onChange={(e) => setUsername(e.target.value)}
         />
       </div>
       <div className="mb-4">
         <label
           className="block text-purple-700 text-sm font-bold mb-2"
-          htmlFor="username"
+          htmlFor="password"
         >
           Password
         </label>
@@ -78,7 +78,7 @@ function LoginModal({ toggle, modalType, setUser }) {
           type="password"
           placeholder="*******"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
         />
       </div>
       <div className="flex items-center justify-between">

@@ -1,14 +1,14 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 const context = {
   output: '',
 }
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
-const collectOutput = message => {
+const collectOutput = (message) => {
   context.output += message
 }
 

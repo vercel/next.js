@@ -9,7 +9,7 @@ module.exports = {
     config.module.rules.push({
       test: /\.graphqls$/,
       exclude: /node_modules/,
-      loader: 'graphql-tag/loader',
+      use: ['graphql-tag/loader', 'graphql-let/schema/loader'],
     })
 
     return config

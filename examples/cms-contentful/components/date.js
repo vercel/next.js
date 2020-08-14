@@ -1,7 +1,9 @@
 import { format } from 'date-fns'
 
-export default ({ dateString }) => (
-  <time dateTime={dateString}>
-    {format(new Date(dateString), 'LLLL	d, yyyy')}
-  </time>
-)
+export default function DateComponent({ dateString }) {
+  return (
+    <time dateTime={dateString}>
+      {format(new Date(dateString), 'LLLL	d, yyyy')}
+    </time>
+  )
+}

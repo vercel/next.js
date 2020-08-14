@@ -3,27 +3,32 @@
 import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
+import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 
-const nextStart: cliCommand = argv => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--port': Number,
-      '--hostname': String,
+const nextStart: cliCommand = (argv) => {
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--port': Number,
+    '--hostname': String,
 
-      // Aliases
-      '-h': '--help',
-      '-p': '--port',
-      '-H': '--hostname',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-p': '--port',
+    '-H': '--hostname',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Starts the application in production mode.
@@ -46,15 +51,13 @@ const nextStart: cliCommand = argv => {
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
   startServer({ dir }, port, args['--hostname'])
-    .then(async app => {
-      // tslint:disable-next-line
+    .then(async (app) => {
       Log.ready(
         `started server on http://${args['--hostname'] || 'localhost'}:${port}`
       )
       await app.prepare()
     })
-    .catch(err => {
-      // tslint:disable-next-line
+    .catch((err) => {
       console.error(err)
       process.exit(1)
     })

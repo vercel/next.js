@@ -1,35 +1,29 @@
 /* eslint-env jest */
-/* global jasmine */
-import { join } from 'path'
-import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
+
 import { validateAMP } from 'amp-test-utils'
+import cheerio from 'cheerio'
+import { readFile, readFileSync, writeFile, writeFileSync } from 'fs-extra'
 import {
-  accessSync,
-  readFileSync,
-  writeFileSync,
-  writeFile,
-  readFile,
-} from 'fs-extra'
-import {
-  waitFor,
-  nextServer,
+  check,
+  findPort,
+  getBrowserBodyText,
+  killApp,
+  launchApp,
   nextBuild,
+  nextServer,
+  renderViaHTTP,
   startApp,
   stopApp,
-  renderViaHTTP,
-  check,
-  getBrowserBodyText,
-  findPort,
-  launchApp,
-  killApp,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -62,7 +56,7 @@ describe('AMP Usage', () => {
         expect(html).toMatch(/Hello World/)
 
         const $ = cheerio.load(html)
-        expect($('.abc').length === 1)
+        expect($('.abc')).toHaveLength(1)
       })
 
       it('should render the page without leaving render target', async () => {
@@ -72,31 +66,12 @@ describe('AMP Usage', () => {
       })
 
       it('should not output client pages for AMP only', async () => {
-        const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-        const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
-        for (const pg of ampOnly) {
-          expect(() =>
-            accessSync(
-              join(appDir, '.next/static', buildId, 'pages', pg + '.js')
-            )
-          ).toThrow()
-          expect(() =>
-            accessSync(
-              join(
-                appDir,
-                '.next/server/static',
-                buildId,
-                'pages',
-                pg + '.html'
-              )
-            )
-          ).not.toThrow()
-          expect(() =>
-            accessSync(
-              join(appDir, '.next/server/static', buildId, 'pages', pg + '.js')
-            )
-          ).toThrow()
-        }
+        const browser = await webdriver(appPort, '/nav')
+        await browser.elementByCss('#only-amp-link').click()
+
+        const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+        expect(result).toBe(null)
       })
 
       it('should add link preload for amp script', async () => {
@@ -108,7 +83,7 @@ describe('AMP Usage', () => {
             $('link[rel=preload]')
               .toArray()
               .find(
-                i => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
+                (i) => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
               )
           ).attr('href')
         ).toBe('https://cdn.ampproject.org/v0.js')
@@ -166,11 +141,9 @@ describe('AMP Usage', () => {
       it('should render link rel amphtml', async () => {
         const html = await renderViaHTTP(appPort, '/use-amp-hook')
         const $ = cheerio.load(html)
-        expect(
-          $('link[rel=amphtml]')
-            .first()
-            .attr('href')
-        ).toBe('http://localhost:1234/use-amp-hook.amp')
+        expect($('link[rel=amphtml]').first().attr('href')).toBe(
+          'http://localhost:1234/use-amp-hook.amp'
+        )
       })
 
       it('should render amphtml from provided rel link', async () => {
@@ -187,32 +160,24 @@ describe('AMP Usage', () => {
         const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
         const $ = cheerio.load(html)
         await validateAMP(html)
-        expect(
-          $('link[rel=canonical]')
-            .first()
-            .attr('href')
-        ).toBe('http://localhost:1234/use-amp-hook')
+        expect($('link[rel=canonical]').first().attr('href')).toBe(
+          'http://localhost:1234/use-amp-hook'
+        )
       })
 
       it('should render a canonical regardless of amp-only status (explicit)', async () => {
         const html = await renderViaHTTP(appPort, '/only-amp')
         const $ = cheerio.load(html)
         await validateAMP(html)
-        expect(
-          $('link[rel=canonical]')
-            .first()
-            .attr('href')
-        ).toBe('http://localhost:1234/only-amp')
+        expect($('link[rel=canonical]').first().attr('href')).toBe(
+          'http://localhost:1234/only-amp'
+        )
       })
 
       it('should not render amphtml link tag with no AMP page', async () => {
         const html = await renderViaHTTP(appPort, '/normal')
         const $ = cheerio.load(html)
-        expect(
-          $('link[rel=amphtml]')
-            .first()
-            .attr('href')
-        ).not.toBeTruthy()
+        expect($('link[rel=amphtml]').first().attr('href')).not.toBeTruthy()
       })
 
       it('should remove conflicting amp tags', async () => {
@@ -245,11 +210,7 @@ describe('AMP Usage', () => {
       it('should combine style tags', async () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
-        expect(
-          $('style[amp-custom]')
-            .first()
-            .text()
-        ).toMatch(
+        expect($('style[amp-custom]').first().text()).toMatch(
           /div.jsx-\d+{color:red}span.jsx-\d+{color:#00f}body{background-color:green}/
         )
       })
@@ -257,9 +218,7 @@ describe('AMP Usage', () => {
       it('should remove sourceMaps from styles', async () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
-        const styles = $('style[amp-custom]')
-          .first()
-          .text()
+        const styles = $('style[amp-custom]').first().text()
 
         expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
         expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
@@ -301,51 +260,12 @@ describe('AMP Usage', () => {
     })
 
     it('should not output client pages for AMP only', async () => {
-      const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-      const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
-      for (const pg of ampOnly) {
-        expect(() =>
-          accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
-        ).toThrow()
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/server/static', buildId, 'pages', pg + '.html')
-          )
-        ).not.toThrow()
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/server/static', buildId, 'pages', pg + '.js')
-          )
-        ).toThrow()
-      }
-    })
+      const browser = await webdriver(appPort, '/nav')
+      await browser.elementByCss('#only-amp-link').click()
 
-    it('should not output modern client pages for AMP only', async () => {
-      const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-      const ampOnly = ['only-amp', 'root-hmr', 'another-amp']
-      for (const pg of ampOnly) {
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/static', buildId, 'pages', pg + '.module.js')
-          )
-        ).toThrow()
-        expect(() =>
-          accessSync(
-            join(appDir, '.next/server/static', buildId, 'pages', pg + '.html')
-          )
-        ).not.toThrow()
-        expect(() =>
-          accessSync(
-            join(
-              appDir,
-              '.next/server/static',
-              buildId,
-              'pages',
-              pg + '.module.js'
-            )
-          )
-        ).toThrow()
-      }
+      const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+      expect(result).toBe(null)
     })
   })
 
@@ -392,7 +312,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
       const $ = cheerio.load(html)
       expect($('html').attr('data-ampdevmode')).toBe('')
-      expect($('script[data-ampdevmode]').length).toBe(3)
+      expect($('script[data-ampdevmode]').length).toBe(4)
     })
 
     it('should detect the changes and display it', async () => {
@@ -467,8 +387,7 @@ describe('AMP Usage', () => {
 
     it('should detect changes to component and refresh an AMP page', async () => {
       const browser = await webdriver(dynamicAppPort, '/hmr/comp')
-      const text = await browser.elementByCss('#hello-comp').text()
-      expect(text).toBe('hello')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
 
       const testComp = join(__dirname, '../components/hello.js')
 
@@ -488,10 +407,9 @@ describe('AMP Usage', () => {
         await renderViaHTTP(dynamicAppPort, '/hmr/test')
 
         browser = await webdriver(dynamicAppPort, '/hmr/amp')
-        const text = await browser.elementByCss('p').text()
-        const origDate = await browser.elementByCss('span').text()
-        expect(text).toBe(`I'm an AMP page!`)
+        await check(() => browser.elementByCss('p').text(), /I'm an AMP page!/)
 
+        const origDate = await browser.elementByCss('span').text()
         const hmrTestPagePath = join(
           __dirname,
           '../',

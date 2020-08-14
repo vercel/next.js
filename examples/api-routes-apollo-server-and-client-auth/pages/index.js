@@ -1,8 +1,7 @@
-import { withApollo } from '../apollo/client'
-import gql from 'graphql-tag'
-import Link from 'next/link'
-import { useQuery } from '@apollo/react-hooks'
+import { useEffect } from 'react'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
+import { gql, useQuery } from '@apollo/client'
 
 const ViewerQuery = gql`
   query ViewerQuery {
@@ -15,22 +14,27 @@ const ViewerQuery = gql`
 
 const Index = () => {
   const router = useRouter()
-  const { data, loading } = useQuery(ViewerQuery)
+  const { data, loading, error } = useQuery(ViewerQuery)
+  const viewer = data?.viewer
+  const shouldRedirect = !(loading || error || viewer)
 
-  if (
-    loading === false &&
-    data.viewer === null &&
-    typeof window !== 'undefined'
-  ) {
-    router.push('/signin')
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.push('/signin')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldRedirect])
+
+  if (error) {
+    return <p>{error.message}</p>
   }
 
-  if (data && data.viewer) {
+  if (viewer) {
     return (
       <div>
-        You're signed in as {data.viewer.email} goto{' '}
+        You're signed in as {viewer.email} goto{' '}
         <Link href="/about">
-          <a>static</a>
+          <a>about</a>
         </Link>{' '}
         page. or{' '}
         <Link href="/signout">
@@ -43,4 +47,4 @@ const Index = () => {
   return <p>Loading...</p>
 }
 
-export default withApollo(Index)
+export default Index

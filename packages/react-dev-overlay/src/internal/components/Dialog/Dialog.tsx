@@ -5,7 +5,7 @@ export type DialogProps = {
   type: 'error' | 'warning'
   'aria-labelledby': string
   'aria-describedby': string
-  onClose: (e: MouseEvent | TouchEvent) => void
+  onClose?: (e: MouseEvent | TouchEvent) => void
 }
 
 const Dialog: React.FC<DialogProps> = function Dialog({
@@ -14,8 +14,8 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   onClose,
   ...props
 }) {
-  const [dialog, setDialog] = React.useState<HTMLDivElement>(null)
-  const onDialog = React.useCallback(node => {
+  const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
+  const onDialog = React.useCallback((node) => {
     setDialog(node)
   }, [])
   useOnClickOutside(dialog, onClose)
@@ -47,8 +47,9 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       }
     }
 
-    shadowRoot.addEventListener('keydown', handler)
-    return () => shadowRoot.removeEventListener('keydown', handler)
+    shadowRoot.addEventListener('keydown', handler as EventListener)
+    return () =>
+      shadowRoot.removeEventListener('keydown', handler as EventListener)
   }, [dialog])
 
   return (

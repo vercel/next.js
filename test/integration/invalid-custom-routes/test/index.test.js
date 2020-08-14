@@ -1,10 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -14,10 +14,8 @@ const writeConfig = async (routes, type = 'redirects') => {
     nextConfigPath,
     `
     module.exports = {
-      experimental: {
-        async ${type}() {
-          return ${JSON.stringify(routes)}
-        }
+      async ${type}() {
+        return ${JSON.stringify(routes)}
       }
     }
   `
@@ -157,6 +155,12 @@ const runTests = () => {
           source: '/hello/world/(.*)',
           destination: '/:0',
         },
+        {
+          // basePath with relative destination
+          source: '/hello',
+          destination: '/world',
+          basePath: false,
+        },
         // invalid objects
         null,
         'string',
@@ -186,7 +190,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
     )
 
     expect(stderr).toContain(
@@ -207,6 +211,11 @@ const runTests = () => {
     expect(stderr).not.toContain(
       'Valid redirect statusCode values are 301, 302, 303, 307, 308'
     )
+
+    expect(stderr).toContain(
+      `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
+    )
+
     expect(stderr).toContain('Invalid rewrites found')
   })
 
@@ -330,13 +339,13 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
     expect(stderr).toContain(`/feedback/(?!general)`)
 
     expect(stderr).toContain(
-      `Error parsing \`/learning/?\` https://err.sh/zeit/next.js/invalid-route-source`
+      `Error parsing \`/learning/?\` https://err.sh/vercel/next.js/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
     expect(stderr).toContain(`/learning/?`)
@@ -399,7 +408,7 @@ describe('Errors on invalid custom routes', () => {
       getStderr = async () => {
         let stderr = ''
         await launchApp(appDir, await findPort(), {
-          onStderr: msg => {
+          onStderr: (msg) => {
             stderr += msg
           },
         })

@@ -3,13 +3,13 @@ import firebase from '../firebase/clientApp'
 
 export const UserContext = createContext()
 
-export default ({ children }) => {
+export default function UserContextComp({ children }) {
   const [user, setUser] = useState(null)
   const [loadingUser, setLoadingUser] = useState(true) // Helpful, to update the UI accordingly.
 
   useEffect(() => {
     // Listen authenticated user
-    const unsubscriber = firebase.auth().onAuthStateChanged(async user => {
+    const unsubscriber = firebase.auth().onAuthStateChanged(async (user) => {
       try {
         if (user) {
           // User is signed in.
@@ -19,7 +19,7 @@ export default ({ children }) => {
           setUser({ uid, displayName, email, photoURL })
         } else setUser(null)
       } catch (error) {
-        // Most probably a connection error. Handle appropiately.
+        // Most probably a connection error. Handle appropriately.
       } finally {
         setLoadingUser(false)
       }

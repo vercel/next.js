@@ -2,7 +2,7 @@ import { FormattedRelativeTime } from 'react-intl'
 import { selectUnit } from '@formatjs/intl-utils'
 import Layout from '../components/Layout'
 
-export default () => {
+export default function About() {
   const { value, unit } = selectUnit(Date.now())
   return (
     <Layout>

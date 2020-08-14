@@ -19,4 +19,4 @@ spaceImport({
   content: exportFile,
 })
   .then(() => console.log('The content model of your space is set up!'))
-  .catch(e => console.error(e))
+  .catch((e) => console.error(e))

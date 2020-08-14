@@ -90,7 +90,7 @@ The `as` prop can also be generated dynamically. For example, to show a list of 
 function Home({ posts }) {
   return (
     <ul>
-      {posts.map(post => (
+      {posts.map((post) => (
         <li key={post.id}>
           <Link href="/blog/[slug]" as={`/blog/${post.slug}`}>
             <a>{post.title}</a>
@@ -107,7 +107,7 @@ function Home({ posts }) {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
 

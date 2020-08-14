@@ -4,7 +4,7 @@ export type LeftRightDialogHeaderProps = {
   className?: string
   previous: (() => void) | null
   next: (() => void) | null
-  close: () => void
+  close?: () => void
 }
 
 const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function LeftRightDialogHeader({
@@ -14,9 +14,9 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
   next,
   close,
 }) {
-  const buttonLeft = React.useRef<HTMLButtonElement>()
-  const buttonRight = React.useRef<HTMLButtonElement>()
-  const buttonClose = React.useRef<HTMLButtonElement>()
+  const buttonLeft = React.useRef<HTMLButtonElement | null>(null)
+  const buttonRight = React.useRef<HTMLButtonElement | null>(null)
+  const buttonClose = React.useRef<HTMLButtonElement | null>(null)
 
   const [nav, setNav] = React.useState<HTMLElement | null>(null)
   const onNav = React.useCallback((el: HTMLElement) => {
@@ -48,26 +48,24 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         e.stopPropagation()
         if (root instanceof ShadowRoot) {
           const a = root.activeElement
-          if (a !== buttonClose.current && a instanceof HTMLElement) {
-            if (buttonClose.current) {
-              buttonClose.current.focus()
-            } else {
-              a.blur()
-            }
+          if (a && a !== buttonClose.current && a instanceof HTMLElement) {
+            a.blur()
             return
           }
         }
 
-        close()
+        if (close) {
+          close()
+        }
       }
     }
 
-    root.addEventListener('keydown', handler)
+    root.addEventListener('keydown', handler as EventListener)
     if (root !== d) {
       d.addEventListener('keydown', handler)
     }
-    return function() {
-      root.removeEventListener('keydown', handler)
+    return function () {
+      root.removeEventListener('keydown', handler as EventListener)
       if (root !== d) {
         d.removeEventListener('keydown', handler)
       }
@@ -87,11 +85,11 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
       const a = root.activeElement
 
       if (previous == null) {
-        if (a === buttonLeft.current) {
+        if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
       } else if (next == null) {
-        if (a === buttonRight.current) {
+        if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
@@ -108,7 +106,19 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
           aria-disabled={previous == null ? true : undefined}
           onClick={previous ?? undefined}
         >
-          &larr;
+          <svg
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M6.99996 1.16666L1.16663 6.99999L6.99996 12.8333M12.8333 6.99999H1.99996H12.8333Z"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
         <button
           ref={buttonRight}
@@ -117,34 +127,56 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
           aria-disabled={next == null ? true : undefined}
           onClick={next ?? undefined}
         >
-          &rarr;
+          <svg
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M6.99996 1.16666L12.8333 6.99999L6.99996 12.8333M1.16663 6.99999H12H1.16663Z"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
         &nbsp;
         {children}
       </nav>
-      <button
-        ref={buttonClose}
-        type="button"
-        onClick={close}
-        aria-label="Close"
-      >
-        <span aria-hidden="true">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </span>
-      </button>
+      {close ? (
+        <button
+          ref={buttonClose}
+          type="button"
+          onClick={close}
+          aria-label="Close"
+        >
+          <span aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M18 6L6 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6 6L18 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+      ) : null}
     </div>
   )
 }

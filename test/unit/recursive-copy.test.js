@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { recursiveCopy } from 'next/dist/lib/recursive-copy'
 import { join } from 'path'
 import fs from 'fs-extra'
@@ -10,7 +10,7 @@ const testDir = join(__dirname, 'recursive-folder-test')
 const srcDir = join(testDir, 'src')
 const destDir = join(testDir, 'dest')
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const setupTestDir = async (numFiles = 100) => {
   const paths = [

@@ -1,5 +1,4 @@
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import { gql, useMutation } from '@apollo/client'
 import { ALL_POSTS_QUERY, allPostsQueryVars } from './PostList'
 
 const CREATE_POST_MUTATION = gql`
@@ -17,7 +16,7 @@ const CREATE_POST_MUTATION = gql`
 const Submit = () => {
   const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
 
-  const handleSubmit = event => {
+  const handleSubmit = (event) => {
     event.preventDefault()
     const form = event.target
     const formData = new window.FormData(form)

@@ -1,16 +1,16 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-const invalidLink = 'https://google.com/another'
+const invalidLink = 'https://vercel.com/solutions/nextjs'
 
-export default () => {
+export default function Page() {
   const { query, ...router } = useRouter()
   const { method } = query
 
   return method ? (
     <a
       id="click-me"
-      onClick={e => {
+      onClick={(e) => {
         e.preventDefault()
         router[method](invalidLink)
       }}

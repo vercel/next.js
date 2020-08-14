@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react'
-const Clock = observer(props => {
+const Clock = observer((props) => {
   return (
     <div className={props.light ? 'light' : ''}>
       {props.timeString}

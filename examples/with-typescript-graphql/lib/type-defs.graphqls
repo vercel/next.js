@@ -1,9 +1,9 @@
 type User {
-    id: ID!
-    name: String!
-    status: String!
+  id: ID!
+  name: String!
+  status: String!
 }
 
 type Query {
-    viewer: User!
+  viewer: User!
 }

@@ -2,7 +2,7 @@
 import { join } from 'path'
 import { File, runNextCommand } from 'next-test-utils'
 
-export default function(context) {
+export default function (context) {
   describe('API routes export', () => {
     const nextConfig = new File(join(context.appDir, 'next.config.js'))
 
@@ -15,13 +15,13 @@ export default function(context) {
 
     it('Should throw if a route is matched', async () => {
       const outdir = join(context.appDir, 'outApi')
-      const { stdout } = await runNextCommand(
+      const { stderr } = await runNextCommand(
         ['export', context.appDir, '--outdir', outdir],
-        { stdout: true }
+        { stderr: true }
       )
 
-      expect(stdout).toContain(
-        'https://err.sh/zeit/next.js/api-routes-static-export'
+      expect(stderr).toContain(
+        'https://err.sh/vercel/next.js/api-routes-static-export'
       )
     })
   })

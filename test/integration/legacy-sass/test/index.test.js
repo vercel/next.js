@@ -1,16 +1,23 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { remove } from 'fs-extra'
 import { findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
+import { version } from 'webpack'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+const isWebpack5 = parseInt(version) === 5
+
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '../')
 
-describe('Legacy Sass Support Should Disable New CSS', () => {
+// TODO: Make legacy Sass support work with webpack 5
+const describeFn = isWebpack5 ? describe.skip : describe
+
+// TODO: Make legacy Sass support work with webpack 5
+describeFn('Legacy Sass Support Should Disable New CSS', () => {
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
     await nextBuild(appDir)
@@ -26,7 +33,7 @@ describe('Legacy Sass Support Should Disable New CSS', () => {
   })
 })
 
-describe('Legacy Sass Support should work in development', () => {
+describeFn('Legacy Sass Support should work in development', () => {
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
   })

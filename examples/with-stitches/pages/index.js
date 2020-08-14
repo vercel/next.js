@@ -1,7 +1,13 @@
-import { styled } from './css'
-
-const Header = styled.h1(css => css.color('RED'))
+import { css } from '../css'
 
 export default function Home() {
-  return <Header>Hello world</Header>
+  return (
+    <h1
+      className={css({
+        color: 'RED',
+      })}
+    >
+      Hello world
+    </h1>
+  )
 }

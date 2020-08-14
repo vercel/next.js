@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const About = () => (
   <div>
     <p>This is the about page.</p>
     <div>
@@ -11,3 +11,5 @@ export default () => (
     <img width={200} src="/static/zeit.png" />
   </div>
 )
+
+export default About

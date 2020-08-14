@@ -16,7 +16,7 @@ export default function Submit({ onSubmission }) {
   const [createPost, state] = useMutation(CREATE_POST)
 
   return (
-    <form onSubmit={event => handleSubmit(event, onSubmission, createPost)}>
+    <form onSubmit={(event) => handleSubmit(event, onSubmission, createPost)}>
       <h1>Submit</h1>
       <input placeholder="title" name="title" type="text" required />
       <input placeholder="url" name="url" type="url" required />

@@ -11,7 +11,7 @@ if (process.env.REDIS_URL) {
 }
 
 exports['default'] = {
-  redis: api => {
+  redis: (api) => {
     // konstructor: The redis client constructor method.  All redis methods must be promises
     // args: The arguments to pass to the constructor
     // buildNew: is it `new konstructor()` or just `konstructor()`?

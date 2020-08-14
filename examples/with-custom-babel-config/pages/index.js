@@ -1,49 +1,37 @@
-import React from 'react'
+import { useState, useEffect } from 'react'
 
-export default class MyLuckNo extends React.Component {
-  constructor(...args) {
-    super(...args)
-    this.state = { randomNo: null }
+const MyLuckNo = () => {
+  const [randomNumber, setRandomNumber] = useState(null)
+
+  const recalculate = () => {
+    setRandomNumber(Math.ceil(Math.random() * 100))
   }
 
-  componentDidMount() {
-    this.recalculate()
-  }
+  useEffect(() => {
+    recalculate()
+  }, [])
 
-  recalculate() {
-    this.setState({
-      randomNo: Math.ceil(Math.random() * 100),
-    })
-  }
-
-  render() {
-    const { randomNo } = this.state
-
-    if (randomNo === null) {
-      return <p>Please wait..</p>
+  const message = do {
+    if (randomNumber < 30) {
+      // eslint-disable-next-line no-unused-expressions
+      ;('Do not give up. Try again.')
+    } else if (randomNumber < 60) {
+      // eslint-disable-next-line no-unused-expressions
+      ;('You are a lucky guy')
+    } else {
+      // eslint-disable-next-line no-unused-expressions
+      ;('You are soooo lucky!')
     }
-
-    // This is an experimental JavaScript feature where we can get with
-    // using babel-preset-stage-0
-    const message = do {
-      if (randomNo < 30) {
-        // eslint-disable-next-line no-unused-expressions
-        ;('Do not give up. Try again.')
-      } else if (randomNo < 60) {
-        // eslint-disable-next-line no-unused-expressions
-        ;('You are a lucky guy')
-      } else {
-        // eslint-disable-next-line no-unused-expressions
-        ;('You are soooo lucky!')
-      }
-    }
-
-    return (
-      <div>
-        <h3>Your Lucky number is: "{randomNo}"</h3>
-        <p>{message}</p>
-        <button onClick={() => this.recalculate()}>Try Again</button>
-      </div>
-    )
   }
+
+  if (randomNumber === null) return <p>Please wait..</p>
+  return (
+    <div>
+      <h3>Your Lucky number is: "{randomNumber}"</h3>
+      <p>{message}</p>
+      <button onClick={() => recalculate()}>Try Again</button>
+    </div>
+  )
 }
+
+export default MyLuckNo

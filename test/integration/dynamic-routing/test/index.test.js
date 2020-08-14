@@ -1,7 +1,7 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import fs from 'fs-extra'
 import {
   renderViaHTTP,
@@ -13,11 +13,12 @@ import {
   nextBuild,
   nextStart,
   normalizeRegEx,
+  check,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
@@ -26,6 +27,12 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should not have any query values when not defined', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#query').text())).toEqual([])
+  })
+
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -80,10 +87,30 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page successfully no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -92,32 +119,35 @@ function runTests(dev) {
 
   it('should allow calling Router.push on mount successfully', async () => {
     const browser = await webdriver(appPort, '/post-1/on-mount-redir')
-    waitFor(2000)
-    expect(await browser.elementByCss('h3').text()).toBe('My blog')
+    try {
+      expect(await browser.waitForElementByCss('h3').text()).toBe('My blog')
+    } finally {
+      browser.close()
+    }
   })
 
-  // it('should navigate optional dynamic page', async () => {
-  //   let browser
-  //   try {
-  //     browser = await webdriver(appPort, '/')
-  //     await browser.elementByCss('#view-blog-post-1-comments').click()
-  //     await browser.waitForElementByCss('p')
+  it('should navigate optional dynamic page', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#view-post-1-comments').click()
+      await browser.waitForElementByCss('#asdf')
 
-  //     const text = await browser.elementByCss('p').text()
-  //     expect(text).toMatch(/blog post.*543.*comment.*\(all\)/i)
-  //   } finally {
-  //     if (browser) await browser.close()
-  //   }
-  // })
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/comments for post-1 here/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 
   it('should navigate optional dynamic page with value', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-nested-dynamic-cmnt').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/blog post.*321.*comment.*123/i)
     } finally {
       if (browser) await browser.close()
@@ -128,10 +158,30 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1-comment-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a nested dynamic page successfully no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-comment-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -240,6 +290,21 @@ function runTests(dev) {
     }
   })
 
+  it("[catch-all] shouldn't fail on colon followed by double digits in the path", async () => {
+    // https://github.com/GoogleChromeLabs/native-url/issues/27
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-colonnumber').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":[":42"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('[ssg: catch all] should pass param in getStaticProps during SSR', async () => {
     const data = await renderViaHTTP(
       appPort,
@@ -330,8 +395,28 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#ssg-catch-all-multi').click()
       await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#ssg-catch-all-multi-no-as').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#all-ssg-content').text()
       expect(text).toBe('{"rest":["hello1","hello2"]}')
@@ -401,9 +486,9 @@ function runTests(dev) {
   it('should scroll to a hash on client-side navigation', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-dynamic-with-hash').click()
-    await browser.waitForElementByCss('p')
+    await browser.waitForElementByCss('#asdf')
 
-    const text = await browser.elementByCss('p').text()
+    const text = await browser.elementByCss('#asdf').text()
     expect(text).toMatch(/onmpost:.*test-w-hash/)
 
     const scrollPosition = await browser.eval('window.pageYOffset')
@@ -476,7 +561,74 @@ function runTests(dev) {
     expect(res.status).toBe(400)
   })
 
+  it('should preload buildManifest for auto-export dynamic pages', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/hello')
+    const $ = cheerio.load(html)
+    let found = 0
+
+    for (const el of Array.from($('link[rel="preload"]'))) {
+      const { href } = el.attribs
+      if (
+        href.includes('_buildManifest.js') ||
+        href.includes('_buildManifest.module.js')
+      ) {
+        found++
+      }
+    }
+    expect(found).toBe(dev ? 2 : 1)
+  })
+
+  it('should not preload buildManifest for non-auto export dynamic pages', async () => {
+    const html = await renderViaHTTP(appPort, '/hello')
+    const $ = cheerio.load(html)
+    let found = 0
+
+    for (const el of Array.from($('link[rel="preload"]'))) {
+      const { href } = el.attribs
+      if (
+        href.includes('_buildManifest.js') ||
+        href.includes('_buildManifest.module.js')
+      ) {
+        found++
+      }
+    }
+    expect(found).toBe(0)
+  })
+
   if (dev) {
+    it('should resolve dynamic route href for page added later', async () => {
+      const browser = await webdriver(appPort, '/')
+      const addLaterPage = join(appDir, 'pages/added-later/[slug].js')
+
+      await fs.mkdir(dirname(addLaterPage)).catch(() => {})
+      await fs.writeFile(
+        addLaterPage,
+        `
+        import { useRouter } from 'next/router'
+
+        export default function Page() {
+          return <p id='added-later'>slug: {useRouter().query.slug}</p>
+        }
+      `
+      )
+
+      await check(async () => {
+        const contents = await renderViaHTTP(
+          appPort,
+          '/_next/static/development/_devPagesManifest.json'
+        )
+        return contents.includes('added-later') ? 'success' : 'fail'
+      }, 'success')
+
+      await browser.elementByCss('#added-later-link').click()
+      await browser.waitForElementByCss('#added-later')
+
+      const text = await browser.elementByCss('#added-later').text()
+
+      await fs.remove(dirname(addLaterPage))
+      expect(text).toBe('slug: first')
+    })
+
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
       let text = await browser.eval(`document.documentElement.innerHTML`)
@@ -498,16 +650,15 @@ function runTests(dev) {
       }
     })
   } else {
-    it('should output modern bundles with dynamic route correctly', async () => {
-      const bundlePath = join(
-        appDir,
-        '.next/static/',
-        buildId,
-        'pages/blog/[name]/comment/[id]'
-      )
+    // TODO: Make webpack 5 work with nest-esm-plugin
+    it.skip('should output modern bundles with dynamic route correctly', async () => {
+      const buildManifest = require(join('../.next', 'build-manifest.json'))
 
-      await fs.access(bundlePath + '.js', fs.constants.F_OK)
-      await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
+      const files = buildManifest.pages[
+        '/blog/[name]/comment/[id]'
+      ].filter((filename) => filename.includes('/blog/[name]/comment/[id]'))
+
+      expect(files.length).toBe(2)
     })
 
     it('should output a routes-manifest correctly', async () => {
@@ -517,20 +668,52 @@ function runTests(dev) {
 
       for (const route of manifest.dynamicRoutes) {
         route.regex = normalizeRegEx(route.regex)
+
+        // ensure regexes are valid
+        new RegExp(route.regex)
+        new RegExp(route.namedRegex)
       }
 
       for (const route of manifest.dataRoutes) {
         route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+
+        // ensure regexes are valid
+        new RegExp(route.dataRouteRegex)
+        new RegExp(route.namedDataRouteRegex)
       }
 
       expect(manifest).toEqual({
-        version: 1,
+        version: 3,
         pages404: true,
         basePath: '',
         headers: [],
         rewrites: [],
-        redirects: [],
+        redirects: expect.arrayContaining([]),
         dataRoutes: [
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/b\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/b/(?<a>[^/]+?)\\.json$`,
+            page: '/b/[123]',
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/c\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/c/(?<a>[^/]+?)\\.json$`,
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
+            },
+          },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
@@ -541,7 +724,9 @@ function runTests(dev) {
               )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/all-ssg/[...rest]',
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -553,7 +738,9 @@ function runTests(dev) {
               )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/nested-all-ssg/[...rest]',
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
@@ -565,35 +752,78 @@ function runTests(dev) {
               )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
             ),
             page: '/p1/p2/predefined-ssg/[...rest]',
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
         ],
         dynamicRoutes: [
+          {
+            namedRegex: '^/b/(?<a>[^/]+?)(?:/)?$',
+            page: '/b/[123]',
+            regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: '123',
+            },
+          },
           {
             namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
               '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
             ),
-            routeKeys: ['name', 'id'],
+            routeKeys: {
+              name: 'name',
+              id: 'id',
+            },
+          },
+          {
+            namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
+            },
+          },
+          {
+            namedRegex: '^/catchall\\-dash/(?<helloworld>.+?)(?:/)?$',
+            page: '/catchall-dash/[...hello-world]',
+            regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
+            routeKeys: {
+              helloworld: 'hello-world',
+            },
+          },
+          {
+            namedRegex: '^/dash/(?<helloworld>[^/]+?)(?:/)?$',
+            page: '/dash/[hello-world]',
+            regex: normalizeRegEx('^\\/dash\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              helloworld: 'hello-world',
+            },
           },
           {
             namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['post'],
+            routeKeys: {
+              post: 'post',
+            },
           },
           {
             namedRegex: `^/p1/p2/all\\-ssg/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssg/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/p1/p2/all\\-ssr/(?<rest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssr/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)(?:/)?$`,
@@ -601,7 +831,9 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
             ),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/p1/p2/predefined\\-ssg/(?<rest>.+?)(?:/)?$`,
@@ -609,19 +841,25 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
             ),
-            routeKeys: ['rest'],
+            routeKeys: {
+              rest: 'rest',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)(?:/)?$`,
             page: '/[name]',
             regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['name'],
+            routeKeys: {
+              name: 'name',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)/comments(?:/)?$`,
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
-            routeKeys: ['name'],
+            routeKeys: {
+              name: 'name',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
@@ -629,13 +867,18 @@ function runTests(dev) {
             regex: normalizeRegEx(
               '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
             ),
-            routeKeys: ['name'],
+            routeKeys: {
+              name: 'name',
+            },
           },
           {
             namedRegex: `^/(?<name>[^/]+?)/(?<comment>[^/]+?)(?:/)?$`,
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: ['name', 'comment'],
+            routeKeys: {
+              name: 'name',
+              comment: 'comment',
+            },
           },
         ],
       })

@@ -1,10 +1,11 @@
-import { Compiler, Plugin } from 'webpack'
+import webpack, { Compiler, Plugin } from 'webpack'
 import { RawSource } from 'webpack-sources'
-import {
-  PAGES_MANIFEST,
-  ROUTE_NAME_REGEX,
-  SERVERLESS_ROUTE_NAME_REGEX,
-} from '../../../next-server/lib/constants'
+import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
+import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+
+export type PagesManifest = { [page: string]: string }
+
+const isWebpack5 = parseInt(webpack.version!) === 5
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
@@ -16,39 +17,59 @@ export default class PagesManifestPlugin implements Plugin {
     this.serverless = serverless
   }
 
-  apply(compiler: Compiler): void {
-    compiler.hooks.emit.tap('NextJsPagesManifest', compilation => {
-      const { chunks } = compilation
-      const pages: { [page: string]: string } = {}
+  createAssets(compilation: any, assets: any) {
+    const entrypoints = compilation.entrypoints
+    const pages: PagesManifest = {}
 
-      for (const chunk of chunks) {
-        const result = (this.serverless
-          ? SERVERLESS_ROUTE_NAME_REGEX
-          : ROUTE_NAME_REGEX
-        ).exec(chunk.name)
+    for (const entrypoint of entrypoints.values()) {
+      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.serverless)
 
-        if (!result) {
-          continue
-        }
+      if (!pagePath) {
+        continue
+      }
 
-        const pagePath = result[1]
-
-        if (!pagePath) {
-          continue
-        }
-
-        // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = chunk.name.replace(
-          /\\/g,
-          '/'
+      const files = entrypoint
+        .getFiles()
+        .filter(
+          (file: string) =>
+            !file.includes('webpack-runtime') && file.endsWith('.js')
         )
+
+      if (files.length > 1) {
+        console.log(
+          `Found more than one file in server entrypoint ${entrypoint.name}`,
+          files
+        )
+        continue
       }
 
-      if (typeof pages['/index'] !== 'undefined') {
-        pages['/'] = pages['/index']
-      }
+      // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
+      pages[pagePath] = files[0].replace(/\\/g, '/')
+    }
 
-      compilation.assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages))
+    assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages, null, 2))
+  }
+
+  apply(compiler: Compiler): void {
+    if (isWebpack5) {
+      compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: 'NextJsPagesManifest',
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          },
+          (assets: any) => {
+            this.createAssets(compilation, assets)
+          }
+        )
+      })
+      return
+    }
+
+    compiler.hooks.emit.tap('NextJsPagesManifest', (compilation: any) => {
+      this.createAssets(compilation, compilation.assets)
     })
   }
 }

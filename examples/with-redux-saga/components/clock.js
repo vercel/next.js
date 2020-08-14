@@ -1,8 +1,6 @@
-import React from 'react'
+const pad = (n) => (n < 10 ? `0${n}` : n)
 
-const pad = n => (n < 10 ? `0${n}` : n)
-
-const format = t => {
+const format = (t) => {
   const hours = t.getUTCHours()
   const minutes = t.getUTCMinutes()
   const seconds = t.getUTCSeconds()

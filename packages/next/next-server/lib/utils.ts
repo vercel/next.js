@@ -1,10 +1,12 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { format, URLFormatOptions, UrlObject } from 'url'
+import { UrlObject } from 'url'
+import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
+import { BuildManifest } from '../server/get-page-files'
 
 /**
  * Types used by both next and next-server
@@ -44,6 +46,18 @@ export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
 >
 
+/**
+ * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
+ * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
+ */
+export type NextWebVitalsMetric = {
+  id: string
+  label: string
+  name: string
+  startTime: number
+  value: number
+}
+
 export type Enhancer<C> = (Component: C) => C
 
 export type ComponentsEnhancer =
@@ -68,7 +82,7 @@ export type BaseContext = {
 }
 
 export type NEXT_DATA = {
-  props: any
+  props: Record<string, any>
   page: string
   query: ParsedUrlQuery
   buildId: string
@@ -89,7 +103,6 @@ export type NEXT_DATA = {
 /**
  * `Next` context
  */
-// tslint:disable-next-line interface-name
 export interface NextPageContext {
   /**
    * Error object if encountered during rendering
@@ -153,28 +166,23 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
   hybridAmp: boolean
-  staticMarkup: boolean
   isDevelopment: boolean
-  devFiles: string[]
-  files: string[]
-  lowPriorityFiles: string[]
-  polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
-  htmlProps: any
-  bodyTags: any[]
   headTags: any[]
   unstable_runtimeJS?: false
+  devOnlyCacheBusterQueryString: string
 }
 
 /**
  * Next `API` route request
  */
-export type NextApiRequest = IncomingMessage & {
+export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
@@ -191,6 +199,12 @@ export type NextApiRequest = IncomingMessage & {
   body: any
 
   env: Env
+
+  preview?: boolean
+  /**
+   * Preview data set on the request, if any
+   * */
+  previewData?: any
 }
 
 /**
@@ -211,6 +225,8 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>
+  redirect(url: string): NextApiResponse<T>
+  redirect(status: number, url: string): NextApiResponse<T>
 
   /**
    * Set preview data for Next.js' prerender mode
@@ -286,7 +302,7 @@ export async function loadGetInitialProps<
     if (App.prototype?.getInitialProps) {
       const message = `"${getDisplayName(
         App
-      )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
+      )}.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
   }
@@ -321,7 +337,7 @@ export async function loadGetInitialProps<
       console.warn(
         `${getDisplayName(
           App
-        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/zeit/next.js/empty-object-getInitialProps`
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/vercel/next.js/empty-object-getInitialProps`
       )
     }
   }
@@ -344,13 +360,10 @@ export const urlObjectKeys = [
   'slashes',
 ]
 
-export function formatWithValidation(
-  url: UrlObject,
-  options?: URLFormatOptions
-) {
+export function formatWithValidation(url: UrlObject): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
-      Object.keys(url).forEach(key => {
+      Object.keys(url).forEach((key) => {
         if (urlObjectKeys.indexOf(key) === -1) {
           console.warn(
             `Unknown key passed via urlObject into url.format: ${key}`
@@ -360,7 +373,7 @@ export function formatWithValidation(
     }
   }
 
-  return format(url as URL, options)
+  return formatUrl(url)
 }
 
 export const SP = typeof performance !== 'undefined'

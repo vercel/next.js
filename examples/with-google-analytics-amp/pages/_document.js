@@ -1,4 +1,3 @@
-import React from 'react'
 import Document, { Main, NextScript } from 'next/document'
 import { useAmp } from 'next/amp'
 
@@ -11,7 +10,7 @@ function AmpWrap({ ampOnly, nonAmp }) {
   return !isAmp && nonAmp
 }
 
-export default class extends Document {
+export default class MyDocument extends Document {
   render() {
     return (
       <html>

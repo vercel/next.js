@@ -1,4 +1,4 @@
-import * as React from 'react'
+import React from 'react'
 
 type CaptureFn = (moduleName: string) => void
 

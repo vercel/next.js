@@ -5,7 +5,6 @@
   "dependencies": {
     "actionhero": "^18.1.2",
     "ioredis": "^3.2.2",
-    "isomorphic-fetch": "^2.2.1",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",

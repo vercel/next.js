@@ -10,11 +10,14 @@ function linkResolver(doc) {
   return `/${doc.uid}`
 }
 
-export default async (req, res) => {
-  const ref = req.query.token
+export default async function preview(req, res) {
+  const { token: ref, documentId } = req.query
 
   // Check the token parameter against the Prismic SDK
-  const url = await PrismicClient.previewSession(ref, linkResolver, '/')
+  const url = await PrismicClient.getPreviewResolver(ref, documentId).resolve(
+    linkResolver,
+    '/'
+  )
 
   if (!url) {
     return res.status(401).json({ message: 'Invalid token' })

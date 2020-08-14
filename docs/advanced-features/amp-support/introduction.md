@@ -7,7 +7,7 @@ description: With minimal config, and without leaving React, you can start addin
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">AMP</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/amp">AMP</a></li>
   </ul>
 </details>
 
@@ -21,7 +21,7 @@ To enable AMP support for a page, and to learn more about the different AMP conf
 
 ## Caveats
 
-- Only CSS-in-JS is supported. [CSS Modules](/docs/basic-features/built-in-css-support.md) aren't supported by AMP pages at the moment. You can [contribute CSS Modules support to Next.js](https://github.com/zeit/next.js/issues/10549).
+- Only CSS-in-JS is supported. [CSS Modules](/docs/basic-features/built-in-css-support.md) aren't supported by AMP pages at the moment. You can [contribute CSS Modules support to Next.js](https://github.com/vercel/next.js/issues/10549).
 
 ## Related
 

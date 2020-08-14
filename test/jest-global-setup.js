@@ -12,7 +12,7 @@ if (process.env.BROWSERSTACK) {
 
   globalSetup = () => {
     return new Promise((resolve, reject) => {
-      browserStackLocal.start(localBrowserStackOpts, err => {
+      browserStackLocal.start(localBrowserStackOpts, (err) => {
         if (err) return reject(err)
         console.log('Started BrowserStackLocal', browserStackLocal.isRunning())
         resolve()

@@ -1,4 +1,4 @@
-export default ({ lastUpdate, light }) => {
+export default function Clock({ lastUpdate, light }) {
   return (
     <div className={light ? 'light' : ''}>
       {format(new Date(lastUpdate))}
@@ -19,7 +19,7 @@ export default ({ lastUpdate, light }) => {
   )
 }
 
-const format = t =>
+const format = (t) =>
   `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
 
-const pad = n => (n < 10 ? `0${n}` : n)
+const pad = (n) => (n < 10 ? `0${n}` : n)

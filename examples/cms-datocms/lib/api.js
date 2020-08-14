@@ -1,7 +1,5 @@
-import 'isomorphic-unfetch'
-
 const API_URL = 'https://graphql.datocms.com'
-const API_TOKEN = process.env.NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN
+const API_TOKEN = process.env.DATOCMS_API_TOKEN
 
 // See: https://www.datocms.com/blog/offer-responsive-progressive-lqip-images-in-2020
 const responsiveImageFragment = `

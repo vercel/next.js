@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import {
   findPort,
@@ -8,10 +8,11 @@ import {
   nextStart,
   renderViaHTTP,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import { join } from 'path'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let app
@@ -23,9 +24,9 @@ function runTests(route, routePath, serverless) {
   it(`[${route}] should not revalidate when set to false`, async () => {
     const fileName = join(
       appDir,
-      `.next`,
-      ...(serverless ? ['serverless'] : ['server', 'static', buildId]),
-      `pages/${routePath}.html`
+      '.next',
+      serverless ? 'serverless' : 'server',
+      getPageFileFromPagesManifest(appDir, routePath)
     )
     const initialHtml = await renderViaHTTP(appPort, route)
     const initialFileHtml = await fs.readFile(fileName, 'utf8')
@@ -50,13 +51,13 @@ function runTests(route, routePath, serverless) {
   })
 
   it(`[${route}] should not revalidate /_next/data when set to false`, async () => {
-    const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
     const fileName = join(
       appDir,
-      `.next`,
-      ...(serverless ? ['serverless'] : ['server', 'static', buildId]),
-      `pages/${routePath}.json`
+      '.next',
+      serverless ? 'serverless' : 'server',
+      getPageFileFromPagesManifest(appDir, routePath)
     )
+    const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
 
     const initialData = JSON.parse(await renderViaHTTP(appPort, route))
     const initialFileJson = await fs.readFile(fileName, 'utf8')
@@ -91,7 +92,7 @@ describe('SSG Prerender No Revalidate', () => {
       appPort = await findPort()
       stderr = ''
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -99,7 +100,7 @@ describe('SSG Prerender No Revalidate', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests('/', '/index', true)
+    runTests('/', '/', true)
     runTests('/named', '/named', true)
     runTests('/nested', '/nested', true)
     runTests('/nested/named', '/nested/named', true)
@@ -113,7 +114,7 @@ describe('SSG Prerender No Revalidate', () => {
       appPort = await findPort()
       stderr = ''
       app = await nextStart(appDir, appPort, {
-        onStderr: msg => {
+        onStderr: (msg) => {
           stderr += msg
         },
       })
@@ -121,7 +122,7 @@ describe('SSG Prerender No Revalidate', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests('/', '/index')
+    runTests('/', '/')
     runTests('/named', '/named')
     runTests('/nested', '/nested')
     runTests('/nested/named', '/nested/named')

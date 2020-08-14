@@ -1,6 +1,6 @@
 // error messages can be strings of objects
 exports['default'] = {
-  errors: api => {
+  errors: (api) => {
     return {
       _toExpand: false,
 
@@ -10,28 +10,28 @@ exports['default'] = {
 
       serializers: {
         servers: {
-          web: error => {
+          web: (error) => {
             if (error.message) {
               return String(error.message)
             } else {
               return error
             }
           },
-          websocket: error => {
+          websocket: (error) => {
             if (error.message) {
               return String(error.message)
             } else {
               return error
             }
           },
-          socket: error => {
+          socket: (error) => {
             if (error.message) {
               return String(error.message)
             } else {
               return error
             }
           },
-          specHelper: error => {
+          specHelper: (error) => {
             if (error.message) {
               return 'Error: ' + String(error.message)
             } else {
@@ -62,12 +62,12 @@ exports['default'] = {
       },
 
       // user requested an unknown action
-      unknownAction: data => {
+      unknownAction: (data) => {
         return data.connection.localize('actionhero.errors.unknownAction')
       },
 
       // action not useable by this client/server type
-      unsupportedServerType: data => {
+      unsupportedServerType: (data) => {
         return data.connection.localize([
           'actionhero.errors.unsupportedServerType',
           { type: data.connection.type },
@@ -75,13 +75,13 @@ exports['default'] = {
       },
 
       // action failed because server is mid-shutdown
-      serverShuttingDown: data => {
+      serverShuttingDown: (data) => {
         return data.connection.localize('actionhero.errors.serverShuttingDown')
       },
 
       // action failed because this client already has too many pending acitons
       // limit defined in api.config.general.simultaneousActions
-      tooManyPendingActions: data => {
+      tooManyPendingActions: (data) => {
         return data.connection.localize(
           'actionhero.errors.tooManyPendingActions'
         )
@@ -100,12 +100,12 @@ exports['default'] = {
 
       // The body message to accompany 404 (file not found) errors regarding flat files
       // You may want to load in the contnet of 404.html or similar
-      fileNotFound: connection => {
+      fileNotFound: (connection) => {
         return connection.localize(['actionhero.errors.fileNotFound'])
       },
 
       // user didn't request a file
-      fileNotProvided: connection => {
+      fileNotProvided: (connection) => {
         return connection.localize('actionhero.errors.fileNotProvided')
       },
 
@@ -135,7 +135,7 @@ exports['default'] = {
         ])
       },
 
-      connectionRoomAndMessage: connection => {
+      connectionRoomAndMessage: (connection) => {
         return connection.localize('actionhero.errors.connectionRoomAndMessage')
       },
 
@@ -153,21 +153,21 @@ exports['default'] = {
         ])
       },
 
-      connectionRoomHasBeenDeleted: room => {
+      connectionRoomHasBeenDeleted: (room) => {
         return api.i18n.localize(
           'actionhero.errors.connectionRoomHasBeenDeleted'
         )
       },
 
-      connectionRoomNotExist: room => {
+      connectionRoomNotExist: (room) => {
         return api.i18n.localize('actionhero.errors.connectionRoomNotExist')
       },
 
-      connectionRoomExists: room => {
+      connectionRoomExists: (room) => {
         return api.i18n.localize('actionhero.errors.connectionRoomExists')
       },
 
-      connectionRoomRequired: room => {
+      connectionRoomRequired: (room) => {
         return api.i18n.localize('actionhero.errors.connectionRoomRequired')
       },
     }

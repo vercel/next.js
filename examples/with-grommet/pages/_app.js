@@ -1,4 +1,3 @@
-import React from 'react'
 import App from 'next/app'
 import { Grommet, grommet as grommetTheme } from 'grommet'
 

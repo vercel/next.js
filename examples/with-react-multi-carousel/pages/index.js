@@ -1,10 +1,10 @@
-import React from 'react'
+import { Component } from 'react'
 import { withStyles } from '@material-ui/core/styles'
 import Carousel from 'react-multi-carousel'
 
 import Image from '../components/image'
 
-const styles = theme => ({
+const styles = (theme) => ({
   root: {
     textAlign: 'center',
   },
@@ -15,7 +15,7 @@ const styles = theme => ({
   },
 })
 
-class Index extends React.Component {
+class Index extends Component {
   render() {
     const { classes } = this.props
     const images = [
@@ -58,7 +58,7 @@ class Index extends React.Component {
           itemClass="image-item"
           deviceType={''}
         >
-          {images.map(image => {
+          {images.map((image) => {
             return <Image url={image} alt={image} />
           })}
         </Carousel>

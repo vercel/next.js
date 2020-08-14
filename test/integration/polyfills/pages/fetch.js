@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import unfetchImp from 'unfetch'
 import isomorphicUnfetchImp from 'isomorphic-unfetch'
 
-const testWhatwgFetchMethods = whatWgFetch => {
+const testWhatwgFetchMethods = (whatWgFetch) => {
   return (
     whatWgFetch.Headers.name === 'Headers' &&
     whatWgFetch.Request.name === 'Request' &&
@@ -18,10 +18,10 @@ const testFetchImports = async () => {
 
   let areImportsMatching =
     [whatwgFetchImp.fetch, whatwgFetchReq.fetch].every(
-      lib => lib.name === 'fetch'
+      (lib) => lib.name === 'fetch'
     ) &&
     [unfetchImp, unfetchReq, isomorphicUnfetchImp, isomorphicUnfetchReq].every(
-      lib => lib.name === 'bound fetch'
+      (lib) => lib.name === 'bound fetch'
     )
 
   return areImportsMatching &&
@@ -35,7 +35,7 @@ const Page = () => {
   const [testStatus, setTestStatus] = useState('computing')
 
   useEffect(() => {
-    testFetchImports().then(status => {
+    testFetchImports().then((status) => {
       console.log(status)
       setTestStatus(status)
     })

@@ -14,7 +14,7 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
   </ul>
 </details>
 
@@ -25,14 +25,12 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 `getInitialProps` is an [`async`](https://vercel.com/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
 
 ```jsx
-import fetch from 'isomorphic-unfetch'
-
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
 
-Page.getInitialProps = async ctx => {
-  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+Page.getInitialProps = async (ctx) => {
+  const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const json = await res.json()
   return { stars: json.stargazers_count }
 }
@@ -44,11 +42,10 @@ Or using a class component:
 
 ```jsx
 import React from 'react'
-import fetch from 'isomorphic-unfetch'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const res = await fetch('https://api.github.com/repos/vercel/next.js')
     const json = await res.json()
     return { stars: json.stargazers_count }
   }

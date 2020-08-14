@@ -8,7 +8,7 @@ const availableLanguageNames = {
 }
 const availableLanguages = Object.keys(availableLanguageNames)
 
-export default () => {
+export default function LangSwitcher() {
   function onSubmit(evt) {
     evt.preventDefault()
     Router.push({
@@ -25,10 +25,10 @@ export default () => {
             key={i18n.language}
             name="lang"
             defaultValue={availableLanguages.find(
-              lang => lang !== i18n.language
+              (lang) => lang !== i18n.language
             )}
           >
-            {availableLanguages.map(lang => (
+            {availableLanguages.map((lang) => (
               <option key={lang} value={lang} disabled={i18n.language === lang}>
                 {i18n._(availableLanguageNames[lang])}
               </option>

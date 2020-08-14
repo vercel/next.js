@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 import useSWR from 'swr'
 
-const fetcher = async url => {
+const fetcher = async (url) => {
   const res = await fetch(url)
   const data = await res.json()
 

@@ -111,7 +111,7 @@ li {
   flex: 0 0 33%;
   min-width: 304px;
   width: 33%;
-  margin: 0 20px 0 0;
+  margin: 0 20px 20px 0;
   text-decoration: none;
   box-shadow: -20px 20px 60px #abacad, 20px -20px 60px #ffffff;
 }
@@ -166,6 +166,10 @@ button {
   display: block;
   width: 100%;
 }
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .elements-style {
   color: var(--elements-color);
@@ -188,6 +192,45 @@ button {
 }
 .card.checkout-style-background:hover {
   box-shadow: 20px 20px 60px #614b91, -20px -20px 60px #bd91ff;
+}
+.cart-style-background {
+  background: teal;
+  transition: box-shadow var(--transition-duration);
+}
+.card.cart-style-background:hover {
+  box-shadow: 20px 20px 60px teal, -20px -20px 60px teal;
+}
+
+/* Products */
+.products {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 3rem;
+}
+
+.product img {
+  max-width: 100%;
+}
+
+/* Test card number */
+.test-card-notice {
+  display: block;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+}
+.card-number {
+  display: inline;
+  white-space: nowrap;
+  font-family: Menlo, Consolas, monospace;
+  color: #3c4257;
+  font-weight: 500;
+}
+.card-number span {
+  display: inline-block;
+  width: 4px;
 }
 
 /* Code block */

@@ -1,10 +1,11 @@
 import babelLoader from 'next/dist/compiled/babel-loader'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
+import * as Log from '../../output/log'
 
-// increment 'k' to invalidate cache
+// increment 'm' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'k' + '-'
+const cacheKey = 'babel-cache-' + 'm' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -20,7 +21,7 @@ const getModernOptions = (babelOptions = {}) => {
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
-    // Blacklist accidental inclusions
+    // Block accidental inclusions
     'transform-regenerator',
     'transform-async-to-generator',
   ]
@@ -32,10 +33,10 @@ const getModernOptions = (babelOptions = {}) => {
   }
 }
 
-const nextBabelPresetModern = presetOptions => context =>
+const nextBabelPresetModern = (presetOptions) => (context) =>
   nextBabelPreset(context, getModernOptions(presetOptions))
 
-module.exports = babelLoader.custom(babel => {
+module.exports = babelLoader.custom((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -124,8 +125,7 @@ module.exports = babelLoader.custom(babel => {
           // We only log for client compilation otherwise there will be double output
           if (file && !isServer && !configs.has(file)) {
             configs.add(file)
-            console.log(`> Using external babel configuration`)
-            console.log(`> Location: "${file}"`)
+            Log.info(`Using external babel configuration from ${file}`)
           }
         }
       } else {
@@ -137,6 +137,18 @@ module.exports = babelLoader.custom(babel => {
       options.caller.isModern = isModern
       options.caller.isDev = development
 
+      const emitWarning = this.emitWarning.bind(this)
+      Object.defineProperty(options.caller, 'onWarning', {
+        enumerable: false,
+        writable: false,
+        value: (options.caller.onWarning = function (reason) {
+          if (!(reason instanceof Error)) {
+            reason = new Error(reason)
+          }
+          emitWarning(reason)
+        }),
+      })
+
       options.plugins = options.plugins || []
 
       if (hasReactRefresh) {
@@ -145,6 +157,13 @@ module.exports = babelLoader.custom(babel => {
           { type: 'plugin' }
         )
         options.plugins.unshift(reactRefreshPlugin)
+        if (!isServer) {
+          const noAnonymousDefaultExportPlugin = babel.createConfigItem(
+            [require('../../babel/plugins/no-anonymous-default-export'), {}],
+            { type: 'plugin' }
+          )
+          options.plugins.unshift(noAnonymousDefaultExportPlugin)
+        }
       }
 
       if (!isServer && isPageFile) {
@@ -153,6 +172,14 @@ module.exports = babelLoader.custom(babel => {
           { type: 'plugin' }
         )
         options.plugins.push(pageConfigPlugin)
+
+        const diallowExportAll = babel.createConfigItem(
+          [
+            require('../../babel/plugins/next-page-disallow-re-export-all-exports'),
+          ],
+          { type: 'plugin' }
+        )
+        options.plugins.push(diallowExportAll)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {
@@ -168,11 +195,11 @@ module.exports = babelLoader.custom(babel => {
 
       if (isModern) {
         const nextPreset = options.presets.find(
-          preset => preset && preset.value === nextBabelPreset
+          (preset) => preset && preset.value === nextBabelPreset
         ) || { options: {} }
 
         const additionalPresets = options.presets.filter(
-          preset => preset !== nextPreset
+          (preset) => preset !== nextPreset
         )
 
         const presetItemModern = babel.createConfigItem(

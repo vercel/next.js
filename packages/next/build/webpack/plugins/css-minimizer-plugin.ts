@@ -1,4 +1,4 @@
-import { process as minify } from 'next/dist/compiled/cssnano-simple'
+import { process as minify } from 'cssnano-simple'
 import webpack from 'webpack'
 import { RawSource, SourceMapSource } from 'webpack-sources'
 
@@ -21,18 +21,18 @@ export class CssMinimizerPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap('CssMinimizerPlugin', compilation => {
+    compiler.hooks.compilation.tap('CssMinimizerPlugin', (compilation: any) => {
       compilation.hooks.optimizeChunkAssets.tapPromise(
         'CssMinimizerPlugin',
-        chunks =>
+        (chunks: webpack.compilation.Chunk[]) =>
           Promise.all(
             chunks
               .reduce(
                 (acc, chunk) => acc.concat(chunk.files || []),
                 [] as string[]
               )
-              .filter(entry => CSS_REGEX.test(entry))
-              .map(file => {
+              .filter((entry) => CSS_REGEX.test(entry))
+              .map((file) => {
                 const postcssOptions = {
                   ...this.options.postcssOptions,
                   to: file,
@@ -50,7 +50,7 @@ export class CssMinimizerPlugin {
                   input = asset.source()
                 }
 
-                return minify(input, postcssOptions).then(res => {
+                return minify(input, postcssOptions).then((res) => {
                   if (res.map) {
                     compilation.assets[file] = new SourceMapSource(
                       res.css,

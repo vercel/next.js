@@ -30,29 +30,41 @@ export type OriginalStackFrame =
       originalCodeFrame: null
     }
 
-export function getOriginalStackFrames(frames: StackFrame[]) {
-  return Promise.all(frames.map(frame => getOriginalStackFrame(frame)))
+export function getOriginalStackFrames(
+  isServerSide: boolean,
+  frames: StackFrame[]
+) {
+  return Promise.all(
+    frames.map((frame) => getOriginalStackFrame(isServerSide, frame))
+  )
 }
 
 export function getOriginalStackFrame(
+  isServerSide: boolean,
   source: StackFrame
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
     const params = new URLSearchParams()
+    params.append('isServerSide', String(isServerSide))
     for (const key in source) {
-      params.append(key, (source[key] ?? '').toString())
+      params.append(key, ((source as any)[key] ?? '').toString())
     }
 
     const controller = new AbortController()
     const tm = setTimeout(() => controller.abort(), 3000)
     const res = await self
-      .fetch(`/__nextjs_original-stack-frame?${params.toString()}`, {
-        signal: controller.signal,
-      })
+      .fetch(
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_original-stack-frame?${params.toString()}`,
+        {
+          signal: controller.signal,
+        }
+      )
       .finally(() => {
         clearTimeout(tm)
       })
-    if (!res.ok) {
+    if (!res.ok || res.status === 204) {
       return Promise.reject(new Error(await res.text()))
     }
 
@@ -61,16 +73,22 @@ export function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded:
-        body.originalStackFrame?.file &&
-        !body.originalStackFrame.file.includes('node_modules'),
+      expanded: !Boolean(
+        /* collapsed */
+        body.originalStackFrame?.file?.includes('node_modules') ?? true
+      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
     }
   }
 
-  if (!source.file?.startsWith('webpack-internal:')) {
+  if (
+    !(
+      source.file?.startsWith('webpack-internal:') ||
+      source.file?.startsWith('file:')
+    )
+  ) {
     return Promise.resolve({
       error: false,
       reason: null,
@@ -96,14 +114,20 @@ export function getOriginalStackFrame(
 export function getFrameSource(frame: StackFrame): string {
   let str = ''
   try {
-    const u = new URL(frame.file)
+    const u = new URL(frame.file!)
 
     // Strip the origin for same-origin scripts.
     if (
       typeof globalThis !== 'undefined' &&
       globalThis.location?.origin !== u.origin
     ) {
-      str += u.origin
+      // URLs can be valid without an `origin`, so long as they have a
+      // `protocol`. However, `origin` is preferred.
+      if (u.origin === 'null') {
+        str += u.protocol
+      } else {
+        str += u.origin
+      }
     }
 
     // Strip query string information as it's typically too verbose to be

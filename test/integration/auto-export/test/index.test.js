@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import path from 'path'
 import {
@@ -10,7 +10,7 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 const appDir = path.join(__dirname, '..')
 let appPort
 let app
@@ -81,9 +81,8 @@ describe('Auto Export', () => {
 
     it('should not show hydration warning from mismatching asPath', async () => {
       const browser = await webdriver(appPort, '/zeit/cmnt-1')
-
-      const numCaught = await browser.eval(`window.caughtWarns.length`)
-      expect(numCaught).toBe(0)
+      const caughtWarns = await browser.eval(`window.caughtWarns`)
+      expect(caughtWarns).toEqual([])
     })
   })
 })

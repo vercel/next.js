@@ -56,7 +56,7 @@
           "name": "Name",
           "type": "Symbol",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false
@@ -66,7 +66,7 @@
           "name": "Picture",
           "type": "Link",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false,
@@ -130,7 +130,7 @@
           "name": "Title",
           "type": "Symbol",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false
@@ -140,7 +140,7 @@
           "name": "Slug",
           "type": "Symbol",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false
@@ -150,7 +150,7 @@
           "name": "Content",
           "type": "RichText",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false
@@ -160,7 +160,7 @@
           "name": "Excerpt",
           "type": "Symbol",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false
@@ -181,7 +181,7 @@
           "name": "Date",
           "type": "Date",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [],
           "disabled": false,
           "omitted": false
@@ -191,7 +191,7 @@
           "name": "Author",
           "type": "Link",
           "localized": false,
-          "required": false,
+          "required": true,
           "validations": [
             {
               "linkContentType": ["author"]

@@ -66,16 +66,12 @@ describe('config', () => {
   })
 
   it('Should throw when an invalid target is provided', () => {
-    try {
+    expect(() => {
       loadConfig(
         PHASE_DEVELOPMENT_SERVER,
         join(__dirname, '_resolvedata', 'invalid-target')
       )
-      // makes sure we don't just pass if the loadConfig passes while it should fail
-      throw new Error('failed')
-    } catch (err) {
-      expect(err.message).toMatch(/Specified target is invalid/)
-    }
+    }).toThrow(/Specified target is invalid/)
   })
 
   it('Should pass when a valid target is provided', () => {
@@ -87,18 +83,14 @@ describe('config', () => {
   })
 
   it('Should throw an error when next.config.js is not present', () => {
-    try {
+    expect(() =>
       loadConfig(
         PHASE_DEVELOPMENT_SERVER,
         join(__dirname, '_resolvedata', 'typescript-config')
       )
-      // makes sure we don't just pass if the loadConfig passes while it should fail
-      throw new Error('failed')
-    } catch (err) {
-      expect(err.message).toMatch(
-        /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'./
-      )
-    }
+    ).toThrow(
+      /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'/
+    )
   })
 
   it('Should not throw an error when two versions of next.config.js are present', () => {
@@ -107,5 +99,27 @@ describe('config', () => {
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
     expect(config.__test__ext).toBe('js')
+  })
+
+  it('Should ignore configs set to `undefined`', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      target: undefined,
+      devIndicators: {
+        autoPrerender: undefined,
+      },
+    })
+    expect(config.target).toBe('server')
+    expect(config.devIndicators.autoPrerender).toBe(true)
+  })
+
+  it('Should ignore configs set to `null`', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      target: null,
+      devIndicators: {
+        autoPrerender: null,
+      },
+    })
+    expect(config.target).toBe('server')
+    expect(config.devIndicators.autoPrerender).toBe(true)
   })
 })

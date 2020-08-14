@@ -1,66 +1,53 @@
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux'
+import { useState } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 import { loadExampleData, loadingExampleDataFailure } from '../store'
+import { useEffect } from 'react'
 
-class DataList extends Component {
-  state = {
-    isDataLoading: false,
-  }
+const DataList = () => {
+  const dispatch = useDispatch()
+  const exampleData = useSelector((state) => state.exampleData)
+  const error = useSelector((state) => state.error)
+  const [isLoading, setIsLoading] = useState(false)
 
-  componentDidMount() {
-    const { loadExampleData, loadingExampleDataFailure } = this.props
-    const self = this
+  useEffect(() => {
+    setIsLoading(true)
 
-    this.setState({ isDataLoading: true })
     window
       .fetch('https://jsonplaceholder.typicode.com/users')
-      .then(function(response) {
+      .then((response) => {
         if (response.status !== 200) {
           console.log(
             'Looks like there was a problem. Status Code: ' + response.status
           )
-          loadingExampleDataFailure()
-          self.setState({ isDataLoading: false })
+          dispatch(loadingExampleDataFailure())
+          setIsLoading(false)
           return
         }
-        response.json().then(function(data) {
-          loadExampleData(data)
-          self.setState({ isDataLoading: false })
+        response.json().then((data) => {
+          dispatch(loadExampleData(data))
+          setIsLoading(false)
         })
       })
-      .catch(function(err) {
+      .catch((err) => {
         console.log('Fetch Error :-S', err)
-        loadingExampleDataFailure()
-        self.setState({ isDataLoading: false })
+        dispatch(loadingExampleDataFailure())
+        setIsLoading(false)
       })
-  }
+  }, [dispatch])
 
-  render() {
-    const { exampleData, error } = this.props
-    const { isDataLoading } = this.state
-
-    return (
-      <div>
-        <h1>API DATA:</h1>
-        {exampleData && !isDataLoading ? (
-          <pre>
-            <code>{JSON.stringify(exampleData, null, 2)}</code>
-          </pre>
-        ) : (
-          <p style={{ color: 'blue' }}>Loading...</p>
-        )}
-        {error && <p style={{ color: 'red' }}>Error fetching data.</p>}
-      </div>
-    )
-  }
+  return (
+    <div>
+      <h1>API DATA:</h1>
+      {exampleData && !isLoading ? (
+        <pre>
+          <code>{JSON.stringify(exampleData, null, 2)}</code>
+        </pre>
+      ) : (
+        <p style={{ color: 'blue' }}>Loading...</p>
+      )}
+      {error && <p style={{ color: 'red' }}>Error fetching data.</p>}
+    </div>
+  )
 }
 
-function mapStateToProps(state) {
-  const { exampleData, error } = state
-  return { exampleData, error }
-}
-const mapDispatchToProps = dispatch =>
-  bindActionCreators({ loadExampleData, loadingExampleDataFailure }, dispatch)
-
-export default connect(mapStateToProps, mapDispatchToProps)(DataList)
+export default DataList

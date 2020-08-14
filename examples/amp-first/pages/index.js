@@ -1,4 +1,3 @@
-import React from 'react'
 import Layout from '../components/Layout'
 import AmpState from '../components/amp/AmpState'
 import AmpScript from '../components/amp/AmpScript'
@@ -9,7 +8,7 @@ import {
 
 export const config = { amp: true }
 
-const Home = props => (
+const Home = (props) => (
   <>
     <Layout
       title="Welcome to AMP"
@@ -26,7 +25,7 @@ const Home = props => (
             <h3>Getting Started &rarr;</h3>
             <p>Learn more about Next</p>
           </a>
-          <a href="https://nextjs.org/docs#amp-support">
+          <a href="https://nextjs.org/docs/advanced-features/amp-support/introduction">
             <h3>AMP Support in Next.js &rarr;</h3>
             <p>Learn how to build AMP sites with Next.js</p>
           </a>

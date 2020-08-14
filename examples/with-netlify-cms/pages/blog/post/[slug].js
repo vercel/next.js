@@ -29,7 +29,7 @@ const Post = ({ blogpost }) => {
 export async function getStaticPaths() {
   const paths = fs
     .readdirSync(path.join(process.cwd(), 'content/blogPosts'))
-    .map(blogName => {
+    .map((blogName) => {
       const trimmedName = blogName.substring(0, blogName.length - 3)
       return {
         params: { slug: trimmedName },
@@ -38,7 +38,7 @@ export async function getStaticPaths() {
 
   return {
     paths,
-    fallback: false, // constrols wheter not predefined paths should be processed on demand, check for more info: https://nextjs.org/docs/basic-features/data-fetching#the-fallback-key-required
+    fallback: false, // constrols whether not predefined paths should be processed on demand, check for more info: https://nextjs.org/docs/basic-features/data-fetching#the-fallback-key-required
   }
 }
 

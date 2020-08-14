@@ -7,8 +7,8 @@ description: API Routes provide built-in middlewares that parse the incoming r
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
   </ul>
 </details>
 
@@ -56,6 +56,16 @@ export const config = {
 }
 ```
 
+`externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
+
+```js
+export const config = {
+  api: {
+    externalResolver: true,
+  },
+}
+```
+
 ## Connect/Express middleware support
 
 You can also use [Connect](https://github.com/senchalabs/connect) compatible middleware.
@@ -84,7 +94,7 @@ const cors = Cors({
 // And to throw an error when an error happens in a middleware
 function runMiddleware(req, res, fn) {
   return new Promise((resolve, reject) => {
-    fn(req, res, result => {
+    fn(req, res, (result) => {
       if (result instanceof Error) {
         return reject(result)
       }
@@ -105,4 +115,77 @@ async function handler(req, res) {
 export default handler
 ```
 
-> Go to the [API Routes with CORS](https://github.com/zeit/next.js/tree/canary/examples/api-routes-cors) example to see the finished app
+> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app
+
+## Extending the `req`/`res` objects with TypeScript
+
+For better type-safety, it is not recommended to extend the `req` and `res` objects. Instead, use pure functions to work with them:
+
+```ts
+// utils/cookies.ts
+
+import { serialize } from 'cookie'
+import { NextApiResponse } from 'next'
+
+/**
+ * This sets `cookie` using the `res` object
+ */
+
+type Options = {
+  expires?: Date
+  maxAge?: number
+}
+
+export const setCookie = (
+  res: NextApiResponse,
+  name: string,
+  value: unknown,
+  options: Options = {}
+) => {
+  const stringValue =
+    typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
+
+  if ('maxAge' in options) {
+    options.expires = new Date(Date.now() + options.maxAge)
+    options.maxAge /= 1000
+  }
+
+  res.setHeader('Set-Cookie', serialize(name, String(stringValue), options))
+}
+
+// pages/api/cookies.ts
+
+import { NextApiRequest, NextApiResponse } from 'next'
+import { setCookie } from '../../utils/cookies'
+
+const handler = (req: NextApiRequest, res: NextApiResponse) => {
+  // Calling our pure function using the `res` object, it will add the `set-cookie` header
+  setCookie(res, 'Next.js', 'api-middleware!')
+  // Return the `set-cookie` header so we can display it in the browser and show that it works!
+  res.end(res.getHeader('Set-Cookie'))
+}
+
+export default handler
+```
+
+If you can't avoid these objects from being extended, you have to create your own type to include the extra properties:
+
+```ts
+// pages/api/foo.ts
+
+import { NextApiRequest, NextApiResponse } from 'next'
+import { withFoo } from 'external-lib-foo'
+
+type NextApiRequestWithFoo = NextApiRequest & {
+  foo: (bar: string) => void
+}
+
+const handler = (req: NextApiRequestWithFoo, res: NextApiResponse) => {
+  req.foo('bar') // we can now use `req.foo` without type errors
+  res.end('ok')
+}
+
+export default withFoo(handler)
+```
+
+Keep in mind this is not safe since the code will still compile even if you remove `withFoo()` from the export.

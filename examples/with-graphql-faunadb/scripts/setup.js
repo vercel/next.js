@@ -12,7 +12,7 @@ const readline = require('readline').createInterface({
 })
 
 // In order to set up a database, we need an admin key, so let's ask the user for a key.
-readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
+readline.question(`Please provide the FaunaDB admin key\n`, (adminKey) => {
   // A graphql schema can be imported in override or merge mode: 'https://docs.fauna.com/fauna/current/api/graphql/endpoints#import'
   const options = {
     model: 'merge',
@@ -22,7 +22,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
   const stream = fs.createReadStream('./schema.gql').pipe(request.post(options))
 
   streamToPromise(stream)
-    .then(res => {
+    .then((res) => {
       const readableResult = res.toString()
       if (readableResult.startsWith('Invalid authorization header')) {
         console.error('You need to provide a secret, closing. Try again')
@@ -37,11 +37,11 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
         return readline.close()
       }
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err)
       console.error(`Could not import schema, closing`)
     })
-    .then(res => {
+    .then((res) => {
       // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
       var client = new faunadb.Client({ secret: adminKey })
@@ -61,12 +61,12 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
             ],
           })
         )
-        .then(res => {
+        .then((res) => {
           console.log(
             '2. Successfully created role to read and write guestbook entries'
           )
         })
-        .catch(err => {
+        .catch((err) => {
           if (err.toString().includes('instance already exists')) {
             console.log('2. Role already exists.')
           } else {
@@ -74,11 +74,11 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
           }
         })
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err)
       console.error(`Failed to create role, closing`)
     })
-    .then(res => {
+    .then((res) => {
       // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
       var client = new faunadb.Client({ secret: adminKey })
@@ -88,7 +88,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
             role: q.Role('GuestbookRole'),
           })
         )
-        .then(res => {
+        .then((res) => {
           console.log('3. Created key to use in client')
           console.log(
             'Replace the < GRAPHQL_SECRET > placehold in next.config.js with:'
@@ -96,7 +96,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
           console.log(res.secret)
         })
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err)
       console.error(`Failed to create key, closing`)
     })

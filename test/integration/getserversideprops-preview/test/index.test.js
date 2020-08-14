@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import cheerio from 'cheerio'
 import cookie from 'cookie'
 import fs from 'fs-extra'
@@ -18,7 +18,7 @@ import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
@@ -71,7 +71,7 @@ function runTests(startServer = nextStart) {
     const originalCookies = res.headers.get('set-cookie').split(',')
     const cookies = originalCookies.map(cookie.parse)
 
-    expect(originalCookies.every(c => c.includes('; Secure;')))
+    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
@@ -194,10 +194,7 @@ describe('ServerSide Props Preview Mode', () => {
       const res = await fetchViaHTTP(appPort, '/api/preview', { lets: 'goooo' })
       expect(res.status).toBe(200)
 
-      const cookies = res.headers
-        .get('set-cookie')
-        .split(',')
-        .map(cookie.parse)
+      const cookies = res.headers.get('set-cookie').split(',').map(cookie.parse)
 
       expect(cookies.length).toBe(2)
       previewCookieString =

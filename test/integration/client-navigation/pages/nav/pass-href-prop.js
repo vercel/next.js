@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 const UnexpectedNestedA = () => {
-  const UnexpectedWrapper = props => {
+  const UnexpectedWrapper = (props) => {
     const { href, id } = props
     const safeProps = { href, id }
     return <a {...safeProps}>{props.children}</a>

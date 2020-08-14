@@ -1,5 +1,5 @@
-import { parse as parseStack } from 'stacktrace-parser'
 import * as Bus from './internal/bus'
+import { parseStack } from './internal/helpers/parseStack'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -15,7 +15,7 @@ function onUnhandledError(ev: ErrorEvent) {
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
-    frames: parseStack(e.stack),
+    frames: parseStack(e.stack!),
   })
 }
 
@@ -34,7 +34,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_REJECTION,
     reason: reason,
-    frames: parseStack(e.stack),
+    frames: parseStack(e.stack!),
   })
 }
 
@@ -71,9 +71,18 @@ function unregister() {
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
 }
 
+function onBuildOk() {
+  Bus.emit({ type: Bus.TYPE_BUILD_OK })
+}
+
+function onBuildError(message: string) {
+  Bus.emit({ type: Bus.TYPE_BUILD_ERROR, message })
+}
+
 function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFFRESH })
 }
 
+export { getNodeError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export { register, unregister, onRefresh }
+export { onBuildOk, onBuildError, register, unregister, onRefresh }

@@ -20,7 +20,7 @@ const Homepage = ({ build, bumpBuild }) => (
     <h1>Homepage</h1>
     <h3>Current build: {build}</h3>
     <p>
-      <button onClick={e => bumpBuild(1)}>Bump build!</button>
+      <button onClick={(e) => bumpBuild(1)}>Bump build!</button>
     </p>
     <Link href="/about">
       <a>About Us</a>

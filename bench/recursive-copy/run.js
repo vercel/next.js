@@ -20,7 +20,7 @@ const createSrcFolder = async () => {
       join(srcDir, `folder${i % 5}`, `folder${i + (1 % 5)}`, `file${i}`)
     )
 
-  await Promise.all(files.map(file => fs.outputFile(file, 'hello')))
+  await Promise.all(files.map((file) => fs.outputFile(file, 'hello')))
 }
 
 async function run(fn) {

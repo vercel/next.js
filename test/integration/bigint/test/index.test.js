@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -11,7 +11,7 @@ import {
   findPort,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
@@ -29,7 +29,7 @@ const runTests = () => {
   it('should return the BigInt result text', async () => {
     const resText = await fetchViaHTTP(appPort, '/api/bigint', null, {
       method: 'GET',
-    }).then(res => res.ok && res.text())
+    }).then((res) => res.ok && res.text())
     expect(resText).toEqual('3')
   })
 }

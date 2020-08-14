@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 declare module '@babel/plugin-transform-modules-commonjs'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
@@ -5,11 +6,11 @@ declare module 'cssnano-simple' {
   const cssnanoSimple: Plugin<{}>
   export = cssnanoSimple
 }
-declare module 'launch-editor'
 declare module 'styled-jsx/server'
 declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
 declare module 'webpack/lib/DynamicEntryPlugin'
+declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -71,10 +72,6 @@ declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
   export = m
 }
-declare module 'next/dist/compiled/cssnano-simple' {
-  import m from 'cssnano-simple'
-  export = m
-}
 declare module 'next/dist/compiled/debug' {
   import m from 'debug'
   export = m
@@ -130,10 +127,6 @@ declare module 'next/dist/compiled/json5' {
 }
 declare module 'next/dist/compiled/jsonwebtoken' {
   import m from 'jsonwebtoken'
-  export = m
-}
-declare module 'next/dist/compiled/launch-editor' {
-  import m from 'launch-editor'
   export = m
 }
 declare module 'next/dist/compiled/lodash.curry' {
@@ -192,6 +185,10 @@ declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
 }
+declare module 'next/dist/compiled/semver' {
+  import m from 'semver'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -208,54 +205,17 @@ declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
   export = m
 }
-declare module 'next/dist/compiled/webpack-dev-middleware' {
-  import m from 'webpack-dev-middleware'
-  export = m
-}
-declare module 'next/dist/compiled/webpack-hot-middleware' {
-  import m from 'webpack-hot-middleware'
-  export = m
-}
-declare module 'next/dist/compiled/terser-webpack-plugin' {
-  import m from 'terser-webpack-plugin'
-  export = m
-}
 
-declare module 'autodll-webpack-plugin' {
-  import webpack from 'webpack'
-  class AutoDllPlugin implements webpack.Plugin {
-    constructor(settings?: {
-      inject?: boolean
-      plugins?: webpack.Configuration['plugins']
-      context?: string
-      debug?: boolean
-      filename?: string
-      path?: string
-      inherit?: boolean
-      entry?: webpack.Entry
-      config?: webpack.Configuration
-    })
-    apply: webpack.Plugin['apply'];
-    [k: string]: any
-  }
-
-  export = AutoDllPlugin
+declare module 'next/dist/compiled/terser-webpack-plugin'
+declare module 'next/dist/compiled/comment-json' {
+  import m from 'comment-json'
+  export = m
 }
 
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack'
-  import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 
-  class PnpWebpackPlugin extends webpack.Plugin {
-    static forkTsCheckerOptions: <
-      T extends Partial<ForkTsCheckerWebpackPlugin.Options>
-    >(
-      settings: T
-    ) => T & {
-      resolveModuleNameModule?: string
-      resolveTypeReferenceDirectiveModule?: string
-    }
-  }
+  class PnpWebpackPlugin extends webpack.Plugin {}
 
   export = PnpWebpackPlugin
 }
@@ -273,6 +233,7 @@ declare module 'watchpack' {
   import { EventEmitter } from 'events'
 
   class Watchpack extends EventEmitter {
+    constructor(options?: any)
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 

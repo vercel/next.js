@@ -2,12 +2,11 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-;['react', 'react-dom'].forEach(dependency => {
+;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
     require.resolve(dependency)
   } catch (err) {
-    // tslint:disable-next-line
     console.warn(
       `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
     )
@@ -17,13 +16,13 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: async () => await import('../cli/next-build').then(i => i.nextBuild),
-  start: async () => await import('../cli/next-start').then(i => i.nextStart),
+  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
+  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
   export: async () =>
-    await import('../cli/next-export').then(i => i.nextExport),
-  dev: async () => await import('../cli/next-dev').then(i => i.nextDev),
+    await import('../cli/next-export').then((i) => i.nextExport),
+  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
   telemetry: async () =>
-    await import('../cli/next-telemetry').then(i => i.nextTelemetry),
+    await import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
 const args = arg(
@@ -44,7 +43,6 @@ const args = arg(
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
-  // tslint:disable-next-line
   console.log(`Next.js v${process.env.__NEXT_VERSION}`)
   process.exit(0)
 }
@@ -55,7 +53,6 @@ const foundCommand = Boolean(commands[args._[0]])
 // Makes sure the `next <subcommand> --help` case is covered
 // This help message is only showed for `next --help`
 if (!foundCommand && args['--help']) {
-  // tslint:disable-next-line
   console.log(`
     Usage
       $ next <command>
@@ -102,18 +99,17 @@ const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
   )
 }
 
-commands[command]().then(exec => exec(forwardedArgs))
+commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
-      // tslint:disable-next-line
       console.log(
         `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
       )

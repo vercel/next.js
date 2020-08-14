@@ -1,17 +1,17 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { findPort, launchApp, killApp, waitFor } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
-const installCheckVisible = browser => {
+const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
     window.checkInterval = setInterval(function() {
       let watcherDiv = document.querySelector('#__next-build-watcher')

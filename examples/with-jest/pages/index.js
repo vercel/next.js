@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import React from 'react'
 import styles from './index.module.css'
 
 const Home = () => (
@@ -30,7 +29,7 @@ const Home = () => (
         </a>
 
         <a
-          href="https://github.com/zeit/next.js/tree/master/examples"
+          href="https://github.com/vercel/next.js/tree/master/examples"
           className={styles.card}
         >
           <h3>Examples &rarr;</h3>
