@@ -561,6 +561,40 @@ function runTests(dev) {
     expect(res.status).toBe(400)
   })
 
+  it('should preload buildManifest for auto-export dynamic pages', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/hello')
+    const $ = cheerio.load(html)
+    let found = 0
+
+    for (const el of Array.from($('link[rel="preload"]'))) {
+      const { href } = el.attribs
+      if (
+        href.includes('_buildManifest.js') ||
+        href.includes('_buildManifest.module.js')
+      ) {
+        found++
+      }
+    }
+    expect(found).toBe(dev ? 2 : 1)
+  })
+
+  it('should not preload buildManifest for non-auto export dynamic pages', async () => {
+    const html = await renderViaHTTP(appPort, '/hello')
+    const $ = cheerio.load(html)
+    let found = 0
+
+    for (const el of Array.from($('link[rel="preload"]'))) {
+      const { href } = el.attribs
+      if (
+        href.includes('_buildManifest.js') ||
+        href.includes('_buildManifest.module.js')
+      ) {
+        found++
+      }
+    }
+    expect(found).toBe(0)
+  })
+
   if (dev) {
     it('should resolve dynamic route href for page added later', async () => {
       const browser = await webdriver(appPort, '/')
