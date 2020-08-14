@@ -11,7 +11,7 @@ const handle = app.getRequestHandler()
 const ssrCache = cacheableResponse({
   ttl: 1000 * 60 * 60, // 1hour
   get: async ({ req, res }) => {
-    const data = await app.renderToHTML(req, res, req.path, {
+    const data = await app.render(req, res, req.path, {
       ...req.query,
       ...req.params,
     })
