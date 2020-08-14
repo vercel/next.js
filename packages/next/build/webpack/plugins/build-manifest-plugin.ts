@@ -17,6 +17,8 @@ import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
+type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
+
 export type ClientBuildManifest = Record<string, string[]>
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
@@ -102,7 +104,7 @@ export default class BuildManifestPlugin {
   createAssets(compilation: any, assets: any) {
     const namedChunks: Map<string, CompilationType.Chunk> =
       compilation.namedChunks
-    const assetMap: BuildManifest = {
+    const assetMap: DeepMutable<BuildManifest> = {
       polyfillFiles: [],
       devFiles: [],
       ampDevFiles: [],
