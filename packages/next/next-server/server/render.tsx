@@ -45,7 +45,6 @@ import {
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
-import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
@@ -178,7 +177,6 @@ function renderDocument(
     ampState,
     inAmpMode,
     hybridAmp,
-    files,
     dynamicImports,
     headTags,
     gsp,
@@ -200,7 +198,6 @@ function renderDocument(
     hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
-    files: string[]
     headTags: any
     isFallback?: boolean
     gsp?: boolean
@@ -242,7 +239,6 @@ function renderDocument(
           inAmpMode,
           isDevelopment: !!dev,
           hybridAmp,
-          files,
           dynamicImports,
           assetPrefix,
           headTags,
@@ -701,18 +697,6 @@ export async function renderToHTML(
     }
   }
 
-  // AMP First pages do not have client-side JavaScript files
-  const files = ampState.ampFirst
-    ? []
-    : [
-        ...new Set([
-          ...getPageFiles(filteredBuildManifest, '/_app'),
-          ...(pathname !== '/_error'
-            ? getPageFiles(filteredBuildManifest, pathname)
-            : []),
-        ]),
-      ]
-
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}
   ): { html: string; head: any } => {
@@ -796,7 +780,6 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImportsIds,
     dynamicImports,
-    files,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,
