@@ -5,14 +5,14 @@ import fetcher from '../lib/fetcher'
 import Header from '../components/header'
 import Footer from '../components/footer'
 
-export default function Home () {
+export default function Home() {
   const { data, error } = useSWR('/api/movies', fetcher)
 
   if (error) return <div>failed to load</div>
   if (!data) return <div>loading...</div>
 
   return (
-    <div className='container'>
+    <div className="container">
       <Head>
         <title>Next with Neo4j</title>
         <link rel="icon" href="/favicon.ico" />
@@ -20,10 +20,11 @@ export default function Home () {
 
       <Header />
       <main>
-
-        <div className='movies'>
-          <div className='subtitle'>
-            <p><strong>"Movies"</strong> Neo4j example dataset.</p>
+        <div className="movies">
+          <div className="subtitle">
+            <p>
+              <strong>"Movies"</strong> Neo4j example dataset.
+            </p>
           </div>
           <table>
             <thead>
@@ -38,42 +39,38 @@ export default function Home () {
             </thead>
             <tbody>
               {data.movies.map((movie, index) => (
-                <tr className='movie' key={movie.title}>
+                <tr className="movie" key={movie.title}>
                   <th>{index + 1}</th>
                   <td>
                     <Link
-                      href='/movie/[title]'
+                      href="/movie/[title]"
                       as={{
-                        pathname: `/movie/${encodeURIComponent(movie.title)}`
+                        pathname: `/movie/${encodeURIComponent(movie.title)}`,
                       }}
                     >
-                      <a className='link'>
-                        {movie.title}
-                      </a>
+                      <a className="link">{movie.title}</a>
                     </Link>
                   </td>
                   <td>{movie.released.low}</td>
                   <td>{movie.tagline}</td>
                   <td>
                     <ul>
-                      {movie.directed.map(director => (
+                      {movie.directed.map((director) => (
                         <li key={director}>{director}</li>
                       ))}
                     </ul>
                   </td>
                   <td>
                     <ul>
-                      {movie.actors.map(actor => (
+                      {movie.actors.map((actor) => (
                         <li key={actor}>
                           <Link
-                            href='/actor/[name]'
+                            href="/actor/[name]"
                             as={{
-                              pathname: `/actor/${encodeURIComponent(actor)}`
+                              pathname: `/actor/${encodeURIComponent(actor)}`,
                             }}
                           >
-                            <a className='link'>
-                              {actor}
-                            </a>
+                            <a className="link">{actor}</a>
                           </Link>
                         </li>
                       ))}
@@ -123,12 +120,13 @@ export default function Home () {
           border-bottom: 2px solid #dee2e6;
           border: 1px solid #dee2e6;
           border-bottom-width: 2px;
-          padding: .75rem;
+          padding: 0.75rem;
         }
 
-        table tbody th, table tbody td {
+        table tbody th,
+        table tbody td {
           border: 1px solid #dee2e6;
-          padding: .75rem;
+          padding: 0.75rem;
           vertical-align: middle;
         }
 

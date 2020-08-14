@@ -10,6 +10,6 @@ export default {
     },
     getActor: (parent, args, context, resolveInfo) => {
       return neo4jgraphql(parent, args, context, resolveInfo)
-    }
-  }
+    },
+  },
 }

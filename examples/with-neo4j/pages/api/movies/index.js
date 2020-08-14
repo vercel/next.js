@@ -3,7 +3,7 @@ import getDriver from '../../../util/neo4j'
 const driver = getDriver()
 const session = driver.session()
 
-export default async function handler (req, res) {
+export default async function handler(req, res) {
   const { method } = req
 
   switch (method) {
@@ -21,9 +21,7 @@ export default async function handler (req, res) {
             `
 
             const moviesTxResponse = await transaction.run(cypher)
-            const movies = moviesTxResponse.records.map(
-              r => r.get('movie')
-            )
+            const movies = moviesTxResponse.records.map((r) => r.get('movie'))
             return movies
           }
         )

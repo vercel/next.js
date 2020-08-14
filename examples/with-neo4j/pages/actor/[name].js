@@ -6,7 +6,7 @@ import fetcher from '../../lib/fetcher'
 import Header from '../../components/header'
 import Footer from '../../components/footer'
 
-export default function Actor () {
+export default function Actor() {
   const router = useRouter()
   const { name } = router.query
   const { data, error } = useSWR(`/api/actors/${name}`, fetcher)
@@ -15,7 +15,7 @@ export default function Actor () {
   if (!data) return <div>loading...</div>
 
   return (
-    <div className='container'>
+    <div className="container">
       <Head>
         <title>Next with Neo4j</title>
         <link rel="icon" href="/favicon.ico" />
@@ -24,34 +24,33 @@ export default function Actor () {
       <Header title={name} />
 
       <main>
-        <div className='actor'>
-          <div className='info'>
+        <div className="actor">
+          <div className="info">
             <h2>Information</h2>
             <div>
-              <strong>Born: </strong>{data.actor.born.low}
+              <strong>Born: </strong>
+              {data.actor.born.low}
             </div>
           </div>
-          <div className='movies'>
+          <div className="movies">
             <h2>Movies</h2>
-            {data.actor.movies.map(movie => (
+            {data.actor.movies.map((movie) => (
               <div key={movie}>
                 <Link
-                  href='/movie/[title]'
+                  href="/movie/[title]"
                   as={{
-                    pathname: `/movie/${encodeURIComponent(movie)}`
+                    pathname: `/movie/${encodeURIComponent(movie)}`,
                   }}
                 >
-                  <a>
-                    {movie}
-                  </a>
+                  <a>{movie}</a>
                 </Link>
               </div>
             ))}
           </div>
         </div>
 
-        <div className='back'>
-          <Link href='/'>
+        <div className="back">
+          <Link href="/">
             <a>🔙 Go Back</a>
           </Link>
         </div>

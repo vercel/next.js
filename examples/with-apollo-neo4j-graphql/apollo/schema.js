@@ -6,6 +6,6 @@ export default makeAugmentedSchema({
   typeDefs,
   resolvers,
   config: {
-    mutation: false
-  }
+    mutation: false,
+  },
 })

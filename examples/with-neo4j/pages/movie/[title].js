@@ -6,7 +6,7 @@ import fetcher from '../../lib/fetcher'
 import Header from '../../components/header'
 import Footer from '../../components/footer'
 
-export default function Movie () {
+export default function Movie() {
   const router = useRouter()
   const { title } = router.query
   const { data, error } = useSWR(`/api/movies/${title}`, fetcher)
@@ -15,7 +15,7 @@ export default function Movie () {
   if (!data) return <div>loading...</div>
 
   return (
-    <div className='container'>
+    <div className="container">
       <Head>
         <title>Next with Neo4j</title>
         <link rel="icon" href="/favicon.ico" />
@@ -24,32 +24,34 @@ export default function Movie () {
       <Header title={title} />
 
       <main>
-        <div className='movie'>
-          <div className='info'>
+        <div className="movie">
+          <div className="info">
             <h2>Information</h2>
             <div>
-              <strong>Tagline: </strong>{data.movie.tagline}
+              <strong>Tagline: </strong>
+              {data.movie.tagline}
             </div>
             <div>
-              <strong>Released: </strong>{data.movie.released.low}
+              <strong>Released: </strong>
+              {data.movie.released.low}
             </div>
           </div>
-          <div className='actors'>
+          <div className="actors">
             <h2>Actors</h2>
-            {data.movie.actors.map(actor => (
+            {data.movie.actors.map((actor) => (
               <div key={actor}>{actor}</div>
             ))}
           </div>
-          <div className='directors'>
+          <div className="directors">
             <h2>Directors</h2>
-            {data.movie.directed.map(director => (
+            {data.movie.directed.map((director) => (
               <div key={director}>{director}</div>
             ))}
           </div>
         </div>
 
-        <div className='back'>
-          <Link href='/'>
+        <div className="back">
+          <Link href="/">
             <a>🔙 Go Back</a>
           </Link>
         </div>

@@ -14,7 +14,7 @@ You can start with this template [using `create-next-app`](https://github.com/ve
 
 [Neo4j Desktop](https://neo4j.com/download/) has been used for this example, however, [Neo4j Online Sandbox](https://neo4j.com/sandbox/) can also be used. Both as free instances.
 
-Create a database with neo4j desktop or online sandbox and create your credentials. For this example use the sample database containing *Movies*:
+Create a database with neo4j desktop or online sandbox and create your credentials. For this example use the sample database containing _Movies_:
 
 ```
 :play movie-graph

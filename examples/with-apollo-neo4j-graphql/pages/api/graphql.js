@@ -11,15 +11,15 @@ const apolloServer = new ApolloServer({
   context: async (ctx) => {
     return {
       driver,
-      ...ctx
+      ...ctx,
     }
-  }
+  },
 })
 
 export const config = {
   api: {
-    bodyParser: false
-  }
+    bodyParser: false,
+  },
 }
 
 export default apolloServer.createHandler({ path: '/api/graphql' })

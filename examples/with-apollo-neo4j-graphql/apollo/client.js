@@ -3,7 +3,7 @@ import { ApolloClient, InMemoryCache } from '@apollo/client'
 
 let apolloClient
 
-function createIsomorphLink () {
+function createIsomorphLink() {
   if (typeof window === 'undefined') {
     const { SchemaLink } = require('@apollo/client/link/schema')
     const schema = require('./schema')
@@ -13,22 +13,22 @@ function createIsomorphLink () {
 
     const httpLink = new HttpLink({
       uri: '/api/graphql',
-      credentials: 'same-origin'
+      credentials: 'same-origin',
     })
 
     return httpLink
   }
 }
 
-function createApolloClient () {
+function createApolloClient() {
   return new ApolloClient({
     ssrMode: typeof window === 'undefined',
     link: createIsomorphLink(),
-    cache: new InMemoryCache()
+    cache: new InMemoryCache(),
   })
 }
 
-export function initializeApollo (initialState = null) {
+export function initializeApollo(initialState = null) {
   const _apolloClient = apolloClient ?? createApolloClient()
 
   if (initialState) {
@@ -42,7 +42,7 @@ export function initializeApollo (initialState = null) {
   return _apolloClient
 }
 
-export function useApollo (initialState) {
+export function useApollo(initialState) {
   const store = useMemo(() => initializeApollo(initialState), [initialState])
   return store
 }

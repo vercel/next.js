@@ -20,14 +20,14 @@ const GET_MOVIES = gql`
   }
 `
 
-export default function Home () {
+export default function Home() {
   const { loading, error, data } = useQuery(GET_MOVIES)
 
   if (loading) return 'Loading...'
   if (error) return `Error! ${error.message}`
 
   return (
-    <div className='container'>
+    <div className="container">
       <Head>
         <title>Next with Neo4j</title>
         <link rel="icon" href="/favicon.ico" />
@@ -35,10 +35,11 @@ export default function Home () {
 
       <Header />
       <main>
-
-        <div className='movies'>
-          <div className='subtitle'>
-            <p><strong>"Movies"</strong> Neo4j example dataset.</p>
+        <div className="movies">
+          <div className="subtitle">
+            <p>
+              <strong>"Movies"</strong> Neo4j example dataset.
+            </p>
           </div>
           <table>
             <thead>
@@ -53,42 +54,40 @@ export default function Home () {
             </thead>
             <tbody>
               {data.getMovies.map((movie, index) => (
-                <tr className='movie' key={movie.title}>
+                <tr className="movie" key={movie.title}>
                   <th>{index + 1}</th>
                   <td>
                     <Link
-                      href='/movie/[title]'
+                      href="/movie/[title]"
                       as={{
-                        pathname: `/movie/${encodeURIComponent(movie.title)}`
+                        pathname: `/movie/${encodeURIComponent(movie.title)}`,
                       }}
                     >
-                      <a className='link'>
-                        {movie.title}
-                      </a>
+                      <a className="link">{movie.title}</a>
                     </Link>
                   </td>
                   <td>{movie.released}</td>
                   <td>{movie.tagline}</td>
                   <td>
                     <ul>
-                      {movie.directors.map(director => (
+                      {movie.directors.map((director) => (
                         <li key={director.name}>{director.name}</li>
                       ))}
                     </ul>
                   </td>
                   <td>
                     <ul>
-                      {movie.actors.map(actor => (
+                      {movie.actors.map((actor) => (
                         <li key={actor.name}>
                           <Link
-                            href='/actor/[name]'
+                            href="/actor/[name]"
                             as={{
-                              pathname: `/actor/${encodeURIComponent(actor.name)}`
+                              pathname: `/actor/${encodeURIComponent(
+                                actor.name
+                              )}`,
                             }}
                           >
-                            <a className='link'>
-                              {actor.name}
-                            </a>
+                            <a className="link">{actor.name}</a>
                           </Link>
                         </li>
                       ))}
@@ -138,12 +137,13 @@ export default function Home () {
           border-bottom: 2px solid #dee2e6;
           border: 1px solid #dee2e6;
           border-bottom-width: 2px;
-          padding: .75rem;
+          padding: 0.75rem;
         }
 
-        table tbody th, table tbody td {
+        table tbody th,
+        table tbody td {
           border: 1px solid #dee2e6;
-          padding: .75rem;
+          padding: 0.75rem;
           vertical-align: middle;
         }
 
