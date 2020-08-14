@@ -1,8 +1,7 @@
-import React from 'react'
 import { createFragmentContainer, graphql } from 'react-relay'
 
-const BlogPostPreview = (props) => {
-  return <div key={props.post.id}>{props.post.title}</div>
+const BlogPostPreview = ({ post }) => {
+  return <div key={post.id}>{post.title}</div>
 }
 
 export default createFragmentContainer(BlogPostPreview, {

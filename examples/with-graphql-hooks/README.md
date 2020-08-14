@@ -12,8 +12,6 @@ Deploy the example using [Vercel](https://vercel.com):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-hooks)
 
-_Live Example: https://next-with-graphql-hooks.now.sh_
-
 ## How to use
 
 ### Using `create-next-app`

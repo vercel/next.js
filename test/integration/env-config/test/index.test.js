@@ -18,7 +18,6 @@ jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
-let buildId
 const appDir = join(__dirname, '../app')
 
 const getEnvFromHtml = async (path) => {
@@ -51,6 +50,9 @@ const runTests = (mode = 'dev') => {
     expect(data.ENV_FILE_EXPANDED).toBe('env')
     expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
     expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
+    expect(data.ENV_FILE_KEY_EXCLAMATION).toBe('hello!')
+    expect(data.ENV_FILE_EMPTY_FIRST).toBe(isTestEnv ? '' : '$escaped')
+    expect(data.ENV_FILE_PROCESS_ENV).toBe('env-cli')
   }
 
   it('should have process environment override .env', async () => {
@@ -72,10 +74,19 @@ const runTests = (mode = 'dev') => {
     // make sure to build page
     await renderViaHTTP(appPort, '/global')
 
+    const buildManifest = require(join(
+      __dirname,
+      '../app/.next/build-manifest.json'
+    ))
+
+    const pageFile = buildManifest.pages['/global'].find((filename) =>
+      filename.includes('pages/global')
+    )
+
     // read client bundle contents since a server side render can
     // have the value available during render but it not be injected
     const bundleContent = await fs.readFile(
-      join(appDir, '.next/static', buildId, 'pages/global.js'),
+      join(appDir, '.next', pageFile),
       'utf8'
     )
     expect(bundleContent).toContain('another')
@@ -126,9 +137,9 @@ describe('Env Config', () => {
       app = await launchApp(appDir, appPort, {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -142,9 +153,9 @@ describe('Env Config', () => {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
           NODE_ENV: 'test',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -156,12 +167,17 @@ describe('Env Config', () => {
       const { code } = await nextBuild(appDir, [], {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
 
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        env: {
+          ENV_FILE_PROCESS_ENV: 'env-cli',
+        },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -194,6 +210,7 @@ describe('Env Config', () => {
       const { code } = await nextBuild(appDir, [], {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
 
@@ -206,8 +223,11 @@ describe('Env Config', () => {
         await fs.rename(file, `${file}.bak`)
       }
 
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      app = await nextStart(appDir, appPort, {
+        env: {
+          ENV_FILE_PROCESS_ENV: 'env-cli',
+        },
+      })
     })
     afterAll(async () => {
       for (const file of envFiles) {

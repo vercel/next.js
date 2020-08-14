@@ -1,4 +1,3 @@
-import React from 'react'
 import PostPreview from './post-preview'
 import Post from '../types/post'
 
@@ -6,7 +5,7 @@ type Props = {
   posts: Post[]
 }
 
-const MoreStories: React.FC<Props> = ({ posts }) => {
+const MoreStories = ({ posts }: Props) => {
   return (
     <section>
       <h2 className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">

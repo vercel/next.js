@@ -1,6 +1,9 @@
+import isWslBoolean from 'next/dist/compiled/is-wsl'
 import curry from 'next/dist/compiled/lodash.curry'
 import { Configuration } from 'webpack'
 import { ConfigurationContext } from '../utils'
+
+const isWindows = process.platform === 'win32' || isWslBoolean
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
@@ -19,7 +22,7 @@ export const base = curry(function base(
   if (ctx.isDevelopment) {
     if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       config.devtool = false
-    } else if (process.platform === 'win32') {
+    } else if (isWindows) {
       // Non-eval based source maps are slow to rebuild, so we only enable
       // them for Windows. Unfortunately, eval source maps are flagged as
       // suspicious by Windows Defender and block HMR.

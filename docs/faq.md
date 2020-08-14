@@ -5,13 +5,6 @@ description: Get to know more about Next.js with the frequently asked questions.
 # Frequently Asked Questions
 
 <details>
-  <summary>What browsers are supported?</summary>
-  <p>Next.js supports IE11 and all modern browsers out of the box using <a href="https://new.babeljs.io/docs/en/next/babel-preset-env.html">@babel/preset-env</a>. In order to support IE11 Next.js adds a global Promise polyfill.</p>
-
-  <p>In cases where your own code or any external npm dependencies you are using require features not supported by your target browsers you will need to implement polyfills. If you need to implement polyfills, the <a href="https://github.com/vercel/next.js/tree/canary/examples/with-polyfills">polyfills</a> example demonstrates the recommended approach.</p>
-</details>
-
-<details>
   <summary>Is this production ready?</summary>
   <p>Next.js has been powering <a href="https://vercel.com">https://vercel.com</a>  since its inception.</p>
 
@@ -78,4 +71,9 @@ description: Get to know more about Next.js with the frequently asked questions.
   <p>Unlike PHP, we benefit from the ES6 module system and every page exports a component or function that can be easily imported for lazy evaluation or testing.</p>
 
   <p>As we were researching options for server-rendering React that didn’t involve a large number of steps, we came across <a href="https://github.com/facebookarchive/react-page">react-page</a> (now deprecated), a similar approach to Next.js by the creator of React Jordan Walke.</p>
+</details>
+
+<details>
+  <summary>Can I make a Next.js Progressive Web App?</summary>
+   <p>Yes! Here's an <a href="https://github.com/vercel/next.js/tree/canary/examples/progressive-web-app">example</a>.</p>
 </details>

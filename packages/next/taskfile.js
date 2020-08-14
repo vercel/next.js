@@ -39,11 +39,11 @@ const externals = {
 
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
+  'caniuse-lite': 'caniuse-lite',
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
   'webpack-sources': 'webpack-sources',
-  // dependents: webpack-dev-middleware
   'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
   // dependents: terser-webpack-plugin
@@ -170,14 +170,6 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
-}
-// eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('compiled/cssnano-simple')
 }
 // eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
@@ -308,14 +300,6 @@ export async function ncc_jsonwebtoken(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('jsonwebtoken')))
     .ncc({ packageName: 'jsonwebtoken', externals })
     .target('compiled/jsonwebtoken')
-}
-// eslint-disable-next-line camelcase
-externals['launch-editor'] = 'next/dist/compiled/launch-editor'
-export async function ncc_launch_editor(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('launch-editor')))
-    .ncc({ packageName: 'launch-editor', externals })
-    .target('compiled/launch-editor')
 }
 // eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
@@ -478,28 +462,7 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('compiled/unistore')
 }
-// eslint-disable-next-line camelcase
-externals['webpack-dev-middleware'] =
-  'next/dist/compiled/webpack-dev-middleware'
-export async function ncc_webpack_dev_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
-    )
-    .ncc({ packageName: 'webpack-dev-middleware', externals })
-    .target('compiled/webpack-dev-middleware')
-}
-// eslint-disable-next-line camelcase
-externals['webpack-hot-middleware'] =
-  'next/dist/compiled/webpack-hot-middleware'
-export async function ncc_webpack_hot_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-hot-middleware'))
-    )
-    .ncc({ packageName: 'webpack-hot-middleware', externals })
-    .target('compiled/webpack-hot-middleware')
-}
+
 externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
 export async function ncc_terser_webpack_plugin(task, opts) {
   await task
@@ -516,6 +479,14 @@ export async function ncc_comment_json(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('comment-json')))
     .ncc({ packageName: 'comment-json', externals })
     .target('compiled/comment-json')
+}
+
+externals['semver'] = 'next/dist/compiled/semver'
+export async function ncc_semver(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('semver')))
+    .ncc({ packageName: 'semver', externals })
+    .target('compiled/semver')
 }
 
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
@@ -552,7 +523,6 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
-      'ncc_cssnano_simple',
       'ncc_debug',
       'ncc_devalue',
       'ncc_dotenv',
@@ -569,7 +539,6 @@ export async function ncc(task) {
       'ncc_is_wsl',
       'ncc_json5',
       'ncc_jsonwebtoken',
-      'ncc_launch_editor',
       'ncc_lodash_curry',
       'ncc_lru_cache',
       'ncc_nanoid',
@@ -589,10 +558,9 @@ export async function ncc(task) {
       'ncc_text_table',
       'ncc_thread_loader',
       'ncc_unistore',
-      'ncc_webpack_dev_middleware',
-      'ncc_webpack_hot_middleware',
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
+      'ncc_semver',
     ])
 }
 
@@ -607,8 +575,7 @@ export async function compile(task) {
     'lib',
     'client',
     'telemetry',
-    'nextserverserver',
-    'nextserverlib',
+    'nextserver',
   ])
 }
 
@@ -709,33 +676,19 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry')
-  await task.watch('next-server/server/**/*.+(js|ts|tsx)', 'nextserverserver')
-  await task.watch('next-server/lib/**/*.+(js|ts|tsx)', 'nextserverlib')
+  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver')
 }
 
-export async function nextserverlib(task, opts) {
+export async function nextserver(task, opts) {
   await task
-    .source(opts.src || 'next-server/lib/**/*.+(js|ts|tsx)')
+    .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
     .babel('server')
-    .target('dist/next-server/lib')
-  notify('Compiled lib files')
-}
-
-export async function nextserverserver(task, opts) {
-  await task
-    .source(opts.src || 'next-server/server/**/*.+(js|ts|tsx)')
-    .babel('server')
-    .target('dist/next-server/server')
+    .target('dist/next-server')
   notify('Compiled server files')
-}
-
-export async function nextserverbuild(task) {
-  await task.parallel(['nextserverserver', 'nextserverlib'])
 }
 
 export async function release(task) {
   await task.clear('dist').start('build')
-  await task.clear('dist/next-server').start('nextserverbuild')
 }
 
 // notification helper

@@ -1,22 +1,17 @@
-import React from 'react'
+import React, { ReactNode } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { Elements } from '@stripe/react-stripe-js'
-import { loadStripe } from '@stripe/stripe-js'
 
 type Props = {
+  children: ReactNode
   title?: string
 }
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-)
-
-const Layout: React.FunctionComponent<Props> = ({
+const Layout = ({
   children,
   title = 'TypeScript Next.js Stripe Example',
-}) => (
-  <Elements stripe={stripePromise}>
+}: Props) => (
+  <>
     <Head>
       <title>{title}</title>
       <meta charSet="utf-8" />
@@ -71,7 +66,7 @@ const Layout: React.FunctionComponent<Props> = ({
         .
       </span>
     </div>
-  </Elements>
+  </>
 )
 
 export default Layout

@@ -6,8 +6,6 @@ description: Extend the default document markup added by Next.js.
 
 A custom `Document` is commonly used to augment your application's `<html>` and `<body>` tags. This is necessary because Next.js pages skip the definition of the surrounding document's markup.
 
-A custom `Document` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
-
 To override the default `Document`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
 
 ```jsx
@@ -35,6 +33,8 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
+> The code above is the default `Document` added by Next.js. Feel free to remove the `getInitialProps` or `render` function from `MyDocument` if you don't need to change them.
+
 `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
 
 Custom attributes are allowed as props, like `lang`:
@@ -43,6 +43,8 @@ Custom attributes are allowed as props, like `lang`:
 <Html lang="en">
 ```
 
+The `<Head />` component used here is not the same one from [`next/head`](/docs/api-reference/next/head). The `<Head />` component used here should only be used for any `<head>` code that is common for all pages. For all other cases, such as `<title>` tags, we recommend using [`next/head`](/docs/api-reference/next/head) in your pages or components.
+
 The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md#context-object), with one addition:
 
 - `renderPage`: `Function` - a callback that runs the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
@@ -50,10 +52,8 @@ The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/
 ## Caveats
 
 - `Document` is only rendered in the server, event handlers like `onClick` won't work
-- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead
+- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead
 - `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md)
-- Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`. Those variables will be `undefined` when a page is being statically exported by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or by [`next export`](/docs/advanced-features/static-html-export.md)
-- Common errors include adding a `<title>` in the `<Head />` tag or using `styled-jsx`. These should be avoided in `pages/_document.js` as they lead to unexpected behavior
 
 ## Customizing `renderPage`
 
@@ -77,6 +77,24 @@ class MyDocument extends Document {
       })
 
     // Run the parent `getInitialProps`, it now includes the custom `renderPage`
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return initialProps
+  }
+}
+
+export default MyDocument
+```
+
+## TypeScript
+
+You can use the built-in `DocumentContext` type and change the file name to `./pages/_document.tsx` like so:
+
+```tsx
+import Document, { DocumentContext } from 'next/document'
+
+class MyDocument extends Document {
+  static async getInitialProps(ctx: DocumentContext) {
     const initialProps = await Document.getInitialProps(ctx)
 
     return initialProps

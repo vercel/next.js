@@ -81,9 +81,8 @@ describe('Auto Export', () => {
 
     it('should not show hydration warning from mismatching asPath', async () => {
       const browser = await webdriver(appPort, '/zeit/cmnt-1')
-
-      const numCaught = await browser.eval(`window.caughtWarns.length`)
-      expect(numCaught).toBe(0)
+      const caughtWarns = await browser.eval(`window.caughtWarns`)
+      expect(caughtWarns).toEqual([])
     })
   })
 })

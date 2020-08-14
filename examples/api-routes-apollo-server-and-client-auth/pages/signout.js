@@ -1,8 +1,6 @@
 import { useEffect } from 'react'
-import { useMutation, useApolloClient } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
 import { useRouter } from 'next/router'
-import { withApollo } from '../apollo/client'
+import { gql, useMutation, useApolloClient } from '@apollo/client'
 
 const SignOutMutation = gql`
   mutation SignOutMutation {
@@ -26,4 +24,4 @@ function SignOut() {
   return <p>Signing out...</p>
 }
 
-export default withApollo(SignOut)
+export default SignOut

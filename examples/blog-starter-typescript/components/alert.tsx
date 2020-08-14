@@ -1,4 +1,3 @@
-import React from 'react'
 import Container from './container'
 import cn from 'classnames'
 import { EXAMPLE_PATH } from '../lib/constants'
@@ -7,7 +6,7 @@ type Props = {
   preview?: boolean
 }
 
-const Alert: React.FC<Props> = ({ preview }) => {
+const Alert = ({ preview }: Props) => {
   return (
     <div
       className={cn('border-b', {
@@ -19,7 +18,7 @@ const Alert: React.FC<Props> = ({ preview }) => {
         <div className="py-2 text-center text-sm">
           {preview ? (
             <>
-              This is page is a preview.{' '}
+              This page is a preview.{' '}
               <a
                 href="/api/exit-preview"
                 className="underline hover:text-cyan duration-200 transition-colors"

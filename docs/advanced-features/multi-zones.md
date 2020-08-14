@@ -3,7 +3,7 @@
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="/examples/with-zones">With Zones</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-zones">With Zones</a></li>
   </ul>
 </details>
 
@@ -27,7 +27,7 @@ There are no special zones related APIs. You only need to do following:
 
 You can merge zones using any HTTP proxy.
 
-For [Vercel](https://vercel.com/now), you can use a single `now.json` to deploy both apps. It allows you to define routing routes for multiple apps like below:
+For [Vercel](https://vercel.com/), you can use a single `vercel.json` to deploy both apps. It allows you to define routing routes for multiple apps like below:
 
 ```json
 {
