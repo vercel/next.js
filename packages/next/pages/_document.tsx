@@ -61,7 +61,7 @@ function getDocumentFiles(
   return {
     sharedFiles,
     pageFiles,
-    allFiles: dedupe([...sharedFiles, ...pageFiles]),
+    allFiles: [...new Set([...sharedFiles, ...pageFiles])],
   }
 }
 
@@ -390,6 +390,7 @@ export class Head extends Component<
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page
     )
+    console.log(files)
     return (
       <head {...this.props}>
         {this.context.isDevelopment && (
@@ -693,6 +694,7 @@ export class NextScript extends Component<OriginProps> {
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page
     )
+    console.log('ff', files)
     return (
       <>
         {!disableRuntimeJS && buildManifest.devFiles
