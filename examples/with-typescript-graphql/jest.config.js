@@ -1,18 +1,13 @@
-const { defaults: tsjPreset } = require('ts-jest/presets')
-
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
+  roots: ['<rootDir>'],
+  moduleFileExtensions: ['js', 'ts', 'tsx', 'json'],
+  testPathIgnorePatterns: ['<rootDir>[/\\\\](node_modules|.next)[/\\\\]'],
+  transformIgnorePatterns: ['[/\\\\]node_modules[/\\\\].+\\.(ts|tsx)$'],
   transform: {
-    ...tsjPreset.transform,
+    '^.+\\.(ts|tsx)$': 'babel-jest',
     '\\.graphql$': [
       'graphql-let/jestTransformer',
-      { subsequentTransformer: 'ts-jest' },
+      { subsequentTransformer: 'babel-jest' },
     ],
-  },
-  globals: {
-    'ts-jest': {
-      tsConfig: 'tsconfig.jest.json',
-    },
   },
 }

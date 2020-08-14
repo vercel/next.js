@@ -2,12 +2,6 @@
 
 exports[`Index renders the html we want 1`] = `
 <div>
-  Loading...
-</div>
-`;
-
-exports[`Index renders the html we want 2`] = `
-<div>
   You're signed in as 
    and you're 
   Healthy
