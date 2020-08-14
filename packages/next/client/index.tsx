@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader from './page-loader'
+import PageLoader, { appendLink } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -84,9 +84,14 @@ if (hasBasePath(asPath)) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(buildId, prefix, page, [
-  /* FIXME: page styles */
-])
+const pageLoader = new PageLoader(
+  buildId,
+  prefix,
+  page,
+  [].slice
+    .call(document.querySelectorAll('link[rel=stylesheet][data-n-p]'))
+    .map((e: HTMLLinkElement) => e.getAttribute('href')!)
+)
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
@@ -579,9 +584,49 @@ async function doRender({
     }
   })
 
-  console.log('render with', styleSheets)
+  function onCommit() {
+    if (!isInitialRender) {
+      const globalStylesheets: Set<string> = new Set(
+        [].slice
+          .call(document.querySelectorAll('link[rel=stylesheet][data-n-g]'))
+          .map((e: HTMLLinkElement) => e.getAttribute('href')!)
+      )
+      const currentStylesheets: HTMLLinkElement[] = [].slice.call(
+        document.querySelectorAll('link[rel=stylesheet][data-n-p]')
+      )
+      const targetStylesheets: string[] = [
+        ...new Set(styleSheets.filter((x) => !globalStylesheets.has(x))),
+      ]
+
+      // FIXME: this doesn't block, causing a FOUC
+      // Naive diffing algorithm:
+      for (
+        let idx = 0;
+        idx < Math.max(currentStylesheets.length, targetStylesheets.length);
+        ++idx
+      ) {
+        const el = currentStylesheets[idx]
+        const targetHref = targetStylesheets[idx]
+        if (!el) {
+          // FIXME: this is missing the `data-n-p` attribute
+          appendLink(targetHref, 'stylesheet')
+          continue
+        }
+        if (!targetHref) {
+          el.remove()
+          continue
+        }
+
+        if (el.getAttribute('href') !== targetHref) {
+          el.href = targetHref
+        }
+      }
+    }
+    resolvePromise()
+  }
+
   const elem = (
-    <Root callback={resolvePromise!}>
+    <Root callback={onCommit}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>

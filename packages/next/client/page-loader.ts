@@ -49,7 +49,7 @@ function normalizeRoute(route: string) {
   return route.replace(/\/$/, '')
 }
 
-function appendLink(
+export function appendLink(
   href: string,
   rel: string,
   as?: string,
