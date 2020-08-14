@@ -27,6 +27,7 @@ import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
 import mitt, { MittEmitter } from '../lib/mitt'
+import postProcess from '../lib/post-process'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
@@ -42,11 +43,12 @@ import {
   RenderPage,
 } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import { denormalizePagePath } from './denormalize-page-path'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
-import postProcess from '../lib/post-process'
-import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 
 function noRouter() {
   const message =
@@ -675,21 +677,27 @@ export async function renderToHTML(
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
   let filteredBuildManifest = buildManifest
-  const additionalFiles: string[] = []
-
   if (isAutoExport && pageIsDynamic) {
-    filteredBuildManifest = {
-      ...buildManifest,
-      lowPriorityFiles: buildManifest.lowPriorityFiles.filter((file) => {
-        if (
-          file.endsWith('_buildManifest.js') ||
-          file.endsWith('_buildManifest.module.js')
-        ) {
-          additionalFiles.push(file)
-          return false
-        }
-        return true
-      }),
+    const page = denormalizePagePath(normalizePagePath(pathname))
+    // This code would be much cleaner using `immer` and directly pushing into
+    // the result from `getPageFiles`, we could maybe consider that in the
+    // future.
+    if (page in filteredBuildManifest.pages) {
+      filteredBuildManifest = {
+        ...filteredBuildManifest,
+        pages: {
+          ...filteredBuildManifest.pages,
+          [page]: [
+            ...filteredBuildManifest.pages[page],
+            ...filteredBuildManifest.lowPriorityFiles.filter((f) =>
+              f.includes('_buildManifest')
+            ),
+          ],
+        },
+        lowPriorityFiles: filteredBuildManifest.lowPriorityFiles.filter(
+          (f) => !f.includes('_buildManifest')
+        ),
+      }
     }
   }
 
@@ -698,12 +706,11 @@ export async function renderToHTML(
     ? []
     : [
         ...new Set([
-          ...getPageFiles(buildManifest, '/_app'),
+          ...getPageFiles(filteredBuildManifest, '/_app'),
           ...(pathname !== '/_error'
-            ? getPageFiles(buildManifest, pathname)
+            ? getPageFiles(filteredBuildManifest, pathname)
             : []),
         ]),
-        ...additionalFiles,
       ]
 
   const renderPage: RenderPage = (
