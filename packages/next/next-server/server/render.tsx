@@ -706,9 +706,9 @@ export async function renderToHTML(
     ? []
     : [
         ...new Set([
-          ...getPageFiles(buildManifest, '/_app'),
+          ...getPageFiles(filteredBuildManifest, '/_app'),
           ...(pathname !== '/_error'
-            ? getPageFiles(buildManifest, pathname)
+            ? getPageFiles(filteredBuildManifest, pathname)
             : []),
         ]),
       ]
