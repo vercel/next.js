@@ -6,35 +6,24 @@ In this example we integrate Mock Service Worker with Next by following the next
 
 1. Define a set of [request handlers](./mocks/handlers.js) shared between client and server.
 1. Setup a [Service Worker instance](./mocks/browser.js) that would intercept all runtime client-side requests via `setupWorker` function.
-1. Setup a ["server" instance](./mocks/server.js) to intercept any server/build time requests (e.g. the one happening in `getInitialProps` or `getServerSideProps`) via `setupServer` function.
+1. Setup a ["server" instance](./mocks/server.js) to intercept any server/build time requests (e.g. the one happening in `getServerSideProps`) via `setupServer` function.
+
+Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable, which for the sake of the example is saved inside `.env` instead of `.env.development`. In a real app you should move the variable to `.env.development` because mocking should only be done for development.
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-msw)
 
 ## How to use
 
-### Using `create-next-app`
-
-Execute `create-next-app` with `Yarn` or `npx` to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-msw
+npx create-next-app --example with-msw with-msw-app
 # or
-yarn create next-app --example with-msw
+yarn create next-app --example with-msw with-msw-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-msw
-cd with-msw
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
