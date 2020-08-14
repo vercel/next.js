@@ -60,7 +60,9 @@ The `context` parameter is an object containing the following keys:
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
-> Imports used in `getStaticProps` will not be bundled for the client-side, as [explained below](#write-server-side-code-directly).
+> Imports used in `getStaticProps` will not be bundled for the client-side.
+> Also, you can write server-side code directly in `getStaticProps`.
+> API route should not be fetched from `getStaticProps`, as [explained below](#write-server-side-code-directly).
 
 ### Simple Example
 
@@ -534,7 +536,9 @@ The `context` parameter is an object containing the following keys:
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
-> Imports used in `getServerSideProps` will not be bundled for the client-side, as [explained below](#only-runs-on-server-side).
+> Imports used in `getServerSideProps` will not be bundled for the client-side.
+> Also, you can write server-side code directly in `getServerSideProps`.
+> API route should not be fetched from `getServerSideProps`, as [explained below](#only-runs-on-server-side).
 
 ### Simple example
 
