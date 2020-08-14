@@ -171,7 +171,6 @@ export type DocumentProps = DocumentInitialProps & {
   inAmpMode: boolean
   hybridAmp: boolean
   isDevelopment: boolean
-  files: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
