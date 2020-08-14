@@ -810,7 +810,6 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         post: `post-${item}`,
       })
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-        item: item + '',
         post: `post-${item}`,
       })
     })
