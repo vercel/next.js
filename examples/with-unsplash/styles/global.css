@@ -28,14 +28,3 @@ img {
   max-width: 100%;
   display: block;
 }
-
-#credits {
-  padding-top: 50px;
-  text-align: center;
-}
-
-#credits a {
-  text-decoration: none;
-  color: inherit;
-  font-weight: 500;
-}

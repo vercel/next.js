@@ -20,17 +20,6 @@ const Layout = ({ children }) => {
       <User />
 
       <main>{children}</main>
-
-      <div id="credits">
-        Made with &hearts; by{' '}
-        <a
-          href="https://twitter.com/_nnaro_"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          @_nnaro_
-        </a>
-      </div>
     </div>
   )
 }

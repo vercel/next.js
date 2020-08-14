@@ -2,7 +2,6 @@
   "name": "with-unsplash",
   "version": "1.0.0",
   "license": "MIT",
-  "author": "Diego Gennaro <kdc.crow@gmail.com>",
   "description": "Using Next.js with Unsplash API",
   "scripts": {
     "dev": "next dev",
