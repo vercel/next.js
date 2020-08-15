@@ -27,6 +27,7 @@ import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
 import mitt, { MittEmitter } from '../lib/mitt'
+import postProcess from '../lib/post-process'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
@@ -42,11 +43,12 @@ import {
   RenderPage,
 } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import { denormalizePagePath } from './denormalize-page-path'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
-import postProcess from '../lib/post-process'
-import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 
 function noRouter() {
   const message =
@@ -329,7 +331,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
@@ -358,23 +359,6 @@ export async function renderToHTML(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
     }
-  }
-
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    (isAutoExport || isFallback) &&
-    pageIsDynamic &&
-    didRewrite
-  ) {
-    // TODO: If we decide to ship rewrites to the client we could
-    // solve this by running over the rewrites and getting the params.
-    throw new Error(
-      `Rewrites don't support${
-        isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
-        `Using this will cause the page to fail to parse the params on the client\n` +
-        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
-    )
   }
 
   if (hasPageGetInitialProps && isSSG) {
@@ -690,14 +674,41 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
+  // we preload the buildManifest for auto-export dynamic pages
+  // to speed up hydrating query values
+  let filteredBuildManifest = buildManifest
+  if (isAutoExport && pageIsDynamic) {
+    const page = denormalizePagePath(normalizePagePath(pathname))
+    // This code would be much cleaner using `immer` and directly pushing into
+    // the result from `getPageFiles`, we could maybe consider that in the
+    // future.
+    if (page in filteredBuildManifest.pages) {
+      filteredBuildManifest = {
+        ...filteredBuildManifest,
+        pages: {
+          ...filteredBuildManifest.pages,
+          [page]: [
+            ...filteredBuildManifest.pages[page],
+            ...filteredBuildManifest.lowPriorityFiles.filter((f) =>
+              f.includes('_buildManifest')
+            ),
+          ],
+        },
+        lowPriorityFiles: filteredBuildManifest.lowPriorityFiles.filter(
+          (f) => !f.includes('_buildManifest')
+        ),
+      }
+    }
+  }
+
   // AMP First pages do not have client-side JavaScript files
   const files = ampState.ampFirst
     ? []
     : [
         ...new Set([
-          ...getPageFiles(buildManifest, '/_app'),
+          ...getPageFiles(filteredBuildManifest, '/_app'),
           ...(pathname !== '/_error'
-            ? getPageFiles(buildManifest, pathname)
+            ? getPageFiles(filteredBuildManifest, pathname)
             : []),
         ]),
       ]
@@ -766,6 +777,7 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
       process.env.NODE_ENV === 'production'

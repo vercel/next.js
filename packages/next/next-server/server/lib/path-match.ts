@@ -2,16 +2,25 @@ import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 
 export { pathToRegexp }
 
+export const matcherOptions = {
+  sensitive: false,
+  delimiter: '/',
+  decode: decodeParam,
+}
+
+export const customRouteMatcherOptions = {
+  ...matcherOptions,
+  strict: true,
+}
+
 export default (customRoute = false) => {
   return (path: string) => {
     const keys: pathToRegexp.Key[] = []
-    const matcherOptions = {
-      sensitive: false,
-      delimiter: '/',
-      ...(customRoute ? { strict: true } : undefined),
-      decode: decodeParam,
-    }
-    const matcherRegex = pathToRegexp.pathToRegexp(path, keys, matcherOptions)
+    const matcherRegex = pathToRegexp.pathToRegexp(
+      path,
+      keys,
+      customRoute ? customRouteMatcherOptions : matcherOptions
+    )
     const matcher = pathToRegexp.regexpToFunction(
       matcherRegex,
       keys,

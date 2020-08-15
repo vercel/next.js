@@ -5,9 +5,6 @@ declare module "next" {
     prepare(): Promise<void>;
     getRequestHandler(): any;
     render(req: any, res: any, pathname: string, query: any): any;
-    renderToHTML(req: any, res: any, pathname: string, query: string): string;
-    renderError(err: Error, req: any, res: any, pathname: any, query: any): any;
-    renderErrorToHTML(err: Error, req: any, res: any, pathname: string, query: any): string;
   };
   declare module.exports: (...opts: any) => NextApp
 }

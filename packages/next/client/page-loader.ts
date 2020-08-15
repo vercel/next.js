@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
@@ -68,7 +69,8 @@ function appendLink(
   })
 }
 
-type PageCacheEntry = { error?: any; page?: any; mod?: any }
+export type GoodPageCache = { page: ComponentType; mod: any }
+export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private buildId: string
@@ -78,6 +80,7 @@ export default class PageLoader {
   private loadingRoutes: Record<string, boolean>
   private promisedBuildManifest?: Promise<ClientBuildManifest>
   private promisedSsgManifest?: Promise<ClientSsgManifest>
+  private promisedDevPagesManifest?: Promise<any>
 
   constructor(buildId: string, assetPrefix: string, initialPage: string) {
     this.buildId = buildId
@@ -95,17 +98,16 @@ export default class PageLoader {
       this.loadingRoutes[initialPage] = true
     }
 
-    if (process.env.NODE_ENV === 'production') {
-      this.promisedBuildManifest = new Promise((resolve) => {
-        if ((window as any).__BUILD_MANIFEST) {
+    this.promisedBuildManifest = new Promise((resolve) => {
+      if ((window as any).__BUILD_MANIFEST) {
+        resolve((window as any).__BUILD_MANIFEST)
+      } else {
+        ;(window as any).__BUILD_MANIFEST_CB = () => {
           resolve((window as any).__BUILD_MANIFEST)
-        } else {
-          ;(window as any).__BUILD_MANIFEST_CB = () => {
-            resolve((window as any).__BUILD_MANIFEST)
-          }
         }
-      })
-    }
+      }
+    })
+
     /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise((resolve) => {
       if ((window as any).__SSG_MANIFEST) {
@@ -116,6 +118,33 @@ export default class PageLoader {
         }
       }
     })
+  }
+
+  getPageList() {
+    if (process.env.NODE_ENV === 'production') {
+      return this.promisedBuildManifest!.then(
+        (buildManifest) => buildManifest.sortedPages
+      )
+    } else {
+      if ((window as any).__DEV_PAGES_MANIFEST) {
+        return (window as any).__DEV_PAGES_MANIFEST.pages
+      } else {
+        if (!this.promisedDevPagesManifest) {
+          this.promisedDevPagesManifest = fetch(
+            `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+          )
+            .then((res) => res.json())
+            .then((manifest) => {
+              ;(window as any).__DEV_PAGES_MANIFEST = manifest
+              return manifest.pages
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch devPagesManifest`, err)
+            })
+        }
+        return this.promisedDevPagesManifest
+      }
+    }
   }
 
   // Returns a promise for the dependencies for a particular route
@@ -225,26 +254,29 @@ export default class PageLoader {
     )
   }
 
-  loadPage(route: string) {
+  loadPage(route: string): Promise<GoodPageCache> {
     route = normalizeRoute(route)
 
-    return new Promise((resolve, reject) => {
+    return new Promise<GoodPageCache>((resolve, reject) => {
       // If there's a cached version of the page, let's use it.
       const cachedPage = this.pageCache[route]
       if (cachedPage) {
-        const { error, page, mod } = cachedPage
-        error ? reject(error) : resolve({ page, mod })
+        if ('error' in cachedPage) {
+          reject(cachedPage.error)
+        } else {
+          resolve(cachedPage)
+        }
         return
       }
 
-      const fire = ({ error, page, mod }: PageCacheEntry) => {
+      const fire = (pageToCache: PageCacheEntry) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
 
-        if (error) {
-          reject(error)
+        if ('error' in pageToCache) {
+          reject(pageToCache.error)
         } else {
-          resolve({ page, mod })
+          resolve(pageToCache)
         }
       }
 

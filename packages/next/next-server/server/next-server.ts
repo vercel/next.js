@@ -48,10 +48,10 @@ import Router, {
   DynamicRoutes,
   PageChecker,
   Params,
-  prepareDestination,
   route,
   Route,
 } from './router'
+import prepareDestination from '../lib/router/utils/prepare-destination'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
