@@ -59,9 +59,8 @@ export default function nextPageConfig({
                 const declarations = [
                   ...(exportPath.node.declaration?.declarations || []),
                   exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
-                ].filter(
-                  (declaration) =>
-                    declaration && BabelTypes.isVariableDeclarator(declaration)
+                ].filter((declaration) =>
+                  BabelTypes.isVariableDeclarator(declaration)
                 )
 
                 for (const declaration of declarations) {
