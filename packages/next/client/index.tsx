@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { appendLink } from './page-loader'
+import PageLoader, { createLink } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -584,44 +584,53 @@ async function doRender({
     }
   })
 
-  function onCommit() {
-    if (!isInitialRender) {
-      const globalStylesheets: Set<string> = new Set(
-        [].slice
-          .call(document.querySelectorAll('link[rel=stylesheet][data-n-g]'))
-          .map((e: HTMLLinkElement) => e.getAttribute('href')!)
-      )
-      const currentStylesheets: HTMLLinkElement[] = [].slice.call(
-        document.querySelectorAll('link[rel=stylesheet][data-n-p]')
-      )
-      const targetStylesheets: string[] = [
-        ...new Set(styleSheets.filter((x) => !globalStylesheets.has(x))),
-      ]
+  function onStart(): Promise<void[]> {
+    // TODO: test injection position
+    let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
+      document.querySelectorAll('link[data-n-g], link[data-n-p]')
+    ) as HTMLLinkElement[]).pop()
 
-      // FIXME: this doesn't block, causing a FOUC
-      // Naive diffing algorithm:
-      for (
-        let idx = 0;
-        idx < Math.max(currentStylesheets.length, targetStylesheets.length);
-        ++idx
-      ) {
-        const el = currentStylesheets[idx]
-        const targetHref = targetStylesheets[idx]
-        if (!el) {
-          // FIXME: this is missing the `data-n-p` attribute
-          appendLink(targetHref, 'stylesheet')
-          continue
-        }
-        if (!targetHref) {
-          el.remove()
-          continue
-        }
-
-        if (el.getAttribute('href') !== targetHref) {
-          el.href = targetHref
-        }
+    const required: Promise<void>[] = styleSheets.map((href) => {
+      const [link, promise] = createLink(href, 'stylesheet')
+      link.setAttribute('data-n-staging', '')
+      link.setAttribute('media', 'none')
+      if (referenceNode) {
+        referenceNode.parentNode!.insertBefore(link, referenceNode.nextSibling)
+        referenceNode = link
+      } else {
+        document.head.appendChild(link)
       }
-    }
+      return promise
+    })
+    return Promise.all(required)
+  }
+
+  function onAbort() {
+    // TODO: test this cleanup on a render abort
+    document.querySelectorAll('link[data-n-staging]').forEach((el) => {
+      el.remove()
+    })
+  }
+  renderPromise.catch((abortError) => {
+    onAbort()
+    throw abortError
+  })
+
+  function onCommit() {
+    // TODO: test stylesheet removal
+    // Remove old stylesheets:
+    document.querySelectorAll('link[data-n-p]').forEach((el) => el.remove())
+
+    // TODO: test stylesheet activation
+    // Activate new stylesheets:
+    ;[].slice
+      .call(document.querySelectorAll('link[data-n-staging]'))
+      .forEach((el: HTMLLinkElement) => {
+        el.removeAttribute('data-n-staging')
+        el.removeAttribute('media')
+        el.setAttribute('data-n-p', '')
+      })
+
     resolvePromise()
   }
 
@@ -634,6 +643,7 @@ async function doRender({
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
+  await onStart() // TODO: test CSS loading error
   renderReactElement(
     process.env.__NEXT_STRICT_MODE ? (
       <React.StrictMode>{elem}</React.StrictMode>

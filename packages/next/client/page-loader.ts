@@ -49,24 +49,31 @@ function normalizeRoute(route: string) {
   return route.replace(/\/$/, '')
 }
 
-export function appendLink(
+export function createLink(
   href: string,
   rel: string,
   as?: string,
   link?: HTMLLinkElement
-): Promise<any> {
-  return new Promise((res, rej) => {
-    link = document.createElement('link')
-    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link.href = href
-    link.rel = rel
-    if (as) link.as = as
+): [HTMLLinkElement, Promise<any>] {
+  link = document.createElement('link')
+  return [
+    link,
+    new Promise((res, rej) => {
+      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+      link!.href = href
+      link!.rel = rel
+      if (as) link!.as = as
 
-    link.onload = res
-    link.onerror = rej
+      link!.onload = res
+      link!.onerror = rej
+    }),
+  ]
+}
 
-    document.head.appendChild(link)
-  })
+function appendLink(href: string, rel: string, as?: string): Promise<any> {
+  const [link, res] = createLink(href, rel, as)
+  document.head.appendChild(link)
+  return res
 }
 
 export type GoodPageCache = {
