@@ -43,7 +43,30 @@ yarn
 yarn dev
 ```
 
-### Configuration
+## Configuration
+
+### Step 1. Create an account on Unsplash
+
+First, [create an account on Unsplash](https://unsplash.com/).
+
+### Step 2. Crate an app on Unsplash
+
+[Crate an app on Unsplash](https://unsplash.com/oauth/applications/new)
+
+![create an account on Unsplash](./docs/create-app-1.png)
+
+Accept terms
+
+![create an account on Unsplash](./docs/create-app-2.png)
+
+Fill the info
+![create an account on Unsplash](./docs/create-app-3.png)
+
+After creating the app, you’ll be presented with the API key. We’ll use this in the next step.
+
+![api keys](./docs/api-keys.png)
+
+### Step 3. Set up environment variables
 
 Create .env.local file:
 
