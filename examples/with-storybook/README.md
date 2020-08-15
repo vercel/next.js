@@ -2,6 +2,10 @@
 
 This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.
 
+### TypeScript
+
+As of v6.0, Storybook has built-in TypeScript support, so no configuration is needed. If you want to customize the default configuration, refer to the [TypeScript docs](https://storybook.js.org/docs/react/configure/typescript).
+
 ## How to use
 
 ### Using `create-next-app`
