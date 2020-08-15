@@ -47,20 +47,21 @@ yarn dev
 
 ### Step 1. Create an account on Unsplash
 
-First, [create an account on Unsplash](https://unsplash.com/).
+First, you need to [create an account on Unsplash](https://unsplash.com/).
 
 ### Step 2. Crate an app on Unsplash
 
-[Crate an app on Unsplash](https://unsplash.com/oauth/applications/new)
+Then you need to [crate an app on Unsplash](https://unsplash.com/oauth/applications/new)
 
-![create an account on Unsplash](./docs/create-app-1.png)
+![create an app on Unsplash](./docs/create-app-1.png)
 
-Accept terms
+You have to accept terms
 
-![create an account on Unsplash](./docs/create-app-2.png)
+![Accept terms](./docs/create-app-2.png)
 
-Fill the info
-![create an account on Unsplash](./docs/create-app-3.png)
+Fill the form with app name and description
+
+![Form to fill app name and description](./docs/create-app-3.png)
 
 After creating the app, you’ll be presented with the API key. We’ll use this in the next step.
 
