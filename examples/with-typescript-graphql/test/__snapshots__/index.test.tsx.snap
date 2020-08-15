@@ -3,6 +3,7 @@
 exports[`Index renders the html we want 1`] = `
 <div>
   You're signed in as 
+  Baa
    and you're 
   Healthy
    go to the

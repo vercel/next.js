@@ -17,6 +17,7 @@ cache.writeQuery({
   `,
   data: {
     viewer: {
+      __typename: 'User',
       id: 'Baa',
       name: 'Baa',
       status: 'Healthy',
