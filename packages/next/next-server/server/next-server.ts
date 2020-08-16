@@ -1022,6 +1022,13 @@ export default class Server {
         .replace(/\/index$/, '/')
     }
 
+    try {
+      //urlPathname = decodeURIComponent(urlPathname)
+    } catch (e) {
+      // No action required.
+      // It will be treated as a bad request by other processes.
+    }
+
     const ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache

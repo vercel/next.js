@@ -10,6 +10,9 @@ export async function getStaticPaths() {
       {
         params: { slug: ['p2', 'p3'] },
       },
+      {
+        params: { slug: ['multibyte-char☄'] },
+      },
     ],
     fallback: false,
   }

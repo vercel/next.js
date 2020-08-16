@@ -127,6 +127,15 @@ function runTests() {
     expect($('#route').text()).toBe('gsp route: [p2|p3]')
   })
 
+  it('should handle getStaticPaths contains multibyte characters', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      encodeURI('/get-static-paths/multibyte-char☄')
+    )
+    const $ = cheerio.load(html)
+    expect($('#route').text()).toBe('gsp route: [multibyte-char☄]')
+  })
+
   it('should fall back to top-level catch-all', async () => {
     const html = await renderViaHTTP(appPort, '/get-static-paths/hello/world')
     const $ = cheerio.load(html)
