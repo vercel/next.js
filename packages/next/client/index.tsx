@@ -585,6 +585,17 @@ async function doRender({
   })
 
   function onStart(): Promise<void[]> {
+    if (
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles.
+      isInitialRender ||
+      // We use `style-loader` in development, so we don't need to do anything
+      // unless we're in production:
+      process.env.NODE_ENV !== 'production'
+    ) {
+      return Promise.resolve([])
+    }
+
     // TODO: test injection position
     let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
       document.querySelectorAll('link[data-n-g], link[data-n-p]')
@@ -617,19 +628,28 @@ async function doRender({
   })
 
   function onCommit() {
-    // TODO: test stylesheet removal
-    // Remove old stylesheets:
-    document.querySelectorAll('link[data-n-p]').forEach((el) => el.remove())
+    if (
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles.
+      !isInitialRender &&
+      // We use `style-loader` in development, so we don't need to do anything
+      // unless we're in production:
+      process.env.NODE_ENV === 'production'
+    ) {
+      // TODO: test stylesheet removal
+      // Remove old stylesheets:
+      document.querySelectorAll('link[data-n-p]').forEach((el) => el.remove())
 
-    // TODO: test stylesheet activation
-    // Activate new stylesheets:
-    ;[].slice
-      .call(document.querySelectorAll('link[data-n-staging]'))
-      .forEach((el: HTMLLinkElement) => {
-        el.removeAttribute('data-n-staging')
-        el.removeAttribute('media')
-        el.setAttribute('data-n-p', '')
-      })
+      // TODO: test stylesheet activation
+      // Activate new stylesheets:
+      ;[].slice
+        .call(document.querySelectorAll('link[data-n-staging]'))
+        .forEach((el: HTMLLinkElement) => {
+          el.removeAttribute('data-n-staging')
+          el.removeAttribute('media')
+          el.setAttribute('data-n-p', '')
+        })
+    }
 
     resolvePromise()
   }
