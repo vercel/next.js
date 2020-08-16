@@ -2,7 +2,9 @@
   "name": "with-typescript-graphql",
   "version": "1.0.0",
   "author": "Unknown",
-  "contributors":["Riley Shea"],
+  "contributors": [
+    "Riley Shea"
+  ],
   "license": "ISC",
   "scripts": {
     "codegen": "graphql-let",
