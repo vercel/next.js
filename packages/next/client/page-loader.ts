@@ -402,7 +402,10 @@ export default class PageLoader {
     }
 
     const promisedDeps: Promise<string[]> =
-      route === '/_app'
+      // Shared styles will already be on the page:
+      route === '/_app' ||
+      // We use `style-loader` in development:
+      process.env.NODE_ENV !== 'production'
         ? Promise.resolve([])
         : route === this.initialPage
         ? Promise.resolve(this.initialStyleSheets)
