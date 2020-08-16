@@ -66,6 +66,8 @@ When linking to a route with [dynamic path segments](/docs/routing/dynamic-route
 - `href` - The name of the page in the `pages` directory. For example `/blog/[slug]`.
 - `as` - The url that will be shown in the browser. For example `/blog/hello-world`.
 
+You have to make sure `href` and `as` are compatible, as explained [here](https://github.com/vercel/next.js/blob/master/errors/incompatible-href-as.md). 
+
 ```jsx
 import Link from 'next/link'
 
