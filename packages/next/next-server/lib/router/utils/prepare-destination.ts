@@ -1,7 +1,7 @@
 import { ParsedUrlQuery } from 'querystring'
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
-import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
+import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 
 type Params = { [param: string]: any }
 
@@ -49,9 +49,16 @@ export default function prepareDestination(
     parsedDestination.searchParams
   )
   const destQuery = parsedDestination.query
+  const destPath = `${parsedDestination.pathname!}${
+    parsedDestination.hash || ''
+  }`
+  const destPathParamKeys: pathToRegexp.Key[] = []
+  pathToRegexp.pathToRegexp(destPath, destPathParamKeys)
 
-  let destinationCompiler = compilePathToRegex(
-    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
+  const destPathParams = destPathParamKeys.map((key) => key.name)
+
+  let destinationCompiler = pathToRegexp.compile(
+    destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
     // breaks compiling destinations with named pattern params from the source
@@ -69,18 +76,23 @@ export default function prepareDestination(
       // the value needs to start with a forward-slash to be compiled
       // correctly
       value = `/${value}`
-      const queryCompiler = compilePathToRegex(value, { validate: false })
+      const queryCompiler = pathToRegexp.compile(value, { validate: false })
       value = queryCompiler(params).substr(1)
     }
     destQuery[key] = value
   }
 
   // add path params to query if it's not a redirect and not
-  // already defined in destination query
-  if (appendParamsToQuery) {
-    for (const [name, value] of Object.entries(params)) {
-      if (!(name in destQuery)) {
-        destQuery[name] = value
+  // already defined in destination query or path
+  const paramKeys = Object.keys(params)
+
+  if (
+    appendParamsToQuery &&
+    !paramKeys.some((key) => destPathParams.includes(key))
+  ) {
+    for (const key of paramKeys) {
+      if (!(key in destQuery)) {
+        destQuery[key] = params[key]
       }
     }
   }
