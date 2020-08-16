@@ -276,7 +276,7 @@ Because `getStaticProps` runs at build time, it does **not** receive data that�
 
 #### Write server-side code directly
 
-Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers. You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
+Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers. You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getServerSideProps`.
 
 You can use [this tool](https://next-code-elimination.now.sh/) to verify what Next.js eliminates from the client-side bundle.
 
