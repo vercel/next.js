@@ -32,6 +32,8 @@ const relPrefetch =
       // IE 11, Edge 12+, nearly all evergreen
       'prefetch'
 
+const relPreload = hasRel('preload') ? 'preload' : relPrefetch
+
 const hasNoModule = 'noModule' in document.createElement('script')
 
 const requestIdleCallback: (fn: () => void) => void =
@@ -324,11 +326,11 @@ export default class PageLoader {
               if (
                 d.endsWith('.css') &&
                 !document.querySelector(
-                  `link[rel="${relPrefetch}"][href^="${d}"]`
+                  `link[rel="${relPreload}"][href^="${d}"]`
                 )
               ) {
-                // TODO: test this prefetch
-                appendLink(d, relPrefetch, 'style').catch(() => {
+                // TODO: test this preload
+                appendLink(d, relPreload, 'style').catch(() => {
                   /* ignore prefetch error */
                 })
               }
