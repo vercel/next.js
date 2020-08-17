@@ -1,5 +1,5 @@
 {
-  "name": "with-cookie-auth",
+  "name": "with-cookie-auth-fauna",
   "scripts": {
     "dev": "next",
     "build": "next build",

@@ -1,5 +1,5 @@
 {
-  "name": "electron-next-skeleton",
+  "name": "with-electron",
   "productName": "ElectronNext",
   "version": "1.0.0",
   "main": "main/index.js",
