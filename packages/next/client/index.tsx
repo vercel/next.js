@@ -596,7 +596,6 @@ async function doRender({
       return Promise.resolve([])
     }
 
-    // TODO: test injection position
     let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
       document.querySelectorAll('link[data-n-g], link[data-n-p]')
     ) as HTMLLinkElement[]).pop()

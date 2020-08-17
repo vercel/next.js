@@ -1114,6 +1114,38 @@ describe('CSS Support', () => {
             await browser.close()
           }
         })
+
+        it('should have correct CSS injection order', async () => {
+          const browser = await webdriver(appPort, '/')
+          try {
+            await checkBlackTitle(browser)
+
+            const prevSiblingHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            )
+            const currentPageHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+            )
+            expect(prevSiblingHref).toBeDefined()
+            expect(prevSiblingHref).toBe(currentPageHref)
+
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkRedTitle(browser)
+
+            const newPrevSiblingHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            )
+            const newPageHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+            )
+            expect(newPageHref).toBeDefined()
+            expect(newPrevSiblingHref).toBe(prevSiblingHref)
+            expect(newPageHref).not.toBe(currentPageHref)
+          } finally {
+            await browser.close()
+          }
+        })
       }
 
       it('should have correct color on index page (on nav from index)', async () => {
