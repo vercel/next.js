@@ -2,12 +2,12 @@
   "version": 2,
   "build": {
     "env": {
-      "BUILDING_FOR_NOW": "true"
+      "BUILDING_FOR_VERCEL": "true"
     }
   },
   "builds": [
-    { "src": "blog/package.json", "use": "@now/next" },
-    { "src": "home/package.json", "use": "@now/next" }
+    { "src": "blog/package.json", "use": "@vercel/next" },
+    { "src": "home/package.json", "use": "@vercel/next" }
   ],
   "routes": [
     { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },

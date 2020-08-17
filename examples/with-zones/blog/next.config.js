@@ -1,4 +1,4 @@
-const assetPrefix = process.env.BUILDING_FOR_NOW ? '/blog' : ''
+const assetPrefix = process.env.BUILDING_FOR_VERCEL ? '/blog' : ''
 
 module.exports = {
   assetPrefix,
