@@ -43,6 +43,27 @@ export default function nextPageConfig({
         enter(path, state: ConfigState) {
           path.traverse(
             {
+              ExportDeclaration(exportPath, exportState) {
+                if (
+                  BabelTypes.isExportNamedDeclaration(exportPath) &&
+                  (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
+                    (specifier) => {
+                      return specifier.exported.name === CONFIG_KEY
+                    }
+                  ) &&
+                  BabelTypes.isStringLiteral(
+                    (exportPath.node as BabelTypes.ExportNamedDeclaration)
+                      .source
+                  )
+                ) {
+                  throw new Error(
+                    errorMessage(
+                      exportState,
+                      'Expected object but got export from'
+                    )
+                  )
+                }
+              },
               ExportNamedDeclaration(
                 exportPath: NodePath<BabelTypes.ExportNamedDeclaration>,
                 exportState: any
@@ -59,9 +80,7 @@ export default function nextPageConfig({
                 const declarations = [
                   ...(exportPath.node.declaration?.declarations || []),
                   exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
-                ].filter((declaration) =>
-                  BabelTypes.isVariableDeclarator(declaration)
-                )
+                ].filter(Boolean)
 
                 for (const declaration of declarations) {
                   if (
@@ -69,6 +88,14 @@ export default function nextPageConfig({
                       name: CONFIG_KEY,
                     })
                   ) {
+                    if (BabelTypes.isImportSpecifier(declaration)) {
+                      throw new Error(
+                        errorMessage(
+                          exportState,
+                          `Expected object but got import`
+                        )
+                      )
+                    }
                     continue
                   }
 
