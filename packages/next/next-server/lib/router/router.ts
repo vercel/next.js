@@ -726,7 +726,7 @@ export default class Router implements BaseRouter {
       if (__N_SSG || __N_SSP) {
         dataHref = this.pageLoader.getDataHref(
           formatWithValidation({ pathname, query }),
-          as,
+          delBasePath(as),
           __N_SSG
         )
       }
