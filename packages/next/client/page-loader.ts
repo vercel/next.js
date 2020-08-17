@@ -410,7 +410,8 @@ export default class PageLoader {
         ? Promise.resolve([])
         : route === this.initialPage
         ? Promise.resolve(this.initialStyleSheets)
-        : // TODO: test this doesn't block register of initial page
+        : // Tests that this does not block hydration:
+          // test/integration/css-fixtures/hydrate-without-deps/
           this.getDependencies(route)
     promisedDeps.then(
       (deps) => register(deps.filter((d) => d.endsWith('.css'))),
