@@ -82,7 +82,7 @@ export type BaseContext = {
 }
 
 export type NEXT_DATA = {
-  props: any
+  props: Record<string, any>
   page: string
   query: ParsedUrlQuery
   buildId: string
@@ -171,7 +171,6 @@ export type DocumentProps = DocumentInitialProps & {
   inAmpMode: boolean
   hybridAmp: boolean
   isDevelopment: boolean
-  files: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
