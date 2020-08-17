@@ -147,7 +147,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
-    const {prepareDestination} = require('next/dist/next-server/server/router')
+    const prepareDestination = require('next/dist/next-server/lib/router/utils/prepare-destination').default
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -163,7 +163,7 @@ const nextServerlessLoader: loader.Loader = function () {
             "${basePath}"
           )
 
-          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          Object.assign(parsedUrl.query, parsedDestination.query)
           delete parsedDestination.query
 
           Object.assign(parsedUrl, parsedDestination)
