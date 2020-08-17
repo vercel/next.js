@@ -1216,4 +1216,67 @@ describe('CSS Support', () => {
       tests()
     })
   })
+
+  describe('CSS Cleanup on Render Failure', () => {
+    const appDir = join(fixturesDir, 'transition-cleanup')
+    let app, appPort
+
+    function tests() {
+      async function checkBlackTitle(browser) {
+        await browser.waitForElementByCss('#black-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#black-title')).color`
+        )
+        expect(titleColor).toBe('rgb(17, 17, 17)')
+      }
+
+      it('should have correct CSS injection order', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+
+          const currentPageStyles = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]')`
+          )
+          expect(currentPageStyles).toBeDefined()
+
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await check(
+            () => browser.eval(`document.body.innerText`),
+            'An unexpected error has occurred.',
+            true
+          )
+
+          const newPageStyles = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]')`
+          )
+          expect(newPageStyles).toBeFalsy()
+
+          const allPageStyles = await browser.eval(
+            `document.querySelector('link[rel=stylesheet]')`
+          )
+          expect(allPageStyles).toBeFalsy()
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
 })

@@ -616,7 +616,6 @@ async function doRender({
   }
 
   function onAbort() {
-    // TODO: test this cleanup on a render abort
     document.querySelectorAll('link[data-n-staging]').forEach((el) => {
       el.remove()
     })
