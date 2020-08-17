@@ -80,7 +80,6 @@ jobs:
       - run: yarn install --frozen-lockfile --check-files
 
       - run: |
-          git ls-remote --refs https://github.com/watson/ci-info.git
           mkdir -p ./e2e-tests/next-pnp
           cp -r ./examples/with-typescript/. ./e2e-tests/next-pnp
           cd ./e2e-tests/next-pnp
