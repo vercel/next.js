@@ -584,6 +584,11 @@ async function doRender({
     }
   })
 
+  // TODO: consider replacing this with real `<style>` tags that have
+  // plain-text CSS content that's provided by RouteInfo. That'd remove the
+  // need for the staging `<link>`s and the ability for CSS to be missing at
+  // this phase, allowing us to remove the error handling flow that reloads the
+  // page.
   function onStart(): Promise<void[]> {
     if (
       // We can skip this during hydration. Running it wont cause any harm, but
@@ -612,7 +617,27 @@ async function doRender({
       }
       return promise
     })
-    return Promise.all(required)
+    return Promise.all(required).catch(() => {
+      // This is too late in the rendering lifecycle to use the existing
+      // `PAGE_LOAD_ERROR` flow (via `handleRouteInfoError`).
+      // To match that behavior, we request the page to reload with the current
+      // asPath. This is already set at this phase since we "committed" to the
+      // render.
+      // This handles an edge case where a new deployment is rolled during
+      // client-side transition and the CSS assets are missing.
+
+      // This prevents:
+      //   1. An unstyled page from being rendered (old behavior)
+      //   2. The `/_error` page being rendered (we want to reload for the new
+      //      deployment)
+      window.location.href = router.asPath
+
+      // Instead of rethrowing the CSS loading error, we give a promise that
+      // won't resolve. This pauses the rendering process until the page
+      // reloads. Re-throwing the error could result in a flash of error page.
+      // throw cssLoadingError
+      return new Promise(() => {})
+    })
   }
 
   function onAbort() {
@@ -659,7 +684,7 @@ async function doRender({
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  await onStart() // TODO: test CSS loading error
+  await onStart()
   renderReactElement(
     process.env.__NEXT_STRICT_MODE ? (
       <React.StrictMode>{elem}</React.StrictMode>

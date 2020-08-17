@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile, remove, readJSON } from 'fs-extra'
 import {
   check,
   File,
@@ -1230,7 +1230,7 @@ describe('CSS Support', () => {
         expect(titleColor).toBe('rgb(17, 17, 17)')
       }
 
-      it('should have correct CSS injection order', async () => {
+      it('not have intermediary page styles on error rendering', async () => {
         const browser = await webdriver(appPort, '/')
         try {
           await checkBlackTitle(browser)
@@ -1271,6 +1271,64 @@ describe('CSS Support', () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
+
+  describe('Page reload on CSS missing', () => {
+    const appDir = join(fixturesDir, 'transition-reload')
+    let app, appPort
+
+    function tests() {
+      async function checkBlackTitle(browser) {
+        await browser.waitForElementByCss('#black-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#black-title')).color`
+        )
+        expect(titleColor).toBe('rgb(17, 17, 17)')
+      }
+
+      it('should fall back to server-side transition on missing CSS', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+          await browser.eval(`window.__priorNavigatePageState = 'OOF';`)
+
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+
+          const state = await browser.eval(`window.__priorNavigatePageState`)
+          expect(state).toBeFalsy()
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+
+        // Remove other page CSS files:
+        const manifest = await readJSON(
+          join(appDir, '.next', 'build-manifest.json')
+        )
+        const files = manifest['pages']['/other'].filter((e) =>
+          e.endsWith('.css')
+        )
+        await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
       })
       afterAll(async () => {
         await killApp(app)
