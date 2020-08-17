@@ -636,11 +636,9 @@ async function doRender({
       // unless we're in production:
       process.env.NODE_ENV === 'production'
     ) {
-      // TODO: test stylesheet removal
       // Remove old stylesheets:
       document.querySelectorAll('link[data-n-p]').forEach((el) => el.remove())
 
-      // TODO: test stylesheet activation
       // Activate new stylesheets:
       ;[].slice
         .call(document.querySelectorAll('link[data-n-staging]'))
