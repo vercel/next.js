@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader from './page-loader'
+import PageLoader, { createLink } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -39,7 +39,7 @@ declare global {
 }
 
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
-type RenderErrorProps = Omit<RenderRouteInfo, 'Component'>
+type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 if (!('finally' in Promise.prototype)) {
   ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
@@ -84,7 +84,14 @@ if (hasBasePath(asPath)) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(buildId, prefix, page)
+const pageLoader = new PageLoader(
+  buildId,
+  prefix,
+  page,
+  [].slice
+    .call(document.querySelectorAll('link[rel=stylesheet][data-n-p]'))
+    .map((e: HTMLLinkElement) => e.getAttribute('href')!)
+)
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
@@ -102,6 +109,7 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
+let cachedStyleSheets: string[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -233,7 +241,10 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   let initialErr = hydrateErr
 
   try {
-    ;({ page: CachedComponent } = await pageLoader.loadPage(page))
+    ;({
+      page: CachedComponent,
+      styleSheets: cachedStyleSheets,
+    } = await pageLoader.loadPage(page))
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -291,11 +302,12 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
+    initialStyleSheets: cachedStyleSheets,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: ({ Component, props, err }, App) =>
-      render({ App, Component, props, err }),
+    subscription: ({ Component, styleSheets, props, err }, App) =>
+      render({ App, Component, styleSheets, props, err }),
   })
 
   // call init-client middleware
@@ -314,6 +326,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   const renderCtx = {
     App: CachedApp,
     Component: CachedComponent,
+    styleSheets: cachedStyleSheets,
     props: hydrateProps,
     err: initialErr,
   }
@@ -364,6 +377,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
       App: () => null,
       props: {},
       Component: () => null,
+      styleSheets: [],
     })
   }
   if (process.env.__NEXT_PLUGINS) {
@@ -383,30 +397,33 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-  return pageLoader.loadPage('/_error').then(({ page: ErrorComponent }) => {
-    // In production we do a normal render with the `ErrorComponent` as component.
-    // If we've gotten here upon initial render, we can use the props from the server.
-    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      Component: ErrorComponent,
-      AppTree,
-      router,
-      ctx: { err, pathname: page, query, asPath, AppTree },
-    }
-    return Promise.resolve(
-      renderErrorProps.props
-        ? renderErrorProps.props
-        : loadGetInitialProps(App, appCtx)
-    ).then((initProps) =>
-      doRender({
-        ...renderErrorProps,
-        err,
+  return pageLoader
+    .loadPage('/_error')
+    .then(({ page: ErrorComponent, styleSheets }) => {
+      // In production we do a normal render with the `ErrorComponent` as component.
+      // If we've gotten here upon initial render, we can use the props from the server.
+      // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+      const AppTree = wrapApp(App)
+      const appCtx = {
         Component: ErrorComponent,
-        props: initProps,
-      })
-    )
-  })
+        AppTree,
+        router,
+        ctx: { err, pathname: page, query, asPath, AppTree },
+      }
+      return Promise.resolve(
+        renderErrorProps.props
+          ? renderErrorProps.props
+          : loadGetInitialProps(App, appCtx)
+      ).then((initProps) =>
+        doRender({
+          ...renderErrorProps,
+          err,
+          Component: ErrorComponent,
+          styleSheets,
+          props: initProps,
+        })
+      )
+    })
 }
 
 // If hydrate does not exist, eg in preact.
@@ -533,7 +550,13 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-async function doRender({ App, Component, props, err }: RenderRouteInfo) {
+async function doRender({
+  App,
+  Component,
+  props,
+  err,
+  styleSheets,
+}: RenderRouteInfo) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -561,8 +584,99 @@ async function doRender({ App, Component, props, err }: RenderRouteInfo) {
     }
   })
 
+  // TODO: consider replacing this with real `<style>` tags that have
+  // plain-text CSS content that's provided by RouteInfo. That'd remove the
+  // need for the staging `<link>`s and the ability for CSS to be missing at
+  // this phase, allowing us to remove the error handling flow that reloads the
+  // page.
+  function onStart(): Promise<void[]> {
+    if (
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles.
+      isInitialRender ||
+      // We use `style-loader` in development, so we don't need to do anything
+      // unless we're in production:
+      process.env.NODE_ENV !== 'production'
+    ) {
+      return Promise.resolve([])
+    }
+
+    let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
+      document.querySelectorAll('link[data-n-g], link[data-n-p]')
+    ) as HTMLLinkElement[]).pop()
+
+    const required: Promise<void>[] = styleSheets.map((href) => {
+      const [link, promise] = createLink(href, 'stylesheet')
+      link.setAttribute('data-n-staging', '')
+      link.setAttribute('media', 'none')
+      if (referenceNode) {
+        referenceNode.parentNode!.insertBefore(link, referenceNode.nextSibling)
+        referenceNode = link
+      } else {
+        document.head.appendChild(link)
+      }
+      return promise
+    })
+    return Promise.all(required).catch(() => {
+      // This is too late in the rendering lifecycle to use the existing
+      // `PAGE_LOAD_ERROR` flow (via `handleRouteInfoError`).
+      // To match that behavior, we request the page to reload with the current
+      // asPath. This is already set at this phase since we "committed" to the
+      // render.
+      // This handles an edge case where a new deployment is rolled during
+      // client-side transition and the CSS assets are missing.
+
+      // This prevents:
+      //   1. An unstyled page from being rendered (old behavior)
+      //   2. The `/_error` page being rendered (we want to reload for the new
+      //      deployment)
+      window.location.href = router.asPath
+
+      // Instead of rethrowing the CSS loading error, we give a promise that
+      // won't resolve. This pauses the rendering process until the page
+      // reloads. Re-throwing the error could result in a flash of error page.
+      // throw cssLoadingError
+      return new Promise(() => {})
+    })
+  }
+
+  function onAbort() {
+    document.querySelectorAll('link[data-n-staging]').forEach((el) => {
+      el.remove()
+    })
+  }
+  renderPromise.catch((abortError) => {
+    onAbort()
+    throw abortError
+  })
+
+  function onCommit() {
+    if (
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles.
+      !isInitialRender &&
+      // We use `style-loader` in development, so we don't need to do anything
+      // unless we're in production:
+      process.env.NODE_ENV === 'production'
+    ) {
+      // Remove old stylesheets:
+      document.querySelectorAll('link[data-n-p]').forEach((el) => el.remove())
+
+      // Activate new stylesheets:
+      ;[].slice
+        .call(document.querySelectorAll('link[data-n-staging]'))
+        .forEach((el: HTMLLinkElement) => {
+          el.removeAttribute('data-n-staging')
+          el.removeAttribute('media')
+          el.setAttribute('data-n-p', '')
+        })
+    }
+
+    resolvePromise()
+  }
+
   const elem = (
-    <Root callback={resolvePromise!}>
+    <Root callback={onCommit}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -570,6 +684,7 @@ async function doRender({ App, Component, props, err }: RenderRouteInfo) {
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
+  await onStart()
   renderReactElement(
     process.env.__NEXT_STRICT_MODE ? (
       <React.StrictMode>{elem}</React.StrictMode>

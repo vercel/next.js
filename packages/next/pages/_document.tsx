@@ -154,9 +154,12 @@ export class Head extends Component<
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
+    const sharedFiles = new Set(files.sharedFiles)
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
+      const isSharedFile = sharedFiles.has(file)
+
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -180,6 +183,8 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
+          data-n-g={isSharedFile ? '' : undefined}
+          data-n-p={isSharedFile ? undefined : ''}
         />
       )
     })
