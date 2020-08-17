@@ -74,6 +74,15 @@ describe('AMP Usage', () => {
         expect(result).toBe(null)
       })
 
+      it('should not output client pages for AMP only with config exported after declaration', async () => {
+        const browser = await webdriver(appPort, '/nav')
+        await browser.elementByCss('#var-before-export-link').click()
+
+        const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+        expect(result).toBe(null)
+      })
+
       it('should add link preload for amp script', async () => {
         const html = await renderViaHTTP(appPort, '/?amp=1')
         await validateAMP(html)
@@ -262,6 +271,15 @@ describe('AMP Usage', () => {
     it('should not output client pages for AMP only', async () => {
       const browser = await webdriver(appPort, '/nav')
       await browser.elementByCss('#only-amp-link').click()
+
+      const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+      expect(result).toBe(null)
+    })
+
+    it('should not output client pages for AMP only with config exported after declaration', async () => {
+      const browser = await webdriver(appPort, '/nav')
+      await browser.elementByCss('#var-before-export-link').click()
 
       const result = await browser.eval('window.NAV_PAGE_LOADED')
 
