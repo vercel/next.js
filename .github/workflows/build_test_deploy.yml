@@ -70,7 +70,7 @@ jobs:
 
       - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
 
-  testPnp:
+  testYarnPnP:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
