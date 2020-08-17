@@ -22,7 +22,7 @@ export class CssMinimizerPlugin {
     this.options = options
   }
 
-  optimizeAsset(file, asset: any) {
+  optimizeAsset(file: string, asset: any) {
     const postcssOptions = {
       ...this.options.postcssOptions,
       to: file,
