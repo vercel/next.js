@@ -21,6 +21,7 @@ coverage
 test/**/out*
 test/**/next-env.d.ts
 .DS_Store
+/e2e-tests
 
 # Editors
 **/.idea

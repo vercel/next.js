@@ -70,10 +70,29 @@ jobs:
 
       - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
 
+  testYarnPnP:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: '--unhandled-rejections=strict'
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: yarn install --frozen-lockfile --check-files
+
+      - run: |
+          mkdir -p ./e2e-tests/next-pnp
+          cp -r ./examples/with-typescript/. ./e2e-tests/next-pnp
+          cd ./e2e-tests/next-pnp
+          touch yarn.lock
+          yarn set version berry
+          yarn config set pnpFallbackMode none
+          yarn link --all --private ../..
+          yarn build
+
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
-    needs: [lint, checkPrecompiled, testAll]
+    needs: [lint, checkPrecompiled, testAll, testYarnPnP]
     steps:
       - run: exit 0
 
