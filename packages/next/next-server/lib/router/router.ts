@@ -159,6 +159,7 @@ export type PrefetchOptions = {
 
 export type PrivateRouteInfo = {
   Component: ComponentType
+  styleSheets: string[]
   __N_SSG?: boolean
   __N_SSP?: boolean
   props?: Record<string, any>
@@ -257,6 +258,7 @@ export default class Router implements BaseRouter {
       App,
       wrapApp,
       Component,
+      initialStyleSheets,
       err,
       subscription,
       isFallback,
@@ -265,6 +267,7 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
+      initialStyleSheets: string[]
       App: AppComponent
       wrapApp: (App: AppComponent) => any
       err?: Error
@@ -282,6 +285,7 @@ export default class Router implements BaseRouter {
     if (pathname !== '/_error') {
       this.components[this.route] = {
         Component,
+        styleSheets: initialStyleSheets,
         props: initialProps,
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
@@ -289,7 +293,12 @@ export default class Router implements BaseRouter {
       }
     }
 
-    this.components['/_app'] = { Component: App as ComponentType }
+    this.components['/_app'] = {
+      Component: App as ComponentType,
+      styleSheets: [
+        /* /_app does not need its stylesheets managed */
+      ],
+    }
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
@@ -668,8 +677,15 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      const { page: Component } = await this.fetchComponent('/_error')
-      const routeInfo: PrivateRouteInfo = { Component, err, error: err }
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error'
+      )
+      const routeInfo: PrivateRouteInfo = {
+        Component,
+        styleSheets,
+        err,
+        error: err,
+      }
 
       try {
         routeInfo.props = await this.getInitialProps(Component, {
@@ -706,6 +722,7 @@ export default class Router implements BaseRouter {
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
             Component: res.page,
+            styleSheets: res.styleSheets,
             __N_SSG: res.mod.__N_SSG,
             __N_SSP: res.mod.__N_SSP,
           }))
