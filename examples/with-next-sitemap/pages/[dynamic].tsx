@@ -1,10 +1,13 @@
-import React from 'react'
 import { GetStaticPaths, GetStaticProps } from 'next'
+import { useRouter } from 'next/router'
 
-const DynamicPage: React.FC = () => {
+const DynamicPage = () => {
+  const { query } = useRouter()
+
   return (
     <div>
-      <h1>DynamicPage Component</h1>
+      <h1>Dynamic Page</h1>
+      <h2>Query: {query.dynamic}</h2>
     </div>
   )
 }
