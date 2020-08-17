@@ -92,7 +92,7 @@ jobs:
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
-    needs: [lint, checkPrecompiled, testAll, testPnp]
+    needs: [lint, checkPrecompiled, testAll, testYarnPnP]
     steps:
       - run: exit 0
 
