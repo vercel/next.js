@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { readdir, readFile, remove, readJSON } from 'fs-extra'
+import { pathExists, readdir, readFile, readJSON, remove } from 'fs-extra'
 import {
   check,
   File,
@@ -1328,7 +1328,66 @@ describe('CSS Support', () => {
         const files = manifest['pages']['/other'].filter((e) =>
           e.endsWith('.css')
         )
+        if (files.length < 1) throw new Error()
         await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
+
+  describe('Page hydrates with CSS and not waiting on dependencies', () => {
+    const appDir = join(fixturesDir, 'hydrate-without-deps')
+    let app, appPort
+
+    function tests() {
+      async function checkBlackTitle(browser) {
+        await browser.waitForElementByCss('#black-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#black-title')).color`
+        )
+        expect(titleColor).toBe('rgb(17, 17, 17)')
+      }
+
+      it('should hydrate without dependencies function', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+
+        const buildId = (
+          await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+        ).trim()
+        const fileName = join(
+          appDir,
+          '.next/static/',
+          buildId,
+          '_buildManifest.js'
+        )
+        if (!(await pathExists(fileName))) {
+          throw new Error('Missing build manifest')
+        }
+        await remove(fileName)
       })
       afterAll(async () => {
         await killApp(app)
