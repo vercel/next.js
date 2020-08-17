@@ -74,7 +74,7 @@ function runTests() {
     )
   })
 
-  it('should skip this optimization forr AMP pages', async () => {
+  it('should skip this optimization for AMP pages', async () => {
     const html = await renderViaHTTP(appPort, '/amp')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
     expect(html).toContain(
