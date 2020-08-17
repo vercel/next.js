@@ -329,9 +329,8 @@ export default class PageLoader {
                   `link[rel="${relPreload}"][href^="${d}"]`
                 )
               ) {
-                // TODO: test this preload
                 appendLink(d, relPreload, 'style').catch(() => {
-                  /* ignore prefetch error */
+                  /* ignore preload error */
                 })
               }
             })

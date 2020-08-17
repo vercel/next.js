@@ -1057,7 +1057,7 @@ describe('CSS Support', () => {
     const appDir = join(fixturesDir, 'composes-ordering')
     let app, appPort
 
-    function tests() {
+    function tests(isDev = false) {
       async function checkBlackTitle(browser) {
         await browser.waitForElementByCss('#black-title')
         const titleColor = await browser.eval(
@@ -1071,6 +1071,13 @@ describe('CSS Support', () => {
           `window.getComputedStyle(document.querySelector('#red-title')).color`
         )
         expect(titleColor).toBe('rgb(255, 0, 0)')
+      }
+      async function checkCssPreloadCount(browser) {
+        return Number(
+          await browser.eval(
+            ` [].slice.call(document.querySelectorAll('link[rel=preload][href$="css"]')).length`
+          )
+        )
       }
 
       it('should have correct color on index page (on load)', async () => {
@@ -1093,6 +1100,21 @@ describe('CSS Support', () => {
           await browser.close()
         }
       })
+
+      if (!isDev) {
+        it('should preload CSS on hover', async () => {
+          const browser = await webdriver(appPort, '/')
+          try {
+            await checkBlackTitle(browser)
+            expect(await checkCssPreloadCount(browser)).toBe(1)
+            await browser.waitForElementByCss('#link-other').moveTo()
+            await waitFor(2000)
+            expect(await checkCssPreloadCount(browser)).toBe(2)
+          } finally {
+            await browser.close()
+          }
+        })
+      }
 
       it('should have correct color on index page (on nav from index)', async () => {
         const browser = await webdriver(appPort, '/')
@@ -1143,7 +1165,7 @@ describe('CSS Support', () => {
         await killApp(app)
       })
 
-      tests()
+      tests(true)
     })
 
     describe('Production Mode', () => {
