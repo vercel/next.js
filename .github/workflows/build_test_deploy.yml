@@ -87,7 +87,6 @@ jobs:
           yarn set version berry
           yarn config set pnpFallbackMode none
           yarn link --all --private ../..
-          yarn
           yarn build
 
   testsPass:
