@@ -641,7 +641,9 @@ async function doRender({
   }
 
   function onAbort() {
-    document.querySelectorAll('link[data-n-staging]').forEach((el) => {
+    ;([].slice.call(
+      document.querySelectorAll('link[data-n-staging]')
+    ) as HTMLLinkElement[]).forEach((el) => {
       el.remove()
     })
   }
@@ -660,7 +662,9 @@ async function doRender({
       process.env.NODE_ENV === 'production'
     ) {
       // Remove old stylesheets:
-      document.querySelectorAll('link[data-n-p]').forEach((el) => el.remove())
+      ;([].slice.call(
+        document.querySelectorAll('link[data-n-p]')
+      ) as HTMLLinkElement[]).forEach((el) => el.remove())
 
       // Activate new stylesheets:
       ;[].slice
