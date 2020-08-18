@@ -7,7 +7,8 @@ import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import type { GoodPageCache } from '../../../client/page-loader'
+import { GoodPageCache } from '../../../client/page-loader'
+import { denormalizePagePath } from '../../server/denormalize-page-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -21,10 +22,9 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
+import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { denormalizePagePath } from '../../server/denormalize-page-path'
-import resolveRewrites from './utils/resolve-rewrites'
 
 interface TransitionOptions {
   shallow?: boolean
