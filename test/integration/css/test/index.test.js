@@ -1396,4 +1396,97 @@ describe('CSS Support', () => {
       tests()
     })
   })
+
+  // https://github.com/vercel/next.js/issues/12343
+  describe('Basic CSS Modules Ordering', () => {
+    const appDir = join(fixturesDir, 'next-issue-12343')
+    let app, appPort
+
+    function tests() {
+      async function checkGreenButton(browser) {
+        await browser.waitForElementByCss('#link-other')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#link-other')).backgroundColor`
+        )
+        expect(titleColor).toBe('rgb(0, 255, 0)')
+      }
+      async function checkPinkButton(browser) {
+        await browser.waitForElementByCss('#link-index')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#link-index')).backgroundColor`
+        )
+        expect(titleColor).toBe('rgb(255, 105, 180)')
+      }
+
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenButton(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenButton(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkGreenButton(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenButton(browser)
+          await browser.waitForElementByCss('#link-other').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+          await checkPinkButton(browser)
+
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenButton(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Development Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
 })
