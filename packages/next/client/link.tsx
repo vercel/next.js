@@ -1,15 +1,21 @@
 import React, { Children } from 'react'
 import { UrlObject } from 'url'
 import {
-  PrefetchOptions,
-  NextRouter,
+  addBasePath,
   isLocalURL,
+  NextRouter,
+  PrefetchOptions,
+  resolveHref,
 } from '../next-server/lib/router/router'
-import { execOnce } from '../next-server/lib/utils'
 import { useRouter } from './router'
-import { addBasePath, resolveHref } from '../next-server/lib/router/router'
 
 type Url = string | UrlObject
+type RequiredKeys<T> = {
+  [K in keyof T]-?: {} extends Pick<T, K> ? never : K
+}[keyof T]
+type OptionalKeys<T> = {
+  [K in keyof T]-?: {} extends Pick<T, K> ? K : never
+}[keyof T]
 
 export type LinkProps = {
   href: Url
@@ -20,6 +26,8 @@ export type LinkProps = {
   passHref?: boolean
   prefetch?: boolean
 }
+type LinkPropsRequired = RequiredKeys<LinkProps>
+type LinkPropsOptional = OptionalKeys<LinkProps>
 
 let cachedObserver: IntersectionObserver
 const listeners = new Map<Element, () => void>()
@@ -146,6 +154,91 @@ function linkClicked(
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
   if (process.env.NODE_ENV !== 'production') {
+    function createPropError(args: {
+      key: string
+      expected: string
+      actual: string
+    }) {
+      return new Error(
+        `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
+          (typeof window !== 'undefined'
+            ? "\nOpen your browser's console to view the Component stack trace."
+            : '')
+      )
+    }
+
+    // TypeScript trick for type-guarding:
+    const requiredPropsGuard: Record<LinkPropsRequired, true> = {
+      href: true,
+    } as const
+    const requiredProps: LinkPropsRequired[] = Object.keys(
+      requiredPropsGuard
+    ) as LinkPropsRequired[]
+    requiredProps.forEach((key: LinkPropsRequired) => {
+      if (key === 'href') {
+        if (
+          props[key] == null ||
+          (typeof props[key] !== 'string' && typeof props[key] !== 'object')
+        ) {
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: props[key] === null ? 'null' : typeof props[key],
+          })
+        }
+      } else {
+        // TypeScript trick for type-guarding:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _: never = key
+      }
+    })
+
+    // TypeScript trick for type-guarding:
+    const optionalPropsGuard: Record<LinkPropsOptional, true> = {
+      as: true,
+      replace: true,
+      scroll: true,
+      shallow: true,
+      passHref: true,
+      prefetch: true,
+    } as const
+    const optionalProps: LinkPropsOptional[] = Object.keys(
+      optionalPropsGuard
+    ) as LinkPropsOptional[]
+    optionalProps.forEach((key: LinkPropsOptional) => {
+      if (key === 'as') {
+        if (
+          props[key] &&
+          typeof props[key] !== 'string' &&
+          typeof props[key] !== 'object'
+        ) {
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: typeof props[key],
+          })
+        }
+      } else if (
+        key === 'replace' ||
+        key === 'scroll' ||
+        key === 'shallow' ||
+        key === 'passHref' ||
+        key === 'prefetch'
+      ) {
+        if (props[key] != null && typeof props[key] !== 'boolean') {
+          throw createPropError({
+            key,
+            expected: '`boolean`',
+            actual: typeof props[key],
+          })
+        }
+      } else {
+        // TypeScript trick for type-guarding:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _: never = key
+      }
+    })
+
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hasWarned = React.useRef(false)
@@ -240,38 +333,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   return React.cloneElement(child, childProps)
-}
-
-if (process.env.NODE_ENV === 'development') {
-  const warn = execOnce(console.error)
-
-  // This module gets removed by webpack.IgnorePlugin
-  const PropTypes = require('prop-types')
-  const exact = require('prop-types-exact')
-  // @ts-ignore the property is supported, when declaring it on the class it outputs an extra bit of code which is not needed.
-  Link.propTypes = exact({
-    href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
-    as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    prefetch: PropTypes.bool,
-    replace: PropTypes.bool,
-    shallow: PropTypes.bool,
-    passHref: PropTypes.bool,
-    scroll: PropTypes.bool,
-    children: PropTypes.oneOfType([
-      PropTypes.element,
-      (props: any, propName: string) => {
-        const value = props[propName]
-
-        if (typeof value === 'string') {
-          warn(
-            `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
-          )
-        }
-
-        return null
-      },
-    ]).isRequired,
-  })
 }
 
 export default Link

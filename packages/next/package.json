@@ -104,7 +104,6 @@
     "postcss": "7.0.32",
     "process": "0.11.10",
     "prop-types": "15.7.2",
-    "prop-types-exact": "1.2.0",
     "react-is": "16.13.1",
     "react-refresh": "0.8.3",
     "resolve-url-loader": "3.1.1",
