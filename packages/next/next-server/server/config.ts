@@ -54,6 +54,7 @@ const defaultConfig: { [key: string]: any } = {
     optimizeFonts: false,
     optimizeImages: false,
     scrollRestoration: false,
+    unstable_webpack5cache: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
