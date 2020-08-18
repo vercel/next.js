@@ -683,10 +683,8 @@ test('Module not found', async () => {
 
   await session.patch(
     'index.js',
-    `
-      import Comp from 'b'
-
-      export default () => {
+    `import Comp from 'b'
+      export default function Oops() {
         return (
           <div>
             <Comp>lol</Comp>
@@ -700,14 +698,12 @@ test('Module not found', async () => {
 
   const source = await session.getRedboxSource()
   expect(source).toMatchInlineSnapshot(`
-    "./index.js:2:6
+    "./index.js:1:0
     Module not found: Can't resolve 'b'
-      1 | 
-    > 2 |       import Comp from 'b'
-        |      ^
-      3 | 
-      4 |       export default () => {
-      5 |         return ("
+    > 1 | import Comp from 'b'
+      2 |       export default function Oops() {
+      3 |         return (
+      4 |           <div>"
   `)
 
   await cleanup()
