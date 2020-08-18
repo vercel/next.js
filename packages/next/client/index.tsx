@@ -681,7 +681,7 @@ async function doRender({
 
       // Force browser to recompute layout, which prevents a flash of unstyled
       // content:
-      window.getComputedStyle(document.body, 'offsetHeight')
+      getComputedStyle(document.body, 'height')
     }
 
     resolvePromise()
