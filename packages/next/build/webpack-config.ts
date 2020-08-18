@@ -1142,7 +1142,7 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
-    if (dev && originalDevtool !== webpackConfig.devtool) {
+    if (dev && originalDevtool !== webpackConfig.devtool && webpackConfig.devtool !== false) {
       webpackConfig.devtool = originalDevtool
       devtoolRevertWarning(originalDevtool)
     }
