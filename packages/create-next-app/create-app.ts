@@ -19,7 +19,7 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
-import { isWriteable } from '../next/build/is-writeable'
+import { isWriteable } from './helpers/is-writeable'
 
 export class DownloadError extends Error {}
 
