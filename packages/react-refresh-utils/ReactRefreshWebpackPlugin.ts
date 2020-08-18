@@ -6,7 +6,30 @@ import {
   // @ts-ignore exists in webpack 5
   RuntimeGlobals,
   version,
+  // @ts-ignore exists in webpack 5
+  compilation as Compilation,
 } from 'webpack'
+
+// Shared between webpack 4 and 5:
+function injectRefreshFunctions(compilation: Compilation.Compilation) {
+  const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
+
+  hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
+    Template.asString([
+      source,
+      '',
+      '// noop fns to prevent runtime errors during initialization',
+      'if (typeof self !== "undefined") {',
+      Template.indent('self.$RefreshReg$ = function () {};'),
+      Template.indent('self.$RefreshSig$ = function () {'),
+      Template.indent(Template.indent('return function (type) {')),
+      Template.indent(Template.indent(Template.indent('return type;'))),
+      Template.indent(Template.indent('};')),
+      Template.indent('};'),
+      '}',
+    ])
+  )
+}
 
 function webpack4(compiler: Compiler) {
   // Webpack 4 does not have a method to handle interception of module
@@ -16,10 +39,12 @@ function webpack4(compiler: Compiler) {
   // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
-    const hookRequire: typeof compilation['mainTemplate']['hooks']['requireExtensions'] = (compilation
-      .mainTemplate.hooks as any).require
+    injectRefreshFunctions(compilation)
 
-    hookRequire.tap('ReactFreshWebpackPlugin', (source, _chunk, _hash) => {
+    const hookRequire: any = (compilation.mainTemplate.hooks as any).require
+
+    // @ts-ignore webpack 5 types compat
+    hookRequire.tap('ReactFreshWebpackPlugin', (source: string) => {
       // Webpack 4 evaluates module code on the following line:
       // ```
       // modules[moduleId].call(module.exports, module, module.exports, hotCreateRequire(moduleId));
@@ -27,6 +52,7 @@ function webpack4(compiler: Compiler) {
       // https://github.com/webpack/webpack/blob/4c644bf1f7cb067c748a52614500e0e2182b2700/lib/MainTemplate.js#L200
 
       const lines = source.split('\n')
+      // @ts-ignore webpack 5 types compat
       const evalIndex = lines.findIndex((l) =>
         l.includes('modules[moduleId].call(')
       )
@@ -105,7 +131,10 @@ function webpack5(compiler: Compiler) {
     }
   }
 
+  // @ts-ignore webpack 5 types compat
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
+    injectRefreshFunctions(compilation)
+
     // @ts-ignore Exists in webpack 5
     compilation.hooks.additionalTreeRuntimeRequirements.tap(
       'ReactFreshWebpackPlugin',

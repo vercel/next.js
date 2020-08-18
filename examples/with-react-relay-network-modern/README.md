@@ -2,7 +2,7 @@
 
 [Relay Modern](https://relay.dev/) is a new version of Relay designed from the ground up to be easier to use, more extensible and, most of all, able to improve performance on mobile devices. Relay Modern accomplishes this with static queries and ahead-of-time code generation.
 
-This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
+This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.
 
 ## Deploy your own
 

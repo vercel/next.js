@@ -3,7 +3,6 @@ import retry from 'async-retry'
 import chalk from 'chalk'
 import cpy from 'cpy'
 import fs from 'fs'
-import makeDir from 'make-dir'
 import os from 'os'
 import path from 'path'
 import {
@@ -14,6 +13,7 @@ import {
   hasRepo,
   RepoInfo,
 } from './helpers/examples'
+import { makeDir } from './helpers/make-dir'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'

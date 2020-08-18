@@ -254,3 +254,67 @@ test('can fast refresh a page with config', async () => {
 
   await cleanup()
 })
+
+// https://github.com/vercel/next.js/issues/11504
+test('shows an overlay for a server-side error', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'pages/index.js',
+    `export default function () { throw new Error('pre boom'); }`
+  )
+
+  const didNotReload = await session.patch(
+    'pages/index.js',
+    `export default function () { throw new Error('boom'); }`
+  )
+  expect(didNotReload).toBe(false)
+
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const source = await session.getRedboxSource()
+  expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    "> 1 | export default function () { throw new Error('boom'); }
+        |                                   ^"
+  `)
+
+  await cleanup()
+})
+
+// https://github.com/vercel/next.js/issues/13574
+test('custom loader (mdx) should have Fast Refresh enabled', async () => {
+  const files = new Map()
+  files.set(
+    'next.config.js',
+    `
+      const withMDX = require("@next/mdx")({
+        extension: /\\.mdx?$/,
+      });
+      module.exports = withMDX({
+        pageExtensions: ["js", "mdx"],
+      });
+    `
+  )
+  files.set('pages/index.mdx', `Hello World!`)
+
+  const [session, cleanup] = await sandbox(undefined, files, false)
+  expect(
+    await session.evaluate(() => document.querySelector('#__next').textContent)
+  ).toBe('Hello World!')
+
+  let didNotReload = await session.patch('pages/index.mdx', `Hello Foo!`)
+  expect(didNotReload).toBe(true)
+  expect(await session.hasRedbox()).toBe(false)
+  expect(
+    await session.evaluate(() => document.querySelector('#__next').textContent)
+  ).toBe('Hello Foo!')
+
+  didNotReload = await session.patch('pages/index.mdx', `Hello Bar!`)
+  expect(didNotReload).toBe(true)
+  expect(await session.hasRedbox()).toBe(false)
+  expect(
+    await session.evaluate(() => document.querySelector('#__next').textContent)
+  ).toBe('Hello Bar!')
+
+  await cleanup()
+})

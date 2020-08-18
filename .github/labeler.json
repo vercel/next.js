@@ -6,7 +6,8 @@
     "type: next": [
       "packages/next/**",
       "packages/react-dev-overlay/**",
-      "packages/react-refresh-utils/**"
+      "packages/react-refresh-utils/**",
+      "packages/next-codemod/**"
     ]
   }
 }

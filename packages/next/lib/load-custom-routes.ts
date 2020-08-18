@@ -8,6 +8,7 @@ import {
 export type Rewrite = {
   source: string
   destination: string
+  basePath?: false
 }
 
 export type Redirect = Rewrite & {
@@ -17,6 +18,7 @@ export type Redirect = Rewrite & {
 
 export type Header = {
   source: string
+  basePath?: false
   headers: Array<{ key: string; value: string }>
 }
 
@@ -27,6 +29,11 @@ export function getRedirectStatus(route: Redirect): number {
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
   )
+}
+
+export function normalizeRouteRegex(regex: string) {
+  // clean up un-necessary escaping from regex.source which turns / into \\/
+  return regex.replace(/\\\//g, '/')
 }
 
 function checkRedirect(
@@ -143,10 +150,11 @@ function checkCustomRoutes(
     allowedKeys = new Set([
       'source',
       'destination',
+      'basePath',
       ...(isRedirect ? ['statusCode', 'permanent'] : []),
     ])
   } else {
-    allowedKeys = new Set(['source', 'headers'])
+    allowedKeys = new Set(['source', 'headers', 'basePath'])
   }
 
   for (const route of routes) {
@@ -162,9 +170,30 @@ function checkCustomRoutes(
       continue
     }
 
+    if (
+      type === 'rewrite' &&
+      (route as Rewrite).basePath === false &&
+      !(
+        (route as Rewrite).destination.startsWith('http://') ||
+        (route as Rewrite).destination.startsWith('https://')
+      )
+    ) {
+      console.error(
+        `The route ${
+          (route as Rewrite).source
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
+      )
+      numInvalidRoutes++
+      continue
+    }
+
     const keys = Object.keys(route)
     const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
+
+    if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
+      invalidParts.push('`basePath` must be undefined or false')
+    }
 
     if (!route.source) {
       invalidParts.push('`source` is missing')
@@ -345,28 +374,42 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
-  redirects.unshift(
-    ...(config.experimental.trailingSlash
-      ? [
-          {
-            source: '/:path*/:file.:ext/',
-            destination: '/:path*/:file.:ext',
-            permanent: true,
-          },
-          {
-            source: '/:path*/:notfile([^/.]+)',
-            destination: '/:path*/:notfile/',
-            permanent: true,
-          },
-        ]
-      : [
-          {
-            source: '/:path+/',
-            destination: '/:path+',
-            permanent: true,
-          },
-        ])
-  )
+  if (config.trailingSlash) {
+    redirects.unshift(
+      {
+        source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+        destination: '/:file',
+        permanent: true,
+      },
+      {
+        source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+        destination: '/:notfile/',
+        permanent: true,
+      }
+    )
+    if (config.basePath) {
+      redirects.unshift({
+        source: config.basePath,
+        destination: config.basePath + '/',
+        permanent: true,
+        basePath: false,
+      })
+    }
+  } else {
+    redirects.unshift({
+      source: '/:path+/',
+      destination: '/:path+',
+      permanent: true,
+    })
+    if (config.basePath) {
+      redirects.unshift({
+        source: config.basePath + '/',
+        destination: config.basePath,
+        permanent: true,
+        basePath: false,
+      })
+    }
+  }
 
   return {
     headers,
