@@ -1073,3 +1073,165 @@ test('logbox: anchors links in error messages', async () => {
 
   await cleanup()
 })
+
+test('<Link> component props errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return <Link />
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+    `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
+  )
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return <Link href="/">Abc</Link>
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={false}
+            scroll={false}
+            shallow={false}
+            passHref={false}
+            prefetch={false}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={true}
+            scroll={true}
+            shallow={true}
+            passHref={true}
+            prefetch={true}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={undefined}
+            scroll={undefined}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={undefined}
+            scroll={'oops'}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+    "Error: Failed prop type: The prop \`scroll\` expects a \`boolean\` in \`<Link>\`, but got \`string\` instead.
+    Open your browser's console to view the Component stack trace."
+  `)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href={false}
+            as="/"
+            replace={undefined}
+            scroll={'oops'}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+    "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`boolean\` instead.
+    Open your browser's console to view the Component stack trace."
+  `)
+
+  await cleanup()
+})
