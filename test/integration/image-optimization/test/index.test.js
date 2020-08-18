@@ -30,31 +30,37 @@ function runTests() {
 function checkImagesOnPage(path) {
   it('should not preload tiny images', async () => {
     const html = await renderViaHTTP(appPort, path)
-    expect(html).not.toContain('<link rel="preload" href="tiny-image.jpg"/>')
+    expect(html).not.toContain(
+      '<link rel="preload" href="tiny-image.jpg" as="image"/>'
+    )
   })
   it('should not add a preload if one already exists', async () => {
     let html = await renderViaHTTP(appPort, path)
     html = html.replace(
-      '<link rel="preload" href="already-preloaded.jpg"/>',
+      '<link rel="preload" href="already-preloaded.jpg" as="image"/>',
       ''
     )
     expect(html).not.toContain(
-      '<link rel="preload" href="already-preloaded.jpg"/>'
+      '<link rel="preload" href="already-preloaded.jpg" as="image"/>'
     )
   })
   it('should not preload hidden images', async () => {
     const html = await renderViaHTTP(appPort, path)
     expect(html).not.toContain(
-      '<link rel="preload" href="hidden-image-1.jpg"/>'
+      '<link rel="preload" href="hidden-image-1.jpg" as="image"/>'
     )
     expect(html).not.toContain(
-      '<link rel="preload" href="hidden-image-2.jpg"/>'
+      '<link rel="preload" href="hidden-image-2.jpg" as="image"/>'
     )
   })
   it('should preload exactly two eligible images', async () => {
     const html = await renderViaHTTP(appPort, path)
-    expect(html).toContain('<link rel="preload" href="main-image-1.jpg"/>')
-    expect(html).not.toContain('<link rel="preload" href="main-image-2.jpg"/>')
+    expect(html).toContain(
+      '<link rel="preload" href="main-image-1.jpg" as="image"/>'
+    )
+    expect(html).not.toContain(
+      '<link rel="preload" href="main-image-2.jpg" as="image"/>'
+    )
   })
 }
 
