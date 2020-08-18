@@ -608,7 +608,11 @@ async function doRender({
     const required: Promise<void>[] = styleSheets.map((href) => {
       const [link, promise] = createLink(href, 'stylesheet')
       link.setAttribute('data-n-staging', '')
-      link.setAttribute('media', 'none')
+      // Media `none` does not work in Firefox, so `print` is more
+      // cross-browser. Since this is so short lived we don't have to worry
+      // about style thrashing in a print view (where no routing is going to be
+      // happening anyway).
+      link.setAttribute('media', 'print')
       if (referenceNode) {
         referenceNode.parentNode!.insertBefore(link, referenceNode.nextSibling)
         referenceNode = link
@@ -674,6 +678,10 @@ async function doRender({
           el.removeAttribute('media')
           el.setAttribute('data-n-p', '')
         })
+
+      // Force browser to recompute layout, which prevents a flash of unstyled
+      // content:
+      getComputedStyle(document.body, 'height')
     }
 
     resolvePromise()
