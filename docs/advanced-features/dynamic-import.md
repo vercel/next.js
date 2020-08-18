@@ -1,5 +1,5 @@
 ---
-description: Dynamically import JavaScript modules and React Components and split your code into manageable chunks.
+description: Dynamically import React Components and split your code into manageable chunks.
 ---
 
 # Dynamic Import
@@ -11,7 +11,7 @@ description: Dynamically import JavaScript modules and React Components and spli
   </ul>
 </details>
 
-Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dynamic-import) for JavaScript. With it you can import JavaScript modules (inc. React Components) dynamically and work with them. They also work with SSR.
+Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dynamic-import) for JavaScript. With it you can import React Components dynamically and work with them. They also work with SSR.
 
 You can think of dynamic imports as another way to split your code into manageable chunks.
 
