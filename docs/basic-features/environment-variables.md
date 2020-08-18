@@ -127,6 +127,4 @@ There is a small difference between `test` environment, and both `development` a
 
 ## NODE_ENV
 
-The value of `NODE_ENV` is used to determined which `.env.*` file to load when running the application. However, this value is not passed to your application code when using the `next` CLI. Instead, when running `next dev` then `process.env.NODE_ENV` is set to `development`, and when running `next start` it is set to `production`.
-
-For example, when calling `NODE_ENV=test next build`, only the environment variables in `.env.test` will be loaded, but the value of `process.env.NODE_ENV` inside your application code will be `production`. This will allow the build output to mirror your production environment exactly, aside from the environment variables in `.env.test`.
+The value of `NODE_ENV` is used to determined which `.env.*` file to load when running the application. However, this value is not passed from the environment to your application code when using the `next` CLI. Instead, when running `next dev` then `process.env.NODE_ENV` is set to `development`, and when running `next build` it is set to `production`.
