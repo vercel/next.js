@@ -48,10 +48,10 @@ import Router, {
   DynamicRoutes,
   PageChecker,
   Params,
-  prepareDestination,
   route,
   Route,
 } from './router'
+import prepareDestination from '../lib/router/utils/prepare-destination'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -169,10 +169,11 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      optimizeFonts: this.nextConfig.experimental.optimizeFonts,
-      fontManifest: this.nextConfig.experimental.optimizeFonts
-        ? requireFontManifest(this.distDir, this._isLikeServerless)
-        : null,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      fontManifest:
+        this.nextConfig.experimental.optimizeFonts && !dev
+          ? requireFontManifest(this.distDir, this._isLikeServerless)
+          : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
     }
 
@@ -252,7 +253,6 @@ export default class Server {
       this.onErrorMiddleware({ err })
     }
     if (this.quiet) return
-    // tslint:disable-next-line
     console.error(err)
   }
 

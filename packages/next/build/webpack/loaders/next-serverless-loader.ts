@@ -147,7 +147,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
-    const {prepareDestination} = require('next/dist/next-server/server/router')
+    const prepareDestination = require('next/dist/next-server/lib/router/utils/prepare-destination').default
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -163,7 +163,7 @@ const nextServerlessLoader: loader.Loader = function () {
             "${basePath}"
           )
 
-          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          Object.assign(parsedUrl.query, parsedDestination.query)
           delete parsedDestination.query
 
           Object.assign(parsedUrl, parsedDestination)
@@ -439,14 +439,20 @@ const nextServerlessLoader: loader.Loader = function () {
 
         // make sure to normalize req.url on Vercel to strip dynamic params
         // from the query which are added during routing
-        if (trustQuery) {
-          const _parsedUrl = parseUrl(req.url, true)
-          delete _parsedUrl.search
+        ${
+          pageIsDynamicRoute
+            ? `
+          if (trustQuery) {
+            const _parsedUrl = parseUrl(req.url, true)
+            delete _parsedUrl.search
 
-          for (const param of Object.keys(defaultRouteRegex.groups)) {
-            delete _parsedUrl.query[param]
+            for (const param of Object.keys(defaultRouteRegex.groups)) {
+              delete _parsedUrl.query[param]
+            }
+            req.url = formatUrl(_parsedUrl)
           }
-          req.url = formatUrl(_parsedUrl)
+        `
+            : ''
         }
 
         const isFallback = parsedUrl.query.__nextFallback

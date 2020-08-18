@@ -36,6 +36,12 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
+    const browser = await webdriver(appPort, '/rewriting-to-auto-export')
+    const text = await browser.eval(() => document.documentElement.innerHTML)
+    expect(text).toContain('auto-export hello')
+  })
+
   it('should handle one-to-one rewrite successfully', async () => {
     const html = await renderViaHTTP(appPort, '/first')
     expect(html).toMatch(/hello/)
@@ -165,6 +171,12 @@ const runTests = (isDev = false) => {
   it('should rewrite with params successfully', async () => {
     const html = await renderViaHTTP(appPort, '/test/hello')
     expect(html).toMatch(/Hello/)
+  })
+
+  it('should not append params when one is used in destination path', async () => {
+    const html = await renderViaHTTP(appPort, '/test/with-params?a=b')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('p').text())).toEqual({ a: 'b' })
   })
 
   it('should double redirect successfully', async () => {
@@ -391,7 +403,6 @@ const runTests = (isDev = false) => {
       {
         pathname: '/first',
         query: {
-          path: 'first',
           keep: 'me',
           and: 'me',
         },
@@ -512,6 +523,7 @@ const runTests = (isDev = false) => {
         version: 3,
         pages404: true,
         basePath: '',
+        dataRoutes: [],
         redirects: [
           {
             destination: '/:path+',
@@ -805,6 +817,11 @@ const runTests = (isDev = false) => {
         ],
         rewrites: [
           {
+            destination: '/auto-export/hello',
+            regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
+            source: '/rewriting-to-auto-export',
+          },
+          {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
             source: '/to-another',
@@ -996,13 +1013,6 @@ const runTests = (isDev = false) => {
         }
       }
     })
-  } else {
-    it('should show error for dynamic auto export rewrite', async () => {
-      const html = await renderViaHTTP(appPort, '/to-another')
-      expect(html).toContain(
-        `Rewrites don't support auto-exported dynamic pages yet`
-      )
-    })
   }
 }
 
@@ -1033,6 +1043,16 @@ describe('Custom routes', () => {
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
 
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      buildId = 'development'
+    })
+    afterAll(() => killApp(app))
+    runTests(true)
+  })
+
   describe('no-op rewrite', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -1044,24 +1064,11 @@ describe('Custom routes', () => {
     })
     afterAll(() => killApp(app))
 
-    it('should not show error for no-op rewrite and auto export dynamic route', async () => {
+    it('should not error for no-op rewrite and auto export dynamic route', async () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
       const html = await browser.eval(() => document.documentElement.innerHTML)
-      expect(html).not.toContain(
-        `Rewrites don't support auto-exported dynamic pages yet`
-      )
       expect(html).toContain(`auto-export my-slug`)
     })
-  })
-
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
   })
 
   describe('server mode', () => {
@@ -1162,7 +1169,6 @@ describe('Custom routes', () => {
       expect(data).toEqual({
         query: {
           slug: 'first',
-          name: 'first',
           hello: 'first',
         },
       })

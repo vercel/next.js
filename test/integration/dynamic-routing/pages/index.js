@@ -9,12 +9,24 @@ const Page = () => {
         <a id="view-post-1">View post 1</a>
       </Link>
       <br />
+      <Link href="/post-1">
+        <a id="view-post-1-no-as">View post 1</a>
+      </Link>
+      <br />
       <Link href="/[name]/comments" as="/post-1/comments">
         <a id="view-post-1-comments">View post 1 comments</a>
       </Link>
       <br />
       <Link href="/[name]/[comment]" as="/post-1/comment-1">
         <a id="view-post-1-comment-1">View comment 1 on post 1</a>
+      </Link>
+      <br />
+      <Link href="/post-1/comment-1">
+        <a id="view-post-1-comment-1-no-as">View comment 1 on post 1</a>
+      </Link>
+      <br />
+      <Link href="/added-later/first">
+        <a id="added-later-link">/added-later/first</a>
       </Link>
       <br />
       <Link href="/blog/[post]/comment/[id]" as="/blog/321/comment/123">
@@ -48,6 +60,9 @@ const Page = () => {
       </Link>
       <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello1/hello2">
         <a id="ssg-catch-all-multi">Catch-all route (multi)</a>
+      </Link>
+      <Link href="/p1/p2/all-ssg/hello1/hello2">
+        <a id="ssg-catch-all-multi-no-as">Catch-all route (multi)</a>
       </Link>
       <Link
         href="/p1/p2/nested-all-ssg/[...rest]"
