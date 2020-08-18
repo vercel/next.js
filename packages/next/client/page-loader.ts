@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
@@ -61,13 +61,15 @@ export function createLink(
   return [
     link,
     new Promise((res, rej) => {
-      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-      link!.href = href
-      link!.rel = rel
+      // The order of property assignment here is intentional:
       if (as) link!.as = as
-
+      link!.rel = rel
+      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
       link!.onload = res
       link!.onerror = rej
+
+      // `href` should always be last:
+      link!.href = href
     }),
   ]
 }
