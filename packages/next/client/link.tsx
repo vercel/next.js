@@ -160,7 +160,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       actual: string
     }) {
       return new Error(
-        `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`Link\`, but got \`${args.actual}\` instead.` +
+        `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
           (typeof window !== 'undefined'
             ? "\nOpen your browser's console to view the Component stack trace."
             : '')
