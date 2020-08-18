@@ -60,9 +60,17 @@ The `context` parameter is an object containing the following keys:
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
-> Imports used in `getStaticProps` will not be bundled for the client-side.
-> Also, you can write server-side code directly in `getStaticProps`.
-> API route should not be fetched from `getStaticProps`, as [explained below](#write-server-side-code-directly).
+> Imports used in `getStaticProps` will [not be bundled for the client-side](#write-server-side-code-directly).
+>
+> This means you can write **server-side code directly in `getStaticProps`**.
+> This includes reading from the filesystem or a database.
+
+> **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
+> call an API route in your application.
+> Instead, directly import the API route and call its function yourself.
+> You may need to slightly refactor your code for this approach.
+>
+> Fetching from an external API is fine!
 
 ### Simple Example
 
@@ -537,8 +545,16 @@ The `context` parameter is an object containing the following keys:
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
 > Imports used in `getServerSideProps` will not be bundled for the client-side.
-> Also, you can write server-side code directly in `getServerSideProps`.
-> API route should not be fetched from `getServerSideProps`, as [explained below](#only-runs-on-server-side).
+>
+> This means you can write **server-side code directly in `getServerSideProps`**.
+> This includes reading from the filesystem or a database.
+
+> **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
+> call an API route in your application.
+> Instead, directly import the API route and call its function yourself.
+> You may need to slightly refactor your code for this approach.
+>
+> Fetching from an external API is fine!
 
 ### Simple example
 
