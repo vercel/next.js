@@ -132,11 +132,13 @@ export default class Router {
               requireBasePath: false,
               match: route('/:path*'),
               fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
-                const { pathname } = parsedCheckerUrl
+                let { pathname } = parsedCheckerUrl
+                pathname = pathname?.replace(/\/$/, '') || '/'
 
                 if (!pathname) {
                   return { finished: false }
                 }
+
                 if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(
                     checkerReq,
