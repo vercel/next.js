@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "filename": {
+      "type": "string"
+    },
+    "chunkFilename": {
+      "type": "string"
+    },
+    "moduleFilename": {
+      "instanceof": "Function"
+    },
+    "ignoreOrder": {
+      "type": "boolean"
+    }
+  }
+}
