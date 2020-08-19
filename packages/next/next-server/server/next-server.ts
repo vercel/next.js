@@ -787,7 +787,7 @@ export default class Server {
 
           // if basePath is defined require it be present
           if (basePath) {
-            if (pathParts[0] !== basePath) return { finished: false }
+            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
             pathParts.shift()
           }
 
