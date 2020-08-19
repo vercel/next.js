@@ -237,7 +237,8 @@ export default async function getBaseWebpackConfig(
         distDir,
         pagesDir,
         cwd: dir,
-        cache: true,
+        // Webpack 5 has a built-in loader cache
+        cache: !config.experimental.unstable_webpack5cache,
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
@@ -1116,6 +1117,14 @@ export default async function getBaseWebpackConfig(
         webpackConfig.optimization = {}
       }
       webpackConfig.optimization.usedExports = false
+    }
+
+    // Enable webpack 5 caching
+    if (config.experimental.unstable_webpack5cache) {
+      webpackConfig.cache = {
+        type: 'filesystem',
+        cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+      }
     }
   }
 
