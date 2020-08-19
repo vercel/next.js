@@ -257,7 +257,14 @@ describe('create next app', () => {
       const projectName = 'not-writable'
       expect.assertions(2)
       try {
-        await runStarter(cwd, projectName)
+        const res = await runStarter(cwd, projectName)
+
+        if (process.platform === 'win32') {
+          expect(res.exitCode).toBe(0)
+          expect(
+            fs.existsSync(path.join(cwd, projectName, 'package.json'))
+          ).toBeTruthy()
+        }
       } catch (e) {
         // eslint-disable-next-line jest/no-try-expect
         expect(e.exitCode).toBe(1)
