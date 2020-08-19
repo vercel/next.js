@@ -164,7 +164,6 @@ export default class Router {
       // if it is set
       let currentPathname = parsedUrlUpdated.pathname
       const originalPathname = currentPathname
-      const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
 
       if (!isCustomRoute) {
@@ -176,14 +175,8 @@ export default class Router {
 
       // Check if the match function matched
       if (newParams) {
-        // since we require basePath be present for non-custom-routes we
-        // 404 here when we matched an fs route
         if (!isCustomRoute) {
           if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
-            if (requireBasePath) {
-              // consider this a non-match so the 404 renders
-              return false
-            }
             // page checker occurs before rewrites so we need to continue
             // to check those since they don't always require basePath
             continue
