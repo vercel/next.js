@@ -94,13 +94,15 @@ export async function createApp({
   }
 
   const root = path.resolve(appPath)
-  if (!(await isWriteable(root))) {
+
+  if (!(await isWriteable(path.dirname(root)))) {
     console.error('The operation was rejected by your operating system.')
     console.error(
-      'It is likely you do not have the permissions to access this file as the current user'
+      'It is likely you do not have write permissions for this folder as the current user'
     )
     process.exit(1)
   }
+
   const appName = path.basename(root)
 
   await makeDir(root)
