@@ -96,9 +96,11 @@ export async function createApp({
   const root = path.resolve(appPath)
 
   if (!(await isWriteable(path.dirname(root)))) {
-    console.error('The operation was rejected by your operating system.')
     console.error(
-      'It is likely you do not have write permissions for this folder as the current user'
+      'The application path is not writable, please check folder permissions and try again.'
+    )
+    console.error(
+      'It is likely you do not have write permissions for this folder.'
     )
     process.exit(1)
   }

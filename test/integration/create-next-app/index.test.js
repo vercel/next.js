@@ -270,7 +270,7 @@ describe('create next app', () => {
         expect(e.exitCode).toBe(1)
         // eslint-disable-next-line jest/no-try-expect
         expect(e.stderr).toMatch(
-          /you do not have write permissions for this folder as the current user/
+          /you do not have write permissions for this folder/
         )
       }
     }, 0o500)
