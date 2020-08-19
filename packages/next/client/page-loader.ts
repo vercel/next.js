@@ -80,6 +80,20 @@ function appendLink(href: string, rel: string, as?: string): Promise<any> {
   return res
 }
 
+function loadScript(url: string): Promise<any> {
+  return new Promise((res, rej) => {
+    const script = document.createElement('script')
+    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
+      script.type = 'module'
+    }
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+    script.src = url
+    script.onload = res
+    script.onerror = () => rej(pageLoadError(url))
+    document.body.appendChild(script)
+  })
+}
+
 export type GoodPageCache = {
   page: ComponentType
   mod: any
@@ -173,14 +187,11 @@ export default class PageLoader {
   }
 
   // Returns a promise for the dependencies for a particular route
-  getDependencies(route: string): Promise<string[]> {
+  private getDependencies(route: string): Promise<string[]> {
     return this.promisedBuildManifest!.then((m) => {
       return m[route]
         ? m[route].map((url) => `${this.assetPrefix}/_next/${encodeURI(url)}`)
-        : (this.pageRegisterEvents.emit(route, {
-            error: pageLoadError(route),
-          }),
-          [])
+        : Promise.reject(pageLoadError(route))
     })
   }
 
@@ -311,32 +322,45 @@ export default class PageLoader {
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
         if (process.env.NODE_ENV === 'production') {
-          this.getDependencies(route).then((deps) => {
-            deps.forEach((d) => {
-              if (
-                d.endsWith('.js') &&
-                !document.querySelector(`script[src^="${d}"]`)
-              ) {
-                this.loadScript(d, route)
-              }
+          this.getDependencies(route)
+            .then((deps) => {
+              const pending: Promise<any>[] = []
+              deps.forEach((d) => {
+                if (
+                  d.endsWith('.js') &&
+                  !document.querySelector(`script[src^="${d}"]`)
+                ) {
+                  pending.push(loadScript(d))
+                }
 
-              // Prefetch CSS as it'll be needed when the page JavaScript
-              // evaluates. This will only trigger if explicit prefetching is
-              // disabled for a <Link>... prefetching in this case is desirable
-              // because we *know* it's going to be used very soon (page was
-              // loaded).
-              if (
-                d.endsWith('.css') &&
-                !document.querySelector(
-                  `link[rel="${relPreload}"][href^="${d}"]`
-                )
-              ) {
-                appendLink(d, relPreload, 'style').catch(() => {
-                  /* ignore preload error */
-                })
-              }
+                // Prefetch CSS as it'll be needed when the page JavaScript
+                // evaluates. This will only trigger if explicit prefetching is
+                // disabled for a <Link>... prefetching in this case is desirable
+                // because we *know* it's going to be used very soon (page was
+                // loaded).
+                if (
+                  d.endsWith('.css') &&
+                  !document.querySelector(
+                    `link[rel="${relPreload}"][href^="${d}"]`
+                  )
+                ) {
+                  // This is not pushed into `pending` because we don't need to
+                  // wait for these to resolve. To prevent an unhandled
+                  // rejection, we swallow the error which is handled later in
+                  // the rendering cycle (this is just a preload optimization).
+                  appendLink(d, relPreload, 'style').catch(() => {
+                    /* ignore preload error */
+                  })
+                }
+              })
+              return Promise.all(pending)
             })
-          })
+            .catch((err) => {
+              // Mark the page as failed to load if any of its required scripts
+              // fail to load:
+              this.pageCache[route] = { error: err }
+              fire({ error: err })
+            })
         } else {
           // Development only. In production the page file is part of the build manifest
           route = normalizeRoute(route)
@@ -345,23 +369,14 @@ export default class PageLoader {
           const url = `${this.assetPrefix}/_next/static/chunks/pages${encodeURI(
             scriptRoute
           )}`
-          this.loadScript(url, route)
+          loadScript(url).catch((err) => {
+            // Mark the page as failed to load if its script fails to load:
+            this.pageCache[route] = { error: err }
+            fire({ error: err })
+          })
         }
       }
     })
-  }
-
-  loadScript(url: string, route: string) {
-    const script = document.createElement('script')
-    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
-      script.type = 'module'
-    }
-    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    script.src = url
-    script.onerror = () => {
-      this.pageRegisterEvents.emit(route, { error: pageLoadError(url) })
-    }
-    document.body.appendChild(script)
   }
 
   // This method if called by the route code.
