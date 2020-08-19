@@ -783,6 +783,14 @@ export default class Server {
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
+          const { basePath } = this.nextConfig
+
+          // if basePath is defined require it be present
+          if (basePath) {
+            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
+            pathParts.shift()
+          }
+
           const path = `/${pathParts.join('/')}`
 
           if (publicFiles.has(path)) {

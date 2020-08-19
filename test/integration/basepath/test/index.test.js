@@ -135,6 +135,17 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should 404 for public file without basePath', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/data.txt')
+    expect(res.status).toBe(404)
+  })
+
+  it('should serve public file with basePath correctly', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/docs/data.txt')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('hello world')
+  })
+
   it('should rewrite with basePath by default', async () => {
     const html = await renderViaHTTP(context.appPort, '/docs/rewrite-1')
     expect(html).toContain('getServerSideProps')
