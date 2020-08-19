@@ -1,8 +1,8 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 
-export default (context) => {
+export default (context, isProd = false) => {
   describe('Client Navigation 404', () => {
     describe('should show 404 upon client replacestate', () => {
       it('should navigate the page', async () => {
@@ -31,5 +31,28 @@ export default (context) => {
       await check(() => browser.elementByCss('#errorStatusCode').text(), /404/)
       expect(await browser.eval(() => window.beforeNav)).not.toBe('hi')
     })
+
+    if (isProd) {
+      it('should hard navigate to URL on failing to load missing bundle', async () => {
+        const browser = await webdriver(context.appPort, '/to-missing-link')
+        await browser.eval(() => (window.beforeNav = 'hi'))
+        expect(
+          await browser.eval(() =>
+            document.querySelector('script[src*="pages/missing"]')
+          )
+        ).toBeFalsy()
+        await browser.elementByCss('#to-missing').moveTo()
+        await waitFor(2000)
+        expect(
+          await browser.eval(() =>
+            document.querySelector('script[src*="pages/missing"]')
+          )
+        ).toBeTruthy()
+        await browser.elementByCss('#to-missing').click()
+        await waitFor(2000)
+        expect(await browser.eval(() => window.beforeNav)).not.toBe('hi')
+        await check(() => browser.elementByCss('#missing').text(), /poof/)
+      })
+    }
   })
 }
