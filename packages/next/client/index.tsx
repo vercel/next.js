@@ -648,7 +648,7 @@ async function doRender({
     ;([].slice.call(
       document.querySelectorAll('link[data-n-staging]')
     ) as HTMLLinkElement[]).forEach((el) => {
-      el.remove()
+      el.parentNode!.removeChild(el)
     })
   }
   renderPromise.catch((abortError) => {
@@ -668,7 +668,7 @@ async function doRender({
       // Remove old stylesheets:
       ;([].slice.call(
         document.querySelectorAll('link[data-n-p]')
-      ) as HTMLLinkElement[]).forEach((el) => el.remove())
+      ) as HTMLLinkElement[]).forEach((el) => el.parentNode!.removeChild(el))
 
       // Activate new stylesheets:
       ;[].slice
