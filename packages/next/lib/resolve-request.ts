@@ -13,6 +13,6 @@ export function resolveRequest(req: string, issuer: string): string {
       issuer.endsWith(path.posix.sep) || issuer.endsWith(path.win32.sep)
         ? issuer
         : path.dirname(issuer)
-    return resolve.sync(req, { basedir })
+    return resolve.sync(req, { basedir, preserveSymlinks: false })
   }
 }
