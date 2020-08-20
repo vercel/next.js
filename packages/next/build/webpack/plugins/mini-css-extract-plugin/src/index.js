@@ -157,9 +157,23 @@ class MiniCssExtractPlugin {
         const { hashFunction, hashDigest, hashDigestLength } = outputOptions
         const hash = createHash(hashFunction)
 
-        for (const m of getModulesIterable(compilation, chunk)) {
-          if (m.type === MODULE_TYPE) {
-            m.updateHash(hash)
+        const modules = getModulesIterable(compilation, chunk)
+
+        if (modules) {
+          if (isWebpack5) {
+            const xor = new (require('webpack/lib/util/StringXor'))()
+            for (const m of modules) {
+              if (m.type === MODULE_TYPE) {
+                xor.add(compilation.chunkGraph.getModuleHash(m, chunk.runtime))
+              }
+            }
+            xor.updateHash(hash)
+          } else {
+            for (const m of modules) {
+              if (m.type === MODULE_TYPE) {
+                m.updateHash(hash)
+              }
+            }
           }
         }
 
@@ -346,7 +360,9 @@ class MiniCssExtractPlugin {
 
     const [chunkGroup] = chunk.groupsIterable
 
-    if (typeof chunkGroup.getModuleIndex2 === 'function') {
+    const getModulePostOrderIndex =
+      chunkGroup.getModulePostOrderIndex || chunkGroup.getModuleIndex2
+    if (typeof getModulePostOrderIndex === 'function') {
       // Store dependencies for modules
       const moduleDependencies = new Map(modules.map((m) => [m, new Set()]))
       const moduleDependenciesReasons = new Map(
@@ -361,7 +377,9 @@ class MiniCssExtractPlugin {
           .map((m) => {
             return {
               module: m,
-              index: cg.getModuleIndex2(m),
+              index: isWebpack5
+                ? cg.getModulePostOrderIndex(m)
+                : cg.getModuleIndex2(m),
             }
           })
           // eslint-disable-next-line no-undefined
