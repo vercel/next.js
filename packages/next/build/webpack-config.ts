@@ -726,6 +726,8 @@ export default async function getBaseWebpackConfig(
     optimization: {
       // Webpack 5 uses a new property for the same functionality
       ...(isWebpack5 ? { emitOnErrors: !dev } : { noEmitOnErrors: dev }),
+      // @ts-ignore: webpack 5 specific TODO: remove when webpack sources are updated in terser-webpack-plugin
+      ...(isWebpack5 ? { realContentHash: false } : {}),
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer ? false : splitChunksConfig,
