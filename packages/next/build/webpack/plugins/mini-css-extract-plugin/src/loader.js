@@ -56,6 +56,10 @@ export function pitch(request) {
   const outputOptions = {
     filename: childFilename,
     publicPath,
+    library: {
+      type: 'commonjs2',
+      name: null,
+    },
   }
   const childCompiler = this._compilation.createChildCompiler(
     `${pluginName} ${request}`,
@@ -63,7 +67,13 @@ export function pitch(request) {
   )
 
   new webpack.node.NodeTemplatePlugin(outputOptions).apply(childCompiler)
-  new webpack.LibraryTemplatePlugin(null, 'commonjs2').apply(childCompiler)
+  if (isWebpack5) {
+    new webpack.library.EnableLibraryPlugin(outputOptions.library.type).apply(
+      childCompiler
+    )
+  } else {
+    new webpack.LibraryTemplatePlugin(null, 'commonjs2').apply(childCompiler)
+  }
   new NodeTargetPlugin().apply(childCompiler)
   new (isWebpack5 ? webpack.EntryPlugin : webpack.SingleEntryPlugin)(
     this.context,
@@ -101,7 +111,7 @@ export function pitch(request) {
       if (isWebpack5) {
         compilation.hooks.processAssets.tap(
           {
-            name: 'NextJsBuildManifest',
+            name: pluginName,
             // @ts-ignore TODO: Remove ignore when webpack 5 is stable
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
           },
