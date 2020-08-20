@@ -641,17 +641,13 @@ export default async function getBaseWebpackConfig(
       return callback()
     }
 
-    let isNextExternal: boolean = false
-    if (isLocal) {
-      // we need to process next-server/lib/router/router so that
-      // the DefinePlugin can inject process.env values
-      isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
-        res
-      )
-
-      if (!isNextExternal) {
-        return callback()
-      }
+    // we need to process next-server/lib/router/router so that
+    // the DefinePlugin can inject process.env values
+    const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
+      res
+    )
+    if (isLocal && !isNextExternal) {
+      return callback()
     }
 
     // `isNextExternal` special cases Next.js' internal requires that
