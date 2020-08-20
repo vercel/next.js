@@ -314,6 +314,10 @@
             {
               "title": "React Strict Mode",
               "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
+            },
+            {
+              "title": "Inspecting build output",
+              "path": "/docs/api-reference/next.config.js/on-build-complete.md"
             }
           ]
         }

@@ -933,8 +933,8 @@ export default async function build(
     })
   )
 
+  const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
   if (ssgPages.size > 0) {
-    const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
     tbdPrerenderRoutes.forEach((tbdRoute) => {
       const normalizedRoute = normalizePagePath(tbdRoute)
       const dataRoute = path.posix.join(
@@ -1089,6 +1089,27 @@ export default async function build(
   }
 
   await telemetry.flush()
+  if (config.onBuildComplete) {
+    await Promise.resolve(
+      config.onBuildComplete({
+        additionalSsgPaths,
+        buildId,
+        distDir,
+        finalDynamicRoutes,
+        finalPrerenderRoutes,
+        hasPages404,
+        hybridAmpPages,
+        invalidPages,
+        pageInfos,
+        pagesManifest,
+        serverPropsPages,
+        ssgBlockingFallbackPages,
+        ssgPages,
+        ssgStaticFallbackPages,
+        staticPages,
+      })
+    )
+  }
 }
 
 export type ClientSsgManifest = Set<string>
