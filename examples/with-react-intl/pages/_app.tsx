@@ -22,7 +22,7 @@ const getInitialProps: typeof App.getInitialProps = async appContext => {
     App.getInitialProps(appContext),
   ]);
 
-  return {...appProps, locale, messages};
+  return {...(appProps as any), locale, messages};
 };
 
 MyApp.getInitialProps = getInitialProps;
