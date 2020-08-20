@@ -100,9 +100,14 @@ export function isSerializableProps(
 
       const newRefs = new Map(refs)
       if (
-        value.every((nestedValue, index) =>
-          isSerializable(newRefs, nestedValue, `${path}[${index}]`)
-        )
+        value.every((nestedValue, index) => {
+          // This prevents interpreting an array which has the same object multiple times as a circular structure
+          if (value.indexOf(nestedValue) === index) {
+            return isSerializable(newRefs, nestedValue, `${path}[${index}]`)
+          } else {
+            return true
+          }
+        })
       ) {
         return true
       }
