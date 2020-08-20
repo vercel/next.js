@@ -2,11 +2,11 @@
   "name": "with-react-intl",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_ICU_DATA=node_modules/full-icu next dev",
     "build": "next build && npm run extract:i18n && npm run compile:i18n",
     "extract:i18n": "formatjs extract '{pages,components}/*.{js,ts,tsx}' --format simple --out-file lang/en.json",
     "compile:i18n": "formatjs compile-folder --ast --format simple lang/ compiled-lang/",
-    "start": "NODE_ENV=production node --icu-data-dir=node_modules/full-icu server.js"
+    "start": "NODE_ENV=production NODE_ICU_DATA=node_modules/full-icu next start"
   },
   "dependencies": {
     "@formatjs/cli": "^2.7.3",
