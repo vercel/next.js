@@ -91,6 +91,18 @@ const nextDev: cliCommand = (argv) => {
         )
       }
     }
+
+    const [sassVersion, nodeSassVersion] = await Promise.all([
+      getPackageVersion({ cwd: dir, name: 'sass' }),
+      getPackageVersion({ cwd: dir, name: 'node-sass' }),
+    ])
+    if (sassVersion && nodeSassVersion) {
+      Log.warn(
+        'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
+          'Please remove the `node-sass` dependency from your project. ' +
+          ' Read more: https://err.sh/next.js/duplicate-sass'
+      )
+    }
   }
 
   const port = args['--port'] || 3000
