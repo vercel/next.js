@@ -18,6 +18,7 @@ const dirOldReact = join(__dirname, '../old-react')
 const dirOldReactDom = join(__dirname, '../old-react-dom')
 const dirExperimentalReact = join(__dirname, '../experimental-react')
 const dirExperimentalReactDom = join(__dirname, '../experimental-react-dom')
+const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
 describe('CLI Usage', () => {
   describe('no command', () => {
@@ -292,6 +293,22 @@ describe('CLI Usage', () => {
       expect(stderr).not.toMatch('disabled')
       expect(stderr).not.toMatch('outdated')
       expect(stderr).not.toMatch('`react`')
+
+      await killApp(instance)
+    })
+
+    test('duplicate sass deps', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirDuplicateSass, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).toMatch('both `sass` and `node-sass` installed')
 
       await killApp(instance)
     })
