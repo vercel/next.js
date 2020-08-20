@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
 import pathMatch from './lib/path-match'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 
 export const route = pathMatch()
 
@@ -133,7 +134,7 @@ export default class Router {
               match: route('/:path*'),
               fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
                 let { pathname } = parsedCheckerUrl
-                pathname = pathname?.replace(/\/$/, '') || '/'
+                pathname = removePathTrailingSlash(pathname || '/')
 
                 if (!pathname) {
                   return { finished: false }
