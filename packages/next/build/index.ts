@@ -102,7 +102,8 @@ export type PrerenderManifest = {
 export default async function build(
   dir: string,
   conf = null,
-  reactProductionProfiling = false
+  reactProductionProfiling = false,
+  debugOutput = false
 ): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
@@ -1024,7 +1025,10 @@ export default async function build(
       isModern: config.experimental.modern,
     }
   )
-  printCustomRoutes({ redirects, rewrites, headers })
+
+  if (debugOutput) {
+    printCustomRoutes({ redirects, rewrites, headers })
+  }
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()

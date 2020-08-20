@@ -988,7 +988,7 @@ const runTests = (isDev = false) => {
       })
     })
 
-    it('should have redirects/rewrites in build output', async () => {
+    it('should have redirects/rewrites in build output with debug flag', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
@@ -1073,7 +1073,7 @@ describe('Custom routes', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
@@ -1093,7 +1093,7 @@ describe('Custom routes', () => {
         nextConfigContent.replace(/\/\/ target/, 'target'),
         'utf8'
       )
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
