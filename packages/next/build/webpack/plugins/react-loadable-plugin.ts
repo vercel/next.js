@@ -109,6 +109,7 @@ export class ReactLoadablePlugin {
 
   createAssets(compiler: any, compilation: any, assets: any) {
     const manifest = buildManifest(compiler, compilation)
+    // @ts-ignore: TODO: remove when webpack 5 is stable
     assets[this.filename] = new (webpack.sources || sources).RawSource(
       JSON.stringify(manifest, null, 2)
     )
