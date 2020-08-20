@@ -50,8 +50,9 @@ if (args['--version']) {
 // Check if we are running `next <subcommand>` or `next`
 const foundCommand = Boolean(commands[args._[0]])
 
-// Makes sure the `next <subcommand> --help` case is covered
+// Makes sure the `next --help` case is covered
 // This help message is only showed for `next --help`
+// `next <subcommand> --help` falls through to be handled later
 if (!foundCommand && args['--help']) {
   console.log(`
     Usage
