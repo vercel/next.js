@@ -12,6 +12,7 @@ const {
   util: { createHash },
 } = webpack
 
+const isWebpack5 = parseInt(webpack.version) === 5
 const MODULE_TYPE = 'css/mini-extract'
 
 const pluginName = 'mini-css-extract-plugin'
@@ -21,6 +22,14 @@ const REGEXP_CONTENTHASH = /\[contenthash(?::(\d+))?\]/i
 const REGEXP_NAME = /\[name\]/i
 const REGEXP_PLACEHOLDERS = /\[(name|id|chunkhash)\]/g
 const DEFAULT_FILENAME = '[name].css'
+
+function getModulesIterable(compilation, chunk) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getChunkModulesIterable(chunk)
+  }
+
+  return chunk.modulesIterable
+}
 
 class CssDependencyTemplate {
   apply() {}
@@ -68,94 +77,103 @@ class MiniCssExtractPlugin {
         new CssDependencyTemplate()
       )
 
-      compilation.mainTemplate.hooks.renderManifest.tap(
-        pluginName,
-        (result, { chunk }) => {
-          const renderedModules = Array.from(chunk.modulesIterable).filter(
-            (module) => module.type === MODULE_TYPE
-          )
+      const renderManifestFn = (result, { chunk }) => {
+        const renderedModules = Array.from(
+          getModulesIterable(compilation, chunk)
+        ).filter((module) => module.type === MODULE_TYPE)
 
-          if (renderedModules.length > 0) {
-            result.push({
-              render: () =>
-                this.renderContentAsset(
-                  compilation,
-                  chunk,
-                  renderedModules,
-                  compilation.runtimeTemplate.requestShortener
-                ),
-              filenameTemplate: ({ chunk: chunkData }) =>
-                this.options.moduleFilename(chunkData),
-              pathOptions: {
+        if (renderedModules.length > 0) {
+          result.push({
+            render: () =>
+              this.renderContentAsset(
+                compilation,
                 chunk,
-                contentHashType: MODULE_TYPE,
-              },
-              identifier: `${pluginName}.${chunk.id}`,
-              hash: chunk.contentHash[MODULE_TYPE],
-            })
-          }
+                renderedModules,
+                compilation.runtimeTemplate.requestShortener
+              ),
+            filenameTemplate: ({ chunk: chunkData }) =>
+              this.options.moduleFilename(chunkData),
+            pathOptions: {
+              chunk,
+              contentHashType: MODULE_TYPE,
+            },
+            identifier: `${pluginName}.${chunk.id}`,
+            hash: chunk.contentHash[MODULE_TYPE],
+          })
         }
-      )
+      }
 
-      compilation.chunkTemplate.hooks.renderManifest.tap(
-        pluginName,
-        (result, { chunk }) => {
-          const renderedModules = Array.from(chunk.modulesIterable).filter(
-            (module) => module.type === MODULE_TYPE
-          )
+      if (isWebpack5) {
+        compilation.hooks.renderManifest.tap(pluginName, renderManifestFn)
+      } else {
+        // In webpack 5 the 2 separate hooks are now one hook: `compilation.hooks.renderManifest`
+        // So we no longer have to double-apply the same function
+        compilation.mainTemplate.hooks.renderManifest.tap(
+          pluginName,
+          renderManifestFn
+        )
+        compilation.chunkTemplate.hooks.renderManifest.tap(
+          pluginName,
+          renderManifestFn
+        )
+      }
 
-          if (renderedModules.length > 0) {
-            result.push({
-              render: () =>
-                this.renderContentAsset(
-                  compilation,
-                  chunk,
-                  renderedModules,
-                  compilation.runtimeTemplate.requestShortener
-                ),
-              filenameTemplate: this.options.chunkFilename,
-              pathOptions: {
-                chunk,
-                contentHashType: MODULE_TYPE,
-              },
-              identifier: `${pluginName}.${chunk.id}`,
-              hash: chunk.contentHash[MODULE_TYPE],
-            })
-          }
+      const handleHashForChunk = (hash, chunk) => {
+        const { chunkFilename } = this.options
+
+        if (REGEXP_CHUNKHASH.test(chunkFilename)) {
+          hash.update(JSON.stringify(chunk.getChunkMaps(true).hash))
         }
-      )
 
-      compilation.mainTemplate.hooks.hashForChunk.tap(
-        pluginName,
-        (hash, chunk) => {
-          const { chunkFilename } = this.options
-
-          if (REGEXP_CHUNKHASH.test(chunkFilename)) {
-            hash.update(JSON.stringify(chunk.getChunkMaps(true).hash))
-          }
-
-          if (REGEXP_CONTENTHASH.test(chunkFilename)) {
-            hash.update(
-              JSON.stringify(
-                chunk.getChunkMaps(true).contentHash[MODULE_TYPE] || {}
-              )
+        if (REGEXP_CONTENTHASH.test(chunkFilename)) {
+          hash.update(
+            JSON.stringify(
+              chunk.getChunkMaps(true).contentHash[MODULE_TYPE] || {}
             )
-          }
-
-          if (REGEXP_NAME.test(chunkFilename)) {
-            hash.update(JSON.stringify(chunk.getChunkMaps(true).name))
-          }
+          )
         }
-      )
+
+        if (REGEXP_NAME.test(chunkFilename)) {
+          hash.update(JSON.stringify(chunk.getChunkMaps(true).name))
+        }
+      }
+      if (isWebpack5) {
+        const JSModulesHooks = webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
+          compilation
+        )
+        JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
+          if (!chunk.hasRuntime()) return
+          return handleHashForChunk(hash, chunk)
+        })
+      } else {
+        compilation.mainTemplate.hooks.hashForChunk.tap(
+          pluginName,
+          handleHashForChunk
+        )
+      }
 
       compilation.hooks.contentHash.tap(pluginName, (chunk) => {
         const { outputOptions } = compilation
         const { hashFunction, hashDigest, hashDigestLength } = outputOptions
         const hash = createHash(hashFunction)
 
-        for (const m of chunk.modulesIterable) {
-          if (m.type === MODULE_TYPE) {
-            m.updateHash(hash)
+        const modules = getModulesIterable(compilation, chunk)
+
+        if (modules) {
+          if (isWebpack5) {
+            const xor = new (require('webpack/lib/util/StringXor'))()
+            for (const m of modules) {
+              if (m.type === MODULE_TYPE) {
+                xor.add(compilation.chunkGraph.getModuleHash(m, chunk.runtime))
+              }
+            }
+            xor.updateHash(hash)
+          } else {
+            for (const m of modules) {
+              if (m.type === MODULE_TYPE) {
+                m.updateHash(hash)
+              }
+            }
           }
         }
 
@@ -169,7 +187,7 @@ class MiniCssExtractPlugin {
       const { mainTemplate } = compilation
 
       mainTemplate.hooks.localVars.tap(pluginName, (source, chunk) => {
-        const chunkMap = this.getCssChunkObject(chunk)
+        const chunkMap = this.getCssChunkObject(compilation, chunk)
 
         if (Object.keys(chunkMap).length > 0) {
           return Template.asString([
@@ -190,7 +208,7 @@ class MiniCssExtractPlugin {
       mainTemplate.hooks.requireEnsure.tap(
         pluginName,
         (source, chunk, hash) => {
-          const chunkMap = this.getCssChunkObject(chunk)
+          const chunkMap = this.getCssChunkObject(compilation, chunk)
 
           if (Object.keys(chunkMap).length > 0) {
             const chunkMaps = chunk.getChunkMaps()
@@ -322,11 +340,11 @@ class MiniCssExtractPlugin {
     })
   }
 
-  getCssChunkObject(mainChunk) {
+  getCssChunkObject(compilation, mainChunk) {
     const obj = {}
 
     for (const chunk of mainChunk.getAllAsyncChunks()) {
-      for (const module of chunk.modulesIterable) {
+      for (const module of getModulesIterable(compilation, chunk)) {
         if (module.type === MODULE_TYPE) {
           obj[chunk.id] = 1
           break
@@ -342,7 +360,9 @@ class MiniCssExtractPlugin {
 
     const [chunkGroup] = chunk.groupsIterable
 
-    if (typeof chunkGroup.getModuleIndex2 === 'function') {
+    const getModulePostOrderIndex =
+      chunkGroup.getModulePostOrderIndex || chunkGroup.getModuleIndex2
+    if (typeof getModulePostOrderIndex === 'function') {
       // Store dependencies for modules
       const moduleDependencies = new Map(modules.map((m) => [m, new Set()]))
       const moduleDependenciesReasons = new Map(
@@ -357,7 +377,9 @@ class MiniCssExtractPlugin {
           .map((m) => {
             return {
               module: m,
-              index: cg.getModuleIndex2(m),
+              index: isWebpack5
+                ? cg.getModulePostOrderIndex(m)
+                : cg.getModuleIndex2(m),
             }
           })
           // eslint-disable-next-line no-undefined
