@@ -94,7 +94,6 @@
     "find-cache-dir": "3.3.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
-    "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.3",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
