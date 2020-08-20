@@ -24,6 +24,8 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://err.sh/vercel/next.js/public-next-folder-conflict`
 
+export const PAGE_IGNORE_PATTERN_ERROR = `The page ignore pattern must be a RegEx -pattern or a string presentation of it.`
+
 export const SSG_GET_INITIAL_PROPS_CONFLICT = `You can not use getInitialProps with getStaticProps. To use SSG, please remove your getInitialProps`
 
 export const SERVER_PROPS_GET_INIT_PROPS_CONFLICT = `You can not use getInitialProps with getServerSideProps. Please remove getInitialProps.`
