@@ -783,6 +783,14 @@ export default class Server {
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
+          const { basePath } = this.nextConfig
+
+          // if basePath is defined require it be present
+          if (basePath) {
+            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
+            pathParts.shift()
+          }
+
           const path = `/${pathParts.join('/')}`
 
           if (publicFiles.has(path)) {
@@ -1148,7 +1156,6 @@ export default class Server {
       fallbackMode !== 'blocking' &&
       ssgCacheKey &&
       !didRespond &&
-      !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
       // Development should trigger fallback when the path is not in
@@ -1165,27 +1172,29 @@ export default class Server {
         throw new NoFallbackError()
       }
 
-      let html: string
+      if (!isDataReq) {
+        let html: string
 
-      // Production already emitted the fallback as static HTML.
-      if (isProduction) {
-        html = await this.incrementalCache.getFallback(pathname)
-      }
-      // We need to generate the fallback on-demand for development.
-      else {
-        query.__nextFallback = 'true'
-        if (isLikeServerless) {
-          prepareServerlessUrl(req, query)
+        // Production already emitted the fallback as static HTML.
+        if (isProduction) {
+          html = await this.incrementalCache.getFallback(pathname)
         }
-        const { value: renderResult } = await doRender()
-        html = renderResult.html
-      }
+        // We need to generate the fallback on-demand for development.
+        else {
+          query.__nextFallback = 'true'
+          if (isLikeServerless) {
+            prepareServerlessUrl(req, query)
+          }
+          const { value: renderResult } = await doRender()
+          html = renderResult.html
+        }
 
-      sendPayload(req, res, html, 'html', {
-        generateEtags: this.renderOpts.generateEtags,
-        poweredByHeader: this.renderOpts.poweredByHeader,
-      })
-      return null
+        sendPayload(req, res, html, 'html', {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        })
+        return null
+      }
     }
 
     const {
