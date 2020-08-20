@@ -1,10 +1,8 @@
 # Example app with [React Intl][]
 
-This example app shows how to integrate [React Intl][] with Next.
+This example app shows how to integrate [React Intl][] with Next.js.
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -14,28 +12,9 @@ npx create-next-app --example with-react-intl with-react-intl-app
 yarn create next-app --example with-react-intl with-react-intl-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-intl
-cd with-react-intl
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-### Features of this example app
+## Features of this example app
 
 - Server-side language negotiation
 - React Intl locale data loading via `pages/_document.js` customization
