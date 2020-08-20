@@ -16,6 +16,8 @@ jest.setTimeout(1000 * 60 * 5)
 const dir = join(__dirname, '..')
 const dirOldReact = join(__dirname, '../old-react')
 const dirOldReactDom = join(__dirname, '../old-react-dom')
+const dirExperimentalReact = join(__dirname, '../experimental-react')
+const dirExperimentalReactDom = join(__dirname, '../experimental-react-dom')
 
 describe('CLI Usage', () => {
   describe('no command', () => {
@@ -253,6 +255,42 @@ describe('CLI Usage', () => {
       expect(stderr).toMatch(
         'Fast Refresh is disabled in your application due to an outdated `react-dom` version'
       )
+      expect(stderr).not.toMatch('`react`')
+
+      await killApp(instance)
+    })
+
+    test('experimental react version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirExperimentalReact, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch('disabled')
+      expect(stderr).not.toMatch('outdated')
+      expect(stderr).not.toMatch(`react-dom`)
+
+      await killApp(instance)
+    })
+
+    test('experimental react-dom version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirExperimentalReactDom, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch('disabled')
+      expect(stderr).not.toMatch('outdated')
       expect(stderr).not.toMatch('`react`')
 
       await killApp(instance)

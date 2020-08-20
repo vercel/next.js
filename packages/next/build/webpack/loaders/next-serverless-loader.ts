@@ -147,7 +147,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
-    const {prepareDestination} = require('next/dist/next-server/server/router')
+    const prepareDestination = require('next/dist/next-server/lib/router/utils/prepare-destination').default
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -163,7 +163,7 @@ const nextServerlessLoader: loader.Loader = function () {
             "${basePath}"
           )
 
-          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          Object.assign(parsedUrl.query, parsedDestination.query)
           delete parsedDestination.query
 
           Object.assign(parsedUrl, parsedDestination)
@@ -453,6 +453,29 @@ const nextServerlessLoader: loader.Loader = function () {
           }
         `
             : ''
+        }
+
+        // normalize request URL/asPath for fallback pages since the proxy
+        // sets the request URL to the output's path for fallback pages
+        ${
+          pageIsDynamicRoute
+            ? `
+            if (nowParams) {
+              const _parsedUrl = parseUrl(req.url)
+
+              for (const param of Object.keys(defaultRouteRegex.groups)) {
+                const paramIdx = _parsedUrl.pathname.indexOf(\`[\${param}]\`)
+
+                if (paramIdx > -1) {
+                  _parsedUrl.pathname = _parsedUrl.pathname.substr(0, paramIdx) +
+                    encodeURI(nowParams[param]) +
+                    _parsedUrl.pathname.substr(paramIdx + param.length + 2)
+                }
+              }
+              req.url = formatUrl(_parsedUrl)
+            }
+          `
+            : ``
         }
 
         const isFallback = parsedUrl.query.__nextFallback
