@@ -30,6 +30,14 @@ type Source = { map: () => RawSourceMap } | null
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
+function getModuleId(compilation: any, module: any) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getModuleId(module)
+  }
+
+  return module.id
+}
+
 function getModuleSource(compilation: any, module: any): any {
   if (isWebpack5) {
     return (
@@ -200,7 +208,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const module = [...compilation.modules].find(
-        (searchModule) => searchModule.id === id
+        (searchModule) => getModuleId(compilation, searchModule) === id
       )
       return getModuleSource(compilation, module)
     } catch (err) {
