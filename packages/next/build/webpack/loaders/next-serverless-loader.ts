@@ -72,9 +72,9 @@ const nextServerlessLoader: loader.Loader = function () {
     `
     : ''
 
-  const collectDynamicRouteParams = pageIsDynamicRoute
+  const normalizeDynamicRouteParams = pageIsDynamicRoute
     ? `
-      function collectDynamicRouteParams(query) {
+      function normalizeDynamicRouteParams(query) {
         return Object.keys(defaultRouteRegex.groups)
           .reduce((prev, key) => {
             let value = query[key]
@@ -84,7 +84,14 @@ const nextServerlessLoader: loader.Loader = function () {
               // non-provided optional values should be undefined so normalize
               // them to undefined
             }
-            if(defaultRouteRegex.groups[key].optional && !value) {
+            if(
+              defaultRouteRegex.groups[key].optional &&
+              (!value || (
+                Array.isArray(value) &&
+                value.length === 1 &&
+                value[0] === 'index'
+              ))
+            ) {
               value = undefined
               delete query[key]
             }
@@ -223,7 +230,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
       ${defaultRouteRegex}
 
-      ${collectDynamicRouteParams}
+      ${normalizeDynamicRouteParams}
 
       ${handleRewrites}
 
@@ -241,9 +248,11 @@ const nextServerlessLoader: loader.Loader = function () {
           const params = ${
             pageIsDynamicRoute
               ? `
-              trustQuery
-                ? collectDynamicRouteParams(parsedUrl.query)
-                : dynamicRouteMatcher(parsedUrl.pathname)
+              normalizeDynamicRouteParams(
+                trustQuery
+                  ? parsedUrl.query
+                  : dynamicRouteMatcher(parsedUrl.pathname)
+              )
               `
               : `{}`
           }
@@ -316,7 +325,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
     ${dynamicRouteMatcher}
     ${defaultRouteRegex}
-    ${collectDynamicRouteParams}
+    ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
     export const config = ComponentInfo['confi' + 'g'] || {}
@@ -394,9 +403,11 @@ const nextServerlessLoader: loader.Loader = function () {
               !getStaticProps &&
               !getServerSideProps
             ) ? {}
-              : trustQuery
-                ? collectDynamicRouteParams(parsedUrl.query)
-                : dynamicRouteMatcher(parsedUrl.pathname) || {};
+              : normalizeDynamicRouteParams(
+                trustQuery
+                  ? parsedUrl.query
+                  : dynamicRouteMatcher(parsedUrl.pathname)
+              )
             `
             : `const params = {};`
         }
@@ -433,6 +444,7 @@ const nextServerlessLoader: loader.Loader = function () {
           `
             : `const nowParams = null;`
         }
+
         // make sure to set renderOpts to the correct params e.g. _params
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
