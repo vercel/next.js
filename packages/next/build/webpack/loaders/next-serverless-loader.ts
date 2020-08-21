@@ -149,7 +149,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
   const rewriteImports = `
     const { rewrites } = require('${routesManifest}')
-    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/server/lib/path-match')
+    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/lib/router/utils/path-match')
   `
 
   const handleRewrites = `
