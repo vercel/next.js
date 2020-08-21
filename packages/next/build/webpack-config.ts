@@ -253,7 +253,6 @@ export default async function getBaseWebpackConfig(
 
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]next-server[\\/]lib/,
-    /next[\\/]dist[\\/]next-server[\\/]server[\\/]lib[\\/]path-match/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
