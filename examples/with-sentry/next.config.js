@@ -10,15 +10,9 @@ const {
   SENTRY_PROJECT,
   SENTRY_AUTH_TOKEN,
   NODE_ENV,
-  VERCEL_GITHUB_COMMIT_SHA,
-  VERCEL_GITLAB_COMMIT_SHA,
-  VERCEL_BITBUCKET_COMMIT_SHA,
+  VERCEL_URL,
 } = process.env
 
-const COMMIT_SHA =
-  VERCEL_GITHUB_COMMIT_SHA ||
-  VERCEL_GITLAB_COMMIT_SHA ||
-  VERCEL_BITBUCKET_COMMIT_SHA
 
 process.env.SENTRY_DSN = SENTRY_DSN
 
@@ -27,6 +21,14 @@ module.exports = withSourceMaps({
     rootDir: __dirname,
   },
   webpack: (config, options) => {
+    // The build ID is only available here, so this is where we'll define its
+    // environment variable
+    config.plugins.push(
+      new options.webpack.DefinePlugin({
+        'process.env.NEXT_PUBLIC_SENTRY_RELEASE':
+          JSON.stringify(options.buildId),
+      }),
+    );
     // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
     // @sentry/node will run in a Node.js environment. @sentry/node will use
     // Node.js-only APIs to catch even more unhandled exceptions.
@@ -49,13 +51,14 @@ module.exports = withSourceMaps({
     // The Sentry webpack plugin gets pushed to the webpack plugins to build
     // and upload the source maps to sentry.
     // This is an alternative to manually uploading the source maps
-    // Note: This is disabled in development mode.
+    // Note: This is disabled unless the VERCEL_URL environment variable is
+    // present, which is usually only during a Vercel build
     if (
       SENTRY_DSN &&
       SENTRY_ORG &&
       SENTRY_PROJECT &&
       SENTRY_AUTH_TOKEN &&
-      COMMIT_SHA &&
+      VERCEL_URL &&
       NODE_ENV === 'production'
     ) {
       config.plugins.push(
@@ -64,7 +67,7 @@ module.exports = withSourceMaps({
           ignore: ['node_modules'],
           stripPrefix: ['webpack://_N_E/'],
           urlPrefix: '~/_next',
-          release: COMMIT_SHA,
+          release: options.buildId,
         })
       )
     }
