@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
 import pathMatch from './lib/path-match'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 
 export const route = pathMatch()
 
@@ -37,6 +38,7 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
 
 function replaceBasePath(basePath: string, pathname: string) {
+  // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
   return pathname!.replace(basePath, '') || '/'
 }
 
@@ -131,11 +133,13 @@ export default class Router {
               requireBasePath: false,
               match: route('/:path*'),
               fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
-                const { pathname } = parsedCheckerUrl
+                let { pathname } = parsedCheckerUrl
+                pathname = removePathTrailingSlash(pathname || '/')
 
                 if (!pathname) {
                   return { finished: false }
                 }
+
                 if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(
                     checkerReq,
@@ -166,9 +170,10 @@ export default class Router {
       const originalPathname = currentPathname
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
+      const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
+      const keepBasePath = isCustomRoute || isPublicFolderCatchall
 
-      if (!isCustomRoute) {
-        // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      if (!keepBasePath) {
         currentPathname = replaceBasePath(this.basePath, currentPathname!)
       }
 
@@ -178,7 +183,7 @@ export default class Router {
       if (newParams) {
         // since we require basePath be present for non-custom-routes we
         // 404 here when we matched an fs route
-        if (!isCustomRoute) {
+        if (!keepBasePath) {
           if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
@@ -201,7 +206,7 @@ export default class Router {
 
         // since the fs route didn't match we need to re-add the basePath
         // to continue checking rewrites with the basePath present
-        if (!isCustomRoute) {
+        if (!keepBasePath) {
           parsedUrlUpdated.pathname = originalPathname
         }
 
@@ -272,7 +277,6 @@ export default class Router {
         }
       }
     }
-
     return false
   }
 }
