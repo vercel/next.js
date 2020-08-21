@@ -16,9 +16,9 @@ const Index = () => (
         Read more
       </a>
     </p>
-    <ul>
+    <ol>
       <li>SSR exceptions</li>
-      <ul>
+      <ol>
         <li>
           getServerSideProps throws an Error. This should cause _error.js to
           render and record Error('SSR Test 1') in Sentry.{' '}
@@ -41,10 +41,10 @@ const Index = () => (
             Open in a new tab
           </a>
         </li>
-      </ul>
+      </ol>
 
       <li>Client exceptions</li>
-      <ul>
+      <ol>
         <li>
           There is a top-of-module Promise that rejects, but its result is not
           awaited. Sentry should record Error('Client Test 1').{' '}
@@ -103,8 +103,8 @@ const Index = () => (
             Open in a new tab
           </a>
         </li>
-      </ul>
-    </ul>
+      </ol>
+    </ol>
   </div>
 )
 
