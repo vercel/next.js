@@ -348,13 +348,18 @@ export async function render(renderingProps: RenderRouteInfo) {
   try {
     await doRender(renderingProps)
   } catch (renderErr) {
-    if (process.env.NODE_ENV === 'development') {
-      // Ensure this error is displayed in the overlay in development
-      setTimeout(() => {
-        throw renderErr
-      })
+    // renderErr will be undefined if `doRender` aborts due to another render
+    // starting before the previous one finishes, e.g. due to `router.replace`
+    // being called from within a route complete event handler.
+    if (renderErr) {
+      if (process.env.NODE_ENV === 'development') {
+        // Ensure this error is displayed in the overlay in development
+        setTimeout(() => {
+          throw renderErr
+        })
+      }
+      await renderError({ ...renderingProps, err: renderErr })
     }
-    await renderError({ ...renderingProps, err: renderErr })
   }
 }
 
@@ -651,10 +656,7 @@ async function doRender({
       el.parentNode!.removeChild(el)
     })
   }
-  renderPromise.catch((abortError) => {
-    onAbort()
-    throw abortError
-  })
+  renderPromise.catch(onAbort)
 
   function onCommit() {
     if (
