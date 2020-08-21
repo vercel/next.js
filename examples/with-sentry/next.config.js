@@ -64,7 +64,6 @@ module.exports = withSourceMaps({
       config.plugins.push(
         new SentryWebpackPlugin({
           include: '.next',
-          ignore: ['node_modules'],
           stripPrefix: ['webpack://_N_E/'],
           urlPrefix: '~/_next',
           release: options.buildId,
