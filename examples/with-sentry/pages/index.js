@@ -25,6 +25,11 @@ const Index = () => (
           <a href="/ssr/test1" target="_blank">
             Open in a new tab
           </a>
+          <br />
+          <code>
+            Note: Sentry appears to record a 'Sentry syntheticException' instead
+            of the real Error. The real Error is available in the breadcrumbs.
+          </code>
         </li>
         <li>
           getServerSideProps returns a Promise that rejects. This should cause
@@ -32,12 +37,80 @@ const Index = () => (
           <a href="/ssr/test2" target="_blank">
             Open in a new tab
           </a>
+          <br />
+          <code>
+            Note: Sentry appears to record a 'Sentry syntheticException' instead
+            of the real Error. The real Error is available in the breadcrumbs.
+          </code>
         </li>
         <li>
           getServerSideProps calls a Promise that rejects, but does not handle
           the rejection or await its result (returning synchronously). Sentry
           should record Error('SSR Test 3').{' '}
           <a href="/ssr/test3" target="_blank">
+            Open in a new tab
+          </a>
+          <br />
+          <code>
+            Note: this will be missed in Vercel's serverless functions because
+            the serverless function finishes executing and terminates faster
+            than the unhandled Promise rejection event can bubble up.
+          </code>
+        </li>
+        <li>
+          getServerSideProps uses a try/catch to handle an exception and records
+          it. Sentry should record Error('SSR Test 4').{' '}
+          <a href="/ssr/test4" target="_blank">
+            Open in a new tab
+          </a>
+        </li>
+      </ol>
+
+      <li>API exceptions</li>
+      <ol>
+        <li>
+          API has a top-of-module Promise that rejects, but its result is not
+          awaited. Sentry should record Error('API Test 1').{' '}
+          <a href="/api/test1" target="_blank">
+            Open in a new tab
+          </a>
+          <br />
+          <code>
+            Note: this will be missed in Vercel's serverless functions because
+            the serverless function finishes executing and terminates faster
+            than the unhandled Promise rejection event can bubble up.
+          </code>
+        </li>
+        <li>
+          API has a top-of-module exception. Sentry should record Error('API
+          Test 2') and the request should fail with an internal server error
+          (not with _error.js).{' '}
+          <a href="/api/test2" target="_blank">
+            Open in a new tab
+          </a>
+          <br />
+          <code>
+            Note: Sentry appears to record a 'Sentry syntheticException' instead
+            of the real Error. The real Error is available in the breadcrumbs.
+          </code>
+        </li>
+        <li>
+          API has has an exception in its request handler. Sentry should record
+          Error('API Test 3') and the request should fail with an internal
+          server error (not with _error.js).{' '}
+          <a href="/api/test3" target="_blank">
+            Open in a new tab
+          </a>
+          <br />
+          <code>
+            Note: Sentry appears to record BOTH the real error and a 'Sentry
+            syntheticException'.
+          </code>
+        </li>
+        <li>
+          API uses a try/catch to handle an exception and records it. Sentry
+          should record Error('API Test 4').{' '}
+          <a href="/api/test4" target="_blank">
             Open in a new tab
           </a>
         </li>
@@ -55,6 +128,11 @@ const Index = () => (
           <a href="/client/test1" target="_blank">
             Open in a new tab
           </a>
+          <br />
+          <code>
+            Note: this exception may also fire when on this index page due to
+            Next.js Link's prefetch behavior.
+          </code>
         </li>
         <li>
           There is a top-of-module exception. _error.js should render and record

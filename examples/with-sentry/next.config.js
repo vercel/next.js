@@ -5,7 +5,7 @@ const withSourceMaps = require('@zeit/next-source-maps')()
 // Use the SentryWebpack plugin to upload the source maps during build step
 const SentryWebpackPlugin = require('@sentry/webpack-plugin')
 const {
-  NEXT_PUBLIC_SENTRY_DSN: SENTRY_DSN,
+  NEXT_PUBLIC_SENTRY_DSN,
   SENTRY_ORG,
   SENTRY_PROJECT,
   SENTRY_AUTH_TOKEN,
@@ -13,39 +13,28 @@ const {
   VERCEL_URL,
 } = process.env
 
-
-process.env.SENTRY_DSN = SENTRY_DSN
+process.env.SENTRY_DSN = NEXT_PUBLIC_SENTRY_DSN
 
 module.exports = withSourceMaps({
-  serverRuntimeConfig: {
-    rootDir: __dirname,
+  experimental: {
+    plugins: true,
+  },
+  env: {
+    // Required for now because the experimental plugins API is not checking
+    // for variables with the NEXT_PUBLIC prefix that are automatically pulled
+    // in
+    NEXT_PUBLIC_SENTRY_DSN: NEXT_PUBLIC_SENTRY_DSN,
   },
   webpack: (config, options) => {
     // The build ID is only available here, so this is where we'll define its
     // environment variable
     config.plugins.push(
       new options.webpack.DefinePlugin({
-        'process.env.NEXT_PUBLIC_SENTRY_RELEASE':
-          JSON.stringify(options.buildId),
-      }),
-    );
-    // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
-    // @sentry/node will run in a Node.js environment. @sentry/node will use
-    // Node.js-only APIs to catch even more unhandled exceptions.
-    //
-    // This works well when Next.js is SSRing your page on a server with
-    // Node.js, but it is not what we want when your client-side bundle is being
-    // executed by a browser.
-    //
-    // Luckily, Next.js will call this webpack function twice, once for the
-    // server and once for the client. Read more:
-    // https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config
-    //
-    // So ask Webpack to replace @sentry/node imports with @sentry/browser when
-    // building the browser's bundle
-    if (!options.isServer) {
-      config.resolve.alias['@sentry/node'] = '@sentry/browser'
-    }
+        'process.env.NEXT_PUBLIC_SENTRY_RELEASE': JSON.stringify(
+          options.buildId
+        ),
+      })
+    )
 
     // When all the Sentry configuration env variables are available/configured
     // The Sentry webpack plugin gets pushed to the webpack plugins to build
@@ -54,7 +43,7 @@ module.exports = withSourceMaps({
     // Note: This is disabled unless the VERCEL_URL environment variable is
     // present, which is usually only during a Vercel build
     if (
-      SENTRY_DSN &&
+      process.env.SENTRY_DSN &&
       SENTRY_ORG &&
       SENTRY_PROJECT &&
       SENTRY_AUTH_TOKEN &&

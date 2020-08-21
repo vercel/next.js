@@ -5,13 +5,15 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
+    "now-build": "next build && node ./build-scripts/delete-sourcemaps.js",
     "start": "next start"
   },
   "dependencies": {
-    "@sentry/browser": "^5.15.5",
-    "@sentry/integrations": "5.20.1",
-    "@sentry/node": "^5.15.5",
-    "@sentry/webpack-plugin": "^1.11.1",
+    "@next/plugin-sentry": "file:next-plugin-sentry",
+    "@sentry/browser": "^5.21.1",
+    "@sentry/integrations": "^5.21.1",
+    "@sentry/node": "^5.21.1",
+    "@sentry/webpack-plugin": "^1.12.1",
     "@zeit/next-source-maps": "0.0.4-canary.1",
     "next": "latest",
     "react": "^16.8.6",

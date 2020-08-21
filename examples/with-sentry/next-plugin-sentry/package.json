@@ -1,0 +1,16 @@
+{
+  "name": "@next/plugin-sentry",
+  "version": "9.5.2",
+  "nextjs": {
+    "name": "Sentry",
+    "required-env": [
+      "NEXT_PUBLIC_SENTRY_DSN"
+    ]
+  },
+  "peerDependencies": {
+    "next": "*",
+    "@sentry/browser": "*",
+    "@sentry/integrations": "*",
+    "@sentry/node": "*"
+  }
+}

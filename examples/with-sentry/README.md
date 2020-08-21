@@ -2,9 +2,9 @@
 
 This is an example showing how to use [Sentry](https://sentry.io) to catch & report errors on both client + server side.
 
-- `_app.js` renders on both the server and client. It initializes Sentry to catch any unhandled exceptions
-- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
-- `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
+- Sentry is initialized by the [experimental Plugins API](https://github.com/vercel/next.js/discussions/9133), which also captures unhandled exceptions
+- `next.config.js` enables source maps and uploads them to Sentry in production
+- The `now-build` step in `package.json` deletes the source maps from Vercel so they aren't publicly available
 
 ## Deploy your own
 
@@ -36,18 +36,20 @@ cp .env.local.example .env.local
 
 Next, Copy your Sentry DSN. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN** and set it as the value for `NEXT_PUBLIC_SENTRY_DSN` inside `.env.local`
 
-> **Note:** Error tracking is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `enabled` property from the `Sentry.init()` call inside your `_app.js` file.
+> **Note:** Error tracking is disabled when `NODE_ENV` is `development` due to the way Next.js handles errors in development. You'll want to test this sample using production builds (i.e. `next build`).
 
-### Step 2. Run Next.js in development mode
+### Step 2. Run Next.js in production mode
 
 ```bash
 npm install
-npm run dev
+npm run build
+npm run start
 
 # or
 
 yarn install
-yarn dev
+yarn build
+yarn start
 ```
 
 Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
@@ -56,15 +58,13 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 #### Using Vercel
 
-You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project.
-
-> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/v2/platform/deployments#git-integration) is required before adding the Sentry integration.
+You will either need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel) or supply the environment variables in `env.local.example` yourself. You'll also need to set the `VERCEL_URL` environment variable, which is used to only upload source maps from the Vercel build environment.
 
 #### Without Using Vercel
 
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
 2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
-3. Save your git provider's commit SHA as either `VERCEL_GITHUB_COMMIT_SHA`, `VERCEL_GITLAB_COMMIT_SHA`, or `VERCEL_BITBUCKET_COMMIT_SHA` environment variable in `.env.local`.
+3. Set the `VERCEL_URL` environment variable to some value in `.env.local`.
 4. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
 5. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
 
@@ -77,7 +77,7 @@ More configurations are available for the [Sentry webpack plugin](https://github
 ## Notes
 
 - By default, neither sourcemaps nor error tracking are enabled in development mode (see Configuration).
-- When enabled in development mode, error handling [works differently than in production](https://nextjs.org/docs/advanced-features/custom-error-page#customizing-the-error-page) as `_error.js` is never actually called.
+- When enabled in development mode, error handling [works differently than in production](https://nextjs.org/docs/advanced-features/custom-error-page#customizing-the-error-page).
 - The build output will contain warning about unhandled Promise rejections. This is caused by the test pages, and is expected.
 - The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
 - Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) because if used with SSR, these plugins are used during production for generating the source-maps and sending them to sentry.
