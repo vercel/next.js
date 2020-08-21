@@ -348,6 +348,11 @@ export async function render(renderingProps: RenderRouteInfo) {
   try {
     await doRender(renderingProps)
   } catch (renderErr) {
+    // bubble up cancelation errors
+    if (renderErr.cancelled) {
+      throw renderErr
+    }
+
     if (process.env.NODE_ENV === 'development') {
       // Ensure this error is displayed in the overlay in development
       setTimeout(() => {
@@ -580,7 +585,10 @@ async function doRender({
     }
     lastRenderReject = () => {
       lastRenderReject = null
-      reject()
+
+      const error: any = new Error('Cancel rendering route')
+      error.cancelled = true
+      reject(error)
     }
   })
 
