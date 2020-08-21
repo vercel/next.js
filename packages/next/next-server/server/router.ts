@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
-import pathMatch from './lib/path-match'
+import pathMatch from '../lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 
 export const route = pathMatch()

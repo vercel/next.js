@@ -1,5 +1,5 @@
 import { ParsedUrlQuery } from 'querystring'
-import pathMatch from '../../../server/lib/path-match'
+import pathMatch from './path-match'
 import prepareDestination from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 
