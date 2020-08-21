@@ -124,3 +124,13 @@ This one is useful when running tests with tools like `jest` or `cypress` where 
 There is a small difference between `test` environment, and both `development` and `production` that you need to bear in mind: `.env.local` won't be loaded, as you expect tests to produce the same results for everyone. This way every test execution will use same env defaults across different executions by ignoring your `.env.local` (which is intended to override the default set).
 
 > **Note**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env*.local` are intended to be ignored through `.gitignore`.
+
+### Loading Test Environment Variables
+
+In test environments such as `jest`, Next.js doesn't get automatically instantiated. You'll need to instantiate Next.js explicitly as part of your tests setup, in order to load `.env` files (including `.env.test`):
+
+```js
+// include this in your Jest setup file, or before your tests
+import next from 'next'
+next({}) // instantiates Next.js to load .env files
+```
