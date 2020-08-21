@@ -56,6 +56,14 @@ next build --profile
 
 After that, you can use the profiler in the same way as you would in development.
 
+You can enable more verbose build output with the `--debug` flag in `next build`. This requires Next.js 9.5.3:
+
+```bash
+next build --debug
+```
+
+With this flag enabled additional build output like rewrites, redirects, and headers will be shown.
+
 ## Development
 
 `next dev` starts the application in development mode with hot-code reloading, error reporting, and more:
