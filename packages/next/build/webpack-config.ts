@@ -366,16 +366,16 @@ export default async function getBaseWebpackConfig(
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
-      ...(isServer
-        ? {}
-        : {
+      next: NEXT_PROJECT_ROOT,
+      ...(isWebpack5 && !isServer
+        ? {
             stream: require.resolve('stream-browserify'),
             path: require.resolve('path-browserify'),
             crypto: require.resolve('crypto-browserify'),
             buffer: require.resolve('buffer'),
             vm: require.resolve('vm-browserify'),
-            next: NEXT_PROJECT_ROOT,
-          }),
+          }
+        : undefined),
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
