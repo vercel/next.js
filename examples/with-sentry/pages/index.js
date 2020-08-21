@@ -17,27 +17,27 @@ const Index = () => (
       </a>
     </p>
     <ul>
-      <li>Server exceptions</li>
+      <li>SSR exceptions</li>
       <ul>
         <li>
           getServerSideProps throws an Error. This should cause _error.js to
-          render and record Error('Server Test 1') in Sentry.{' '}
-          <a href="/server/test1" target="_blank">
+          render and record Error('SSR Test 1') in Sentry.{' '}
+          <a href="/ssr/test1" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
           getServerSideProps returns a Promise that rejects. This should cause
-          _error.js to render and record Error('Server Test 2') in Sentry.{' '}
-          <a href="/server/test2" target="_blank">
+          _error.js to render and record Error('SSR Test 2') in Sentry.{' '}
+          <a href="/ssr/test2" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
           getServerSideProps calls a Promise that rejects, but does not handle
           the rejection or await its result (returning synchronously). Sentry
-          should record Error('Server Test 3').{' '}
-          <a href="/server/test3" target="_blank">
+          should record Error('SSR Test 3').{' '}
+          <a href="/ssr/test3" target="_blank">
             Open in a new tab
           </a>
         </li>
