@@ -415,12 +415,9 @@ export default class Router implements BaseRouter {
       'replaceState',
       url,
       as,
-      Object.assign(
-        {},
-        {
-          shallow: options.shallow && this._shallow,
-        }
-      )
+      Object.assign({}, options, {
+        shallow: options.shallow && this._shallow,
+      })
     )
   }
 
