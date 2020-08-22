@@ -555,13 +555,13 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-async function doRender({
+function doRender({
   App,
   Component,
   props,
   err,
   styleSheets,
-}: RenderRouteInfo) {
+}: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -699,7 +699,7 @@ async function doRender({
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  await Promise.race([
+  return Promise.race([
     // Download required CSS assets first:
     onStart()
       .then(() =>
