@@ -575,6 +575,7 @@ function doRender({
   lastAppProps = appProps
 
   let resolvePromise: () => void
+  let renderPromiseReject: () => void
   const renderPromise = new Promise((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
@@ -583,7 +584,7 @@ function doRender({
       lastRenderReject = null
       resolve()
     }
-    lastRenderReject = () => {
+    renderPromiseReject = lastRenderReject = () => {
       lastRenderReject = null
 
       const error: any = new Error('Cancel rendering route')
@@ -702,17 +703,20 @@ function doRender({
   return Promise.race([
     // Download required CSS assets first:
     onStart()
-      .then(() =>
-        // Queue rendering:
-        renderReactElement(
-          process.env.__NEXT_STRICT_MODE ? (
-            <React.StrictMode>{elem}</React.StrictMode>
-          ) : (
-            elem
-          ),
-          appElement!
-        )
-      )
+      .then(() => {
+        // Ensure a new render has not been started:
+        if (renderPromiseReject === lastRenderReject) {
+          // Queue rendering:
+          renderReactElement(
+            process.env.__NEXT_STRICT_MODE ? (
+              <React.StrictMode>{elem}</React.StrictMode>
+            ) : (
+              elem
+            ),
+            appElement!
+          )
+        }
+      })
       .then(
         () =>
           // Wait for rendering to complete:
