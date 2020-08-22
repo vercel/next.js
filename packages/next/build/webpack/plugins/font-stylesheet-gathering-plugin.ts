@@ -7,17 +7,26 @@ import {
 } from '../../../next-server/server/font-utils'
 // @ts-ignore
 import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
-import { process as minify } from 'cssnano-simple'
+import postcss from 'postcss'
+import minifier from 'cssnano-simple'
 import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
 async function minifyCss(css: string): Promise<string> {
-  return new Promise((resolve) => {
-    minify(css, { map: false }).then((res) => {
-      resolve(res.css)
-    })
-  })
+  return new Promise((resolve) =>
+    postcss([
+      minifier({
+        excludeAll: true,
+        discardComments: true,
+        normalizeWhitespace: { exclude: false },
+      }),
+    ])
+      .process(css, { from: undefined })
+      .then((res) => {
+        resolve(res.css)
+      })
+  )
 }
 
 export class FontStylesheetGatheringPlugin {
