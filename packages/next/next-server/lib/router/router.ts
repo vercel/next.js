@@ -534,7 +534,14 @@ export default class Router implements BaseRouter {
     let resolvedAs = as
 
     if (process.env.__NEXT_HAS_REWRITES) {
-      resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+      resolvedAs = resolveRewrites(
+        as,
+        pages,
+        basePath,
+        rewrites,
+        query,
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+      )
     }
     resolvedAs = delBasePath(resolvedAs)
 

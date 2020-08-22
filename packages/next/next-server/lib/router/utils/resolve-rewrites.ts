@@ -10,7 +10,8 @@ export default function resolveRewrites(
   pages: string[],
   basePath: string,
   rewrites: Rewrite[],
-  query: ParsedUrlQuery
+  query: ParsedUrlQuery,
+  resolveHref: (path: string) => string
 ) {
   if (!pages.includes(asPath)) {
     for (const rewrite of rewrites) {
@@ -35,6 +36,13 @@ export default function resolveRewrites(
         if (pages.includes(asPath)) {
           // check if we now match a page as this means we are done
           // resolving the rewrites
+          break
+        }
+
+        // check if we match a dynamic-route, if so we break the rewrites chain
+        const resolvedHref = resolveHref(asPath)
+
+        if (resolvedHref !== asPath && pages.includes(resolvedHref)) {
           break
         }
       }
