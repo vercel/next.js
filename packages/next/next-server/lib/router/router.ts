@@ -411,12 +411,17 @@ export default class Router implements BaseRouter {
       return
     }
 
-    console.log('idk', { new: options.shallow, cur: this._shallow })
-
-    this.change('replaceState', url, as, {
-      ...options,
-      shallow: options.shallow && this._shallow,
-    })
+    this.change(
+      'replaceState',
+      url,
+      as,
+      Object.assign(
+        {},
+        {
+          shallow: options.shallow && this._shallow,
+        }
+      )
+    )
   }
 
   reload(): void {
