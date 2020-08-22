@@ -24,58 +24,37 @@ npx create-next-app --example with-unsplash with-unsplash-app
 yarn create next-app --example with-unsplash with-unsplash-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-unsplash
-cd with-unsplash
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ## Configuration
 
-### Step 1. Create an account on Unsplash
+First, you'll need to [create an account on Unsplash](https://unsplash.com/) if you don't have one already. Once that's done, follow the steps below.
 
-First, you need to [create an account on Unsplash](https://unsplash.com/).
+### Step 1. Create an app on Unsplash
 
-### Step 2. Crate an app on Unsplash
+To create a new application on Unsplash, click [here](https://unsplash.com/oauth/applications/new) or go to https://unsplash.com/oauth/applications/new.
 
-Then you need to [crate an app on Unsplash](https://unsplash.com/oauth/applications/new)
+Before creating an app you'll have to accept the terms for API use:
 
-![create an app on Unsplash](./docs/create-app-1.png)
+![Accept Unsplash app terms](./docs/app-terms.png)
 
-You have to accept terms
+Then, fill the form with the app name and description, and click on on **Create application** to finish the creation of your app:
 
-![Accept terms](./docs/create-app-2.png)
+![Form to fill app name and description](./docs/app-form.png)
 
-Fill the form with app name and description
+### Step 2. Set up environment variables
 
-![Form to fill app name and description](./docs/create-app-3.png)
+After creating the app, you should be able to see the API keys in the settings page of your app:
 
-After creating the app, you’ll be presented with the API key. We’ll use this in the next step.
+![API Keys of Unsplash app](./docs/api-keys.png)
 
-![api keys](./docs/api-keys.png)
+We'll need those API keys to connect the example with your Unsplash app.
 
-### Step 3. Set up environment variables
-
-Create .env.local file:
+First, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
-UNSPLASH_ACCESS_KEY=YOUR_API_KEY
-UNSPLASH_USER=ANY_UNSPLASH_USERNAME
+cp .env.local.example .env.local
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Then set each variable on `.env.local`:
 
-Important: When you import your project on Vercel, make sure to click on Environment Variables and set them to match your .env.local file.
+- `UNSPLASH_ACCESS_KEY` should be the **Access Key** of your Unsplash app
+- `UNSPLASH_USER` should be any valid Unsplash username. The example will use the photos of the user selected here.
