@@ -1,6 +1,6 @@
 import devalue from 'next/dist/compiled/devalue'
 import webpack, { Compiler, compilation as CompilationType } from 'webpack'
-import { RawSource } from 'webpack-sources'
+import sources from 'webpack-sources'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -14,6 +14,9 @@ import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-e
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
+
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 

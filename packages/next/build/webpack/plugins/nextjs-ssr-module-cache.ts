@@ -1,8 +1,11 @@
 import webpack from 'webpack'
-import { RawSource } from 'webpack-sources'
+import sources from 'webpack-sources'
 import { join, relative, dirname } from 'path'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
+
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
 
 // By default webpack keeps initialized modules per-module.
 // This means that if you have 2 entrypoints loaded into the same app

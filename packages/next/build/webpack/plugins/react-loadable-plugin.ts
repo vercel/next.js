@@ -28,6 +28,9 @@ import webpack, {
 } from 'webpack'
 import sources from 'webpack-sources'
 
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
+
 const isWebpack5 = parseInt(webpack.version!) === 5
 
 function getModulesIterable(compilation: any, chunk: any) {
@@ -110,9 +113,7 @@ export class ReactLoadablePlugin {
   createAssets(compiler: any, compilation: any, assets: any) {
     const manifest = buildManifest(compiler, compilation)
     // @ts-ignore: TODO: remove when webpack 5 is stable
-    assets[this.filename] = new (webpack.sources || sources).RawSource(
-      JSON.stringify(manifest, null, 2)
-    )
+    assets[this.filename] = new RawSource(JSON.stringify(manifest, null, 2))
     return assets
   }
 
