@@ -245,6 +245,7 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
+  _shallow?: boolean
 
   static events: MittEmitter = mitt()
 
@@ -410,7 +411,12 @@ export default class Router implements BaseRouter {
       return
     }
 
-    this.change('replaceState', url, as, options)
+    console.log('idk', { new: options.shallow, cur: this._shallow })
+
+    this.change('replaceState', url, as, {
+      ...options,
+      shallow: options.shallow && this._shallow,
+    })
   }
 
   reload(): void {
@@ -644,6 +650,7 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+      this._shallow = options.shallow
       window.history[method](
         {
           url,
