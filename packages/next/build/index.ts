@@ -169,15 +169,21 @@ export default async function build(
 
   let pageIgnorePattern = config.pageIgnorePattern
 
-  try {
-    if (pageIgnorePattern) {
-      pageIgnorePattern =
-        typeof pageIgnorePattern === 'string'
-          ? new RegExp(pageIgnorePattern)
-          : pageIgnorePattern
+  if (pageIgnorePattern) {
+    switch (typeof pageIgnorePattern) {
+      case 'string':
+        pageIgnorePattern = new RegExp(pageIgnorePattern)
+        break
+
+      case 'object':
+        if (!(pageIgnorePattern instanceof RegExp)) {
+          throw new Error(PAGE_IGNORE_PATTERN_ERROR)
+        }
+        break
+
+      default:
+        throw new Error(PAGE_IGNORE_PATTERN_ERROR)
     }
-  } catch (error) {
-    throw new Error(PAGE_IGNORE_PATTERN_ERROR)
   }
 
   const pagePaths: string[] = await collectPages(
