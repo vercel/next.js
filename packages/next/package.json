@@ -26,6 +26,8 @@
     "document.d.ts",
     "dynamic.js",
     "dynamic.d.ts",
+    "env.js",
+    "env.d.ts",
     "error.js",
     "error.d.ts",
     "head.js",
