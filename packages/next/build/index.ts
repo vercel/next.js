@@ -10,6 +10,7 @@ import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
+  PAGE_IGNORE_PATTERN_ERROR,
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
@@ -166,9 +167,23 @@ export default async function build(
 
   const isLikeServerless = isTargetLikeServerless(target)
 
+  let pageIgnorePattern = config.pageIgnorePattern
+
+  try {
+    if (pageIgnorePattern) {
+      pageIgnorePattern =
+        typeof pageIgnorePattern === 'string'
+          ? new RegExp(pageIgnorePattern)
+          : pageIgnorePattern
+    }
+  } catch (error) {
+    throw new Error(PAGE_IGNORE_PATTERN_ERROR)
+  }
+
   const pagePaths: string[] = await collectPages(
     pagesDir,
-    config.pageExtensions
+    config.pageExtensions,
+    pageIgnorePattern
   )
 
   // needed for static exporting since we want to replace with HTML

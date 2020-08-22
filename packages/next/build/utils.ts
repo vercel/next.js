@@ -37,11 +37,13 @@ const fsStatGzip = (file: string) => {
 
 export function collectPages(
   directory: string,
-  pageExtensions: string[]
+  pageExtensions: string[],
+  pageIgnorePattern?: RegExp
 ): Promise<string[]> {
   return recursiveReadDir(
     directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
+    new RegExp(`\\.(?:${pageExtensions.join('|')})$`),
+    pageIgnorePattern
   )
 }
 
