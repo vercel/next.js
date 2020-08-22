@@ -534,7 +534,14 @@ export default class Router implements BaseRouter {
     let resolvedAs = as
 
     if (process.env.__NEXT_HAS_REWRITES) {
-      resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+      resolvedAs = resolveRewrites(
+        as,
+        pages,
+        basePath,
+        rewrites,
+        query,
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+      )
     }
     resolvedAs = delBasePath(resolvedAs)
 
@@ -578,7 +585,7 @@ export default class Router implements BaseRouter {
         as,
         shallow
       )
-      const { error } = routeInfo
+      let { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', as)
       this.changeState(method, url, as, options)
@@ -590,7 +597,12 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo)
+      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
+        (e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        }
+      )
 
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs)
