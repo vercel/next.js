@@ -609,6 +609,13 @@ async function doRender({
       return Promise.resolve([])
     }
 
+    // Clean up previous render if canceling:
+    ;([].slice.call(
+      document.querySelectorAll('link[data-n-staging]')
+    ) as HTMLLinkElement[]).forEach((el) => {
+      el.parentNode!.removeChild(el)
+    })
+
     let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
       document.querySelectorAll('link[data-n-g], link[data-n-p]')
     ) as HTMLLinkElement[]).pop()
@@ -652,18 +659,6 @@ async function doRender({
     })
   }
 
-  function onAbort() {
-    ;([].slice.call(
-      document.querySelectorAll('link[data-n-staging]')
-    ) as HTMLLinkElement[]).forEach((el) => {
-      el.parentNode!.removeChild(el)
-    })
-  }
-  renderPromise.catch((abortError) => {
-    onAbort()
-    throw abortError
-  })
-
   function onCommit() {
     if (
       // We can skip this during hydration. Running it wont cause any harm, but
@@ -704,17 +699,29 @@ async function doRender({
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  await onStart()
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement!
-  )
+  await Promise.race([
+    // Download required CSS assets first:
+    onStart()
+      .then(() =>
+        // Queue rendering:
+        renderReactElement(
+          process.env.__NEXT_STRICT_MODE ? (
+            <React.StrictMode>{elem}</React.StrictMode>
+          ) : (
+            elem
+          ),
+          appElement!
+        )
+      )
+      .then(
+        () =>
+          // Wait for rendering to complete:
+          renderPromise
+      ),
 
-  await renderPromise
+    // Bail early on route cancelation (rejection):
+    renderPromise,
+  ])
 }
 
 function Root({
