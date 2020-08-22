@@ -348,6 +348,11 @@ export async function render(renderingProps: RenderRouteInfo) {
   try {
     await doRender(renderingProps)
   } catch (renderErr) {
+    // bubble up cancelation errors
+    if (renderErr.cancelled) {
+      throw renderErr
+    }
+
     if (process.env.NODE_ENV === 'development') {
       // Ensure this error is displayed in the overlay in development
       setTimeout(() => {
@@ -550,13 +555,13 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-async function doRender({
+function doRender({
   App,
   Component,
   props,
   err,
   styleSheets,
-}: RenderRouteInfo) {
+}: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -570,6 +575,7 @@ async function doRender({
   lastAppProps = appProps
 
   let resolvePromise: () => void
+  let renderPromiseReject: () => void
   const renderPromise = new Promise((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
@@ -578,9 +584,12 @@ async function doRender({
       lastRenderReject = null
       resolve()
     }
-    lastRenderReject = () => {
+    renderPromiseReject = lastRenderReject = () => {
       lastRenderReject = null
-      reject()
+
+      const error: any = new Error('Cancel rendering route')
+      error.cancelled = true
+      reject(error)
     }
   })
 
@@ -600,6 +609,13 @@ async function doRender({
     ) {
       return Promise.resolve([])
     }
+
+    // Clean up previous render if canceling:
+    ;([].slice.call(
+      document.querySelectorAll('link[data-n-staging]')
+    ) as HTMLLinkElement[]).forEach((el) => {
+      el.parentNode!.removeChild(el)
+    })
 
     let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
       document.querySelectorAll('link[data-n-g], link[data-n-p]')
@@ -644,18 +660,6 @@ async function doRender({
     })
   }
 
-  function onAbort() {
-    ;([].slice.call(
-      document.querySelectorAll('link[data-n-staging]')
-    ) as HTMLLinkElement[]).forEach((el) => {
-      el.parentNode!.removeChild(el)
-    })
-  }
-  renderPromise.catch((abortError) => {
-    onAbort()
-    throw abortError
-  })
-
   function onCommit() {
     if (
       // We can skip this during hydration. Running it wont cause any harm, but
@@ -696,17 +700,32 @@ async function doRender({
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  await onStart()
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement!
-  )
+  return Promise.race([
+    // Download required CSS assets first:
+    onStart()
+      .then(() => {
+        // Ensure a new render has not been started:
+        if (renderPromiseReject === lastRenderReject) {
+          // Queue rendering:
+          renderReactElement(
+            process.env.__NEXT_STRICT_MODE ? (
+              <React.StrictMode>{elem}</React.StrictMode>
+            ) : (
+              elem
+            ),
+            appElement!
+          )
+        }
+      })
+      .then(
+        () =>
+          // Wait for rendering to complete:
+          renderPromise
+      ),
 
-  await renderPromise
+    // Bail early on route cancelation (rejection):
+    renderPromise,
+  ])
 }
 
 function Root({
