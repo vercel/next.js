@@ -1180,6 +1180,9 @@ export default async function getBaseWebpackConfig(
       }
 
       webpackConfig.cache = cache
+
+      // @ts-ignore TODO: remove ignore when webpack 5 is stable
+      webpackConfig.optimization.realContentHash = false
     }
   }
 
