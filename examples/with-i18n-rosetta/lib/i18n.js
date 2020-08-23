@@ -14,27 +14,9 @@ export const I18nContext = createContext()
 i18n.locale(defaultLanguage)
 
 export default function I18n({ children, locale, lngDict }) {
-  const [activeDict, setActiveDict] = useState(() => lngDict)
   const activeLocaleRef = useRef(locale || defaultLanguage)
   const [, setTick] = useState(0)
   const firstRender = useRef(true)
-
-  // for initial SSR render
-  if (locale && firstRender.current === true) {
-    firstRender.current = false
-    i18n.locale(locale)
-    i18n.set(locale, activeDict)
-  }
-
-  useEffect(() => {
-    if (locale) {
-      i18n.locale(locale)
-      i18n.set(locale, activeDict)
-      activeLocaleRef.current = locale
-      // force rerender
-      setTick((tick) => tick + 1)
-    }
-  }, [locale, activeDict])
 
   const i18nWrapper = {
     activeLocale: activeLocaleRef.current,
@@ -44,12 +26,25 @@ export default function I18n({ children, locale, lngDict }) {
       activeLocaleRef.current = l
       if (dict) {
         i18n.set(l, dict)
-        setActiveDict(dict)
-      } else {
-        setTick((tick) => tick + 1)
       }
+      // force rerender to update view
+      setTick((tick) => tick + 1)
     },
   }
+
+  // for initial SSR render
+  if (locale && firstRender.current === true) {
+    firstRender.current = false
+    i18nWrapper.locale(locale, lngDict)
+  }
+
+  // when locale is updated
+  useEffect(() => {
+    if (locale) {
+      i18nWrapper.locale(locale, lngDict)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lngDict, locale])
 
   return (
     <I18nContext.Provider value={i18nWrapper}>{children}</I18nContext.Provider>
