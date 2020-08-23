@@ -67,6 +67,10 @@ export default function NoAnonymousDefaultExport({
                   '',
                   chalk.bold('After'),
                   chalk.cyan('export default function Named() { /* ... */ }'),
+                  '',
+                  `A codemod is available to fix the most common cases: ${chalk.cyan(
+                    'https://vercel.link/3j62lX5'
+                  )}`,
                 ].join('\n')
               )
             }
