@@ -11,13 +11,6 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 > These new data fetching methods allow you to have a granular choice between static generation and server-side rendering.
 > Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data fetching](/docs/basic-features/data-fetching.md):
 
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
-  </ul>
-</details>
-
 `getInitialProps` enables [server-side rendering](/docs/basic-features/pages.md#server-side-rendering) in a page and allows you to do **initial data population**, it means sending the [page](/docs/basic-features/pages.md) with the data already populated from the server. This is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 
 > `getInitialProps` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
