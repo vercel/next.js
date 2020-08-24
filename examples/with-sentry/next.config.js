@@ -21,6 +21,7 @@ const COMMIT_SHA =
   VERCEL_BITBUCKET_COMMIT_SHA
 
 process.env.SENTRY_DSN = SENTRY_DSN
+const basePath = ''
 
 module.exports = withSourceMaps({
   serverRuntimeConfig: {
@@ -63,12 +64,12 @@ module.exports = withSourceMaps({
           include: '.next',
           ignore: ['node_modules'],
           stripPrefix: ['webpack://_N_E/'],
-          urlPrefix: '~/_next',
+          urlPrefix: `~${basePath}/_next`,
           release: COMMIT_SHA,
         })
       )
     }
-
     return config
   },
+  basePath,
 })
