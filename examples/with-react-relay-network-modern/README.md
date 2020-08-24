@@ -27,8 +27,8 @@ yarn create next-app --example with-react-relay-network-modern with-react-relay-
 Download the example:
 
 ```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-relay-modern
-cd with-relay-modern
+curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-relay-network-modern-app
+cd with-react-relay-network-modern-app
 ```
 
 Install it:
