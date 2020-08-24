@@ -76,7 +76,7 @@ For this example you need to create a content model that defines an `author` and
    kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-backup
    ```
 
-   > **:bulb: Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import-from-file) for importing the content.**
+   > **💡 Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import-from-file) for importing the content.**
 
 1. Go to your Kontent project and publish all the imported items.
    > You could deactivate Management API key, it is not necessary any more.
@@ -186,7 +186,7 @@ Once saved, go to one of the posts you've created and:
 - **Do not** publish it. By doing this, the post will be in draft workflow step.
 - On the menu, you will see the **Preview** button. Click on it!
 
-![Post preview button](./docs/post-preview-button.jpg).
+![Post preview button](./docs/post-preview-button.png).
 
 You will now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
@@ -205,7 +205,3 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-kontent&env=KONTENT_PROJECT_ID,KONTENT_PREVIEW_API_KEY,KONTENT_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Kontent)
-
-## Notes
-
-This starter uses [Tailwind CSS](https://tailwindcss.com). To control the generated stylesheet's filesize, this example uses Tailwind CSS' v1.4 [`purge` option](https://tailwindcss.com/docs/controlling-file-size/#removing-unused-css) to remove unused CSS.
