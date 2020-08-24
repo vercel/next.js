@@ -43,6 +43,22 @@ export async function getAllPostSlugs() {
   return postsResponse.items.map((post) => post.slug.value)
 }
 
+export async function getMorePostsForSlug(slug, preview) {
+  return client
+    .items()
+    .queryConfig({
+      usePreviewMode: !!preview,
+    })
+    .type('post')
+    .orderByDescending('elements.date')
+    .withParameter('elements.slug[neq]', slug)
+    .limitParameter(2)
+    .toPromise()
+    .then((res) => {
+      return res.items.map((post) => parsePost(post))
+    })
+}
+
 export async function getPostBySlug(slug, preview) {
   const post = await client
     .items()
@@ -58,7 +74,7 @@ export async function getPostBySlug(slug, preview) {
 }
 
 export async function getAllPosts(preview) {
-  const postsResponse = await client
+  return await client
     .items()
     .queryConfig({
       usePreviewMode: !!preview,
@@ -66,6 +82,5 @@ export async function getAllPosts(preview) {
     .type('post')
     .orderByDescending('elements.date')
     .toPromise()
-
-  return postsResponse.items.map((post) => parsePost(post))
+    .then((postsResponse) => postsResponse.items.map((post) => parsePost(post)))
 }
