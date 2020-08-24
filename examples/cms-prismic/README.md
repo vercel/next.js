@@ -24,6 +24,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 - [Cosmic](/examples/cms-cosmic)
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
