@@ -148,10 +148,11 @@ function reduceComponents(
           const newProps = { ...(c.props || {}) }
           newProps['data-href'] = newProps['href']
           newProps['href'] = undefined
+          newProps['data-next-head'] = 'true'
           return React.cloneElement(c, newProps)
         }
       }
-      return React.cloneElement(c, { key })
+      return React.cloneElement(c, { key, 'data-next-head': 'true' })
     })
 }
 

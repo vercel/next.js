@@ -44,15 +44,18 @@ function updateElements(type: string, components: JSX.Element[]) {
   const headCount = Number(headCountEl.content)
   const oldTags: Element[] = []
 
-  for (
-    let i = 0, j = headCountEl.previousElementSibling;
-    i < headCount;
-    i++, j = j!.previousElementSibling
-  ) {
-    if (j!.tagName.toLowerCase() === type) {
-      oldTags.push(j!)
+  let i = 0
+  let j = headCountEl.previousElementSibling
+  while (i < headCount) {
+    if (j!.getAttribute('data-next-head') === 'true') {
+      if (j!.tagName.toLowerCase() === type) {
+        oldTags.push(j!)
+      }
+      i++
     }
+    j = j!.previousElementSibling
   }
+
   const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
     (newTag) => {
       for (let k = 0, len = oldTags.length; k < len; k++) {
