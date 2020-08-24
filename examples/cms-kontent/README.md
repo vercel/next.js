@@ -55,6 +55,8 @@ cd cms-kontent
 
 First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=devrel&utm_campaign=extended_trial).
 
+> The link above will provide you with the 90-days trial. Once you finish the trial, or even during the trial period, you could switch to the [**developer plan**](https://kontent.ai/blog/a-new-developer-plan) which is **free of charge** and offers all features you need to test out the example capabilities.
+
 After signing up, [create an empty project](https://docs.kontent.ai/tutorials/set-up-kontent/projects/manage-projects#a-creating-projects).
 
 ### Step 2. Create a content models and fill them with data
