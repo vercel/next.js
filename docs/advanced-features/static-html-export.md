@@ -21,7 +21,7 @@ The exported app supports almost every feature of Next.js, including dynamic rou
 >
 > If you're looking to make a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically for you! Read up on [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) for details.
 >
-> `next export` also causes features like Incremental Static Generation and Regeneration to be disabled, as they require `next start` or a serverless deployment to function.
+> `next export` also causes features like [Incremental Static Generation](/docs/basic-features/data-fetching.md#fallback-true) and [Regeneration](/docs/basic-features/data-fetching.md#incremental-static-regeneration) to be disabled, as they require [`next start`](/docs/api-reference/cli.md#production) or a serverless deployment to function.
 
 ## How to use it
 
@@ -53,7 +53,9 @@ For more advanced scenarios, you can define a parameter called [`exportPathMap`]
 
 ## Deployment
 
-You can read about deploying your Next.js application in the [deployment section](/docs/deployment.md).
+By default, `next export` will generate an `out` directory, which can be served by any static hosting service or CDN.
+
+> We strongly recommend using [Vercel](https://vercel.com/) even if your Next.js app is fully static. [Vercel](https://vercel.com/) is optimized to make static Next.js apps blazingly fast. `next export` works with Zero Config deployments on Vercel.
 
 ## Caveats
 
@@ -62,11 +64,10 @@ You can read about deploying your Next.js application in the [deployment section
   - `getInitialProps` cannot be used alongside `getStaticProps` or `getStaticPaths` on any given page. If you have dynamic routes, instead of using `getStaticPaths` you'll need to configure the [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) parameter in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to let the exporter know which HTML files it should output.
   - When `getInitialProps` is called during export, the `req` and `res` fields of its [`context`](/docs/api-reference/data-fetching/getInitialProps.md#context-object) parameter will be empty objects, since during export there is no server running.
   - `getInitialProps` **will be called on every client-side navigation**, if you'd like to only fetch data at build-time, switch to `getStaticProps`.
-  - `getInitialProps` cannot use Node.js-specific libraries or the file system like `getStaticProps` can. `getInitialProps` must fetch from an API.
+  - `getInitialProps` should fetch from an API and cannot use Node.js-specific libraries or the file system like `getStaticProps` can.
 
-  For static export, the `getStaticProps` API is always preferred over `getInitialProps`: it's recommended you convert your pages to use the `getStaticProps` if possible.
+  It's recommended to use and migrate towards `getStaticProps` over `getInitialProps` whenever possible.
 
-- The `fallback: true` mode of `getStaticPaths` is not supported when using `next export`.
-- You won't be able to render HTML dynamically when static exporting, as the HTML files are pre-build. Your application can be a hybrid of [Static Generation](/docs/basic-features/pages.md#static-generation) and [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) when you don't use `next export`. You can learn more about it in the [pages section](/docs/basic-features/pages.md).
+- The [`fallback: true`](/docs/basic-features/data-fetching.md#fallback-true) mode of `getStaticPaths` is not supported when using `next export`.
 - [API Routes](/docs/api-routes/introduction.md) are not supported by this method because they can't be prerendered to HTML.
 - [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) cannot be used within pages because the method requires a server. Consider using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) instead.
