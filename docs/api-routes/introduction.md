@@ -51,7 +51,7 @@ To fetch API endpoints, take a look into any of the examples at the start of thi
 ## Caveats
 
 - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [cors middleware](/docs/api-routes/api-middlewares.md#connectexpress-middleware-support).
-- API Routes can't be used with [`next export`]()
+- API Routes can't be used with [`next export`](/docs/advanced-features/static-html-export.md)
 
 ## Related
 
