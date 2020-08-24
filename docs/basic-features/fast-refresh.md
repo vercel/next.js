@@ -108,5 +108,5 @@ with an empty array of dependencies would still re-run once during Fast Refresh.
 
 However, writing code resilient to occasional re-running of `useEffect` is a good practice even
 without Fast Refresh. It will make it easier for you to introduce new dependencies to it later on
-and it's enforced by [React Strict Mode](/docs/api-reference/next.config.js/react-strict-mode),
+and it's enforced by [React Strict Mode](/docs/api-reference/next.config.js/react-strict-mode.md),
 which we highly recommend enabling.
