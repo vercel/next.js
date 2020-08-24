@@ -399,9 +399,7 @@ const nextServerlessLoader: loader.Loader = function () {
           pageIsDynamicRoute
             ? `
             const params = (
-              fromExport &&
-              !getStaticProps &&
-              !getServerSideProps
+              fromExport
             ) ? {}
               : normalizeDynamicRouteParams(
                 trustQuery
