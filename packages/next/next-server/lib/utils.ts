@@ -23,6 +23,7 @@ export type NextComponentType<
    * @param ctx Context of `page`
    */
   getInitialProps?(context: C): IP | Promise<IP>
+  skeleton?: boolean
 }
 
 export type DocumentType = NextComponentType<

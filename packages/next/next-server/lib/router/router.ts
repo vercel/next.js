@@ -18,6 +18,7 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
+  NextComponentType,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
@@ -28,6 +29,7 @@ import { getRouteRegex } from './utils/route-regex'
 
 interface TransitionOptions {
   shallow?: boolean
+  skeleton?: Record<string, any>
 }
 
 interface NextHistoryState {
@@ -158,7 +160,7 @@ export type PrefetchOptions = {
 }
 
 export type PrivateRouteInfo = {
-  Component: ComponentType
+  Component: NextComponentType<{}>
   styleSheets: string[]
   __N_SSG?: boolean
   __N_SSP?: boolean
@@ -527,7 +529,7 @@ export default class Router implements BaseRouter {
     }
 
     const route = removePathTrailingSlash(pathname)
-    const { shallow = false } = options
+    const { shallow = false, skeleton } = options
 
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
@@ -583,7 +585,8 @@ export default class Router implements BaseRouter {
         pathname,
         query,
         as,
-        shallow
+        shallow,
+        skeleton
       )
       let { error } = routeInfo
 
@@ -721,7 +724,8 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: any,
     as: string,
-    shallow: boolean = false
+    shallow: boolean = false,
+    skeleton?: Record<string, any>
   ): Promise<PrivateRouteInfo> {
     try {
       const cachedRouteInfo = this.components[route]
@@ -760,7 +764,7 @@ export default class Router implements BaseRouter {
         )
       }
 
-      const props = await this._getData<PrivateRouteInfo>(() =>
+      const promisedProps = this._getData<PrivateRouteInfo>(() =>
         __N_SSG
           ? this._getStaticData(dataHref!)
           : __N_SSP
@@ -775,12 +779,42 @@ export default class Router implements BaseRouter {
               } as any
             )
       )
+
+      const props = Component.skeleton
+        ? {
+            pageProps: skeleton,
+            __NEXT_PROMISED_PROPS: promisedProps,
+          }
+        : await promisedProps
+
       routeInfo.props = props
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(err, pathname, query, as)
     }
+  }
+
+  _awaitProps(data: PrivateRouteInfo) {
+    const promisedProps = data.props?.__NEXT_PROMISED_PROPS
+    if (promisedProps) {
+      let cancelled = false
+      const cancel = () => {
+        cancelled = true
+      }
+      this.clc = cancel
+      promisedProps.then((props: any) => {
+        if (cancel === this.clc) {
+          this.clc = null
+        }
+        if (!cancelled) {
+          this.isFallback = false
+          data.props = props
+          this.notify(data)
+        }
+      })
+    }
+    return !!promisedProps
   }
 
   set(
@@ -790,7 +824,7 @@ export default class Router implements BaseRouter {
     as: string,
     data: PrivateRouteInfo
   ): Promise<void> {
-    this.isFallback = false
+    this.isFallback = this._awaitProps(data)
 
     this.route = route
     this.pathname = pathname

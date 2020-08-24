@@ -25,6 +25,7 @@ export type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
+  skeleton?: Record<string, any>
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
@@ -124,7 +125,8 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean
+  scroll?: boolean,
+  skeleton?: Record<string, any>
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -141,7 +143,7 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+  router[replace ? 'replace' : 'push'](href, as, { shallow, skeleton }).then(
     (success: boolean) => {
       if (!success) return
       if (scroll) {
@@ -201,6 +203,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       shallow: true,
       passHref: true,
       prefetch: true,
+      skeleton: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
@@ -215,6 +218,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
           throw createPropError({
             key,
             expected: '`string` or `object`',
+            actual: typeof props[key],
+          })
+        }
+      } else if (key === 'skeleton') {
+        if (props[key] && typeof props[key] !== 'object') {
+          throw createPropError({
+            key,
+            expected: '`object`',
             actual: typeof props[key],
           })
         }
@@ -282,7 +293,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [p, childElm, href, as, router])
 
-  let { children, replace, shallow, scroll } = props
+  let { children, replace, shallow, scroll, skeleton } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -311,7 +322,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, router, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll, skeleton)
       }
     },
   }

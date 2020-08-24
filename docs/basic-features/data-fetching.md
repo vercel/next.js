@@ -638,6 +638,67 @@ You can use [this tool](https://next-code-elimination.now.sh/) to verify what Ne
 
 Also, you must use `export async function getServerSideProps() {}` — it will **not** work if you add `getServerSideProps` as a property of the page component.
 
+## Skeleton-Loading
+
+No matter which way of pre-rendering you choose, any client-side navigation is deferred until the data has been fetched. Sometimes it's desirable to immediately transition to the new page and display a loading state (skeleton) while waiting for the data to arrive. In order to opt into this mode you can set the `skeleton` property to `true`.
+
+As with [static fallback pages](#fallback-true) you can use `router.isFallback` to check if the data has been loaded:
+
+```jsx
+import { useRouter } from 'next/router'
+
+function Page({ data }) {
+  const router = useRouter()
+
+  if (router.isFallback) {
+    // still waiting for the data
+    return <div>Loading...</div>
+  }
+
+  // data has been loaded
+  return <div>{data}</div>
+}
+
+// Opt into skeleton loading
+Page.skeleton = true
+
+export default Page
+```
+
+Sometimes, when linking to a page from a teaser, you might already know some of the page props ahead of time. In this case you can pass these properties as `skeleton` props:
+
+```jsx
+import { Link } from 'next/link'
+
+function Teaser({ href, title }) {
+  return (
+    <Link href={href} skeleton={{ title }}>
+      <a>{title}</a>
+    <Link>
+  )
+}
+```
+
+This way the destination page will receive the given `title` prop while being loaded. You can also pass skeleton props when using the `router` imparatively:
+
+```jsx
+import { useRouter } from 'next/router'
+
+function Teaser({ href, title }) {
+  return (
+    <button
+      onClick={() => {
+        router.push(href, undefined, {
+          skeleton: { title },
+        })
+      }}
+    >
+      {title}
+    </button>
+  )
+}
+```
+
 ## Fetching data on the client side
 
 If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the client side. An example of this is user-specific data. Here’s how it works:
