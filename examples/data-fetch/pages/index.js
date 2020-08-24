@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import fetch from 'node-fetch'
 
 function Index({ stars }) {
   return (
