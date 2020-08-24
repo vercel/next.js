@@ -28,6 +28,7 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
