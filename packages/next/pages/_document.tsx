@@ -25,9 +25,9 @@ export type OriginProps = {
   crossOrigin?: string
 }
 
-function dedupe(bundles: any[]): any[] {
-  const files = new Set()
-  const kept = []
+function dedupe<T extends { file: string }>(bundles: T[]): T[] {
+  const files = new Set<string>()
+  const kept: T[] = []
 
   for (const bundle of bundles) {
     if (files.has(bundle.file)) continue
@@ -157,9 +157,24 @@ export class Head extends Component<
   context!: React.ContextType<typeof DocumentComponentContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      dynamicImports,
+    } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles = new Set(files.sharedFiles)
+
+    let dynamicCssFiles = dedupe(
+      dynamicImports.filter((f) => f.file.endsWith('.css'))
+    ).map((f) => f.file)
+    if (dynamicCssFiles.length) {
+      const existing = new Set(cssFiles)
+      dynamicCssFiles = dynamicCssFiles.filter(
+        (f) => !(existing.has(f) || sharedFiles.has(f))
+      )
+      cssFiles.push(...dynamicCssFiles)
+    }
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
@@ -193,7 +208,6 @@ export class Head extends Component<
         />
       )
     })
-
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
@@ -206,7 +220,7 @@ export class Head extends Component<
 
     return (
       dedupe(dynamicImports)
-        .map((bundle: any) => {
+        .map((bundle) => {
           // `dynamicImports` will contain both `.js` and `.module.js` when the
           // feature is enabled. This clause will filter down to the modern
           // variants only.
@@ -540,7 +554,7 @@ export class NextScript extends Component<OriginProps> {
       devOnlyCacheBusterQueryString,
     } = this.context
 
-    return dedupe(dynamicImports).map((bundle: any) => {
+    return dedupe(dynamicImports).map((bundle) => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
         modernProps = bundle.file.endsWith('.module.js')
