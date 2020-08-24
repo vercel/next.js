@@ -18,51 +18,39 @@ export default (context, render) => {
 
       it('should render one dynamically imported component and load its css files', async () => {
         const $ = await get$('/dynamic/css')
-        const jsimports = $('link[rel="stylesheet"][data-jsimports]').attr(
-          'data-jsimports'
-        )
-        const dynamicChunks = $(`link[rel="preload"][href="${jsimports}"]`)
-        expect(dynamicChunks.length).toBe(1)
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(1)
       })
 
-      it('should render three dynamically imported components and load their css files in proper order', async () => {
+      it('should render three dynamically imported components and load their css files', async () => {
         const $ = await get$('/dynamic/many-dynamic-css')
-        const jsimports = $('link[rel="stylesheet"][data-jsimports]').map(
-          function (index, element) {
-            return $(element).attr('data-jsimports')
-          }
-        )
-        const firstDynamicChunk = $(
-          `link[rel="preload"][href="${jsimports[0]}"]`
-        )
-        const secondDynamicChunk = firstDynamicChunk.next()
-        expect(secondDynamicChunk.attr('href')).toBe(jsimports[1])
-        const thirdDynamicChunk = secondDynamicChunk.next()
-        expect(thirdDynamicChunk.attr('href')).toBe(jsimports[2])
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(3)
       })
 
       it('should bundle two css modules for one dynamically imported component into one css file', async () => {
         const $ = await get$('/dynamic/many-css-modules')
-        const jsimports = $('link[rel="stylesheet"][data-jsimports]')
-        expect(jsimports.length).toBe(1)
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(1)
       })
 
       it('should bundle two css modules for nested components into one css file', async () => {
         const $ = await get$('/dynamic/nested-css')
-        const jsimports = $('link[rel="stylesheet"][data-jsimports]')
-        expect(jsimports.length).toBe(1)
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(1)
       })
 
       // It seem to be abnormal, dynamic CSS modules are completely self-sufficient, so shared styles are copied across files
       it('should output two css files even in case of three css module files while one is shared across files', async () => {
         const $ = await get$('/dynamic/shared-css-module')
-        const jsimports = $('link[rel="stylesheet"][data-jsimports]')
-        expect(jsimports.length).toBe(2)
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(2)
       })
 
       it('should render one dynamically imported component without any css files', async () => {
         const $ = await get$('/dynamic/no-css')
-        expect($('link[rel="stylesheet"][data-jsimports]').length).toBe(0)
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(0)
       })
 
       it('should render even there are no physical chunk exists', async () => {

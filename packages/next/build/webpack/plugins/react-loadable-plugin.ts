@@ -22,9 +22,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to strip out unneeded results for Next's specific use case
 
 import webpack, {
-  Compiler,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   compilation as CompilationType,
+  Compiler,
 } from 'webpack'
 import sources from 'webpack-sources'
 
@@ -65,14 +65,14 @@ function buildManifest(
 
       chunkGroup.chunks.forEach((chunk: any) => {
         chunk.files.forEach((file: string) => {
-          if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+          if (
+            !(
+              (file.endsWith('.js') || file.endsWith('.css')) &&
+              file.match(/^static\/(chunks|css)\//)
+            )
+          ) {
             return
           }
-
-          const css = chunk.files.filter(
-            (chunkFile: string) =>
-              chunkFile.match(/\.css$/) && chunkFile.match(/^static\/css\//)
-          )
 
           for (const module of getModulesIterable(compilation, chunk)) {
             let id = getModuleId(compilation, module)
@@ -90,11 +90,7 @@ function buildManifest(
               continue
             }
 
-            manifest[request].push({
-              id,
-              file,
-              css,
-            })
+            manifest[request].push({ id, file })
           }
         })
       })
