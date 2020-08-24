@@ -123,7 +123,12 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode } = useContext(DocumentComponentContext)
+  const { inAmpMode, docComponentsRendered } = useContext(
+    DocumentComponentContext
+  )
+
+  docComponentsRendered.Html = true
+
   return (
     <html
       {...props}
@@ -287,6 +292,8 @@ export class Head extends Component<
       unstable_runtimeJS,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
+
+    this.context.docComponentsRendered.Head = true
 
     let { head } = this.context
     let children = this.props.children
@@ -501,7 +508,12 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, html } = useContext(DocumentComponentContext)
+  const { inAmpMode, html, docComponentsRendered } = useContext(
+    DocumentComponentContext
+  )
+
+  docComponentsRendered.Main = true
+
   if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
   return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
 }
@@ -642,9 +654,12 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       buildManifest,
       unstable_runtimeJS,
+      docComponentsRendered,
       devOnlyCacheBusterQueryString,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
+
+    docComponentsRendered.NextScript = true
 
     if (inAmpMode) {
       if (process.env.NODE_ENV === 'production') {

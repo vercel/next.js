@@ -166,6 +166,12 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  docComponentsRendered: {
+    Html?: boolean
+    Main?: boolean
+    Head?: boolean
+    NextScript?: boolean
+  }
   buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
