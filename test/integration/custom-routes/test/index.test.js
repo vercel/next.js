@@ -173,6 +173,12 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/Hello/)
   })
 
+  it('should not append params when one is used in destination path', async () => {
+    const html = await renderViaHTTP(appPort, '/test/with-params?a=b')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('p').text())).toEqual({ a: 'b' })
+  })
+
   it('should double redirect successfully', async () => {
     const html = await renderViaHTTP(appPort, '/docs/github')
     expect(html).toMatch(/hi there/)
@@ -397,7 +403,6 @@ const runTests = (isDev = false) => {
       {
         pathname: '/first',
         query: {
-          path: 'first',
           keep: 'me',
           and: 'me',
         },
@@ -983,7 +988,7 @@ const runTests = (isDev = false) => {
       })
     })
 
-    it('should have redirects/rewrites in build output', async () => {
+    it('should have redirects/rewrites in build output with debug flag', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
@@ -1068,7 +1073,7 @@ describe('Custom routes', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
@@ -1088,7 +1093,7 @@ describe('Custom routes', () => {
         nextConfigContent.replace(/\/\/ target/, 'target'),
         'utf8'
       )
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
@@ -1164,7 +1169,6 @@ describe('Custom routes', () => {
       expect(data).toEqual({
         query: {
           slug: 'first',
-          name: 'first',
           hello: 'first',
         },
       })

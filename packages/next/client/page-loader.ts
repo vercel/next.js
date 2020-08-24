@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
@@ -32,6 +32,8 @@ const relPrefetch =
       // IE 11, Edge 12+, nearly all evergreen
       'prefetch'
 
+const relPreload = hasRel('preload') ? 'preload' : relPrefetch
+
 const hasNoModule = 'noModule' in document.createElement('script')
 
 const requestIdleCallback: (fn: () => void) => void =
@@ -49,30 +51,59 @@ function normalizeRoute(route: string) {
   return route.replace(/\/$/, '')
 }
 
-function appendLink(
+export function createLink(
   href: string,
   rel: string,
   as?: string,
   link?: HTMLLinkElement
-): Promise<any> {
+): [HTMLLinkElement, Promise<any>] {
+  link = document.createElement('link')
+  return [
+    link,
+    new Promise((res, rej) => {
+      // The order of property assignment here is intentional:
+      if (as) link!.as = as
+      link!.rel = rel
+      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+      link!.onload = res
+      link!.onerror = rej
+
+      // `href` should always be last:
+      link!.href = href
+    }),
+  ]
+}
+
+function appendLink(href: string, rel: string, as?: string): Promise<any> {
+  const [link, res] = createLink(href, rel, as)
+  document.head.appendChild(link)
+  return res
+}
+
+function loadScript(url: string): Promise<any> {
   return new Promise((res, rej) => {
-    link = document.createElement('link')
-    link.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link.href = href
-    link.rel = rel
-    if (as) link.as = as
-
-    link.onload = res
-    link.onerror = rej
-
-    document.head.appendChild(link)
+    const script = document.createElement('script')
+    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
+      script.type = 'module'
+    }
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+    script.src = url
+    script.onload = res
+    script.onerror = () => rej(pageLoadError(url))
+    document.body.appendChild(script)
   })
 }
 
-export type GoodPageCache = { page: ComponentType; mod: any }
+export type GoodPageCache = {
+  page: ComponentType
+  mod: any
+  styleSheets: string[]
+}
 export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
+  private initialPage: string
+  private initialStyleSheets: string[]
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
@@ -82,7 +113,15 @@ export default class PageLoader {
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
 
-  constructor(buildId: string, assetPrefix: string, initialPage: string) {
+  constructor(
+    buildId: string,
+    assetPrefix: string,
+    initialPage: string,
+    initialStyleSheets: string[]
+  ) {
+    this.initialPage = initialPage
+    this.initialStyleSheets = initialStyleSheets
+
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
@@ -148,14 +187,11 @@ export default class PageLoader {
   }
 
   // Returns a promise for the dependencies for a particular route
-  getDependencies(route: string): Promise<string[]> {
+  private getDependencies(route: string): Promise<string[]> {
     return this.promisedBuildManifest!.then((m) => {
       return m[route]
         ? m[route].map((url) => `${this.assetPrefix}/_next/${encodeURI(url)}`)
-        : (this.pageRegisterEvents.emit(route, {
-            error: pageLoadError(route),
-          }),
-          [])
+        : Promise.reject(pageLoadError(route))
     })
   }
 
@@ -286,25 +322,45 @@ export default class PageLoader {
       if (!this.loadingRoutes[route]) {
         this.loadingRoutes[route] = true
         if (process.env.NODE_ENV === 'production') {
-          this.getDependencies(route).then((deps) => {
-            deps.forEach((d) => {
-              if (
-                d.endsWith('.js') &&
-                !document.querySelector(`script[src^="${d}"]`)
-              ) {
-                this.loadScript(d, route)
-              }
-              if (
-                d.endsWith('.css') &&
-                !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
-              ) {
-                appendLink(d, 'stylesheet').catch(() => {
-                  // FIXME: handle failure
-                  // Right now, this is needed to prevent an unhandled rejection.
-                })
-              }
+          this.getDependencies(route)
+            .then((deps) => {
+              const pending: Promise<any>[] = []
+              deps.forEach((d) => {
+                if (
+                  d.endsWith('.js') &&
+                  !document.querySelector(`script[src^="${d}"]`)
+                ) {
+                  pending.push(loadScript(d))
+                }
+
+                // Prefetch CSS as it'll be needed when the page JavaScript
+                // evaluates. This will only trigger if explicit prefetching is
+                // disabled for a <Link>... prefetching in this case is desirable
+                // because we *know* it's going to be used very soon (page was
+                // loaded).
+                if (
+                  d.endsWith('.css') &&
+                  !document.querySelector(
+                    `link[rel="${relPreload}"][href^="${d}"]`
+                  )
+                ) {
+                  // This is not pushed into `pending` because we don't need to
+                  // wait for these to resolve. To prevent an unhandled
+                  // rejection, we swallow the error which is handled later in
+                  // the rendering cycle (this is just a preload optimization).
+                  appendLink(d, relPreload, 'style').catch(() => {
+                    /* ignore preload error */
+                  })
+                }
+              })
+              return Promise.all(pending)
             })
-          })
+            .catch((err) => {
+              // Mark the page as failed to load if any of its required scripts
+              // fail to load:
+              this.pageCache[route] = { error: err }
+              fire({ error: err })
+            })
         } else {
           // Development only. In production the page file is part of the build manifest
           route = normalizeRoute(route)
@@ -313,31 +369,26 @@ export default class PageLoader {
           const url = `${this.assetPrefix}/_next/static/chunks/pages${encodeURI(
             scriptRoute
           )}`
-          this.loadScript(url, route)
+          loadScript(url).catch((err) => {
+            // Mark the page as failed to load if its script fails to load:
+            this.pageCache[route] = { error: err }
+            fire({ error: err })
+          })
         }
       }
     })
   }
 
-  loadScript(url: string, route: string) {
-    const script = document.createElement('script')
-    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
-      script.type = 'module'
-    }
-    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    script.src = url
-    script.onerror = () => {
-      this.pageRegisterEvents.emit(route, { error: pageLoadError(url) })
-    }
-    document.body.appendChild(script)
-  }
-
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = () => {
+    const register = (styleSheets: string[]) => {
       try {
         const mod = regFn()
-        const pageData = { page: mod.default || mod, mod }
+        const pageData: PageCacheEntry = {
+          page: mod.default || mod,
+          mod,
+          styleSheets,
+        }
         this.pageCache[route] = pageData
         this.pageRegisterEvents.emit(route, pageData)
       } catch (error) {
@@ -357,7 +408,10 @@ export default class PageLoader {
         const check = (status: string) => {
           if (status === 'idle') {
             ;(module as any).hot.removeStatusHandler(check)
-            register()
+            register(
+              /* css is handled via style-loader in development */
+              []
+            )
           }
         }
         ;(module as any).hot.status(check)
@@ -365,7 +419,24 @@ export default class PageLoader {
       }
     }
 
-    register()
+    const promisedDeps: Promise<string[]> =
+      // Shared styles will already be on the page:
+      route === '/_app' ||
+      // We use `style-loader` in development:
+      process.env.NODE_ENV !== 'production'
+        ? Promise.resolve([])
+        : route === this.initialPage
+        ? Promise.resolve(this.initialStyleSheets)
+        : // Tests that this does not block hydration:
+          // test/integration/css-fixtures/hydrate-without-deps/
+          this.getDependencies(route)
+    promisedDeps.then(
+      (deps) => register(deps.filter((d) => d.endsWith('.css'))),
+      (error) => {
+        this.pageCache[route] = { error }
+        this.pageRegisterEvents.emit(route, { error })
+      }
+    )
   }
 
   /**

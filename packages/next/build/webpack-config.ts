@@ -237,7 +237,8 @@ export default async function getBaseWebpackConfig(
         distDir,
         pagesDir,
         cwd: dir,
-        cache: true,
+        // Webpack 5 has a built-in loader cache
+        cache: !config.experimental.unstable_webpack5cache,
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
@@ -365,16 +366,16 @@ export default async function getBaseWebpackConfig(
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
-      ...(isServer
-        ? {}
-        : {
+      next: NEXT_PROJECT_ROOT,
+      ...(isWebpack5 && !isServer
+        ? {
             stream: require.resolve('stream-browserify'),
             path: require.resolve('path-browserify'),
             crypto: require.resolve('crypto-browserify'),
             buffer: require.resolve('buffer'),
             vm: require.resolve('vm-browserify'),
-            next: NEXT_PROJECT_ROOT,
-          }),
+          }
+        : undefined),
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -1116,6 +1117,14 @@ export default async function getBaseWebpackConfig(
         webpackConfig.optimization = {}
       }
       webpackConfig.optimization.usedExports = false
+    }
+
+    // Enable webpack 5 caching
+    if (config.experimental.unstable_webpack5cache) {
+      webpackConfig.cache = {
+        type: 'filesystem',
+        cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+      }
     }
   }
 
