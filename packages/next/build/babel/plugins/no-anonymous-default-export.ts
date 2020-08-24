@@ -50,7 +50,7 @@ export default function NoAnonymousDefaultExport({
                 chalk.cyan('export default Named;'),
                 '',
                 `A codemod is available to fix the most common cases: ${chalk.cyan(
-                  'http://nextjs.link/codemod-ndc'
+                  'https://nextjs.link/codemod-ndc'
                 )}`,
               ].join('\n')
             )
@@ -73,7 +73,7 @@ export default function NoAnonymousDefaultExport({
                   chalk.cyan('export default function Named() { /* ... */ }'),
                   '',
                   `A codemod is available to fix the most common cases: ${chalk.cyan(
-                    'http://nextjs.link/codemod-ndc'
+                    'https://nextjs.link/codemod-ndc'
                   )}`,
                 ].join('\n')
               )
