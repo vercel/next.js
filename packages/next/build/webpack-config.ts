@@ -238,7 +238,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         // Webpack 5 has a built-in loader cache
-        cache: !config.experimental.unstable_webpack5cache,
+        cache: !isWebpack5,
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
@@ -1107,9 +1107,9 @@ export default async function getBaseWebpackConfig(
   }
 
   if (isWebpack5) {
-    // On by default:
+    // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
-    // No longer polyfills Node.js modules:
+    // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
 
     if (dev) {
@@ -1119,71 +1119,65 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    // Enable webpack 5 caching
-    if (config.experimental.unstable_webpack5cache) {
-      const nextPublicVariables = Object.keys(process.env).reduce(
-        (prev: string, key: string) => {
-          if (key.startsWith('NEXT_PUBLIC_')) {
-            return `${prev}|${key}=${process.env[key]}`
-          }
-          return prev
-        },
-        ''
-      )
-      const nextEnvVariables = Object.keys(config.env).reduce(
-        (prev: string, key: string) => {
-          return `${prev}|${key}=${config.env[key]}`
-        },
-        ''
-      )
-
-      const configVars = JSON.stringify({
-        crossOrigin: config.crossOrigin,
-        pageExtensions: config.pageExtensions,
-        trailingSlash: config.trailingSlash,
-        modern: config.experimental.modern,
-        buildActivity: config.devIndicators.buildActivity,
-        autoPrerender: config.devIndicators.autoPrerender,
-        plugins: config.experimental.plugins,
-        reactStrictMode: config.reactStrictMode,
-        reactMode: config.experimental.reactMode,
-        optimizeFonts: config.experimental.optimizeFonts,
-        optimizeImages: config.experimental.optimizeImages,
-        scrollRestoration: config.experimental.scrollRestoration,
-        basePath: config.basePath,
-        pageEnv: config.experimental.pageEnv,
-        excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
-        assetPrefix: config.assetPrefix,
-        target,
-        reactProductionProfiling,
-      })
-
-      const cache: any = {
-        type: 'filesystem',
-        // Includes:
-        //  - Next.js version
-        //  - NEXT_PUBLIC_ variable values (they affect caching) TODO: make this module usage only
-        //  - next.config.js `env` key
-        //  - next.config.js keys that affect compilation
-        version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
-        buildDependencies: {
-          config: [],
-        },
-        cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
-      }
-
-      // Adds `next.config.js` as a buildDependency when custom webpack config is provided
-      if (config.webpack && config.configFile) {
-        cache.buildDependencies = {
-          config: [config.configFile],
+    const nextPublicVariables = Object.keys(process.env).reduce(
+      (prev: string, key: string) => {
+        if (key.startsWith('NEXT_PUBLIC_')) {
+          return `${prev}|${key}=${process.env[key]}`
         }
-      }
+        return prev
+      },
+      ''
+    )
+    const nextEnvVariables = Object.keys(config.env).reduce(
+      (prev: string, key: string) => {
+        return `${prev}|${key}=${config.env[key]}`
+      },
+      ''
+    )
 
-      webpackConfig.cache = cache
+    const configVars = JSON.stringify({
+      crossOrigin: config.crossOrigin,
+      pageExtensions: config.pageExtensions,
+      trailingSlash: config.trailingSlash,
+      modern: config.experimental.modern,
+      buildActivity: config.devIndicators.buildActivity,
+      autoPrerender: config.devIndicators.autoPrerender,
+      plugins: config.experimental.plugins,
+      reactStrictMode: config.reactStrictMode,
+      reactMode: config.experimental.reactMode,
+      optimizeFonts: config.experimental.optimizeFonts,
+      optimizeImages: config.experimental.optimizeImages,
+      scrollRestoration: config.experimental.scrollRestoration,
+      basePath: config.basePath,
+      pageEnv: config.experimental.pageEnv,
+      excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
+      assetPrefix: config.assetPrefix,
+      target,
+      reactProductionProfiling,
+    })
 
-      // @ts-ignore TODO: remove ignore when webpack 5 is stable
-      webpackConfig.optimization.realContentHash = false
+    const cache: any = {
+      type: 'filesystem',
+      // Includes:
+      //  - Next.js version
+      //  - NEXT_PUBLIC_ variable values (they affect caching) TODO: make this module usage only
+      //  - next.config.js `env` key
+      //  - next.config.js keys that affect compilation
+      version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
+      cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
     }
+
+    // Adds `next.config.js` as a buildDependency when custom webpack config is provided
+    if (config.webpack && config.configFile) {
+      cache.buildDependencies = {
+        config: [config.configFile],
+      }
+    }
+
+    webpackConfig.cache = cache
+
+    // @ts-ignore TODO: remove ignore when webpack 5 is stable
+    webpackConfig.optimization.realContentHash = false
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
