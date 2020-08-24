@@ -245,6 +245,7 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
+  _shallow?: boolean
 
   static events: MittEmitter = mitt()
 
@@ -410,7 +411,14 @@ export default class Router implements BaseRouter {
       return
     }
 
-    this.change('replaceState', url, as, options)
+    this.change(
+      'replaceState',
+      url,
+      as,
+      Object.assign({}, options, {
+        shallow: options.shallow && this._shallow,
+      })
+    )
   }
 
   reload(): void {
@@ -534,7 +542,14 @@ export default class Router implements BaseRouter {
     let resolvedAs = as
 
     if (process.env.__NEXT_HAS_REWRITES) {
-      resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+      resolvedAs = resolveRewrites(
+        as,
+        pages,
+        basePath,
+        rewrites,
+        query,
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+      )
     }
     resolvedAs = delBasePath(resolvedAs)
 
@@ -578,7 +593,7 @@ export default class Router implements BaseRouter {
         as,
         shallow
       )
-      const { error } = routeInfo
+      let { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', as)
       this.changeState(method, url, as, options)
@@ -590,7 +605,12 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo)
+      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
+        (e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        }
+      )
 
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs)
@@ -632,6 +652,7 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+      this._shallow = options.shallow
       window.history[method](
         {
           url,
