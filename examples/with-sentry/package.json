@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@sentry/browser": "^5.15.5",
+    "@sentry/integrations": "5.20.1",
     "@sentry/node": "^5.15.5",
     "@sentry/webpack-plugin": "^1.11.1",
     "@zeit/next-source-maps": "0.0.4-canary.1",
