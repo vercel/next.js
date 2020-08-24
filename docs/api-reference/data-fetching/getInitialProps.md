@@ -4,19 +4,11 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
-> **Recommended: [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)**
+> **Recommended: [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)**.
 >
 > If you're using Next.js 9.3 or newer, we recommend that you use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
 >
-> These new data fetching methods allow you to have a granular choice between static generation and server-side rendering.
-> Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data fetching](/docs/basic-features/data-fetching.md):
-
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
-  </ul>
-</details>
+> These new data fetching methods allow you to have a granular choice between static generation and server-side rendering. Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data fetching](/docs/basic-features/data-fetching.md).
 
 `getInitialProps` enables [server-side rendering](/docs/basic-features/pages.md#server-side-rendering) in a page and allows you to do **initial data population**, it means sending the [page](/docs/basic-features/pages.md) with the data already populated from the server. This is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 
