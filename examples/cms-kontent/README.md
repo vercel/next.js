@@ -184,7 +184,7 @@ Once saved, go to one of the posts you've created and:
 
 - Create a new version of the post
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
-  > Mind the title also regenerates the URL slug
+  > Mind the title also regenerates the URL slug, if you want to change any other field that does not influence URL slug, feel free to do so.
 - **Do not** publish it. By doing this, the post will be in draft workflow step.
 - On the menu, you will see the **Preview** button. Click on it!
 
