@@ -27,7 +27,13 @@ export async function getStaticProps() {
 
   await fetchQuery(environment, query)
 
-  return { props: { relayData: await relaySSR.getCache() } }
+  const relayData = (await relaySSR.getCache())?.[0]
+
+  return {
+    props: {
+      relayData: !relayData ? null : [[relayData[0], relayData[1].json]],
+    },
+  }
 }
 
 export default Index
