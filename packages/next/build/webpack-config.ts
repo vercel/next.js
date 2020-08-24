@@ -1164,9 +1164,6 @@ export default async function getBaseWebpackConfig(
       //  - next.config.js `env` key
       //  - next.config.js keys that affect compilation
       version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
-      buildDependencies: {
-        config: [],
-      },
       cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
     }
 
