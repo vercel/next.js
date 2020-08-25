@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     productionBrowserSourceMaps: false,
     optimizeFonts: false,
     optimizeImages: false,
+    optimizeCss: false,
     scrollRestoration: false,
     unstable_webpack5cache: false,
   },

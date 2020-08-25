@@ -408,6 +408,7 @@ export default async function exportApp(
         serverless: isTargetLikeServerless(nextConfig.target),
         optimizeFonts: nextConfig.experimental.optimizeFonts,
         optimizeImages: nextConfig.experimental.optimizeImages,
+        optimizeCss: nextConfig.experimental.optimizeCss,
       })
 
       for (const validation of result.ampValidations || []) {

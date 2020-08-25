@@ -151,7 +151,10 @@ export class Head extends Component<
 
   context!: React.ContextType<typeof DocumentComponentContext>
 
-  getCssLinks(files: DocumentFiles): JSX.Element[] | null {
+  getCssLinks(
+    files: DocumentFiles,
+    optimizeCss: Boolean
+  ): JSX.Element[] | null {
     const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles = new Set(files.sharedFiles)
@@ -160,19 +163,24 @@ export class Head extends Component<
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
 
+      if (!optimizeCss) {
+        cssLinkElements.push(
+          <link
+            key={`${file}-preload`}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${devOnlyCacheBusterQueryString}`}
+            as="style"
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
+          />
+        )
+      }
+
       cssLinkElements.push(
-        <link
-          key={`${file}-preload`}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
-          as="style"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />,
         <link
           key={file}
           nonce={this.props.nonce}
@@ -285,6 +293,7 @@ export class Head extends Component<
       dangerousAsPath,
       headTags,
       unstable_runtimeJS,
+      optimizeCss,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
@@ -481,8 +490,8 @@ export class Head extends Component<
               />
             )}
             {process.env.__NEXT_OPTIMIZE_FONTS
-              ? this.makeStylesheetInert(this.getCssLinks(files))
-              : this.getCssLinks(files)}
+              ? this.makeStylesheetInert(this.getCssLinks(files, optimizeCss))
+              : this.getCssLinks(files, optimizeCss)}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {this.context.isDevelopment && (

@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import Critters from 'critters'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -149,6 +150,7 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: boolean
   devOnlyCacheBusterQueryString?: string
 }
 
@@ -186,6 +188,7 @@ function renderDocument(
     appGip,
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
+    optimizeCss,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -237,6 +240,7 @@ function renderDocument(
           canonicalBase,
           ampPath,
           inAmpMode,
+          optimizeCss,
           isDevelopment: !!dev,
           hybridAmp,
           dynamicImports,
@@ -802,16 +806,31 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(
-    html,
-    {
-      getFontDefinition,
-    },
-    {
-      optimizeFonts: renderOpts.optimizeFonts,
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  if (renderOpts.optimizeFonts || renderOpts.optimizeImages) {
+    html = await postProcess(
+      html,
+      {
+        getFontDefinition,
+      },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
+
+  if (renderOpts.optimizeCss) {
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
