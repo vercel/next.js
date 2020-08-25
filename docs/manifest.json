@@ -93,6 +93,10 @@
           "title": "Advanced Features",
           "routes": [
             {
+              "title": "Clearing the Incremental Cache",
+              "path": "/docs/advanced-features/clearing-the-incremental-cache.md"
+            },
+            {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
             },
