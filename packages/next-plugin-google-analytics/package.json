@@ -8,7 +8,7 @@
   "nextjs": {
     "name": "Google Analytics",
     "required-env": [
-      "GA_TRACKING_ID"
+      "NEXT_PUBLIC_GA_TRACKING_ID"
     ]
   },
   "peerDependencies": {
