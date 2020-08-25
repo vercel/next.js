@@ -54,7 +54,7 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 { "pid": "abc", "comment": "a-comment" }
 ```
 
-**Note:** Client-side navigations to a dynamic route (including [catch all routes](#catch-all-routes)) can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes). Read our docs for [Linking between pages](/docs/routing/introduction#linking-between-pages) to learn more.
+**Note:** Client-side navigations to a dynamic route (including [catch all routes](#catch-all-routes)) can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes). Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-between-pages) to learn more.
 
 ### Catch all routes
 
