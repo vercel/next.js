@@ -1,0 +1,28 @@
+@import '~tailwindcss/dist/base.css';
+@import '~tailwindcss/dist/components.css';
+@import '~tailwindcss/dist/utilities.css';
+
+html,
+body,
+#__next,
+.main {
+  max-height: 100vh;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.channel-list {
+  li a:before {
+    content: '# ';
+    opacity: 0.5;
+  }
+  li a:hover {
+    opacity: 0.9;
+  }
+}
+.Messages {
+  overflow: auto;
+  display: flex;
+  flex-direction: column-reverse;
+}
