@@ -72,28 +72,34 @@ export {
   NextApiHandler,
 }
 
-export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
-  params?: Q
+export type GetStaticPropsContext<P extends ParsedUrlQuery = ParsedUrlQuery> = {
+  params?: P
   preview?: boolean
   previewData?: any
 }
 
-export type GetStaticPropsResult<P> = {
-  props: P
+export type GetStaticPropsResult<Props> = {
+  props: Props
   revalidate?: number | boolean
 }
 
+/**
+ * @template Props shape of server side props
+ * @template Q shape of the query parameters
+ * @template P shape of path parameters
+ */
 export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any },
+  Props extends { [key: string]: any } = { [key: string]: any },
+  P extends ParsedUrlQuery = ParsedUrlQuery,
   Q extends ParsedUrlQuery = ParsedUrlQuery
-> = (context: GetStaticPropsContext<Q>) => Promise<GetStaticPropsResult<P>>
+> = (context: GetStaticPropsContext<Q>) => Promise<GetStaticPropsResult<Props>>
 
-export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
-  ? P
+export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer Props, any, any>
+  ? Props
   : T extends (
       context?: GetStaticPropsContext<any>
-    ) => Promise<GetStaticPropsResult<infer P>>
-  ? P
+    ) => Promise<GetStaticPropsResult<infer Props>>
+  ? Props
   : never
 
 export type GetStaticPaths<
@@ -103,30 +109,45 @@ export type GetStaticPaths<
   fallback: boolean | 'unstable_blocking'
 }>
 
+/**
+ * @template P shape of path parameters
+ * @template Q shape of the query parameters
+ */
 export type GetServerSidePropsContext<
+  P extends ParsedUrlQuery = ParsedUrlQuery,
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
   req: IncomingMessage
   res: ServerResponse
-  params?: Q
-  query: ParsedUrlQuery
+  params?: P
+  query: Q
   preview?: boolean
   previewData?: any
 }
 
-export type GetServerSidePropsResult<P> = {
-  props: P
+/**
+ * @template Props shape of server side props
+ */
+export type GetServerSidePropsResult<Props> = {
+  props: Props
 }
 
+/**
+ * @template Props shape of server side props
+ * @template Q shape of the query parameters
+ * @template P shape of path parameters
+ */
 export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any },
+  Props extends { [key: string]: any } = { [key: string]: any },
+  P extends ParsedUrlQuery = ParsedUrlQuery,
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (
-  context: GetServerSidePropsContext<Q>
-) => Promise<GetServerSidePropsResult<P>>
+  context: GetServerSidePropsContext<P, Q>
+) => Promise<GetServerSidePropsResult<Props>>
 
 export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
   infer P,
+  any,
   any
 >
   ? P
