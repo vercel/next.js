@@ -13,7 +13,7 @@ description: Extend the PostCSS config and plugins added by Next.js with your ow
 
 ## Default Behavior
 
-Next.js compiles CSS for its [built-in CSS support](/docs/basic-features/built-in-css-support) using PostCSS.
+Next.js compiles CSS for its [built-in CSS support](/docs/basic-features/built-in-css-support.md) using PostCSS.
 
 Out of the box, with no configuration, Next.js compiles CSS with the following transformations:
 
@@ -51,7 +51,7 @@ You can use the [browserl.ist](https://browserl.ist/?q=%3E0.3%25%2C+not+ie+11%2C
 
 No configuration is needed to support CSS Modules. To enable CSS Modules for a file, rename the file to have the extension `.module.css`.
 
-You can learn more about [Next.js' CSS Module support here](/docs/basic-features/built-in-css-support).
+You can learn more about [Next.js' CSS Module support here](/docs/basic-features/built-in-css-support.md).
 
 ## Customizing Plugins
 
