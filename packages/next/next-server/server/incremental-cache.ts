@@ -1,4 +1,4 @@
-import { promises, readFileSync } from 'fs'
+import { unlink, promises, readFileSync } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../../build'
@@ -101,6 +101,28 @@ export class IncrementalCache {
   getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     return promises.readFile(this.getSeedPath(page, 'html'), 'utf8')
+  }
+
+  // Pass in an array of strings/paths and both the LRU Cache and seed files will be cleared
+  // TODO: add wildcard removals potentially
+  async clear(keys: string[]) {
+    if (this.incrementalOptions.dev) return
+    try {
+      for (const key of keys) {
+        let pathname: string = normalizePagePath(key)
+        this.cache.del(pathname)
+        let seedPath: string = this.getSeedPath(pathname, 'html')
+        unlink(seedPath, (err) => {
+          if (err) {
+            console.warn(err)
+            return
+          }
+          //file removed
+        })
+      }
+    } catch (e) {
+      console.warn(`Error clearing incremental cache.`, e)
+    }
   }
 
   // get data from cache if available

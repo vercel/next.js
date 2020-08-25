@@ -244,6 +244,14 @@ export default class Server {
     }
   }
 
+  /**
+   * To clear the incremental cache, pass in an array of keys to clear.
+   * @param keys
+   */
+  public clearIncrementalCache = (keys: string[]) => {
+    this.incrementalCache.clear(keys)
+  }
+
   protected currentPhase(): string {
     return PHASE_PRODUCTION_SERVER
   }
