@@ -42,6 +42,7 @@ import {
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
+  DocumentProps,
 } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -160,6 +161,7 @@ function renderDocument(
   Document: DocumentType,
   {
     buildManifest,
+    docComponentsRendered,
     props,
     docProps,
     pathname,
@@ -191,6 +193,7 @@ function renderDocument(
     optimizeCss,
   }: RenderOpts & {
     props: any
+    docComponentsRendered: DocumentProps['docComponentsRendered']
     docProps: DocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
@@ -236,6 +239,7 @@ function renderDocument(
             appGip, // whether the _app has getInitialProps
           },
           buildManifest,
+          docComponentsRendered,
           dangerousAsPath,
           canonicalBase,
           ampPath,
@@ -763,8 +767,11 @@ export async function renderToHTML(
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
 
+  const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+
   let html = renderDocument(Document, {
     ...renderOpts,
+    docComponentsRendered,
     buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
@@ -790,6 +797,29 @@ export async function renderToHTML(
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
   })
+
+  if (process.env.NODE_ENV !== 'production') {
+    const nonRenderedComponents = []
+    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
+
+    for (const comp of expectedDocComponents) {
+      if (!(docComponentsRendered as any)[comp]) {
+        nonRenderedComponents.push(comp)
+      }
+    }
+    const plural = nonRenderedComponents.length !== 1 ? 's' : ''
+
+    if (nonRenderedComponents.length) {
+      console.warn(
+        `Expected Document Component${plural} ${nonRenderedComponents.join(
+          ', '
+        )} ${
+          plural ? 'were' : 'was'
+        } not rendered. Make sure you render them in your custom \`_document\`\n` +
+          `See more info here https://err.sh/next.js/missing-document-component`
+      )
+    }
+  }
 
   if (inAmpMode && html) {
     // inject HTML to AMP_RENDER_TARGET to allow rendering
