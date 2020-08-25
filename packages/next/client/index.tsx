@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { createLink } from './page-loader'
+import PageLoader, { createLink, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -88,9 +88,19 @@ const pageLoader = new PageLoader(
   buildId,
   prefix,
   page,
-  [].slice
-    .call(document.querySelectorAll('link[rel=stylesheet][data-n-p]'))
-    .map((e: HTMLLinkElement) => e.getAttribute('href')!)
+  ([].slice.call(document.styleSheets) as CSSStyleSheet[])
+    .filter(
+      (el: CSSStyleSheet) =>
+        el.ownerNode &&
+        (el.ownerNode as Element).tagName === 'LINK' &&
+        (el.ownerNode as Element).hasAttribute('data-n-p')
+    )
+    .map((sheet) => ({
+      href: (sheet.ownerNode as Element).getAttribute('href')!,
+      text: ([].slice.call(sheet.cssRules) as CSSRule[])
+        .map((r) => r.cssText)
+        .join(''),
+    }))
 )
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
@@ -109,7 +119,7 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
-let cachedStyleSheets: string[]
+let cachedStyleSheets: StyleSheetTuple[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
