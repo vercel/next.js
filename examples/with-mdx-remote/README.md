@@ -40,3 +40,32 @@ yarn dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+## Notes
+
+### Conditional custom components
+
+When using `next-mdx-remote`, you can pass custom components to the MDX renderer. However, some pages/MDX files might use components that are used infrequently, or only on a single page. To avoid loading those components on every MDX page, you can use `next/dynamic` to conditionally load them.
+
+For example, here's how you can change `getInitialProps` to conditionally add certain components:
+
+```js
+import dynamic from "next/dynamic"
+...
+
+async function getInitialProps() {
+  const { content, data } = matter(source)
+
+  const components = {
+    ...defaultComponents,
+    SomeHeavyComponent: /<SomeHeavyComponent/.test(content) ? dynamic(() => import("SomeHeavyComponent")) : null,
+  }
+
+  const mdxSource = await renderToString(content, {
+    components,
+    ...otherOptions,
+  })
+}
+```
+
+If you do this, you'll need to also check in the page render function which components need to be dynamically loaded. You can pass a list of components names via `getInitialProps` to accomplish this.
