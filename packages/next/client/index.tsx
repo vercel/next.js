@@ -348,6 +348,11 @@ export async function render(renderingProps: RenderRouteInfo) {
   try {
     await doRender(renderingProps)
   } catch (renderErr) {
+    // bubble up cancelation errors
+    if (renderErr.cancelled) {
+      throw renderErr
+    }
+
     if (process.env.NODE_ENV === 'development') {
       // Ensure this error is displayed in the overlay in development
       setTimeout(() => {
@@ -550,13 +555,13 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-async function doRender({
+function doRender({
   App,
   Component,
   props,
   err,
   styleSheets,
-}: RenderRouteInfo) {
+}: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -570,6 +575,7 @@ async function doRender({
   lastAppProps = appProps
 
   let resolvePromise: () => void
+  let renderPromiseReject: () => void
   const renderPromise = new Promise((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
@@ -578,9 +584,12 @@ async function doRender({
       lastRenderReject = null
       resolve()
     }
-    lastRenderReject = () => {
+    renderPromiseReject = lastRenderReject = () => {
       lastRenderReject = null
-      reject()
+
+      const error: any = new Error('Cancel rendering route')
+      error.cancelled = true
+      reject(error)
     }
   })
 
@@ -601,23 +610,51 @@ async function doRender({
       return Promise.resolve([])
     }
 
-    let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
-      document.querySelectorAll('link[data-n-g], link[data-n-p]')
-    ) as HTMLLinkElement[]).pop()
+    // Clean up previous render if canceling:
+    ;([].slice.call(
+      document.querySelectorAll(
+        'link[data-n-staging], noscript[data-n-staging]'
+      )
+    ) as HTMLLinkElement[]).forEach((el) => {
+      el.parentNode!.removeChild(el)
+    })
 
-    const required: Promise<void>[] = styleSheets.map((href) => {
-      const [link, promise] = createLink(href, 'stylesheet')
-      link.setAttribute('data-n-staging', '')
-      // Media `none` does not work in Firefox, so `print` is more
-      // cross-browser. Since this is so short lived we don't have to worry
-      // about style thrashing in a print view (where no routing is going to be
-      // happening anyway).
-      link.setAttribute('media', 'print')
-      if (referenceNode) {
-        referenceNode.parentNode!.insertBefore(link, referenceNode.nextSibling)
-        referenceNode = link
+    const referenceNodes: HTMLLinkElement[] = [].slice.call(
+      document.querySelectorAll('link[data-n-g], link[data-n-p]')
+    ) as HTMLLinkElement[]
+    const referenceHrefs = new Set(
+      referenceNodes.map((e) => e.getAttribute('href'))
+    )
+    let referenceNode: Element | undefined =
+      referenceNodes[referenceNodes.length - 1]
+
+    const required: (Promise<any> | true)[] = styleSheets.map((href) => {
+      let newNode: Element, promise: Promise<any> | true
+      const existingLink = referenceHrefs.has(href)
+      if (existingLink) {
+        newNode = document.createElement('noscript')
+        newNode.setAttribute('data-n-staging', href)
+        promise = true
       } else {
-        document.head.appendChild(link)
+        const [link, onload] = createLink(href, 'stylesheet')
+        link.setAttribute('data-n-staging', '')
+        // Media `none` does not work in Firefox, so `print` is more
+        // cross-browser. Since this is so short lived we don't have to worry
+        // about style thrashing in a print view (where no routing is going to be
+        // happening anyway).
+        link.setAttribute('media', 'print')
+        newNode = link
+        promise = onload
+      }
+
+      if (referenceNode) {
+        referenceNode.parentNode!.insertBefore(
+          newNode,
+          referenceNode.nextSibling
+        )
+        referenceNode = newNode
+      } else {
+        document.head.appendChild(newNode)
       }
       return promise
     })
@@ -644,31 +681,36 @@ async function doRender({
     })
   }
 
-  function onAbort() {
-    ;([].slice.call(
-      document.querySelectorAll('link[data-n-staging]')
-    ) as HTMLLinkElement[]).forEach((el) => {
-      el.parentNode!.removeChild(el)
-    })
-  }
-  renderPromise.catch((abortError) => {
-    onAbort()
-    throw abortError
-  })
-
   function onCommit() {
     if (
-      // We can skip this during hydration. Running it wont cause any harm, but
-      // we may as well save the CPU cycles.
-      !isInitialRender &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
-      process.env.NODE_ENV === 'production'
+      process.env.NODE_ENV === 'production' &&
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles:
+      !isInitialRender &&
+      // Ensure this render commit owns the currently staged stylesheets:
+      renderPromiseReject === lastRenderReject
     ) {
-      // Remove old stylesheets:
+      // Remove or relocate old stylesheets:
+      const relocatePlaceholders = [].slice.call(
+        document.querySelectorAll('noscript[data-n-staging]')
+      ) as HTMLElement[]
+      const relocateHrefs = relocatePlaceholders.map((e) =>
+        e.getAttribute('data-n-staging')
+      )
       ;([].slice.call(
         document.querySelectorAll('link[data-n-p]')
-      ) as HTMLLinkElement[]).forEach((el) => el.parentNode!.removeChild(el))
+      ) as HTMLLinkElement[]).forEach((el) => {
+        const currentHref = el.getAttribute('href')
+        const relocateIndex = relocateHrefs.indexOf(currentHref)
+        if (relocateIndex !== -1) {
+          const placeholderElement = relocatePlaceholders[relocateIndex]
+          placeholderElement.parentNode?.replaceChild(el, placeholderElement)
+        } else {
+          el.parentNode!.removeChild(el)
+        }
+      })
 
       // Activate new stylesheets:
       ;[].slice
@@ -696,17 +738,32 @@ async function doRender({
   )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  await onStart()
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement!
-  )
+  return Promise.race([
+    // Download required CSS assets first:
+    onStart()
+      .then(() => {
+        // Ensure a new render has not been started:
+        if (renderPromiseReject === lastRenderReject) {
+          // Queue rendering:
+          renderReactElement(
+            process.env.__NEXT_STRICT_MODE ? (
+              <React.StrictMode>{elem}</React.StrictMode>
+            ) : (
+              elem
+            ),
+            appElement!
+          )
+        }
+      })
+      .then(
+        () =>
+          // Wait for rendering to complete:
+          renderPromise
+      ),
 
-  await renderPromise
+    // Bail early on route cancelation (rejection):
+    renderPromise,
+  ])
 }
 
 function Root({
