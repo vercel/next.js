@@ -23,8 +23,14 @@ export function urlQueryToSearchParams(
   Object.entries(urlQuery).forEach(([key, value]) => {
     if (Array.isArray(value)) {
       value.forEach((item) => result.append(key, item))
+    } else if (
+      typeof value === 'string' ||
+      (typeof value === 'number' && !isNaN(value)) ||
+      typeof value === 'boolean'
+    ) {
+      result.set(key, String(value))
     } else {
-      result.set(key, value)
+      result.set(key, '')
     }
   })
   return result
