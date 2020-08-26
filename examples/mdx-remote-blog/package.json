@@ -1,0 +1,21 @@
+{
+  "name": "blog",
+  "version": "1.0.0",
+  "description": "example next-mdx-remote blog",
+  "main": "index.js",
+  "scripts": {
+    "start": "next-remote-watch ./content",
+    "dev": "npm start",
+    "export": "next build && next export"
+  },
+  "author": "Jeff Escalante",
+  "license": "MIT",
+  "dependencies": {
+    "gray-matter": "^4.0.2",
+    "next": "^9.5.2",
+    "next-mdx-remote": "^1.0.0",
+    "next-remote-watch": "^0.2.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  }
+}
