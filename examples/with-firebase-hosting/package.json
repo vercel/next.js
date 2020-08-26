@@ -24,6 +24,6 @@
   },
   "devDependencies": {
     "firebase-functions-test": "^0.1.6",
-    "firebase-tools": "^8.0.1"
+    "firebase-tools": "^8.6.0"
   }
 }
