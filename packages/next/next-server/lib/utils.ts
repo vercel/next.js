@@ -82,7 +82,7 @@ export type BaseContext = {
 }
 
 export type NEXT_DATA = {
-  props: any
+  props: Record<string, any>
   page: string
   query: ParsedUrlQuery
   buildId: string
@@ -103,7 +103,6 @@ export type NEXT_DATA = {
 /**
  * `Next` context
  */
-// tslint:disable-next-line interface-name
 export interface NextPageContext {
   /**
    * Error object if encountered during rendering
@@ -167,12 +166,17 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  docComponentsRendered: {
+    Html?: boolean
+    Main?: boolean
+    Head?: boolean
+    NextScript?: boolean
+  }
   buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
   hybridAmp: boolean
   isDevelopment: boolean
-  files: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string

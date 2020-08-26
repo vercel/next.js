@@ -135,6 +135,17 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should 404 for public file without basePath', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/data.txt')
+    expect(res.status).toBe(404)
+  })
+
+  it('should serve public file with basePath correctly', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/docs/data.txt')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('hello world')
+  })
+
   it('should rewrite with basePath by default', async () => {
     const html = await renderViaHTTP(context.appPort, '/docs/rewrite-1')
     expect(html).toContain('getServerSideProps')
@@ -1027,6 +1038,13 @@ describe('basePath development', () => {
       })
     })
   })
+
+  it('should respect basePath in amphtml link rel', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/amp-hybrid')
+    const $ = cheerio.load(html)
+    const expectedAmpHtmlUrl = '/docs/amp-hybrid?amp=1'
+    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
+  })
 })
 
 describe('basePath production', () => {
@@ -1053,6 +1071,13 @@ describe('basePath production', () => {
   afterAll(() => stopApp(server))
 
   runTests(context)
+
+  it('should respect basePath in amphtml link rel', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/amp-hybrid')
+    const $ = cheerio.load(html)
+    const expectedAmpHtmlUrl = '/docs/amp-hybrid.amp'
+    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
+  })
 })
 
 describe('basePath serverless', () => {
