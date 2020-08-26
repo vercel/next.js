@@ -96,7 +96,7 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
-export type GetStaticPathsResult<P> = {
+export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
   paths: Array<string | { params: P }>
   fallback: boolean | 'unstable_blocking'
 }
