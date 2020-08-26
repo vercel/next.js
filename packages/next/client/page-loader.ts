@@ -33,6 +33,7 @@ const relPrefetch =
       'prefetch'
 
 const relPreload = hasRel('preload') ? 'preload' : relPrefetch
+const relPreloadStyle = 'fetch'
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
@@ -51,33 +52,27 @@ function normalizeRoute(route: string) {
   return route.replace(/\/$/, '')
 }
 
-export function createLink(
+function appendLink(
   href: string,
   rel: string,
   as?: string,
   link?: HTMLLinkElement
-): [HTMLLinkElement, Promise<any>] {
-  link = document.createElement('link')
-  return [
-    link,
-    new Promise((res, rej) => {
-      // The order of property assignment here is intentional:
-      if (as) link!.as = as
-      link!.rel = rel
-      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-      link!.onload = res
-      link!.onerror = rej
+): Promise<any> {
+  return new Promise((res, rej) => {
+    link = document.createElement('link')
 
-      // `href` should always be last:
-      link!.href = href
-    }),
-  ]
-}
+    // The order of property assignment here is intentional:
+    if (as) link!.as = as
+    link!.rel = rel
+    link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+    link!.onload = res
+    link!.onerror = rej
 
-function appendLink(href: string, rel: string, as?: string): Promise<any> {
-  const [link, res] = createLink(href, rel, as)
-  document.head.appendChild(link)
-  return res
+    // `href` should always be last:
+    link!.href = href
+
+    document.head.appendChild(link)
+  })
 }
 
 function loadScript(url: string): Promise<any> {
@@ -94,16 +89,17 @@ function loadScript(url: string): Promise<any> {
   })
 }
 
+export type StyleSheetTuple = { href: string; text: string }
 export type GoodPageCache = {
   page: ComponentType
   mod: any
-  styleSheets: string[]
+  styleSheets: StyleSheetTuple[]
 }
 export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private initialPage: string
-  private initialStyleSheets: string[]
+  private initialStyleSheets: StyleSheetTuple[]
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
@@ -117,7 +113,7 @@ export default class PageLoader {
     buildId: string,
     assetPrefix: string,
     initialPage: string,
-    initialStyleSheets: string[]
+    initialStyleSheets: StyleSheetTuple[]
   ) {
     this.initialPage = initialPage
     this.initialStyleSheets = initialStyleSheets
@@ -348,7 +344,7 @@ export default class PageLoader {
                   // wait for these to resolve. To prevent an unhandled
                   // rejection, we swallow the error which is handled later in
                   // the rendering cycle (this is just a preload optimization).
-                  appendLink(d, relPreload, 'style').catch(() => {
+                  appendLink(d, relPreload, relPreloadStyle).catch(() => {
                     /* ignore preload error */
                   })
                 }
@@ -381,7 +377,7 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = (styleSheets: string[]) => {
+    const register = (styleSheets: StyleSheetTuple[]) => {
       try {
         const mod = regFn()
         const pageData: PageCacheEntry = {
@@ -419,7 +415,14 @@ export default class PageLoader {
       }
     }
 
-    const promisedDeps: Promise<string[]> =
+    function fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
+      return fetch(href).then((res) => {
+        if (!res.ok) throw pageLoadError(href)
+        return res.text().then((text) => ({ href, text }))
+      })
+    }
+
+    const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
       route === '/_app' ||
       // We use `style-loader` in development:
@@ -430,8 +433,14 @@ export default class PageLoader {
         : // Tests that this does not block hydration:
           // test/integration/css-fixtures/hydrate-without-deps/
           this.getDependencies(route)
+            .then((deps) => deps.filter((d) => d.endsWith('.css')))
+            .then((cssFiles) =>
+              // These files should've already been fetched by now, so this
+              // should resolve pretty much instantly.
+              Promise.all(cssFiles.map((d) => fetchStyleSheet(d)))
+            )
     promisedDeps.then(
-      (deps) => register(deps.filter((d) => d.endsWith('.css'))),
+      (deps) => register(deps),
       (error) => {
         this.pageCache[route] = { error }
         this.pageRegisterEvents.emit(route, { error })
@@ -478,7 +487,7 @@ export default class PageLoader {
               appendLink(
                 url,
                 relPrefetch,
-                url.endsWith('.css') ? 'style' : 'script'
+                url.endsWith('.css') ? relPreloadStyle : 'script'
               ),
             process.env.NODE_ENV === 'production' &&
               !isDependency &&

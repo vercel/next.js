@@ -1133,15 +1133,29 @@ describe('CSS Support', () => {
             await browser.waitForElementByCss('#link-other').click()
             await checkRedTitle(browser)
 
-            const newPrevSiblingHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
             )
             const newPageHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
+            expect(newPrevSibling).toBeTruthy()
             expect(newPageHref).toBeDefined()
-            expect(newPrevSiblingHref).toBe(prevSiblingHref)
             expect(newPageHref).not.toBe(currentPageHref)
+
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkBlackTitle(browser)
+
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBeTruthy()
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
           } finally {
             await browser.close()
           }
