@@ -415,7 +415,6 @@ export default class PageLoader {
       })
     }
 
-    // route === this.initialPage
     const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
       route === '/_app' ||
