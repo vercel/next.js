@@ -65,6 +65,9 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+  const hasJsxRuntime = Boolean(
+    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
+  )
 
   const isLaxModern =
     isModern ||
@@ -113,7 +116,7 @@ module.exports = (
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
-          pragma: '__jsx',
+          ...(hasJsxRuntime ? { runtime: 'automatic' } : { pragma: '__jsx' }),
           ...options['preset-react'],
         },
       ],
@@ -123,7 +126,7 @@ module.exports = (
       ],
     ],
     plugins: [
-      [
+      !hasJsxRuntime && [
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:
