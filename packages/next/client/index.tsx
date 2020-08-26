@@ -699,7 +699,7 @@ function doRender({
       })
 
       // Force browser to recompute layout, which should prevent a flash of
-      // unstyled  content:
+      // unstyled content:
       getComputedStyle(document.body, 'height')
     }
 
