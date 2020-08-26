@@ -200,7 +200,7 @@
     "postcss-preset-env": "6.7.0",
     "raw-body": "2.4.1",
     "recast": "0.18.5",
-    "resolve": "1.11.0",
+    "resolve": "1.17.0",
     "semver": "7.3.2",
     "send": "0.17.1",
     "source-map": "0.6.1",
