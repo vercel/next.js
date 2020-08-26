@@ -52,33 +52,27 @@ function normalizeRoute(route: string) {
   return route.replace(/\/$/, '')
 }
 
-export function createLink(
+function appendLink(
   href: string,
   rel: string,
   as?: string,
   link?: HTMLLinkElement
-): [HTMLLinkElement, Promise<any>] {
-  link = document.createElement('link')
-  return [
-    link,
-    new Promise((res, rej) => {
-      // The order of property assignment here is intentional:
-      if (as) link!.as = as
-      link!.rel = rel
-      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-      link!.onload = res
-      link!.onerror = rej
+): Promise<any> {
+  return new Promise((res, rej) => {
+    link = document.createElement('link')
 
-      // `href` should always be last:
-      link!.href = href
-    }),
-  ]
-}
+    // The order of property assignment here is intentional:
+    if (as) link!.as = as
+    link!.rel = rel
+    link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+    link!.onload = res
+    link!.onerror = rej
 
-function appendLink(href: string, rel: string, as?: string): Promise<any> {
-  const [link, res] = createLink(href, rel, as)
-  document.head.appendChild(link)
-  return res
+    // `href` should always be last:
+    link!.href = href
+
+    document.head.appendChild(link)
+  })
 }
 
 function loadScript(url: string): Promise<any> {
