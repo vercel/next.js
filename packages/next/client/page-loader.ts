@@ -99,7 +99,6 @@ export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private initialPage: string
-  private initialStyleSheets: StyleSheetTuple[]
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
@@ -109,14 +108,8 @@ export default class PageLoader {
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
 
-  constructor(
-    buildId: string,
-    assetPrefix: string,
-    initialPage: string,
-    initialStyleSheets: StyleSheetTuple[]
-  ) {
+  constructor(buildId: string, assetPrefix: string, initialPage: string) {
     this.initialPage = initialPage
-    this.initialStyleSheets = initialStyleSheets
 
     this.buildId = buildId
     this.assetPrefix = assetPrefix
@@ -422,23 +415,29 @@ export default class PageLoader {
       })
     }
 
+    // route === this.initialPage
     const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
       route === '/_app' ||
       // We use `style-loader` in development:
       process.env.NODE_ENV !== 'production'
         ? Promise.resolve([])
-        : route === this.initialPage
-        ? Promise.resolve(this.initialStyleSheets)
         : // Tests that this does not block hydration:
           // test/integration/css-fixtures/hydrate-without-deps/
-          this.getDependencies(route)
-            .then((deps) => deps.filter((d) => d.endsWith('.css')))
-            .then((cssFiles) =>
-              // These files should've already been fetched by now, so this
-              // should resolve pretty much instantly.
-              Promise.all(cssFiles.map((d) => fetchStyleSheet(d)))
-            )
+          (route === this.initialPage
+            ? Promise.resolve(
+                ([].slice.call(
+                  document.querySelectorAll('link[data-n-p]')
+                ) as HTMLLinkElement[]).map((e) => e.getAttribute('href')!)
+              )
+            : this.getDependencies(route).then((deps) =>
+                deps.filter((d) => d.endsWith('.css'))
+              )
+          ).then((cssFiles) =>
+            // These files should've already been fetched by now, so this
+            // should resolve pretty much instantly.
+            Promise.all(cssFiles.map((d) => fetchStyleSheet(d)))
+          )
     promisedDeps.then(
       (deps) => register(deps),
       (error) => {
