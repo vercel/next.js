@@ -434,7 +434,7 @@ export default class PageLoader {
               )
           ).then((cssFiles) =>
             // These files should've already been fetched by now, so this
-            // should resolve pretty much instantly.
+            // should resolve instantly.
             Promise.all(cssFiles.map((d) => fetchStyleSheet(d)))
           )
     promisedDeps.then(
