@@ -28,7 +28,7 @@ export function urlQueryToSearchParams(
       (typeof value === 'number' && !isNaN(value)) ||
       typeof value === 'boolean'
     ) {
-      result.set(key, String(value))
+      result.set(key, value)
     } else {
       result.set(key, '')
     }
