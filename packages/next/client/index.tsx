@@ -42,7 +42,7 @@ type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 if (!('finally' in Promise.prototype)) {
-  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
+  require('next/dist/build/polyfills/finally-polyfill.min')
 }
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
