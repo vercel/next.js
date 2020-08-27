@@ -184,14 +184,10 @@ module.exports = (
       require('@babel/plugin-proposal-optional-chaining'),
       require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
-      [require('@babel/plugin-proposal-numeric-separator').default, false],
+      // Always compile numeric separator because the resulting number is
+      // smaller.
+      require('@babel/plugin-proposal-numeric-separator'),
       require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
-    overrides: [
-      {
-        test: /\.tsx?$/,
-        plugins: [require('@babel/plugin-proposal-numeric-separator').default],
-      },
-    ],
   }
 }
