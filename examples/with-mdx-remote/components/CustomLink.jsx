@@ -1,9 +1,9 @@
 import Link from 'next/link'
 
-export default function CustomLink({ href, ...otherProps }) {
+export default function CustomLink({ as, href, ...otherProps }) {
   return (
     <>
-      <Link href={href}>
+      <Link as={as} href={href}>
         <a {...otherProps} />
       </Link>
       <style jsx>{`
