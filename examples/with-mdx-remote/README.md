@@ -1,6 +1,8 @@
-# Example app with MDX
+# MDX Remote Example
 
-This example shows using [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote) to import MDX file content to statically-generated pages.
+This example shows how a simple blog might be built using the [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote) library, which allows mdx content to be loaded via `getStaticProps` or `getServerSideProps`. In this example, the mdx content is loaded from a local folder, but it could be loaded from a database or anywhere else. The demo also showcases [next-remote-watch](https://github.com/hashicorp/next-remote-watch), a library that allows next.js to watch files outside the `pages` folder that are not explicitly imported, which enables the mdx content here to trigger a live reload on change.
+
+Since `next-remote-watch` uses undocumented Next.js APIs, it doesn't replace the default `dev` script for this example. To use it, run `yarn dev:watch` or `npm run start:watch`.
 
 ## Deploy your own
 
