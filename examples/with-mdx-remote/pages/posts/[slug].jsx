@@ -2,6 +2,7 @@ import fs from 'fs'
 import matter from 'gray-matter'
 import hydrate from 'next-mdx-remote/hydrate'
 import renderToString from 'next-mdx-remote/render-to-string'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import path from 'path'
 import CustomLink from '../../components/CustomLink'
@@ -13,6 +14,10 @@ import { postFilePaths, POSTS_PATH } from '../../utils/mdxUtils'
 // here.
 const components = {
   a: CustomLink,
+  // It also works with dynamically-imported components, which is especially
+  // useful for conditionally loading components for certain routes.
+  // See the notes in README.md for more details.
+  TestComponent: dynamic(() => import('../../components/TestComponent')),
 }
 
 export default function PostPage({ source, frontMatter }) {
