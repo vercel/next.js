@@ -7,7 +7,7 @@ import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import { GoodPageCache } from '../../../client/page-loader'
+import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -159,7 +159,7 @@ export type PrefetchOptions = {
 
 export type PrivateRouteInfo = {
   Component: ComponentType
-  styleSheets: string[]
+  styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
   props?: Record<string, any>
@@ -268,7 +268,7 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
-      initialStyleSheets: string[]
+      initialStyleSheets: StyleSheetTuple[]
       App: AppComponent
       wrapApp: (App: AppComponent) => any
       err?: Error
