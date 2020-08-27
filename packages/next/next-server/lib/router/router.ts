@@ -7,7 +7,8 @@ import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import type { GoodPageCache } from '../../../client/page-loader'
+import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
+import { denormalizePagePath } from '../../server/denormalize-page-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -21,10 +22,9 @@ import {
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
+import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { denormalizePagePath } from '../../server/denormalize-page-path'
-import resolveRewrites from './utils/resolve-rewrites'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -159,7 +159,7 @@ export type PrefetchOptions = {
 
 export type PrivateRouteInfo = {
   Component: ComponentType
-  styleSheets: string[]
+  styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
   props?: Record<string, any>
@@ -245,6 +245,7 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
+  _shallow?: boolean
 
   static events: MittEmitter = mitt()
 
@@ -267,7 +268,7 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
-      initialStyleSheets: string[]
+      initialStyleSheets: StyleSheetTuple[]
       App: AppComponent
       wrapApp: (App: AppComponent) => any
       err?: Error
@@ -410,7 +411,14 @@ export default class Router implements BaseRouter {
       return
     }
 
-    this.change('replaceState', url, as, options)
+    this.change(
+      'replaceState',
+      url,
+      as,
+      Object.assign({}, options, {
+        shallow: options.shallow && this._shallow,
+      })
+    )
   }
 
   reload(): void {
@@ -534,7 +542,14 @@ export default class Router implements BaseRouter {
     let resolvedAs = as
 
     if (process.env.__NEXT_HAS_REWRITES) {
-      resolvedAs = resolveRewrites(as, pages, basePath, rewrites, query)
+      resolvedAs = resolveRewrites(
+        as,
+        pages,
+        basePath,
+        rewrites,
+        query,
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+      )
     }
     resolvedAs = delBasePath(resolvedAs)
 
@@ -578,7 +593,7 @@ export default class Router implements BaseRouter {
         as,
         shallow
       )
-      const { error } = routeInfo
+      let { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', as)
       this.changeState(method, url, as, options)
@@ -590,7 +605,12 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo)
+      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
+        (e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        }
+      )
 
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs)
@@ -632,6 +652,7 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+      this._shallow = options.shallow
       window.history[method](
         {
           url,

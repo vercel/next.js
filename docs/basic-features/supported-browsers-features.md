@@ -26,7 +26,7 @@ In addition to `fetch()` on the client side, Next.js polyfills `fetch()` in the 
 
 If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself.
 
-In this case, you should add a top-level import for the **specific polyfill** you need in your [Custom `<App>`](docs/advanced-features/custom-app.md) or the individual component.
+In this case, you should add a top-level import for the **specific polyfill** you need in your [Custom `<App>`](/docs/advanced-features/custom-app.md) or the individual component.
 
 ## JavaScript Language Features
 

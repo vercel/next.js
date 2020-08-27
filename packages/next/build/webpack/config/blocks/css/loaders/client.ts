@@ -33,6 +33,7 @@ export function getClientStyleLoader({
         },
       }
     : {
+        // @ts-ignore: TODO: remove when webpack 5 is stable
         loader: MiniCssExtractPlugin.loader,
         options: { publicPath: `${assetPrefix}/_next/` },
       }
