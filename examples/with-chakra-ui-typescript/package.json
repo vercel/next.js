@@ -12,7 +12,7 @@
     "@emotion/core": "^10.0.35",
     "@emotion/styled": "^10.0.27",
     "emotion-theming": "^10.0.27",
-    "next": "latest",
+    "next": "^9.5.2",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
   },
