@@ -17,7 +17,7 @@ description: Next.js supports API Routes, which allow you to build your API with
 
 API routes provide a straightforward solution to build your **API** with Next.js.
 
-Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a `page`.
+Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a `page`. They are server-side only bundles and won't increase your client-side bundle size.
 
 For example, the following API route `pages/api/user.js` handles a `json` response:
 
@@ -48,9 +48,10 @@ export default (req, res) => {
 
 To fetch API endpoints, take a look into any of the examples at the start of this section.
 
-> API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [cors middleware](/docs/api-routes/api-middlewares.md#connectexpress-middleware-support).
+## Caveats
 
-> API Routes do not increase your client-side bundle size. They are server-side only bundles.
+- API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [cors middleware](/docs/api-routes/api-middlewares.md#connectexpress-middleware-support).
+- API Routes can't be used with [`next export`](/docs/advanced-features/static-html-export.md)
 
 ## Related
 

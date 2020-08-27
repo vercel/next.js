@@ -17,7 +17,6 @@ import {
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
-import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
@@ -31,6 +30,7 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
+import { Rewrite } from '../lib/load-custom-routes'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -143,13 +143,16 @@ export default class HotReloader {
   private pagesDir: string
   private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: any
-  private stats: any
-  private serverStats: any
+  private stats: webpack.Stats | null
+  private serverStats: webpack.Stats | null
+  private clientError: Error | null = null
+  private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
+  private rewrites: Rewrite[]
 
   constructor(
     dir: string,
@@ -158,11 +161,13 @@ export default class HotReloader {
       pagesDir,
       buildId,
       previewProps,
+      rewrites,
     }: {
       config: object
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
+      rewrites: Rewrite[]
     }
   ) {
     this.buildId = buildId
@@ -176,6 +181,7 @@ export default class HotReloader {
 
     this.config = config
     this.previewProps = previewProps
+    this.rewrites = rewrites
   }
 
   public async run(
@@ -283,6 +289,7 @@ export default class HotReloader {
         config: this.config,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
+        rewrites: this.rewrites,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
       }),
       getBaseWebpackConfig(this.dir, {
@@ -291,6 +298,7 @@ export default class HotReloader {
         config: this.config,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
+        rewrites: this.rewrites,
         entrypoints: entrypoints.server,
       }),
     ])
@@ -349,18 +357,24 @@ export default class HotReloader {
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
+    multiCompiler.compilers[1].hooks.failed.tap(
+      'NextjsHotReloaderForServer',
+      (err: Error) => {
+        this.serverError = err
+        this.serverStats = null
+      }
+    )
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
+        this.serverError = null
         this.serverStats = stats
 
         const { compilation } = stats
 
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
-        const documentChunk = compilation.chunks.find(
-          (c) => c.name === `pages/_document`
-        )
+        const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
           console.warn('_document.js chunk not found')
@@ -384,14 +398,24 @@ export default class HotReloader {
       }
     )
 
+    multiCompiler.compilers[0].hooks.failed.tap(
+      'NextjsHotReloaderForClient',
+      (err: Error) => {
+        this.clientError = err
+        this.stats = null
+      }
+    )
     multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
       (stats) => {
+        this.clientError = null
+        this.stats = stats
+
         const { compilation } = stats
         const chunkNames = new Set(
-          compilation.chunks
-            .map((c) => c.name)
-            .filter((name) => !!getRouteFromEntrypoint(name))
+          [...compilation.namedChunks.keys()].filter(
+            (name) => !!getRouteFromEntrypoint(name)
+          )
         )
 
         if (this.prevChunkNames) {
@@ -415,7 +439,6 @@ export default class HotReloader {
           }
         }
 
-        this.stats = stats
         this.prevChunkNames = chunkNames
       }
     )
@@ -453,7 +476,6 @@ export default class HotReloader {
       // must come before hotMiddleware
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
-      errorOverlayMiddleware({ dir: this.dir }),
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
@@ -471,7 +493,9 @@ export default class HotReloader {
   public async getCompilationErrors(page: string) {
     const normalizedPage = normalizePathSep(page)
 
-    if (this.stats.hasErrors()) {
+    if (this.clientError || this.serverError) {
+      return [this.clientError || this.serverError]
+    } else if (this.stats?.hasErrors()) {
       const { compilation } = this.stats
       const failedPages = erroredPages(compilation)
 
@@ -490,7 +514,7 @@ export default class HotReloader {
     return []
   }
 
-  private send(action: string, ...args: any[]): void {
+  public send(action?: string, ...args: any[]): void {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 
@@ -498,6 +522,9 @@ export default class HotReloader {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
+    }
+    if (this.serverError || this.clientError) {
+      return Promise.reject(this.serverError || this.clientError)
     }
     return this.onDemandEntries.ensurePage(page)
   }

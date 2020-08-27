@@ -678,6 +678,37 @@ test('unterminated JSX', async () => {
   await cleanup()
 })
 
+test('Module not found', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `import Comp from 'b'
+      export default function Oops() {
+        return (
+          <div>
+            <Comp>lol</Comp>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.js:1:0
+    Module not found: Can't resolve 'b'
+    > 1 | import Comp from 'b'
+      2 |       export default function Oops() {
+      3 |         return (
+      4 |           <div>"
+  `)
+
+  await cleanup()
+})
+
 test('conversion to class component (1)', async () => {
   const [session, cleanup] = await sandbox()
 
@@ -844,6 +875,362 @@ test('scss syntax errors', async () => {
 
     > 1 | button { font-size: 5px; }
         |                          ^"
+  `)
+
+  await cleanup()
+})
+
+test('logbox: anchors links in error messages', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('end http://nextjs.org')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header = await session.getRedboxDescription()
+  expect(header).toMatchInlineSnapshot(`"Error: end http://nextjs.org"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(1)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('http://nextjs.org start')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header2 = await session.getRedboxDescription()
+  expect(header2).toMatchInlineSnapshot(`"Error: http://nextjs.org start"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(1)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('middle http://nextjs.org end')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header3 = await session.getRedboxDescription()
+  expect(header3).toMatchInlineSnapshot(`"Error: middle http://nextjs.org end"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(1)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+
+  await session.patch(
+    'index.js',
+    `
+      import { useCallback } from 'react'
+
+      export default function Index() {
+        const boom = useCallback(() => {
+          throw new Error('multiple http://nextjs.org links http://example.com')
+        }, [])
+        return (
+          <main>
+            <button onClick={boom}>Boom!</button>
+          </main>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox()).toBe(false)
+  await session.evaluate(() => document.querySelector('button').click())
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const header4 = await session.getRedboxDescription()
+  expect(header4).toMatchInlineSnapshot(
+    `"Error: multiple http://nextjs.org links http://example.com"`
+  )
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+          .length
+    )
+  ).toBe(2)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://nextjs.org/"`)
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(2)'
+          ).href
+    )
+  ).toMatchInlineSnapshot(`"http://example.com/"`)
+
+  await cleanup()
+})
+
+test('<Link> component props errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return <Link />
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+    `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
+  )
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return <Link href="/">Abc</Link>
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={false}
+            scroll={false}
+            shallow={false}
+            passHref={false}
+            prefetch={false}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={true}
+            scroll={true}
+            shallow={true}
+            passHref={true}
+            prefetch={true}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={undefined}
+            scroll={undefined}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={undefined}
+            scroll={'oops'}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+    "Error: Failed prop type: The prop \`scroll\` expects a \`boolean\` in \`<Link>\`, but got \`string\` instead.
+    Open your browser's console to view the Component stack trace."
+  `)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href={false}
+            as="/"
+            replace={undefined}
+            scroll={'oops'}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+    "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`boolean\` instead.
+    Open your browser's console to view the Component stack trace."
   `)
 
   await cleanup()

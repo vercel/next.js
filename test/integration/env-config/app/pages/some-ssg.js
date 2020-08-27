@@ -1,6 +1,8 @@
 const variables = [
   'PROCESS_ENV_KEY',
   'ENV_FILE_KEY',
+  'ENV_FILE_EMPTY_FIRST',
+  'ENV_FILE_PROCESS_ENV',
   'LOCAL_ENV_FILE_KEY',
   'ENV_FILE_LOCAL_OVERRIDE_TEST',
   'PRODUCTION_ENV_FILE_KEY',
@@ -25,7 +27,7 @@ export async function getStaticProps() {
   const items = {}
 
   variables.forEach((variable) => {
-    if (process.env[variable]) {
+    if (typeof process.env[variable] !== 'undefined') {
       items[variable] = process.env[variable]
     }
   })
