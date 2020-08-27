@@ -576,6 +576,32 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect(value).toMatch(/Hi \[second\]!/)
   })
 
+  if (!isEmulatedServerless) {
+    it('should not return data for fallback: false and missing dynamic page', async () => {
+      const res1 = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/dynamic/oopsie.json`
+      )
+      expect(res1.status).toBe(404)
+
+      await waitFor(500)
+
+      const res2 = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/dynamic/oopsie.json`
+      )
+      expect(res2.status).toBe(404)
+
+      await waitFor(500)
+
+      const res3 = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/dynamic/oopsie.json`
+      )
+      expect(res3.status).toBe(404)
+    })
+  }
+
   it('should SSR catch-all page with brackets in param as string', async () => {
     const html = await renderViaHTTP(
       appPort,

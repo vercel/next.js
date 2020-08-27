@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader from './page-loader'
+import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -39,7 +39,7 @@ declare global {
 }
 
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
-type RenderErrorProps = Omit<RenderRouteInfo, 'Component'>
+type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 if (!('finally' in Promise.prototype)) {
   ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
@@ -102,6 +102,7 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
+let cachedStyleSheets: StyleSheetTuple[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -233,7 +234,10 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   let initialErr = hydrateErr
 
   try {
-    ;({ page: CachedComponent } = await pageLoader.loadPage(page))
+    ;({
+      page: CachedComponent,
+      styleSheets: cachedStyleSheets,
+    } = await pageLoader.loadPage(page))
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -291,11 +295,12 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
+    initialStyleSheets: cachedStyleSheets,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: ({ Component, props, err }, App) =>
-      render({ App, Component, props, err }),
+    subscription: ({ Component, styleSheets, props, err }, App) =>
+      render({ App, Component, styleSheets, props, err }),
   })
 
   // call init-client middleware
@@ -314,6 +319,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   const renderCtx = {
     App: CachedApp,
     Component: CachedComponent,
+    styleSheets: cachedStyleSheets,
     props: hydrateProps,
     err: initialErr,
   }
@@ -335,6 +341,11 @@ export async function render(renderingProps: RenderRouteInfo) {
   try {
     await doRender(renderingProps)
   } catch (renderErr) {
+    // bubble up cancelation errors
+    if (renderErr.cancelled) {
+      throw renderErr
+    }
+
     if (process.env.NODE_ENV === 'development') {
       // Ensure this error is displayed in the overlay in development
       setTimeout(() => {
@@ -364,6 +375,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
       App: () => null,
       props: {},
       Component: () => null,
+      styleSheets: [],
     })
   }
   if (process.env.__NEXT_PLUGINS) {
@@ -383,30 +395,33 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
-  return pageLoader.loadPage('/_error').then(({ page: ErrorComponent }) => {
-    // In production we do a normal render with the `ErrorComponent` as component.
-    // If we've gotten here upon initial render, we can use the props from the server.
-    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      Component: ErrorComponent,
-      AppTree,
-      router,
-      ctx: { err, pathname: page, query, asPath, AppTree },
-    }
-    return Promise.resolve(
-      renderErrorProps.props
-        ? renderErrorProps.props
-        : loadGetInitialProps(App, appCtx)
-    ).then((initProps) =>
-      doRender({
-        ...renderErrorProps,
-        err,
+  return pageLoader
+    .loadPage('/_error')
+    .then(({ page: ErrorComponent, styleSheets }) => {
+      // In production we do a normal render with the `ErrorComponent` as component.
+      // If we've gotten here upon initial render, we can use the props from the server.
+      // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+      const AppTree = wrapApp(App)
+      const appCtx = {
         Component: ErrorComponent,
-        props: initProps,
-      })
-    )
-  })
+        AppTree,
+        router,
+        ctx: { err, pathname: page, query, asPath, AppTree },
+      }
+      return Promise.resolve(
+        renderErrorProps.props
+          ? renderErrorProps.props
+          : loadGetInitialProps(App, appCtx)
+      ).then((initProps) =>
+        doRender({
+          ...renderErrorProps,
+          err,
+          Component: ErrorComponent,
+          styleSheets,
+          props: initProps,
+        })
+      )
+    })
 }
 
 // If hydrate does not exist, eg in preact.
@@ -533,7 +548,13 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-async function doRender({ App, Component, props, err }: RenderRouteInfo) {
+function doRender({
+  App,
+  Component,
+  props,
+  err,
+  styleSheets,
+}: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -546,6 +567,7 @@ async function doRender({ App, Component, props, err }: RenderRouteInfo) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
+  let canceled = false
   let resolvePromise: () => void
   const renderPromise = new Promise((resolve, reject) => {
     if (lastRenderReject) {
@@ -556,18 +578,124 @@ async function doRender({ App, Component, props, err }: RenderRouteInfo) {
       resolve()
     }
     lastRenderReject = () => {
+      canceled = true
       lastRenderReject = null
-      reject()
+
+      const error: any = new Error('Cancel rendering route')
+      error.cancelled = true
+      reject(error)
     }
   })
 
+  // This function has a return type to ensure it doesn't start returning a
+  // Promise. It should remain synchronous.
+  function onStart(): boolean {
+    if (
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles.
+      isInitialRender ||
+      // We use `style-loader` in development, so we don't need to do anything
+      // unless we're in production:
+      process.env.NODE_ENV !== 'production'
+    ) {
+      return false
+    }
+
+    const currentStyleTags = looseToArray<HTMLStyleElement>(
+      document.querySelectorAll('style[data-n-href]')
+    )
+    const currentHrefs = new Set(
+      currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
+    )
+
+    styleSheets.forEach(({ href, text }) => {
+      if (!currentHrefs.has(href)) {
+        const styleTag = document.createElement('style')
+        styleTag.setAttribute('data-n-href', href)
+        styleTag.setAttribute('media', 'x')
+
+        document.head.appendChild(styleTag)
+        styleTag.appendChild(document.createTextNode(text))
+      }
+    })
+    return true
+  }
+
+  function onCommit() {
+    if (
+      // We use `style-loader` in development, so we don't need to do anything
+      // unless we're in production:
+      process.env.NODE_ENV === 'production' &&
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles:
+      !isInitialRender &&
+      // Ensure this render was not canceled
+      !canceled
+    ) {
+      const desiredHrefs = new Set(styleSheets.map((s) => s.href))
+      const currentStyleTags = looseToArray<HTMLStyleElement>(
+        document.querySelectorAll('style[data-n-href]')
+      )
+      const currentHrefs = currentStyleTags.map(
+        (tag) => tag.getAttribute('data-n-href')!
+      )
+
+      // Toggle `<style>` tags on or off depending on if they're needed:
+      for (let idx = 0; idx < currentHrefs.length; ++idx) {
+        if (desiredHrefs.has(currentHrefs[idx])) {
+          currentStyleTags[idx].removeAttribute('media')
+        } else {
+          currentStyleTags[idx].setAttribute('media', 'x')
+        }
+      }
+
+      // Reorder styles into intended order:
+      let referenceNode = document.querySelector('noscript[data-n-css]')
+      if (
+        // This should be an invariant:
+        referenceNode
+      ) {
+        styleSheets.forEach(({ href }) => {
+          const targetTag = document.querySelector(
+            `style[data-n-href="${href}"]`
+          )
+          if (
+            // This should be an invariant:
+            targetTag
+          ) {
+            referenceNode!.parentNode!.insertBefore(
+              targetTag,
+              referenceNode!.nextSibling
+            )
+            referenceNode = targetTag
+          }
+        })
+      }
+
+      // Finally, clean up server rendered stylesheets:
+      looseToArray<HTMLLinkElement>(
+        document.querySelectorAll('link[data-n-p]')
+      ).forEach((el) => {
+        el.parentNode!.removeChild(el)
+      })
+
+      // Force browser to recompute layout, which should prevent a flash of
+      // unstyled content:
+      getComputedStyle(document.body, 'height')
+    }
+
+    resolvePromise()
+  }
+
   const elem = (
-    <Root callback={resolvePromise!}>
+    <Root callback={onCommit}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
     </Root>
   )
+
+  onStart()
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(
@@ -579,7 +707,7 @@ async function doRender({ App, Component, props, err }: RenderRouteInfo) {
     appElement!
   )
 
-  await renderPromise
+  return renderPromise
 }
 
 function Root({
