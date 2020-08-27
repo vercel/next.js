@@ -146,7 +146,7 @@ The `query` objects are as follows:
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/pages.md">
+  <a href="/docs/api-reference/next/link.md">
     <b>Pages:</b>
     <small>Enable client-side transitions with next/link.</small>
   </a>

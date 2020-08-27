@@ -63,7 +63,7 @@ router.push(url, as, options)
 ```
 
 - `url` - The URL to navigate to
-- `as` - Optional decorator for the URL that will be shown in the browser. Used for dynamic routes before Next.js 9.5.3.
+- `as` - Optional decorator for the URL that will be shown in the browser. Used for dynamic routes before Next.js 9.5.3
 - `options` - Optional object with the following configuration options:
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
@@ -174,10 +174,11 @@ Prefetch pages for faster client-side transitions. This method is only useful fo
 > This is a production only feature. Next.js doesn't prefetch pages on development.
 
 ```jsx
-router.prefetch(url)
+router.prefetch(url, as)
 ```
 
 - `url` - The URL to prefetch, that is, a path with a matching page
+- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes.md) before Next.js 9.5.3
 
 #### Usage
 
