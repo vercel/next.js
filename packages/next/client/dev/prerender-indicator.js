@@ -40,8 +40,13 @@ export default function initializeBuildWatcher() {
 
   // State
   const dismissKey = '__NEXT_DISMISS_PRERENDER_INDICATOR'
-  const dismissUntil = parseInt(window.localStorage.getItem(dismissKey), 10)
-  const dismissed = dismissUntil > new Date().getTime()
+  let dismissUntil
+  try {
+    dismissUntil = parseInt(window.localStorage.getItem(dismissKey), 10)
+  } catch (error) {
+    console.log('Could not load prerender indicator data')
+  }
+  const dismissed = dismissUntil && dismissUntil > new Date().getTime()
 
   let isVisible = !dismissed && window.__NEXT_DATA__.nextExport
 
@@ -71,7 +76,11 @@ export default function initializeBuildWatcher() {
 
   closeEl.addEventListener('click', () => {
     const oneHourAway = new Date().getTime() + 1 * 60 * 60 * 1000
-    window.localStorage.setItem(dismissKey, oneHourAway + '')
+    try {
+      window.localStorage.setItem(dismissKey, oneHourAway + '')
+    } catch (error) {
+      console.log('Could not save prerender indicator dismissal')
+    }
     isVisible = false
     updateContainer()
   })
