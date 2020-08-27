@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { StyleSheetTuple } from './page-loader'
+import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -83,8 +83,6 @@ if (hasBasePath(asPath)) {
 }
 
 type RegisterFn = (input: [string, () => void]) => void
-
-const looseToArray = <T extends {}>(input: any): T[] => [].slice.call(input)
 
 const pageLoader = new PageLoader(buildId, prefix, page)
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
