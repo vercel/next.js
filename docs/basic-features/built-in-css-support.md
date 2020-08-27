@@ -31,7 +31,7 @@ body {
 }
 ```
 
-Create a [`pages/_app.js` file](/docs/advanced-features/custom-app) if not already present.
+Create a [`pages/_app.js` file](/docs/advanced-features/custom-app.md) if not already present.
 Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
 ```jsx
@@ -44,7 +44,7 @@ export default function MyApp({ Component, pageProps }) {
 ```
 
 These styles (`styles.css`) will apply to all pages and components in your application.
-Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](/docs/advanced-features/custom-app)**.
+Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](/docs/advanced-features/custom-app.md)**.
 
 In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
 
