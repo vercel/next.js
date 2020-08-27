@@ -15,7 +15,10 @@ export default function Index({ posts }) {
       <ul>
         {posts.map((post) => (
           <li key={post.filePath}>
-            <Link href={`/posts/${post.filePath.replace(/\.mdx?$/, '')}`}>
+            <Link
+              as={`/posts/${post.filePath.replace(/\.mdx?$/, '')}`}
+              href={`/posts/[slug]`}
+            >
               <a>{post.data.title}</a>
             </Link>
           </li>
