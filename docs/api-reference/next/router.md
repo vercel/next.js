@@ -63,7 +63,7 @@ router.push(url, as, options)
 ```
 
 - `url` - The URL to navigate to
-- `as` - Optional decorator for the URL that will be shown in the browser. Used for [shallow routing](/docs/routing/shallow-routing.md). Defaults to `url`
+- `as` - Optional decorator for the URL that will be shown in the browser. Used for dynamic routes before Next.js 9.5.3.
 - `options` - Optional object with the following configuration options:
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 

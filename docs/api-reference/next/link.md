@@ -54,7 +54,7 @@ export default Home
 `Link` accepts the following props:
 
 - `href` - The path or URL to navigate to. This is the only required prop
-- `as` - Optional decorator for the path that will be shown in the browser URL bar. Used for [shallow routing](/docs/routing/shallow-routing.md)
+- `as` - Optional decorator for the path that will be shown in the browser URL bar. Used for dynamic routes before Next.js 9.5.3
 - [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
 - `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
