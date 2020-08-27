@@ -32,6 +32,8 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 - `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
 - `pages/post/[...all].js` → `/post/*` (`/post/2020/id/title`)
 
+> Check out the [Dynamic Routes documentation](/docs/routing/dynamic-routes.md) to learn more about how they work.
+
 ## Linking between pages
 
 The Next.js router allows you to do client-side route transitions between pages, similarly to a single-page application.
@@ -70,9 +72,11 @@ In the example above we have multiple links, each one maps a path (`href`) to a 
 
 - `/` → `pages/index.js`
 - `/about` → `pages/about.js`
-- `/blog/hello-world` → `/pages/blog/[slug].js`
+- `/blog/hello-world` → `pages/blog/[slug].js`
 
-You can also use interpolation to create the path, which comes in handy for dynamic route segments. For example, to show a list of posts which have been passed to the component as a prop:
+### Linking to dynamic paths
+
+You can also use interpolation to create the path, which comes in handy for [dynamic route segments](#dynamic-route-segments). For example, to show a list of posts which have been passed to the component as a prop:
 
 ```jsx
 import Link from 'next/link'
