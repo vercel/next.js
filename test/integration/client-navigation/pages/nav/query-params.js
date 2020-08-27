@@ -20,6 +20,18 @@ export default function Page() {
               param8: NaN,
               param9: new Date(1234),
               param10: /hello/,
+              param11: [
+                '',
+                undefined,
+                null,
+                0,
+                false,
+                [],
+                {},
+                NaN,
+                new Date(1234),
+                /hello/,
+              ],
             },
           })
         }

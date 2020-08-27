@@ -818,6 +818,7 @@ describe('Client Navigation', () => {
         param8: '',
         param9: '',
         param10: '',
+        param11: ['', '', '', '0', 'false', '', '', '', '', ''],
       })
     })
   })
