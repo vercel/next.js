@@ -12,6 +12,25 @@ import { searchParamsToUrlQuery } from '../next-server/lib/router/utils/querystr
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 
+export const looseToArray = <T extends {}>(input: any): T[] =>
+  [].slice.call(input)
+
+function getInitialStylesheets(): StyleSheetTuple[] {
+  return looseToArray<CSSStyleSheet>(document.styleSheets)
+    .filter(
+      (el: CSSStyleSheet) =>
+        el.ownerNode &&
+        (el.ownerNode as Element).tagName === 'LINK' &&
+        (el.ownerNode as Element).hasAttribute('data-n-p')
+    )
+    .map((sheet) => ({
+      href: (sheet.ownerNode as Element).getAttribute('href')!,
+      text: looseToArray<CSSRule>(sheet.cssRules)
+        .map((r) => r.cssText)
+        .join(''),
+    }))
+}
+
 function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
     link = document.createElement('link')
@@ -99,7 +118,6 @@ export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private initialPage: string
-  private initialStyleSheets: StyleSheetTuple[]
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
@@ -109,14 +127,8 @@ export default class PageLoader {
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
 
-  constructor(
-    buildId: string,
-    assetPrefix: string,
-    initialPage: string,
-    initialStyleSheets: StyleSheetTuple[]
-  ) {
+  constructor(buildId: string, assetPrefix: string, initialPage: string) {
     this.initialPage = initialPage
-    this.initialStyleSheets = initialStyleSheets
 
     this.buildId = buildId
     this.assetPrefix = assetPrefix
@@ -422,23 +434,34 @@ export default class PageLoader {
       })
     }
 
+    const isInitialLoad = route === this.initialPage
     const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
       route === '/_app' ||
       // We use `style-loader` in development:
       process.env.NODE_ENV !== 'production'
         ? Promise.resolve([])
-        : route === this.initialPage
-        ? Promise.resolve(this.initialStyleSheets)
         : // Tests that this does not block hydration:
           // test/integration/css-fixtures/hydrate-without-deps/
-          this.getDependencies(route)
-            .then((deps) => deps.filter((d) => d.endsWith('.css')))
-            .then((cssFiles) =>
-              // These files should've already been fetched by now, so this
-              // should resolve pretty much instantly.
-              Promise.all(cssFiles.map((d) => fetchStyleSheet(d)))
+          (isInitialLoad
+            ? Promise.resolve(
+                looseToArray<HTMLLinkElement>(
+                  document.querySelectorAll('link[data-n-p]')
+                ).map((e) => e.getAttribute('href')!)
+              )
+            : this.getDependencies(route).then((deps) =>
+                deps.filter((d) => d.endsWith('.css'))
+              )
+          ).then((cssFiles) =>
+            // These files should've already been fetched by now, so this
+            // should resolve instantly.
+            Promise.all(cssFiles.map((d) => fetchStyleSheet(d))).catch(
+              (err) => {
+                if (isInitialLoad) return getInitialStylesheets()
+                throw err
+              }
             )
+          )
     promisedDeps.then(
       (deps) => register(deps),
       (error) => {
