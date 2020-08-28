@@ -135,6 +135,12 @@ describe('Invalid hrefs', () => {
       const $ = cheerio.load(await res.text())
       expect($('#click-me').attr('href')).toBe('https://')
     })
+
+    it('renders a link with mailto: href', async () => {
+      const res = await fetchViaHTTP(appPort, '/first')
+      const $ = cheerio.load(await res.text())
+      expect($('#click-me').attr('href')).toBe('mailto:idk@idk.com')
+    })
   })
 
   describe('dev mode', () => {
