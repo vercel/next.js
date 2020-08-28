@@ -2,7 +2,7 @@
 
 This example shows how a simple blog might be built using the [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote) library, which allows mdx content to be loaded via `getStaticProps` or `getServerSideProps`. In this example, the mdx content is loaded from a local folder, but it could be loaded from a database or anywhere else. The demo also showcases [next-remote-watch](https://github.com/hashicorp/next-remote-watch), a library that allows next.js to watch files outside the `pages` folder that are not explicitly imported, which enables the mdx content here to trigger a live reload on change.
 
-Since `next-remote-watch` uses undocumented Next.js APIs, it doesn't replace the default `dev` script for this example. To use it, run `yarn dev:watch` or `npm run start:watch`.
+Since `next-remote-watch` uses undocumented Next.js APIs, it doesn't replace the default `dev` script for this example. To use it, run `yarn dev:watch` or `npm run dev:watch`.
 
 ## Deploy your own
 
@@ -49,13 +49,13 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 When using `next-mdx-remote`, you can pass custom components to the MDX renderer. However, some pages/MDX files might use components that are used infrequently, or only on a single page. To avoid loading those components on every MDX page, you can use `next/dynamic` to conditionally load them.
 
-For example, here's how you can change `getInitialProps` to conditionally add certain components:
+For example, here's how you can change `getStaticProps` to conditionally add certain components:
 
 ```js
 import dynamic from "next/dynamic"
 ...
 
-async function getInitialProps() {
+export async function getStaticProps() {
   const { content, data } = matter(source)
 
   const components = {
@@ -70,4 +70,4 @@ async function getInitialProps() {
 }
 ```
 
-If you do this, you'll need to also check in the page render function which components need to be dynamically loaded. You can pass a list of components names via `getInitialProps` to accomplish this.
+If you do this, you'll need to also check in the page render function which components need to be dynamically loaded. You can pass a list of components names via `getStaticProps` to accomplish this.
