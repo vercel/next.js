@@ -595,28 +595,6 @@ export default class Router implements BaseRouter {
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
-      Router.events.emit('beforeHistoryChange', as)
-      this.changeState(method, url, as, options)
-
-      if (process.env.NODE_ENV !== 'production') {
-        const appComp: any = this.components['/_app'].Component
-        ;(window as any).next.isPrerendered =
-          appComp.getInitialProps === appComp.origGetInitialProps &&
-          !(routeInfo.Component as any).getInitialProps
-      }
-
-      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
-        (e) => {
-          if (e.cancelled) error = error || e
-          else throw e
-        }
-      )
-
-      if (error) {
-        Router.events.emit('routeChangeError', error, cleanedAs)
-        throw error
-      }
-
       // handle redirect on client-transition
       if (
         (__N_SSG || __N_SSP) &&
@@ -645,6 +623,28 @@ export default class Router implements BaseRouter {
 
         window.location.href = destination
         return new Promise(() => {})
+      }
+
+      Router.events.emit('beforeHistoryChange', as)
+      this.changeState(method, url, as, options)
+
+      if (process.env.NODE_ENV !== 'production') {
+        const appComp: any = this.components['/_app'].Component
+        ;(window as any).next.isPrerendered =
+          appComp.getInitialProps === appComp.origGetInitialProps &&
+          !(routeInfo.Component as any).getInitialProps
+      }
+
+      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
+        (e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        }
+      )
+
+      if (error) {
+        Router.events.emit('routeChangeError', error, cleanedAs)
+        throw error
       }
 
       if (process.env.__NEXT_SCROLL_RESTORATION) {

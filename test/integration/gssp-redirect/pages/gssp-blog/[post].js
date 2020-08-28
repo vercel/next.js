@@ -12,7 +12,7 @@ export const getServerSideProps = ({ params }) => {
     let destination = '/404'
 
     if (params.post.includes('dest-')) {
-      destination = params.post.split('dest-').pop()
+      destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }
 
     return {
@@ -26,7 +26,6 @@ export const getServerSideProps = ({ params }) => {
   return {
     props: {
       params,
-      random: Math.random(),
     },
   }
 }

@@ -1,4 +1,14 @@
+import { useRouter } from 'next/router'
+
 export default function Post(props) {
+  const router = useRouter()
+
+  if (typeof window !== 'undefined' && !window.initialHref) {
+    window.initialHref = window.location.href
+  }
+
+  if (router.isFallback) return <p>Loading...</p>
+
   return (
     <>
       <p id="gsp">getStaticProps</p>
@@ -26,7 +36,6 @@ export const getStaticProps = ({ params }) => {
   return {
     props: {
       params,
-      random: Math.random(),
     },
   }
 }
