@@ -65,9 +65,9 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
-  const hasJsxRuntime = Boolean(
-    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
-  )
+  const hasJsxRuntime =
+    Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
+    isProduction
 
   const isLaxModern =
     isModern ||
