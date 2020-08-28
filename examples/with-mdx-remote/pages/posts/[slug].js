@@ -3,6 +3,7 @@ import matter from 'gray-matter'
 import hydrate from 'next-mdx-remote/hydrate'
 import renderToString from 'next-mdx-remote/render-to-string'
 import dynamic from 'next/dynamic'
+import Head from 'next/head'
 import Link from 'next/link'
 import path from 'path'
 import CustomLink from '../../components/CustomLink'
@@ -19,6 +20,7 @@ const components = {
   // useful for conditionally loading components for certain routes.
   // See the notes in README.md for more details.
   TestComponent: dynamic(() => import('../../components/TestComponent')),
+  Head,
 }
 
 export default function PostPage({ source, frontMatter }) {
@@ -32,10 +34,26 @@ export default function PostPage({ source, frontMatter }) {
           </Link>
         </nav>
       </header>
-      <div className="wrapper">
+      <div className="post-header">
         <h1>{frontMatter.title}</h1>
-        {content}
+        {frontMatter.description && (
+          <p className="description">{frontMatter.description}</p>
+        )}
       </div>
+      <main>{content}</main>
+
+      <style jsx>{`
+        .post-header h1 {
+          margin-bottom: 0;
+        }
+
+        .post-header {
+          margin-bottom: 2rem;
+        }
+        .description {
+          opacity: 0.6;
+        }
+      `}</style>
     </Layout>
   )
 }

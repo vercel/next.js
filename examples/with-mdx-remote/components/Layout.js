@@ -6,9 +6,15 @@ export default function Layout({ children }) {
         .wrapper {
           max-width: 36rem;
           margin: 0 auto;
+          padding: 1.5rem;
         }
       `}</style>
       <style jsx global>{`
+        * {
+          margin: 0;
+          padding: 0;
+        }
+
         :root {
           --site-color: royalblue;
           --divider-color: rgba(0, 0, 0, 0.4);
@@ -27,6 +33,15 @@ export default function Layout({ children }) {
         a:hover {
           color: var(--site-color);
           text-decoration-color: currentcolor;
+        }
+
+        h1,
+        p {
+          margin-bottom: 1.5rem;
+        }
+
+        code {
+          font-family: 'Menlo';
         }
       `}</style>
     </>
