@@ -232,9 +232,7 @@ export default async function getBaseWebpackConfig(
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
-    Boolean(reactVersion) &&
-    (semver.gte(reactVersion!, '17.0.0-rc.0') ||
-      semver.eq(reactVersion!, '0.0.0-4e6999103'))
+    Boolean(reactVersion) && semver.gte(reactVersion!, '17.0.0-rc.0')
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
