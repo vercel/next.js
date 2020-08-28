@@ -591,6 +591,13 @@ export async function renderToHTML(
       if (data.redirect && typeof data.redirect === 'object') {
         checkRedirectValues(data.redirect, req)
 
+        if (isBuildTimeSSG) {
+          throw new Error(
+            `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
+              `See more info here: https://err.sh/next.js/gsp-redirect-during-prerender`
+          )
+        }
+
         if (isDataReq) {
           data.props = {
             __N_REDIRECT: data.redirect.destination,

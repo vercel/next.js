@@ -212,4 +212,42 @@ describe('GS(S)P Redirect Support', () => {
 
     runTests()
   })
+
+  it('should error for redirect during prerendering', async () => {
+    await fs.mkdirp(join(appDir, 'pages/invalid'))
+    await fs.writeFile(
+      join(appDir, 'pages', 'invalid', '[slug].js'),
+      `
+        export default function Post(props) {
+          return "hi"
+        }
+
+        export const getStaticProps = ({ params }) => {
+          return {
+            redirect: {
+              permanent: true,
+              destination: '/another'
+            }
+          }
+        }
+
+        export const getStaticPaths = () => {
+          return {
+            paths: ['first', 'second'].map((slug) => ({ params: { slug } })),
+            fallback: true,
+          }
+        }
+      `
+    )
+    const { stdout, stderr } = await nextBuild(appDir, undefined, {
+      stdout: true,
+      stderr: true,
+    })
+    const output = stdout + stderr
+    await fs.remove(join(appDir, 'pages/invalid'))
+
+    expect(output).toContain(
+      '`redirect` can not be returned from getStaticProps during prerendering'
+    )
+  })
 })
