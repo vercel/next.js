@@ -72,6 +72,11 @@ export {
   NextApiHandler,
 }
 
+type Redirect = {
+  permanent: boolean
+  destination: string
+}
+
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
@@ -80,6 +85,7 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 
 export type GetStaticPropsResult<P> = {
   props: P
+  redirect?: Redirect
   revalidate?: number | boolean
 }
 
@@ -116,6 +122,7 @@ export type GetServerSidePropsContext<
 
 export type GetServerSidePropsResult<P> = {
   props: P
+  redirect?: Redirect
 }
 
 export type GetServerSideProps<

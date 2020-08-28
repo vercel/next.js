@@ -21,6 +21,8 @@ import {
   AMP_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
+  PERMANENT_REDIRECT_STATUS,
+  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -262,6 +264,47 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
     `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
     `\nRead more: https://err.sh/next.js/invalid-getstaticprops-value`
   )
+}
+
+type Redirect = {
+  permanent: boolean
+  destination: string
+}
+
+function checkRedirectValues(redirect: Redirect, req: IncomingMessage) {
+  const { destination, permanent } = redirect
+  let invalidPermanent = typeof permanent !== 'boolean'
+  let invalidDestination = typeof destination !== 'string'
+
+  if (invalidPermanent || invalidDestination) {
+    throw new Error(
+      `Invalid redirect object returned from getStaticProps for ${req.url}\n` +
+        `Expected${
+          invalidPermanent
+            ? ` \`permanent\` to be boolean but received ${typeof permanent}`
+            : ''
+        }${invalidPermanent && invalidDestination ? ' and' : ''}${
+          invalidDestination
+            ? ` \`destinatino\` to be string but received ${typeof destination}`
+            : ''
+        }\n` +
+        `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
+    )
+  }
+}
+
+function handleRedirect(res: ServerResponse, redirect: Redirect) {
+  // TODO: this should error if a redirect is returned while prerendering
+  const statusCode = redirect.permanent
+    ? PERMANENT_REDIRECT_STATUS
+    : TEMPORARY_REDIRECT_STATUS
+
+  if (redirect.permanent) {
+    res.setHeader('Refresh', `0;url=${redirect.destination}`)
+  }
+  res.statusCode = statusCode
+  res.setHeader('Location', redirect.destination)
+  res.end()
 }
 
 export async function renderToHTML(
@@ -534,7 +577,7 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'revalidate' && key !== 'props'
+        (key) => key !== 'revalidate' && key !== 'props' && key !== 'redirect'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -543,6 +586,19 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+      }
+
+      if (data.redirect && typeof data.redirect === 'object') {
+        checkRedirectValues(data.redirect, req)
+
+        if (isDataReq) {
+          data.props = {
+            __N_REDIRECT: data.redirect.destination,
+          }
+        } else {
+          handleRedirect(res, data.redirect)
+          return null
+        }
       }
 
       if (
@@ -623,10 +679,25 @@ export async function renderToHTML(
         throw new Error(GSSP_NO_RETURNED_VALUE)
       }
 
-      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
+      const invalidKeys = Object.keys(data).filter(
+        (key) => key !== 'props' && key !== 'redirect'
+      )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      if (data.redirect && typeof data.redirect === 'object') {
+        checkRedirectValues(data.redirect, req)
+
+        if (isDataReq) {
+          data.props = {
+            __N_REDIRECT: data.redirect.destination,
+          }
+        } else {
+          handleRedirect(res, data.redirect)
+          return null
+        }
       }
 
       if (
