@@ -8,6 +8,7 @@ description: Enable client-side transitions between routes with the built-in Lin
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/hello-world">Hello World</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/active-class-name">Active className on Link</a></li>
   </ul>
 </details>
 
