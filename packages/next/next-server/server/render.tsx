@@ -234,10 +234,20 @@ function renderDocument(
             customServer, // whether the user is using a custom server
             gip, // whether the page has getInitialProps
             appGip, // whether the _app has getInitialProps
-            head: React.Children.map(docProps.head || [], (elem) => ({
-              type: elem?.type,
-              props: elem?.props,
-            })).filter(Boolean) as any,
+            head: React.Children.map(docProps.head || [], (elem) => {
+              const { children } = elem?.props
+              return {
+                type: elem?.type,
+                props: {
+                  ...elem?.props,
+                  children: children
+                    ? typeof children === 'string'
+                      ? children
+                      : children.join('')
+                    : undefined,
+                },
+              }
+            }).filter(Boolean) as any,
           },
           buildManifest,
           docComponentsRendered,
