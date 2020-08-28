@@ -504,6 +504,7 @@ export class Head extends Component<
             {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks(files))
               : this.getCssLinks(files)}
+            <noscript data-n-css />
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {this.context.isDevelopment && (
