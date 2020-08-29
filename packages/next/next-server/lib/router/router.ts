@@ -7,7 +7,7 @@ import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import { GoodPageCache } from '../../../client/page-loader'
+import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -18,7 +18,6 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
-  NextComponentType,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
@@ -117,23 +116,6 @@ function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   }
 }
 
-function tryParseRelativeUrl(
-  url: string
-): null | ReturnType<typeof parseRelativeUrl> {
-  try {
-    return parseRelativeUrl(url)
-  } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      setTimeout(() => {
-        throw new Error(
-          `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-        )
-      }, 0)
-    }
-    return null
-  }
-}
-
 export type BaseRouter = {
   route: string
   pathname: string
@@ -160,11 +142,11 @@ export type PrefetchOptions = {
 }
 
 export type PrivateRouteInfo = {
-  Component: NextComponentType<{}>
-  skeleton?: boolean
-  styleSheets: string[]
+  Component: ComponentType
+  styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
+  skeleton?: boolean
   props?: Record<string, any>
   err?: Error
   error?: any
@@ -248,6 +230,7 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
+  _shallow?: boolean
 
   static events: MittEmitter = mitt()
 
@@ -270,7 +253,7 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
-      initialStyleSheets: string[]
+      initialStyleSheets: StyleSheetTuple[]
       App: AppComponent
       wrapApp: (App: AppComponent) => any
       err?: Error
@@ -413,7 +396,14 @@ export default class Router implements BaseRouter {
       return
     }
 
-    this.change('replaceState', url, as, options)
+    this.change(
+      'replaceState',
+      url,
+      as,
+      Object.assign({}, options, {
+        shallow: options.shallow && this._shallow,
+      })
+    )
   }
 
   reload(): void {
@@ -498,9 +488,7 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
 
-    let parsed = tryParseRelativeUrl(url)
-
-    if (!parsed) return false
+    let parsed = parseRelativeUrl(url)
 
     let { pathname, searchParams } = parsed
 
@@ -648,6 +636,7 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+      this._shallow = options.shallow
       window.history[method](
         {
           url,
@@ -926,9 +915,7 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    let parsed = tryParseRelativeUrl(url)
-
-    if (!parsed) return
+    let parsed = parseRelativeUrl(url)
 
     let { pathname } = parsed
 
