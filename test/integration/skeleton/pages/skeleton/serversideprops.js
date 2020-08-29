@@ -2,6 +2,10 @@ import React from 'react'
 import { useRouter } from 'next/router'
 import sleep from '../../utils/sleep'
 
+export const config = {
+  skeleton: true,
+}
+
 const Page = ({ world }) => {
   const router = useRouter()
   return (
@@ -18,8 +22,6 @@ const Page = ({ world }) => {
     </>
   )
 }
-
-Page.skeleton = true
 
 export async function getServerSideProps() {
   await sleep(3000)

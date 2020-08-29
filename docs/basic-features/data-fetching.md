@@ -640,12 +640,17 @@ Also, you must use `export async function getServerSideProps() {}` — it will *
 
 ## Skeleton-Loading
 
-No matter which way of pre-rendering you choose, any client-side navigation is deferred until the data has been fetched. Sometimes it's desirable to immediately transition to the new page and display a loading state (skeleton) while waiting for the data to arrive. In order to opt into this mode you can set the `skeleton` property to `true`.
+No matter which way of pre-rendering you choose, any client-side navigation is deferred until the data has been fetched. Sometimes it's desirable to immediately transition to the new page and display a loading state (skeleton) while waiting for the data to arrive. In order to opt into this mode export a `config`object with the `skeleton` property set to `true`.
 
 As with [static fallback pages](#fallback-true) you can use `router.isFallback` to check if the data has been loaded:
 
 ```jsx
 import { useRouter } from 'next/router'
+
+// Opt into skeleton loading
+export const config = {
+  skeleton: true,
+}
 
 function Page({ data }) {
   const router = useRouter()
@@ -658,9 +663,6 @@ function Page({ data }) {
   // data has been loaded
   return <div>{data}</div>
 }
-
-// Opt into skeleton loading
-Page.skeleton = true
 
 export default Page
 ```

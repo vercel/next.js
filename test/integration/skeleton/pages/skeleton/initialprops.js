@@ -2,6 +2,10 @@ import React from 'react'
 import { useRouter } from 'next/router'
 import sleep from '../../utils/sleep'
 
+export const config = {
+  skeleton: true,
+}
+
 const Page = ({ world }) => {
   const router = useRouter()
   return (
@@ -25,7 +29,5 @@ Page.getInitialProps = async () => {
     world: 'world',
   }
 }
-
-Page.skeleton = true
 
 export default Page

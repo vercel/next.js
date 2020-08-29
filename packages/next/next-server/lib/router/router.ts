@@ -161,6 +161,7 @@ export type PrefetchOptions = {
 
 export type PrivateRouteInfo = {
   Component: NextComponentType<{}>
+  skeleton?: boolean
   styleSheets: string[]
   __N_SSG?: boolean
   __N_SSP?: boolean
@@ -725,7 +726,7 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     shallow: boolean = false,
-    skeleton?: Record<string, any>
+    skeletonProps?: Record<string, any>
   ): Promise<PrivateRouteInfo> {
     try {
       const cachedRouteInfo = this.components[route]
@@ -738,12 +739,13 @@ export default class Router implements BaseRouter {
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
             Component: res.page,
+            skeleton: res.mod.config?.skeleton,
             styleSheets: res.styleSheets,
             __N_SSG: res.mod.__N_SSG,
             __N_SSP: res.mod.__N_SSP,
           }))
 
-      const { Component, __N_SSG, __N_SSP } = routeInfo
+      const { Component, skeleton, __N_SSG, __N_SSP } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('react-is')
@@ -780,9 +782,9 @@ export default class Router implements BaseRouter {
             )
       )
 
-      const props = Component.skeleton
+      const props = skeleton
         ? {
-            pageProps: skeleton,
+            pageProps: skeletonProps,
             __NEXT_PROMISED_PROPS: promisedProps,
           }
         : await promisedProps
