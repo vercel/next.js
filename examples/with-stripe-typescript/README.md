@@ -73,15 +73,6 @@ npx create-next-app --example with-stripe-typescript with-stripe-typescript-app
 yarn create next-app --example with-stripe-typescript with-stripe-typescript-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-stripe-typescript
-cd with-stripe-typescript
-```
-
 ### Required configuration
 
 Copy the `.env.local.example` file into a file named `.env.local` in the root directory of this project:

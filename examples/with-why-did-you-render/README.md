@@ -21,25 +21,6 @@ npx create-next-app --example with-why-did-you-render with-why-did-you-render-ap
 yarn create next-app --example with-why-did-you-render with-why-did-you-render-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-why-did-you-render
-cd with-why-did-you-render
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 Deploy it to the cloud with [Vercel](https://vercel.com/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 [![Deploy To Now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/vercel/next.js/tree/master/examples/with-why-did-you-render)

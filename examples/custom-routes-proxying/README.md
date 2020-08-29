@@ -16,15 +16,6 @@ npx create-next-app --example custom-routes-proxying custom-routes-proxying-app
 yarn create next-app --example custom-routes-proxying custom-routes-proxying-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-routes-proxying
-cd custom-routes-proxying
-```
-
 ### Step 4. Run Next.js in development mode
 
 ```bash

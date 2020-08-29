@@ -40,15 +40,6 @@ npx create-next-app --example cms-strapi cms-strapi-app
 yarn create next-app --example cms-strapi cms-strapi-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-strapi
-cd cms-strapi
-```
-
 ## Configuration
 
 ### Step 1. Set up Strapi locally

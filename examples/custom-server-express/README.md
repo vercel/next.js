@@ -18,25 +18,6 @@ npx create-next-app --example custom-server-express custom-server-express-app
 yarn create next-app --example custom-server-express custom-server-express-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-express
-cd custom-server-express
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ### Populate body property
 
 Without the use of the body-parser package `req.body` will return undefined. To get express to populate `req.body` you need to install the body parser package and call the package within server.js.

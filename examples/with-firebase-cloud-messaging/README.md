@@ -14,25 +14,6 @@ npx create-next-app --example with-firebase-cloud-messaging with-firebase-cloud-
 yarn create next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-cloud-messaging
-cd with-firebase-cloud-messaging
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ## Set your send id
 
 set your `messagingSenderId` in `static/firebase-messaging-sw.js` and `utils/webPush.js`

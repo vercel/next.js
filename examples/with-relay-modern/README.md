@@ -22,23 +22,6 @@ npx create-next-app --example with-relay-modern with-relay-modern-app
 yarn create next-app --example with-relay-modern with-relay-modern-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-relay-modern
-cd with-relay-modern
-```
-
-Install it:
-
-```bash
-npm install
-# or
-yarn
-```
-
 Download schema introspection data from configured Relay endpoint
 
 ```bash

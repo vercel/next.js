@@ -40,15 +40,6 @@ npx create-next-app --example cms-wordpress cms-wordpress-app
 yarn create next-app --example cms-wordpress cms-wordpress-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-wordpress
-cd cms-wordpress
-```
-
 ## Configuration
 
 ### Step 1. Prepare your WordPress site

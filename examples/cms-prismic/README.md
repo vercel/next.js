@@ -39,15 +39,6 @@ npx create-next-app --example cms-prismic cms-prismic-app
 yarn create next-app --example cms-prismic cms-prismic-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-prismic
-cd cms-prismic
-```
-
 ## Configuration
 
 ### Step 1. Create an account and a repository on Prismic

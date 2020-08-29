@@ -14,30 +14,4 @@ npx create-next-app --example with-http2 with-http2-app
 yarn create next-app --example with-http2 with-http2-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-http2
-cd with-http2
-```
-
-Create the public and private keys:
-
-```bash
-openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
-  -keyout localhost-privkey.pem -out localhost-cert.pem
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

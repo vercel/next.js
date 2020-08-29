@@ -18,25 +18,6 @@ npx create-next-app --example custom-server-koa custom-server-koa-app
 yarn create next-app --example custom-server-koa custom-server-koa-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-koa
-cd custom-server-koa
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ## Side note: Enabling gzip compression
 
 The most common Koa middleware for handling the gzip compression is [compress](https://github.com/koajs/compress), but unfortunately it is currently not compatible with Next.<br>

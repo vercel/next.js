@@ -26,25 +26,6 @@ npx create-next-app --example with-next-auth with-next-auth-app
 yarn create next-app --example with-next-auth with-next-auth-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-next-auth
-cd with-next-auth
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 **Note:** For production you need to know in advance the domain (deployment URL) of your application, as it would be required for OAuth to work, once you have it set it to the `VERCEL_URL` environment variable under the settings of your Vercel project.

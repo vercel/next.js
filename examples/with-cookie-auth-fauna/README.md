@@ -22,15 +22,6 @@ npx create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 ```
 
-### Download manually
-
-Download the example [or clone the repo](https://github.com/vercel/next.js):
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-cookie-auth-fauna
-cd with-cookie-auth-fauna
-```
-
 ### Run locally
 
 First, you'll need to create an account on [Fauna](https://fauna.com/), then follow these steps:

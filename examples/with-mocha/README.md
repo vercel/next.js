@@ -14,25 +14,6 @@ npx create-next-app --example with-mocha with-mocha-app
 yarn create next-app --example with-mocha with-mocha-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mocha
-cd with-mocha
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ## Run Mocha tests
 
 ```bash

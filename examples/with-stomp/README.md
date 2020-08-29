@@ -17,26 +17,3 @@ npx create-next-app --example with-stomp with-stomp-app
 # or
 yarn create next-app --example with-stomp with-stomp-app
 ```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-stomp
-cd with-stomp
-```
-
-Install it and run:
-
-```bash
-npm install
-STOMP_SERVER=wss://some.stomp.server npm run dev
-# or
-yarn
-STOMP_SERVER=wss://some.stomp.server yarn dev
-```
-
-You'll need to provide the STOMP url of your server in `STOMP_SERVER`
-
-> If you're on Windows you may want to use [cross-env](https://www.npmjs.com/package/cross-env)

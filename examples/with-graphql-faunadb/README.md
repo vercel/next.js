@@ -42,15 +42,6 @@ npx create-next-app --example with-graphql-faunadb with-graphql-faunadb
 yarn create next-app --example with-graphql-faunadb with-graphql-faunadb
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-faunadb
-cd with-graphql-faunadb
-```
-
 ### Run locally
 
 Install packages, then run the development server:

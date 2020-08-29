@@ -20,25 +20,6 @@ npx create-next-app --example analyze-bundles analyze-bundles-app
 yarn create next-app --example analyze-bundles analyze-bundles-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/analyze-bundles
-cd analyze-bundles
-```
-
-Install it
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ### Analyze webpack output
 
 To analyze your webpack output, invoke the following command:

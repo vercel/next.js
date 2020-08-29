@@ -40,15 +40,6 @@ npx create-next-app --example cms-buttercms cms-buttercms-app
 yarn create next-app --example cms-buttercms cms-buttercms-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-buttercms
-cd cms-buttercms
-```
-
 ## Configuration
 
 ### Step 1. Create an account on ButterCMS

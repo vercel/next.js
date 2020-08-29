@@ -40,15 +40,6 @@ npx create-next-app --example cms-sanity cms-sanity-app
 yarn create next-app --example cms-sanity cms-sanity-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-sanity
-cd cms-sanity
-```
-
 ## Configuration
 
 ### Step 1. Create an account and a project on Sanity

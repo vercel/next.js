@@ -43,15 +43,6 @@ npx create-next-app --example cms-agilitycms cms-agilitycms-app
 yarn create next-app --example cms-agilitycms cms-agilitycms-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-agilitycms
-cd cms-agilitycms
-```
-
 ## Configuration
 
 ### How is this Different from Other CMS Examples?

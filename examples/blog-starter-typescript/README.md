@@ -26,27 +26,6 @@ npx create-next-app --example blog-starter-typescript blog-starter-typescript-ap
 yarn create next-app --example blog-starter-typescript blog-starter-typescript-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/blog-starter-typescript
-cd blog-starter-typescript
-```
-
-Install dependencies and run the example:
-
-```bash
-npm install
-npm run dev
-
-# or
-
-yarn install
-yarn dev
-```
-
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -43,15 +43,6 @@ npx create-next-app --example cms-graphcms cms-graphcms-app
 yarn create next-app --example cms-graphcms cms-graphcms-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-graphcms
-cd cms-graphcms
-```
-
 ## Configuration
 
 ### Step 1. Create an account and a project in GraphCMS

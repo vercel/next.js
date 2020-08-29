@@ -14,25 +14,6 @@ npx create-next-app --example gh-pages gh-pages-app
 yarn create next-app --example gh-pages gh-pages-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/gh-pages
-cd gh-pages
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ### Deploy it to github
 
 Edit `env-config.js` and replace `'Next-gh-page-example'` by your project name.

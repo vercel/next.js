@@ -19,25 +19,6 @@ npx create-next-app --example with-custom-reverse-proxy with-custom-reverse-prox
 yarn create next-app --example with-custom-reverse-proxy with-custom-reverse-proxy-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-custom-reverse-proxy
-cd with-custom-reverse-proxy
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 ## What it does
 
 Take any random query string to the index page and does a GET to `/api/<query string>` which gets routed internally to `https://swapi.co/api/<query string>`, or any API endpoint you wish to configure through the proxy.
