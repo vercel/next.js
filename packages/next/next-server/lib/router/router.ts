@@ -115,23 +115,6 @@ function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   }
 }
 
-function tryParseRelativeUrl(
-  url: string
-): null | ReturnType<typeof parseRelativeUrl> {
-  try {
-    return parseRelativeUrl(url)
-  } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      setTimeout(() => {
-        throw new Error(
-          `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-        )
-      }, 0)
-    }
-    return null
-  }
-}
-
 export type BaseRouter = {
   route: string
   pathname: string
@@ -503,9 +486,7 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
 
-    let parsed = tryParseRelativeUrl(url)
-
-    if (!parsed) return false
+    let parsed = parseRelativeUrl(url)
 
     let { pathname, searchParams } = parsed
 
@@ -899,9 +880,7 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    let parsed = tryParseRelativeUrl(url)
-
-    if (!parsed) return
+    let parsed = parseRelativeUrl(url)
 
     let { pathname } = parsed
 
