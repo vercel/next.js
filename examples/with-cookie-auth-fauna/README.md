@@ -12,23 +12,12 @@ The helper function `auth` helps to retrieve the token across pages and redirect
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 # or
 yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
-```
-
-### Download manually
-
-Download the example [or clone the repo](https://github.com/vercel/next.js):
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-cookie-auth-fauna
-cd with-cookie-auth-fauna
 ```
 
 ### Run locally
