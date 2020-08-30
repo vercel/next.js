@@ -18,15 +18,6 @@ npx create-next-app --example with-docker with-docker-app
 yarn create next-app --example with-docker with-docker-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-docker
-cd with-docker
-```
-
 Build it with docker:
 
 ```bash

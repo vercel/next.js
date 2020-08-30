@@ -27,33 +27,6 @@ yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 
 Update `.firebaserc`: adding your firebase project ID
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-hosting
-cd with-firebase-hosting
-```
-
-Update `.firebaserc`: adding your firebase project ID
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-
-# to run Firebase locally for testing:
-npm run serve
-
-# to deploy it to the cloud with Firebase:
-npm run deploy
-```
-
 ## Typescript
 
 To use Typescript, simply follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
