@@ -15,5 +15,5 @@
     "cookie": "0.4.1",
     "uuid": "8.1.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

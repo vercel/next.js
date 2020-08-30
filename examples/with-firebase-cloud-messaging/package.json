@@ -16,5 +16,6 @@
   },
   "devDependencies": {
     "next-offline": "^3.0.10"
-  }
+  },
+  "license": "MIT"
 }

@@ -18,5 +18,5 @@
     "@types/react-dom": "^16.9.4",
     "typescript": "3.9.7"
   },
-  "license": "ISC"
+  "license": "MIT"
 }
