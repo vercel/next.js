@@ -4,8 +4,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "type-check": "tsc"
+    "start": "next start"
   },
   "dependencies": {
     "@chakra-ui/core": "^0.8.0",
