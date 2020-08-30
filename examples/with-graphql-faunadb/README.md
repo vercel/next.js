@@ -32,8 +32,6 @@ This script will ask for the admin token. Once you provide it with a valid token
 
 At the end, the newly generated client token will be printed and should be used to replace the '< GRAPHQL_SECRET >' placeholder in the next.config.js config.
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```
