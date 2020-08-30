@@ -29,6 +29,6 @@
     "@types/react-dom": "16.9.8",
     "@types/react-native": "0.62.10",
     "babel-preset-expo": "~8.1.0",
-    "typescript": "3.9.3"
+    "typescript": "4.0"
   }
 }
