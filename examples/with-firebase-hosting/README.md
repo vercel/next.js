@@ -70,7 +70,6 @@ Then you can create components and pages in `.tsx` or `.ts`
 - The empty `public/.gitignore` file is to ensure `public/` dir exists as it is required for Firebase Hosting. It is [configured](firebase.json:#L4) (by [default](https://firebase.google.com/docs/hosting/full-config#ignore)) that dotfiles (`public/.*`) are ignored from bein publicly served.
 - The Cloud Function is named `nextjsFunc` (changeable in [firebaseFunctions.js](firebaseFunctions.js#L16) and [firebase.json](firebase.json#L8)).
 - `public/*` files are statically served through [Firebase hosting](https://firebase.google.com/docs/hosting/full-config#public), not through [NextJs server](https://nextjs.org/docs/basic-features/static-file-serving).
-- Specifying [`"engines": {"node": "10"}`](package.json#L5-L7) in `package.json` is required and the [latest supported](https://firebase.google.com/docs/functions/manage-functions#set_nodejs_version) by firebase functions.
 
 #### Customization
 
@@ -82,11 +81,7 @@ The crucial files for the setup:
 - `firebase.json`
 - `firebaseFunctions.js`
 - `src/next.config.js`
-- In `package.json`: `firebase-*` packages and `engines` field
-
-## Caveat
-
-Because firebase functions require `"engines": {"node": "10"}` (or 8) to be specified (in `package.json`), if you are using `yarn` (instead of `npm`), you will need to add flag [`--ignore-engines`](https://classic.yarnpkg.com/en/docs/cli/install/#toc-yarn-install-ignore-engines).
+- In `package.json`: `firebase-*` packages.
 
 ## References
 
