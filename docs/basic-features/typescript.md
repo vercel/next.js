@@ -101,11 +101,12 @@ If you have a [custom `App`](/docs/advanced-features/custom-app.md), you can use
 
 ```ts
 // import App from "next/app";
+import React from 'react';
 import type { AppProps /*, AppContext */ } from 'next/app'
 
-function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />
-}
+const MyApp: React.SFC<AppProps> = ({ Component, pageProps }) => {
+    return <Component {...pageProps} />;
+};
 
 // Only uncomment this method if you have blocking data requirements for
 // every single page in your application. This disables the ability to
