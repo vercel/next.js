@@ -2,11 +2,11 @@
   "name": "with-react-intl",
   "version": "1.0.0",
   "scripts": {
-    "dev": "NODE_ICU_DATA=node_modules/full-icu ts-node --project tsconfig.server.json server.ts",
+    "dev": "cross-env NODE_ICU_DATA=node_modules/full-icu ts-node --project tsconfig.server.json server.ts",
     "build": "npm run extract:i18n && npm run compile:i18n && next build && tsc -p tsconfig.server.json",
     "extract:i18n": "formatjs extract '{pages,components}/*.{js,ts,tsx}' --format simple --out-file lang/en.json",
     "compile:i18n": "formatjs compile-folder --ast --format simple lang/ compiled-lang/",
-    "start": "NODE_ENV=production NODE_ICU_DATA=node_modules/full-icu node dist/server"
+    "start": "cross-env NODE_ENV=production NODE_ICU_DATA=node_modules/full-icu node dist/server"
   },
   "dependencies": {
     "@formatjs/cli": "^2.7.3",
@@ -17,6 +17,7 @@
     "@formatjs/intl-relativetimeformat": "^7.1.1",
     "accepts": "^1.3.7",
     "babel-plugin-react-intl": "^8.1.1",
+    "cross-env": "^7.0.2",
     "full-icu": "^1.3.0",
     "glob": "^7.1.4",
     "next": "latest",

@@ -4,10 +4,11 @@
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js"
+    "start": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
     "cacheable-response": "^1.1.0",
+    "cross-env": "^7.0.2",
     "express": "^4.14.0",
     "next": "latest",
     "react": "^16.7.0",
