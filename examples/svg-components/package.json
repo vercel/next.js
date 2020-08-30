@@ -13,5 +13,6 @@
   },
   "devDependencies": {
     "babel-plugin-inline-react-svg": "^1.0.1"
-  }
+  },
+  "license": "MIT"
 }

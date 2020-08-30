@@ -8,7 +8,7 @@
     "build": "bsb -clean-world -make-world && next build",
     "start": "next start"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "next-transpile-modules": "^4.0.2",

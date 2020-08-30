@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "Thomas Greco",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@emotion/core": "10.0.27",
     "@emotion/styled": "10.0.27",

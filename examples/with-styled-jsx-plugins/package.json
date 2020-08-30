@@ -14,7 +14,7 @@
     "react-dom": "^16.7.0",
     "styled-jsx-plugin-postcss": "0.1.0"
   },
-  "license": "ISC",
+  "license": "MIT",
   "postcss": {
     "plugins": {
       "lost": {},

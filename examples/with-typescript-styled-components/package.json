@@ -20,5 +20,5 @@
     "babel-plugin-styled-components": "^1.10.0",
     "typescript": "4.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

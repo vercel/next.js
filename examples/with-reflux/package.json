@@ -12,5 +12,5 @@
     "react-dom": "^16.7.0",
     "reflux": "^6.4.1"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

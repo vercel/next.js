@@ -12,5 +12,6 @@
     "polka": "0.5.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  }
+  },
+  "license": "MIT"
 }

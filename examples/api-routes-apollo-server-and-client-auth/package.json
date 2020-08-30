@@ -18,5 +18,5 @@
     "react-dom": "^16.7.0",
     "uuid": "8.1.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

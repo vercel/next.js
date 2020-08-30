@@ -11,5 +11,6 @@
     "react-dom": "^16.7.0",
     "rebass": "1.0.0-1",
     "styled-components": "^2.1.1"
-  }
+  },
+  "license": "MIT"
 }

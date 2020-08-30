@@ -13,5 +13,6 @@
     "export": "next export",
     "prestart": "npm run export",
     "start": "serve out"
-  }
+  },
+  "license": "MIT"
 }

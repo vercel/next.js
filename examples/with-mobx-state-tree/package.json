@@ -17,5 +17,5 @@
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.1.2"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

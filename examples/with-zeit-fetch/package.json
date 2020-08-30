@@ -14,5 +14,5 @@
     "react-dom": "^16.8.4",
     "unfetch": "4.1.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

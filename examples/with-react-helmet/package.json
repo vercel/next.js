@@ -1,6 +1,6 @@
 {
   "name": "with-react-helmet",
-  "license": "ISC",
+  "license": "MIT",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",

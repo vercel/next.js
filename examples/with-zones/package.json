@@ -1,4 +1,5 @@
 {
   "name": "with-zones-example",
-  "private": true
+  "private": true,
+  "license": "MIT"
 }

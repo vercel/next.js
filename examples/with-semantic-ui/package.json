@@ -18,5 +18,5 @@
     "url-loader": "^1.1.2",
     "webpack": "^4.29.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

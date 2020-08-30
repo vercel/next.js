@@ -1,7 +1,7 @@
 {
   "name": "next-graphql-react-example",
   "private": true,
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "graphql-react": "^11.0.1",
     "next": "latest",

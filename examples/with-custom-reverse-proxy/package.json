@@ -1,6 +1,6 @@
 {
   "name": "with-custom-reverse-proxy",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.15.3",
     "next": "latest",

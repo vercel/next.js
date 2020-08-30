@@ -11,7 +11,7 @@
     "schema": "graphql get-schema -e dev"
   },
   "author": "arnarkari93@gmail.com",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@zeit/next-css": "1.0.1",
     "bs-fetch": "0.5.2",

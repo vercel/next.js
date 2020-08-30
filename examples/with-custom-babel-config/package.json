@@ -14,7 +14,7 @@
     "react-dom": "^16.7.0"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@babel/plugin-proposal-do-expressions": "7.0.0-rc.1"
   }

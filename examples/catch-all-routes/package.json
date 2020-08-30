@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "react": "^16.12.0",

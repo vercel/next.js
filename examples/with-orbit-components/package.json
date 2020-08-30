@@ -17,5 +17,5 @@
     "@kiwicom/babel-plugin-orbit-components": "latest",
     "babel-plugin-styled-components": "^1.8.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

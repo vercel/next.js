@@ -19,5 +19,6 @@
     "nodemon": "^2.0.4",
     "ts-node": "^8.10.2",
     "typescript": "4.0"
-  }
+  },
+  "license": "MIT"
 }

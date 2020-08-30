@@ -10,7 +10,7 @@
     "schema": "graphql get-schema -e dev"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "graphql": "^14.6.0",
     "next": "latest",
