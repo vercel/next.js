@@ -231,14 +231,6 @@
     "@babel/helper-module-imports" "^7.8.3"
     "@babel/types" "^7.9.5"
 
-"@babel/helper-builder-react-jsx-experimental@gist:f4f085f422d7c2c0fd53fa347b491d4f":
-  version "7.10.5-next.js"
-  resolved "https://gist.github.com/f4f085f422d7c2c0fd53fa347b491d4f.git#c89a3ad746024481bc30e2e0da7ff9db4415518d"
-  dependencies:
-    "@babel/helper-annotate-as-pure" "^7.10.4"
-    "@babel/helper-module-imports" "^7.10.4"
-    "@babel/types" "^7.10.5"
-
 "@babel/helper-builder-react-jsx@^7.10.4":
   version "7.10.4"
   resolved "https://registry.yarnpkg.com/@babel/helper-builder-react-jsx/-/helper-builder-react-jsx-7.10.4.tgz#8095cddbff858e6fa9c326daee54a2f2732c1d5d"
@@ -7604,10 +7596,9 @@ finalhandler@~1.1.2:
     statuses "~1.5.0"
     unpipe "~1.0.0"
 
-finally-polyfill@0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/finally-polyfill/-/finally-polyfill-0.2.0.tgz#1b34c6e555a6c1603d2ae046e2e176d08687bfdb"
-  integrity sha512-3w46w5Vo4TRtk5jrLT3c8ITGxnPJhMAg3Ogbj4nmgL6thNep9+UgBgk+IRVmRpZDbwNkR7tyGsE3S3J4Qt2zVw==
+finally-polyfill@0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/finally-polyfill/-/finally-polyfill-0.1.0.tgz#2a17b16581d9477db16a703c7b79a898ac0b7d50"
 
 find-cache-dir@3.3.1, find-cache-dir@^3.0.0, find-cache-dir@^3.3.1:
   version "3.3.1"

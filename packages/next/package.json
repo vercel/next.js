@@ -123,7 +123,6 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@babel/helper-builder-react-jsx-experimental": "gist:f4f085f422d7c2c0fd53fa347b491d4f",
     "@next/polyfill-nomodule": "9.5.3-canary.25",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",

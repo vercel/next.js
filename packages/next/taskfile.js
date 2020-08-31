@@ -489,37 +489,6 @@ export async function ncc_semver(task, opts) {
     .target('compiled/semver')
 }
 
-externals['@babel/helper-builder-react-jsx-experimental'] =
-  'next/dist/compiled/babel__helper-builder-react-jsx-experimental'
-export async function ncc_babel__helper_builder_react_jsx_experimental(
-  task,
-  opts
-) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('@babel/helper-builder-react-jsx-experimental')
-        )
-    )
-    .ncc({
-      packageName: '@babel/helper-builder-react-jsx-experimental',
-      externals,
-    })
-    .target('compiled/babel__helper-builder-react-jsx-experimental')
-}
-
-externals['@babel/preset-react'] = 'next/dist/compiled/babel__preset-react'
-export async function ncc_babel__preset_react(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('@babel/preset-react'))
-    )
-    .ncc({ packageName: '@babel/preset-react', externals })
-    .target('compiled/babel__preset-react')
-}
-
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -592,8 +561,6 @@ export async function ncc(task) {
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
       'ncc_semver',
-      'ncc_babel__helper_builder_react_jsx_experimental',
-      'ncc_babel__preset_react',
     ])
 }
 
