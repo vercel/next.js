@@ -47,7 +47,7 @@ function updateElements(type: string, components: JSX.Element[]) {
   let i = 0
   let j = headCountEl.previousElementSibling
   while (i < headCount) {
-    if (j!.getAttribute('data-next-head') === 'true') {
+    if (j?.getAttribute('data-next-head') === 'true') {
       if (j!.tagName.toLowerCase() === type) {
         oldTags.push(j!)
       }
