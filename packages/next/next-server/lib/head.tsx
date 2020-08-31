@@ -9,9 +9,15 @@ type WithInAmpMode = {
 }
 
 export function defaultHead(inAmpMode = false): JSX.Element[] {
-  const head = [<meta charSet="utf-8" />]
+  const head = [<meta charSet="utf-8" data-next-head="true" />]
   if (!inAmpMode) {
-    head.push(<meta name="viewport" content="width=device-width" />)
+    head.push(
+      <meta
+        name="viewport"
+        content="width=device-width"
+        data-next-head="true"
+      />
+    )
   }
   return head
 }
