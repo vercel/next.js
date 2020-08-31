@@ -1,9 +1,12 @@
 import webpack, { Compiler, Plugin } from 'webpack'
-import { RawSource } from 'webpack-sources'
+import sources from 'webpack-sources'
 import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
+
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
