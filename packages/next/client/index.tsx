@@ -105,6 +105,7 @@ let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
+  wasBrowserNavigation?: boolean
 }> {
   componentDidCatch(componentErr: Error, info: any) {
     this.props.fn(componentErr, info)
@@ -160,7 +161,11 @@ class Container extends React.Component<{
   }
 
   componentDidUpdate() {
-    this.scrollToHash()
+    // Do not scroll to hash when an update is triggered as a result
+    // of the user navigating via the browser back/forward buttons
+    if (!this.props.wasBrowserNavigation) {
+      this.scrollToHash()
+    }
   }
 
   scrollToHash() {
@@ -297,8 +302,11 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: ({ Component, styleSheets, props, err }, App) =>
-      render({ App, Component, styleSheets, props, err }),
+    subscription: (
+      { Component, styleSheets, props, err, wasBrowserNavigation },
+      App
+    ) =>
+      render({ App, Component, styleSheets, props, err, wasBrowserNavigation }),
   })
 
   // call init-client middleware
@@ -512,7 +520,10 @@ function clearMarks() {
 
 function AppContainer({
   children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
+  wasBrowserNavigation,
+}: React.PropsWithChildren<{
+  wasBrowserNavigation?: boolean
+}>): React.ReactElement {
   return (
     <Container
       fn={(error) =>
@@ -520,6 +531,7 @@ function AppContainer({
           console.error('Error rendering page: ', err)
         )
       }
+      wasBrowserNavigation={wasBrowserNavigation}
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
@@ -552,6 +564,7 @@ function doRender({
   props,
   err,
   styleSheets,
+  wasBrowserNavigation,
 }: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
@@ -687,7 +700,7 @@ function doRender({
 
   const elem = (
     <Root callback={onCommit}>
-      <AppContainer>
+      <AppContainer wasBrowserNavigation={wasBrowserNavigation}>
         <App {...appProps} />
       </AppContainer>
     </Root>

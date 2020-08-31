@@ -28,6 +28,7 @@ import { getRouteRegex } from './utils/route-regex'
 
 interface TransitionOptions {
   shallow?: boolean
+  wasBrowserNavigation?: boolean
 }
 
 interface NextHistoryState {
@@ -148,6 +149,7 @@ export type PrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  wasBrowserNavigation: boolean
 }
 
 export type AppProps = Pick<PrivateRouteInfo, 'Component' | 'err'> & {
@@ -400,6 +402,7 @@ export default class Router implements BaseRouter {
       as,
       Object.assign({}, options, {
         shallow: options.shallow && this._shallow,
+        wasBrowserNavigation: true,
       })
     )
   }
@@ -574,6 +577,8 @@ export default class Router implements BaseRouter {
         as,
         shallow
       )
+      routeInfo.wasBrowserNavigation = !!options.wasBrowserNavigation
+
       let { error } = routeInfo
 
       Router.events.emit('beforeHistoryChange', as)
