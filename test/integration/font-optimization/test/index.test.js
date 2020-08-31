@@ -56,7 +56,7 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/static-head')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
     expect(html).toContain(
-      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Modak"/>'
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Modak" data-next-head="true"/>'
     )
     expect(html).toMatch(
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Modak">.*<\/style>/
@@ -67,7 +67,7 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/stars')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
     expect(html).toContain(
-      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Roboto:wght@700" data-next-head="true"/>'
     )
     expect(html).toMatch(
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
