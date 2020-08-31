@@ -1247,6 +1247,40 @@ describe('Client Navigation', () => {
         }
       }
     })
+
+    it('should update head tags handled by next/head and leave injected tags alone', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav/head-1')
+        expect(await browser.eval('document.title')).toBe('this is head-1')
+        expect(
+          await browser
+            .elementByCss('meta[name=description]')
+            .getAttribute('content')
+        ).toBe('Head One')
+        expect(
+          await browser.elementByCss('meta[name=injected-meta]')
+        ).toBeTruthy()
+
+        await browser
+          .elementByCss('#to-head-2')
+          .click()
+          .waitForElementByCss('#head-2', 3000)
+        expect(await browser.eval('document.title')).toBe('this is head-2')
+        expect(
+          await browser
+            .elementByCss('meta[name=description]')
+            .getAttribute('content')
+        ).toBe('Head Two')
+        expect(
+          await browser.elementByCss('meta[name=injected-meta]')
+        ).toBeTruthy()
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
   })
 
   describe('foreign history manipulation', () => {

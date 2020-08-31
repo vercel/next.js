@@ -58,54 +58,66 @@ export default function (render, fetch) {
     // default-head contains an empty <Head />.
     test('header renders default charset', async () => {
       const html = await render('/default-head')
-      expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
+      expect(
+        html.includes('<meta charSet="utf-8" data-next-head="true"/>')
+      ).toBeTruthy()
       expect(html.includes('next-head, but only once.')).toBeTruthy()
     })
 
     test('header renders default viewport', async () => {
       const html = await render('/default-head')
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width"/>'
+        '<meta name="viewport" content="width=device-width" data-next-head="true"/>'
       )
     })
 
     test('header helper renders header information', async () => {
       const html = await render('/head')
-      expect(html.includes('<meta charSet="iso-8859-5"/>')).toBeTruthy()
-      expect(html.includes('<meta content="my meta"/>')).toBeTruthy()
+      expect(
+        html.includes('<meta charSet="iso-8859-5" data-next-head="true"/>')
+      ).toBeTruthy()
+      expect(
+        html.includes('<meta content="my meta" data-next-head="true"/>')
+      ).toBeTruthy()
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+        '<meta name="viewport" content="width=device-width,initial-scale=1" data-next-head="true"/>'
       )
       expect(html.includes('I can have meta tags')).toBeTruthy()
     })
 
     test('header helper dedupes tags', async () => {
       const html = await render('/head')
-      expect(html).toContain('<meta charSet="iso-8859-5"/>')
-      expect(html).not.toContain('<meta charSet="utf-8"/>')
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+        '<meta charSet="iso-8859-5" data-next-head="true"/>'
+      )
+      expect(html).not.toContain(
+        '<meta charSet="utf-8" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<meta name="viewport" content="width=device-width,initial-scale=1" data-next-head="true"/>'
       )
       expect(html.match(/<meta name="viewport" /g).length).toBe(
         1,
         'Should contain only one viewport'
       )
       expect(html).not.toContain(
-        '<meta name="viewport" content="width=device-width"/>'
+        '<meta name="viewport" content="width=device-width" data-next-head="true"/>'
       )
-      expect(html).toContain('<meta content="my meta"/>')
+      expect(html).toContain('<meta content="my meta" data-next-head="true"/>')
       expect(html).toContain(
-        '<link rel="stylesheet" href="/dup-style.css"/><link rel="stylesheet" href="/dup-style.css"/>'
-      )
-      expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css"/>')
-      expect(html).not.toContain(
-        '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css"/>'
+        '<link rel="stylesheet" href="/dup-style.css" data-next-head="true"/><link rel="stylesheet" href="/dup-style.css" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<link rel="alternate" hrefLang="en" href="/last/en"/>'
+        '<link rel="stylesheet" href="dedupe-style.css" data-next-head="true"/>'
       )
       expect(html).not.toContain(
-        '<link rel="alternate" hrefLang="en" href="/first/en"/>'
+        '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<link rel="alternate" hrefLang="en" href="/last/en" data-next-head="true"/>'
+      )
+      expect(html).not.toContain(
+        '<link rel="alternate" hrefLang="en" href="/first/en" data-next-head="true"/>'
       )
     })
 
@@ -115,63 +127,83 @@ export default function (render, fetch) {
       expect((html.match(/charSet=/g) || []).length).toBe(1)
       // Expect exactly one `viewport`
       expect((html.match(/name="viewport"/g) || []).length).toBe(1)
-      expect(html).toContain('<meta charSet="iso-8859-1"/>')
-      expect(html).toContain('<meta name="viewport" content="width=500"/>')
+      expect(html).toContain(
+        '<meta charSet="iso-8859-1" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<meta name="viewport" content="width=500" data-next-head="true"/>'
+      )
     })
 
     test('header helper avoids dedupe of specific tags', async () => {
       const html = await render('/head')
-      expect(html).toContain('<meta property="article:tag" content="tag1"/>')
-      expect(html).toContain('<meta property="article:tag" content="tag2"/>')
-      expect(html).not.toContain('<meta property="dedupe:tag" content="tag3"/>')
-      expect(html).toContain('<meta property="dedupe:tag" content="tag4"/>')
       expect(html).toContain(
-        '<meta property="og:image" content="ogImageTag1"/>'
+        '<meta property="article:tag" content="tag1" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image" content="ogImageTag2"/>'
+        '<meta property="article:tag" content="tag2" data-next-head="true"/>'
+      )
+      expect(html).not.toContain(
+        '<meta property="dedupe:tag" content="tag3" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:alt" content="ogImageAltTag1"/>'
+        '<meta property="dedupe:tag" content="tag4" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:alt" content="ogImageAltTag2"/>'
+        '<meta property="og:image" content="ogImageTag1" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:width" content="ogImageWidthTag1"/>'
+        '<meta property="og:image" content="ogImageTag2" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:width" content="ogImageWidthTag2"/>'
+        '<meta property="og:image:alt" content="ogImageAltTag1" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:height" content="ogImageHeightTag1"/>'
+        '<meta property="og:image:alt" content="ogImageAltTag2" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:height" content="ogImageHeightTag2"/>'
+        '<meta property="og:image:width" content="ogImageWidthTag1" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:type" content="ogImageTypeTag1"/>'
+        '<meta property="og:image:width" content="ogImageWidthTag2" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:type" content="ogImageTypeTag2"/>'
+        '<meta property="og:image:height" content="ogImageHeightTag1" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:secure_url" content="ogImageSecureUrlTag1"/>'
+        '<meta property="og:image:height" content="ogImageHeightTag2" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:secure_url" content="ogImageSecureUrlTag2"/>'
+        '<meta property="og:image:type" content="ogImageTypeTag1" data-next-head="true"/>'
       )
       expect(html).toContain(
-        '<meta property="og:image:url" content="ogImageUrlTag1"/>'
+        '<meta property="og:image:type" content="ogImageTypeTag2" data-next-head="true"/>'
       )
-      expect(html).toContain('<meta property="fb:pages" content="fbpages1"/>')
-      expect(html).toContain('<meta property="fb:pages" content="fbpages2"/>')
+      expect(html).toContain(
+        '<meta property="og:image:secure_url" content="ogImageSecureUrlTag1" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:secure_url" content="ogImageSecureUrlTag2" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:url" content="ogImageUrlTag1" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<meta property="fb:pages" content="fbpages1" data-next-head="true"/>'
+      )
+      expect(html).toContain(
+        '<meta property="fb:pages" content="fbpages2" data-next-head="true"/>'
+      )
     })
 
     test('header helper renders Fragment children', async () => {
       const html = await render('/head')
-      expect(html).toContain('<title>Fragment title</title>')
-      expect(html).toContain('<meta content="meta fragment"/>')
+      expect(html).toContain(
+        '<title data-next-head="true">Fragment title</title>'
+      )
+      expect(html).toContain(
+        '<meta content="meta fragment" data-next-head="true"/>'
+      )
     })
 
     it('should render the page with custom extension', async () => {
