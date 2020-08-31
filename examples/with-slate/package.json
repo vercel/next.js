@@ -14,5 +14,6 @@
     "slate": "^0.37.0",
     "slate-plain-serializer": "^0.5.27",
     "slate-react": "^0.15.0"
-  }
+  },
+  "license": "MIT"
 }

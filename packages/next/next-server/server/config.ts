@@ -55,7 +55,6 @@ const defaultConfig: { [key: string]: any } = {
     optimizeImages: false,
     scrollRestoration: false,
     deferScripts: false,
-    unstable_webpack5cache: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -278,7 +277,11 @@ export default function loadConfig(
       )
     }
 
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+    return assignDefaults({
+      configOrigin: CONFIG_FILE,
+      configFile: path,
+      ...userConfig,
+    })
   } else {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
