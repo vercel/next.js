@@ -224,7 +224,7 @@ describe('GS(S)P Redirect Support', () => {
 
         export const getStaticProps = ({ params }) => {
           return {
-            redirect: {
+            unstable_redirect: {
               permanent: true,
               destination: '/another'
             }

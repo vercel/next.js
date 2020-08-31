@@ -294,7 +294,6 @@ function checkRedirectValues(redirect: Redirect, req: IncomingMessage) {
 }
 
 function handleRedirect(res: ServerResponse, redirect: Redirect) {
-  // TODO: this should error if a redirect is returned while prerendering
   const statusCode = redirect.permanent
     ? PERMANENT_REDIRECT_STATUS
     : TEMPORARY_REDIRECT_STATUS
@@ -577,7 +576,8 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'revalidate' && key !== 'props' && key !== 'redirect'
+        (key) =>
+          key !== 'revalidate' && key !== 'props' && key !== 'unstable_redirect'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -588,8 +588,11 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if (data.redirect && typeof data.redirect === 'object') {
-        checkRedirectValues(data.redirect, req)
+      if (
+        data.unstable_redirect &&
+        typeof data.unstable_redirect === 'object'
+      ) {
+        checkRedirectValues(data.unstable_redirect, req)
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -600,10 +603,10 @@ export async function renderToHTML(
 
         if (isDataReq) {
           data.props = {
-            __N_REDIRECT: data.redirect.destination,
+            __N_REDIRECT: data.unstable_redirect.destination,
           }
         } else {
-          handleRedirect(res, data.redirect)
+          handleRedirect(res, data.unstable_redirect)
           return null
         }
       }
@@ -687,22 +690,25 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'redirect'
+        (key) => key !== 'props' && key !== 'unstable_redirect'
       )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if (data.redirect && typeof data.redirect === 'object') {
-        checkRedirectValues(data.redirect, req)
+      if (
+        data.unstable_redirect &&
+        typeof data.unstable_redirect === 'object'
+      ) {
+        checkRedirectValues(data.unstable_redirect, req)
 
         if (isDataReq) {
           data.props = {
-            __N_REDIRECT: data.redirect.destination,
+            __N_REDIRECT: data.unstable_redirect.destination,
           }
         } else {
-          handleRedirect(res, data.redirect)
+          handleRedirect(res, data.unstable_redirect)
           return null
         }
       }

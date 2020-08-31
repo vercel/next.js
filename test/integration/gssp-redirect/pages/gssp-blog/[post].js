@@ -16,7 +16,7 @@ export const getServerSideProps = ({ params }) => {
     }
 
     return {
-      redirect: {
+      unstable_redirect: {
         destination,
         permanent: params.post.includes('permanent'),
       },
