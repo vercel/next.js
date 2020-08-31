@@ -8,6 +8,7 @@ import {
   nextBuild,
   renderViaHTTP,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 
 jest.setTimeout(1000 * 30)
 
@@ -22,13 +23,28 @@ describe('Loading scripts with defer', () => {
     app = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(app))
-  it('should inline the google fonts for static pages', async () => {
+  it('should not contain any preloads', async () => {
     const html = await renderViaHTTP(appPort, '/index')
-    expect(html).toContain(
-      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css?family=Voces"/>'
-    )
-    expect(html).toMatch(
-      /<style data-href="https:\/\/fonts\.googleapis\.com\/css\?family=Voces">.*<\/style>/
-    )
+    expect(html).not.toContain('preload')
+  })
+  it('should have defer on all script tags', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    let missing = false
+
+    for (const script of $('script').toArray()) {
+      // application/json doesn't need defer
+      if (
+        script.attribs.type === 'application/json' ||
+        script.attribs.src.includes('polyfills')
+      ) {
+        continue
+      }
+
+      if (script.attribs.async === '' || script.attribs.defer !== '') {
+        missing = true
+      }
+    }
+    expect(missing).toBe(false)
   })
 })

@@ -1,3 +1,3 @@
 module.exports = {
-  experimental: { optimizeFonts: true },
+  experimental: { deferScripts: true },
 }
