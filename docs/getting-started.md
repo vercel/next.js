@@ -22,7 +22,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
 
 ```bash
-npx create-next-app
+npm create-next-app
 # or
 yarn create next-app
 ```
