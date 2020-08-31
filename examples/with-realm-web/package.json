@@ -13,5 +13,5 @@
     "realm-web": "0.4.0",
     "swr": "0.2.3"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

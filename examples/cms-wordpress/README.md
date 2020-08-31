@@ -25,11 +25,10 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -37,15 +36,6 @@ Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages
 npx create-next-app --example cms-wordpress cms-wordpress-app
 # or
 yarn create next-app --example cms-wordpress cms-wordpress-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-wordpress
-cd cms-wordpress
 ```
 
 ## Configuration
