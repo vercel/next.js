@@ -14,7 +14,9 @@ export default function (render, fetch) {
   describe('Rendering via HTTP', () => {
     test('renders a stateless component', async () => {
       const html = await render('/stateless')
-      expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
+      expect(
+        html.includes('<meta charSet="utf-8" data-next-head="true"/>')
+      ).toBeTruthy()
       expect(html.includes('My component!')).toBeTruthy()
     })
 
