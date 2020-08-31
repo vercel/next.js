@@ -208,7 +208,7 @@ The preview mode works on `getServerSideProps` as well. It will also be availabl
 API Routes will have access to `preview` and `previewData` under the request object. For example:
 
 ```js
-export default function route(req, res) {
+export default function myApiRoute(req, res) {
   const isPreview = req.preview
   const previewData = req.previewData
   // ...
