@@ -181,7 +181,7 @@
     "escape-string-regexp": "2.0.0",
     "etag": "1.8.1",
     "file-loader": "6.0.0",
-    "finally-polyfill": "0.1.0",
+    "finally-polyfill": "0.2.0",
     "find-up": "4.1.0",
     "fresh": "0.5.2",
     "gzip-size": "5.1.1",

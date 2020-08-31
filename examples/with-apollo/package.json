@@ -15,5 +15,5 @@
     "react-dom": "^16.7.0"
   },
   "devDependencies": {},
-  "license": "ISC"
+  "license": "MIT"
 }
