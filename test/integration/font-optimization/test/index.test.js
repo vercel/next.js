@@ -11,7 +11,7 @@ import {
 } from 'next-test-utils'
 import fs from 'fs-extra'
 
-jest.setTimeout(1000 * 30)
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -72,6 +72,35 @@ function runTests() {
     expect(html).toMatch(
       /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/
     )
+  })
+
+  it('should skip this optimization for AMP pages', async () => {
+    const html = await renderViaHTTP(appPort, '/amp')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Voces">'
+    )
+  })
+
+  it('should minify the css', async () => {
+    const snapshotJson = JSON.parse(
+      await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
+        encoding: 'utf-8',
+      })
+    )
+    const testJson = JSON.parse(
+      await fs.readFile(builtPage('font-manifest.json'), { encoding: 'utf-8' })
+    )
+    const testCss = {}
+    testJson.forEach((fontDefinition) => {
+      testCss[fontDefinition.url] = fontDefinition.content
+    })
+    const snapshotCss = {}
+    snapshotJson.forEach((fontDefinition) => {
+      snapshotCss[fontDefinition.url] = fontDefinition.content
+    })
+
+    expect(testCss).toStrictEqual(snapshotCss)
   })
 }
 

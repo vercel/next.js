@@ -21,5 +21,5 @@
     "@types/node": "^14.0.23",
     "@types/react": "^16.4.12"
   },
-  "license": "ISC"
+  "license": "MIT"
 }
