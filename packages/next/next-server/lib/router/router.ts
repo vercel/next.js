@@ -149,7 +149,7 @@ export type PrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
-  wasBrowserNavigation: boolean
+  wasBrowserNavigation?: boolean
 }
 
 export type AppProps = Pick<PrivateRouteInfo, 'Component' | 'err'> & {
