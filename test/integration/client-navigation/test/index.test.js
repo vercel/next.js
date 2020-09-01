@@ -479,6 +479,14 @@ describe('Client Navigation', () => {
             .eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
+
+          // Scrolls back to top when clicking link with href `#top`.
+          const scrollPositionAfterTopHash = await browser
+            .elementByCss('#via-top-hash')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionAfterTopHash).toBe(0)
         } finally {
           if (browser) {
             await browser.close()
