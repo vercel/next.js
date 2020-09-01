@@ -1,5 +1,6 @@
-import { FormattedMessage } from 'react-intl'
-import Link from 'next/link'
+import * as React from 'react';
+import {FormattedMessage} from 'react-intl';
+import Link from 'next/link';
 
 export default function Nav() {
   return (
@@ -7,14 +8,14 @@ export default function Nav() {
       <li>
         <Link href="/">
           <a>
-            <FormattedMessage id="nav.home" defaultMessage="Home" />
+            <FormattedMessage defaultMessage="Home" />
           </a>
         </Link>
       </li>
       <li>
         <Link href="/about">
           <a>
-            <FormattedMessage id="nav.about" defaultMessage="About" />
+            <FormattedMessage defaultMessage="About" />
           </a>
         </Link>
       </li>
@@ -29,5 +30,5 @@ export default function Nav() {
         }
       `}</style>
     </nav>
-  )
+  );
 }
