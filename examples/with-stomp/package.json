@@ -11,5 +11,6 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "@stomp/stompjs": "^5.4.2"
-  }
+  },
+  "license": "MIT"
 }

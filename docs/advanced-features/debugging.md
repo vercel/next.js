@@ -20,7 +20,7 @@ First, start Next.js with the inspect flag:
 NODE_OPTIONS='--inspect' next dev
 ```
 
-If you're using `npm run dev` or `yarn dev` (See: [Getting Started](/docs/getting-started)) then you should update the `dev` script on your `package.json`:
+If you're using `npm run dev` or `yarn dev` (See: [Getting Started](/docs/getting-started.md)) then you should update the `dev` script on your `package.json`:
 
 ```json
 "dev": "NODE_OPTIONS='--inspect' next dev"

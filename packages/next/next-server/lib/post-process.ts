@@ -179,7 +179,8 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
     let imagePreloadTags = _data.preloads.images
       .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
       .reduce(
-        (acc, imgHref) => acc + `<link rel="preload" href="${imgHref}"/>`,
+        (acc, imgHref) =>
+          acc + `<link rel="preload" href="${imgHref}" as="image"/>`,
         ''
       )
     return result.replace(

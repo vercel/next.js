@@ -6,7 +6,6 @@ const {
 
 const buildTerserOptions = ({
   ecma,
-  warnings,
   parse = {},
   compress = {},
   mangle,
@@ -43,8 +42,7 @@ const buildTerserOptions = ({
   module,
   nameCache,
   safari10,
-  toplevel,
-  warnings
+  toplevel
 });
 
 function isObject(value) {
@@ -133,9 +131,9 @@ const buildComments = (options, terserOptions, extractedComments) => {
   };
 };
 
-const minify = options => {
+async function minify(options) {
   const {
-    file,
+    name,
     input,
     inputSourceMap,
     minify: minifyFn
@@ -143,7 +141,7 @@ const minify = options => {
 
   if (minifyFn) {
     return minifyFn({
-      [file]: input
+      [name]: input
     }, inputSourceMap);
   } // Copy terser options
 
@@ -158,35 +156,20 @@ const minify = options => {
 
   const extractedComments = [];
   terserOptions.output.comments = buildComments(options, terserOptions, extractedComments);
-  const {
-    error,
-    map,
-    code,
-    warnings
-  } = terserMinify({
-    [file]: input
+  const result = await terserMinify({
+    [name]: input
   }, terserOptions);
-  return {
-    error,
-    map,
-    code,
-    warnings,
+  return { ...result,
     extractedComments
   };
-};
+}
 
 function transform(options) {
   // 'use strict' => this === undefined (Clean Scope)
   // Safer for possible security issues, albeit not critical at all here
   // eslint-disable-next-line no-new-func, no-param-reassign
   options = new Function('exports', 'require', 'module', '__filename', '__dirname', `'use strict'\nreturn ${options}`)(exports, require, module, __filename, __dirname);
-  const result = minify(options);
-
-  if (result.error) {
-    throw result.error;
-  } else {
-    return result;
-  }
+  return minify(options);
 }
 
 module.exports.minify = minify;
