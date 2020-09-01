@@ -17,7 +17,6 @@ export async function getStaticProps({ params }) {
 export async function getStaticPaths() {
   return {
     paths: images.map((_id, index) => {
-      console.log(index)
       return {
         params: {
           index: `${index}`,
