@@ -100,7 +100,7 @@ export default Posts
 
 > [`encodeURIComponent`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) is used in the example to keep the path utf-8 compatible.
 
-Alternatively, using an URL Object:
+Alternatively, using a URL Object:
 
 ```jsx
 import Link from 'next/link'
@@ -127,7 +127,7 @@ function Posts({ posts }) {
 export default Posts
 ```
 
-Now, instead of using interpolation to create the path, we use an URL object in `href` where:
+Now, instead of using interpolation to create the path, we use a URL object in `href` where:
 
 - `pathname` is the name of the page in the `pages` directory. `/blog/[slug]` in this case.
 - `query` is an object with the dynamic segment. `slug` in this case.
