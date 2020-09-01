@@ -56,12 +56,6 @@ const relPreloadStyle = 'fetch'
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
-const requestIdleCallback: (fn: () => void) => void =
-  (window as any).requestIdleCallback ||
-  function (cb: () => void) {
-    return setTimeout(cb, 1)
-  }
-
 function normalizeRoute(route: string) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
@@ -281,20 +275,19 @@ export default class PageLoader {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest!.then(
-      (s: ClientSsgManifest, _dataHref?: string) => {
-        requestIdleCallback(() => {
-          // Check if the route requires a data file
-          s.has(route) &&
-            // Try to generate data href, noop when falsy
-            (_dataHref = this.getDataHref(href, asPath, true)) &&
-            // noop when data has already been prefetched (dedupe)
-            !document.querySelector(
-              `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
-            ) &&
-            // Inject the `<link rel=prefetch>` tag for above computed `href`.
-            appendLink(_dataHref, relPrefetch, 'fetch')
+      (s: ClientSsgManifest, _dataHref?: string) =>
+        // Check if the route requires a data file
+        s.has(route) &&
+        // Try to generate data href, noop when falsy
+        (_dataHref = this.getDataHref(href, asPath, true)) &&
+        // noop when data has already been prefetched (dedupe)
+        !document.querySelector(
+          `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
+        ) &&
+        // Inject the `<link rel=prefetch>` tag for above computed `href`.
+        appendLink(_dataHref, relPrefetch, 'fetch').catch(() => {
+          /* ignore prefetch error */
         })
-      }
     )
   }
 
