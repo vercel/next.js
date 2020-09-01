@@ -27,7 +27,7 @@ const getInitialProps: typeof App.getInitialProps = async appContext => {
   const {
     ctx: {req},
   } = appContext;
-  const locale = (req as any)?.locale ?? 'en';
+  const locale = (req as any)?.locale || (window as any).LOCALE || 'en';
 
   const [appProps, messages] = await Promise.all([
     polyfill(locale),
