@@ -93,7 +93,9 @@ export default function initHeadManager() {
         let title = ''
         if (titleComponent) {
           const { children } = titleComponent.props
-          title = typeof children === 'string' ? children : children.join('')
+          if (children) {
+            title = typeof children === 'string' ? children : children.join('')
+          }
         }
         if (title !== document.title) document.title = title
         ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
