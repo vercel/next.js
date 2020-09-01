@@ -25,6 +25,7 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { RouterEvent } from '../../../dist/next-server/lib/router/router'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -243,7 +244,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: Router.events
+  events: RouterEvent[]
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
