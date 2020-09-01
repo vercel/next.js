@@ -42,6 +42,13 @@ initNext({ webpackHMR })
           .catch((err) => {
             console.log(`Failed to fetch devPagesManifest`, err)
           })
+      } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
+        const { pages } = JSON.parse(event.data)
+
+        if (pages.includes(window.next.router.pathname)) {
+          console.log('Reloading page due to server-side page change')
+          window.location.reload()
+        }
       }
     }
     devPagesManifestListener.unfiltered = true
