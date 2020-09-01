@@ -48,8 +48,6 @@ interface NextHistoryState {
   options: TransitionOptions
 }
 
-type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
-
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
