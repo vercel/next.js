@@ -1,8 +1,10 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../next-server/lib/router/router'
+import Router, {
+  NextRouter,
+  RouterEventMap,
+} from '../next-server/lib/router/router'
 import { RouterContext } from '../next-server/lib/router-context'
-import { EventType } from '../next-server/lib/mitt'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -39,7 +41,7 @@ const urlPropertyFields = [
   'isFallback',
   'basePath',
 ]
-const routerEvents: EventType[] = [
+const routerEvents: Array<keyof RouterEventMap> = [
   'routeChangeStart',
   'beforeHistoryChange',
   'routeChangeComplete',
@@ -86,7 +88,7 @@ coreMethodFields.forEach((field) => {
 
 routerEvents.forEach((event) => {
   singletonRouter.ready(() => {
-    Router.events.on(event, (...args) => {
+    Router.events.on(event, (...args: any[]) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
         1
       )}`
