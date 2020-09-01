@@ -2,6 +2,7 @@
 import React from 'react'
 import Router, { NextRouter } from '../next-server/lib/router/router'
 import { RouterContext } from '../next-server/lib/router-context'
+import { EventType } from '../next-server/lib/mitt'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -38,7 +39,7 @@ const urlPropertyFields = [
   'isFallback',
   'basePath',
 ]
-const routerEvents = [
+const routerEvents: EventType[] = [
   'routeChangeStart',
   'beforeHistoryChange',
   'routeChangeComplete',

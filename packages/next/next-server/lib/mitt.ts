@@ -14,7 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type EventType =
+export type EventType =
   | 'routeChangeStart'
   | 'beforeHistoryChange'
   | 'routeChangeComplete'
