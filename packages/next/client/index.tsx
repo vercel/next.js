@@ -21,8 +21,6 @@ import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
-require('next/dist/build/polyfills/finally-polyfill.min')
-
 /// <reference types="react-dom/experimental" />
 
 declare let __webpack_public_path__: string
@@ -42,6 +40,10 @@ declare global {
 
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
+
+if (!('finally' in Promise.prototype)) {
+  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
+}
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
   document.getElementById('__NEXT_DATA__')!.textContent!
