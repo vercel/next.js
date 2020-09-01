@@ -3,6 +3,7 @@ import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWeb
 import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
+import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import webpack from 'webpack'
@@ -14,6 +15,8 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { getPackageVersion } from '../lib/get-package-version'
+import { Rewrite } from '../lib/load-custom-routes'
 import { resolveRequest } from '../lib/resolve-request'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
@@ -54,7 +57,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { Rewrite } from '../lib/load-custom-routes'
+
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
@@ -226,7 +229,13 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasReactRefresh = dev && !isServer
+  const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
+  const hasReactRefresh: boolean = dev && !isServer
+  const hasJsxRuntime: boolean =
+    Boolean(reactVersion) &&
+    // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
+    // fixed in rc.1.
+    semver.gte(reactVersion!, '17.0.0-rc.1')
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -243,6 +252,7 @@ export default async function getBaseWebpackConfig(
         hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
+        hasJsxRuntime,
       },
     },
     // Backwards compat

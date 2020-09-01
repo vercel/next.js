@@ -38,6 +38,9 @@ export async function sandbox(
   })
   const browser = await webdriver(appPort, '/')
 
+  // Slow down tests a bit to ensure application is ready:
+  await new Promise((resolve) => setTimeout(resolve, 750))
+
   return [
     {
       sandboxDirectory,
