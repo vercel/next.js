@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import styles from './ClickCount.module.css'
+import Button from './Button'
 
 export default function ClickCount() {
   const [count, setCount] = useState(0)
@@ -7,9 +7,5 @@ export default function ClickCount() {
     setCount((v) => v + 1)
   }, [setCount])
 
-  return (
-    <button className={styles.btn} type="button" onClick={increment}>
-      Clicks: {count}
-    </button>
-  )
+  return <Button onClick={increment}>Clicks: {count}</Button>
 }
