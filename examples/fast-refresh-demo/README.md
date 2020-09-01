@@ -2,16 +2,22 @@
 
 Next.js ships with [Fast Refresh](https://nextjs.org/docs/basic-features/fast-refresh) which gives you instantaneous feedback on edits made to your React components.
 
-This example shows an auto incrementing value, a classic counter and an error counter. Most edits should be visible within a second, without losing component state.
+This demos shows how the state of an auto incrementing value and a classic counter is preserved after edits or if there are errors.
 
-## Usage
+## Deploy your own
 
-Run the following command to get started:
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/fast-refresh-demo)
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-yarn
-yarn dev
+npx create-next-app --example fast-refresh-demo fast-refresh-demo
 # or
-npm install
-npm run dev
+yarn create next-app --example fast-refresh-demo fast-refresh-demo
 ```
+
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
