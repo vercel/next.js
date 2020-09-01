@@ -12,5 +12,6 @@
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "reactstrap": "^8.5.1"
-  }
+  },
+  "license": "MIT"
 }
