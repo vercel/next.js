@@ -6,3 +6,7 @@ query Viewer {
     status
   }
 }
+
+mutation UpdateName($name: String!) {
+  updateName(name: $name)
+}
