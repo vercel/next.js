@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "9.5.2",
+  "version": "9.5.3-canary.26",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "vercel/next.js",
@@ -16,7 +16,7 @@
     "build": "tsc -d -w -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/code-frame": "7.8.3",
+    "@babel/code-frame": "7.10.4",
     "ally.js": "1.4.1",
     "anser": "1.4.9",
     "chalk": "4.0.0",

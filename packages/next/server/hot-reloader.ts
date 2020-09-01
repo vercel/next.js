@@ -17,7 +17,6 @@ import {
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
-import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
@@ -31,6 +30,7 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
+import { Rewrite } from '../lib/load-custom-routes'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -152,6 +152,7 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
+  private rewrites: Rewrite[]
 
   constructor(
     dir: string,
@@ -160,11 +161,13 @@ export default class HotReloader {
       pagesDir,
       buildId,
       previewProps,
+      rewrites,
     }: {
       config: object
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
+      rewrites: Rewrite[]
     }
   ) {
     this.buildId = buildId
@@ -178,6 +181,7 @@ export default class HotReloader {
 
     this.config = config
     this.previewProps = previewProps
+    this.rewrites = rewrites
   }
 
   public async run(
@@ -285,6 +289,7 @@ export default class HotReloader {
         config: this.config,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
+        rewrites: this.rewrites,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
       }),
       getBaseWebpackConfig(this.dir, {
@@ -293,6 +298,7 @@ export default class HotReloader {
         config: this.config,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
+        rewrites: this.rewrites,
         entrypoints: entrypoints.server,
       }),
     ])
@@ -470,7 +476,6 @@ export default class HotReloader {
       // must come before hotMiddleware
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
-      errorOverlayMiddleware({ dir: this.dir }),
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
@@ -509,7 +514,7 @@ export default class HotReloader {
     return []
   }
 
-  private send(action: string, ...args: any[]): void {
+  public send(action?: string, ...args: any[]): void {
     this.webpackHotMiddleware!.publish({ action, data: args })
   }
 
