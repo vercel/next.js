@@ -1,0 +1,8 @@
+{
+    "baseUrl": "http://localhost:3000",
+    "viewportHeight": 768,
+    "viewportWidth": 1024,
+    "env": {
+        "apiUrl": "http://localhost:3000/api"
+    }
+}
