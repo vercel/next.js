@@ -15,5 +15,5 @@
     "react-dom": "latest",
     "swr": "0.1.16"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

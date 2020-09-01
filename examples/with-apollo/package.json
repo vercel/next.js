@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@apollo/client": "^3.0.0",
+    "@apollo/client": "3.1.1",
     "graphql": "^15.3.0",
     "next": "latest",
     "prop-types": "^15.6.2",
@@ -15,5 +15,5 @@
     "react-dom": "^16.7.0"
   },
   "devDependencies": {},
-  "license": "ISC"
+  "license": "MIT"
 }

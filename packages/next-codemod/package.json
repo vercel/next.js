@@ -1,0 +1,24 @@
+{
+  "name": "@next/codemod",
+  "version": "9.5.3",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "4.1.0",
+    "execa": "4.0.3",
+    "globby": "11.0.1",
+    "inquirer": "7.3.3",
+    "is-git-clean": "1.1.0",
+    "jscodeshift": "^0.6.4",
+    "meow": "7.0.1"
+  },
+  "files": [
+    "transforms/*.js",
+    "bin/*.js"
+  ],
+  "scripts": {
+    "prepublish": "yarn tsc -d -p tsconfig.json",
+    "build": "yarn tsc -d -w -p tsconfig.json",
+    "test": "jest"
+  },
+  "bin": "./bin/next-codemod.js"
+}

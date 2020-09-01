@@ -3,7 +3,6 @@
   "version": "3.0.3",
   "description": "Example of Next.js with Relay Modern and react-relay-network-modern",
   "scripts": {
-    "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
     "dev": "next",
     "build": "next build",
     "start": "next start",
@@ -11,7 +10,7 @@
     "schema": "graphql get-schema -e dev"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "graphql": "^14.6.0",
     "next": "latest",
@@ -23,7 +22,6 @@
   },
   "devDependencies": {
     "babel-plugin-relay": "^9.0.0",
-    "graphcool": "^1.2.1",
     "graphql-cli": "^3.0.11",
     "relay-compiler": "^9.0.0"
   }
