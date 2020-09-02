@@ -518,7 +518,6 @@ export default class Router implements BaseRouter {
     as: string,
     options: TransitionOptions
   ): Promise<boolean> {
-    console.log({ url, as })
     if (!isLocalURL(url)) {
       window.location.href = url
       return false
