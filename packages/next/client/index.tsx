@@ -21,8 +21,6 @@ import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
-require('next/dist/build/polyfills/finally-polyfill.min')
-
 /// <reference types="react-dom/experimental" />
 
 declare let __webpack_public_path__: string
@@ -42,6 +40,10 @@ declare global {
 
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
+
+if (!('finally' in Promise.prototype)) {
+  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
+}
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
   document.getElementById('__NEXT_DATA__')!.textContent!
@@ -148,14 +150,6 @@ class Container extends React.Component<{
           shallow: !isFallback,
         }
       )
-    }
-
-    if (process.env.__NEXT_TEST_MODE) {
-      window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
     }
   }
 
@@ -717,5 +711,15 @@ function Root({
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
   React.useLayoutEffect(() => callback(), [callback])
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
+  }
   return children as React.ReactElement
 }
