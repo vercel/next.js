@@ -58,7 +58,7 @@ export default function mitt<
     emit(type, ...evts) {
       ;(all[type] || []).slice().map(
         // eslint-disable-next-line array-callback-return
-        (handler: (...evts: any[]) => void) => {
+        (handler: any) => {
           handler(...evts)
         }
       )
