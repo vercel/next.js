@@ -17,4 +17,6 @@ export interface IVariables {
   id?: string
   error?: string
   loading?: boolean
+  email?: string
+  password?: string
 }

@@ -13,6 +13,7 @@ import { IInitialState } from 'interfaces/state'
 
 // import animationData from 'lottie/loader.json';
 import successAnimation from 'lottie/success.json'
+import { cacheRemove } from 'utils/cacheRemove'
 
 type Inputs = {
   quantity: Number
@@ -67,6 +68,7 @@ const Card: FC<IProduct> = (product) => {
   }
 
   const imageUrl = product.image.url
+  const httpsImage = cacheRemove(imageUrl)
   const price = product.price_range.maximum_price.final_price.value
 
   if (product.stock_status === 'OUT_OF_STOCK') {
@@ -90,7 +92,7 @@ const Card: FC<IProduct> = (product) => {
         <div className="card-body">
           <h5 className="card-title">{product.name}</h5>
         </div>
-        <img src={imageUrl} className="img-fluid" alt={product.name} />
+        <img src={httpsImage} className="img-fluid" alt={product.name} />
         <div className="card-body text-center">
           <p className="card-text">
             <strong>Rs. {price}</strong>{' '}
@@ -102,7 +104,7 @@ const Card: FC<IProduct> = (product) => {
             </FadeIn>
           ) : (
             <motion.button
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1 }}
               whileTap={{ scale: 0.8 }}
               type="submit"
               className="btn btn-primary"

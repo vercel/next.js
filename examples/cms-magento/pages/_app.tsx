@@ -12,8 +12,8 @@ import { useStore } from '../lib/redux/redux'
 import 'react-toastify/dist/ReactToastify.css'
 import '../public/styles/nprogress.css'
 
-Router.events.on('routeChangeStart', (url) => {
-  console.log(`Loading: ${url}`)
+Router.events.on('routeChangeStart', () => {
+  // console.log(`Loading: ${url}`);
   NProgress.start()
 })
 Router.events.on('routeChangeComplete', () => NProgress.done())

@@ -66,7 +66,7 @@ const useApolloQuery = () => {
       },
     })
 
-    console.log('data', data)
+    // console.log('data', data);
 
     return {
       data,

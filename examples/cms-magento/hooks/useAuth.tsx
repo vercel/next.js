@@ -13,7 +13,7 @@ const useAuth = () => {
   const login = async (token: string) => {
     cookie.set('token', token, {
       expires: 60,
-      secure: process.env.NODE_ENV === 'production',
+      // secure: process.env.NODE_ENV === 'production',
     })
 
     /**

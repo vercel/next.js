@@ -2,6 +2,7 @@ import { TCart } from 'interfaces/cart'
 import { useSelector } from 'react-redux'
 import { IInitialState } from 'interfaces/state'
 import { motion } from 'framer-motion'
+import { cacheRemove } from 'utils/cacheRemove'
 
 type Inputs = {
   cart_item_id: string
@@ -32,7 +33,7 @@ const CartItems = ({
     (state: IInitialState) => state
   )
 
-  let {
+  const {
     product: {
       name,
       price_range: { maximum_price },
@@ -43,19 +44,17 @@ const CartItems = ({
     },
   } = cartItem
 
-  let final_price = maximum_price.final_price.value
-  let total_price = value
+  const final_price = maximum_price.final_price.value
+  const total_price = value
+
+  const httpsImage = cacheRemove(cartItem.product.thumbnail.url)
 
   return (
     <motion.tr key={cartItem.id} variants={item}>
       <td className="col-sm-8 col-md-6">
         <div className="media">
           <a className="thumbnail pull-left" href="#">
-            <img
-              className="media-object"
-              width={60}
-              src={cartItem.product.thumbnail.url}
-            />
+            <img className="media-object" width={60} src={httpsImage} />
           </a>
           <div className="media-body ml-3 pt-4">
             <h6 className="media-heading">{name}</h6>

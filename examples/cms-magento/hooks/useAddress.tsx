@@ -36,7 +36,7 @@ const useAddress = () => {
       dispatch(setLoading(false, 'shipping'))
       dispatch(setError('', 'shipping'))
     } catch (error) {
-      console.log('error:shipping', error.graphQLErrors[0].message)
+      // console.log('error:shipping', error.graphQLErrors[0].message);
       dispatch(setLoading(false, 'shipping'))
       dispatch(setError(error.graphQLErrors[0].message, 'shipping'))
     }
@@ -58,7 +58,7 @@ const useAddress = () => {
       dispatch(setLoading(false, 'billing'))
       dispatch(setError('', 'billing'))
     } catch (error) {
-      console.log('error:billing', error.graphQLErrors[0].message)
+      // console.log('error:billing', error.graphQLErrors[0].message);
       dispatch(setLoading(false, 'billing'))
       dispatch(setError(error.graphQLErrors[0].message, 'billing'))
     }
@@ -74,7 +74,7 @@ const useAddress = () => {
       dispatch(setLoading(false, 'shipping'))
       dispatch(setError('', 'shipping'))
     } catch (error) {
-      console.log('error:email', error.graphQLErrors[0].message)
+      // console.log('error:email', error.graphQLErrors[0].message);
       dispatch(setLoading(false, 'shipping'))
       dispatch(setError(error.graphQLErrors[0].message, 'shipping'))
     }

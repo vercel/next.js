@@ -60,7 +60,8 @@ const CouponForm = () => {
           <input
             type="text"
             className="form-control"
-            placeholder="Promo code"
+            // placeholder='Promo code'
+            placeholder="test2"
             name="coupon_code"
             ref={register}
           />
@@ -74,6 +75,7 @@ const CouponForm = () => {
             </button>
           </div>
         </div>
+        {/* <Message error={id === 'coupon_code' && error} /> */}
       </form>
     </>
   )

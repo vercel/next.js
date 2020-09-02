@@ -64,14 +64,14 @@ export async function getStaticProps() {
   await apolloClient.query({
     query: CATEGORY_LIST_QUERY,
     // URL OF THE CATEGORY
-    variables: { eq: 'CATEGORY-URL' },
+    variables: { eq: 'URL-OF-YOUR-CATEGORY' },
   })
 
   return {
     props: {
       initialApolloState: apolloClient.cache.extract(),
     },
-    unstable_revalidate: 1,
+    // unstable_revalidate: 1,
   }
 }
 

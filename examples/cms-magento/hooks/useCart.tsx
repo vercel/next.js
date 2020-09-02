@@ -87,13 +87,15 @@ const useCart = () => {
       await mutateApolloQuery(MERGE_CART_QUERY, variables)
       await getCartInfo({ customerId, guestId, token })
     } catch (error) {
-      console.log('error:merge', error.graphQLErrors[0].message)
+      // //console.log('error:merge', error.graphQLErrors[0].message);
     }
   }
 
   // ADD ITEM TO CART
   const addToCart = async (item: IVariables) => {
     const { customerId, guestId, token } = item
+
+    // //console.log(item);
 
     dispatch(setLoading(true, item.sku))
     dispatch(setError('', item.sku))
@@ -125,7 +127,7 @@ const useCart = () => {
         dispatch(setSuccess(false, item.sku))
       }, 1000)
     } catch (error) {
-      console.log(error.graphQLErrors[0].message)
+      //console.log(error.graphQLErrors[0].message);
       dispatch(setError(error.graphQLErrors[0].message, item.sku))
       dispatch(setLoading(false, item.sku))
     }
@@ -164,7 +166,7 @@ const useCart = () => {
       dispatch(setLoading(false, cart_item_id))
       dispatch(setError('', cart_item_id))
     } catch (error) {
-      console.log('error:atc', error.graphQLErrors[0].message)
+      //console.log('error:atc', error.graphQLErrors[0].message);
       dispatch(setError(error.graphQLErrors[0].message, cart_item_id))
       dispatch(setLoading(false, cart_item_id))
     }
@@ -190,7 +192,7 @@ const useCart = () => {
       dispatch(setLoading(false, 'coupon_code'))
       dispatch(setError('', 'coupon_code'))
     } catch (error) {
-      console.log('error:coupon', error)
+      //console.log('error:coupon', error);
       dispatch(setLoading(false, 'coupon_code'))
       dispatch(setError(error.graphQLErrors[0].message, 'coupon_code'))
     }
@@ -215,7 +217,7 @@ const useCart = () => {
       dispatch(setLoading(false, 'coupon_code'))
       dispatch(setError('', 'coupon_code'))
     } catch (error) {
-      console.log('error:coupon', error)
+      //console.log('error:coupon', error);
       dispatch(setLoading(false, 'coupon_code'))
       dispatch(setError(error.graphQLErrors[0].message, 'coupon_code'))
     }
@@ -254,7 +256,7 @@ const useCart = () => {
       dispatch(setLoading(false, 'shipment'))
       dispatch(setError('', 'shipment'))
     } catch (error) {
-      console.log('error:payment', error)
+      //console.log('error:payment', error);
       dispatch(setLoading(false, 'shipment'))
       dispatch(setError(error.graphQLErrors[0].message, 'shipment'))
     }
@@ -278,7 +280,7 @@ const useCart = () => {
       dispatch(setLoading(false, 'payment'))
       dispatch(setError('', 'payment'))
     } catch (error) {
-      console.log('error:payment', error)
+      //console.log('error:payment', error);
       dispatch(setLoading(false, 'payment'))
       dispatch(setError(error.graphQLErrors[0].message, 'payment'))
     }
@@ -294,7 +296,7 @@ const useCart = () => {
 
       const orderNo = data.placeOrder.order.order_number
 
-      console.log('ORDER', orderNo)
+      //console.log('ORDER', orderNo);
 
       Router.push('/order/[success]', `/order/${orderNo}`)
 
@@ -302,7 +304,7 @@ const useCart = () => {
       dispatch(setError('', 'payment'))
       dispatch(setIdToNull())
     } catch (error) {
-      console.log('error:payment', error)
+      //console.log('error:payment', error);
       dispatch(setLoading(false, 'payment'))
       dispatch(setError(error.graphQLErrors[0].message, 'payment'))
     }

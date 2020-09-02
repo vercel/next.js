@@ -215,6 +215,7 @@ const ShippingForm: FC<Props> = ({
           Continue
         </motion.button>
       </form>
+      {/* <Message error={id === 'shipping' && error} /> */}
     </div>
   )
 }

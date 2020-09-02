@@ -85,7 +85,6 @@ const Signup: FC = () => {
             placeholder="Enter email"
             ref={register({
               required: 'Please enter your email address',
-              pattern: /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
             })}
           />
           <FormErrorMessage name="email" errors={errors} />
@@ -102,6 +101,7 @@ const Signup: FC = () => {
           />
           <FormErrorMessage name="password" errors={errors} />
         </div>
+        {/* <Message error={error?.graphQLErrors[0].message} /> */}
         <button type="submit" className="btn btn-primary" disabled={loading}>
           Submit
         </button>

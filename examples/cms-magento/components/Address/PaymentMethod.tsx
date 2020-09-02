@@ -93,9 +93,9 @@ const PaymentMethod: FC<Props> = ({
       code: fields.payment_mode,
     }
 
-    console.log('billing', billingVariables)
-    console.log('shipment', shippingVariables)
-    console.log('payment', paymentVariables)
+    // console.log('billing', billingVariables);
+    // console.log('shipment', shippingVariables);
+    // console.log('payment', paymentVariables);
 
     await mutateBillingAddress(billingVariables)
     await setShipmentMode(shippingVariables)
@@ -194,6 +194,10 @@ const PaymentMethod: FC<Props> = ({
               )
             )}
             <FormErrorMessage name="payment_mode" errors={errors} />
+            <span className="small text-danger">
+              ONLY SELECT PAY ON DELIVERY METHOD
+            </span>
+
             <hr className="mb-4" />
 
             <motion.button
@@ -207,6 +211,10 @@ const PaymentMethod: FC<Props> = ({
             >
               Place Order <span className="glyphicon glyphicon-play" />
             </motion.button>
+
+            {/* <Message
+              error={(id === 'billing' || 'shipment' || 'payment') && error}
+            /> */}
           </form>
         </>
       )}
