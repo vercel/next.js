@@ -65,7 +65,7 @@ class ServerRouter implements NextRouter {
   events: any
   isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
-  static events: Emitter = mitt()
+  static events: Emitter<any, any> = mitt()
 
   constructor(
     pathname: string,
