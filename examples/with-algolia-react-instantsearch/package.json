@@ -2,11 +2,12 @@
   "name": "create-next-example-app",
   "scripts": {
     "dev": "next",
-    "build": "NODE_ENV=development next build",
+    "build": "cross-env NODE_ENV=development next build",
     "start": "next start"
   },
   "dependencies": {
     "algoliasearch": "4.3.0",
+    "cross-env": "^7.0.2",
     "css-loader": "1.0.0",
     "next": "latest",
     "prop-types": "^15.5.10",
@@ -15,5 +16,6 @@
     "react-dom": "^16.7.0",
     "react-instantsearch-dom": "6.6.0",
     "style-loader": "^0.17.0"
-  }
+  },
+  "license": "MIT"
 }

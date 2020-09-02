@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "9.4.5-canary.28",
+  "version": "9.5.4-canary.0",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "vercel/next.js",
@@ -16,7 +16,7 @@
     "build": "tsc -d -w -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/code-frame": "7.8.3",
+    "@babel/code-frame": "7.10.4",
     "ally.js": "1.4.1",
     "anser": "1.4.9",
     "chalk": "4.0.0",
@@ -28,8 +28,8 @@
     "strip-ansi": "6.0.0"
   },
   "peerDependencies": {
-    "webpack": "^4|^5",
     "react": "^16.9.0",
-    "react-dom": "^16.9.0"
+    "react-dom": "^16.9.0",
+    "webpack": "^4 || ^5"
   }
 }

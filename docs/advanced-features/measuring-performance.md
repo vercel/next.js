@@ -30,8 +30,8 @@ The `metric` object returned to the function consists of a number of properties:
 
 - `id`: Unique identifier for the metric in the context of the current page load
 - `name`: Metric name
-- `startTime`: First recorded timestamp of the performance entry (if applicable)
-- `value`: Value, or duration, of performance entry
+- `startTime`: First recorded timestamp of the performance entry in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp) (if applicable)
+- `value`: Value, or duration in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp), of the performance entry
 - `label`: Type of metric (`web-vital` or `custom`)
 
 There are two types of metrics that are tracked:
@@ -158,7 +158,9 @@ export function reportWebVitals(metric) {
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
->   ga('send', 'event', {
+>   // Use `window.gtag` if you initialized Google Analytics as this example:
+>   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_document.js
+>   window.gtag('send', 'event', {
 >     eventCategory:
 >       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
 >     eventAction: name,

@@ -16,8 +16,6 @@ Deploy the example using [Vercel Now](https://vercel.com/docs/now-cli#commands/o
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -32,13 +30,13 @@ Login to the [Magic Dashboard](https://dashboard.magic.link/) and get the keys o
 
 ![Magic Dashboard](https://gblobscdn.gitbook.com/assets%2F-M1XNjqusnKyXZc7t7qQ%2F-M3HsSftOAghkNs-ttU3%2F-M3HsllfdwdDmeFXBK3U%2Fdashboard-pk.png?alt=media&token=4d6e7543-ae20-4355-951c-c6421b8f1b5f)
 
-Next, copy the `.env.example` file in this directory to .env (which will be ignored by Git):
+Next, copy the `.env.local.example` file in this directory to .env.local (which will be ignored by Git):
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-Then set each variable on `.env`:
+Then set each variable on `.env.local`:
 
 - `NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY` should look like `pk_test_abc` or `pk_live_ABC`
 - `MAGIC_SECRET_KEY` should look like `sk_test_ABC` or `sk_live_ABC`

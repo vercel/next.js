@@ -23,22 +23,10 @@
 
 /// <reference types="node" />
 
+declare module 'mini-css-extract-plugin'
+declare module 'loader-utils'
+
 declare module 'webpack' {
-  import {
-    Tapable,
-    HookMap,
-    SyncBailHook,
-    SyncHook,
-    SyncLoopHook,
-    SyncWaterfallHook,
-    AsyncParallelBailHook,
-    AsyncParallelHook,
-    AsyncSeriesBailHook,
-    AsyncSeriesHook,
-    AsyncSeriesWaterfallHook,
-  } from 'tapable'
-  import * as UglifyJS from 'uglify-js'
-  import * as anymatch from 'anymatch'
   import { RawSourceMap } from 'source-map'
   import { ConcatSource } from 'webpack-sources'
 
@@ -251,7 +239,7 @@ declare module 'webpack' {
       /**
        * Use the future version of asset emitting logic, which allows freeing memory of assets after emitting.
        * It could break plugins which assume that assets are still readable after they were emitted.
-       * @deprecated - will be removed in webpack v5.0.0 and this behaviour will become the new default.
+       * @deprecated - will be removed in webpack v5.0.0 and this behavior will become the new default.
        */
       futureEmitAssets?: boolean
       /** The filename of WebAssembly modules as relative path inside the `output.path` directory. */
@@ -612,7 +600,6 @@ declare module 'webpack' {
     type Rule = RuleSetRule
 
     namespace Options {
-      // tslint:disable-next-line:max-line-length
       type Devtool =
         | 'eval'
         | 'inline-source-map'
@@ -711,6 +698,7 @@ declare module 'webpack' {
         reuseExistingChunk?: boolean
         /** Give chunks created a name (chunks with equal name are merged) */
         name?: boolean | string | ((...args: any[]) => any)
+        filename?: string
       }
       interface SplitChunksOptions {
         /** Select chunks for determining shared modules (defaults to \"async\", \"initial\" and \"all\" requires adding these chunks to the HTML) */
@@ -768,7 +756,7 @@ declare module 'webpack' {
          */
         usedExports?: boolean
         /**
-         *  Recognise the sideEffects flag in package.json or rules to eliminate modules. This depends on optimization.providedExports and optimization.usedExports.
+         *  Recognize the sideEffects flag in package.json or rules to eliminate modules. This depends on optimization.providedExports and optimization.usedExports.
          *  These dependencies have a cost, but eliminating modules has positive impact on performance because of less code generation. It depends on your codebase.
          *  Try it for possible performance wins.
          */
@@ -800,7 +788,7 @@ declare module 'webpack' {
         /** Use the minimizer (optimization.minimizer, by default uglify-js) to minimize output assets. */
         minimize?: boolean
         /** Minimizer(s) to use for minimizing the output */
-        minimizer?: Array<Plugin | Tapable.Plugin>
+        minimizer?: Array<Plugin>
         /** Generate records with relative paths to be able to move the context folder". */
         portableRecords?: boolean
         checkWasmTypes?: boolean
@@ -880,13 +868,10 @@ declare module 'webpack' {
         modulesSize(): number
         size(options: any): number
         integratedSize(otherChunk: any, options: any): number
-        // tslint:disable-next-line:ban-types
         sortModules(sortByFn: Function): void
         getAllAsyncChunks(): Set<any>
         getChunkMaps(realHash: any): { hash: any; name: any }
-        // tslint:disable-next-line:ban-types
         getChunkModuleMaps(filterFn: Function): { id: any; hash: any }
-        // tslint:disable-next-line:ban-types
         hasModuleInGraph(filterFn: Function, filterChunkFn: Function): boolean
         toString(): string
       }
@@ -908,130 +893,150 @@ declare module 'webpack' {
       }
 
       interface NormalModuleFactoryHooks {
-        resolver: SyncWaterfallHook
-        factory: SyncWaterfallHook
-        beforeResolve: AsyncSeriesWaterfallHook
-        afterResolve: AsyncSeriesWaterfallHook
-        createModule: SyncBailHook
-        module: SyncWaterfallHook
-        createParser: HookMap
-        parser: HookMap
-        createGenerator: HookMap
-        generator: HookMap
+        resolver: any
+        factory: any
+        beforeResolve: any
+        afterResolve: any
+        createModule: any
+        module: any
+        createParser: any
+        parser: any
+        createGenerator: any
+        generator: any
       }
 
-      class NormalModuleFactory extends Tapable {
+      class NormalModuleFactory {
         hooks: NormalModuleFactoryHooks
       }
 
       interface ContextModuleFactoryHooks {
-        beforeResolve: AsyncSeriesWaterfallHook
-        afterResolve: AsyncSeriesWaterfallHook
-        contextModuleFiles: SyncWaterfallHook
-        alternatives: AsyncSeriesWaterfallHook
+        beforeResolve: any
+        afterResolve: any
+        contextModuleFiles: any
+        alternatives: any
       }
 
-      class ContextModuleFactory extends Tapable {
+      class ContextModuleFactory {
         hooks: ContextModuleFactoryHooks
       }
 
-      class DllModuleFactory extends Tapable {
+      class DllModuleFactory {
         hooks: {}
       }
 
       interface CompilationHooks {
-        buildModule: SyncHook<Module>
-        rebuildModule: SyncHook<Module>
-        failedModule: SyncHook<Module, Error>
-        succeedModule: SyncHook<Module>
+        buildModule: any
+        rebuildModule: any
+        failedModule: any
+        succeedModule: any
 
-        finishModules: SyncHook<Module[]>
-        finishRebuildingModule: SyncHook<Module>
+        finishModules: any
+        finishRebuildingModule: any
 
-        unseal: SyncHook
-        seal: SyncHook
+        unseal: any
+        seal: any
 
-        optimizeDependenciesBasic: SyncBailHook<Module[]>
-        optimizeDependencies: SyncBailHook<Module[]>
-        optimizeDependenciesAdvanced: SyncBailHook<Module[]>
-        afterOptimizeDependencies: SyncHook<Module[]>
+        optimizeDependenciesBasic: any
+        optimizeDependencies: any
+        optimizeDependenciesAdvanced: any
+        afterOptimizeDependencies: any
 
-        optimize: SyncHook
+        optimize: any
 
-        optimizeModulesBasic: SyncBailHook<Module[]>
-        optimizeModules: SyncBailHook<Module[]>
-        optimizeModulesAdvanced: SyncBailHook<Module[]>
-        afterOptimizeModules: SyncHook<Module[]>
+        optimizeModulesBasic: any
+        optimizeModules: any
+        optimizeModulesAdvanced: any
+        afterOptimizeModules: any
 
-        optimizeChunksBasic: SyncBailHook<Chunk[], ChunkGroup[]>
-        optimizeChunks: SyncBailHook<Chunk[], ChunkGroup[]>
-        optimizeChunksAdvanced: SyncBailHook<Chunk[], ChunkGroup[]>
-        afterOptimizeChunks: SyncHook<Chunk[], ChunkGroup[]>
+        optimizeChunksBasic: {
+          tap: (
+            name: string,
+            callback: (chunks: compilation.Chunk[]) => void
+          ) => void
 
-        optimizeTree: AsyncSeriesHook<Chunk[], Module[]>
-        afterOptimizeTree: SyncHook<Chunk[], Module[]>
+          tapAsync: (
+            name: string,
+            callback: (chunks: compilation.Chunk[], callback: any) => void
+          ) => void
+        }
+        optimizeChunks: {
+          tap: (
+            name: string,
+            callback: (chunks: compilation.Chunk[]) => void
+          ) => void
 
-        optimizeChunkModulesBasic: SyncBailHook<Chunk[], Module[]>
-        optimizeChunkModules: SyncBailHook<Chunk[], Module[]>
-        optimizeChunkModulesAdvanced: SyncBailHook<Chunk[], Module[]>
-        afterOptimizeChunkModules: SyncHook<Chunk[], Module[]>
-        shouldRecord: SyncBailHook
+          tapAsync: (
+            name: string,
+            callback: (chunks: compilation.Chunk[], callback: any) => void
+          ) => void
+        }
+        optimizeChunksAdvanced: any
+        afterOptimizeChunks: any
 
-        reviveModules: SyncHook<Module[], Record[]>
-        optimizeModuleOrder: SyncHook<Module[]>
-        advancedOptimizeModuleOrder: SyncHook<Module[]>
-        beforeModuleIds: SyncHook<Module[]>
-        moduleIds: SyncHook<Module[]>
-        optimizeModuleIds: SyncHook<Module[]>
-        afterOptimizeModuleIds: SyncHook<Module[]>
+        optimizeTree: any
+        afterOptimizeTree: any
 
-        reviveChunks: SyncHook<Chunk[], Record[]>
-        optimizeChunkOrder: SyncHook<Chunk[]>
-        beforeChunkIds: SyncHook<Chunk[]>
-        optimizeChunkIds: SyncHook<Chunk[]>
-        afterOptimizeChunkIds: SyncHook<Chunk[]>
+        optimizeChunkModulesBasic: any
+        optimizeChunkModules: any
+        optimizeChunkModulesAdvanced: any
+        afterOptimizeChunkModules: any
+        shouldRecord: any
 
-        recordModules: SyncHook<Module[], Record[]>
-        recordChunks: SyncHook<Chunk[], Record[]>
+        reviveModules: any
+        optimizeModuleOrder: any
+        advancedOptimizeModuleOrder: any
+        beforeModuleIds: any
+        moduleIds: any
+        optimizeModuleIds: any
+        afterOptimizeModuleIds: any
 
-        beforeHash: SyncHook
-        afterHash: SyncHook
+        reviveChunks: any
+        optimizeChunkOrder: any
+        beforeChunkIds: any
+        optimizeChunkIds: any
+        afterOptimizeChunkIds: any
 
-        recordHash: SyncHook<Record[]>
+        recordModules: any
+        recordChunks: any
 
-        record: SyncHook<Compilation, Record[]>
+        beforeHash: any
+        afterHash: any
 
-        beforeModuleAssets: SyncHook
-        shouldGenerateChunkAssets: SyncBailHook
-        beforeChunkAssets: SyncHook
-        additionalChunkAssets: SyncHook<Chunk[]>
+        recordHash: any
 
-        records: SyncHook<Compilation, Record[]>
+        record: any
 
-        additionalAssets: AsyncSeriesHook
-        optimizeChunkAssets: AsyncSeriesHook<Chunk[]>
-        afterOptimizeChunkAssets: SyncHook<Chunk[]>
-        optimizeAssets: AsyncSeriesHook<Asset[]>
-        afterOptimizeAssets: SyncHook<Asset[]>
+        beforeModuleAssets: any
+        shouldGenerateChunkAssets: any
+        beforeChunkAssets: any
+        additionalChunkAssets: any
 
-        needAdditionalSeal: SyncBailHook
-        afterSeal: AsyncSeriesHook
+        records: any
 
-        chunkHash: SyncHook<Chunk, ChunkHash>
-        moduleAsset: SyncHook<Module, string>
-        chunkAsset: SyncHook<Chunk, string>
+        additionalAssets: any
+        optimizeChunkAssets: any
+        afterOptimizeChunkAssets: any
+        optimizeAssets: any
+        afterOptimizeAssets: any
 
-        assetPath: SyncWaterfallHook<string>
+        needAdditionalSeal: any
+        afterSeal: any
 
-        needAdditionalPass: SyncBailHook
-        childCompiler: SyncHook
+        chunkHash: any
+        moduleAsset: any
+        chunkAsset: any
 
-        normalModuleLoader: SyncHook<any, Module>
+        assetPath: any
 
-        optimizeExtractedChunksBasic: SyncBailHook<Chunk[]>
-        optimizeExtractedChunks: SyncBailHook<Chunk[]>
-        optimizeExtractedChunksAdvanced: SyncBailHook<Chunk[]>
-        afterOptimizeExtractedChunks: SyncHook<Chunk[]>
+        needAdditionalPass: any
+        childCompiler: any
+
+        normalModuleLoader: any
+
+        optimizeExtractedChunksBasic: any
+        optimizeExtractedChunks: any
+        optimizeExtractedChunksAdvanced: any
+        afterOptimizeExtractedChunks: any
       }
 
       interface CompilationModule {
@@ -1041,32 +1046,32 @@ declare module 'webpack' {
         dependencies: boolean
       }
 
-      class MainTemplate extends Tapable {
+      class MainTemplate {
         hooks: {
-          jsonpScript?: SyncWaterfallHook<string, Chunk, string>
-          require: SyncWaterfallHook<string, Chunk, string>
-          requireExtensions: SyncWaterfallHook<string, Chunk, string>
+          jsonpScript?: any
+          require: any
+          requireExtensions: any
         }
         outputOptions: Output
         requireFn: string
       }
-      class ChunkTemplate extends Tapable {}
-      class HotUpdateChunkTemplate extends Tapable {}
+      class ChunkTemplate {}
+      class HotUpdateChunkTemplate {}
       class RuntimeTemplate {}
 
       interface ModuleTemplateHooks {
-        content: SyncWaterfallHook
-        module: SyncWaterfallHook
-        render: SyncWaterfallHook
-        package: SyncWaterfallHook
-        hash: SyncHook
+        content: any
+        module: any
+        render: any
+        package: any
+        hash: any
       }
 
-      class ModuleTemplate extends Tapable {
+      class ModuleTemplate {
         hooks: ModuleTemplateHooks
       }
 
-      class Compilation extends Tapable {
+      class Compilation {
         hooks: CompilationHooks
         compiler: Compiler
 
@@ -1110,8 +1115,8 @@ declare module 'webpack' {
         errors: any[]
         warnings: any[]
         children: any[]
-        dependencyFactories: Map<typeof Dependency, Tapable>
-        dependencyTemplates: Map<typeof Dependency, Tapable>
+        dependencyFactories: Map<typeof Dependency, any>
+        dependencyTemplates: Map<typeof Dependency, any>
         childrenCounters: any
         usedChunkIds: any
         usedModuleIds: any
@@ -1123,7 +1128,6 @@ declare module 'webpack' {
         hash?: string
         getStats(): Stats
         addModule(module: CompilationModule, cacheGroup: any): any
-        // tslint:disable-next-line:ban-types
         addEntry(context: any, entry: any, name: any, callback: Function): void
         getPath(
           filename: string,
@@ -1147,36 +1151,81 @@ declare module 'webpack' {
       }
 
       interface CompilerHooks {
-        shouldEmit: SyncBailHook<Compilation>
-        done: AsyncSeriesHook<Stats>
-        additionalPass: AsyncSeriesHook
-        beforeRun: AsyncSeriesHook<Compiler>
-        run: AsyncSeriesHook<Compiler>
-        emit: AsyncSeriesHook<Compilation>
-        afterEmit: AsyncSeriesHook<Compilation>
-        thisCompilation: SyncHook<
-          Compilation,
-          { normalModuleFactory: NormalModuleFactory }
-        >
-        compilation: SyncHook<
-          Compilation,
-          { normalModuleFactory: NormalModuleFactory }
-        >
-        normalModuleFactory: SyncHook<NormalModuleFactory>
-        contextModuleFactory: SyncHook<ContextModuleFactory>
-        beforeCompile: AsyncSeriesHook<{}>
-        compile: SyncHook<{}>
-        make: AsyncParallelHook<Compilation>
-        afterCompile: AsyncSeriesHook<Compilation>
-        watchRun: AsyncSeriesHook<Compiler>
-        failed: SyncHook<Error>
-        invalid: SyncHook<string, Date>
-        watchClose: SyncHook
-        environment: SyncHook
-        afterEnvironment: SyncHook
-        afterPlugins: SyncHook<Compiler>
-        afterResolvers: SyncHook<Compiler>
-        entryOption: SyncBailHook
+        shouldEmit: any
+        done: {
+          tap: (name: string, callback: (stats: Stats) => void) => void
+
+          tapAsync: (
+            name: string,
+            callback: (stats: Stats, callback: any) => void
+          ) => void
+        }
+        additionalPass: any
+        beforeRun: any
+        run: any
+        emit: {
+          tap: (
+            name: string,
+            callback: (compilation: Compilation) => void
+          ) => void
+
+          tapAsync: (
+            name: string,
+            callback: (compilation: Compilation, callback: any) => void
+          ) => void
+        }
+        afterEmit: {
+          tap: (
+            name: string,
+            callback: (compilation: Compilation) => void
+          ) => void
+
+          tapAsync: (
+            name: string,
+            callback: (compilation: Compilation, callback: any) => void
+          ) => void
+        }
+        thisCompilation: any
+        compilation: {
+          tap: (
+            name: string,
+            callback: (compilation: Compilation, options: any) => void
+          ) => void
+
+          tapAsync: (
+            name: string,
+            callback: (
+              compilation: Compilation,
+              options: any,
+              callback: any
+            ) => void
+          ) => void
+        }
+        normalModuleFactory: any
+        contextModuleFactory: any
+        beforeCompile: any
+        compile: any
+        make: {
+          tap: (
+            name: string,
+            callback: (compilation: Compilation) => void
+          ) => void
+
+          tapAsync: (
+            name: string,
+            callback: (compilation: Compilation, callback: any) => void
+          ) => void
+        }
+        afterCompile: any
+        watchRun: any
+        failed: any
+        invalid: any
+        watchClose: any
+        environment: any
+        afterEnvironment: any
+        afterPlugins: any
+        afterResolvers: any
+        entryOption: any
       }
 
       interface MultiStats {
@@ -1185,14 +1234,23 @@ declare module 'webpack' {
       }
 
       interface MultiCompilerHooks {
-        done: SyncHook<MultiStats>
-        invalid: SyncHook<string, Date>
-        run: AsyncSeriesHook<Compiler>
-        watchClose: SyncHook
-        watchRun: AsyncSeriesHook<Compiler>
+        done: {
+          tap: (
+            name: string,
+            callback: (multiStats: MultiStats) => void
+          ) => void
+
+          tapAsync: (
+            name: string,
+            callback: (multiStats: MultiStats, callback: any) => void
+          ) => void
+        }
+        invalid: any
+        run: any
+        watchClose: any
+        watchRun: any
       }
     }
-    // tslint:disable-next-line:interface-name
     interface ICompiler {
       run(handler: ICompiler.Handler): void
       watch(
@@ -1221,7 +1279,7 @@ declare module 'webpack' {
          * It is possible to exclude a huge folder like node_modules.
          * It is also possible to use anymatch patterns.
          */
-        ignored?: anymatch.Matcher
+        ignored?: any
         /** Turn on polling by passing true, or specifying a poll interval in milliseconds. */
         poll?: boolean | number
       }
@@ -1285,11 +1343,11 @@ declare module 'webpack' {
       ): any
     }
 
-    class Compiler extends Tapable implements ICompiler {
+    class Compiler implements ICompiler {
       constructor()
 
       hooks: compilation.CompilerHooks
-      _pluginCompat: SyncBailHook<compilation.Compilation>
+      _pluginCompat: any
 
       name: string
       isChild(): boolean
@@ -1330,7 +1388,7 @@ declare module 'webpack' {
       }
     }
 
-    abstract class MultiCompiler extends Tapable implements ICompiler {
+    abstract class MultiCompiler implements ICompiler {
       compilers: Compiler[]
       hooks: compilation.MultiCompilerHooks
       run(handler: MultiCompiler.Handler): void
@@ -1350,11 +1408,11 @@ declare module 'webpack' {
       invalidate(): void
     }
 
-    abstract class Plugin implements Tapable.Plugin {
+    abstract class Plugin {
       apply(compiler: Compiler): void
     }
 
-    abstract class ResolvePlugin implements Tapable.Plugin {
+    abstract class ResolvePlugin {
       apply(resolver: any /* EnhancedResolve.Resolver */): void
     }
 
@@ -1813,7 +1871,6 @@ declare module 'webpack' {
     }
 
     class PrefetchPlugin extends Plugin {
-      // tslint:disable-next-line:unified-signatures
       constructor(context: any, request: any)
       constructor(request: any)
     }
@@ -1926,7 +1983,7 @@ declare module 'webpack' {
           minSize: 30000
           /**
            * Size in byte.
-           * maximum size prefered for each chunk.
+           * maximum size preferred for each chunk.
            *
            * Default: 51200
            */
@@ -1954,13 +2011,13 @@ declare module 'webpack' {
       }
 
       class UglifyJsPlugin extends Plugin {
-        constructor(options?: UglifyJsPlugin.Options)
+        constructor(options?: any)
       }
 
       namespace UglifyJsPlugin {
         type CommentFilter = (astNode: any, comment: any) => boolean
 
-        interface Options extends UglifyJS.MinifyOptions {
+        interface Options {
           beautify?: boolean
           comments?: boolean | RegExp | CommentFilter
           exclude?: Condition | Condition[]
@@ -2299,7 +2356,6 @@ declare module 'webpack' {
     /** @deprecated */
     namespace compiler {
       /** @deprecated use webpack.Compiler */
-      // tslint:disable-next-line:no-unnecessary-qualifier
       type Compiler = webpack.Compiler
 
       /** @deprecated use webpack.Compiler.Watching */
@@ -2310,7 +2366,6 @@ declare module 'webpack' {
       type WatchOptions = Compiler.WatchOptions
 
       /** @deprecated use webpack.Stats */
-      // tslint:disable-next-line:no-unnecessary-qualifier
       type Stats = webpack.Stats
 
       /** @deprecated use webpack.Stats.ToJsonOptions */
@@ -2322,18 +2377,5 @@ declare module 'webpack' {
       /** @deprecated use webpack.Compiler.Handler */
       type CompilerCallback = Compiler.Handler
     }
-
-    /** @deprecated use webpack.Options.Performance */
-    type PerformanceOptions = Options.Performance
-    /** @deprecated use webpack.Options.WatchOptions */
-    type WatchOptions = Options.WatchOptions
-    /** @deprecated use webpack.EvalSourceMapDevToolPlugin.Options */
-    type EvalSourceMapDevToolPluginOptions = EvalSourceMapDevToolPlugin.Options
-    /** @deprecated use webpack.SourceMapDevToolPlugin.Options */
-    type SourceMapDevToolPluginOptions = SourceMapDevToolPlugin.Options
-    /** @deprecated use webpack.optimize.UglifyJsPlugin.CommentFilter */
-    type UglifyCommentFunction = optimize.UglifyJsPlugin.CommentFilter
-    /** @deprecated use webpack.optimize.UglifyJsPlugin.Options */
-    type UglifyPluginOptions = optimize.UglifyJsPlugin.Options
   }
 }

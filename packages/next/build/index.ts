@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   getRedirectStatus,
+  normalizeRouteRegex,
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
@@ -74,6 +75,8 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
+import * as Log from './output/log'
+
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -84,7 +87,7 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-  fallback: string | false
+  fallback: string | null | false
   dataRoute: string
   dataRouteRegex: string
 }
@@ -96,7 +99,12 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-export default async function build(dir: string, conf = null): Promise<void> {
+export default async function build(
+  dir: string,
+  conf = null,
+  reactProductionProfiling = false,
+  debugOutput = false
+): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
@@ -121,17 +129,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // Intentionally not piping to stderr in case people fail in CI when
       // stderr is detected.
       console.log(
-        chalk.bold.yellow(`Warning: `) +
-          chalk.bold(
-            `No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
-          )
+        `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
       )
-      console.log('')
     }
   }
 
   const buildSpinner = createSpinner({
-    prefixText: 'Creating an optimized production build',
+    prefixText: `${Log.prefixes.info} Creating an optimized production build`,
   })
 
   const telemetry = new Telemetry({ distDir })
@@ -238,27 +242,32 @@ export default async function build(dir: string, conf = null): Promise<void> {
   })
 
   if (nestedReservedPages.length) {
-    console.warn(
-      '\n' +
-        chalk.bold.yellow(`Warning: `) +
-        chalk.bold(
-          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
-        ) +
+    Log.warn(
+      `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
         nestedReservedPages.join('\n') +
-        chalk.bold(
-          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
-        )
+        `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
     )
   }
 
   const buildCustomRoute = (
     r: {
       source: string
+      basePath?: false
       statusCode?: number
+      destination?: string
     },
     type: RouteType
   ) => {
     const keys: any[] = []
+
+    if (r.basePath !== false) {
+      r.source = `${config.basePath}${r.source}`
+
+      if (r.destination && r.destination.startsWith('/')) {
+        r.destination = `${config.basePath}${r.destination}`
+      }
+    }
+
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
       sensitive: false,
@@ -273,12 +282,31 @@ export default async function build(dir: string, conf = null): Promise<void> {
             permanent: undefined,
           }
         : {}),
-      regex: routeRegex.source,
+      regex: normalizeRouteRegex(routeRegex.source),
     }
   }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-  const routesManifest: any = {
+  const routesManifest: {
+    version: number
+    pages404: boolean
+    basePath: string
+    redirects: Array<ReturnType<typeof buildCustomRoute>>
+    rewrites: Array<ReturnType<typeof buildCustomRoute>>
+    headers: Array<ReturnType<typeof buildCustomRoute>>
+    dynamicRoutes: Array<{
+      page: string
+      regex: string
+      namedRegex?: string
+      routeKeys?: { [key: string]: string }
+    }>
+    dataRoutes: Array<{
+      page: string
+      routeKeys?: { [key: string]: string }
+      dataRouteRegex: string
+      namedDataRouteRegex?: string
+    }>
+  } = {
     version: 3,
     pages404: true,
     basePath: config.basePath,
@@ -291,11 +319,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
         const routeRegex = getRouteRegex(page)
         return {
           page,
-          regex: routeRegex.re.source,
+          regex: normalizeRouteRegex(routeRegex.re.source),
           routeKeys: routeRegex.routeKeys,
           namedRegex: routeRegex.namedRegex,
         }
       }),
+    dataRoutes: [],
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -311,20 +340,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      reactProductionProfiling,
       isServer: false,
       config,
       target,
       pagesDir,
       entrypoints: entrypoints.client,
+      rewrites,
     }),
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      reactProductionProfiling,
       isServer: true,
       config,
       target,
       pagesDir,
       entrypoints: entrypoints.server,
+      rewrites,
     }),
   ])
 
@@ -336,11 +369,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       (clientConfig.optimization.minimizer &&
         clientConfig.optimization.minimizer.length === 0))
   ) {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.bold(
-          `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
-        )
+    Log.warn(
+      `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
     )
   }
 
@@ -371,7 +401,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (buildSpinner) {
     buildSpinner.stopAndPersist()
   }
-  console.log()
 
   result = formatWebpackMessages(result)
 
@@ -417,15 +446,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
 
     if (result.warnings.length > 0) {
-      console.warn(chalk.yellow('Compiled with warnings.\n'))
+      Log.warn('Compiled with warnings\n')
       console.warn(result.warnings.join('\n\n'))
       console.warn()
     } else {
-      console.log(chalk.green('Compiled successfully.\n'))
+      Log.info('Compiled successfully')
     }
   }
-  const postBuildSpinner = createSpinner({
-    prefixText: 'Automatically optimizing pages',
+
+  const postCompileSpinner = createSpinner({
+    prefixText: `${Log.prefixes.info} Collecting page data`,
   })
 
   const manifestPath = path.join(
@@ -436,7 +466,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()
-  const ssgFallbackPages = new Set<string>()
+  const ssgStaticFallbackPages = new Set<string>()
+  const ssgBlockingFallbackPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
@@ -491,7 +522,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let isStatic = false
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
-      let hasSsgFallback: boolean = false
 
       const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
@@ -547,9 +577,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, workerResult.prerenderRoutes)
               ssgPageRoutes = workerResult.prerenderRoutes
             }
-            if (workerResult.prerenderFallback) {
-              hasSsgFallback = true
-              ssgFallbackPages.add(page)
+
+            if (workerResult.prerenderFallback === 'unstable_blocking') {
+              ssgBlockingFallbackPages.add(page)
+            } else if (workerResult.prerenderFallback === true) {
+              ssgStaticFallbackPages.add(page)
             }
           } else if (workerResult.hasServerProps) {
             serverPropsPages.add(page)
@@ -584,7 +616,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         isSsg,
         isHybridAmp,
         ssgPageRoutes,
-        hasSsgFallback,
+        initialRevalidateSeconds: false,
       })
     })
   )
@@ -611,9 +643,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (isDynamicRoute(page)) {
         const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
 
-        dataRouteRegex = routeRegex.re.source.replace(
-          /\(\?:\\\/\)\?\$$/,
-          '\\.json$'
+        dataRouteRegex = normalizeRouteRegex(
+          routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
         )
         namedDataRouteRegex = routeRegex.namedRegex!.replace(
           /\(\?:\/\)\?\$$/,
@@ -621,13 +652,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
         )
         routeKeys = routeRegex.routeKeys
       } else {
-        dataRouteRegex = new RegExp(
-          `^${path.posix.join(
-            '/_next/data',
-            escapeStringRegexp(buildId),
-            `${pagePath}.json`
-          )}$`
-        ).source
+        dataRouteRegex = normalizeRouteRegex(
+          new RegExp(
+            `^${path.posix.join(
+              '/_next/data',
+              escapeStringRegexp(buildId),
+              `${pagePath}.json`
+            )}$`
+          ).source
+        )
       }
 
       return {
@@ -644,6 +677,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       'utf8'
     )
   }
+
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
@@ -666,15 +700,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
+  if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+
   if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
     const exportApp = require('../export').default
     const exportOptions = {
-      silent: true,
+      silent: false,
       buildExport: true,
       threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
+      statusMessage: 'Generating static pages',
     }
     const exportConfig: any = {
       ...config,
@@ -694,7 +731,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
 
-            if (ssgFallbackPages.has(page)) {
+            if (ssgStaticFallbackPages.has(page)) {
               // Override the rendering for the dynamic page to be treated as a
               // fallback render.
               defaultMap[page] = { page, query: { __nextFallback: true } }
@@ -721,10 +758,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
         return defaultMap
       },
-      exportTrailingSlash: false,
+      trailingSlash: false,
     }
 
     await exportApp(dir, exportOptions, exportConfig)
+
+    const postBuildSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Finalizing page optimization`,
+    })
 
     // remove server bundles that were exported
     for (const page of staticPages) {
@@ -786,14 +827,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
-      const isSsgFallback = ssgFallbackPages.has(page)
+      const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
-      let file = normalizePagePath(page)
+      const file = normalizePagePath(page)
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
-      if (!(isSsg && isDynamic && !isSsgFallback)) {
+      if (!(isSsg && isDynamic && !isStaticSsgFallback)) {
         await moveExportedPage(page, page, file, isSsg, 'html')
       }
 
@@ -817,6 +858,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
             srcRoute: null,
             dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
+          // Set Page Revalidation Interval
+          const pageInfo = pageInfos.get(page)
+          if (pageInfo) {
+            pageInfo.initialRevalidateSeconds =
+              exportConfig.initialPageRevalidationMap[page]
+            pageInfos.set(page, pageInfo)
+          }
         } else {
           // For a dynamic SSG page, we did not copy its data exports and only
           // copy the fallback HTML file (if present).
@@ -824,11 +872,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
-            await moveExportedPage(page, route, route, true, 'html')
-            await moveExportedPage(page, route, route, true, 'json')
+            const pageFile = normalizePagePath(route)
+            await moveExportedPage(page, route, pageFile, true, 'html')
+            await moveExportedPage(page, route, pageFile, true, 'json')
 
             if (hasAmp) {
-              const ampPage = `${normalizePagePath(route)}.amp`
+              const ampPage = `${pageFile}.amp`
               await moveExportedPage(page, ampPage, ampPage, true, 'html')
               await moveExportedPage(page, ampPage, ampPage, true, 'json')
             }
@@ -843,6 +892,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
                 `${normalizePagePath(route)}.json`
               ),
             }
+
+            // Set route Revalidation Interval
+            const pageInfo = pageInfos.get(route)
+            if (pageInfo) {
+              pageInfo.initialRevalidateSeconds =
+                exportConfig.initialPageRevalidationMap[route]
+              pageInfos.set(route, pageInfo)
+            }
           }
         }
       }
@@ -856,10 +913,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(pagesManifest, null, 2),
       'utf8'
     )
-  }
 
-  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-  console.log()
+    if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+    console.log()
+  }
 
   const analysisEnd = process.hrtime(analysisBegin)
   telemetry.record(
@@ -887,14 +944,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       finalDynamicRoutes[tbdRoute] = {
-        routeRegex: getRouteRegex(tbdRoute).re.source,
+        routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
         dataRoute,
-        fallback: ssgFallbackPages.has(tbdRoute)
+        fallback: ssgBlockingFallbackPages.has(tbdRoute)
+          ? null
+          : ssgStaticFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
-        dataRouteRegex: getRouteRegex(
-          dataRoute.replace(/\.json$/, '')
-        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+        dataRouteRegex: normalizeRouteRegex(
+          getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
+            /\(\?:\\\/\)\?\$$/,
+            '\\.json$'
+          )
+        ),
       }
     })
     const prerenderManifest: PrerenderManifest = {
@@ -933,7 +995,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     JSON.stringify({
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
-      exportTrailingSlash: config.exportTrailingSlash === true,
+      exportTrailingSlash: config.trailingSlash === true,
     }),
     'utf8'
   )
@@ -963,7 +1025,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isModern: config.experimental.modern,
     }
   )
-  printCustomRoutes({ redirects, rewrites, headers })
+
+  if (debugOutput) {
+    printCustomRoutes({ redirects, rewrites, headers })
+  }
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
@@ -1026,6 +1091,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await telemetry.flush()
 }
 
+export type ClientSsgManifest = Set<string>
+
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -1034,7 +1101,7 @@ function generateClientSsgManifest(
     isModern,
   }: { buildId: string; distDir: string; isModern: boolean }
 ) {
-  const ssgPages: Set<string> = new Set<string>([
+  const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)

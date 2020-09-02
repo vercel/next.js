@@ -1,7 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { format, URLFormatOptions, UrlObject } from 'url'
+import { UrlObject } from 'url'
+import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
@@ -81,7 +82,7 @@ export type BaseContext = {
 }
 
 export type NEXT_DATA = {
-  props: any
+  props: Record<string, any>
   page: string
   query: ParsedUrlQuery
   buildId: string
@@ -102,7 +103,6 @@ export type NEXT_DATA = {
 /**
  * `Next` context
  */
-// tslint:disable-next-line interface-name
 export interface NextPageContext {
   /**
    * Error object if encountered during rendering
@@ -166,17 +166,23 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  docComponentsRendered: {
+    Html?: boolean
+    Main?: boolean
+    Head?: boolean
+    NextScript?: boolean
+  }
   buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
   hybridAmp: boolean
   isDevelopment: boolean
-  files: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
   headTags: any[]
   unstable_runtimeJS?: false
+  devOnlyCacheBusterQueryString: string
 }
 
 /**
@@ -199,6 +205,12 @@ export interface NextApiRequest extends IncomingMessage {
   body: any
 
   env: Env
+
+  preview?: boolean
+  /**
+   * Preview data set on the request, if any
+   * */
+  previewData?: any
 }
 
 /**
@@ -219,6 +231,8 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>
+  redirect(url: string): NextApiResponse<T>
+  redirect(status: number, url: string): NextApiResponse<T>
 
   /**
    * Set preview data for Next.js' prerender mode
@@ -352,10 +366,7 @@ export const urlObjectKeys = [
   'slashes',
 ]
 
-export function formatWithValidation(
-  url: UrlObject,
-  options?: URLFormatOptions
-): string {
+export function formatWithValidation(url: UrlObject): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
@@ -368,7 +379,7 @@ export function formatWithValidation(
     }
   }
 
-  return format(url as URL, options)
+  return formatUrl(url)
 }
 
 export const SP = typeof performance !== 'undefined'
