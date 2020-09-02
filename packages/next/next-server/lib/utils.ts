@@ -363,6 +363,7 @@ export const urlObjectKeys = [
   'protocol',
   'query',
   'search',
+  'searchParams',
   'slashes',
 ]
 

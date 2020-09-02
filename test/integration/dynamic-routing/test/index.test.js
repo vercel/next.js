@@ -84,6 +84,12 @@ function runTests(dev) {
     expect(url).toBe('?fromHome=true')
   })
 
+  it('should not have any console warnings', async () => {
+    const browser = await webdriver(appPort, '/')
+    const caughtWarns = await browser.eval(`window.caughtWarns`)
+    expect(caughtWarns).toEqual([])
+  })
+
   it('should navigate to a dynamic page successfully', async () => {
     let browser
     try {

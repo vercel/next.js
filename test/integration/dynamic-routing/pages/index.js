@@ -1,6 +1,15 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
+if (typeof window !== 'undefined') {
+  window.caughtWarns = []
+  const origWarn = window.console.warn
+  window.console.warn = function (...args) {
+    window.caughtWarns.push(args)
+    origWarn(...args)
+  }
+}
+
 const Page = () => {
   return (
     <div>
