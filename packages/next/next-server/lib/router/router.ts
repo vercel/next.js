@@ -84,7 +84,7 @@ type Url = UrlObject | string
 export function interpolateAs(
   route: string,
   asPathname: string,
-  query: import('querystring').ParsedUrlQuery
+  query: ParsedUrlQuery
 ) {
   let interpolatedRoute = ''
 
