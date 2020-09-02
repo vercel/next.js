@@ -30,7 +30,7 @@ export default {
 
     return new Environment({
       store,
-      network: Network.create(() => relayData?.[0][1]),
+      network: Network.create(() => relayData?.[0][1] || Promise.resolve()),
     })
   },
 }
