@@ -3,6 +3,7 @@
 import webdriver from 'next-webdriver'
 import { join, dirname } from 'path'
 import fs from 'fs-extra'
+import url from 'url'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -117,6 +118,30 @@ function runTests(dev) {
     }
   })
 
+  it('should navigate to a dynamic page successfully interpolated', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#view-post-1-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/post-1')
+
+      await browser.elementByCss('#view-post-1-interpolated').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should allow calling Router.push on mount successfully', async () => {
     const browser = await webdriver(appPort, '/post-1/on-mount-redir')
     try {
@@ -177,6 +202,30 @@ function runTests(dev) {
       browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1-comment-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a nested dynamic page successfully interpolated', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#view-post-1-comment-1-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/post-1/comment-1')
+
+      await browser.elementByCss('#view-post-1-comment-1-interpolated').click()
       await browser.waitForElementByCss('#asdf')
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -381,8 +430,35 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#ssg-catch-all-single').click()
       await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#ssg-catch-all-single-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/p1/p2/all-ssg/hello')
+
+      await browser.elementByCss('#ssg-catch-all-single-interpolated').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#all-ssg-content').text()
       expect(text).toBe('{"rest":["hello"]}')
@@ -414,6 +490,30 @@ function runTests(dev) {
       browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#ssg-catch-all-multi-no-as').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#ssg-catch-all-multi-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/p1/p2/all-ssg/hello1/hello2')
+
+      await browser.elementByCss('#ssg-catch-all-multi-interpolated').click()
       await browser.waitForElementByCss('#all-ssg-content')
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
