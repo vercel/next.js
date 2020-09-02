@@ -1,8 +1,7 @@
 import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
-import mitt from '../next-server/lib/mitt'
-import type { MittEmitter } from '../next-server/lib/mitt'
+import mitt, { Emitter } from '../next-server/lib/mitt'
 import { addBasePath, markLoadingError } from '../next-server/lib/router/router'
 import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
@@ -115,7 +114,7 @@ export default class PageLoader {
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
-  private pageRegisterEvents: MittEmitter
+  private pageRegisterEvents: Emitter<any, any>
   private loadingRoutes: Record<string, boolean>
   private promisedBuildManifest?: Promise<ClientBuildManifest>
   private promisedSsgManifest?: Promise<ClientSsgManifest>
@@ -128,7 +127,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.pageRegisterEvents = mitt()
+    this.pageRegisterEvents = mitt<any, any>()
     this.loadingRoutes = {
       // By default these 2 pages are being loaded in the initial html
       '/_app': true,
