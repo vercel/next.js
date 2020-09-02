@@ -37,7 +37,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     await check(() => browser.elementByCss('#change').text(), 'change me')
   })
 
-  it('should reload page when getStaticProps is changed only', async () => {
+  it('should update page when getStaticProps is changed only', async () => {
     const browser = await webdriver(appPort, '/gsp-blog/first')
     await browser.eval(() => (window.beforeChange = 'hi'))
 
@@ -52,7 +52,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
         JSON.parse(await browser.elementByCss('#props').text()).count + '',
       '2'
     )
-    expect(await browser.eval(() => window.beforeChange)).toBe(null)
+    expect(await browser.eval(() => window.beforeChange)).toBe('hi')
     page.restore()
 
     await check(
@@ -62,7 +62,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     )
   })
 
-  it('should reload page when getStaticPaths is changed only', async () => {
+  it('should update page when getStaticPaths is changed only', async () => {
     const browser = await webdriver(appPort, '/gsp-blog/first')
     await browser.eval(() => (window.beforeChange = 'hi'))
 
@@ -72,13 +72,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     const page = new File(join(appDir, 'pages/gsp-blog/[post].js'))
     page.replace('paths = 1', 'paths = 2')
 
-    await check(
-      async () =>
-        (await browser.eval(() => window.beforeChange)) === null
-          ? 'pass'
-          : 'fail',
-      'pass'
-    )
+    expect(await browser.eval('window.beforeChange')).toBe('hi')
     page.restore()
   })
 
@@ -102,7 +96,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     await check(() => browser.elementByCss('#change').text(), 'change me')
   })
 
-  it('should reload page when getServerSideProps is changed only', async () => {
+  it('should update page when getServerSideProps is changed only', async () => {
     const browser = await webdriver(appPort, '/gssp-blog/first')
     await browser.eval(() => (window.beforeChange = 'hi'))
 
@@ -117,7 +111,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
         JSON.parse(await browser.elementByCss('#props').text()).count + '',
       '2'
     )
-    expect(await browser.eval(() => window.beforeChange)).toBe(null)
+    expect(await browser.eval(() => window.beforeChange)).toBe('hi')
     page.restore()
 
     await check(

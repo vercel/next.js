@@ -7,6 +7,7 @@ import initializeBuildWatcher from './dev/dev-build-watcher'
 import initializePrerenderIndicator from './dev/prerender-indicator'
 import { displayContent } from './dev/fouc'
 import { getEventSourceWrapper } from './dev/error-overlay/eventsource'
+import * as querystring from '../next-server/lib/router/utils/querystring'
 
 // Temporary workaround for the issue described here:
 // https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
@@ -44,10 +45,22 @@ initNext({ webpackHMR })
           })
       } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
         const { pages } = JSON.parse(event.data)
+        const router = window.next.router
 
-        if (pages.includes(window.next.router.pathname)) {
-          console.log('Reloading page due to server-side page change')
-          window.location.reload()
+        if (pages.includes(router.pathname)) {
+          console.log('Refreshing page data due to server-side change')
+
+          router.replace(
+            router.pathname +
+              '?' +
+              String(
+                querystring.assign(
+                  querystring.urlQueryToSearchParams(router.query),
+                  new URLSearchParams(location.search)
+                )
+              ),
+            router.asPath
+          )
         }
       }
     }
