@@ -7579,10 +7579,10 @@ finalhandler@~1.1.2:
     statuses "~1.5.0"
     unpipe "~1.0.0"
 
-finally-polyfill@0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/finally-polyfill/-/finally-polyfill-0.2.0.tgz#1b34c6e555a6c1603d2ae046e2e176d08687bfdb"
-  integrity sha512-3w46w5Vo4TRtk5jrLT3c8ITGxnPJhMAg3Ogbj4nmgL6thNep9+UgBgk+IRVmRpZDbwNkR7tyGsE3S3J4Qt2zVw==
+finally-polyfill@0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/finally-polyfill/-/finally-polyfill-0.1.0.tgz#2a17b16581d9477db16a703c7b79a898ac0b7d50"
+  integrity sha512-J1LEcZ5VXe1l3sEO+S//WqL5wcJ/ep7QeKJA6HhNZrcEEFj0eyC8IW3DEZhxySI2bx3r85dwAXz+vYPGuHx5UA==
 
 find-cache-dir@3.3.1, find-cache-dir@^3.0.0, find-cache-dir@^3.3.1:
   version "3.3.1"
