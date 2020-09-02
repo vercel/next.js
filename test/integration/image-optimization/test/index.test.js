@@ -53,6 +53,12 @@ function checkImagesOnPage(path) {
       '<link rel="preload" href="hidden-image-2.jpg" as="image"/>'
     )
   })
+  it('should not preload SVG images', async () => {
+    const html = await renderViaHTTP(appPort, path)
+    expect(html).not.toContain(
+      '<link rel="preload" href="vector-image.svg" as="image"/>'
+    )
+  })
   it('should preload exactly two eligible images', async () => {
     const html = await renderViaHTTP(appPort, path)
     expect(html).toContain(

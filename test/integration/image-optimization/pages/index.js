@@ -6,6 +6,7 @@ const Page = () => {
       <link rel="preload" href="already-preloaded.jpg" />
       <img src="already-preloaded.jpg" />
       <img src="tiny-image.jpg" width="20" height="20" />
+      <img src="vector-image.svg" />
       <img src="hidden-image-1.jpg" hidden />
       <div hidden>
         <img src="hidden-image-2.jpg" />
