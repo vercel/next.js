@@ -247,7 +247,7 @@ function imageIsNotHidden(imgElement: HTMLElement): boolean {
 
 // Currently only filters out svg images--could be made more specific in the future.
 function sourceIsSupportedType(imgSrc: string): boolean {
-  return !imgSrc.match(/\.svg/)
+  return !imgSrc.includes('.svg')
 }
 
 // Initialization
