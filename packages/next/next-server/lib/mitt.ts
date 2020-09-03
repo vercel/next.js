@@ -49,13 +49,12 @@ export default function mitt<
 
   return {
     on(type, handler) {
-      if (all[type]) {
-        ;(all[type] || (all[type] = [])).push(handler)
-      }
+      ;(all[type] || (all[type] = [])).push(handler)
     },
     off(type, handler) {
-      // tslint:disable-next-line:no-bitwise
-      all[type]?.splice((all[type] || []).indexOf(handler) >>> 0, 1)
+      if (all[type]) {
+        all[type]?.splice((all[type] || []).indexOf(handler) >>> 0, 1)
+      }
     },
     emit(type, ...evts) {
       // eslint-disable-next-line array-callback-return

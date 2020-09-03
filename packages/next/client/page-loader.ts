@@ -7,7 +7,7 @@ import {
   markLoadingError,
   interpolateAs,
 } from '../next-server/lib/router/router'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
