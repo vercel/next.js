@@ -1,4 +1,4 @@
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { ServerStyleSheet } from 'styled-components'
 
 export default class MyDocument extends Document {
@@ -8,13 +8,13 @@ export default class MyDocument extends Document {
     const styleTags = sheet.getStyleElement()
 
     return (
-      <html>
+      <Html>
         <Head>{styleTags}</Head>
         <body>
           <div className="root">{main}</div>
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }

@@ -1,5 +1,5 @@
 import { Children } from 'react'
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { AppRegistry } from 'react-native'
 import config from '../app.json'
 // Force Next-generated DOM elements to fill their parent's height
@@ -25,13 +25,13 @@ export default class MyDocument extends Document {
 
   render() {
     return (
-      <html style={{ height: '100%' }}>
+      <Html style={{ height: '100%' }}>
         <Head />
         <body style={{ height: '100%', overflow: 'hidden' }}>
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }
