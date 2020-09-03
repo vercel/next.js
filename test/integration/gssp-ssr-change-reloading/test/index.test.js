@@ -10,6 +10,19 @@ const appDir = join(__dirname, '..')
 let appPort
 let app
 
+const installCheckVisible = (browser) => {
+  return browser.eval(`(function() {
+    window.checkInterval = setInterval(function() {
+      let watcherDiv = document.querySelector('#__next-build-watcher')
+      watcherDiv = watcherDiv.shadowRoot || watcherDiv
+      window.showedBuilder = window.showedBuilder || (
+        watcherDiv.querySelector('div').className.indexOf('visible') > -1
+      )
+      if (window.showedBuilder) clearInterval(window.checkInterval)
+    }, 50)
+  })()`)
+}
+
 describe('GS(S)P Server-Side Change Reloading', () => {
   beforeAll(async () => {
     appPort = await findPort()
@@ -53,6 +66,33 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       '2'
     )
     expect(await browser.eval(() => window.beforeChange)).toBe('hi')
+    page.restore()
+
+    await check(
+      async () =>
+        JSON.parse(await browser.elementByCss('#props').text()).count + '',
+      '1'
+    )
+  })
+
+  it('should show indicator when re-fetching data', async () => {
+    const browser = await webdriver(appPort, '/gsp-blog/second')
+    await installCheckVisible(browser)
+    await browser.eval(() => (window.beforeChange = 'hi'))
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.count).toBe(1)
+
+    const page = new File(join(appDir, 'pages/gsp-blog/[post].js'))
+    page.replace('count = 1', 'count = 2')
+
+    await check(
+      async () =>
+        JSON.parse(await browser.elementByCss('#props').text()).count + '',
+      '2'
+    )
+    expect(await browser.eval(() => window.beforeChange)).toBe('hi')
+    expect(await browser.eval(() => window.showedBuilder)).toBe(true)
     page.restore()
 
     await check(

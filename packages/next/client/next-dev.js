@@ -33,6 +33,8 @@ initNext({ webpackHMR })
   .then(({ renderCtx, render }) => {
     initOnDemandEntries({ assetPrefix: prefix })
 
+    let buildIndicatorHandler = () => {}
+
     function devPagesManifestListener(event) {
       if (event.data.indexOf('devPagesManifest') !== -1) {
         fetch(`${prefix}/_next/static/development/_devPagesManifest.json`)
@@ -50,24 +52,34 @@ initNext({ webpackHMR })
         if (pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
 
-          router.replace(
-            router.pathname +
-              '?' +
-              String(
-                querystring.assign(
-                  querystring.urlQueryToSearchParams(router.query),
-                  new URLSearchParams(location.search)
-                )
-              ),
-            router.asPath
-          )
+          buildIndicatorHandler('building')
+
+          const clearIndicator = () => buildIndicatorHandler('built')
+
+          router
+            .replace(
+              router.pathname +
+                '?' +
+                String(
+                  querystring.assign(
+                    querystring.urlQueryToSearchParams(router.query),
+                    new URLSearchParams(location.search)
+                  )
+                ),
+              router.asPath
+            )
+            .finally(clearIndicator)
         }
       }
     }
     devPagesManifestListener.unfiltered = true
     getEventSourceWrapper({}).addMessageListener(devPagesManifestListener)
 
-    if (process.env.__NEXT_BUILD_INDICATOR) initializeBuildWatcher()
+    if (process.env.__NEXT_BUILD_INDICATOR) {
+      initializeBuildWatcher((handler) => {
+        buildIndicatorHandler = handler
+      })
+    }
     if (
       process.env.__NEXT_PRERENDER_INDICATOR &&
       // disable by default in electron
