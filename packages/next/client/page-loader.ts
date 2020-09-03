@@ -12,7 +12,6 @@ import {
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import { searchParamsToUrlQuery } from '../next-server/lib/router/utils/querystring'
 
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
@@ -204,10 +203,7 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   getDataHref(href: string, asPath: string, ssg: boolean) {
-    const { pathname: hrefPathname, searchParams, search } = parseRelativeUrl(
-      href
-    )
-    const query = searchParamsToUrlQuery(searchParams)
+    const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 

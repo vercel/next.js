@@ -35,7 +35,7 @@ export default function prepareDestination(
 
     parsedDestination = {
       pathname,
-      searchParams,
+      query: searchParamsToUrlQuery(searchParams),
       hash,
       protocol,
       hostname,
@@ -45,9 +45,6 @@ export default function prepareDestination(
     }
   }
 
-  parsedDestination.query = searchParamsToUrlQuery(
-    parsedDestination.searchParams
-  )
   const destQuery = parsedDestination.query
   const destPath = `${parsedDestination.pathname!}${
     parsedDestination.hash || ''
@@ -108,7 +105,6 @@ export default function prepareDestination(
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     delete parsedDestination.search
-    delete parsedDestination.searchParams
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
