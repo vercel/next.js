@@ -1,4 +1,4 @@
-export const StitchesLogo = () => (
+const StitchesLogo = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="35"
@@ -46,3 +46,5 @@ export const StitchesLogo = () => (
     />
   </svg>
 )
+
+export default StitchesLogo
