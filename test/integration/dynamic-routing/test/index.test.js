@@ -84,6 +84,31 @@ function runTests(dev) {
     expect(url).toBe('?fromHome=true')
   })
 
+  if (dev) {
+    it('should not have any console warnings on initial load', async () => {
+      const browser = await webdriver(appPort, '/')
+      expect(await browser.eval('window.caughtWarns')).toEqual([])
+    })
+
+    it('should not have any console warnings when navigating to dynamic route', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+        await browser.eval('window.beforeNav = 1')
+        await browser.elementByCss('#dynamic-route-no-as').click()
+        await browser.waitForElementByCss('#asdf')
+
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+
+        const text = await browser.elementByCss('#asdf').text()
+        expect(text).toMatch(/this is.*?dynamic-1/i)
+        expect(await browser.eval('window.caughtWarns')).toEqual([])
+      } finally {
+        if (browser) await browser.close()
+      }
+    })
+  }
+
   it('should navigate to a dynamic page successfully', async () => {
     let browser
     try {
@@ -891,6 +916,14 @@ function runTests(dev) {
             regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
             routeKeys: {
               helloworld: 'hello-world',
+            },
+          },
+          {
+            namedRegex: '^/d/(?<id>[^/]+?)(?:/)?$',
+            page: '/d/[id]',
+            regex: normalizeRegEx('^\\/d\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              id: 'id',
             },
           },
           {

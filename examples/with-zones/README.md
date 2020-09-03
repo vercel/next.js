@@ -1,6 +1,6 @@
 # Using multiple zones
 
-With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs/advanced-features/multi-zones). This is an example showing how to use it.
+With Next.js you can use multiple apps as a single app using its [multi-zones feature](https://nextjs.org/docs/advanced-features/multi-zones). This is an example showing how to use it.
 
 - All pages should be unique across zones. For example, the `home` app should not have a `pages/blog/index.js` page.
 - The `blog` app sets [`assetPrefix`](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix) so that generated JS bundles are within the `/blog` subfolder.
@@ -21,6 +21,14 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-zones with-zones-app
 # or
 yarn create next-app --example with-zones with-zones-app
+```
+
+Install the dependencies of every app (`/home` and `/blog`):
+
+```bash
+npm install
+# or
+yarn
 ```
 
 Install the [Vercel CLI](https://vercel.com/download) if you don't have it already, and then run [`vercel dev`](https://vercel.com/docs/cli?query=dev#commands/dev) in the main directory to start the development server:
