@@ -90,20 +90,6 @@ const createProgress = (total: number, label = 'Exporting') => {
     curProgress++
     currentSegmentCount++
 
-    const logText = () => {
-      const newText = `${label} (${curProgress}/${total})`
-      if (progressSpinner) {
-        progressSpinner.text = newText
-      } else {
-        console.log(newText)
-      }
-
-      if (curProgress === total && progressSpinner) {
-        progressSpinner.stop()
-        console.log(newText)
-      }
-    }
-
     // Make sure we only log once per fully generated segment
     if (currentSegmentCount !== currentSegmentTotal) {
       return
@@ -112,7 +98,17 @@ const createProgress = (total: number, label = 'Exporting') => {
     currentSegmentTotal = segments.shift()
     currentSegmentCount = 0
 
-    logText()
+    const newText = `${label} (${curProgress}/${total})`
+    if (progressSpinner) {
+      progressSpinner.text = newText
+    } else {
+      console.log(newText)
+    }
+
+    if (curProgress === total && progressSpinner) {
+      progressSpinner.stop()
+      console.log(newText)
+    }
   }
 }
 
