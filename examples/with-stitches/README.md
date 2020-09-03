@@ -1,6 +1,6 @@
 # Stitches Example
 
-This example shows how to use the [Stitches CSS-in-JS Library](https://github.com/christianalfoni/stitches).
+This example shows how to use the [Stitches CSS-in-JS Library](https://github.com/modulz/stitches).
 
 ## Deploy your own
 
