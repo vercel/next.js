@@ -46,7 +46,22 @@ import { getPagePath } from '../next-server/server/require'
 
 const exists = promisify(existsOrig)
 
+function divideSegments(number: number, segments: number): number[] {
+  const result = []
+  while (number > 0 && segments > 0) {
+    const dividedNumber = Math.floor(number / segments)
+    number -= dividedNumber
+    segments--
+    result.push(dividedNumber)
+  }
+  return result
+}
+
 const createProgress = (total: number, label = 'Exporting') => {
+  const segments = divideSegments(total, 4)
+
+  let currentSegmentTotal = segments.shift()
+  let currentSegmentCount = 0
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -73,18 +88,31 @@ const createProgress = (total: number, label = 'Exporting') => {
 
   return () => {
     curProgress++
+    currentSegmentCount++
 
-    const newText = `${label} (${curProgress}/${total})`
-    if (progressSpinner) {
-      progressSpinner.text = newText
-    } else {
-      console.log(newText)
+    const logText = () => {
+      const newText = `${label} (${curProgress}/${total})`
+      if (progressSpinner) {
+        progressSpinner.text = newText
+      } else {
+        console.log(newText)
+      }
+
+      if (curProgress === total && progressSpinner) {
+        progressSpinner.stop()
+        console.log(newText)
+      }
     }
 
-    if (curProgress === total && progressSpinner) {
-      progressSpinner.stop()
-      console.log(newText)
+    // Make sure we only log once per fully generated segment
+    if (currentSegmentCount !== currentSegmentTotal) {
+      return
     }
+
+    currentSegmentTotal = segments.shift()
+    currentSegmentCount = 0
+
+    logText()
   }
 }
 
