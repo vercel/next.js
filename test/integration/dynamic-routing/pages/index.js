@@ -10,7 +10,16 @@ const Page = () => {
       </Link>
       <br />
       <Link href="/post-1">
-        <a id="view-post-1-no-as">View post 1</a>
+        <a id="view-post-1-no-as">View post 1 (no as)</a>
+      </Link>
+      <br />
+      <Link
+        href={{
+          pathname: '/[name]',
+          query: { name: 'post-1' },
+        }}
+      >
+        <a id="view-post-1-interpolated">View post 1 (interpolated)</a>
       </Link>
       <br />
       <Link href="/[name]/comments" as="/post-1/comments">
@@ -22,7 +31,18 @@ const Page = () => {
       </Link>
       <br />
       <Link href="/post-1/comment-1">
-        <a id="view-post-1-comment-1-no-as">View comment 1 on post 1</a>
+        <a id="view-post-1-comment-1-no-as">View comment 1 on post 1 (no as)</a>
+      </Link>
+      <br />
+      <Link
+        href={{
+          pathname: '/[name]/[comment]',
+          query: { name: 'post-1', comment: 'comment-1' },
+        }}
+      >
+        <a id="view-post-1-comment-1-interpolated">
+          View comment 1 on post 1 (interpolated)
+        </a>
       </Link>
       <br />
       <Link href="/added-later/first">
@@ -40,42 +60,74 @@ const Page = () => {
       <Link href="/on-mount/[post]" as="/on-mount/test-w-hash#item-400">
         <a id="view-dynamic-with-hash">View test with hash</a>
       </Link>
+      <br />
       <Link href="/p1/p2/all-ssr/[...rest]" as="/p1/p2/all-ssr/hello">
         <a id="catch-all-single">Catch-all route (single)</a>
       </Link>
+      <br />
       <Link href="/p1/p2/all-ssr/[...rest]" as="/p1/p2/all-ssr/hello1/hello2">
         <a id="catch-all-multi">Catch-all route (multi)</a>
       </Link>
+      <br />
       <Link
         href="/p1/p2/all-ssr/[...rest]"
         as="/p1/p2/all-ssr/hello1%2F/he%2Fllo2"
       >
         <a id="catch-all-enc">Catch-all route (encoded)</a>
       </Link>
+      <br />
       <Link href="/p1/p2/all-ssr/[...rest]" as="/p1/p2/all-ssr/:42">
         <a id="catch-all-colonnumber">Catch-all route :42</a>
       </Link>
+      <br />
       <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello">
         <a id="ssg-catch-all-single">Catch-all route (single)</a>
       </Link>
+      <br />
+      <Link
+        href={{
+          pathname: '/p1/p2/all-ssg/[...rest]',
+          query: { rest: ['hello'] },
+        }}
+      >
+        <a id="ssg-catch-all-single-interpolated">
+          Catch-all route (single interpolated)
+        </a>
+      </Link>
+      <br />
       <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello1/hello2">
         <a id="ssg-catch-all-multi">Catch-all route (multi)</a>
       </Link>
+      <br />
       <Link href="/p1/p2/all-ssg/hello1/hello2">
         <a id="ssg-catch-all-multi-no-as">Catch-all route (multi)</a>
       </Link>
+      <br />
+      <Link
+        href={{
+          pathname: '/p1/p2/all-ssg/[...rest]',
+          query: { rest: ['hello1', 'hello2'] },
+        }}
+      >
+        <a id="ssg-catch-all-multi-interpolated">
+          Catch-all route (multi interpolated)
+        </a>
+      </Link>
+      <br />
       <Link
         href="/p1/p2/nested-all-ssg/[...rest]"
         as="/p1/p2/nested-all-ssg/hello"
       >
         <a id="nested-ssg-catch-all-single">Nested Catch-all route (single)</a>
       </Link>
+      <br />
       <Link
         href="/p1/p2/nested-all-ssg/[...rest]"
         as="/p1/p2/nested-all-ssg/hello1/hello2"
       >
         <a id="nested-ssg-catch-all-multi">Nested Catch-all route (multi)</a>
       </Link>
+      <br />
       <p id="query">{JSON.stringify(Object.keys(useRouter().query))}</p>
     </div>
   )
