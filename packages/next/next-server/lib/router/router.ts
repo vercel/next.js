@@ -3,7 +3,7 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
-import mitt from '../mitt'
+import mitt, { Emitter } from '../mitt'
 import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
@@ -318,7 +318,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events = mitt<RouterEventMap, RouterHandlersMap>()
+  events: Emitter<RouterEventMap, RouterHandlersMap>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -378,6 +378,10 @@ export default class Router implements BaseRouter {
         /* /_app does not need its stylesheets managed */
       ],
     }
+
+    // Backwards compat for Router.router.events
+    // TODO: Should be remove the following major version as it was never documented
+    this.events = Router.events
 
     this.pageLoader = pageLoader
     this.pathname = pathname
