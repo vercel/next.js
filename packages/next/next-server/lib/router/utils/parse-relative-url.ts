@@ -30,7 +30,6 @@ export function parseRelativeUrl(url: string, base?: string) {
   }
   return {
     pathname,
-    searchParams,
     query: searchParamsToUrlQuery(searchParams),
     search,
     hash,
