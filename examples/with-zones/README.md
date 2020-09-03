@@ -23,6 +23,14 @@ npx create-next-app --example with-zones with-zones-app
 yarn create next-app --example with-zones with-zones-app
 ```
 
+Install the dependencies of every app (`/home` and `/blog`):
+
+```bash
+npm install
+# or
+yarn
+```
+
 Install the [Vercel CLI](https://vercel.com/download) if you don't have it already, and then run [`vercel dev`](https://vercel.com/docs/cli?query=dev#commands/dev) in the main directory to start the development server:
 
 ```bash

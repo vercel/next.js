@@ -12,4 +12,9 @@ npx create-next-app --example with-algolia-react-instantsearch with-algolia-reac
 yarn create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 ```
 
+To set up Algolia:
+
+- create an [algolia](https://www.algolia.com/) account or use this already [configured index](https://community.algolia.com/react-instantsearch/Getting_started.html#before-we-start)
+- update the `appId`, `apikey` and `indexName` you want to search on in [`components/instantsearch.js`](components/instantsearch.js)
+
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

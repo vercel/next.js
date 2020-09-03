@@ -8,7 +8,7 @@ const useClient = () => {
 
   React.useEffect(() => {
     if (!stompClient) {
-      stompClient = Stomp.client(process.env.STOMP_SERVER)
+      stompClient = Stomp.client(process.env.NEXT_PUBLIC_STOMP_SERVER)
     }
     if (!client) {
       setClient(stompClient)
