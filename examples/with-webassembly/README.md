@@ -12,4 +12,14 @@ npx create-next-app --example with-webassembly with-webassembly-app
 yarn create next-app --example with-webassembly with-webassembly-app
 ```
 
+This example uses Rust compiled to wasm, the wasm file is included in the example, but to compile your own Rust code you'll have to [install](https://www.rust-lang.org/learn/get-started) Rust.
+
+To compile `src/add.rs` to `add.wasm` run:
+
+```bash
+npm run build-rust
+# or
+yarn build-rust
+```
+
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
