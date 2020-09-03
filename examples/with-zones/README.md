@@ -1,6 +1,6 @@
 # Using multiple zones
 
-With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs/advanced-features/multi-zones). This is an example showing how to use it.
+With Next.js you can use multiple apps as a single app using its [multi-zones feature](https://nextjs.org/docs/advanced-features/multi-zones). This is an example showing how to use it.
 
 - All pages should be unique across zones. For example, the `home` app should not have a `pages/blog/index.js` page.
 - The `blog` app sets [`assetPrefix`](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix) so that generated JS bundles are within the `/blog` subfolder.
