@@ -608,7 +608,7 @@ export async function renderToHTML(
           ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
-            : undefined),
+            : { preview: false }),
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
