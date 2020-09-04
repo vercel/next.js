@@ -12,5 +12,5 @@
     "react-dom": "^16.7.0",
     "next-page-transitions": "1.0.0-beta.2"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

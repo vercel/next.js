@@ -80,7 +80,7 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 
 export type GetStaticPropsResult<P> = {
   props: P
-  unstable_revalidate?: number | boolean
+  revalidate?: number | boolean
 }
 
 export type GetStaticProps<
@@ -96,12 +96,14 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
+export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
+  paths: Array<string | { params: P }>
+  fallback: boolean | 'unstable_blocking'
+}
+
 export type GetStaticPaths<
   P extends ParsedUrlQuery = ParsedUrlQuery
-> = () => Promise<{
-  paths: Array<string | { params: P }>
-  fallback: boolean
-}>
+> = () => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery

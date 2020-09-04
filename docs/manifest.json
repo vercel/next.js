@@ -176,6 +176,10 @@
             {
               "title": "Debugging",
               "path": "/docs/advanced-features/debugging.md"
+            },
+            {
+              "title": "Codemods",
+              "path": "/docs/advanced-features/codemods.md"
             }
           ]
         },
@@ -191,6 +195,10 @@
       "heading": true,
       "routes": [
         { "title": "CLI", "path": "/docs/api-reference/cli.md" },
+        {
+          "title": "Create Next App",
+          "path": "/docs/api-reference/create-next-app.md"
+        },
         {
           "title": "next/router",
           "path": "/docs/api-reference/next/router.md"
@@ -226,6 +234,22 @@
             {
               "title": "Environment Variables",
               "path": "/docs/api-reference/next.config.js/environment-variables.md"
+            },
+            {
+              "title": "Base Path",
+              "path": "/docs/api-reference/next.config.js/basepath.md"
+            },
+            {
+              "title": "Rewrites",
+              "path": "/docs/api-reference/next.config.js/rewrites.md"
+            },
+            {
+              "title": "Redirects",
+              "path": "/docs/api-reference/next.config.js/redirects.md"
+            },
+            {
+              "title": "Custom Headers",
+              "path": "/docs/api-reference/next.config.js/headers.md"
             },
             {
               "title": "Custom Page Extensions",

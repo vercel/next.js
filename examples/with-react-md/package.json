@@ -1,6 +1,8 @@
 {
   "name": "with-react-md",
   "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,11 +10,11 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-addons-css-transition-group": "^16.0.0",
-    "react-addons-transition-group": "^16.0.0",
-    "react-dom": "^16.7.0",
-    "react-md": "^1.0.1"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-md": "^2.1.1"
   },
-  "license": "ISC"
+  "devDependencies": {
+    "node-sass": "^4.14.1"
+  }
 }

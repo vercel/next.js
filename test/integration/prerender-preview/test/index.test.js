@@ -182,6 +182,27 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
 
+  it('should pass undefined to API routes when not in preview', async () => {
+    const res = await fetchViaHTTP(appPort, `/api/read`)
+    const json = await res.json()
+
+    expect(json).toMatchObject({})
+  })
+  it('should pass the preview data to API routes', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/read',
+      {},
+      { headers: { Cookie: previewCookieString } }
+    )
+    const json = await res.json()
+
+    expect(json).toMatchObject({
+      preview: true,
+      previewData: { lets: 'goooo' },
+    })
+  })
+
   afterAll(async () => {
     await killApp(app)
   })
