@@ -28,6 +28,13 @@ module.exports = {
         destination: '/',
         permanent: true,
       },
+      // Redirect from well-known password change URL
+      // https://wicg.github.io/change-password-url/
+      {
+        source: '/.well-known/change-password',
+        destination: '/account/change-password',
+        permanent: true,
+      },
     ]
   },
 }
