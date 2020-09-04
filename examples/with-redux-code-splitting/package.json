@@ -18,5 +18,5 @@
     "redux-thunk": "~2.2.0"
   },
   "author": "Dmytro V. Dogadailo (https://dogada.org)",
-  "license": "ISC"
+  "license": "MIT"
 }

@@ -13,5 +13,5 @@
     "react-dom": "^16.7.0",
     "styled-jsx-plugin-sass": "0.2.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

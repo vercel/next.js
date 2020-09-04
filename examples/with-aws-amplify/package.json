@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "aws-amplify": "2.1.0",
     "immer": "3.1.3",

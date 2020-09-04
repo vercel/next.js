@@ -1,6 +1,6 @@
 import webpack, { compilation as CompilationType, Compiler } from 'webpack'
 import { namedTypes } from 'ast-types'
-import { RawSource } from 'webpack-sources'
+import sources from 'webpack-sources'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
@@ -10,6 +10,9 @@ import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
 import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
+
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 

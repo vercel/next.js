@@ -11,5 +11,6 @@
     "next": "^9.1.8-canary.11",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  }
+  },
+  "license": "MIT"
 }
