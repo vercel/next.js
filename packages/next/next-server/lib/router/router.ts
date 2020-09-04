@@ -597,7 +597,7 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        as,
+        parseRelativeUrl(as).pathname,
         pages,
         basePath,
         rewrites,
