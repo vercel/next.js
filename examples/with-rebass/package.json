@@ -6,10 +6,16 @@
   },
   "dependencies": {
     "babel-plugin-styled-components": "^1.1.7",
+    "babel-plugin-transform-object-assign": "^6.22.0",
+    "babel-plugin-transform-object-set-prototype-of-to-assign": "^6.22.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "rebass": "1.0.0-1",
     "styled-components": "^2.1.1"
-  }
+  },
+  "plugins": [
+    "transform-object-assign",
+    "transform-object-set-prototype-of-to-assign"
+  ]
 }
