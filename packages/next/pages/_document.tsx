@@ -61,7 +61,7 @@ function getDocumentFiles(
   return {
     sharedFiles,
     pageFiles,
-    allFiles: [...new Set([...sharedFiles, ...pageFiles])],
+    allFiles: Array.from(new Set([...sharedFiles, ...pageFiles])),
   }
 }
 
