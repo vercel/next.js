@@ -9,7 +9,7 @@
   "dependencies": {
     "@types/react": "^16.9.48",
     "babel-plugin-macros": "^2.8.0",
-    "cssed": "^1.1.0",
+    "cssed": "^1.1.2",
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
