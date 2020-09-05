@@ -203,6 +203,18 @@ You can pass an object to `setPreviewData` and have it be available in `getStati
 
 The preview mode works on `getServerSideProps` as well. It will also be available on the `context` object containing `preview` and `previewData`.
 
+### Works with API Routes
+
+API Routes will have access to `preview` and `previewData` under the request object. For example:
+
+```js
+export default function myApiRoute(req, res) {
+  const isPreview = req.preview
+  const previewData = req.previewData
+  // ...
+}
+```
+
 ### Unique per `next build`
 
 Both the bypass cookie value and the private key for encrypting the `previewData` change when `next build` is completed.

@@ -37,6 +37,8 @@ Install `next`, `react` and `react-dom` in your project:
 
 ```bash
 npm install next react react-dom
+# or
+yarn add next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
@@ -71,7 +73,7 @@ function HomePage() {
 export default HomePage
 ```
 
-To start developing your application run `npm run dev`. This starts the development server on `http://localhost:3000`.
+To start developing your application run `npm run dev` or `yarn dev`. This starts the development server on `http://localhost:3000`.
 
 Visit `http://localhost:3000` to view your application.
 
