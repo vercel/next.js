@@ -1,4 +1,5 @@
 {
+  "name": "with-next-sass",
   "scripts": {
     "dev": "next",
     "build": "next build",

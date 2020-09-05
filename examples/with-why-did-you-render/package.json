@@ -1,5 +1,5 @@
 {
-  "name": "why-did-you-render",
+  "name": "with-why-did-you-render",
   "scripts": {
     "dev": "next",
     "build": "next build",

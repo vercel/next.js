@@ -1,4 +1,5 @@
 {
+  "name": "with-absolute-imports",
   "scripts": {
     "dev": "next",
     "build": "next build",

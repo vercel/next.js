@@ -1,4 +1,5 @@
 {
+  "name": "with-next-less",
   "scripts": {
     "dev": "next",
     "build": "next build",

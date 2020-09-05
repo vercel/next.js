@@ -1,5 +1,5 @@
 {
-  "name": "with-relay-modern",
+  "name": "with-reason-relay",
   "version": "3.0.4",
   "description": "Example of Next.js with Relay Modern SSR",
   "scripts": {

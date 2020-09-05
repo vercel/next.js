@@ -1,5 +1,5 @@
 {
-  "name": "electron-next-skeleton",
+  "name": "with-electron-typescript",
   "productName": "ElectronTypescriptNext",
   "version": "1.0.0",
   "main": "main/index.js",

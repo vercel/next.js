@@ -1,4 +1,5 @@
 {
+  "name": "with-portals-ssr",
   "scripts": {
     "dev": "next",
     "build": "next build",
