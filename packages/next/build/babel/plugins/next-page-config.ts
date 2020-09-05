@@ -82,20 +82,47 @@ export default function nextPageConfig({
                   exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
                 ].filter(Boolean)
 
-                for (const declaration of declarations) {
-                  if (
-                    !BabelTypes.isIdentifier(declaration.id, {
-                      name: CONFIG_KEY,
-                    })
-                  ) {
-                    if (BabelTypes.isImportSpecifier(declaration)) {
+                for (const specifier of exportPath.node.specifiers) {
+                  if (specifier.exported.name === CONFIG_KEY) {
+                    // export {} from 'somewhere'
+                    if (BabelTypes.isStringLiteral(exportPath.node.source)) {
                       throw new Error(
                         errorMessage(
                           exportState,
                           `Expected object but got import`
                         )
                       )
+                      // import hello from 'world'
+                      // export { hello as config }
+                    } else if (
+                      BabelTypes.isIdentifier(
+                        (specifier as BabelTypes.ExportSpecifier).local
+                      )
+                    ) {
+                      if (
+                        BabelTypes.isImportSpecifier(
+                          exportPath.scope.getBinding(
+                            (specifier as BabelTypes.ExportSpecifier).local.name
+                          )?.path.node
+                        )
+                      ) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Expected object but got import`
+                          )
+                        )
+                      }
                     }
+                  }
+                }
+
+                for (const declaration of declarations) {
+                  if (
+                    !BabelTypes.isIdentifier(declaration.id, {
+                      name: CONFIG_KEY,
+                    })
+                  ) {
                     continue
                   }
 

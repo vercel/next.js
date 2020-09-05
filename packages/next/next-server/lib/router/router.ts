@@ -563,7 +563,7 @@ export default class Router implements BaseRouter {
 
     let parsed = parseRelativeUrl(url)
 
-    let { pathname, searchParams } = parsed
+    let { pathname, query } = parsed
 
     parsed = this._resolveHref(parsed, pages) as typeof parsed
 
@@ -571,8 +571,6 @@ export default class Router implements BaseRouter {
       pathname = parsed.pathname
       url = formatWithValidation(parsed)
     }
-
-    const query = searchParamsToUrlQuery(searchParams)
 
     // url and as should always be prefixed with basePath by this
     // point by either next/link or router.push/replace so strip the
@@ -599,7 +597,7 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        as,
+        parseRelativeUrl(as).pathname,
         pages,
         basePath,
         rewrites,

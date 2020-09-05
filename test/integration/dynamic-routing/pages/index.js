@@ -1,6 +1,15 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
+if (typeof window !== 'undefined') {
+  window.caughtWarns = []
+  const origWarn = window.console.warn
+  window.console.warn = function (...args) {
+    window.caughtWarns.push(args)
+    origWarn(...args)
+  }
+}
+
 const Page = () => {
   return (
     <div>
@@ -128,6 +137,9 @@ const Page = () => {
         <a id="nested-ssg-catch-all-multi">Nested Catch-all route (multi)</a>
       </Link>
       <br />
+      <Link href="/d/dynamic-1">
+        <a id="dynamic-route-no-as">Dynamic route no as</a>
+      </Link>
       <p id="query">{JSON.stringify(Object.keys(useRouter().query))}</p>
     </div>
   )
