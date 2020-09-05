@@ -629,7 +629,9 @@ export default class Router implements BaseRouter {
     resolvedAs = delBasePath(resolvedAs)
 
     if (isDynamicRoute(route)) {
-      const { pathname: asPathname, ...parsedAs } = parseRelativeUrl(resolvedAs)
+      const parsedAs = parseRelativeUrl(resolvedAs)
+      const asPathname = parsedAs.pathname
+
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
       if (!routeMatch) {
