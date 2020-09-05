@@ -15,5 +15,5 @@
     "react-dom": "^16.7.0",
     "webpack-bundle-size-analyzer": "^2.7.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }
