@@ -1,6 +1,6 @@
-# Example app with [cssed](https://github.com/okotoki/cssed)
+# Example app with cssed
 
-This example features how to use [cssed](https://github.com/okotoki/cssed) as the styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
+This example shows how to use [cssed](https://github.com/okotoki/cssed), a CSS-in-JS library, with Next.js.
 
 We are creating `div` element with local scoped styles. The styles includes the use of pseudo-selector.
 
