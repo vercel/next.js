@@ -36,7 +36,7 @@ export const useGuestbookEntries = () => {
   }`
   const size = 100
   const { data, error } = useFetch(process.env.faunaDbGraphQlEndpoint, {
-    method: 'POST',
+    method: 'GET',
     headers: {
       Authorization: `Bearer ${process.env.faunaDbSecret}`,
       'Content-type': 'application/json',
