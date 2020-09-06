@@ -922,7 +922,9 @@ export default class Router implements BaseRouter {
 
   _resolveHref(parsedHref: UrlObject, pages: string[]) {
     const { pathname } = parsedHref
-    const cleanPathname = denormalizePagePath(delBasePath(pathname!))
+    const cleanPathname = removePathTrailingSlash(
+      denormalizePagePath(delBasePath(pathname!))
+    )
 
     if (cleanPathname === '/404' || cleanPathname === '/_error') {
       return parsedHref
