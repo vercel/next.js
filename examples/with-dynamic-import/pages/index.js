@@ -18,9 +18,12 @@ const DynamicComponent4 = dynamic(() => import('../components/hello4'))
 
 const DynamicComponent5 = dynamic(() => import('../components/hello5'))
 
+const names = ['Tim', 'Joe', 'Bel', 'Max', 'Lee']
+
 const IndexPage = () => {
   const [showMore, setShowMore] = useState(false)
   const [falsyField] = useState(false)
+  const [results, setResults] = useState()
 
   return (
     <div>
@@ -41,6 +44,23 @@ const IndexPage = () => {
       {/* Load on demand */}
       {showMore && <DynamicComponent5 />}
       <button onClick={() => setShowMore(!showMore)}>Toggle Show More</button>
+
+      {/* Load library on demand */}
+      <div style={{ marginTop: '1rem' }}>
+        <input
+          type="text"
+          placeholder="Search"
+          onChange={async (e) => {
+            const { value } = e.currentTarget
+            // Dynamically load fuse.js
+            const Fuse = (await import('fuse.js')).default
+            const fuse = new Fuse(names)
+
+            setResults(fuse.search(value))
+          }}
+        />
+        <pre>Results: {JSON.stringify(results, null, 2)}</pre>
+      </div>
     </div>
   )
 }
