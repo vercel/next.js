@@ -314,6 +314,34 @@ const runTests = (isDev = false) => {
     expect(await getBrowserBodyText(browser)).toMatch(/Hello again/)
   })
 
+  it('should work with rewrite when manually specifying href/as', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser
+      .elementByCss('#to-params-manual')
+      .click()
+      .waitForElementByCss('#query')
+
+    const query = JSON.parse(await browser.elementByCss('#query').text())
+    expect(query).toEqual({
+      something: '1',
+      another: 'value',
+    })
+  })
+
+  it('should work with rewrite when only specifying href', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser
+      .elementByCss('#to-params')
+      .click()
+      .waitForElementByCss('#query')
+
+    const query = JSON.parse(await browser.elementByCss('#query').text())
+    expect(query).toEqual({
+      something: '1',
+      another: 'value',
+    })
+  })
+
   it('should match a page after a rewrite', async () => {
     const html = await renderViaHTTP(appPort, '/to-hello')
     expect(html).toContain('Hello')

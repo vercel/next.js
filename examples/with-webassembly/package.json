@@ -1,4 +1,5 @@
 {
+  "name": "with-webassembly",
   "dependencies": {
     "next": "latest",
     "react": "^16.7.0",
