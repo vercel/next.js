@@ -53,8 +53,8 @@ class CssModule extends webpack.Module {
     callback()
   }
 
-  updateHash(hash) {
-    super.updateHash(hash)
+  updateHash(hash, context) {
+    super.updateHash(hash, context)
     hash.update(this.content)
     hash.update(this.media || '')
     hash.update(this.sourceMap ? JSON.stringify(this.sourceMap) : '')

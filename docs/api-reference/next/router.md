@@ -182,7 +182,7 @@ router.prefetch(url, as)
 ```
 
 - `url` - The path to a `page` inside the `pages` directory
-- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes). Defaults to `url`
+- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes.md). Defaults to `url`
 
 #### Usage
 
