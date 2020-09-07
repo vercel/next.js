@@ -108,8 +108,10 @@ export function interpolateAs(
     query
 
   interpolatedRoute = route
+  const params = Object.keys(dynamicGroups)
+
   if (
-    !Object.keys(dynamicGroups).every((param) => {
+    !params.every((param) => {
       let value = dynamicMatches[param] || ''
       const { repeat, optional } = dynamicGroups[param]
 
@@ -139,7 +141,21 @@ export function interpolateAs(
     // n.b. We ignore this error because we handle warning for this case in
     // development in the `<Link>` component directly.
   }
-  return interpolatedRoute
+  return {
+    params,
+    result: interpolatedRoute,
+  }
+}
+
+function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
+  const filteredQuery: ParsedUrlQuery = {}
+
+  Object.keys(query).forEach((key) => {
+    if (!params.includes(key)) {
+      filteredQuery[key] = query[key]
+    }
+  })
+  return filteredQuery
 }
 
 /**
@@ -167,11 +183,16 @@ export function resolveHref(
     ) {
       const query = searchParamsToUrlQuery(finalUrl.searchParams)
 
-      interpolatedAs = interpolateAs(
+      const { result, params } = interpolateAs(
         finalUrl.pathname,
         finalUrl.pathname,
         query
       )
+      interpolatedAs = formatWithValidation({
+        pathname: result,
+        hash: finalUrl.hash,
+        query: omitParmsFromQuery(query, params),
+      })
     }
 
     // if the origin didn't change, it means we received a relative href
@@ -617,7 +638,7 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        as,
+        parseRelativeUrl(as).pathname,
         pages,
         basePath,
         rewrites,
@@ -628,7 +649,9 @@ export default class Router implements BaseRouter {
     resolvedAs = delBasePath(resolvedAs)
 
     if (isDynamicRoute(route)) {
-      const { pathname: asPathname } = parseRelativeUrl(resolvedAs)
+      const parsedAs = parseRelativeUrl(resolvedAs)
+      const asPathname = parsedAs.pathname
+
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
       if (!routeMatch) {
@@ -652,7 +675,13 @@ export default class Router implements BaseRouter {
           )
         }
       } else if (route === asPathname) {
-        as = interpolateAs(route, asPathname, query)
+        const { result, params } = interpolateAs(route, asPathname, query)
+        as = formatWithValidation(
+          Object.assign({}, parsedAs, {
+            pathname: result,
+            query: omitParmsFromQuery(query, params),
+          })
+        )
       } else {
         // Merge params into `query`, overwriting any specified in search
         Object.assign(query, routeMatch)
@@ -942,7 +971,9 @@ export default class Router implements BaseRouter {
 
   _resolveHref(parsedHref: UrlObject, pages: string[]) {
     const { pathname } = parsedHref
-    const cleanPathname = denormalizePagePath(delBasePath(pathname!))
+    const cleanPathname = removePathTrailingSlash(
+      denormalizePagePath(delBasePath(pathname!))
+    )
 
     if (cleanPathname === '/404' || cleanPathname === '/_error') {
       return parsedHref
