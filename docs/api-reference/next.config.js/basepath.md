@@ -6,7 +6,7 @@ description: Learn more about setting a base path in Next.js
 
 > This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
 
-To deploy a Next.js application under a sub-path of a domain you can use the `basePath` config.
+To deploy a Next.js application under a sub-path of a domain you can use the `basePath` config option.
 
 `basePath` allows you to set a path prefix for the application. For example, to use `/docs` instead of `/` (the default), open `next.config.js` and add the `basePath` config:
 
