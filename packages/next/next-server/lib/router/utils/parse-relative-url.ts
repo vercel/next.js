@@ -1,4 +1,5 @@
 import { getLocationOrigin } from '../../utils'
+import { searchParamsToUrlQuery } from './querystring'
 
 const DUMMY_BASE = new URL(
   typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
@@ -29,7 +30,7 @@ export function parseRelativeUrl(url: string, base?: string) {
   }
   return {
     pathname,
-    searchParams,
+    query: searchParamsToUrlQuery(searchParams),
     search,
     hash,
     href: href.slice(DUMMY_BASE.origin.length),
