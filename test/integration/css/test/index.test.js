@@ -1133,15 +1133,29 @@ describe('CSS Support', () => {
             await browser.waitForElementByCss('#link-other').click()
             await checkRedTitle(browser)
 
-            const newPrevSiblingHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
             )
             const newPageHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
+            expect(newPrevSibling).toBeTruthy()
             expect(newPageHref).toBeDefined()
-            expect(newPrevSiblingHref).toBe(prevSiblingHref)
             expect(newPageHref).not.toBe(currentPageHref)
+
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkBlackTitle(browser)
+
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBeTruthy()
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
           } finally {
             await browser.close()
           }
@@ -1388,6 +1402,99 @@ describe('CSS Support', () => {
           throw new Error('Missing build manifest')
         }
         await remove(fileName)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
+
+  // https://github.com/vercel/next.js/issues/12343
+  describe('Basic CSS Modules Ordering', () => {
+    const appDir = join(fixturesDir, 'next-issue-12343')
+    let app, appPort
+
+    function tests() {
+      async function checkGreenButton(browser) {
+        await browser.waitForElementByCss('#link-other')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#link-other')).backgroundColor`
+        )
+        expect(titleColor).toBe('rgb(0, 255, 0)')
+      }
+      async function checkPinkButton(browser) {
+        await browser.waitForElementByCss('#link-index')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#link-index')).backgroundColor`
+        )
+        expect(titleColor).toBe('rgb(255, 105, 180)')
+      }
+
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenButton(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenButton(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkGreenButton(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenButton(browser)
+          await browser.waitForElementByCss('#link-other').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+          await checkPinkButton(browser)
+
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenButton(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Development Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
       })
       afterAll(async () => {
         await killApp(app)

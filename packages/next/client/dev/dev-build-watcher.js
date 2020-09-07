@@ -1,6 +1,6 @@
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 
-export default function initializeBuildWatcher() {
+export default function initializeBuildWatcher(toggleCallback) {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
@@ -52,7 +52,8 @@ export default function initializeBuildWatcher() {
   })
 
   function handleMessage(event) {
-    const obj = JSON.parse(event.data)
+    const obj =
+      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
 
     // eslint-disable-next-line default-case
     switch (obj.action) {
@@ -74,6 +75,8 @@ export default function initializeBuildWatcher() {
         break
     }
   }
+
+  toggleCallback(handleMessage)
 
   function updateContainer() {
     if (isBuilding) {

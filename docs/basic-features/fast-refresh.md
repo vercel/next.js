@@ -6,6 +6,13 @@ description:
 
 # Fast Refresh
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/fast-refresh-demo">Fast Refresh Demo</a></li>
+  </ul>
+</details>
+
 Fast Refresh is a Next.js feature that gives you instantaneous feedback on
 edits made to your React components. Fast Refresh is enabled by default in all
 Next.js applications on **9.4 or newer**. With Next.js Fast Refresh enabled,
@@ -107,6 +114,6 @@ Sometimes, this can lead to unexpected results. For example, even a `useEffect`
 with an empty array of dependencies would still re-run once during Fast Refresh.
 
 However, writing code resilient to occasional re-running of `useEffect` is a good practice even
-without Fash Refresh. It will make it easier for you to introduce new dependencies to it later on
-and it's enforced by [React Strict Mode](/docs/api-reference/next.config.js/react-strict-mode),
+without Fast Refresh. It will make it easier for you to introduce new dependencies to it later on
+and it's enforced by [React Strict Mode](/docs/api-reference/next.config.js/react-strict-mode.md),
 which we highly recommend enabling.
