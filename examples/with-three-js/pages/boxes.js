@@ -28,7 +28,7 @@ const MyBox = (props) => {
   )
 }
 
-const BirdsPage = () => {
+const BoxesPage = () => {
   return [
     <h1>Click on me - Hover me :)</h1>,
     <Canvas camera={{ position: [0, 0, 35] }}>
@@ -46,4 +46,4 @@ const BirdsPage = () => {
   ]
 }
 
-export default BirdsPage
+export default BoxesPage
