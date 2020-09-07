@@ -55,7 +55,7 @@ export default Home
 `Link` accepts the following props:
 
 - `href` - The path or URL to navigate to. This is the only required prop
-- `as` - Optional decorator for the path that will be shown in the browser URL bar. Used for dynamic routes before Next.js 9.5.3
+- `as` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
 - `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
@@ -64,7 +64,7 @@ export default Home
 
 ## If the route has dynamic segments
 
-There is nothing special to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md) (including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
+There is nothing special to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md), including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes), since Next.js 9.5.3 (for older versions check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
 
 For example, the dynamic route `pages/blog/[slug].js` will match the following link:
 
