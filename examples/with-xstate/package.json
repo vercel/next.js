@@ -13,5 +13,5 @@
     "react-dom": "^16.9.0",
     "xstate": "4.7.6"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

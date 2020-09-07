@@ -17,7 +17,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { StyleSheetTuple } from './page-loader'
+import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -84,26 +84,7 @@ if (hasBasePath(asPath)) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const looseToArray = <T extends {}>(input: any): T[] => [].slice.call(input)
-
-const pageLoader = new PageLoader(
-  buildId,
-  prefix,
-  page,
-  looseToArray<CSSStyleSheet>(document.styleSheets)
-    .filter(
-      (el: CSSStyleSheet) =>
-        el.ownerNode &&
-        (el.ownerNode as Element).tagName === 'LINK' &&
-        (el.ownerNode as Element).hasAttribute('data-n-p')
-    )
-    .map((sheet) => ({
-      href: (sheet.ownerNode as Element).getAttribute('href')!,
-      text: looseToArray<CSSRule>(sheet.cssRules)
-        .map((r) => r.cssText)
-        .join(''),
-    }))
-)
+const pageLoader = new PageLoader(buildId, prefix, page)
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
@@ -169,14 +150,6 @@ class Container extends React.Component<{
           shallow: !isFallback,
         }
       )
-    }
-
-    if (process.env.__NEXT_TEST_MODE) {
-      window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
     }
   }
 
@@ -738,5 +711,15 @@ function Root({
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
   React.useLayoutEffect(() => callback(), [callback])
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
+  }
   return children as React.ReactElement
 }

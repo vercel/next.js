@@ -25,6 +25,7 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -80,11 +81,82 @@ export function isLocalURL(url: string): boolean {
 
 type Url = UrlObject | string
 
+export function interpolateAs(
+  route: string,
+  asPathname: string,
+  query: ParsedUrlQuery
+) {
+  let interpolatedRoute = ''
+
+  const dynamicRegex = getRouteRegex(route)
+  const dynamicGroups = dynamicRegex.groups
+  const dynamicMatches =
+    // Try to match the dynamic route against the asPath
+    (asPathname !== route ? getRouteMatcher(dynamicRegex)(asPathname) : '') ||
+    // Fall back to reading the values from the href
+    // TODO: should this take priority; also need to change in the router.
+    query
+
+  interpolatedRoute = route
+  const params = Object.keys(dynamicGroups)
+
+  if (
+    !params.every((param) => {
+      let value = dynamicMatches[param] || ''
+      const { repeat, optional } = dynamicGroups[param]
+
+      // support single-level catch-all
+      // TODO: more robust handling for user-error (passing `/`)
+      let replaced = `[${repeat ? '...' : ''}${param}]`
+      if (optional) {
+        replaced = `${!value ? '/' : ''}[${replaced}]`
+      }
+      if (repeat && !Array.isArray(value)) value = [value]
+
+      return (
+        (optional || param in dynamicMatches) &&
+        // Interpolate group into data URL if present
+        (interpolatedRoute =
+          interpolatedRoute!.replace(
+            replaced,
+            repeat
+              ? (value as string[]).map(escapePathDelimiters).join('/')
+              : escapePathDelimiters(value as string)
+          ) || '/')
+      )
+    })
+  ) {
+    interpolatedRoute = '' // did not satisfy all requirements
+
+    // n.b. We ignore this error because we handle warning for this case in
+    // development in the `<Link>` component directly.
+  }
+  return {
+    params,
+    result: interpolatedRoute,
+  }
+}
+
+function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
+  const filteredQuery: ParsedUrlQuery = {}
+
+  Object.keys(query).forEach((key) => {
+    if (!params.includes(key)) {
+      filteredQuery[key] = query[key]
+    }
+  })
+  return filteredQuery
+}
+
 /**
  * Resolves a given hyperlink with a certain router state (basePath not included).
  * Preserves absolute urls.
  */
-export function resolveHref(currentPath: string, href: Url): string {
+export function resolveHref(
+  currentPath: string,
+  href: Url,
+  resolveAs?: boolean
+): string {
   // we use a dummy base url for relative urls
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
@@ -92,12 +164,36 @@ export function resolveHref(currentPath: string, href: Url): string {
   try {
     const finalUrl = new URL(urlAsString, base)
     finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    let interpolatedAs = ''
+
+    if (
+      isDynamicRoute(finalUrl.pathname) &&
+      finalUrl.searchParams &&
+      resolveAs
+    ) {
+      const query = searchParamsToUrlQuery(finalUrl.searchParams)
+
+      const { result, params } = interpolateAs(
+        finalUrl.pathname,
+        finalUrl.pathname,
+        query
+      )
+      interpolatedAs = formatWithValidation({
+        pathname: result,
+        hash: finalUrl.hash,
+        query: omitParmsFromQuery(query, params),
+      })
+    }
+
     // if the origin didn't change, it means we received a relative href
-    return finalUrl.origin === base.origin
-      ? finalUrl.href.slice(finalUrl.origin.length)
-      : finalUrl.href
+    const resolvedHref =
+      finalUrl.origin === base.origin
+        ? finalUrl.href.slice(finalUrl.origin.length)
+        : finalUrl.href
+
+    return (resolveAs ? [resolvedHref, interpolatedAs] : resolvedHref) as string
   } catch (_) {
-    return urlAsString
+    return (resolveAs ? [urlAsString] : urlAsString) as string
   }
 }
 
@@ -112,23 +208,6 @@ function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   return {
     url: addBasePath(resolveHref(router.pathname, url)),
     as: as ? addBasePath(resolveHref(router.pathname, as)) : as,
-  }
-}
-
-function tryParseRelativeUrl(
-  url: string
-): null | ReturnType<typeof parseRelativeUrl> {
-  try {
-    return parseRelativeUrl(url)
-  } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      setTimeout(() => {
-        throw new Error(
-          `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-        )
-      }, 0)
-    }
-    return null
   }
 }
 
@@ -503,11 +582,9 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
 
-    let parsed = tryParseRelativeUrl(url)
+    let parsed = parseRelativeUrl(url)
 
-    if (!parsed) return false
-
-    let { pathname, searchParams } = parsed
+    let { pathname, query } = parsed
 
     parsed = this._resolveHref(parsed, pages) as typeof parsed
 
@@ -515,8 +592,6 @@ export default class Router implements BaseRouter {
       pathname = parsed.pathname
       url = formatWithValidation(parsed)
     }
-
-    const query = searchParamsToUrlQuery(searchParams)
 
     // url and as should always be prefixed with basePath by this
     // point by either next/link or router.push/replace so strip the
@@ -543,7 +618,7 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        as,
+        parseRelativeUrl(as).pathname,
         pages,
         basePath,
         rewrites,
@@ -554,7 +629,9 @@ export default class Router implements BaseRouter {
     resolvedAs = delBasePath(resolvedAs)
 
     if (isDynamicRoute(route)) {
-      const { pathname: asPathname } = parseRelativeUrl(resolvedAs)
+      const parsedAs = parseRelativeUrl(resolvedAs)
+      const asPathname = parsedAs.pathname
+
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
       if (!routeMatch) {
@@ -577,6 +654,14 @@ export default class Router implements BaseRouter {
               `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
           )
         }
+      } else if (route === asPathname) {
+        const { result, params } = interpolateAs(route, asPathname, query)
+        as = formatWithValidation(
+          Object.assign({}, parsedAs, {
+            pathname: result,
+            query: omitParmsFromQuery(query, params),
+          })
+        )
       } else {
         // Merge params into `query`, overwriting any specified in search
         Object.assign(query, routeMatch)
@@ -866,7 +951,9 @@ export default class Router implements BaseRouter {
 
   _resolveHref(parsedHref: UrlObject, pages: string[]) {
     const { pathname } = parsedHref
-    const cleanPathname = denormalizePagePath(delBasePath(pathname!))
+    const cleanPathname = removePathTrailingSlash(
+      denormalizePagePath(delBasePath(pathname!))
+    )
 
     if (cleanPathname === '/404' || cleanPathname === '/_error') {
       return parsedHref
@@ -899,9 +986,7 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    let parsed = tryParseRelativeUrl(url)
-
-    if (!parsed) return
+    let parsed = parseRelativeUrl(url)
 
     let { pathname } = parsed
 

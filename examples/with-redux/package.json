@@ -14,5 +14,5 @@
     "redux": "^3.6.0",
     "redux-devtools-extension": "^2.13.2"
   },
-  "license": "ISC"
+  "license": "MIT"
 }
