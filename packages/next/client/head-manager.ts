@@ -50,23 +50,23 @@ function updateElements(
     }
 
     const newTag = reactElementToDOM(tag)
-    for (const oldTag of elements) {
+    elements.forEach((oldTag) => {
       if (oldTag.isEqualNode(newTag)) {
         oldTags.delete(oldTag)
         return
       }
-    }
+    })
 
     elements.add(newTag)
     headEl.appendChild(newTag)
   })
 
-  for (const oldTag of oldTags) {
+  oldTags.forEach((oldTag) => {
     if (removeOldTags) {
       oldTag.parentNode!.removeChild(oldTag)
     }
     elements.delete(oldTag)
-  }
+  })
 }
 
 export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
