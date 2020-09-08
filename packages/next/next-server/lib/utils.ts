@@ -81,7 +81,7 @@ export type BaseContext = {
   [k: string]: any
 }
 
-export type HeadEntry = { type: string; props: { [key: string]: any } }
+export type HeadEntry = [string, { [key: string]: any }]
 
 export type NEXT_DATA = {
   props: Record<string, any>

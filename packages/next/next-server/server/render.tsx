@@ -238,9 +238,9 @@ function renderDocument(
             appGip, // whether the _app has getInitialProps
             head: React.Children.map(docProps.head || [], (elem) => {
               const { children } = elem?.props
-              return {
-                type: elem?.type,
-                props: {
+              return [
+                elem?.type,
+                {
                   ...elem?.props,
                   children: children
                     ? typeof children === 'string'
@@ -248,7 +248,7 @@ function renderDocument(
                       : children.join('')
                     : undefined,
                 },
-              }
+              ]
             }).filter(Boolean) as any,
           },
           buildManifest,
