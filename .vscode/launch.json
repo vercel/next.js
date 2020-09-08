@@ -51,6 +51,6 @@
       "runtimeArgs": ["run", "debug", "dev", "${fileDirname}"],
       "skipFiles": ["<node_internals>/**"],
       "port": 9229
-    },
+    }
   ]
 }
