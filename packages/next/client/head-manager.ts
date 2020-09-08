@@ -50,12 +50,20 @@ function updateElements(
     }
 
     const newTag = reactElementToDOM(tag)
-    elements.forEach((oldTag) => {
-      if (oldTag.isEqualNode(newTag)) {
-        oldTags.delete(oldTag)
+    const elementIter = elements.values()
+
+    while (true) {
+      // Note: We don't use for-of here to avoid needing to polyfill it.
+      const { done, value } = elementIter.next()
+      if (value.isEqualNode(newTag)) {
+        oldTags.delete(value)
         return
       }
-    })
+
+      if (done) {
+        break
+      }
+    }
 
     elements.add(newTag)
     headEl.appendChild(newTag)
