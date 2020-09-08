@@ -417,7 +417,9 @@ export default class HotReloader {
         if (serverOnlyChanges.length > 0) {
           this.send({
             event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) => pg.substr('pages'.length)),
+            pages: serverOnlyChanges.map((pg) =>
+              denormalizePagePath(pg.substr('pages'.length))
+            ),
           })
         }
 
