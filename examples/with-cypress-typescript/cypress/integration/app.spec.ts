@@ -1,4 +1,5 @@
 import { User } from '../../interfaces'
+import { sampleUserData } from '../../utils/sample-data'
 
 const navigationLinks = [
   {
@@ -52,8 +53,8 @@ describe('App', function () {
   })
 
   it('performs and API test for users', function () {
-    cy.request(`${Cypress.env('apiUrl')}/users`).then((response) => {
-      expect(response.body).to.have.lengthOf(4)
-    })
+    cy.request(`${Cypress.env('apiUrl')}/users`)
+      .its('body')
+      .should('eql', sampleUserData)
   })
 })
