@@ -1,6 +1,6 @@
-# TypeScript Next.js example
+# Cypress + TypeScript Next.js example
 
-This is a really simple project that shows the usage of Next.js with TypeScript + Cypress.
+This is a really simple project that shows the usage of Next.js with TypeScript + [Cypress](https://cypress.io).
 
 ## Deploy your own
 

@@ -24,26 +24,31 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
 
-Cypress.Commands.add("database", (operation, entity, query, logTask = false) => {
+Cypress.Commands.add(
+  'fetchData',
+  (operation, entity, query, logTask = false) => {
     const params = {
       entity,
       query,
-    };
-  
+    }
+
     const log = Cypress.log({
-      name: "database",
-      displayName: "DATABASE",
+      name: 'api',
+      displayName: 'API',
       message: [`🔎 ${operation}ing within ${entity} data`],
       // @ts-ignore
       autoEnd: false,
       consoleProps() {
-        return params;
+        return params
       },
-    });
-  
-    return cy.task(`${operation}:database`, params, { log: logTask }).then((data) => {
-      log.snapshot();
-      log.end();
-      return data;
-    });
-});
+    })
+
+    return cy
+      .task(`${operation}:api`, params, { log: logTask })
+      .then((data) => {
+        log.snapshot()
+        log.end()
+        return data
+      })
+  }
+)
