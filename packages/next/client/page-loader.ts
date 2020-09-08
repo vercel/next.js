@@ -216,7 +216,7 @@ export default class PageLoader {
 
     const isDynamic: boolean = isDynamicRoute(route)
     const interpolatedRoute = isDynamic
-      ? interpolateAs(hrefPathname, asPathname, query)
+      ? interpolateAs(hrefPathname, asPathname, query).result
       : ''
 
     return isDynamic

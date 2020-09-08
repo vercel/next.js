@@ -62,8 +62,8 @@ Handles client-side transitions, this method is useful for cases where [`next/li
 router.push(url, as, options)
 ```
 
-- `url` - The URL to navigate to. This is usually the name of a `page`
-- `as` - Optional decorator for the URL that will be shown in the browser. Defaults to `url`
+- `url` - The URL to navigate to
+- `as` - Optional decorator for the URL that will be shown in the browser. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - `options` - Optional object with the following configuration options:
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
@@ -91,11 +91,7 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return (
-    <span onClick={() => router.push('/post/[pid]', '/post/abc')}>
-      Click me
-    </span>
-  )
+  return <span onClick={() => router.push('/post/abc')}>Click me</span>
 }
 ```
 
@@ -129,15 +125,15 @@ You can use an URL object in the same way you can use it for [`next/link`](/docs
 ```jsx
 import { useRouter } from 'next/router'
 
-export default function ReadMore() {
+export default function ReadMore({ post }) {
   const router = useRouter()
 
   return (
     <span
       onClick={() => {
         router.push({
-          pathname: '/about',
-          query: { name: 'Vercel' },
+          pathname: '/post/[pid]',
+          query: { pid: post.id },
         })
       }}
     >
@@ -181,8 +177,8 @@ Prefetch pages for faster client-side transitions. This method is only useful fo
 router.prefetch(url, as)
 ```
 
-- `url` - The path to a `page` inside the `pages` directory
-- `as` - Optional decorator for `url`, used to prefetch [dynamic routes](/docs/routing/dynamic-routes.md). Defaults to `url`
+- `url` - The URL to prefetch, that is, a path with a matching page
+- `as` - Optional decorator for `url`. Before Next.js 9.5.3 this was used to prefetch dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 
 #### Usage
 
@@ -210,7 +206,7 @@ export default function Login() {
   }, [])
 
   useEffect(() => {
-    // Prefetch the dashboard page as the user will go there after the login
+    // Prefetch the dashboard page
     router.prefetch('/dashboard')
   }, [])
 
@@ -317,9 +313,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `hashChangeStart(url)` - Fires when the hash will change but not the page
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
 
-> Here `url` is the URL shown in the browser. If you call `router.push(url, as)` (or similar), then the value of `url` will be `as`.
->
-> **Note:** If you [configure a `basePath`](/docs/api-reference/next.config.js/basepath.md) then the value of `url` will be `basePath + as`.
+> **Note:** Here `url` is the URL shown in the browser, including the [`basePath`](/docs/api-reference/next.config.js/basepath.md).
 
 #### Usage
 

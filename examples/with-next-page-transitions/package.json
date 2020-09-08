@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
+    "next-page-transitions": "1.0.0-beta.2",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "next-page-transitions": "1.0.0-beta.2"
+    "react-dom": "^16.7.0"
   },
   "license": "MIT"
 }

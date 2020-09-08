@@ -7,10 +7,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "@stomp/stompjs": "^5.4.2",
     "next": "latest",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "@stomp/stompjs": "^5.4.2"
+    "react-dom": "^16.7.0"
   },
   "license": "MIT"
 }
