@@ -1,5 +1,24 @@
 import { User } from '../../interfaces'
 
+const navigationLinks = [
+  {
+    label: 'Home',
+    link: '/',
+  },
+  {
+    label: 'About',
+    link: '/about',
+  },
+  {
+    label: 'Users List',
+    link: '/users',
+  },
+  {
+    label: 'Users API',
+    link: '/api/users',
+  },
+]
+
 describe('App', function () {
   beforeEach(function () {
     cy.visit('/')
@@ -10,7 +29,12 @@ describe('App', function () {
   })
 
   it('renders top navigation', function () {
-    cy.get('[data-test*=nav-]').should('have.length', 4)
+    navigationLinks.forEach((nav, index) => {
+      cy.get('[data-test*=nav-]')
+        .eq(index)
+        .should('have.attr', 'href', nav.link)
+        .and('have.text', nav.label)
+    })
   })
 
   it('navigates to the about page', function () {
