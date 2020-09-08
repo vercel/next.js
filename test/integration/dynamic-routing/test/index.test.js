@@ -153,7 +153,9 @@ function runTests(dev) {
         .elementByCss('#view-post-1-interpolated')
         .getAttribute('href')
 
-      expect(url.parse(href).pathname).toBe('/post-1')
+      const parsedHref = url.parse(href, true)
+      expect(parsedHref.pathname).toBe('/post-1')
+      expect(parsedHref.query).toEqual({})
 
       await browser.elementByCss('#view-post-1-interpolated').click()
       await browser.waitForElementByCss('#asdf')
@@ -162,6 +164,38 @@ function runTests(dev) {
 
       const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page successfully interpolated with additional query values', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#view-post-1-interpolated-more-query')
+        .getAttribute('href')
+
+      const parsedHref = url.parse(href, true)
+      expect(parsedHref.pathname).toBe('/post-1')
+      expect(parsedHref.query).toEqual({ another: 'value' })
+
+      await browser.elementByCss('#view-post-1-interpolated-more-query').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      expect(query).toEqual({
+        name: 'post-1',
+        another: 'value',
+      })
     } finally {
       if (browser) await browser.close()
     }
