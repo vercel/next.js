@@ -178,11 +178,14 @@ export function resolveHref(
         finalUrl.pathname,
         query
       )
-      interpolatedAs = formatWithValidation({
-        pathname: result,
-        hash: finalUrl.hash,
-        query: omitParmsFromQuery(query, params),
-      })
+
+      if (result) {
+        interpolatedAs = formatWithValidation({
+          pathname: result,
+          hash: finalUrl.hash,
+          query: omitParmsFromQuery(query, params),
+        })
+      }
     }
 
     // if the origin didn't change, it means we received a relative href
@@ -191,7 +194,9 @@ export function resolveHref(
         ? finalUrl.href.slice(finalUrl.origin.length)
         : finalUrl.href
 
-    return (resolveAs ? [resolvedHref, interpolatedAs] : resolvedHref) as string
+    return (resolveAs
+      ? [resolvedHref, interpolatedAs || resolvedHref]
+      : resolvedHref) as string
   } catch (_) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
@@ -656,6 +661,16 @@ export default class Router implements BaseRouter {
         }
       } else if (route === asPathname) {
         const { result, params } = interpolateAs(route, asPathname, query)
+
+        if (!result) {
+          throw new Error(
+            `Interpolation failed for href (${route}) due to not all param values being provided in the query, needed param values (${params.join(
+              ', '
+            )})\n` +
+              `Read more: https://err.sh/next.js/href-interpolation-failed`
+          )
+        }
+
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
             pathname: result,
