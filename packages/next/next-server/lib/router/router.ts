@@ -678,7 +678,37 @@ export default class Router implements BaseRouter {
         as,
         shallow
       )
-      let { error } = routeInfo
+      let { error, props, __N_SSG, __N_SSP } = routeInfo
+
+      // handle redirect on client-transition
+      if (
+        (__N_SSG || __N_SSP) &&
+        props &&
+        (props as any).pageProps &&
+        (props as any).pageProps.__N_REDIRECT
+      ) {
+        const destination = (props as any).pageProps.__N_REDIRECT
+
+        // check if destination is internal (resolves to a page) and attempt
+        // client-navigation if it is falling back to hard navigation if
+        // it's not
+        if (destination.startsWith('/')) {
+          const parsedHref = parseRelativeUrl(destination)
+          this._resolveHref(parsedHref, pages)
+
+          if (pages.includes(parsedHref.pathname)) {
+            return this.change(
+              'replaceState',
+              destination,
+              destination,
+              options
+            )
+          }
+        }
+
+        window.location.href = destination
+        return new Promise(() => {})
+      }
 
       Router.events.emit('beforeHistoryChange', as)
       this.changeState(method, url, as, options)
@@ -869,6 +899,7 @@ export default class Router implements BaseRouter {
               } as any
             )
       )
+
       routeInfo.props = props
       this.components[route] = routeInfo
       return routeInfo
