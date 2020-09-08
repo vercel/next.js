@@ -55,7 +55,7 @@ function updateElements(
     while (true) {
       // Note: We don't use for-of here to avoid needing to polyfill it.
       const { done, value } = elementIter.next()
-      if (value.isEqualNode(newTag)) {
+      if (value?.isEqualNode(newTag)) {
         oldTags.delete(value)
         return
       }
