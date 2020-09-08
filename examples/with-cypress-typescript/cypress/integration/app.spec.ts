@@ -46,10 +46,8 @@ describe('App', function () {
     cy.get('[data-test=nav-users-list]').click()
     cy.location('pathname').should('eq', '/users')
 
-    cy.fetchData('filter', 'users').then((users: User[]) => {
-      users.forEach((user: User) => {
-        cy.get('users-list').contains(user.name)
-      })
+    cy.fetchData('filter', 'users').each((user: User) => {
+      cy.contains('[data-test=users-list]', user.name)
     })
   })
 
