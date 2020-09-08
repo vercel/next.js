@@ -412,10 +412,16 @@ export class Head extends Component<
       })
     }
 
-    const files: DocumentFiles = getDocumentFiles(
-      this.context.buildManifest,
-      this.context.__NEXT_DATA__.page
-    )
+    const files: DocumentFiles = inAmpMode
+      ? {
+          sharedFiles: [],
+          pageFiles: [],
+          allFiles: [],
+        }
+      : getDocumentFiles(
+          this.context.buildManifest,
+          this.context.__NEXT_DATA__.page
+        )
     return (
       <head {...this.props}>
         {this.context.isDevelopment && (
@@ -724,10 +730,16 @@ export class NextScript extends Component<OriginProps> {
         )
     }
 
-    const files: DocumentFiles = getDocumentFiles(
-      this.context.buildManifest,
-      this.context.__NEXT_DATA__.page
-    )
+    const files: DocumentFiles = inAmpMode
+      ? {
+          sharedFiles: [],
+          pageFiles: [],
+          allFiles: [],
+        }
+      : getDocumentFiles(
+          this.context.buildManifest,
+          this.context.__NEXT_DATA__.page
+        )
     return (
       <>
         {!disableRuntimeJS && buildManifest.devFiles
