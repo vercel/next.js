@@ -34,7 +34,7 @@ const PetSchema = new mongoose.Schema({
     type: Boolean,
   },
   diet: {
-    /* List of dietary needs, if applicale */
+    /* List of dietary needs, if applicable */
 
     type: Array,
   },
