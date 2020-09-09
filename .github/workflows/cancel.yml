@@ -5,8 +5,6 @@ on:
       - '**'
       - '!master'
       - '!canary'
-  pull_request:
-    types: [synchronize]
 
 jobs:
   cancel:
