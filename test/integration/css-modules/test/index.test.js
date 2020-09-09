@@ -379,7 +379,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.other2_other2__2PUfY{color:red}.example_subClass__2YUgj{background:#00f}"`
+      `".other2_other2__2PUfY{color:red}.other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.example_subClass__2YUgj{background:#00f}"`
     )
   })
 })

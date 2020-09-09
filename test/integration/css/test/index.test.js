@@ -737,7 +737,7 @@ describe('CSS Support', () => {
     })
   })
 
-  describe('Bad CSS Import from node_modules', () => {
+  describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
     beforeAll(async () => {
@@ -747,9 +747,9 @@ describe('CSS Support', () => {
     it('should fail the build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).not.toBe(0)
-      expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).toMatch(/Build error occurred/)
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).not.toMatch(/Build error occurred/)
     })
   })
 
