@@ -4,8 +4,8 @@ With Next.js you can use multiple apps as a single app using its [multi-zones fe
 
 - All pages should be unique across zones. For example, the `home` app should not have a `pages/blog/index.js` page.
 - The `blog` app sets [`assetPrefix`](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix) so that generated JS bundles are within the `/blog` subfolder.
-  - To also support the plain `next dev` scenario, `assetPrefix` is set dynamically based on the `BUILDING_FOR_VERCEL` environment variable, see [`vercel.json`](vercel.json) and [`blog/next.config.js`](blog/next.config.js).
-  - Images and other `static` assets have to be prefixed manually, e.g., `` <img src={`${process.env.ASSET_PREFIX}/static/image.png`} /> ``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
+  - To also support the plain `next dev` scenario, `assetPrefix` is only set for production builds, see [`blog/next.config.js`](blog/next.config.js).
+  - Images and other `static` assets have to be prefixed manually. The static assets added by `/blog` are under `public/blog/static` to avoid conflicts with `/home`
 
 ## Deploy your own
 
@@ -23,22 +23,30 @@ npx create-next-app --example with-zones with-zones-app
 yarn create next-app --example with-zones with-zones-app
 ```
 
-Before starting the app, you'll need the dependencies of every app (`/home` and `/blog`):
+With multi zones you have multiple Next.js apps over a single app, therefore every app has its own dependencies and it runs independently.
+
+To start the `/home` run the following commands from the root directory:
 
 ```bash
-(cd home && npm install); (cd blog && npm install);
+cd home
+npm install && npm run dev
 # or
-(cd home && yarn); (cd blog && yarn);
+cd home
+yarn && yarn dev
 ```
 
-Install the [Vercel CLI](https://vercel.com/download) if you don't have it already, and then run [`vercel dev`](https://vercel.com/docs/cli?query=dev#commands/dev) in the main directory to start the development server:
+The `/home` app should be up and running in [http://localhost:3000](http://localhost:3000)!
+
+Starting the `/blog` app follows a very similar process. In a new terminal, run the following commands from the root directory :
 
 ```bash
-vercel dev
+cd blog
+npm install && npm run dev
+# or
+cd blog
+yarn && yarn dev
 ```
 
-Your app should be up and running on [http://localhost:3000](http://localhost:3000)!
-
-> We recommend `vercel dev` in this case instead of `next dev`, as it can start both apps at the same time and use the routes defined in [`vercel.json`](vercel.json)
+The `blog` app should be up and running in [http://localhost:4000](http://localhost:4000)!
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
