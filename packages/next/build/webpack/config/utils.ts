@@ -14,6 +14,7 @@ export type ConfigurationContext = {
 
   sassOptions: any
   productionBrowserSourceMaps: boolean
+  productionOptimizedCSSClassNames: boolean
 }
 
 export type ConfigurationFn = (

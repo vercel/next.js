@@ -3,6 +3,7 @@
 import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
+import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 1)
 
@@ -174,14 +175,24 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
 
 describe('CSS Modules: Import Global CSS', () => {
   const appDir = join(fixturesDir, 'module-import-global')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
+  })
+
+  afterAll(async () => {
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -199,7 +210,7 @@ describe('CSS Modules: Import Global CSS', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"a .styles_foo__31qlD{all:initial}"`
+      `"a .a{all:initial}"`
     )
   })
 })

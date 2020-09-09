@@ -14,6 +14,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 1)
 
@@ -21,6 +22,7 @@ const fixturesDir = join(__dirname, '../../css-fixtures')
 
 describe('Basic CSS Module Support', () => {
   const appDir = join(fixturesDir, 'basic-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
@@ -28,6 +30,11 @@ describe('Basic CSS Module Support', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -36,6 +43,7 @@ describe('Basic CSS Module Support', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -54,7 +62,7 @@ describe('Basic CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_redText__3CwEB{color:red}"`
+      `".a{color:red}"`
     )
   })
 
@@ -70,14 +78,13 @@ describe('Basic CSS Module Support', () => {
     expect(cssSheet.length).toBe(1)
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
-    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-      `"index_redText__3CwEB"`
-    )
+    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(`"a"`)
   })
 })
 
 describe('3rd Party CSS Module Support', () => {
   const appDir = join(fixturesDir, '3rd-party-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
@@ -85,6 +92,11 @@ describe('3rd Party CSS Module Support', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -93,6 +105,7 @@ describe('3rd Party CSS Module Support', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -110,7 +123,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_foo__29BAH{position:relative}.index_foo__29BAH .bar,.index_foo__29BAH .baz{height:100%;overflow:hidden}.index_foo__29BAH .lol{width:80%}.index_foo__29BAH>.lel{width:80%}"`
+      `".a{position:relative}.a .bar,.a .baz{height:100%;overflow:hidden}.a .lol{width:80%}.a>.lel{width:80%}"`
     )
   })
 
@@ -126,24 +139,29 @@ describe('3rd Party CSS Module Support', () => {
     expect(cssSheet.length).toBe(1)
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
-    expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-      `"index_foo__29BAH"`
-    )
+    expect($('#verify-div').attr('class')).toMatchInlineSnapshot(`"a"`)
   })
 })
 
 describe('Has CSS Module in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'dev-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have CSS for page', async () => {
@@ -154,10 +172,20 @@ describe('Has CSS Module in computed styles in Development', () => {
     )
     expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
   })
+
+  it('emits developer friendly class names in Development', async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
+      `"index_redText__3CwEB"`
+    )
+  })
 })
 
 describe('Has CSS Module in computed styles in Production', () => {
   const appDir = join(fixturesDir, 'prod-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let appPort
   let app
@@ -165,6 +193,11 @@ describe('Has CSS Module in computed styles in Production', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -173,6 +206,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -187,6 +221,13 @@ describe('Has CSS Module in computed styles in Production', () => {
       `window.getComputedStyle(document.querySelector('#verify-red')).color`
     )
     expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+  })
+
+  it('emits optimized class names in Production', async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    expect($('#verify-red').attr('class')).toMatchInlineSnapshot(`"a"`)
   })
 })
 
@@ -280,6 +321,7 @@ describe('Invalid Global CSS Module Usage in node_modules', () => {
 
 describe('Valid CSS Module Usage from within node_modules', () => {
   const appDir = join(fixturesDir, 'nm-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
@@ -291,6 +333,11 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -299,6 +346,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -312,7 +360,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__1rb5g\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"a\\"}"`
     )
   })
 
@@ -326,13 +374,14 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".example_redText__1rb5g{color:red}"`
+      `".a{color:red}"`
     )
   })
 })
 
 describe('Valid Nested CSS Module Usage from within node_modules', () => {
   const appDir = join(fixturesDir, 'nm-module-nested')
+  const nextConfig = join(appDir, 'next.config.js')
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
@@ -344,6 +393,11 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
@@ -352,6 +406,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
   })
   afterAll(async () => {
     await killApp(app)
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -365,7 +420,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__2YUgj other_className__bt_-E\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"a b\\"}"`
     )
   })
 
@@ -379,7 +434,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.other2_other2__2PUfY{color:red}.example_subClass__2YUgj{background:#00f}"`
+      `".d{color:violet}.b{background:red;color:#ff0}.c{color:red}.a{background:#00f}"`
     )
   })
 })
@@ -387,14 +442,23 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 describe('CSS Module Composes Usage (Basic)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-basic')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
+  })
+  afterAll(async () => {
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -412,7 +476,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_className__3gr_q{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+      `".a{background:red;color:#ff0}.b{background:#00f}"`
     )
   })
 })
@@ -420,14 +484,23 @@ describe('CSS Module Composes Usage (Basic)', () => {
 describe('CSS Module Composes Usage (External)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-external')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
+  })
+  afterAll(async () => {
+    await fs.remove(nextConfig)
   })
 
   it('should have compiled successfully', () => {
@@ -445,13 +518,14 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other_className__21NIP{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+      `".b{background:red;color:#ff0}.a{background:#00f}"`
     )
   })
 })
 
 describe('Dynamic Route CSS Module Usage', () => {
   const appDir = join(fixturesDir, 'dynamic-route-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
@@ -460,13 +534,21 @@ describe('Dynamic Route CSS Module Usage', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
-  afterAll(() => killApp(app))
+  afterAll(async () => {
+    await killApp(app)
+    await fs.remove(nextConfig)
+  })
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
@@ -493,13 +575,14 @@ describe('Dynamic Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__2Cy-L{background:red}"`
+      `".a{background:red}"`
     )
   })
 })
 
 describe('Catch-all Route CSS Module Usage', () => {
   const appDir = join(fixturesDir, 'catch-all-module')
+  const nextConfig = join(appDir, 'next.config.js')
 
   let stdout
   let code
@@ -508,13 +591,21 @@ describe('Catch-all Route CSS Module Usage', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {productionOptimizedCSSClassNames: true} }`,
+      'utf8'
+    )
     ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
-  afterAll(() => killApp(app))
+  afterAll(async () => {
+    await killApp(app)
+    await fs.remove(nextConfig)
+  })
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
@@ -543,7 +634,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".___post__home__38gR-{background:red}.__55css_home__qxXcH{color:green}"`
+      `".a{background:red}.b{color:green}"`
     )
   })
 })

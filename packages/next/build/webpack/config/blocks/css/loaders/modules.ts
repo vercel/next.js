@@ -33,12 +33,11 @@ export function getCssModuleLoader(
         // Disallow global style exports so we can code-split CSS and
         // not worry about loading order.
         mode: 'pure',
-        // Generate a friendly production-ready name so it's
-        // reasonably understandable. The same name is used for
-        // development.
-        // TODO: Consider making production reduce this to a single
-        // character?
-        getLocalIdent: getCssModuleLocalIdent,
+        // If under development, generate a friendly classname name so it's reasonably understandable.
+        // Otherwise generate an optimized short class name for production.
+        getLocalIdent: getCssModuleLocalIdent(
+          ctx.isDevelopment || !ctx.productionOptimizedCSSClassNames
+        ),
       },
     },
   })

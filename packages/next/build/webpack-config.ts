@@ -1198,6 +1198,8 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps,
+    productionOptimizedCSSClassNames:
+      config.experimental.productionOptimizedCSSClassNames,
   })
 
   let originalDevtool = webpackConfig.devtool

@@ -1,10 +1,37 @@
 import loaderUtils from 'loader-utils'
 import path from 'path'
 import webpack from 'webpack'
+import SequentialCSSModuleLocalIdentGenerator from './helpers/SequentialCSSModuleLocalIdentGenerator'
 
+const classnameGenerator = new SequentialCSSModuleLocalIdentGenerator()
+const minifiedClassnameCache = new Map<string, string>()
+
+// https://easylist-downloads.adblockplus.org/easylist.txt
+const regexLikeAds = /^ad(s|v)?[0-9]*$/i
 const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
 
-export function getCssModuleLocalIdent(
+export function getCssModuleLocalIdent(isDevelopment: boolean) {
+  return isDevelopment
+    ? getVerboseCssModuleLocalIdent
+    : getOptimizedCssModuleLocalIdent
+}
+
+function getOptimizedCssModuleLocalIdent(
+  context: webpack.loader.LoaderContext,
+  _: any,
+  exportName: string,
+  options: object
+) {
+  const verboseClassname = getVerboseCssModuleLocalIdent(
+    context,
+    _,
+    exportName,
+    options
+  )
+  return getMinifiedClassname(verboseClassname)
+}
+
+function getVerboseCssModuleLocalIdent(
   context: webpack.loader.LoaderContext,
   _: any,
   exportName: string,
@@ -50,4 +77,21 @@ export function getCssModuleLocalIdent(
       // https://www.w3.org/TR/CSS21/syndata.html#characters
       .replace(/^(\d|--|-\d)/, '__$1')
   )
+}
+
+function getMinifiedClassname(classname: string): string {
+  // ensure we don't generate a new minified classname for an already minified one.
+  const cachedClassname = minifiedClassnameCache.get(classname)
+  if (cachedClassname) {
+    return cachedClassname
+  }
+
+  const minifiedClassname = classnameGenerator.next()
+
+  if (!regexLikeAds.test(minifiedClassname)) {
+    minifiedClassnameCache.set(classname, minifiedClassname)
+    return minifiedClassname
+  }
+
+  return getMinifiedClassname(classname)
 }
