@@ -7,13 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "immutable": "^3.8.2",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "slate": "^0.37.0",
-    "slate-plain-serializer": "^0.5.27",
-    "slate-react": "^0.15.0"
+    "slate": "^0.58.4",
+    "slate-history": "0.58.4",
+    "slate-react": "^0.58.4"
   },
   "license": "MIT"
 }
