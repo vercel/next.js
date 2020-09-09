@@ -122,7 +122,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".a{position:relative}.a .bar,.a .baz{height:100%;overflow:hidden}.a .lol{width:80%},.a>.lel{width:80%}"`
+      `".a{position:relative}.a .bar,.a .baz{height:100%;overflow:hidden}.a .lol{width:80%}.a>.lel{width:80%}"`
     )
   })
 
