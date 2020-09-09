@@ -81,6 +81,22 @@ const IndexPage = () => (
       <pre>
         <code>npm run build && npm run start</code>
       </pre>
+      <p>Once you run the app, you'll see logs like these in the terminal:</p>
+      <pre>
+        <code>
+          info - Loaded env from /home/user/../.env.local{'\n'}
+          info - Loaded env from /home/user/../.env.development{'\n'}
+          info - Loaded env from /home/user/../.env{'\n'}
+        </code>
+      </pre>
+      <p>
+        The order is important, the first loaded env will have a higher
+        priority.
+      </p>
+      <p>
+        <Code>.env</Code> will not overwrite any variables defined in{' '}
+        <Code>.env.local</Code> or <Code>.env.development</Code>.
+      </p>
     </div>
   </div>
 )
@@ -92,7 +108,7 @@ export async function getStaticProps() {
   // expose environment variables unless they start with `NEXT_PUBLIC_`
   console.log('[Node.js only] ENV_VARIABLE:', process.env.ENV_VARIABLE)
   console.log(
-    '[Server only] ENV_LOCAL_VARIABLE:',
+    '[Node.js only] ENV_LOCAL_VARIABLE:',
     process.env.ENV_LOCAL_VARIABLE
   )
 

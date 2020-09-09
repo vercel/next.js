@@ -21,8 +21,12 @@ const COMMIT_SHA =
   VERCEL_BITBUCKET_COMMIT_SHA
 
 process.env.SENTRY_DSN = SENTRY_DSN
+const basePath = ''
 
 module.exports = withSourceMaps({
+  serverRuntimeConfig: {
+    rootDir: __dirname,
+  },
   webpack: (config, options) => {
     // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
     // @sentry/node will run in a Node.js environment. @sentry/node will use
@@ -59,12 +63,13 @@ module.exports = withSourceMaps({
         new SentryWebpackPlugin({
           include: '.next',
           ignore: ['node_modules'],
-          urlPrefix: '~/_next',
+          stripPrefix: ['webpack://_N_E/'],
+          urlPrefix: `~${basePath}/_next`,
           release: COMMIT_SHA,
         })
       )
     }
-
     return config
   },
+  basePath,
 })

@@ -38,7 +38,7 @@ import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
-import pathMatch from './lib/path-match'
+import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
@@ -48,10 +48,10 @@ import Router, {
   DynamicRoutes,
   PageChecker,
   Params,
-  prepareDestination,
   route,
   Route,
 } from './router'
+import prepareDestination from '../lib/router/utils/prepare-destination'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
@@ -122,6 +122,7 @@ export default class Server {
     basePath: string
     optimizeFonts: boolean
     fontManifest: FontManifest
+    optimizeImages: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -168,10 +169,12 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      optimizeFonts: this.nextConfig.experimental.optimizeFonts,
-      fontManifest: this.nextConfig.experimental.optimizeFonts
-        ? requireFontManifest(this.distDir, this._isLikeServerless)
-        : null,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      fontManifest:
+        this.nextConfig.experimental.optimizeFonts && !dev
+          ? requireFontManifest(this.distDir, this._isLikeServerless)
+          : null,
+      optimizeImages: this.nextConfig.experimental.optimizeImages,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -236,6 +239,9 @@ export default class Server {
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
     }
+    if (this.renderOpts.optimizeImages) {
+      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
   }
 
   protected currentPhase(): string {
@@ -247,7 +253,6 @@ export default class Server {
       this.onErrorMiddleware({ err })
     }
     if (this.quiet) return
-    // tslint:disable-next-line
     console.error(err)
   }
 
@@ -778,6 +783,14 @@ export default class Server {
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
+          const { basePath } = this.nextConfig
+
+          // if basePath is defined require it be present
+          if (basePath) {
+            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
+            pathParts.shift()
+          }
+
           const path = `/${pathParts.join('/')}`
 
           if (publicFiles.has(path)) {
@@ -1143,7 +1156,6 @@ export default class Server {
       fallbackMode !== 'blocking' &&
       ssgCacheKey &&
       !didRespond &&
-      !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
       // Development should trigger fallback when the path is not in
@@ -1160,27 +1172,29 @@ export default class Server {
         throw new NoFallbackError()
       }
 
-      let html: string
+      if (!isDataReq) {
+        let html: string
 
-      // Production already emitted the fallback as static HTML.
-      if (isProduction) {
-        html = await this.incrementalCache.getFallback(pathname)
-      }
-      // We need to generate the fallback on-demand for development.
-      else {
-        query.__nextFallback = 'true'
-        if (isLikeServerless) {
-          prepareServerlessUrl(req, query)
+        // Production already emitted the fallback as static HTML.
+        if (isProduction) {
+          html = await this.incrementalCache.getFallback(pathname)
         }
-        const { value: renderResult } = await doRender()
-        html = renderResult.html
-      }
+        // We need to generate the fallback on-demand for development.
+        else {
+          query.__nextFallback = 'true'
+          if (isLikeServerless) {
+            prepareServerlessUrl(req, query)
+          }
+          const { value: renderResult } = await doRender()
+          html = renderResult.html
+        }
 
-      sendPayload(req, res, html, 'html', {
-        generateEtags: this.renderOpts.generateEtags,
-        poweredByHeader: this.renderOpts.poweredByHeader,
-      })
-      return null
+        sendPayload(req, res, html, 'html', {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        })
+        return null
+      }
     }
 
     const {

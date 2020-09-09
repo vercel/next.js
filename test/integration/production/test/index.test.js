@@ -70,6 +70,24 @@ describe('Production Usage', () => {
       })
     }
 
+    it('should polyfill Node.js modules', async () => {
+      const browser = await webdriver(appPort, '/node-browser-polyfills')
+      await browser.waitForCondition('window.didRender')
+
+      const data = await browser
+        .waitForElementByCss('#node-browser-polyfills')
+        .text()
+      const parsedData = JSON.parse(data)
+
+      expect(parsedData.vm).toBe(105)
+      expect(parsedData.hash).toBe(
+        'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+      )
+      expect(parsedData.path).toBe('/hello/world/test.txt')
+      expect(parsedData.buffer).toBe('hello world')
+      expect(parsedData.stream).toBe(true)
+    })
+
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
       const etag = (await fetch(url)).headers.get('ETag')
@@ -355,6 +373,31 @@ describe('Production Usage', () => {
       expect(title).toBe('hello from title')
       expect(url).toBe('/with-title')
     })
+
+    it('should reload page successfully (on bad link)', async () => {
+      const browser = await webdriver(appPort, '/to-nonexistent')
+      await browser.eval(function setup() {
+        window.__DATA_BE_GONE = 'true'
+      })
+      await browser.waitForElementByCss('#to-nonexistent-page')
+      await browser.click('#to-nonexistent-page')
+      await browser.waitForElementByCss('.about-page')
+
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
+    })
+
+    it('should reload page successfully (on bad data fetch)', async () => {
+      const browser = await webdriver(appPort, '/to-shadowed-page')
+      await browser.eval(function setup() {
+        window.__DATA_BE_GONE = 'true'
+      })
+      await browser.waitForElementByCss('#to-shadowed-page').click()
+      await browser.waitForElementByCss('.about-page')
+
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
+    })
   })
 
   it('should navigate to external site and back', async () => {
@@ -372,6 +415,23 @@ describe('Production Usage', () => {
     await waitFor(1000)
     const newText = await browser.elementByCss('p').text()
     expect(newText).toBe('server')
+  })
+
+  it('should navigate to page with CSS and back', async () => {
+    const browser = await webdriver(appPort, '/css-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('client')
   })
 
   it('should navigate to external site and back (with query)', async () => {

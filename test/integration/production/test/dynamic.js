@@ -16,6 +16,43 @@ export default (context, render) => {
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
+      it('should render one dynamically imported component and load its css files', async () => {
+        const $ = await get$('/dynamic/css')
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(1)
+      })
+
+      it('should render three dynamically imported components and load their css files', async () => {
+        const $ = await get$('/dynamic/many-dynamic-css')
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(3)
+      })
+
+      it('should bundle two css modules for one dynamically imported component into one css file', async () => {
+        const $ = await get$('/dynamic/many-css-modules')
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(1)
+      })
+
+      it('should bundle two css modules for nested components into one css file', async () => {
+        const $ = await get$('/dynamic/nested-css')
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(1)
+      })
+
+      // It seem to be abnormal, dynamic CSS modules are completely self-sufficient, so shared styles are copied across files
+      it('should output two css files even in case of three css module files while one is shared across files', async () => {
+        const $ = await get$('/dynamic/shared-css-module')
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(2)
+      })
+
+      it('should render one dynamically imported component without any css files', async () => {
+        const $ = await get$('/dynamic/no-css')
+        const cssFiles = $('link[rel=stylesheet]')
+        expect(cssFiles.length).toBe(0)
+      })
+
       it('should render even there are no physical chunk exists', async () => {
         let browser
         try {

@@ -37,9 +37,9 @@ export async function sandbox(
     env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   })
   const browser = await webdriver(appPort, '/')
-
   return [
     {
+      sandboxDirectory,
       async write(fileName, content) {
         // Update the file on filesystem
         const fullFileName = path.join(sandboxDirectory, fileName)

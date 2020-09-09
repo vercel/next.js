@@ -30,9 +30,9 @@ DB_USER=myuser
 DB_PASS=mypassword
 ```
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching) and [API routes](/docs/api-routes/introduction).
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching.md) and [API routes](/docs/api-routes/introduction.md).
 
-For example, using [`getStaticProps`](/docs/basic-features/data-fetching#getstaticprops-static-generation):
+For example, using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation):
 
 ```js
 // pages/index.js
@@ -45,6 +45,27 @@ export async function getStaticProps() {
   // ...
 }
 ```
+
+> **Note**: Next.js will automatically expand variables (`$VAR`) inside of your `.env*` files.
+> This allows you to reference other secrets, like so:
+>
+> ```bash
+> # .env
+> HOSTNAME=localhost
+> PORT=8080
+> HOST=http://$HOSTNAME:$PORT
+> ```
+>
+> If you are trying to use a variable with a `$` in the actual value, it needs to be escaped like so: `\$`.
+>
+> For example:
+>
+> ```bash
+> # .env
+> A=abc
+> WRONG=pre$A # becomes "preabc"
+> CORRECT=pre\$A # becomes "pre$A"
+> ```
 
 ## Exposing Environment Variables to the Browser
 

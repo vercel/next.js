@@ -102,7 +102,8 @@ export type PrerenderManifest = {
 export default async function build(
   dir: string,
   conf = null,
-  reactProductionProfiling = false
+  reactProductionProfiling = false,
+  debugOutput = false
 ): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
@@ -286,7 +287,26 @@ export default async function build(
   }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-  const routesManifest: any = {
+  const routesManifest: {
+    version: number
+    pages404: boolean
+    basePath: string
+    redirects: Array<ReturnType<typeof buildCustomRoute>>
+    rewrites: Array<ReturnType<typeof buildCustomRoute>>
+    headers: Array<ReturnType<typeof buildCustomRoute>>
+    dynamicRoutes: Array<{
+      page: string
+      regex: string
+      namedRegex?: string
+      routeKeys?: { [key: string]: string }
+    }>
+    dataRoutes: Array<{
+      page: string
+      routeKeys?: { [key: string]: string }
+      dataRouteRegex: string
+      namedDataRouteRegex?: string
+    }>
+  } = {
     version: 3,
     pages404: true,
     basePath: config.basePath,
@@ -304,6 +324,7 @@ export default async function build(
           namedRegex: routeRegex.namedRegex,
         }
       }),
+    dataRoutes: [],
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -325,6 +346,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.client,
+      rewrites,
     }),
     getBaseWebpackConfig(dir, {
       tracer,
@@ -335,6 +357,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.server,
+      rewrites,
     }),
   ])
 
@@ -654,6 +677,7 @@ export default async function build(
       'utf8'
     )
   }
+
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
@@ -1001,7 +1025,10 @@ export default async function build(
       isModern: config.experimental.modern,
     }
   )
-  printCustomRoutes({ redirects, rewrites, headers })
+
+  if (debugOutput) {
+    printCustomRoutes({ redirects, rewrites, headers })
+  }
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
@@ -1064,6 +1091,8 @@ export default async function build(
   await telemetry.flush()
 }
 
+export type ClientSsgManifest = Set<string>
+
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -1072,7 +1101,7 @@ function generateClientSsgManifest(
     isModern,
   }: { buildId: string; distDir: string; isModern: boolean }
 ) {
-  const ssgPages: Set<string> = new Set<string>([
+  const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)

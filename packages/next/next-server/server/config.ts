@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     productionBrowserSourceMaps: false,
     productionOptimizedCSSClassNames: false,
     optimizeFonts: false,
+    optimizeImages: false,
     scrollRestoration: false,
   },
   future: {
@@ -199,6 +200,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (result.assetPrefix === '') {
           result.assetPrefix = result.basePath
         }
+
+        if (result.amp.canonicalBase === '') {
+          result.amp.canonicalBase = result.basePath
+        }
       }
     }
   }
@@ -272,7 +277,11 @@ export default function loadConfig(
       )
     }
 
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+    return assignDefaults({
+      configOrigin: CONFIG_FILE,
+      configFile: path,
+      ...userConfig,
+    })
   } else {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(

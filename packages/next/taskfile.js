@@ -39,6 +39,7 @@ const externals = {
 
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
+  'caniuse-lite': 'caniuse-lite',
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
@@ -301,14 +302,6 @@ export async function ncc_jsonwebtoken(task, opts) {
     .target('compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
-externals['launch-editor'] = 'next/dist/compiled/launch-editor'
-export async function ncc_launch_editor(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('launch-editor')))
-    .ncc({ packageName: 'launch-editor', externals })
-    .target('compiled/launch-editor')
-}
-// eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
   await task
@@ -488,6 +481,14 @@ export async function ncc_comment_json(task, opts) {
     .target('compiled/comment-json')
 }
 
+externals['semver'] = 'next/dist/compiled/semver'
+export async function ncc_semver(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('semver')))
+    .ncc({ packageName: 'semver', externals })
+    .target('compiled/semver')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -538,7 +539,6 @@ export async function ncc(task) {
       'ncc_is_wsl',
       'ncc_json5',
       'ncc_jsonwebtoken',
-      'ncc_launch_editor',
       'ncc_lodash_curry',
       'ncc_lru_cache',
       'ncc_nanoid',
@@ -560,6 +560,7 @@ export async function ncc(task) {
       'ncc_unistore',
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
+      'ncc_semver',
     ])
 }
 
