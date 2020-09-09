@@ -221,3 +221,35 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
     expect(stderr).toContain('Selector "a" is not pure')
   })
 })
+
+describe('CSS Modules: Import Exports', () => {
+  const appDir = join(fixturesDir, 'module-import-exports')
+
+  let stdout
+  let code
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".styles_blk__2ns7r{color:#000}"`
+    )
+  })
+})
