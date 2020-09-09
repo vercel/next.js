@@ -28,8 +28,9 @@ export function getCssModuleLoader(
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
-      onlyLocals: ctx.isServer,
       modules: {
+        // Server-side (Node.js) rendering support:
+        exportOnlyLocals: ctx.isServer,
         // Disallow global style exports so we can code-split CSS and
         // not worry about loading order.
         mode: 'pure',
