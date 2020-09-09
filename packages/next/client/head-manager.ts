@@ -1,3 +1,6 @@
+import { createElement } from 'react'
+import { HeadEntry } from '../next-server/lib/utils'
+
 const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
@@ -27,51 +30,63 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   return el
 }
 
-function updateElements(type: string, components: JSX.Element[]) {
+function updateElements(
+  elements: Set<Element>,
+  components: JSX.Element[],
+  removeOldTags: boolean
+) {
   const headEl = document.getElementsByTagName('head')[0]
-  const headCountEl: HTMLMetaElement = headEl.querySelector(
-    'meta[name=next-head-count]'
-  ) as HTMLMetaElement
-  if (process.env.NODE_ENV !== 'production') {
-    if (!headCountEl) {
-      console.error(
-        'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
-      )
+  const oldTags = new Set(elements)
+
+  components.forEach((tag) => {
+    if (tag.type === 'title') {
+      let title = ''
+      if (tag) {
+        const { children } = tag.props
+        title = typeof children === 'string' ? children : children.join('')
+      }
+      if (title !== document.title) document.title = title
       return
     }
-  }
 
-  const headCount = Number(headCountEl.content)
-  const oldTags: Element[] = []
+    const newTag = reactElementToDOM(tag)
+    const elementIter = elements.values()
 
-  for (
-    let i = 0, j = headCountEl.previousElementSibling;
-    i < headCount;
-    i++, j = j!.previousElementSibling
-  ) {
-    if (j!.tagName.toLowerCase() === type) {
-      oldTags.push(j!)
-    }
-  }
-  const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
-    (newTag) => {
-      for (let k = 0, len = oldTags.length; k < len; k++) {
-        const oldTag = oldTags[k]
-        if (oldTag.isEqualNode(newTag)) {
-          oldTags.splice(k, 1)
-          return false
-        }
+    while (true) {
+      // Note: We don't use for-of here to avoid needing to polyfill it.
+      const { done, value } = elementIter.next()
+      if (value?.isEqualNode(newTag)) {
+        oldTags.delete(value)
+        return
       }
-      return true
-    }
-  )
 
-  oldTags.forEach((t) => t.parentNode!.removeChild(t))
-  newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
-  headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
+      if (done) {
+        break
+      }
+    }
+
+    elements.add(newTag)
+    headEl.appendChild(newTag)
+  })
+
+  oldTags.forEach((oldTag) => {
+    if (removeOldTags) {
+      oldTag.parentNode!.removeChild(oldTag)
+    }
+    elements.delete(oldTag)
+  })
 }
 
-export default function initHeadManager() {
+export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
+  const headEl = document.getElementsByTagName('head')[0]
+  const elements = new Set<Element>(headEl.children)
+
+  updateElements(
+    elements,
+    initialHeadEntries.map(([type, props]) => createElement(type, props)),
+    false
+  )
+
   let updatePromise: Promise<void> | null = null
 
   return {
@@ -81,24 +96,7 @@ export default function initHeadManager() {
         if (promise !== updatePromise) return
 
         updatePromise = null
-        const tags: Record<string, JSX.Element[]> = {}
-
-        head.forEach((h) => {
-          const components = tags[h.type] || []
-          components.push(h)
-          tags[h.type] = components
-        })
-
-        const titleComponent = tags.title ? tags.title[0] : null
-        let title = ''
-        if (titleComponent) {
-          const { children } = titleComponent.props
-          title = typeof children === 'string' ? children : children.join('')
-        }
-        if (title !== document.title) document.title = title
-        ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
-          updateElements(type, tags[type] || [])
-        })
+        updateElements(elements, head, true)
       }))
     },
   }
