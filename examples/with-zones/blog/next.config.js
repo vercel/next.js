@@ -1,8 +1,3 @@
-const assetPrefix = process.env.BUILDING_FOR_VERCEL ? '/blog' : ''
-
 module.exports = {
-  assetPrefix,
-  env: {
-    ASSET_PREFIX: assetPrefix,
-  },
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/blog' : '',
 }
