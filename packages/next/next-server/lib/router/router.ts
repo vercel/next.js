@@ -625,21 +625,24 @@ export default class Router implements BaseRouter {
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
       )
-      const potentialHref = removePathTrailingSlash(
-        this._resolveHref(
-          Object.assign({}, parsed, { pathname: resolvedAs }),
-          pages,
-          false
-        ).pathname!
-      )
 
-      // if this directly matches a page we need to update the href to
-      // allow the correct page chunk to be loaded
-      if (pages.includes(potentialHref)) {
-        route = potentialHref
-        pathname = potentialHref
-        parsed.pathname = pathname
-        url = formatWithValidation(parsed)
+      if (resolvedAs !== as) {
+        const potentialHref = removePathTrailingSlash(
+          this._resolveHref(
+            Object.assign({}, parsed, { pathname: resolvedAs }),
+            pages,
+            false
+          ).pathname!
+        )
+
+        // if this directly matches a page we need to update the href to
+        // allow the correct page chunk to be loaded
+        if (pages.includes(potentialHref)) {
+          route = potentialHref
+          pathname = potentialHref
+          parsed.pathname = pathname
+          url = formatWithValidation(parsed)
+        }
       }
     }
     resolvedAs = delBasePath(resolvedAs)
@@ -996,11 +999,7 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
-  _resolveHref(
-    parsedHref: UrlObject,
-    pages: string[],
-    applyBasePath?: boolean
-  ) {
+  _resolveHref(parsedHref: UrlObject, pages: string[], applyBasePath = true) {
     const { pathname } = parsedHref
     const cleanPathname = removePathTrailingSlash(
       denormalizePagePath(applyBasePath ? delBasePath(pathname!) : pathname!)
