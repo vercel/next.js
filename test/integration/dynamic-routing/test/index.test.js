@@ -798,7 +798,7 @@ function runTests(dev) {
       await hasRedbox(browser)
       const header = await getRedboxHeader(browser)
       expect(header).toContain(
-        `Interpolation failed for href (/[name]) due to not all param values being provided in the query, needed param values (name)`
+        'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
       )
     })
 
