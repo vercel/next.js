@@ -4,6 +4,13 @@ description: A custom asset prefix allows you serve static assets from a CDN. Le
 
 # CDN Support with Asset Prefix
 
+> **Attention**: [Deploying to Vercel](docs/deployment.md) automatically configures a global CDN for your Next.js project.
+> You do not need to manually setup an Asset Prefix.
+
+> **Note**: Next.js 9.5+ added support for a customizable [Base Path](docs/api-reference/next.config.js/basepath.md), which is better
+> suited for hosting your application on a sub-path like `/docs`.
+> We do not suggest you use a custom Asset Prefix for this use case.
+
 To set up a [CDN](https://en.wikipedia.org/wiki/Content_delivery_network), you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
 
 Open `next.config.js` and add the `assetPrefix` config:
@@ -17,7 +24,13 @@ module.exports = {
 }
 ```
 
-Next.js will automatically use your prefix in the scripts it loads, but this has no effect whatsoever on the [public](/docs/basic-features/static-file-serving.md) folder; if you want to serve those assets over a CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/vercel/next.js/tree/canary/examples/with-universal-configuration-build-time).
+Next.js will automatically use your asset prefix for the JavaScript and CSS files it loads from the `/_next/` path (`.next/static/` folder).
+
+Asset prefix support does not influence the following paths:
+
+- Files in the [public](/docs/basic-features/static-file-serving.md) folder; if you want to serve those assets over a CDN, you'll have to introduce the prefix yourself
+- `/_next/data/` requests for `getServerSideProps` pages. These requests will always be made against the main domain since they're not static.
+- `/_next/data/` requests for `getStaticProps` pages. These requests will always be made against the main domain to support [Incremental Static Generation](/docs/basic-features/data-fetching.md#incremental-static-regeneration), even if you're not using it (for consistency).
 
 ## Related
 
