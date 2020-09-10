@@ -801,6 +801,26 @@ describe('Client Navigation', () => {
 
       await browser.close()
     })
+
+    it('should handle undefined in router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-params')
+      await browser.elementByCss('#click-me').click()
+      const query = JSON.parse(
+        await browser.waitForElementByCss('#query-value').text()
+      )
+      expect(query).toEqual({
+        param1: '',
+        param2: '',
+        param3: '',
+        param4: '0',
+        param5: 'false',
+        param7: '',
+        param8: '',
+        param9: '',
+        param10: '',
+        param11: ['', '', '', '0', 'false', '', '', '', '', ''],
+      })
+    })
   })
 
   describe('with querystring relative urls', () => {
