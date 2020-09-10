@@ -2,6 +2,7 @@ import { ParsedUrlQuery } from 'querystring'
 import pathMatch from './path-match'
 import prepareDestination from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
+import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 
 const customRouteMatcher = pathMatch(true)
 
@@ -33,7 +34,7 @@ export default function resolveRewrites(
         asPath = destRes.parsedDestination.pathname!
         Object.assign(query, destRes.parsedDestination.query)
 
-        if (pages.includes(asPath)) {
+        if (pages.includes(removePathTrailingSlash(asPath))) {
           // check if we now match a page as this means we are done
           // resolving the rewrites
           break
