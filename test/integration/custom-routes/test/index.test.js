@@ -316,11 +316,13 @@ const runTests = (isDev = false) => {
 
   it('should work with rewrite when manually specifying href/as', async () => {
     const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
     await browser
       .elementByCss('#to-params-manual')
       .click()
       .waitForElementByCss('#query')
 
+    expect(await browser.eval('window.beforeNav')).toBe(1)
     const query = JSON.parse(await browser.elementByCss('#query').text())
     expect(query).toEqual({
       something: '1',
@@ -330,16 +332,32 @@ const runTests = (isDev = false) => {
 
   it('should work with rewrite when only specifying href', async () => {
     const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
     await browser
       .elementByCss('#to-params')
       .click()
       .waitForElementByCss('#query')
 
+    expect(await browser.eval('window.beforeNav')).toBe(1)
     const query = JSON.parse(await browser.elementByCss('#query').text())
     expect(query).toEqual({
       something: '1',
       another: 'value',
     })
+  })
+
+  it('should work with rewrite when only specifying href and ends in dynamic route', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-rewritten-dynamic')
+      .click()
+      .waitForElementByCss('#auto-export')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    const text = await browser.eval(() => document.documentElement.innerHTML)
+    expect(text).toContain('auto-export hello')
   })
 
   it('should match a page after a rewrite', async () => {
