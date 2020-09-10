@@ -11,8 +11,8 @@ Note: this error will only show when the `next/link` component is clicked not wh
 ```jsx
 import Link from 'next/link'
 
-export default () => (
-  <>
+export default function BlogLink() {
+  return (
     <Link
       href={{
         pathname: '/blog/[post]/[comment]',
@@ -21,8 +21,8 @@ export default () => (
     >
       <a>Invalid link</a>
     </Link>
-  </>
-)
+  )
+}
 ```
 
 **Valid `href` interpolation**
@@ -30,16 +30,18 @@ export default () => (
 ```jsx
 import Link from 'next/link'
 
-export default () => (
-  <>
-    <Link href={{
-      pathname: '/blog/[post]/[comment]',
-      query: { post: 'post-1', comment: 'comment-1 }
-    }}>
+export default function BlogLink() {
+  return (
+    <Link
+      href={{
+        pathname: '/blog/[post]/[comment]',
+        query: { post: 'post-1', comment: 'comment-1' },
+      }}
+    >
       <a>Valid link</a>
     </Link>
-  </>
-)
+  )
+}
 ```
 
 #### Possible Ways to Fix It
