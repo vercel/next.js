@@ -15,6 +15,8 @@ import {
   nextStart,
   normalizeRegEx,
   check,
+  hasRedbox,
+  getRedboxHeader,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
@@ -786,6 +788,18 @@ function runTests(dev) {
 
       await fs.remove(dirname(addLaterPage))
       expect(text).toBe('slug: first')
+    })
+
+    it('should show error when interpolating fails for href', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser
+        .elementByCss('#view-post-1-interpolated-incorrectly')
+        .click()
+      await hasRedbox(browser)
+      const header = await getRedboxHeader(browser)
+      expect(header).toContain(
+        'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
+      )
     })
 
     it('should work with HMR correctly', async () => {

@@ -34,6 +34,17 @@ const Page = () => {
       <Link
         href={{
           pathname: '/[name]',
+          query: { another: 'value' },
+        }}
+      >
+        <a id="view-post-1-interpolated-incorrectly">
+          View post 1 (interpolated incorrectly)
+        </a>
+      </Link>
+      <br />
+      <Link
+        href={{
+          pathname: '/[name]',
           query: { name: 'post-1', another: 'value' },
         }}
       >
