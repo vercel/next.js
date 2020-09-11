@@ -178,11 +178,14 @@ export function resolveHref(
         finalUrl.pathname,
         query
       )
-      interpolatedAs = formatWithValidation({
-        pathname: result,
-        hash: finalUrl.hash,
-        query: omitParmsFromQuery(query, params),
-      })
+
+      if (result) {
+        interpolatedAs = formatWithValidation({
+          pathname: result,
+          hash: finalUrl.hash,
+          query: omitParmsFromQuery(query, params),
+        })
+      }
     }
 
     // if the origin didn't change, it means we received a relative href
@@ -191,7 +194,9 @@ export function resolveHref(
         ? finalUrl.href.slice(finalUrl.origin.length)
         : finalUrl.href
 
-    return (resolveAs ? [resolvedHref, interpolatedAs] : resolvedHref) as string
+    return (resolveAs
+      ? [resolvedHref, interpolatedAs || resolvedHref]
+      : resolvedHref) as string
   } catch (_) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
@@ -653,7 +658,12 @@ export default class Router implements BaseRouter {
 
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
-      if (!routeMatch) {
+      const shouldInterpolate = route === asPathname
+      const interpolatedAs = shouldInterpolate
+        ? interpolateAs(route, asPathname, query)
+        : ({} as { result: undefined; params: undefined })
+
+      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
         const missingParams = Object.keys(routeRegex.groups).filter(
           (param) => !query[param]
         )
@@ -661,7 +671,11 @@ export default class Router implements BaseRouter {
         if (missingParams.length > 0) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              `Mismatching \`as\` and \`href\` failed to manually provide ` +
+              `${
+                shouldInterpolate
+                  ? `Interpolating href`
+                  : `Mismatching \`as\` and \`href\``
+              } failed to manually provide ` +
                 `the params: ${missingParams.join(
                   ', '
                 )} in the \`href\`'s \`query\``
@@ -669,16 +683,23 @@ export default class Router implements BaseRouter {
           }
 
           throw new Error(
-            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-              `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
+            (shouldInterpolate
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                  ', '
+                )}) to be interpolated properly. `
+              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+              `Read more: https://err.sh/vercel/next.js/${
+                shouldInterpolate
+                  ? 'href-interpolation-failed'
+                  : 'incompatible-href-as'
+              }`
           )
         }
-      } else if (route === asPathname) {
-        const { result, params } = interpolateAs(route, asPathname, query)
+      } else if (shouldInterpolate) {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
-            pathname: result,
-            query: omitParmsFromQuery(query, params),
+            pathname: interpolatedAs.result,
+            query: omitParmsFromQuery(query, interpolatedAs.params!),
           })
         )
       } else {
