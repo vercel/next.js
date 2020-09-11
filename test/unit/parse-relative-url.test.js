@@ -1,14 +1,10 @@
 /* eslint-env jest */
-import {
-  parseRelativeUrl,
-  refreshDummyBase,
-} from 'next/dist/next-server/lib/router/utils/parse-relative-url'
+import { parseRelativeUrl } from 'next/dist/next-server/lib/router/utils/parse-relative-url'
 
 // convenience function so tests can be aligned neatly
 // and easy to eyeball
 const check = (windowUrl, targetUrl, expected) => {
   window.location = new URL(windowUrl)
-  refreshDummyBase()
   if (typeof expected === 'string') {
     expect(() => parseRelativeUrl(targetUrl)).toThrow(expected)
   } else {
@@ -75,7 +71,7 @@ describe('parseRelativeUrl', () => {
     )
   })
 
-  it('should throw when parsing the full url', () => {
+  it('should parse the full url with current origin', () => {
     check(
       'http://example.com:3210/someA/pathB?fooC=barD#hashE',
       'http://example.com:3210/someF/pathG?fooH=barI#hashJ',
@@ -84,6 +80,14 @@ describe('parseRelativeUrl', () => {
         search: '?fooH=barI',
         hash: '#hashJ',
       }
+    )
+  })
+
+  it('should throw when parsing the full url with diff origin', () => {
+    check(
+      'http://example.com:3210/someA/pathB?fooC=barD#hashE',
+      'http://google.com/someF/pathG?fooH=barI#hashJ',
+      'invariant: invalid relative URL'
     )
   })
 
