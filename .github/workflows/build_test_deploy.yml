@@ -69,15 +69,8 @@ jobs:
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 
       - run: |
-          apt-get update && apt-get install -qy \
-          libasound2 \
-          libgconf-2-4 \
-          libgtk2.0-0 \
-          libnss3 \
-          libxss1 \
-          libxtst6 \
-          xvfb \
-          && rm -rf /var/lib/apt/lists/*
+          sudo apt-get update && 
+          sudo apt-get install -qy libasound2 libgconf-2-4 libgtk2.0-0 libnss3 libxss1 libxtst6 Xvfb
 
       - run: |
           export DISPLAY=':99.0'
