@@ -70,7 +70,7 @@ jobs:
 
       - run: |
           sudo apt-get update && 
-          sudo apt-get install -qy libasound2 libgconf-2-4 libgtk2.0-0 libnss3 libxss1 libxtst6 Xvfb
+          sudo apt-get install -qy libasound2 libgconf-2-4 libgtk2.0-0 libnss3 libxss1 libxtst6 xvfb
 
       - run: |
           export DISPLAY=':99.0' &&
