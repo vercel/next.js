@@ -25,6 +25,8 @@ describe('Parse Relative Url', () => {
           '--headless',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--window-size=800,600',
+          '--remote-debugging-port=9515',
         ],
       })
       await app.start()
