@@ -6,7 +6,7 @@ export default function ({
   types: typeof BabelTypes
 }): PluginObj<any> {
   return {
-    inherits: require('babel-plugin-syntax-jsx'),
+    inherits: require('@babel/plugin-syntax-jsx'),
     visitor: {
       JSXElement(_path, state) {
         state.set('jsx', true)
