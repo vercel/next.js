@@ -3198,11 +3198,7 @@
   dependencies:
     "@types/jest-diff" "*"
 
-"@types/json-schema@^7.0.3":
-  version "7.0.4"
-  resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.4.tgz#38fd73ddfd9b55abb1e1b2ed578cb55bd7b7d339"
-
-"@types/json-schema@^7.0.5":
+"@types/json-schema@^7.0.3", "@types/json-schema@^7.0.5":
   version "7.0.6"
   resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.6.tgz#f4c7ec43e81b319a9815115031709f26987891f0"
   integrity sha512-3c+yGKvVP5Y9TYBEibGNR+kLtijnj7mYrXRg+WpFb2X9xm04g/DXYkfg4hmzJQosc9snFNUPkbYIhu+KAm6jJw==
@@ -3806,25 +3802,12 @@ ajv-errors@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/ajv-errors/-/ajv-errors-1.0.1.tgz#f35986aceb91afadec4102fbd85014950cefa64d"
 
-ajv-keywords@^3.1.0, ajv-keywords@^3.4.1:
-  version "3.4.1"
-  resolved "https://registry.yarnpkg.com/ajv-keywords/-/ajv-keywords-3.4.1.tgz#ef916e271c64ac12171fd8384eaae6b2345854da"
-
-ajv-keywords@^3.5.2:
+ajv-keywords@^3.1.0, ajv-keywords@^3.4.1, ajv-keywords@^3.5.2:
   version "3.5.2"
   resolved "https://registry.yarnpkg.com/ajv-keywords/-/ajv-keywords-3.5.2.tgz#31f29da5ab6e00d1c2d329acf7b5929614d5014d"
   integrity sha512-5p6WTN0DdTGVQk6VjcEju19IgaHudalcfabD7yhDGeA6bcQnmL+CpveLJq/3hvfwd1aof6L386Ougkx6RfyMIQ==
 
-ajv@^6.1.0, ajv@^6.10.0, ajv@^6.10.2, ajv@^6.12.0, ajv@^6.5.5:
-  version "6.12.0"
-  resolved "https://registry.yarnpkg.com/ajv/-/ajv-6.12.0.tgz#06d60b96d87b8454a5adaba86e7854da629db4b7"
-  dependencies:
-    fast-deep-equal "^3.1.1"
-    fast-json-stable-stringify "^2.0.0"
-    json-schema-traverse "^0.4.1"
-    uri-js "^4.2.2"
-
-ajv@^6.12.4:
+ajv@^6.1.0, ajv@^6.10.0, ajv@^6.10.2, ajv@^6.12.4, ajv@^6.5.5:
   version "6.12.4"
   resolved "https://registry.yarnpkg.com/ajv/-/ajv-6.12.4.tgz#0614facc4522127fa713445c6bfd3ebd376e2234"
   integrity sha512-eienB2c9qVQs2KWexhkrdMLVDoIQCz5KSeLxwg9Lzk4DOfBtIK9PQwwufcsn1jjGuf9WZmqPMbGxOzfcuphJCQ==
@@ -5287,14 +5270,6 @@ clone-deep@^0.3.0:
     is-plain-object "^2.0.1"
     kind-of "^3.2.2"
     shallow-clone "^0.1.2"
-
-clone-deep@^4.0.1:
-  version "4.0.1"
-  resolved "https://registry.yarnpkg.com/clone-deep/-/clone-deep-4.0.1.tgz#c19fd9bdbbf85942b4fd979c84dcf7d5f07c2387"
-  dependencies:
-    is-plain-object "^2.0.4"
-    kind-of "^6.0.2"
-    shallow-clone "^3.0.0"
 
 clone-response@^1.0.2:
   version "1.0.2"
@@ -10287,6 +10262,11 @@ kleur@^3.0.2, kleur@^3.0.3:
   version "3.0.3"
   resolved "https://registry.yarnpkg.com/kleur/-/kleur-3.0.3.tgz#a79c9ecc86ee1ce3fa6206d1216c501f147fc07e"
 
+klona@^2.0.3:
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/klona/-/klona-2.0.3.tgz#98274552c513583ad7a01456a789a2a0b4a2a538"
+  integrity sha512-CgPOT3ZadDpXxKcfV56lEQ9OQSZ42Mk26gnozI+uN/k39vzD8toUhRQoqsX0m9Q3eMPEfsLWmtyUpK/yqST4yg==
+
 ky-universal@0.6.0:
   version "0.6.0"
   resolved "https://registry.yarnpkg.com/ky-universal/-/ky-universal-0.6.0.tgz#a91c265c80c38f750e65bbc6d72df16f5b58691f"
@@ -11457,7 +11437,7 @@ neo-async@2.6.1, neo-async@^2.6.0, neo-async@^2.6.1:
   version "2.6.1"
   resolved "https://registry.yarnpkg.com/neo-async/-/neo-async-2.6.1.tgz#ac27ada66167fa8849a6addd837f6b189ad2081c"
 
-neo-async@^2.5.0:
+neo-async@^2.5.0, neo-async@^2.6.2:
   version "2.6.2"
   resolved "https://registry.yarnpkg.com/neo-async/-/neo-async-2.6.2.tgz#b4aafb93e3aeb2d8174ca53cf163ab7d7308305f"
   integrity sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==
@@ -13472,11 +13452,7 @@ postcss-value-parser@^3.0.0, postcss-value-parser@^3.0.1, postcss-value-parser@^
   version "3.3.1"
   resolved "https://registry.yarnpkg.com/postcss-value-parser/-/postcss-value-parser-3.3.1.tgz#9ff822547e2893213cf1c30efa51ac5fd1ba8281"
 
-postcss-value-parser@^4.0.2:
-  version "4.0.3"
-  resolved "https://registry.yarnpkg.com/postcss-value-parser/-/postcss-value-parser-4.0.3.tgz#651ff4593aa9eda8d5d0d66593a2417aeaeb325d"
-
-postcss-value-parser@^4.1.0:
+postcss-value-parser@^4.0.2, postcss-value-parser@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/postcss-value-parser/-/postcss-value-parser-4.1.0.tgz#443f6a20ced6481a2bda4fa8532a6e55d789a2cb"
   integrity sha512-97DXOFbQJhk71ne5/Mt6cOu6yxsSfM0QGQyl0L25Gca4yGWEGJaig7l7gbCX623VqTBNGLRLaVUCnNkcedlRSQ==
@@ -14919,6 +14895,17 @@ sass-graph@^2.2.4:
     scss-tokenizer "^0.2.3"
     yargs "^7.0.0"
 
+sass-loader@10.0.2:
+  version "10.0.2"
+  resolved "https://registry.yarnpkg.com/sass-loader/-/sass-loader-10.0.2.tgz#c7b73010848b264792dd45372eea0b87cba4401e"
+  integrity sha512-wV6NDUVB8/iEYMalV/+139+vl2LaRFlZGEd5/xmdcdzQcgmis+npyco6NsDTVOlNA3y2NV9Gcz+vHyFMIT+ffg==
+  dependencies:
+    klona "^2.0.3"
+    loader-utils "^2.0.0"
+    neo-async "^2.6.2"
+    schema-utils "^2.7.1"
+    semver "^7.3.2"
+
 sass-loader@6.0.6:
   version "6.0.6"
   resolved "https://registry.yarnpkg.com/sass-loader/-/sass-loader-6.0.6.tgz#e9d5e6c1f155faa32a4b26d7a9b7107c225e40f9"
@@ -14928,16 +14915,6 @@ sass-loader@6.0.6:
     loader-utils "^1.0.1"
     lodash.tail "^4.1.1"
     pify "^3.0.0"
-
-sass-loader@8.0.2:
-  version "8.0.2"
-  resolved "https://registry.yarnpkg.com/sass-loader/-/sass-loader-8.0.2.tgz#debecd8c3ce243c76454f2e8290482150380090d"
-  dependencies:
-    clone-deep "^4.0.1"
-    loader-utils "^1.2.3"
-    neo-async "^2.6.1"
-    schema-utils "^2.6.1"
-    semver "^6.3.0"
 
 sax@^1.2.4, sax@~1.2.1, sax@~1.2.4:
   version "1.2.4"
@@ -14956,12 +14933,14 @@ scheduler@^0.18.0:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
 
-schema-utils@2.6.6, schema-utils@^2.0.0, schema-utils@^2.6.1, schema-utils@^2.6.5, schema-utils@^2.6.6:
-  version "2.6.6"
-  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-2.6.6.tgz#299fe6bd4a3365dc23d99fd446caff8f1d6c330c"
+schema-utils@2.7.1, schema-utils@^2.0.0, schema-utils@^2.6.5, schema-utils@^2.6.6, schema-utils@^2.7.1:
+  version "2.7.1"
+  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-2.7.1.tgz#1ca4f32d1b24c590c203b8e7a50bf0ea4cd394d7"
+  integrity sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==
   dependencies:
-    ajv "^6.12.0"
-    ajv-keywords "^3.4.1"
+    "@types/json-schema" "^7.0.5"
+    ajv "^6.12.4"
+    ajv-keywords "^3.5.2"
 
 schema-utils@^0.4.0:
   version "0.4.7"
@@ -14978,15 +14957,6 @@ schema-utils@^1.0.0:
     ajv "^6.1.0"
     ajv-errors "^1.0.0"
     ajv-keywords "^3.1.0"
-
-schema-utils@^2.7.1:
-  version "2.7.1"
-  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-2.7.1.tgz#1ca4f32d1b24c590c203b8e7a50bf0ea4cd394d7"
-  integrity sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==
-  dependencies:
-    "@types/json-schema" "^7.0.5"
-    ajv "^6.12.4"
-    ajv-keywords "^3.5.2"
 
 scss-tokenizer@^0.2.3:
   version "0.2.3"
@@ -15151,12 +15121,6 @@ shallow-clone@^0.1.2:
     kind-of "^2.0.1"
     lazy-cache "^0.2.3"
     mixin-object "^2.0.1"
-
-shallow-clone@^3.0.0:
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/shallow-clone/-/shallow-clone-3.0.1.tgz#8f2981ad92531f55035b01fb230769a40e02efa3"
-  dependencies:
-    kind-of "^6.0.2"
 
 shallowequal@^1.1.0:
   version "1.1.0"
