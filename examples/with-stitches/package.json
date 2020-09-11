@@ -1,21 +1,20 @@
 {
-  "name": "stitches",
+  "name": "with-stitches",
   "version": "0.1.0",
-  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@stitches/css": "3.0.2",
-    "next": "9.3.5",
-    "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "@stitches/react": "0.0.1",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "devDependencies": {
-    "@types/react": "^16.9.34",
-    "typescript": "^3.8.3"
+    "@types/react": "^16.9.43",
+    "typescript": "^3.9.7"
   },
   "license": "MIT"
 }
