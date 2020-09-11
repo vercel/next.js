@@ -83,7 +83,7 @@
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserslist": "4.13.0",
     "buffer": "5.6.0",
-    "cacache": "13.0.1",
+    "cacache": "15.0.5",
     "caniuse-lite": "^1.0.30001113",
     "chokidar": "2.1.8",
     "crypto-browserify": "3.12.0",
