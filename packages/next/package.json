@@ -194,7 +194,7 @@
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
     "nanoid": "2.0.3",
-    "node-fetch": "2.6.0",
+    "node-fetch": "2.6.1",
     "ora": "4.0.4",
     "path-to-regexp": "6.1.0",
     "postcss-flexbugs-fixes": "4.2.1",
