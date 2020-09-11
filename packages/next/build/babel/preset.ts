@@ -181,8 +181,6 @@ module.exports = (
           removeImport: true,
         },
       ],
-      require('@babel/plugin-proposal-optional-chaining'),
-      require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
       // Always compile numeric separator because the resulting number is
       // smaller.
