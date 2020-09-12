@@ -112,7 +112,7 @@
     "use-subscription": "1.4.1",
     "vm-browserify": "1.1.2",
     "watchpack": "2.0.0-beta.13",
-    "web-vitals": "0.2.1",
+    "web-vitals": "0.2.4",
     "webpack": "4.44.1",
     "webpack-sources": "1.4.3"
   },
