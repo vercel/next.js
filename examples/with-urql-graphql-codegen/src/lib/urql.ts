@@ -22,7 +22,6 @@ const createUrqlClient = (data: any) => {
     isClient: !isServer,
     initialState: data
   });
-  console.log(data);
   return createClient({
     exchanges: [dedupExchange, cacheExchange, ssr, fetchExchange],
     url: 'https://rickandmortyapi.com/graphql'
