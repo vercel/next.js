@@ -28,8 +28,13 @@ export function getCssModuleLoader(
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
-      onlyLocals: ctx.isServer,
+      // Use CJS mode for backwards compatibility:
+      esModule: false,
       modules: {
+        // Do not transform class names (CJS mode backwards compatibility):
+        exportLocalsConvention: 'asIs',
+        // Server-side (Node.js) rendering support:
+        exportOnlyLocals: ctx.isServer,
         // Disallow global style exports so we can code-split CSS and
         // not worry about loading order.
         mode: 'pure',
