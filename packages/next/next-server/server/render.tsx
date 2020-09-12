@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import { warn } from '../../build/output/log'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -19,9 +20,9 @@ import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
   AMP_RENDER_TARGET,
+  PERMANENT_REDIRECT_STATUS,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
-  PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
@@ -37,13 +38,13 @@ import {
   AppType,
   ComponentsEnhancer,
   DocumentInitialProps,
+  DocumentProps,
   DocumentType,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
-  DocumentProps,
 } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -906,13 +907,13 @@ export async function renderToHTML(
     const plural = nonRenderedComponents.length !== 1 ? 's' : ''
 
     if (nonRenderedComponents.length) {
-      console.warn(
-        `Expected Document Component${plural} ${nonRenderedComponents.join(
-          ', '
-        )} ${
-          plural ? 'were' : 'was'
-        } not rendered. Make sure you render them in your custom \`_document\`\n` +
-          `See more info here https://err.sh/next.js/missing-document-component`
+      const missingComponentList = nonRenderedComponents
+        .map((e) => `<${e} />`)
+        .join(', ')
+      warn(
+        `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
+          `Missing component${plural}: ${missingComponentList}\n` +
+          'Read how to fix here: https://err.sh/next.js/missing-document-component'
       )
     }
   }
