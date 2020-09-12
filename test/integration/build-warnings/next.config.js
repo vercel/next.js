@@ -1,6 +1,6 @@
 module.exports = {
   webpack: (config) => {
-    config.optimization.minimizer = []
+    config.optimization.minimize = true
     return config
   },
 }
