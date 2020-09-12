@@ -77,10 +77,19 @@ export default function nextPageConfig({
                 }
 
                 const config: PageConfig = {}
-                const declarations = [
-                  ...(exportPath.node.declaration?.declarations || []),
-                  exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
-                ].filter(Boolean)
+                const declarations = []
+                if (
+                  BabelTypes.isVariableDeclaration(exportPath.node.declaration)
+                ) {
+                  declarations.push(...exportPath.node.declaration.declarations)
+                }
+                const binding = exportPath.scope.getBinding(CONFIG_KEY)
+                if (
+                  binding &&
+                  BabelTypes.isVariableDeclarator(binding.path.node)
+                ) {
+                  declarations.push(binding.path.node)
+                }
 
                 for (const specifier of exportPath.node.specifiers) {
                   if (specifier.exported.name === CONFIG_KEY) {
@@ -147,8 +156,8 @@ export default function nextPageConfig({
                         )
                       )
                     }
-                    const { name } = prop.key
                     if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
+                      const { name } = prop.key
                       if (!BabelTypes.isObjectProperty(prop)) {
                         throw new Error(
                           errorMessage(
