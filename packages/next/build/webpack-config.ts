@@ -790,7 +790,9 @@ export default async function getBaseWebpackConfig(
       ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
     },
     output: {
-      ...(isWebpack5 ? { environment: {} } : {}),
+      ...(isWebpack5
+        ? { environment: { arrowFunction: false, const: false, forOf: false } }
+        : {}),
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
