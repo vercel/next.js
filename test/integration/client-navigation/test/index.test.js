@@ -1362,6 +1362,7 @@ describe('Client Navigation', () => {
 
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
+    (p, q) => fetchViaHTTP(context.appPort, p, q),
+    context
   )
 })
