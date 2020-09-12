@@ -314,6 +314,52 @@ const runTests = (isDev = false) => {
     expect(await getBrowserBodyText(browser)).toMatch(/Hello again/)
   })
 
+  it('should work with rewrite when manually specifying href/as', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-params-manual')
+      .click()
+      .waitForElementByCss('#query')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    const query = JSON.parse(await browser.elementByCss('#query').text())
+    expect(query).toEqual({
+      something: '1',
+      another: 'value',
+    })
+  })
+
+  it('should work with rewrite when only specifying href', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-params')
+      .click()
+      .waitForElementByCss('#query')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    const query = JSON.parse(await browser.elementByCss('#query').text())
+    expect(query).toEqual({
+      something: '1',
+      another: 'value',
+    })
+  })
+
+  it('should work with rewrite when only specifying href and ends in dynamic route', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-rewritten-dynamic')
+      .click()
+      .waitForElementByCss('#auto-export')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    const text = await browser.eval(() => document.documentElement.innerHTML)
+    expect(text).toContain('auto-export hello')
+  })
+
   it('should match a page after a rewrite', async () => {
     const html = await renderViaHTTP(appPort, '/to-hello')
     expect(html).toContain('Hello')
@@ -988,7 +1034,7 @@ const runTests = (isDev = false) => {
       })
     })
 
-    it('should have redirects/rewrites in build output', async () => {
+    it('should have redirects/rewrites in build output with debug flag', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
@@ -1073,7 +1119,7 @@ describe('Custom routes', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
@@ -1093,7 +1139,7 @@ describe('Custom routes', () => {
         nextConfigContent.replace(/\/\/ target/, 'target'),
         'utf8'
       )
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout

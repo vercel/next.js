@@ -21,6 +21,8 @@ import {
   AMP_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
+  PERMANENT_REDIRECT_STATUS,
+  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -41,6 +43,7 @@ import {
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
+  DocumentProps,
 } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -158,6 +161,7 @@ function renderDocument(
   Document: DocumentType,
   {
     buildManifest,
+    docComponentsRendered,
     props,
     docProps,
     pathname,
@@ -188,6 +192,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString,
   }: RenderOpts & {
     props: any
+    docComponentsRendered: DocumentProps['docComponentsRendered']
     docProps: DocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
@@ -231,8 +236,25 @@ function renderDocument(
             customServer, // whether the user is using a custom server
             gip, // whether the page has getInitialProps
             appGip, // whether the _app has getInitialProps
+            head: React.Children.toArray(docProps.head || [])
+              .map((elem) => {
+                const { children } = elem?.props
+                return [
+                  elem?.type,
+                  {
+                    ...elem?.props,
+                    children: children
+                      ? typeof children === 'string'
+                        ? children
+                        : children.join('')
+                      : undefined,
+                  },
+                ]
+              })
+              .filter(Boolean) as any,
           },
           buildManifest,
+          docComponentsRendered,
           dangerousAsPath,
           canonicalBase,
           ampPath,
@@ -258,6 +280,46 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
     `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
     `\nRead more: https://err.sh/next.js/invalid-getstaticprops-value`
   )
+}
+
+type Redirect = {
+  permanent: boolean
+  destination: string
+}
+
+function checkRedirectValues(redirect: Redirect, req: IncomingMessage) {
+  const { destination, permanent } = redirect
+  let invalidPermanent = typeof permanent !== 'boolean'
+  let invalidDestination = typeof destination !== 'string'
+
+  if (invalidPermanent || invalidDestination) {
+    throw new Error(
+      `Invalid redirect object returned from getStaticProps for ${req.url}\n` +
+        `Expected${
+          invalidPermanent
+            ? ` \`permanent\` to be boolean but received ${typeof permanent}`
+            : ''
+        }${invalidPermanent && invalidDestination ? ' and' : ''}${
+          invalidDestination
+            ? ` \`destinatino\` to be string but received ${typeof destination}`
+            : ''
+        }\n` +
+        `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
+    )
+  }
+}
+
+function handleRedirect(res: ServerResponse, redirect: Redirect) {
+  const statusCode = redirect.permanent
+    ? PERMANENT_REDIRECT_STATUS
+    : TEMPORARY_REDIRECT_STATUS
+
+  if (redirect.permanent) {
+    res.setHeader('Refresh', `0;url=${redirect.destination}`)
+  }
+  res.statusCode = statusCode
+  res.setHeader('Location', redirect.destination)
+  res.end()
 }
 
 export async function renderToHTML(
@@ -402,7 +464,7 @@ export async function renderToHTML(
       )
     }
 
-    if (isAutoExport) {
+    if (isAutoExport || isFallback) {
       // remove query values except ones that will be set during export
       query = {
         ...(query.amp
@@ -530,7 +592,8 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'revalidate' && key !== 'props'
+        (key) =>
+          key !== 'revalidate' && key !== 'props' && key !== 'unstable_redirect'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -539,6 +602,29 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+      }
+
+      if (
+        data.unstable_redirect &&
+        typeof data.unstable_redirect === 'object'
+      ) {
+        checkRedirectValues(data.unstable_redirect, req)
+
+        if (isBuildTimeSSG) {
+          throw new Error(
+            `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
+              `See more info here: https://err.sh/next.js/gsp-redirect-during-prerender`
+          )
+        }
+
+        if (isDataReq) {
+          data.props = {
+            __N_REDIRECT: data.unstable_redirect.destination,
+          }
+        } else {
+          handleRedirect(res, data.unstable_redirect)
+          return null
+        }
       }
 
       if (
@@ -619,10 +705,28 @@ export async function renderToHTML(
         throw new Error(GSSP_NO_RETURNED_VALUE)
       }
 
-      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
+      const invalidKeys = Object.keys(data).filter(
+        (key) => key !== 'props' && key !== 'unstable_redirect'
+      )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      if (
+        data.unstable_redirect &&
+        typeof data.unstable_redirect === 'object'
+      ) {
+        checkRedirectValues(data.unstable_redirect, req)
+
+        if (isDataReq) {
+          data.props = {
+            __N_REDIRECT: data.unstable_redirect.destination,
+          }
+        } else {
+          handleRedirect(res, data.unstable_redirect)
+          return null
+        }
       }
 
       if (
@@ -759,8 +863,11 @@ export async function renderToHTML(
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
 
+  const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+
   let html = renderDocument(Document, {
     ...renderOpts,
+    docComponentsRendered,
     buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
@@ -786,6 +893,29 @@ export async function renderToHTML(
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
   })
+
+  if (process.env.NODE_ENV !== 'production') {
+    const nonRenderedComponents = []
+    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
+
+    for (const comp of expectedDocComponents) {
+      if (!(docComponentsRendered as any)[comp]) {
+        nonRenderedComponents.push(comp)
+      }
+    }
+    const plural = nonRenderedComponents.length !== 1 ? 's' : ''
+
+    if (nonRenderedComponents.length) {
+      console.warn(
+        `Expected Document Component${plural} ${nonRenderedComponents.join(
+          ', '
+        )} ${
+          plural ? 'were' : 'was'
+        } not rendered. Make sure you render them in your custom \`_document\`\n` +
+          `See more info here https://err.sh/next.js/missing-document-component`
+      )
+    }
+  }
 
   if (inAmpMode && html) {
     // inject HTML to AMP_RENDER_TARGET to allow rendering

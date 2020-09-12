@@ -6,6 +6,7 @@ import NodeTargetPlugin from 'webpack/lib/node/NodeTargetPlugin'
 
 import CssDependency from './CssDependency'
 
+const isWebpack5 = parseInt(webpack.version) === 5
 const pluginName = 'mini-css-extract-plugin'
 
 function evalModuleCode(loaderContext, code, filename) {
@@ -18,9 +19,17 @@ function evalModuleCode(loaderContext, code, filename) {
   return module.exports
 }
 
-function findModuleById(modules, id) {
-  for (const module of modules) {
-    if (module.id === id) {
+function getModuleId(compilation, module) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getModuleId(module)
+  }
+
+  return module.id
+}
+
+function findModuleById(compilation, id) {
+  for (const module of compilation.modules) {
+    if (getModuleId(compilation, module) === id) {
       return module
     }
   }
@@ -47,6 +56,10 @@ export function pitch(request) {
   const outputOptions = {
     filename: childFilename,
     publicPath,
+    library: {
+      type: 'commonjs2',
+      name: null,
+    },
   }
   const childCompiler = this._compilation.createChildCompiler(
     `${pluginName} ${request}`,
@@ -54,53 +67,80 @@ export function pitch(request) {
   )
 
   new webpack.node.NodeTemplatePlugin(outputOptions).apply(childCompiler)
-  new webpack.LibraryTemplatePlugin(null, 'commonjs2').apply(childCompiler)
+  if (isWebpack5) {
+    new webpack.library.EnableLibraryPlugin(outputOptions.library.type).apply(
+      childCompiler
+    )
+  } else {
+    new webpack.LibraryTemplatePlugin(null, 'commonjs2').apply(childCompiler)
+  }
   new NodeTargetPlugin().apply(childCompiler)
-  new webpack.SingleEntryPlugin(this.context, `!!${request}`, pluginName).apply(
-    childCompiler
-  )
+  new (isWebpack5 ? webpack.EntryPlugin : webpack.SingleEntryPlugin)(
+    this.context,
+    `!!${request}`,
+    pluginName
+  ).apply(childCompiler)
   new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }).apply(
     childCompiler
   )
 
+  let source
+
   childCompiler.hooks.thisCompilation.tap(
     `${pluginName} loader`,
     (compilation) => {
-      compilation.hooks.normalModuleLoader.tap(
-        `${pluginName} loader`,
-        (loaderContext, module) => {
-          // eslint-disable-next-line no-param-reassign
-          loaderContext.emitFile = this.emitFile
+      const hook = isWebpack5
+        ? webpack.NormalModule.getCompilationHooks(compilation).loader
+        : compilation.hooks.normalModuleLoader
+      hook.tap(`${pluginName} loader`, (loaderContext, module) => {
+        // eslint-disable-next-line no-param-reassign
+        loaderContext.emitFile = this.emitFile
 
-          if (module.request === request) {
-            // eslint-disable-next-line no-param-reassign
-            module.loaders = loaders.map((loader) => {
-              return {
-                loader: loader.path,
-                options: loader.options,
-                ident: loader.ident,
-              }
-            })
-          }
+        if (module.request === request) {
+          // eslint-disable-next-line no-param-reassign
+          module.loaders = loaders.map((loader) => {
+            return {
+              loader: loader.path,
+              options: loader.options,
+              ident: loader.ident,
+            }
+          })
         }
-      )
+      })
+
+      if (isWebpack5) {
+        compilation.hooks.processAssets.tap(
+          {
+            name: pluginName,
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
+          },
+          (assets) => {
+            source = assets[childFilename] && assets[childFilename].source()
+
+            // Remove all chunk assets
+            Object.keys(assets).forEach((file) => delete assets[file])
+          }
+        )
+      }
     }
   )
 
-  let source
+  // webpack 5 case is covered in hooks.thisCompilation above
+  if (!isWebpack5) {
+    childCompiler.hooks.afterCompile.tap(pluginName, (compilation) => {
+      source =
+        compilation.assets[childFilename] &&
+        compilation.assets[childFilename].source()
 
-  childCompiler.hooks.afterCompile.tap(pluginName, (compilation) => {
-    source =
-      compilation.assets[childFilename] &&
-      compilation.assets[childFilename].source()
-
-    // Remove all chunk assets
-    compilation.chunks.forEach((chunk) => {
-      chunk.files.forEach((file) => {
-        delete compilation.assets[file] // eslint-disable-line no-param-reassign
+      // Remove all chunk assets
+      compilation.chunks.forEach((chunk) => {
+        chunk.files.forEach((file) => {
+          delete compilation.assets[file] // eslint-disable-line no-param-reassign
+        })
       })
     })
-  })
+  }
 
   const callback = this.async()
 
@@ -158,7 +198,7 @@ export function pitch(request) {
         dependencies = [[null, exports]]
       } else {
         dependencies = exports.map(([id, content, media, sourceMap]) => {
-          const module = findModuleById(compilation.modules, id)
+          const module = findModuleById(compilation, id)
 
           return {
             identifier: module.identifier(),
