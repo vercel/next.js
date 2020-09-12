@@ -40,7 +40,7 @@ const checkMissing = async (missing = [], docContent) => {
 describe('Missing _document components error', () => {
   it('should detect missing Html component', async () => {
     await checkMissing(
-      ['Html'],
+      ['<Html />'],
       `
       import Document, { Head, Main, NextScript } from 'next/document'
 
@@ -65,7 +65,7 @@ describe('Missing _document components error', () => {
 
   it('should detect missing Head component', async () => {
     await checkMissing(
-      ['Head'],
+      ['<Head />'],
       `
       import Document, { Html, Main, NextScript } from 'next/document'
 
@@ -89,7 +89,7 @@ describe('Missing _document components error', () => {
 
   it('should detect missing Main component', async () => {
     await checkMissing(
-      ['Main'],
+      ['<Main />'],
       `
       import Document, { Html, Head, NextScript } from 'next/document'
 
@@ -113,7 +113,7 @@ describe('Missing _document components error', () => {
 
   it('should detect missing NextScript component', async () => {
     await checkMissing(
-      ['NextScript'],
+      ['<NextScript />'],
       `
       import Document, { Html, Head, Main } from 'next/document'
 
@@ -136,7 +136,7 @@ describe('Missing _document components error', () => {
 
   it('should detect multiple missing document components', async () => {
     await checkMissing(
-      ['Head', 'NextScript'],
+      ['<Head />', '<NextScript />'],
       `
       import Document, { Html, Main } from 'next/document'
 
