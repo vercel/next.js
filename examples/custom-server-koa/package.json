@@ -7,9 +7,9 @@
     "start": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "@koa/router": "^8.0.7",
     "cross-env": "^5.2.0",
     "koa": "^2.0.1",
-    "@koa/router": "^8.0.7",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
