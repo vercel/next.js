@@ -26,7 +26,16 @@ Here's an example `.babelrc` file:
 
 You can [take a look at this file](https://github.com/vercel/next.js/blob/canary/packages/next/build/babel/preset.ts) to learn about the presets included by `next/babel`.
 
-To configure these presets/plugins, **do not** add them to `presets` or `plugins` in your custom `.babelrc`. Instead, configure them on the `next/babel` preset, like so:
+To add presets/plugins **without configuring them**, you can do it this way:
+
+```json
+{
+  "presets": ["next/babel"],
+  "plugins": ["@babel/plugin-proposal-do-expressions"]
+}
+```
+
+To add presets/plugins **with custom configuration**, do it on the `next/babel` preset like so:
 
 ```json
 {
