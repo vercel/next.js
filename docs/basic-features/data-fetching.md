@@ -332,6 +332,12 @@ export async function getStaticPaths() {
 }
 ```
 
+#### The `getStaticPaths` flow
+
+The function `getStaticPaths` will generate data. The data is an array with all the possibilities for the dynamic route. The params generated in `getStaticPaths` will be passed to `getStaticProps`. 
+
+getStaticPaths => getStaticProps => [id].js
+
 #### The `paths` key (required)
 
 The `paths` key determines which paths will be pre-rendered. For example, suppose that you have a page that uses dynamic routes named `pages/posts/[id].js`. If you export `getStaticPaths` from this page and return the following for `paths`:
