@@ -493,7 +493,7 @@ const nextServerlessLoader: loader.Loader = function () {
         // since the asPath should match what is shown on the client
         if (
           !fromExport &&
-          getStaticProps
+          (getStaticProps || getServerSideProps)
         ) {
           parsedUrl.pathname = denormalizePagePath(parsedUrl.pathname)
           renderOpts.normalizedAsPath = formatUrl(parsedUrl)

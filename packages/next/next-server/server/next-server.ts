@@ -1114,7 +1114,8 @@ export default class Server {
             normalizedAsPath: isDataReq
               ? formatUrl({
                   pathname: urlPathname,
-                  query,
+                  // make sure to only add query values from original URL
+                  query: parseUrl(req.url!, true).query,
                 })
               : undefined,
           }
