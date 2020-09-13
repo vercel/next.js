@@ -299,6 +299,7 @@ const nextServerlessLoader: loader.Loader = function () {
     const {parse: parseQs} = require('querystring')
     const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
+    const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -465,8 +466,8 @@ const nextServerlessLoader: loader.Loader = function () {
             : ''
         }
 
-        // normalize request URL/asPath for fallback pages since the proxy
-        // sets the request URL to the output's path for fallback pages
+        // normalize request URL/asPath for fallback/revalidate pages since the
+        // proxy sets the request URL to the output's path for fallback pages
         ${
           pageIsDynamicRoute
             ? `
@@ -486,6 +487,16 @@ const nextServerlessLoader: loader.Loader = function () {
             }
           `
             : ``
+        }
+
+        // make sure to normalize asPath for revalidate and _next/data requests
+        // since the asPath should match what is shown on the client
+        if (
+          !fromExport &&
+          getStaticProps
+        ) {
+          parsedUrl.pathname = denormalizePagePath(parsedUrl.pathname)
+          renderOpts.normalizedAsPath = formatUrl(parsedUrl)
         }
 
         const isFallback = parsedUrl.query.__nextFallback
