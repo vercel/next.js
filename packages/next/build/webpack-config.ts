@@ -791,7 +791,17 @@ export default async function getBaseWebpackConfig(
     },
     output: {
       ...(isWebpack5
-        ? { environment: { arrowFunction: false, const: false, forOf: false } }
+        ? {
+            environment: {
+              arrowFunction: false,
+              bigIntLiteral: false,
+              const: false,
+              destructuring: false,
+              dynamicImport: false,
+              forOf: false,
+              module: false,
+            },
+          }
         : {}),
       path: outputPath,
       // On the server we don't use the chunkhash
