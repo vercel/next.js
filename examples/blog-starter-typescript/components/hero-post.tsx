@@ -1,5 +1,5 @@
 import Avatar from './avatar'
-import DateFormater from './date-formater'
+import DateFormatter from './date-formatter'
 import CoverImage from './cover-image'
 import Link from 'next/link'
 import Author from '../types/author'
@@ -34,7 +34,7 @@ const HeroPost = ({
             </Link>
           </h3>
           <div className="mb-4 md:mb-0 text-lg">
-            <DateFormater dateString={date} />
+            <DateFormatter dateString={date} />
           </div>
         </div>
         <div>
