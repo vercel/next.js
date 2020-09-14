@@ -2054,6 +2054,7 @@ describe('SSG Prerender', () => {
       '/non-json/[p].js',
       '/blog/[post]/index.js',
       '/fallback-only/[slug].js',
+      '/api-docs/[...slug].js',
     ]
     const fallbackBlockingPages = [
       '/blocking-fallback/[slug].js',
