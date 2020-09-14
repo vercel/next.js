@@ -12,7 +12,7 @@ export const CTA = () => (
     py={2}
   >
     <ChakraLink isExternal href="https://chakra-ui.com" flexGrow={1} mx={2}>
-      <Button width="100%" variant="outline" variantColor="green">
+      <Button width="100%" variant="outline" colorScheme="green">
         chakra-ui
       </Button>
     </ChakraLink>
@@ -23,7 +23,7 @@ export const CTA = () => (
       flexGrow={3}
       mx={2}
     >
-      <Button width="100%" variant="solid" variantColor="green">
+      <Button width="100%" variant="solid" colorScheme="green">
         View Repo
       </Button>
     </ChakraLink>

@@ -8,10 +8,8 @@
     "type-check": "tsc"
   },
   "dependencies": {
-    "@chakra-ui/core": "^0.8.0",
-    "@emotion/core": "^10.0.35",
-    "@emotion/styled": "^10.0.27",
-    "emotion-theming": "^10.0.27",
+    "@chakra-ui/core": "^1.0.0-rc.3",
+    "@chakra-ui/icons": "^1.0.0-rc.3",
     "next": "^9.5.2",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
