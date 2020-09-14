@@ -689,7 +689,7 @@ export async function renderToHTML(
           req,
           res,
           query,
-          asPath,
+          resolvedUrl: asPath,
           ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }

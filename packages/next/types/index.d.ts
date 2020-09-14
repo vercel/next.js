@@ -120,7 +120,7 @@ export type GetServerSidePropsContext<
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
-  asPath: string
+  resolvedUrl: string
 }
 
 export type GetServerSidePropsResult<P> = {

@@ -2,10 +2,10 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export async function getServerSideProps({ params, query, asPath }) {
+export async function getServerSideProps({ params, query, resolvedUrl }) {
   return {
     props: {
-      gsspAsPath: asPath,
+      resolvedUrl: resolvedUrl,
       world: 'world',
       query: query || {},
       params: params || {},
@@ -22,7 +22,7 @@ export default ({
   random,
   query,
   appProps,
-  gsspAsPath,
+  resolvedUrl,
 }) => {
   return (
     <>
@@ -34,7 +34,7 @@ export default ({
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <div id="app-query">{JSON.stringify(appProps.query)}</div>
       <div id="app-url">{appProps.url}</div>
-      <div id="gssp-asPath">{gsspAsPath}</div>
+      <div id="resolved-url">{resolvedUrl}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>
