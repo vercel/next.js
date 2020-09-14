@@ -2,9 +2,10 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export async function getServerSideProps({ params, query }) {
+export async function getServerSideProps({ params, query, resolvedUrl }) {
   return {
     props: {
+      resolvedUrl: resolvedUrl,
       world: 'world',
       query: query || {},
       params: params || {},
@@ -14,7 +15,15 @@ export async function getServerSideProps({ params, query }) {
   }
 }
 
-export default ({ world, time, params, random, query, appProps }) => {
+export default ({
+  world,
+  time,
+  params,
+  random,
+  query,
+  appProps,
+  resolvedUrl,
+}) => {
   return (
     <>
       <p>hello: {world}</p>
@@ -25,6 +34,7 @@ export default ({ world, time, params, random, query, appProps }) => {
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <div id="app-query">{JSON.stringify(appProps.query)}</div>
       <div id="app-url">{appProps.url}</div>
+      <div id="resolved-url">{resolvedUrl}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>

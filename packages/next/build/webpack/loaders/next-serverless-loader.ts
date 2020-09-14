@@ -496,7 +496,7 @@ const nextServerlessLoader: loader.Loader = function () {
           !fromExport &&
           (getStaticProps || getServerSideProps)
         ) {
-          const curQuery = {...parsedUrl.query}
+          const origQuery = parseUrl(req.url, true).query
 
           ${
             pageIsDynamicRoute
@@ -507,7 +507,7 @@ const nextServerlessLoader: loader.Loader = function () {
                 delete parsedUrl.search
 
                 for (const param of Object.keys(defaultRouteRegex.groups)) {
-                  delete curQuery[param]
+                  delete origQuery[param]
                 }
               }
             `
@@ -515,9 +515,9 @@ const nextServerlessLoader: loader.Loader = function () {
           }
 
           parsedUrl.pathname = denormalizePagePath(parsedUrl.pathname)
-          renderOpts.normalizedAsPath = formatUrl({
+          renderOpts.resolvedUrl = formatUrl({
             ...parsedUrl,
-            query: curQuery
+            query: origQuery
           })
         }
 
