@@ -295,7 +295,9 @@ const runTests = (dev = false) => {
   it('should have original req.url for /_next/data request dynamic page', async () => {
     const curUrl = `/_next/data/${buildId}/blog/post-1.json`
     const data = await renderViaHTTP(appPort, curUrl)
-    const { appProps } = JSON.parse(data)
+    const { appProps, pageProps } = JSON.parse(data)
+
+    expect(pageProps.gsspAsPath).toEqual('/blog/post-1')
 
     expect(appProps).toEqual({
       url: curUrl,
@@ -308,7 +310,9 @@ const runTests = (dev = false) => {
   it('should have original req.url for /_next/data request', async () => {
     const curUrl = `/_next/data/${buildId}/something.json`
     const data = await renderViaHTTP(appPort, curUrl)
-    const { appProps } = JSON.parse(data)
+    const { appProps, pageProps } = JSON.parse(data)
+
+    expect(pageProps.gsspAsPath).toEqual('/something')
 
     expect(appProps).toEqual({
       url: curUrl,
@@ -323,6 +327,7 @@ const runTests = (dev = false) => {
     const $ = cheerio.load(html)
     expect($('#app-url').text()).toContain('/blog/post-1')
     expect(JSON.parse($('#app-query').text())).toEqual({ post: 'post-1' })
+    expect($('#gssp-asPath').text()).toBe('/blog/post-1')
   })
 
   it('should have correct req.url and query for direct visit', async () => {
@@ -330,6 +335,7 @@ const runTests = (dev = false) => {
     const $ = cheerio.load(html)
     expect($('#app-url').text()).toContain('/something')
     expect(JSON.parse($('#app-query').text())).toEqual({})
+    expect($('#gssp-asPath').text()).toBe('/something')
   })
 
   it('should return data correctly', async () => {
