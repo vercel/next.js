@@ -1,4 +1,4 @@
-import Document, { Main, NextScript } from 'next/document'
+import Document, { Html, Main, NextScript } from 'next/document'
 import { useAmp } from 'next/amp'
 
 import { GA_TRACKING_ID } from '../lib/gtag'
@@ -13,7 +13,7 @@ function AmpWrap({ ampOnly, nonAmp }) {
 export default class MyDocument extends Document {
   render() {
     return (
-      <html>
+      <Html>
         <body>
           <Main />
           <NextScript />
@@ -65,7 +65,7 @@ export default class MyDocument extends Document {
             }
           />
         </body>
-      </html>
+      </Html>
     )
   }
 }

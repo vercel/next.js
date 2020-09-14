@@ -13,5 +13,5 @@
     "video.js": "^6.7.3",
     "videojs-youtube": "^2.4.1"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

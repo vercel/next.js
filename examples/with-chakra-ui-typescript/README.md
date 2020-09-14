@@ -22,31 +22,10 @@ npx create-next-app --example with-chakra-ui-typescript with-chakra-ui-typescrip
 yarn create next-app --example with-chakra-ui-typescript with-chakra-ui-typescript-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-chakra-ui-typescript
-cd with-chakra-ui-typescript
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## Notes
 
 Next.js and chakra-ui has built-in TypeScript declarations, so we'll get autocompletion for their modules straight away.
-
-A `type-check` script is also added to `package.json`, which runs TypeScript's `tsc` CLI in `noEmit` mode to run type-checking separately. You can then include this, for example, in your `test` scripts.
 
 > All credits for [with-chakra-ui](https://github.com/vercel/next.js/tree/canary/examples/with-chakra-ui) and [with-typescript](https://github.com/vercel/next.js/tree/canary/examples/with-typescript) contributors.
