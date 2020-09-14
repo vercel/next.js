@@ -1114,7 +1114,7 @@ export default class Server {
             resolvedUrl: formatUrl({
               pathname: urlPathname,
               // make sure to only add query values from original URL
-              query: parseUrl(req.url!, true).query,
+              query: parseUrl(req.url || '', true).query,
             }),
           }
 
