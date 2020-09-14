@@ -135,6 +135,17 @@ const runTests = (context, dev = false) => {
     })
   }
 
+  it('should 404 for public file without basePath', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/data.txt')
+    expect(res.status).toBe(404)
+  })
+
+  it('should serve public file with basePath correctly', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/docs/data.txt')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('hello world')
+  })
+
   it('should rewrite with basePath by default', async () => {
     const html = await renderViaHTTP(context.appPort, '/docs/rewrite-1')
     expect(html).toContain('getServerSideProps')
@@ -388,6 +399,45 @@ const runTests = (context, dev = false) => {
     expect(res.status).toBe(308)
     const { pathname } = new URL(res.headers.get('location'))
     expect(pathname).toBe('/docs')
+  })
+
+  it('should navigate an absolute url', async () => {
+    const browser = await webdriver(context.appPort, `/docs/absolute-url`)
+    await browser.waitForElementByCss('#absolute-link').click()
+    await check(
+      () => browser.eval(() => window.location.origin),
+      'https://vercel.com'
+    )
+  })
+
+  it('should navigate an absolute local url with basePath', async () => {
+    const browser = await webdriver(
+      context.appPort,
+      `/docs/absolute-url-basepath?port=${context.appPort}`
+    )
+    await browser.eval(() => (window._didNotNavigate = true))
+    await browser.waitForElementByCss('#absolute-link').click()
+    const text = await browser
+      .waitForElementByCss('#something-else-page')
+      .text()
+
+    expect(text).toBe('something else')
+    expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
+  })
+
+  it('should navigate an absolute local url without basePath', async () => {
+    const browser = await webdriver(
+      context.appPort,
+      `/docs/absolute-url-no-basepath?port=${context.appPort}`
+    )
+    await browser.waitForElementByCss('#absolute-link').click()
+    await check(
+      () => browser.eval(() => location.pathname),
+      '/rewrite-no-basepath'
+    )
+    const text = await browser.elementByCss('body').text()
+
+    expect(text).toBe('hello from external')
   })
 
   it('should 404 when manually adding basePath with <Link>', async () => {
@@ -988,6 +1038,13 @@ describe('basePath development', () => {
       })
     })
   })
+
+  it('should respect basePath in amphtml link rel', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/amp-hybrid')
+    const $ = cheerio.load(html)
+    const expectedAmpHtmlUrl = '/docs/amp-hybrid?amp=1'
+    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
+  })
 })
 
 describe('basePath production', () => {
@@ -1014,6 +1071,13 @@ describe('basePath production', () => {
   afterAll(() => stopApp(server))
 
   runTests(context)
+
+  it('should respect basePath in amphtml link rel', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/amp-hybrid')
+    const $ = cheerio.load(html)
+    const expectedAmpHtmlUrl = '/docs/amp-hybrid.amp'
+    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
+  })
 })
 
 describe('basePath serverless', () => {

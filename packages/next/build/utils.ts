@@ -475,7 +475,7 @@ async function computeFromManifest(
   return lastCompute!
 }
 
-function difference<T>(main: T[], sub: T[]): T[] {
+export function difference<T>(main: T[] | Set<T>, sub: T[] | Set<T>): T[] {
   const a = new Set(main)
   const b = new Set(sub)
   return [...a].filter((x) => !b.has(x))
