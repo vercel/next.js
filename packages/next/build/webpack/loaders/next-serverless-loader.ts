@@ -515,7 +515,7 @@ const nextServerlessLoader: loader.Loader = function () {
           }
 
           parsedUrl.pathname = denormalizePagePath(parsedUrl.pathname)
-          renderOpts.normalizedAsPath = formatUrl({
+          renderOpts.resolvedUrl = formatUrl({
             ...parsedUrl,
             query: origQuery
           })
