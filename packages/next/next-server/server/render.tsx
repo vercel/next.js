@@ -154,7 +154,7 @@ export type RenderOptsPartial = {
   fontManifest?: FontManifest
   optimizeImages: boolean
   devOnlyCacheBusterQueryString?: string
-  normalizedAsPath?: string
+  resolvedUrl?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -476,6 +476,7 @@ export async function renderToHTML(
           : {}),
       }
       req.url = pathname
+      renderOpts.resolvedUrl = pathname
       renderOpts.nextExport = true
     }
 
@@ -489,7 +490,7 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath: string = renderOpts.normalizedAsPath || (req.url as string)
+  const asPath: string = renderOpts.resolvedUrl || (req.url as string)
   const router = new ServerRouter(
     pathname,
     query,
@@ -689,6 +690,7 @@ export async function renderToHTML(
           req,
           res,
           query,
+          resolvedUrl: asPath,
           ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
