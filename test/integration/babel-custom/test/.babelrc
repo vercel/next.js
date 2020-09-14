@@ -1,9 +1,12 @@
 {
   "presets": [
-    ["next/babel", {
-      "preset-env": {
-        "modules": "commonjs"
+    [
+      "next/babel",
+      {
+        "preset-env": {
+          "modules": "commonjs"
+        }
       }
-    }]
+    ]
   ]
 }
