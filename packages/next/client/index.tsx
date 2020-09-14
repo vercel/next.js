@@ -1,21 +1,22 @@
 /* global location */
+import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import type Router from '../next-server/lib/router/router'
 import type {
   AppComponent,
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
+import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -40,10 +41,6 @@ declare global {
 
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
-
-if (!('finally' in Promise.prototype)) {
-  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
-}
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
   document.getElementById('__NEXT_DATA__')!.textContent!
