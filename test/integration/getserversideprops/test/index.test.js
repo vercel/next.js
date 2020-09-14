@@ -300,7 +300,7 @@ const runTests = (dev = false) => {
     expect(appProps).toEqual({
       url: curUrl,
       query: { post: 'post-1' },
-      asPath: curUrl,
+      asPath: '/blog/post-1',
       pathname: '/blog/[post]',
     })
   })
@@ -313,7 +313,7 @@ const runTests = (dev = false) => {
     expect(appProps).toEqual({
       url: curUrl,
       query: {},
-      asPath: curUrl,
+      asPath: '/something',
       pathname: '/something',
     })
   })
