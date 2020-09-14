@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export async function getServerSideProps({ params }) {
+export async function getServerSideProps({ params, resolvedUrl }) {
   if (params.post === 'post-10') {
     await new Promise((resolve) => {
       setTimeout(() => resolve(), 1000)
@@ -16,13 +16,14 @@ export async function getServerSideProps({ params }) {
   return {
     props: {
       params,
+      resolvedUrl,
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
   }
 }
 
-export default ({ post, time, params, appProps }) => {
+export default ({ post, time, params, appProps, resolvedUrl }) => {
   return (
     <>
       <p>Post: {post}</p>
@@ -31,6 +32,7 @@ export default ({ post, time, params, appProps }) => {
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <div id="app-query">{JSON.stringify(appProps.query)}</div>
       <div id="app-url">{appProps.url}</div>
+      <div id="resolved-url">{resolvedUrl}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>
