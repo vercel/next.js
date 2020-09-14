@@ -64,6 +64,7 @@ import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
+import { denormalizePagePath } from './denormalize-page-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1025,9 +1026,9 @@ export default class Server {
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq && urlPathname.includes(this.buildId)) {
-      urlPathname = (urlPathname.split(this.buildId).pop() || '/')
-        .replace(/\.json$/, '')
-        .replace(/\/index$/, '/')
+      urlPathname = denormalizePagePath(
+        (urlPathname.split(this.buildId).pop() || '/').replace(/\.json$/, '')
+      )
     }
 
     const ssgCacheKey =
@@ -1110,7 +1111,15 @@ export default class Server {
             ...components,
             ...opts,
             isDataReq,
+            normalizedAsPath: isDataReq
+              ? formatUrl({
+                  pathname: urlPathname,
+                  // make sure to only add query values from original URL
+                  query: parseUrl(req.url!, true).query,
+                })
+              : undefined,
           }
+
           renderResult = await renderToHTML(
             req,
             res,
