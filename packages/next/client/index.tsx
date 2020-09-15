@@ -668,17 +668,13 @@ function doRender({
       ).forEach((el) => {
         el.parentNode!.removeChild(el)
       })
-
-      // Force browser to recompute layout, which should prevent a flash of
-      // unstyled content:
-      getComputedStyle(document.body, 'height')
     }
 
     resolvePromise()
   }
 
   const elem = (
-    <Root callback={onCommit}>
+    <Root>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -686,6 +682,7 @@ function doRender({
   )
 
   onStart()
+  onCommit();
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(
@@ -701,14 +698,8 @@ function doRender({
 }
 
 function Root({
-  callback,
   children,
-}: React.PropsWithChildren<{
-  callback: () => void
-}>): React.ReactElement {
-  // We use `useLayoutEffect` to guarantee the callback is executed
-  // as soon as React flushes the update.
-  React.useLayoutEffect(() => callback(), [callback])
+}: React.PropsWithChildren<{}>): React.ReactElement {
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
