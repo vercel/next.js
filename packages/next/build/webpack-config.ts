@@ -854,7 +854,7 @@ export default async function getBaseWebpackConfig(
       rules: [
         ...(isWebpack5
           ? [
-              // TODO: investigate optimal handling for this
+              // TODO: FIXME: do NOT webpack 5 support with this
               // x-ref: https://github.com/webpack/webpack/issues/11467
               {
                 test: /\.m?js/,
