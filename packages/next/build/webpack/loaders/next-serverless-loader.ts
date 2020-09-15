@@ -359,7 +359,9 @@ const nextServerlessLoader: loader.Loader = function () {
         // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
         let parsedUrl = parseUrl(req.url, true)
-        let routeNoAssetPath = parsedUrl.pathname
+        let routeNoAssetPath = parsedUrl.pathname${
+          basePath ? `.replace(new RegExp('^${basePath}'), '') || '/'` : ''
+        }
         const origQuery = Object.assign({}, parsedUrl.query)
 
         parsedUrl = handleRewrites(parsedUrl)
