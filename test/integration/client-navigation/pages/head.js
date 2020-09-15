@@ -90,17 +90,28 @@ export default () => (
       <meta property="fb:pages" content="fbpages1" />
       <meta property="fb:pages" content="fbpages2" />
 
+      {/* both meta tags will be rendered since they use unique keys */}
+      <meta
+        name="citation_author"
+        content="authorName1"
+        key="citationAuthorTag1"
+      />
+      <meta
+        name="citation_author"
+        content="authorName2"
+        key="citationAuthorTag2"
+      />
+
       <React.Fragment>
         <title>Fragment title</title>
         <meta content="meta fragment" />
       </React.Fragment>
 
-      {/* the following 2 links tag will be rendered both */}
+      {/* the following 2 link tags will both be rendered */}
       <link rel="stylesheet" href="/dup-style.css" />
       <link rel="stylesheet" href="/dup-style.css" />
 
       {/* only one tag will be rendered as they have the same key */}
-
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
 

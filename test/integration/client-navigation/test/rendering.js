@@ -170,6 +170,16 @@ export default function (render, fetch, ctx) {
       expect(html).toContain('<meta property="fb:pages" content="fbpages2"/>')
     })
 
+    test('header helper avoids dedupe of meta tags with the same name if they use unique keys', async () => {
+      const html = await render('/head')
+      expect(html).toContain(
+        '<meta name="citation_author" content="authorName1"/>'
+      )
+      expect(html).toContain(
+        '<meta name="citation_author" content="authorName2"/>'
+      )
+    })
+
     test('header helper renders Fragment children', async () => {
       const html = await render('/head')
       expect(html).toContain('<title>Fragment title</title>')
