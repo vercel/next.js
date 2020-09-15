@@ -866,6 +866,25 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
+          enforce: 'pre',
+          include: [dir, ...babelIncludeRegexes],
+          use: [
+            {
+              options: {
+                cache: true,
+              },
+              loader: 'next-eslint-loader',
+            },
+          ],
+          exclude: (excludePath: string) => {
+            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+              return false
+            }
+            return /node_modules/.test(excludePath)
+          },
+        },
+        {
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
           exclude: (excludePath: string) => {
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
