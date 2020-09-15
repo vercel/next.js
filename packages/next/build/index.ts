@@ -523,7 +523,9 @@ export default async function build(
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
 
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+      const nonReservedPage = !page.match(
+        /^\/(_app|_error|_document|api(\/|$))/
+      )
 
       if (nonReservedPage) {
         const serverBundle = getPagePath(page, distDir, isLikeServerless)
