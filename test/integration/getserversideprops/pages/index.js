@@ -40,6 +40,7 @@ const Page = ({ world, time, url }) => {
       <Link href="/blog/[post]" as="/blog/post-1">
         <a id="post-1">to dynamic</a>
       </Link>
+      <br />
       <Link href="/blog/[post]" as="/blog/post-100">
         <a id="broken-post">to broken</a>
       </Link>

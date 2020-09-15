@@ -245,6 +245,23 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should SSR getServerSideProps page correctly visiting dynamic page name itself', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/[post]')
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#params').text())).toEqual({
+      post: '[post]',
+    })
+    expect(JSON.parse($('#query').text())).toEqual({
+      post: '[post]',
+    })
+    expect(JSON.parse($('#app-query').text())).toEqual({
+      post: '[post]',
+    })
+    expect($('#app-url').text()).toBe('/blog/[post]')
+    expect($('#resolved-url').text()).toBe('/blog/[post]')
+  })
+
   it('should handle throw ENOENT correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/enoent')
     const html = await res.text()

@@ -3,6 +3,7 @@ import { UrlWithParsedQuery } from 'url'
 
 import pathMatch from '../lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
+import { isDynamicRoute } from '../lib/router/utils'
 
 export const route = pathMatch()
 
@@ -104,6 +105,7 @@ export default class Router {
       if (pageChecks[p]) {
         return pageChecks[p]
       }
+
       const result = this.pageChecker(p)
       pageChecks[p] = result
       return result
@@ -250,7 +252,7 @@ export default class Router {
           let matchedPage = await memoizedPageChecker(fsPathname)
 
           // If we didn't match a page check dynamic routes
-          if (!matchedPage) {
+          if (!matchedPage || isDynamicRoute(fsPathname)) {
             for (const dynamicRoute of this.dynamicRoutes) {
               if (dynamicRoute.match(fsPathname)) {
                 matchedPage = true

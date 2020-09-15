@@ -1250,7 +1250,7 @@ export default class Server {
   ): Promise<string | null> {
     try {
       const result = await this.findPageComponents(pathname, query)
-      if (result) {
+      if (result && !isDynamicRoute(pathname)) {
         try {
           return await this.renderToHTMLWithComponents(
             req,
