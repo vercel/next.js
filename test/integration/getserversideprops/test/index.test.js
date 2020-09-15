@@ -360,6 +360,7 @@ const runTests = (dev = false) => {
     expect($('#app-url').text()).toContain('/blog/post-1')
     expect(JSON.parse($('#app-query').text())).toEqual({ post: 'post-1' })
     expect($('#resolved-url').text()).toBe('/blog/post-1')
+    expect($('#as-path').text()).toBe('/blog/post-1')
   })
 
   it('should have correct req.url and query for direct visit dynamic page rewrite direct', async () => {
@@ -368,6 +369,7 @@ const runTests = (dev = false) => {
     expect($('#app-url').text()).toContain('/blog-post-1')
     expect(JSON.parse($('#app-query').text())).toEqual({ post: 'post-1' })
     expect($('#resolved-url').text()).toBe('/blog/post-1')
+    expect($('#as-path').text()).toBe('/blog-post-1')
   })
 
   it('should have correct req.url and query for direct visit dynamic page rewrite direct with internal query', async () => {
@@ -379,6 +381,7 @@ const runTests = (dev = false) => {
       hello: 'world',
     })
     expect($('#resolved-url').text()).toBe('/blog/post-2')
+    expect($('#as-path').text()).toBe('/blog-post-2')
   })
 
   it('should have correct req.url and query for direct visit dynamic page rewrite param', async () => {
@@ -390,6 +393,7 @@ const runTests = (dev = false) => {
       param: 'post-3',
     })
     expect($('#resolved-url').text()).toBe('/blog/post-3')
+    expect($('#as-path').text()).toBe('/blog-post-3')
   })
 
   it('should have correct req.url and query for direct visit dynamic page with query', async () => {
@@ -403,6 +407,7 @@ const runTests = (dev = false) => {
       hello: 'world',
     })
     expect($('#resolved-url').text()).toBe('/blog/post-1?hello=world')
+    expect($('#as-path').text()).toBe('/blog/post-1?hello=world')
   })
 
   it('should have correct req.url and query for direct visit', async () => {
@@ -411,6 +416,7 @@ const runTests = (dev = false) => {
     expect($('#app-url').text()).toContain('/something')
     expect(JSON.parse($('#app-query').text())).toEqual({})
     expect($('#resolved-url').text()).toBe('/something')
+    expect($('#as-path').text()).toBe('/something')
   })
 
   it('should return data correctly', async () => {

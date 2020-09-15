@@ -24,6 +24,8 @@ export default ({
   appProps,
   resolvedUrl,
 }) => {
+  const router = useRouter()
+
   return (
     <>
       <p>hello: {world}</p>
@@ -31,10 +33,11 @@ export default ({
       <div id="random">{random}</div>
       <div id="params">{JSON.stringify(params)}</div>
       <div id="initial-query">{JSON.stringify(query)}</div>
-      <div id="query">{JSON.stringify(useRouter().query)}</div>
+      <div id="query">{JSON.stringify(router.query)}</div>
       <div id="app-query">{JSON.stringify(appProps.query)}</div>
       <div id="app-url">{appProps.url}</div>
       <div id="resolved-url">{resolvedUrl}</div>
+      <div id="as-path">{router.asPath}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>
