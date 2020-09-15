@@ -41,6 +41,10 @@ const Page = ({ world, time, url }) => {
         <a id="post-1">to dynamic</a>
       </Link>
       <br />
+      <Link href="/blog/[post]?post=[post]">
+        <a id="post-itself">to /blog/[post]</a>
+      </Link>
+      <br />
       <Link href="/blog/[post]" as="/blog/post-100">
         <a id="broken-post">to broken</a>
       </Link>

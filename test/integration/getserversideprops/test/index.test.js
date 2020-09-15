@@ -228,6 +228,26 @@ const navigateTest = (dev = false) => {
     expect(text).toMatch(/Comment:.*?comment-1/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#post-itself')
+
+    // go to /blog/[post]
+    await browser.elementByCss('#post-itself').click()
+    await browser.waitForElementByCss('#home')
+    expect(await browser.eval('window.didTransition')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#params').text())).toEqual({
+      post: '[post]',
+    })
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      post: '[post]',
+    })
+    expect(JSON.parse(await browser.elementByCss('#app-query').text())).toEqual(
+      {
+        post: '[post]',
+      }
+    )
+
     await browser.close()
   })
 }
