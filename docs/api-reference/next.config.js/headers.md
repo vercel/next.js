@@ -157,19 +157,19 @@ module.exports = {
         headers: [
           {
             key: 'x-hello',
-            value: 'world'
-          }
-        ]
+            value: 'world',
+          },
+        ],
       },
       {
         source: '/without-basePath', // is not modified since basePath: false is set
         headers: [
           {
             key: 'x-hello',
-            value: 'world'
-          }
-        ]
-        basePath: false
+            value: 'world',
+          },
+        ],
+        basePath: false,
       },
     ]
   },
