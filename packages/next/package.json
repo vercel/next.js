@@ -76,7 +76,7 @@
     "@babel/preset-typescript": "7.10.4",
     "@babel/runtime": "7.11.2",
     "@babel/types": "7.11.5",
-    "@next/dotenv-loading": "9.5.4-canary.20",
+    "@next/env": "9.5.4-canary.20",
     "@next/polyfill-module": "9.5.4-canary.20",
     "@next/react-dev-overlay": "9.5.4-canary.20",
     "@next/react-refresh-utils": "9.5.4-canary.20",

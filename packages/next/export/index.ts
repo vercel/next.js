@@ -38,7 +38,7 @@ import {
   normalizePagePath,
   denormalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '@next/dotenv-loading'
+import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'

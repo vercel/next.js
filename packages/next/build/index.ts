@@ -21,7 +21,7 @@ import loadCustomRoutes, {
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
-import { loadEnvConfig } from '@next/dotenv-loading'
+import { loadEnvConfig } from '@next/env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {

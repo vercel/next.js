@@ -117,7 +117,7 @@ const nextServerlessLoader: loader.Loader = function () {
     `
     : ''
   const envLoading = `
-    const { processEnv } = require('@next/dotenv-loading')
+    const { processEnv } = require('@next/env')
     processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
   `
 
