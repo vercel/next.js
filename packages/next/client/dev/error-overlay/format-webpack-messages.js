@@ -23,6 +23,8 @@ SOFTWARE.
 */
 // This file is based on https://github.com/facebook/create-react-app/blob/7b1a32be6ec9f99a6c9a3c66813f3ac09c4736b9/packages/react-dev-utils/formatWebpackMessages.js
 // It's been edited to remove chalk and CRA-specific logic
+import stripAnsi from 'next/dist/compiled/strip-ansi'
+import sliceAnsi from 'next/dist/compiled/slice-ansi'
 
 const friendlySyntaxErrorLabel = 'Syntax error:'
 
@@ -64,6 +66,16 @@ function formatMessage(message) {
     /SyntaxError\s+\((\d+):(\d+)\)\s*(.+?)\n/g,
     `${friendlySyntaxErrorLabel} $3 ($1:$2)\n`
   )
+  // Remove redundant Error: with Syntax Error:
+  const cleanedMessage = stripAnsi(message)
+  const errorSyntaxErrorIdx = cleanedMessage.indexOf('Error: Syntax error:')
+
+  if (errorSyntaxErrorIdx > -1) {
+    message =
+      sliceAnsi(message, 0, errorSyntaxErrorIdx) +
+      sliceAnsi(message, errorSyntaxErrorIdx + 'Error: '.length)
+  }
+
   // Clean up export errors
   message = message.replace(
     /^.*export '(.+?)' was not found in '(.+?)'.*$/gm,

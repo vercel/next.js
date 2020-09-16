@@ -18,7 +18,7 @@ describe('Custom _error', () => {
 
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('global.css')
-    expect(stderr).toContain(`Error: Syntax error: Unexpected '/'`)
+    expect(stderr).toContain(`Syntax error: Unexpected '/'`)
     expect(stderr).toContain(`// oops`)
   })
 
@@ -31,7 +31,7 @@ describe('Custom _error', () => {
 
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('hello.module.css')
-    expect(stderr).toContain(`Error: Syntax error: Unexpected '/'`)
+    expect(stderr).toContain(`Syntax error: Unexpected '/'`)
     expect(stderr).toContain(`// oops`)
   })
 })

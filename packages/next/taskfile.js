@@ -419,6 +419,14 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+externals['slice-ansi'] = 'next/dist/compiled/slice-ansi'
+export async function ncc_slice_ansi(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('slice-ansi')))
+    .ncc({ packageName: 'slice-ansi', externals })
+    .target('compiled/slice-ansi')
+}
+// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -542,6 +550,7 @@ export async function ncc(task) {
       'ncc_source_map',
       'ncc_string_hash',
       'ncc_strip_ansi',
+      'ncc_slice_ansi',
       'ncc_terser',
       'ncc_text_table',
       'ncc_thread_loader',

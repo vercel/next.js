@@ -182,6 +182,10 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/slice-ansi' {
+  import m from 'slice-ansi'
+  export = m
+}
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
