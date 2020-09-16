@@ -16,7 +16,13 @@ description: Enable client-side transitions between routes with the built-in Lin
 
 Client-side transitions between routes can be enabled via the `Link` component exported by `next/link`.
 
-An example of linking to `/` and `/about`:
+For an example, consider a `pages` directory with the following files:
+
+- `pages/index.js`
+- `pages/about.js`
+- `pages/blog/[slug].js`
+
+We can have a link to each of these pages like so:
 
 ```jsx
 import Link from 'next/link'
@@ -34,6 +40,11 @@ function Home() {
           <a>About Us</a>
         </Link>
       </li>
+      <li>
+        <Link href="/blog/hello-world">
+          <a>Blog Post</a>
+        </Link>
+      </li>
     </ul>
   )
 }
@@ -43,37 +54,38 @@ export default Home
 
 `Link` accepts the following props:
 
-- `href` - The path inside `pages` directory. This is the only required prop
-- `as` - The path that will be rendered in the browser URL bar. Used for dynamic routes
+- `href` - The path or URL to navigate to. This is the only required prop
+- `as` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
-- `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions.
+- `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
 - [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
 - [`shallow`](/docs/routing/shallow-routing.md) - Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
-External URLs, and any links that don't require a route navigation using `/pages`, don't need to be handled with `Link`; use the anchor tag for such cases instead.
+## If the route has dynamic segments
 
-## Dynamic routes
+There is nothing special to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md), including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes), since Next.js 9.5.3 (for older versions check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
 
-A `Link` to a dynamic route is a combination of the `href` and `as` props. A link to the page `pages/post/[pid].js` will look like this:
-
-```jsx
-<Link href="/post/[pid]" as="/post/abc">
-  <a>First Post</a>
-</Link>
-```
-
-`href` is a file system path used by the page and it shouldn't change at runtime. `as` on the other hand, will be dynamic most of the time according to your needs. Here's an example of how to create a list of links:
+For example, the dynamic route `pages/blog/[slug].js` will match the following link:
 
 ```jsx
-const pids = ['id1', 'id2', 'id3']
-{
-  pids.map((pid) => (
-    <Link href="/post/[pid]" as={`/post/${pid}`}>
-      <a>Post {pid}</a>
-    </Link>
-  ))
+import Link from 'next/link'
+
+function Posts({ posts }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>
+          <Link href={`/blog/${encodeURIComponent(post.slug)}`}>
+            <a>{post.title}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
 }
+
+export default Posts
 ```
 
 ## If the child is a custom component that wraps an `<a>` tag
@@ -140,18 +152,40 @@ import Link from 'next/link'
 
 function Home() {
   return (
-    <div>
-      <Link href={{ pathname: '/about', query: { name: 'test' } }}>
-        <a>About us</a>
-      </Link>
-    </div>
+    <ul>
+      <li>
+        <Link
+          href={{
+            pathname: '/about',
+            query: { name: 'test' },
+          }}
+        >
+          <a>About us</a>
+        </Link>
+      </li>
+      <li>
+        <Link
+          href={{
+            pathname: '/blog/[slug]',
+            query: { slug: 'my-post' },
+          }}
+        >
+          <a>Blog Post</a>
+        </Link>
+      </li>
+    </ul>
   )
 }
 
 export default Home
 ```
 
-The above example will be a link to `/about?name=test`. You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
+The above example has a link to:
+
+- A predefined route: `/about?name=test`
+- A [dynamic route](/docs/routing/dynamic-routes.md): `/blog/my-post`
+
+You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
 ## Replace the URL instead of push
 

@@ -116,6 +116,34 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     page.restore()
   })
 
+  it('should update page when getStaticProps is changed only for /index', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(() => (window.beforeChange = 'hi'))
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.count).toBe(1)
+
+    const page = new File(join(appDir, 'pages/index.js'))
+    page.replace('count = 1', 'count = 2')
+
+    expect(await browser.eval('window.beforeChange')).toBe('hi')
+    page.restore()
+  })
+
+  it('should update page when getStaticProps is changed only for /another/index', async () => {
+    const browser = await webdriver(appPort, '/another')
+    await browser.eval(() => (window.beforeChange = 'hi'))
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.count).toBe(1)
+
+    const page = new File(join(appDir, 'pages/another/index.js'))
+    page.replace('count = 1', 'count = 2')
+
+    expect(await browser.eval('window.beforeChange')).toBe('hi')
+    page.restore()
+  })
+
   it('should not reload page when client-side is changed too GSSP', async () => {
     const browser = await webdriver(appPort, '/gssp-blog/first')
     await browser.eval(() => (window.beforeChange = 'hi'))
