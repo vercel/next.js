@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { killApp, findPort, nextStart, nextBuild } from 'next-test-utils'
+import {
+  killApp,
+  findPort,
+  nextStart,
+  nextBuild,
+  waitFor,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 jest.setTimeout(1000 * 30)
@@ -9,25 +15,44 @@ jest.setTimeout(1000 * 30)
 const appDir = join(__dirname, '../')
 let appPort
 let app
+let browser
 
-describe('SSR Images', () => {
+function runTests() {
+  it('should render an image tag', async () => {
+    await waitFor(1000)
+    expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
+  })
+  it('should pass through src from component attributes', async () => {
+    expect(await browser.elementByCss('img').getAttribute('src')).toMatch(
+      /foo.jpg$/
+    )
+  })
+}
+
+describe('Image Component Tests', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(app))
-  it('should import successfully SSR', async () => {
-    const browser = await webdriver(appPort, '/')
-    const text = await browser.elementByCss('#stubtext').text()
-
-    expect(text).toBe('This is the index page')
+  describe('SSR Image Component Tests', () => {
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/')
+    })
+    afterAll(async () => {
+      browser = null
+    })
+    runTests()
   })
-  it('should import successfully client side', async () => {
-    const browser = await webdriver(appPort, '/')
-    await browser.waitForElementByCss('#clientlink').click()
-    const text = await browser.waitForElementByCss('#stubtext').text()
-
-    expect(text).toBe('This is a client side page')
+  describe('Client-side Image Component Tests', () => {
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/')
+      await browser.waitForElementByCss('#clientlink').click()
+    })
+    afterAll(async () => {
+      browser = null
+    })
+    runTests()
   })
 })
