@@ -23,8 +23,8 @@ function runTests() {
     expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
   })
   it('should pass through src from component attributes', async () => {
-    expect(await browser.elementByCss('img').getAttribute('src')).toMatch(
-      /foo.jpg$/
+    expect(await browser.elementByCss('img').getAttribute('src')).toBe(
+      'https://example.com/myaccount/foo.jpg'
     )
   })
 }

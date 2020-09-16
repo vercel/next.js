@@ -122,6 +122,7 @@ export default class Server {
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
     optimizeFonts: boolean
+    images: string
     fontManifest: FontManifest
     optimizeImages: boolean
   }
@@ -170,6 +171,7 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
+      images: JSON.stringify(this.nextConfig.images),
       optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.experimental.optimizeFonts && !dev
@@ -242,6 +244,9 @@ export default class Server {
     }
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
+    if (this.nextConfig.images) {
+      process.env.__NEXT_IMAGE_OPTS = JSON.stringify(this.nextConfig.images)
     }
   }
 

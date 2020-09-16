@@ -67,6 +67,7 @@ interface RenderOpts {
   optimizeFonts?: boolean
   optimizeImages?: boolean
   fontManifest?: FontManifest
+  images?: any
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -283,6 +284,7 @@ export default async function exportPage({
           params,
           optimizeFonts,
           optimizeImages,
+          images: process.env.__NEXT_IMAGE_OPTS,
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
             : null,
