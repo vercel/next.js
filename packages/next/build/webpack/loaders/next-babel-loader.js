@@ -121,6 +121,7 @@ module.exports = babelLoader.custom((babel) => {
       }
     ) {
       const filename = this.resourcePath
+      console.log(`Babel Loader: ${this.resourcePath}`)
       const options = Object.assign({}, cfg.options)
       const isPageFile = filename.startsWith(pagesDir)
 

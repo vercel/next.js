@@ -833,6 +833,7 @@ export default async function getBaseWebpackConfig(
         'emit-file-loader',
         'error-loader',
         'next-babel-loader',
+        'next-eslint-loader',
         'next-client-pages-loader',
         'next-data-loader',
         'next-serverless-loader',
@@ -872,6 +873,8 @@ export default async function getBaseWebpackConfig(
             {
               options: {
                 cache: true,
+                parser: 'babel-eslint',
+                quiet: true,
               },
               loader: 'next-eslint-loader',
             },
