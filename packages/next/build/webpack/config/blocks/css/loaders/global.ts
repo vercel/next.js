@@ -27,8 +27,11 @@ export function getGlobalCssLoader(
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
-      // Next.js controls CSS Modules eligibility:
-      modules: false,
+      // don't use `modules: false` or else syntax errors won't
+      // be built correctly
+      modules: {
+        mode: 'global',
+      },
     },
   })
 
