@@ -2,7 +2,7 @@ import _ from 'lodash'
 import Promise from 'bluebird'
 import axios from 'axios'
 
-export default (on: any, config: any) => {
+export default function plugins(on: any, config: any) {
   const queryApi = ({ entity, query }, callback) => {
     const fetchData = async (attrs) => {
       const { data } = await axios.get(`${config.env.apiUrl}/${entity}`)
