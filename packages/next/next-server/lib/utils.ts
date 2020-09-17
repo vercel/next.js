@@ -4,9 +4,10 @@ import { ComponentType } from 'react'
 import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
-import { NextRouter } from './router/router'
+import { delBasePath, hasBasePath, NextRouter } from './router/router'
 import { Env } from '../../lib/load-env-config'
 import { BuildManifest } from '../server/get-page-files'
+import { parseRelativeUrl } from './router/utils/parse-relative-url'
 
 /**
  * Types used by both next and next-server
@@ -382,6 +383,13 @@ export function formatWithValidation(url: UrlObject): string {
     }
   }
 
+  return formatUrl(url)
+}
+
+export function getAsPath(relativePath: string) {
+  const url = parseRelativeUrl(relativePath)
+  const { pathname } = url
+  url.pathname = hasBasePath(pathname) ? delBasePath(pathname) : pathname
   return formatUrl(url)
 }
 

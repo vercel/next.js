@@ -11,12 +11,11 @@ import type {
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import type { NEXT_DATA } from '../next-server/lib/utils'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import { getAsPath, getURL, NEXT_DATA } from '../next-server/lib/utils'
+import { loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -73,12 +72,7 @@ envConfig.setConfig({
   publicRuntimeConfig: runtimeConfig || {},
 })
 
-let asPath = getURL()
-
-// make sure not to attempt stripping basePath for 404s
-if (hasBasePath(asPath)) {
-  asPath = delBasePath(asPath)
-}
+const asPath = getAsPath(getURL())
 
 type RegisterFn = (input: [string, () => void]) => void
 
