@@ -16,25 +16,33 @@ class MyDocument extends Document<Props> {
   static async getInitialProps(ctx: DocumentContext) {
     const {req} = ctx;
     const initialProps = await Document.getInitialProps(ctx);
+    const locale = (req as any).locale;
     return {
       ...initialProps,
-      locale: (req as any).locale || 'en',
-      lang: ((req as any).locale || 'en').split('-')[0],
+      locale,
+      lang: locale ? locale.split('-')[0] : undefined,
       nonce: (req as any).nonce,
     };
   }
 
   render() {
+    let scriptEl;
+    if (this.props.locale) {
+      scriptEl = (
+        <script
+          nonce={this.props.nonce}
+          dangerouslySetInnerHTML={{
+            __html: `window.LOCALE="${this.props.locale}"`,
+          }}
+        ></script>
+      );
+    }
+
     return (
       <Html lang={this.props.lang}>
         <Head />
         <body>
-          <script
-            nonce={this.props.nonce}
-            dangerouslySetInnerHTML={{
-              __html: `window.LOCALE="${this.props.locale}"`,
-            }}
-          ></script>
+          {scriptEl}
           <Main />
           <NextScript />
         </body>
