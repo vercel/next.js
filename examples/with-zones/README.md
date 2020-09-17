@@ -3,9 +3,8 @@
 With Next.js you can use multiple apps as a single app using its [multi-zones feature](https://nextjs.org/docs/advanced-features/multi-zones). This is an example showing how to use it.
 
 - All pages should be unique across zones. For example, the `home` app should not have a `pages/blog/index.js` page.
-- The `blog` app sets [`assetPrefix`](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix) so that generated JS bundles are within the `/blog` subfolder.
-  - To also support the plain `next dev` scenario, `assetPrefix` is only set for production builds, see [`blog/next.config.js`](blog/next.config.js).
-  - Images and other `static` assets have to be prefixed manually. The static assets added by `/blog` are under `public/blog/static` to avoid conflicts with `/home`
+- The `home` app is the main app and therefore it includes the rewrites that map to the `blog` app in [next.config.js](home/next.config.js)
+- The `blog` app sets [`basePath`](https://nextjs.org/docs/api-reference/next.config.js/basepath) to `/blog` so that generated pages, Next.js assets and public assets are within the `/blog` subfolder.
 
 ## How to use
 

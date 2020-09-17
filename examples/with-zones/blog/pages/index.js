@@ -6,12 +6,12 @@ export default function Blog() {
       <h3>This is our blog</h3>
       <ul>
         <li>
-          <Link href="/blog/post/1">
+          <Link href="/post/1">
             <a>Post 1</a>
           </Link>
         </li>
         <li>
-          <Link href="/blog/post/2">
+          <Link href="/post/2">
             <a>Post 2</a>
           </Link>
         </li>
