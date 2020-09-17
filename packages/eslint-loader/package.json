@@ -9,33 +9,19 @@
   },
   "bugs": "https://github.com/vercel/next.js/issues",
   "homepage": "https://nextjs.org",
-  "author": "Maxime Thirouin",
-  "contributors": [
-    "Ricardo Gobbo de Souza <ricardogobbosouza@yahoo.com.br>"
-  ],
   "main": "dist/cjs.js",
   "engines": {
     "node": ">= 10.13.0"
   },
   "scripts": {
     "start": "npm run build -- -w",
-    "transpile": "tsc -p ./tsconfig.json",
     "clean": "del-cli dist",
     "prebuild": "npm run clean",
-    "build": "cross-env NODE_ENV=production babel src -d dist --copy-files",
-    "commitlint": "commitlint --from=master",
-    "security": "npm audit",
-    "lint:prettier": "prettier --list-different .",
-    "lint:js": "eslint --cache .",
-    "lint": "npm-run-all -l -p \"lint:**\"",
+    "build": "cross-env NODE_ENV=production tsc -p ./tsconfig.json",
     "test:only": "cross-env NODE_ENV=test jest",
     "test:watch": "npm run test:only -- --watch",
     "test:coverage": "npm run test:only -- --collectCoverageFrom=\"src/**/*.js\" --coverage",
-    "pretest": "npm run lint",
-    "test": "npm run test:coverage",
-    "prepare": "npm run build",
-    "release": "standard-version",
-    "defaults": "webpack-defaults"
+    "test": "npm run test:coverage"
   },
   "files": [
     "dist"
