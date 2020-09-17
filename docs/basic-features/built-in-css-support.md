@@ -33,6 +33,7 @@ body {
 
 Create a [`pages/_app.js` file](/docs/advanced-features/custom-app.md) if not already present.
 Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
+Make sure to restart the development after importing the `styles.css` into your `pages/_app.js`.
 
 ```jsx
 import '../styles.css'
