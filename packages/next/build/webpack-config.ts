@@ -852,6 +852,18 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(isWebpack5
+          ? [
+              // TODO: FIXME: do NOT webpack 5 support with this
+              // x-ref: https://github.com/webpack/webpack/issues/11467
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
