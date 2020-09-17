@@ -1,9 +1,9 @@
-const getOptions = require('eslint-loader/dist/getOptions').default;
-const cacheLoader = require('eslint-loader/dist/cacheLoader').default;
+import getOptions from './getOptions';
+import cacheLoader from './cacheLoader';
 import { loader } from 'webpack'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { RawSourceMap } from 'source-map';
-import { NextLinter } from './eslint-loader-utils/next-linter';
+import { NextLinter } from './next-linter';
 
 const fn: loader.Loader = function (content: string | Buffer, map?: RawSourceMap) {
   console.log(`ESLint Loader: ${this.resourcePath}`)
@@ -14,7 +14,7 @@ const fn: loader.Loader = function (content: string | Buffer, map?: RawSourceMap
 
   // return early if cached
   if (options.cache) {
-    cacheLoader(linter, content, map);
+    cacheLoader(linter, content.toString(), map);
     return;
   }
   const { report, ast} = linter.lint(content);
