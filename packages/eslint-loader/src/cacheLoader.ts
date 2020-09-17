@@ -1,12 +1,13 @@
 const { version } = require('../package.json');
 const cache = require('./cache');
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { RawSourceMap } from 'source-map';
-import { NextLinter, NextLintResult } from './next-linter';
+import { Linter, NextLintResult } from './linter';
+import { CLIEngine } from 'eslint'
 
-export default function cacheLoader(linter:NextLinter, content:String, map: RawSourceMap) {
-  const { loaderContext, options, CLIEngine } = linter;
+export default function cacheLoader(linter:Linter, content:String, map?: RawSourceMap) {
+  const stringContent = content.toString();
+  const { loaderContext, options } = linter;
   const callback = loaderContext.async();
   const cacheIdentifier = JSON.stringify({
     'eslint-loader': version,
@@ -20,19 +21,25 @@ export default function cacheLoader(linter:NextLinter, content:String, map: RawS
     options,
     source: content,
     transform() {
-      return linter.lint(content.toString());
+      return linter.lint(stringContent);
     },
   })
     .then(({report: res, ast}: NextLintResult) => {
       try {
-        linter.printOutput({ ...res, src: content });
+        res && linter.printOutput(res);
       } catch (error) {
-        return callback(error, content, map);
+        if (callback) {
+          return callback(error, stringContent, map);
+        }
       }
-      return callback(null, content, map);
+      if (callback) {
+        return callback(null, stringContent, map);
+      }
     })
-    .catch((err) => {
+    .catch((err: any) => {
       // istanbul ignore next
-      return callback(err);
+      if (callback) {
+        return callback(err);
+      }
     });
 }

@@ -19,6 +19,7 @@
   },
   "scripts": {
     "start": "npm run build -- -w",
+    "transpile": "tsc -p ./tsconfig.json",
     "clean": "del-cli dist",
     "prebuild": "npm run clean",
     "build": "cross-env NODE_ENV=production babel src -d dist --copy-files",
@@ -44,11 +45,14 @@
     "webpack": "^4.0.0 || ^5.0.0"
   },
   "dependencies": {
+    "@types/loader-utils": "2.0.1",
+    "@types/webpack": "4.41.22",
     "find-cache-dir": "^3.3.1",
     "fs-extra": "^8.1.0",
     "loader-utils": "^2.0.0",
     "object-hash": "^2.0.3",
-    "schema-utils": "^2.6.6"
+    "schema-utils": "^2.6.6",
+    "typescript": "4.0.2"
   },
   "devDependencies": {
     "@babel/cli": "^7.8.4",

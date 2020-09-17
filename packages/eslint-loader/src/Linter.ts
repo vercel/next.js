@@ -6,7 +6,7 @@ import { interpolateName } from 'loader-utils';
 
 import ESLintError from './ESLintError';
 
-import { CLIEngine, Linter as ESLinter, AST } from 'eslint';
+import { CLIEngine, Linter as ESLinter, AST, ESLint } from 'eslint';
 import { loader } from 'webpack';
 
 
@@ -16,13 +16,13 @@ export interface NextLintResult {
   src: String;
 }
 
-export default class Linter {
-  private loaderContext: loader.loaderContext;
-  private options: any;
+export class Linter {
+  public loaderContext: loader.LoaderContext;
+  public options: any;
   private resourcePath: string;
   private linter: ESLinter;
 
-  constructor(loaderContext: loader.loaderContext , options) {
+  constructor(loaderContext: loader.LoaderContext , options: any) {
     this.loaderContext = loaderContext;
     this.options = options;
     this.resourcePath = this.parseResourcePath();
@@ -65,7 +65,7 @@ export default class Linter {
     });
 }
 
-  lint(content): NextLintResult {
+  lint(content: String | Buffer): NextLintResult {
     try {
       const messages = this.linter.verify(content.toString(), {}, this.resourcePath)
       const stats = this.calculateStatsPerFile(messages);
@@ -80,7 +80,7 @@ export default class Linter {
         ...stats,
         usedDeprecatedRules: []
       };
-      return { report , ast: null, src: content.toString() }
+      return { report, src: content.toString() }
     } catch (_) {
       // @ts-ignore
       this.getEmitter(false)(_);
@@ -89,7 +89,7 @@ export default class Linter {
     }
   }
 
-  printOutput(data) {
+  printOutput(data: CLIEngine.LintReport) {
     const { options } = this;
 
     // @ts-ignore. skip ignored file warning
@@ -123,7 +123,7 @@ export default class Linter {
     emitter(new ESLintError(messages));
   }
 
-  static skipIgnoredFileWarning(res) {
+  static skipIgnoredFileWarning(res: CLIEngine.LintReport) {
     return (
       res &&
       res.warningCount === 1 &&
@@ -135,7 +135,7 @@ export default class Linter {
     );
   }
 
-  filter(data) {
+  filter(data: CLIEngine.LintReport) {
     const res = data;
 
     // quiet filter done now
@@ -158,7 +158,8 @@ export default class Linter {
     return res;
   }
 
-  parseResults({ results }) {
+  parseResults(data: CLIEngine.LintReport): ESLint.LintResult[] {
+    const { results } = data;
     // add filename for each results so formatter can have relevant filename
     if (results) {
       results.forEach((r) => {
@@ -170,7 +171,7 @@ export default class Linter {
     return results;
   }
 
-  reportOutput(results, messages) {
+  reportOutput(results: ESLint.LintResult[] , messages: ESLinter.LintMessage[]) {
     const { outputReport } = this.options;
 
     if (!outputReport || !outputReport.filePath) {
@@ -191,6 +192,7 @@ export default class Linter {
     if (!isAbsolute(filePath)) {
       filePath = join(
         // eslint-disable-next-line no-underscore-dangle
+        // @ts-ignore
         this.loaderContext._compiler.options.output.path,
         filePath
       );
@@ -200,7 +202,7 @@ export default class Linter {
     writeFileSync(filePath, content);
   }
 
-  failOnErrorOrWarning({ errorCount, warningCount }, messages) {
+  failOnErrorOrWarning({ errorCount, warningCount } : {errorCount: Number, warningCount: Number} , messages: ESLinter.LintMessage[]) {
     const { failOnError, failOnWarning } = this.options;
 
     if (failOnError && errorCount) {
@@ -216,7 +218,7 @@ export default class Linter {
     }
   }
 
-  getEmitter({ errorCount }) {
+  getEmitter({ errorCount }: { errorCount: Number }) {
     const { options, loaderContext } = this;
 
     // default behavior: emit error only if we have errors
