@@ -160,13 +160,12 @@ export function reportWebVitals(metric) {
 > export function reportWebVitals({ id, name, label, value }) {
 >   // Use `window.gtag` if you initialized Google Analytics as this example:
 >   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_document.js
->   window.gtag('send', 'event', {
->     eventCategory:
+>   window.gtag('event', name, {
+>     event_category:
 >       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
->     eventAction: name,
->     eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
->     eventLabel: id, // id unique to current page load
->     nonInteraction: true, // avoids affecting bounce rate.
+>     value: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
+>     event_label: id, // id unique to current page load
+>     non_interaction: true, // avoids affecting bounce rate.
 >   })
 > }
 > ```
