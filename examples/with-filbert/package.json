@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "Kuldeep Keshwar",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@filbert-js/core": "latest",
     "@filbert-js/macro": "latest",
