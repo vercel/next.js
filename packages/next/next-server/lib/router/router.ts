@@ -48,7 +48,11 @@ function buildCancellationError() {
 }
 
 export function hasBasePath(path: string): boolean {
-  return path === basePath || path.startsWith(basePath + '/')
+  return (
+    path === basePath ||
+    path.startsWith(basePath + '/') ||
+    path.startsWith(basePath + '?')
+  )
 }
 
 export function addBasePath(path: string): string {
