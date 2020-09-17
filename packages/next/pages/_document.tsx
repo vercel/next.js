@@ -163,8 +163,8 @@ export class Head extends Component<
       dynamicImports,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
-    const sharedFiles = new Set(files.sharedFiles)
-
+    const sharedFiles: Set<string> = new Set(files.sharedFiles)
+    let dynamicFiles: Set<string> = new Set([])
     let dynamicCssFiles = dedupe(
       dynamicImports.filter((f) => f.file.endsWith('.css'))
     ).map((f) => f.file)
@@ -173,13 +173,18 @@ export class Head extends Component<
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
+      dynamicFiles = new Set(dynamicCssFiles)
+      console.log(dynamicFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
+      // We have to treat dynamic imports as global
+      // they have to be omitted from page transition css removal logic
+      // mini-css-extract-plugin generated injector is out of scope of that logic as well
       const isSharedFile = sharedFiles.has(file)
-
+      const isDynamicFile = dynamicFiles.has(file)
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -203,8 +208,9 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          data-n-g={isSharedFile ? '' : undefined}
-          data-n-p={isSharedFile ? undefined : ''}
+          data-n-g={isSharedFile && !isDynamicFile ? '' : undefined}
+          data-n-p={isSharedFile || isDynamicFile ? undefined : ''}
+          data-n-d={isDynamicFile ? '' : undefined}
         />
       )
     })
