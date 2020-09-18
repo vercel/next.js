@@ -17,7 +17,7 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
 import { Rewrite } from '../lib/load-custom-routes'
-import { resolveRequest } from '../lib/resolve-request'
+import { ResolvedModule, resolveRequest } from '../lib/resolve-request'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -308,7 +308,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath: string | undefined
   try {
-    typeScriptPath = resolveRequest('typescript', `${dir}/`)
+    typeScriptPath = resolveRequest('typescript', `${dir}/`).resolvedPath
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -575,18 +575,6 @@ export default async function getBaseWebpackConfig(
   )
 
   function handleExternals(context: any, request: any, callback: any) {
-    const externalModules = [
-      'next',
-      'next/amp',
-      'next/config',
-      'next/dynamic',
-      'next/head',
-    ]
-
-    if (externalModules.indexOf(request) !== -1) {
-      return callback(undefined, `commonjs ${request}`)
-    }
-
     const notExternalModules = [
       'next/app',
       'next/document',
@@ -625,7 +613,7 @@ export default async function getBaseWebpackConfig(
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
     // exist.
-    let res: string
+    let res: ResolvedModule
     try {
       res = resolveRequest(request, `${context}/`)
     } catch (err) {
@@ -637,14 +625,14 @@ export default async function getBaseWebpackConfig(
 
     // Same as above, if the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
-    if (!res) {
+    if (!res.resolvedPath) {
       return callback()
     }
 
     // we need to process next-server/lib/router/router so that
     // the DefinePlugin can inject process.env values
     const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
-      res
+      res.originalPath
     )
     if (isLocal && !isNextExternal) {
       return callback()
@@ -659,7 +647,7 @@ export default async function getBaseWebpackConfig(
       // This means we need to make sure its request resolves to the same
       // package that'll be available at runtime. If it's not identical,
       // we need to bundle the code (even if it _should_ be external).
-      let baseRes: string | null
+      let baseRes: ResolvedModule | null
       try {
         baseRes = resolveRequest(request, `${dir}/`)
       } catch (err) {
@@ -669,32 +657,32 @@ export default async function getBaseWebpackConfig(
       // Same as above: if the package, when required from the root,
       // would be different from what the real resolution would use, we
       // cannot externalize it.
-      if (baseRes !== res) {
+      if (!baseRes || baseRes.resolvedPath !== res.resolvedPath) {
         return callback()
       }
     }
 
     // Default pages have to be transpiled
     if (
-      !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-      (res.match(/[/\\]next[/\\]dist[/\\]/) ||
+      !res.originalPath.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+      (res.originalPath.match(/[/\\]next[/\\]dist[/\\]/) ||
         // This is the @babel/plugin-transform-runtime "helpers: true" option
-        res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
+        res.originalPath.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
     ) {
       return callback()
     }
 
     // Webpack itself has to be compiled because it doesn't always use module relative paths
     if (
-      res.match(/node_modules[/\\]webpack/) ||
-      res.match(/node_modules[/\\]css-loader/)
+      res.originalPath.match(/node_modules[/\\]webpack/) ||
+      res.originalPath.match(/node_modules[/\\]css-loader/)
     ) {
       return callback()
     }
 
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
-    if (isNextExternal || res.match(/node_modules[/\\].*\.js$/)) {
+    if (isNextExternal || res.originalPath.match(/node_modules[/\\].*\.js$/)) {
       const externalRequest = isNextExternal
         ? // Generate Next.js external import
           path.posix.join(
@@ -704,7 +692,7 @@ export default async function getBaseWebpackConfig(
               .relative(
                 // Root of Next.js package:
                 path.join(__dirname, '..'),
-                res
+                res.originalPath
               )
               // Windows path normalization
               .replace(/\\/g, '/')
@@ -1445,7 +1433,7 @@ export default async function getBaseWebpackConfig(
                     ? '@zeit/next-stylus'
                     : 'next'
                 )
-          )
+          ).resolvedPath
 
           // If we found `@zeit/next-css` ...
           if (correctNextCss) {
@@ -1453,6 +1441,7 @@ export default async function getBaseWebpackConfig(
             // package instead of whichever was hoisted highest in your
             // `node_modules` tree.
             const correctCssLoader = resolveRequest(use.loader, correctNextCss)
+              .resolvedPath
             if (correctCssLoader) {
               // We saved the user from a failed build!
               use.loader = correctCssLoader
