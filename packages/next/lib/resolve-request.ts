@@ -13,6 +13,13 @@ export function resolveRequest(req: string, issuer: string): string {
       issuer.endsWith(path.posix.sep) || issuer.endsWith(path.win32.sep)
         ? issuer
         : path.dirname(issuer)
-    return resolve.sync(req, { basedir, preserveSymlinks: false })
+
+    return resolve.sync(req, {
+      basedir,
+      // Node.js's built-in module resolution resolves symbolic links by default,
+      // however the `resolve@1` package does not. By passing `preserveSymlinks: false`, we override
+      // resolve@1's default of `true` so that Node.js's default behaviour is emulated.
+      preserveSymlinks: false,
+    })
   }
 }
