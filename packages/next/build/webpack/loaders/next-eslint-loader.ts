@@ -19,10 +19,9 @@ const fn: loader.Loader = function (content: string | Buffer, map?: RawSourceMap
     return;
   }
   const { report, ast} = linter.lint(content);
-  console.log({ast})
   report && linter.printOutput(report);
   /// @ts-ignore
-  this.callback(null, content, map);
+  this.callback(null, content, map, { sharedBabelAST: ast });
 }
 
 export default fn

@@ -77,7 +77,6 @@ const handleCache = async (directory:string, params: any): Promise<NextLintResul
   try {
     // No errors mean that the file was previously cached
     // we just need to return it
-    console.log(`ESLint Loader: ${file} -- cache`)
     const report = await read(file, cacheCompression);
 
     return { report }
@@ -100,7 +99,6 @@ const handleCache = async (directory:string, params: any): Promise<NextLintResul
 
   // Otherwise just transform the file
   // return it to the user asap and write it in cache
-  console.log(`ESLint Loader: ${file} -- disk`)
   const { report, ast } = await transform(source, options);
 
   try {
