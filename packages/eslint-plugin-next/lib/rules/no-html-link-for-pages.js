@@ -17,11 +17,18 @@ module.exports = {
   },
 
   create: function (context) {
-    const [pagesDirectory] = context.options
-    const pagesDir = pagesDirectory || path.join(context.getCwd(), 'pages')
-    if (!fs.existsSync(pagesDir)) {
+    const [customPagesDirectory] = context.options
+    const pagesDirs = customPagesDirectory
+      ? [customPagesDirectory]
+      : [
+          path.join(context.getCwd(), 'pages'),
+          path.join(context.getCwd(), 'src', 'pages'),
+        ]
+    const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
+    if (!pagesDir) {
       throw new Error(
-        `Pages directory cannot be found at ${pagesDir}, if using a custom path, please configure with the no-html-link-for-pages rule`
+        `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
+          `If using a custom path, please configure with the no-html-link-for-pages rule`
       )
     }
 
