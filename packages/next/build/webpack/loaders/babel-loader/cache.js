@@ -83,6 +83,7 @@ const handleCache = async function(directory, params) {
     cacheIdentifier,
     cacheDirectory,
     cacheCompression,
+    precompiledAST
   } = params;
 
   const file = path.join(directory, filename(source, cacheIdentifier, options));
@@ -109,7 +110,7 @@ const handleCache = async function(directory, params) {
 
   // Otherwise just transform the file
   // return it to the user asap and write it in cache
-  const result = await transform(source, options);
+  const result = await transform(source, options, precompiledAST);
 
   try {
     await write(file, cacheCompression, result);

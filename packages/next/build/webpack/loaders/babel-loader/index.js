@@ -19,7 +19,7 @@ if (/^6\./.test(babel.version)) {
   );
 }
 
-const { version } = require("../package.json");
+const { version } = require("next/package.json");
 const cache = require("./cache");
 const transform = require("./transform");
 const injectCaller = require("./injectCaller");
@@ -41,17 +41,18 @@ module.exports.custom = makeLoader;
 function makeLoader(callback) {
   const overrides = callback ? callback(babel) : undefined;
 
-  return function(source, inputSourceMap) {
-    // Make the loader async
-    const callback = this.async();
+  return function (source, inputSourceMap, { sharedBabelAST } = {}) {
 
-    loader
-      .call(this, source, inputSourceMap, overrides)
-      .then(args => callback(null, ...args), err => callback(err));
-  };
+    // Make the loader async
+    const callback = this.async()
+    loader.call(this, source, inputSourceMap, overrides, sharedBabelAST).then(
+      args => callback(null, ...args),
+      err => callback(err)
+    )
+  }
 }
 
-async function loader(source, inputSourceMap, overrides) {
+async function loader(source, inputSourceMap, overrides, precompiledAST) {
   const filename = this.resourcePath;
 
   let loaderOptions = loaderUtils.getOptions(this) || {};
@@ -201,9 +202,10 @@ async function loader(source, inputSourceMap, overrides) {
         cacheDirectory,
         cacheIdentifier,
         cacheCompression,
+        precompiledAST
       });
     } else {
-      result = await transform(source, options);
+      result = await transform(source, options, precompiledAST);
     }
 
     // TODO: Babel should really provide the full list of config files that

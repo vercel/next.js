@@ -3,11 +3,17 @@ const promisify = require("pify");
 const LoaderError = require("./Error");
 
 const transform = promisify(babel.transform);
+const transformFromAst = promisify(babel.transformFromAst);
 
-module.exports = async function(source, options) {
+module.exports = async function(source, options, precompiledAST) {
   let result;
   try {
-    result = await transform(source, options);
+    if (precompiledAST) {
+      result = await transformFromAst(precompiledAST, options);
+    } else {
+      result = await transform(source, options);
+    }
+
   } catch (err) {
     throw err.message && err.codeFrame ? new LoaderError(err) : err;
   }

@@ -1,4 +1,4 @@
-{
+module.exports = {
   "type": "object",
   "properties": {
     "cacheDirectory": {
