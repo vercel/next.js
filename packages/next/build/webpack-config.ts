@@ -868,21 +868,29 @@ export default async function getBaseWebpackConfig(
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           enforce: 'pre',
-          include: [dir, ...babelIncludeRegexes],
+          include: [dir],
           use: [
             {
               options: {
                 cache: true,
                 parser: 'babel-eslint',
                 quiet: true,
+                failOnWarning: false,
+                env: {
+                  es6: true
+                },
+                parserOptions: {
+                  sourceType: "module",
+                  ecmaVersion: 2017,
+                  "ecmaFeatures": {
+                    "jsx": true
+                  }
+                }
               },
               loader: 'next-eslint-loader',
             },
           ],
           exclude: (excludePath: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-              return false
-            }
             return /node_modules/.test(excludePath)
           },
         },
