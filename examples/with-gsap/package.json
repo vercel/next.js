@@ -1,0 +1,19 @@
+{
+  "name": "with-gsap",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@zeit/next-sass": "^1.0.1",
+    "gsap": "^3.0.1",
+    "react-transition-group": "^4.3.0",
+    "next": "9.5.3",
+    "node-sass": "^4.14.1",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  }
+}
