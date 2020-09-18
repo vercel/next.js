@@ -1,4 +1,4 @@
-///@ts-nocheck
+
 
 /**
  * Original Filesystem Cache implementation by babel-loader
@@ -24,55 +24,33 @@ import { promisify } from 'util';
 import zlib from 'zlib';
 import { createHash } from 'crypto';
 
+// @ts-ignore
 import findCacheDir from 'find-cache-dir';
 
 // Lazily instantiated when needed
-let defaultCacheDirectory = null;
+let defaultCacheDirectory: string | null = null;
 
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const gunzip = promisify(zlib.gunzip);
 const gzip = promisify(zlib.gzip);
 
-/**
- * Read the contents from the compressed file.
- *
- * @async
- * @params {String} filename
- * @params {Boolean} compress
- */
-const read = async (filename, compress) => {
+const read = async (filename:string, compress: Boolean) => {
   const data = await readFile(filename + (compress ? '.gz' : ''));
-  const content = compress ? await gunzip(data) : data;
+  const content = (compress ? await gunzip(data) : data) as Buffer;
 
   return JSON.parse(content.toString());
 };
 
-/**
- * Write contents into a compressed file.
- *
- * @async
- * @params {String} filename
- * @params {Boolean} compress
- * @params {String} result
- */
-const write = async (filename, compress, result) => {
+
+const write = async (filename:string, compress: boolean, result: string) => {
   const content = JSON.stringify(result);
 
   const data = compress ? await gzip(content) : content;
   return writeFile(filename + (compress ? '.gz' : ''), data);
 };
 
-/**
- * Build the filename for the cached file
- *
- * @params {String} source  File source code
- * @params {String} identifier
- * @params {Object} options Options used
- *
- * @return {String}
- */
-const filename = (source, identifier, options) => {
+const filename = (source:string, identifier:string , options:any) => {
   const hash = createHash('md4');
 
   const contents = JSON.stringify({ source, options, identifier });
@@ -82,13 +60,8 @@ const filename = (source, identifier, options) => {
   return `${hash.digest('hex')}.json`;
 };
 
-/**
- * Handle the cache
- *
- * @params {String} directory
- * @params {Object} params
- */
-const handleCache = async (directory, params) => {
+
+const handleCache = async (directory:string, params: any): Promise<any> => {
   const {
     source,
     options = {},
@@ -171,7 +144,7 @@ const handleCache = async (directory, params) => {
  *   });
  */
 
-export default async (params) => {
+export default async (params: any) => {
   let directory;
 
   if (typeof params.cacheDirectory === 'string') {

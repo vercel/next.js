@@ -1,9 +1,10 @@
-const { version } = {version: 1}// TODO(prateekbh@): switch this to require('../../../../package.json');
 import cache from './cache';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { RawSourceMap } from 'source-map';
 import { Linter, NextLintResult } from './linter';
-import { CLIEngine } from 'eslint'
+import { ESLint } from 'eslint'
+
+const { version } = require('next/package.json');
 
 export default function cacheLoader(linter:Linter, content:String, map?: RawSourceMap) {
   const stringContent = content.toString();
@@ -11,7 +12,7 @@ export default function cacheLoader(linter:Linter, content:String, map?: RawSour
   const callback = loaderContext.async();
   const cacheIdentifier = JSON.stringify({
     'eslint-loader': version,
-    eslint: CLIEngine.version,
+    eslint: ESLint.version
   });
   cache({
     cacheDirectory: options.cache,
