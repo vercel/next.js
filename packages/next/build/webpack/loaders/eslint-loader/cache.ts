@@ -26,6 +26,7 @@ import { createHash } from 'crypto';
 
 // @ts-ignore
 import findCacheDir from 'find-cache-dir';
+import { NextLintResult } from './linter';
 
 // Lazily instantiated when needed
 let defaultCacheDirectory: string | null = null;
@@ -61,7 +62,7 @@ const filename = (source:string, identifier:string , options:any) => {
 };
 
 
-const handleCache = async (directory:string, params: any): Promise<any> => {
+const handleCache = async (directory:string, params: any): Promise<NextLintResult> => {
   const {
     source,
     options = {},
@@ -76,7 +77,10 @@ const handleCache = async (directory:string, params: any): Promise<any> => {
   try {
     // No errors mean that the file was previously cached
     // we just need to return it
-    return await read(file, cacheCompression);
+    console.log(`ESLint Loader: ${file} -- cache`)
+    const report = await read(file, cacheCompression);
+
+    return { report }
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
@@ -96,10 +100,11 @@ const handleCache = async (directory:string, params: any): Promise<any> => {
 
   // Otherwise just transform the file
   // return it to the user asap and write it in cache
-  const result = await transform(source, options);
+  console.log(`ESLint Loader: ${file} -- disk`)
+  const { report, ast } = await transform(source, options);
 
   try {
-    await write(file, cacheCompression, result);
+    await write(file, cacheCompression, report);
   } catch (err) {
     if (fallback) {
       // Fallback to tmpdir if node_modules folder not writable
@@ -108,8 +113,7 @@ const handleCache = async (directory:string, params: any): Promise<any> => {
 
     throw err;
   }
-
-  return result;
+  return { report, ast};
 };
 
 /**

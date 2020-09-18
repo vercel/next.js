@@ -29,7 +29,8 @@ export default function cacheLoader(linter:Linter, content:String, map?: RawSour
         res && linter.printOutput(res);
       } catch (error) {
         if (callback) {
-          return callback(error, stringContent, map);
+          // @ts-ignore
+          return callback(error, stringContent, map, { sharedBabelAST: ast });
         }
       }
       if (callback) {

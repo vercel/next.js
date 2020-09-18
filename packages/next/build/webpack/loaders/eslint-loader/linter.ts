@@ -15,7 +15,7 @@ const BabelParser = require('babel-eslint');
 export interface NextLintResult {
   report?: CLIEngine.LintReport;
   ast? : AST.Program;
-  src: String;
+  src?: String;
 }
 
 export class Linter {
@@ -107,7 +107,7 @@ export class Linter {
         ...stats,
         usedDeprecatedRules: []
       };
-      return { report, src: content.toString() }
+      return { report, ast: this.linter.getSourceCode().ast}
     } catch (_) {
       // @ts-ignore
       this.getEmitter(false)(_);

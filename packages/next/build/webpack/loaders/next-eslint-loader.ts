@@ -7,7 +7,6 @@ import { RawSourceMap } from 'source-map';
 import { Linter } from './eslint-loader/linter';
 
 const fn: loader.Loader = function (content: string | Buffer, map?: RawSourceMap) {
-  console.log(`ESLint Loader: ${this.resourcePath}`)
   const options = getOptions(this);
   const linter = new Linter(this, options);
 
