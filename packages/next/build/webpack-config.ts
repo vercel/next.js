@@ -692,7 +692,7 @@ export default async function getBaseWebpackConfig(
               .relative(
                 // Root of Next.js package:
                 path.join(__dirname, '..'),
-                res.originalPath
+                res.resolvedPath
               )
               // Windows path normalization
               .replace(/\\/g, '/')
