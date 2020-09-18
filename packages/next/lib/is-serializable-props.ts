@@ -45,8 +45,9 @@ export function isSerializableProps(
   ): true {
     const type = typeof value
     if (
-      // `null` can be serialized, but not `undefined`.
+      // `null` can be serialized.
       value === null ||
+      type === 'undefined' ||
       // n.b. `bigint`, `function`, `symbol`, and `undefined` cannot be
       // serialized.
       //
@@ -57,15 +58,6 @@ export function isSerializableProps(
       type === 'string'
     ) {
       return true
-    }
-
-    if (type === 'undefined') {
-      throw new SerializableError(
-        page,
-        method,
-        path,
-        '`undefined` cannot be serialized as JSON. Please use `null` or omit this value all together.'
-      )
     }
 
     if (isPlainObject(value)) {
