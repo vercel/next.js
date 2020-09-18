@@ -24,4 +24,4 @@ This folder is also useful for `robots.txt`, Google Site Verification, and any o
 >
 > Read more: <http://err.sh/next.js/conflicting-public-file-page>
 
-> **Note**: Only assets that are in the `public` directory at [build time](/docs/api-reference/cli.md#build) will be served by Next.js. Files added to the directory after build time won't be discoverable until your code is rebuilt. We recommend using a third party service like [AWS S3](https://aws.amazon.com/s3/) for persistent file storage.
+> **Note**: Only assets that are in the `public` directory at [build time](/docs/api-reference/cli.md#build) will be served by Next.js. Files added at runtime won't be available. We recommend using a third party service like [AWS S3](https://aws.amazon.com/s3/) for persistent file storage.
