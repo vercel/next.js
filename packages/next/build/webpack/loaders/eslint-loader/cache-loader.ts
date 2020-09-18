@@ -13,7 +13,6 @@ export default function cacheLoader(linter:Linter, content:String, map?: RawSour
     'eslint-loader': version,
     eslint: CLIEngine.version,
   });
-
   cache({
     cacheDirectory: options.cache,
     cacheIdentifier,

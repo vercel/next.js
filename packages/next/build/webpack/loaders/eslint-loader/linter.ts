@@ -1,4 +1,5 @@
 import process from 'process';
+import path from 'path';
 import { isAbsolute, join } from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { writeFileSync, ensureFileSync } from 'fs-extra';
@@ -7,8 +8,8 @@ import ESLintError from './es-lint-error';
 import { CLIEngine, Linter as ESLinter, AST, ESLint } from 'eslint';
 import { loader } from 'webpack';
 
-// @ts-ignore
-import createEngine from './create-engine';
+import { createConfigDataFromOptions } from './utils';
+const { CascadingConfigArrayFactory } = require('eslint/lib/cli-engine/cascading-config-array-factory');
 const BabelParser = require('babel-eslint');
 
 export interface NextLintResult {
@@ -22,15 +23,26 @@ export class Linter {
   public options: any;
   private resourcePath: string;
   private linter: ESLinter;
-  private engine: CLIEngine;
+  private config: any;
+  private cwd: string;
   constructor(loaderContext: loader.LoaderContext , options: any) {
+    this.cwd = process.cwd();
     this.loaderContext = loaderContext;
     this.options = options;
     this.resourcePath = this.parseResourcePath();
-    const { engine } = createEngine(options);
-    this.engine = engine;
-    this.linter = new ESLinter({cwd: process.cwd()});
+    this.linter = new ESLinter({cwd: this.cwd});
     this.linter.defineParser('babel-eslint', BabelParser);
+    this.config = new CascadingConfigArrayFactory({
+      additionalPluginPool: new Map(),
+      baseConfig: options.baseConfig || null,
+      cliConfig: createConfigDataFromOptions(options),
+      cwd: options.cwd,
+      ignorePath: options.ignorePath,
+      resolvePluginsRelativeTo: options.resolvePluginsRelativeTo,
+      rulePaths: options.rulePaths,
+      specificConfigPath: options.configFile,
+      useEslintrc: options.useEslintrc
+    });
   }
 
   parseResourcePath() {
@@ -45,6 +57,14 @@ export class Linter {
     }
 
     return resourcePath;
+  }
+
+  getConfigForFile(filePath: string) {
+    const configArrayFactory = this.config;
+    const absolutePath = path.resolve(this.cwd, filePath);
+
+    // @ts-ignore
+    return configArrayFactory.getConfigArrayForFile(absolutePath).extractConfig(absolutePath).toCompatibleObjectAsConfigFileContent();
   }
 
   calculateStatsPerFile(messages: ESLinter.LintMessage[]) {
@@ -71,7 +91,7 @@ export class Linter {
 
   lint(content: String | Buffer): NextLintResult {
     const { resourcePath } = this.loaderContext;
-    const linterConfig: ESLinter.Config<ESLinter.RulesRecord> = this.engine.getConfigForFile(resourcePath);
+    const linterConfig: ESLinter.Config<ESLinter.RulesRecord> = this.getConfigForFile(resourcePath);
     linterConfig.parser && this.linter.defineParser(linterConfig.parser, BabelParser)
     try {
       const messages = this.linter.verify(content.toString(), linterConfig, this.resourcePath)
