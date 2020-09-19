@@ -24,7 +24,7 @@ export function parseRelativeUrl(url: string, base?: string) {
   } = new URL(url, resolvedBase)
   if (
     origin !== DUMMY_BASE.origin ||
-    (protocol !== 'http:' && protocol !== 'https:')
+    (protocol !== 'http:' && protocol !== 'https:' && protocol !== 'file:')
   ) {
     throw new Error('invariant: invalid relative URL')
   }
