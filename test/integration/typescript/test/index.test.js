@@ -11,7 +11,6 @@ import {
   killApp,
   File,
 } from 'next-test-utils'
-import mitt from 'next/dist/next-server/lib/mitt'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -87,14 +86,6 @@ export default function EvilPage(): JSX.Element {
       } finally {
         await remove(evilFile)
       }
-    })
-  })
-
-  it('event emitter should listen to a event', () => {
-    return new Promise((resolve) => {
-      const ev = mitt()
-      ev.on('sample', resolve)
-      ev.emit('sample')
     })
   })
 
