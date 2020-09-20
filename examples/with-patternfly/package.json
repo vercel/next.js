@@ -8,17 +8,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "@patternfly/react-core": "^3.112.3",
+    "@patternfly/react-core": "^4.50.2",
     "next": "latest",
-    "next-transpile-modules": "^4.0.2",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "next-transpile-modules": "^4.1.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "devDependencies": {
     "@zeit/next-css": "^1.0.1",
-    "file-loader": "^3.0.1",
-    "svg-url-loader": "^3.0.2",
-    "url-loader": "^1.1.2"
+    "file-loader": "^6.1.0",
+    "svg-url-loader": "^6.0.0",
+    "url-loader": "^4.1.0"
   },
   "license": "MIT"
 }
