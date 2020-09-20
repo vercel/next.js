@@ -247,11 +247,16 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
   >
 
+export type RouterEventError = {
+  [key: string]: any
+  cancelled: boolean
+}
+
 export type RouterHandlersMap = {
   routeChangeStart: (url: string) => void
   beforeHistoryChange: (url: string) => void
   routeChangeComplete: (url: string) => void
-  routeChangeError: (err: any, url: string) => void
+  routeChangeError: (err: RouterEventError, url: string) => void
   hashChangeStart: (url: string) => void
   hashChangeComplete: (url: string) => void
 }
