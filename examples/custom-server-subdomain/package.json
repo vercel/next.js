@@ -1,0 +1,18 @@
+{
+  "name": "custom-server-subdomain",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "cross-env NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "cross-env": "^5.2.0",
+    "express": "^4.17.1",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "vhost": "^3.0.2"
+  },
+  "license": "MIT"
+}
