@@ -40,6 +40,7 @@ module.exports = withCSS(
             publicPath: '/_next/static/fonts/',
             outputPath: 'static/fonts/',
             name: '[name].[ext]',
+            esModule: false,
           },
         },
       })
