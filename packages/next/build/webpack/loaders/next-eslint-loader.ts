@@ -19,7 +19,6 @@ const fn: loader.Loader = function (
   this.cacheable()
 
   // return early if cached
-  // @ts-ignore
   if (options.cache) {
     cacheLoader(linter, content.toString(), map)
     return

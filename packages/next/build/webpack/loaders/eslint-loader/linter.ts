@@ -100,7 +100,7 @@ export class Linter {
       const messages = this.linter.verify(
         content.toString(),
         linterConfig,
-        this.resourcePath
+        resourcePath
       )
       const stats = this.calculateStatsPerFile(messages)
       const result: CLIEngine.LintResult = {
