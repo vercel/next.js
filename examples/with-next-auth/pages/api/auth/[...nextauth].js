@@ -5,27 +5,27 @@ const options = {
   providers: [
     Providers.Email({
       // SMTP connection string or nodemailer configuration object https://nodemailer.com/
-      server: process.env.EMAIL_SERVER,
+      server: process.env.NEXTAUTH_EMAIL_SERVER,
       // Email services often only allow sending email from a valid/verified address
-      from: process.env.EMAIL_FROM,
+      from: process.env.NEXTAUTH_EMAIL_FROM,
     }),
     // When configuring oAuth providers make sure you enabling requesting
     // permission to get the users email address (required to sign in)
     Providers.Google({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
+      clientId: process.env.NEXTAUTH_GOOGLE_ID,
+      clientSecret: process.env.NEXTAUTH_GOOGLE_SECRET,
     }),
     Providers.Facebook({
-      clientId: process.env.FACEBOOK_ID,
-      clientSecret: process.env.FACEBOOK_SECRET,
+      clientId: process.env.NEXTAUTH_FACEBOOK_ID,
+      clientSecret: process.env.NEXTAUTH_FACEBOOK_SECRET,
     }),
     Providers.Twitter({
-      clientId: process.env.TWITTER_ID,
-      clientSecret: process.env.TWITTER_SECRET,
+      clientId: process.env.NEXTAUTH_TWITTER_ID,
+      clientSecret: process.env.NEXTAUTH_TWITTER_SECRET,
     }),
     Providers.GitHub({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
+      clientId: process.env.NEXTAUTH_GITHUB_ID,
+      clientSecret: process.env.NEXTAUTH_GITHUB_SECRET,
     }),
   ],
   // The 'database' option should be a connection string or TypeORM
@@ -34,7 +34,7 @@ const options = {
   // Notes:
   // * You need to install an appropriate node_module for your database!
   // * The email sign in provider requires a database but OAuth providers do not
-  database: process.env.DATABASE_URL,
+  database: process.env.NEXTAUTH_DATABASE_URL,
 
   session: {
     // Use JSON Web Tokens for session instead of database sessions.
