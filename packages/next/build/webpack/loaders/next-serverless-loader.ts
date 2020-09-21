@@ -358,22 +358,29 @@ const nextServerlessLoader: loader.Loader = function () {
         // We need to trust the dynamic route params from the proxy
         // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
-        const parsedUrl = handleRewrites(parseUrl(req.url, true))
+        let parsedUrl = parseUrl(req.url, true)
+        let routeNoAssetPath = parsedUrl.pathname${
+          basePath ? `.replace(new RegExp('^${basePath}'), '') || '/'` : ''
+        }
+        const origQuery = Object.assign({}, parsedUrl.query)
+
+        parsedUrl = handleRewrites(parsedUrl)
 
         ${handleBasePath}
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
-            default: getRouteFromAssetPath,
+            default: getrouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
           _nextData = true;
-          parsedUrl.pathname = getRouteFromAssetPath(
+          parsedUrl.pathname = getrouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
               '/'
             ),
             '.json'
           );
+          routeNoAssetPath = parsedUrl.pathname
         }
 
         const renderOpts = Object.assign(
@@ -496,8 +503,6 @@ const nextServerlessLoader: loader.Loader = function () {
           !fromExport &&
           (getStaticProps || getServerSideProps)
         ) {
-          const origQuery = parseUrl(req.url, true).query
-
           ${
             pageIsDynamicRoute
               ? `
@@ -519,6 +524,16 @@ const nextServerlessLoader: loader.Loader = function () {
             ...parsedUrl,
             query: origQuery
           })
+
+          // For getServerSideProps we need to ensure we use the original URL
+          // and not the resolved URL to prevent a hydration mismatch on asPath
+          renderOpts.resolvedAsPath = getServerSideProps
+            ? formatUrl({
+              ...parsedUrl,
+              pathname: routeNoAssetPath,
+              query: origQuery,
+            })
+            : renderOpts.resolvedUrl
         }
 
         const isFallback = parsedUrl.query.__nextFallback
