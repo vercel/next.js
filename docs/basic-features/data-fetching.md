@@ -52,7 +52,7 @@ export async function getStaticProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
-- `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 `getStaticProps` should return an object with:
@@ -543,6 +543,7 @@ The `context` parameter is an object containing the following keys:
 - `query`: The query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
 > Imports used in `getServerSideProps` will not be bundled for the client-side.
