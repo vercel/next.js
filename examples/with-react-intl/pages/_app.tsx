@@ -71,7 +71,11 @@ const getInitialProps: typeof App.getInitialProps = async appContext => {
     App.getInitialProps(appContext),
   ]);
 
-  return {...(appProps as any), locale: supportedLocale, messages};
+  return {
+    ...(appProps as any),
+    locale: supportedLocale,
+    messages: messages.default,
+  };
 };
 
 MyApp.getInitialProps = getInitialProps;
