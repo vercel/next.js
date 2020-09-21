@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start",
     "build-docker": "docker build -t next-app .",
-    "build-docker-multistage": "docker build -t next-app -f ./Dockerfile.multistage .",
+    "build-docker-multistage": "docker build --target production -t next-app -f ./Dockerfile.multistage .",
     "run-docker": "docker run --rm -it -p 3000:3000 next-app"
   },
   "dependencies": {
