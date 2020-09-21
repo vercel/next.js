@@ -64,6 +64,7 @@ import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
+import { denormalizePagePath } from './denormalize-page-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1015,19 +1016,29 @@ export default class Server {
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = (req as any)._nextRewroteUrl
-      ? (req as any)._nextRewroteUrl
-      : `${parseUrl(req.url || '').pathname!}`
+    let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    // remove trailing slash
-    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
+    let resolvedUrlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : urlPathname
+
+    resolvedUrlPathname = removePathTrailingSlash(resolvedUrlPathname)
+    urlPathname = removePathTrailingSlash(urlPathname)
+
+    const stripNextDataPath = (path: string) => {
+      if (path.includes(this.buildId)) {
+        path = denormalizePagePath(
+          (path.split(this.buildId).pop() || '/').replace(/\.json$/, '')
+        )
+      }
+      return path
+    }
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
-    if (isDataReq && urlPathname.includes(this.buildId)) {
-      urlPathname = (urlPathname.split(this.buildId).pop() || '/')
-        .replace(/\.json$/, '')
-        .replace(/\/index$/, '/')
+    if (isDataReq) {
+      resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
+      urlPathname = stripNextDataPath(urlPathname)
     }
 
     try {
@@ -1040,7 +1051,7 @@ export default class Server {
     const ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${urlPathname}${query.amp ? '.amp' : ''}`
+        : `${resolvedUrlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
@@ -1113,11 +1124,31 @@ export default class Server {
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
         } else {
+          const origQuery = parseUrl(req.url || '', true).query
+          const resolvedUrl = formatUrl({
+            pathname: resolvedUrlPathname,
+            // make sure to only add query values from original URL
+            query: origQuery,
+          })
+
           const renderOpts: RenderOpts = {
             ...components,
             ...opts,
             isDataReq,
+            resolvedUrl,
+            // For getServerSideProps we need to ensure we use the original URL
+            // and not the resolved URL to prevent a hydration mismatch on
+            // asPath
+            resolvedAsPath: isServerProps
+              ? formatUrl({
+                  // we use the original URL pathname less the _next/data prefix if
+                  // present
+                  pathname: urlPathname,
+                  query: origQuery,
+                })
+              : resolvedUrl,
           }
+
           renderResult = await renderToHTML(
             req,
             res,
@@ -1167,7 +1198,9 @@ export default class Server {
       isDynamicPathname &&
       // Development should trigger fallback when the path is not in
       // `getStaticPaths`
-      (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
+      (isProduction ||
+        !staticPaths ||
+        !staticPaths.includes(resolvedUrlPathname))
     ) {
       if (
         // In development, fall through to render to handle missing
