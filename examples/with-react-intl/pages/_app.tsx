@@ -65,7 +65,7 @@ const getInitialProps: typeof App.getInitialProps = async appContext => {
 
   const [supportedLocale, messagePromise] = getMessages(requestedLocales);
 
-  const [appProps, messages] = await Promise.all([
+  const [, messages, appProps] = await Promise.all([
     polyfill(supportedLocale),
     messagePromise,
     App.getInitialProps(appContext),
