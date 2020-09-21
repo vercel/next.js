@@ -24,15 +24,18 @@ export async function getServerSideProps({ params, resolvedUrl }) {
 }
 
 export default ({ post, time, params, appProps, resolvedUrl }) => {
+  const router = useRouter()
+
   return (
     <>
       <p>Post: {post}</p>
       <span>time: {time}</span>
       <div id="params">{JSON.stringify(params)}</div>
-      <div id="query">{JSON.stringify(useRouter().query)}</div>
+      <div id="query">{JSON.stringify(router.query)}</div>
       <div id="app-query">{JSON.stringify(appProps.query)}</div>
       <div id="app-url">{appProps.url}</div>
       <div id="resolved-url">{resolvedUrl}</div>
+      <div id="as-path">{router.asPath}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>
