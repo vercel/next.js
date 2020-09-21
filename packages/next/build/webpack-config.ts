@@ -864,7 +864,7 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        {
+        config.experimental.enableInbuiltLint && {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           enforce: 'pre',
           include: [dir],
