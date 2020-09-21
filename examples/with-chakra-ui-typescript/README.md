@@ -2,7 +2,9 @@
 
 This example features how to use [chakra-ui](https://github.com/chakra-ui/chakra-ui) as the component library within a Next.js app with typescript.
 
-We are connecting the Next.js `_app.js` with `chakra-ui`'s Theme and ColorMode containers so the pages can have app-wide dark/light mode. We are also creating some components which shows the usage of `chakra-ui`'s style props.
+Next.js and chakra-ui have built-in TypeScript declarations, so we'll get autocompletion for their modules straight away.
+
+We are connecting the Next.js `_app.js` with `chakra-ui`'s Provider and theme so the pages can have app-wide dark/light mode. We are also creating some components which shows the usage of `chakra-ui`'s style props.
 
 ## Deploy your own
 
@@ -23,9 +25,3 @@ yarn create next-app --example with-chakra-ui-typescript with-chakra-ui-typescri
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-## Notes
-
-Next.js and chakra-ui has built-in TypeScript declarations, so we'll get autocompletion for their modules straight away.
-
-> All credits for [with-chakra-ui](https://github.com/vercel/next.js/tree/canary/examples/with-chakra-ui) and [with-typescript](https://github.com/vercel/next.js/tree/canary/examples/with-typescript) contributors.
