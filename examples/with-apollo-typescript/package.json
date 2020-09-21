@@ -1,0 +1,30 @@
+{
+  "name": "with-apollo-typescript",
+  "version": "1.0.0",
+  "description": "NextJS with apollo && typescript",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "generate": "graphql-codegen --config codegen.yml"
+  },
+  "author": "vmiron",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/client": "3.2.0",
+    "graphql": "15.3.0",
+    "next": "latest",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "1.17.8",
+    "@graphql-codegen/introspection": "1.17.8",
+    "@graphql-codegen/typescript": "1.17.9",
+    "@graphql-codegen/typescript-operations": "1.17.8",
+    "@graphql-codegen/typescript-react-apollo": "2.0.6",
+    "babel-plugin-module-resolver": "4.0.0",
+    "typescript": "4.0.3"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@Components/*": ["src/Components/*"],
+      "@Components": ["src/Components"],
+      "@Pages/*": ["pages/*"],
+      "@Generated": ["generated"],
+      "@lib/*": ["src/lib/*"]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next",
+    "out",
+    "next.config.js",
+    ".babelrc",
+    "bundles",
+    "coverage"
+  ],
+  "include": ["**/*.ts", "**/*.tsx"]
+}

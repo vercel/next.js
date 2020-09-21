@@ -1,0 +1,6 @@
+query Launches {
+  launches {
+    id
+    mission_name
+  }
+}
