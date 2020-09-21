@@ -63,7 +63,7 @@ To switch back and add a trailing slash, open `next.config.js` and enable the `e
 
 ```js
 module.exports = {
-  exportTrailingSlash: true,
+  trailingSlash: true,
 }
 ```
 
