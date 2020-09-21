@@ -174,7 +174,6 @@ export class Head extends Component<
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
       dynamicFiles = new Set(dynamicCssFiles)
-      console.log(dynamicFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
