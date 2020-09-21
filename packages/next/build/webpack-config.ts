@@ -842,7 +842,6 @@ export default async function getBaseWebpackConfig(
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
-
         return alias
       }, {} as Record<string, string>),
       modules: [
@@ -877,15 +876,15 @@ export default async function getBaseWebpackConfig(
                 quiet: true,
                 failOnWarning: false,
                 env: {
-                  es6: true
+                  es6: true,
                 },
                 parserOptions: {
-                  sourceType: "module",
+                  sourceType: 'module',
                   ecmaVersion: 2017,
-                  "ecmaFeatures": {
-                    "jsx": true
-                  }
-                }
+                  ecmaFeatures: {
+                    jsx: true,
+                  },
+                },
               },
               loader: 'next-eslint-loader',
             },

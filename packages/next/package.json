@@ -182,6 +182,7 @@
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0",
     "escape-string-regexp": "2.0.0",
+    "eslint-loader": "4.0.2",
     "etag": "1.8.1",
     "file-loader": "6.0.0",
     "find-up": "4.1.0",
