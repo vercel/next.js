@@ -2,7 +2,6 @@ import NextAuth from 'next-auth'
 import Providers from 'next-auth/providers'
 
 const options = {
-  site: process.env.VERCEL_URL,
   providers: [
     Providers.Email({
       // SMTP connection string or nodemailer configuration object https://nodemailer.com/
@@ -79,10 +78,12 @@ const options = {
   // Control which users / accounts can sign in
   // You can use this option in conjunction with OAuth and JWT to control which
   // accounts can sign in without having to use a database.
-  allowSignin: async (user, account) => {
-    // Return true if user / account is allowed to sign in.
-    // Return false to display an access denied message.
-    return true
+  callbacks: {
+    signIn: async (user, account, profile) => {
+      // Return true if user / account is allowed to sign in.
+      // Return false to display an access denied message.
+      return true
+    },
   },
 
   // You can define custom pages to override the built-in pages
