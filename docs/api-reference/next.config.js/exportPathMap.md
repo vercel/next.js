@@ -59,7 +59,7 @@ The returned object is a map of pages where the `key` is the `pathname` and the 
 
 It is possible to configure Next.js to export pages as `index.html` files and require trailing slashes, `/about` becomes `/about/index.html` and is routable via `/about/`. This was the default behavior prior to Next.js 9.
 
-To switch back and add a trailing slash, open `next.config.js` and enable the `exportTrailingSlash` config:
+To switch back and add a trailing slash, open `next.config.js` and enable the `trailingSlash` config:
 
 ```js
 module.exports = {
