@@ -4,10 +4,10 @@ description: A custom asset prefix allows you serve static assets from a CDN. Le
 
 # CDN Support with Asset Prefix
 
-> **Attention**: [Deploying to Vercel](docs/deployment.md) automatically configures a global CDN for your Next.js project.
+> **Attention**: [Deploying to Vercel](/docs/deployment.md) automatically configures a global CDN for your Next.js project.
 > You do not need to manually setup an Asset Prefix.
 
-> **Note**: Next.js 9.5+ added support for a customizable [Base Path](docs/api-reference/next.config.js/basepath.md), which is better
+> **Note**: Next.js 9.5+ added support for a customizable [Base Path](/docs/api-reference/next.config.js/basepath.md), which is better
 > suited for hosting your application on a sub-path like `/docs`.
 > We do not suggest you use a custom Asset Prefix for this use case.
 
