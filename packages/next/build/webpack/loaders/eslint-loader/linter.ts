@@ -149,12 +149,8 @@ export class Linter {
     }
 
     const messages = options.formatter(results)
-
-    this.reportOutput(results, messages)
-    this.failOnErrorOrWarning(res, messages)
-
-    const emitter = this.getEmitter(res)
-    emitter(new ESLintError(messages))
+    console.log(messages)
+    return messages
   }
 
   static skipIgnoredFileWarning(res: CLIEngine.LintReport) {

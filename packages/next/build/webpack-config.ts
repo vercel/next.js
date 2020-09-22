@@ -864,35 +864,35 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        config.experimental.enableInbuiltLint && {
-          test: /\.(tsx|ts|js|mjs|jsx)$/,
-          enforce: 'pre',
-          include: [dir],
-          use: [
-            {
-              options: {
-                cache: true,
-                parser: 'babel-eslint',
-                quiet: true,
-                failOnWarning: false,
-                env: {
-                  es6: true,
-                },
-                parserOptions: {
-                  sourceType: 'module',
-                  ecmaVersion: 2017,
-                  ecmaFeatures: {
-                    jsx: true,
+        config.experimental.enableInbuiltLint &&
+          isServer && {
+            test: /\.(tsx|ts|js|mjs|jsx)$/,
+            enforce: 'pre',
+            include: [dir],
+            use: [
+              {
+                options: {
+                  cache: true,
+                  parser: 'babel-eslint',
+                  failOnWarning: false,
+                  env: {
+                    es6: true,
+                  },
+                  parserOptions: {
+                    sourceType: 'module',
+                    ecmaVersion: 2017,
+                    ecmaFeatures: {
+                      jsx: true,
+                    },
                   },
                 },
+                loader: 'next-eslint-loader',
               },
-              loader: 'next-eslint-loader',
+            ],
+            exclude: (excludePath: string) => {
+              return /node_modules/.test(excludePath)
             },
-          ],
-          exclude: (excludePath: string) => {
-            return /node_modules/.test(excludePath)
           },
-        },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
