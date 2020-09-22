@@ -124,23 +124,18 @@ For better type-safety, it is not recommended to extend the `req` and `res` obje
 ```ts
 // utils/cookies.ts
 
-import { serialize } from 'cookie'
+import { serialize, CookieSerializeOptions } from 'cookie'
 import { NextApiResponse } from 'next'
 
 /**
  * This sets `cookie` using the `res` object
  */
 
-type Options = {
-  expires?: Date
-  maxAge?: number
-}
-
 export const setCookie = (
   res: NextApiResponse,
   name: string,
   value: unknown,
-  options: Options = {}
+  options: CookieSerializeOptions = {}
 ) => {
   const stringValue =
     typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
