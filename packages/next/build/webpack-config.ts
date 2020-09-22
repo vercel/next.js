@@ -666,10 +666,10 @@ export default async function getBaseWebpackConfig(
       // would be different from what the real resolution would use, we
       // cannot externalize it.
       if (
-        baseRes &&
-        baseRes !== res &&
-        // if res and baseRes are symlinks they could point to the the same file
-        realpathSync(baseRes) !== realpathSync(res)
+        !baseRes ||
+        (baseRes !== res &&
+          // if res and baseRes are symlinks they could point to the the same file
+          realpathSync(baseRes) !== realpathSync(res))
       ) {
         return callback()
       }
