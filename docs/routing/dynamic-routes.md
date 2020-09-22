@@ -141,6 +141,8 @@ The `query` objects are as follows:
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 
+- Only files that output pages can be in the `/pages` directory. If you have written tests or other files related to these pages, [they need to be located elsewhere](https://github.com/vercel/next.js/issues/8617).
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
