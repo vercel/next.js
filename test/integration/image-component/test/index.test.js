@@ -40,6 +40,11 @@ function runTests() {
       await browser.elementById('secondary-image').getAttribute('src')
     ).toBe('https://examplesecondary.com/images/foo2.jpg')
   })
+  it('should support the unoptimized attribute', async () => {
+    expect(
+      await browser.elementById('unoptimized-image').getAttribute('src')
+    ).toBe('https://arbitraryurl.com/foo.jpg')
+  })
 }
 
 describe('Image Component Tests', () => {

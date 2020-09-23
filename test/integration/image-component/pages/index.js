@@ -14,6 +14,11 @@ const Page = () => {
         host="secondary"
         src="foo2.jpg"
       />
+      <Image
+        id="unoptimized-image"
+        unoptimized
+        src="https://arbitraryurl.com/foo.jpg"
+      />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>

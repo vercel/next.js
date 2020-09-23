@@ -13,6 +13,11 @@ const ClientSide = () => {
         host="secondary"
         src="foo2.jpg"
       />
+      <Image
+        id="unoptimized-image"
+        unoptimized
+        src="https://arbitraryurl.com/foo.jpg"
+      />
     </div>
   )
 }
