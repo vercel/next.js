@@ -47,15 +47,20 @@ export function getOriginalStackFrame(
     const params = new URLSearchParams()
     params.append('isServerSide', String(isServerSide))
     for (const key in source) {
-      params.append(key, (source[key] ?? '').toString())
+      params.append(key, ((source as any)[key] ?? '').toString())
     }
 
     const controller = new AbortController()
     const tm = setTimeout(() => controller.abort(), 3000)
     const res = await self
-      .fetch(`/__nextjs_original-stack-frame?${params.toString()}`, {
-        signal: controller.signal,
-      })
+      .fetch(
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_original-stack-frame?${params.toString()}`,
+        {
+          signal: controller.signal,
+        }
+      )
       .finally(() => {
         clearTimeout(tm)
       })
@@ -109,7 +114,7 @@ export function getOriginalStackFrame(
 export function getFrameSource(frame: StackFrame): string {
   let str = ''
   try {
-    const u = new URL(frame.file)
+    const u = new URL(frame.file!)
 
     // Strip the origin for same-origin scripts.
     if (

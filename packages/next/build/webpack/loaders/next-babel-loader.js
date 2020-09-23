@@ -3,9 +3,9 @@ import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
 import * as Log from '../../output/log'
 
-// increment 'm' to invalidate cache
+// increment 'n' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'm' + '-'
+const cacheKey = 'babel-cache-' + 'n' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -61,6 +61,7 @@ module.exports = babelLoader.custom((babel) => {
         babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
         hasReactRefresh: opts.hasReactRefresh,
+        hasJsxRuntime: opts.hasJsxRuntime,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -76,6 +77,7 @@ module.exports = babelLoader.custom((babel) => {
                 '-new-polyfills' +
                 (opts.development ? '-development' : '-production') +
                 (opts.hasReactRefresh ? '-react-refresh' : '') +
+                (opts.hasJsxRuntime ? '-jsx-runtime' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -99,6 +101,7 @@ module.exports = babelLoader.custom((babel) => {
       delete loader.babelPresetPlugins
       delete loader.development
       delete loader.hasReactRefresh
+      delete loader.hasJsxRuntime
       return { loader, custom }
     },
     config(
@@ -113,6 +116,7 @@ module.exports = babelLoader.custom((babel) => {
           babelPresetPlugins,
           development,
           hasReactRefresh,
+          hasJsxRuntime,
         },
       }
     ) {
@@ -136,6 +140,19 @@ module.exports = babelLoader.custom((babel) => {
       options.caller.isServer = isServer
       options.caller.isModern = isModern
       options.caller.isDev = development
+      options.caller.hasJsxRuntime = hasJsxRuntime
+
+      const emitWarning = this.emitWarning.bind(this)
+      Object.defineProperty(options.caller, 'onWarning', {
+        enumerable: false,
+        writable: false,
+        value: (options.caller.onWarning = function (reason) {
+          if (!(reason instanceof Error)) {
+            reason = new Error(reason)
+          }
+          emitWarning(reason)
+        }),
+      })
 
       options.plugins = options.plugins || []
 
@@ -145,6 +162,13 @@ module.exports = babelLoader.custom((babel) => {
           { type: 'plugin' }
         )
         options.plugins.unshift(reactRefreshPlugin)
+        if (!isServer) {
+          const noAnonymousDefaultExportPlugin = babel.createConfigItem(
+            [require('../../babel/plugins/no-anonymous-default-export'), {}],
+            { type: 'plugin' }
+          )
+          options.plugins.unshift(noAnonymousDefaultExportPlugin)
+        }
       }
 
       if (!isServer && isPageFile) {
@@ -153,6 +177,14 @@ module.exports = babelLoader.custom((babel) => {
           { type: 'plugin' }
         )
         options.plugins.push(pageConfigPlugin)
+
+        const diallowExportAll = babel.createConfigItem(
+          [
+            require('../../babel/plugins/next-page-disallow-re-export-all-exports'),
+          ],
+          { type: 'plugin' }
+        )
+        options.plugins.push(diallowExportAll)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {

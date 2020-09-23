@@ -1,10 +1,17 @@
-import { ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import { isResSent } from '../lib/utils'
+import generateETag from 'next/dist/compiled/etag'
+import fresh from 'next/dist/compiled/fresh'
 
 export function sendPayload(
+  req: IncomingMessage,
   res: ServerResponse,
   payload: any,
   type: 'html' | 'json',
+  {
+    generateEtags,
+    poweredByHeader,
+  }: { generateEtags: boolean; poweredByHeader: boolean },
   options?:
     | { private: true }
     | { private: boolean; stateful: true }
@@ -14,11 +21,28 @@ export function sendPayload(
     return
   }
 
-  // TODO: ETag headers?
-  res.setHeader(
-    'Content-Type',
-    type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
-  )
+  if (poweredByHeader && type === 'html') {
+    res.setHeader('X-Powered-By', 'Next.js')
+  }
+
+  const etag = generateEtags ? generateETag(payload) : undefined
+
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return
+  }
+
+  if (etag) {
+    res.setHeader('ETag', etag)
+  }
+
+  if (!res.getHeader('Content-Type')) {
+    res.setHeader(
+      'Content-Type',
+      type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
+    )
+  }
   res.setHeader('Content-Length', Buffer.byteLength(payload))
   if (options != null) {
     if (options.private || options.stateful) {
@@ -46,5 +70,5 @@ export function sendPayload(
       )
     }
   }
-  res.end(payload)
+  res.end(req.method === 'HEAD' ? null : payload)
 }

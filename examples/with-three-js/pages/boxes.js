@@ -1,7 +1,8 @@
 import { useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from 'react-three-fiber'
+import { OrbitControls, StandardEffects, Box } from 'drei'
 
-const Box = (props) => {
+const MyBox = (props) => {
   const mesh = useRef()
 
   const [hovered, setHover] = useState(false)
@@ -10,37 +11,39 @@ const Box = (props) => {
   useFrame(() => (mesh.current.rotation.x = mesh.current.rotation.y += 0.01))
 
   return (
-    <mesh
+    <Box
+      args={[1, 1, 1]}
       {...props}
       ref={mesh}
       scale={active ? [6, 6, 6] : [5, 5, 5]}
-      onClick={(e) => setActive(!active)}
-      onPointerOver={(e) => setHover(true)}
-      onPointerOut={(e) => setHover(false)}
+      onClick={() => setActive(!active)}
+      onPointerOver={() => setHover(true)}
+      onPointerOut={() => setHover(false)}
     >
-      <boxBufferGeometry attach="geometry" args={[1, 1, 1]} />
       <meshStandardMaterial
         attach="material"
         color={hovered ? '#2b6c76' : '#720b23'}
       />
-    </mesh>
+    </Box>
   )
 }
 
-const BirdsPage = () => {
+const BoxesPage = () => {
   return [
     <h1>Click on me - Hover me :)</h1>,
     <Canvas camera={{ position: [0, 0, 35] }}>
       <ambientLight intensity={2} />
       <pointLight position={[40, 40, 40]} />
+      <MyBox position={[10, 0, 0]} />
+      <MyBox position={[-10, 0, 0]} />
+      <MyBox position={[0, 10, 0]} />
+      <MyBox position={[0, -10, 0]} />
+      <OrbitControls />
       <Suspense fallback={null}>
-        <Box position={[10, 0, 0]} />
-        <Box position={[-10, 0, 0]} />
-        <Box position={[0, 10, 0]} />
-        <Box position={[0, -10, 0]} />
+        <StandardEffects smaa />
       </Suspense>
     </Canvas>,
   ]
 }
 
-export default BirdsPage
+export default BoxesPage

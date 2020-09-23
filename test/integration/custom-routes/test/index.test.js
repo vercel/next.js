@@ -36,6 +36,12 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
+    const browser = await webdriver(appPort, '/rewriting-to-auto-export')
+    const text = await browser.eval(() => document.documentElement.innerHTML)
+    expect(text).toContain('auto-export hello')
+  })
+
   it('should handle one-to-one rewrite successfully', async () => {
     const html = await renderViaHTTP(appPort, '/first')
     expect(html).toMatch(/hello/)
@@ -44,6 +50,24 @@ const runTests = (isDev = false) => {
   it('should handle chained rewrites successfully', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/multi-rewrites/)
+  })
+
+  it('should handle param like headers properly', async () => {
+    const res = await fetchViaHTTP(appPort, '/my-other-header/my-path')
+    expect(res.headers.get('x-path')).toBe('my-path')
+    expect(res.headers.get('somemy-path')).toBe('hi')
+    expect(res.headers.get('x-test')).toBe('some:value*')
+    expect(res.headers.get('x-test-2')).toBe('value*')
+    expect(res.headers.get('x-test-3')).toBe(':value?')
+    expect(res.headers.get('x-test-4')).toBe(':value+')
+    expect(res.headers.get('x-test-5')).toBe('something https:')
+    expect(res.headers.get('x-test-6')).toBe(':hello(world)')
+    expect(res.headers.get('x-test-7')).toBe('hello(world)')
+    expect(res.headers.get('x-test-8')).toBe('hello{1,}')
+    expect(res.headers.get('x-test-9')).toBe(':hello{1,2}')
+    expect(res.headers.get('content-security-policy')).toBe(
+      "default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com/my-path"
+    )
   })
 
   it('should not match dynamic route immediately after applying header', async () => {
@@ -147,6 +171,12 @@ const runTests = (isDev = false) => {
   it('should rewrite with params successfully', async () => {
     const html = await renderViaHTTP(appPort, '/test/hello')
     expect(html).toMatch(/Hello/)
+  })
+
+  it('should not append params when one is used in destination path', async () => {
+    const html = await renderViaHTTP(appPort, '/test/with-params?a=b')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('p').text())).toEqual({ a: 'b' })
   })
 
   it('should double redirect successfully', async () => {
@@ -284,6 +314,52 @@ const runTests = (isDev = false) => {
     expect(await getBrowserBodyText(browser)).toMatch(/Hello again/)
   })
 
+  it('should work with rewrite when manually specifying href/as', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-params-manual')
+      .click()
+      .waitForElementByCss('#query')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    const query = JSON.parse(await browser.elementByCss('#query').text())
+    expect(query).toEqual({
+      something: '1',
+      another: 'value',
+    })
+  })
+
+  it('should work with rewrite when only specifying href', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-params')
+      .click()
+      .waitForElementByCss('#query')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    const query = JSON.parse(await browser.elementByCss('#query').text())
+    expect(query).toEqual({
+      something: '1',
+      another: 'value',
+    })
+  })
+
+  it('should work with rewrite when only specifying href and ends in dynamic route', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-rewritten-dynamic')
+      .click()
+      .waitForElementByCss('#auto-export')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    const text = await browser.eval(() => document.documentElement.innerHTML)
+    expect(text).toContain('auto-export hello')
+  })
+
   it('should match a page after a rewrite', async () => {
     const html = await renderViaHTTP(appPort, '/to-hello')
     expect(html).toContain('Hello')
@@ -348,7 +424,7 @@ const runTests = (isDev = false) => {
   it('should apply params header key/values with URL that has port', async () => {
     const res = await fetchViaHTTP(appPort, '/with-params/url2/first')
     expect(res.headers.get('x-url')).toBe(
-      'https://example.com:8080/?hello=first'
+      'https://example.com:8080?hello=first'
     )
   })
 
@@ -373,7 +449,6 @@ const runTests = (isDev = false) => {
       {
         pathname: '/first',
         query: {
-          path: 'first',
           keep: 'me',
           and: 'me',
         },
@@ -494,7 +569,16 @@ const runTests = (isDev = false) => {
         version: 3,
         pages404: true,
         basePath: '',
+        dataRoutes: [],
         redirects: [
+          {
+            destination: '/:path+',
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$'
+            ),
+            source: '/:path+/',
+            statusCode: 308,
+          },
           {
             destination: '/:lang/about',
             regex: normalizeRegEx(
@@ -659,6 +743,47 @@ const runTests = (isDev = false) => {
                 key: 'some:path',
                 value: 'hi',
               },
+              {
+                key: 'x-test',
+                value: 'some:value*',
+              },
+              {
+                key: 'x-test-2',
+                value: 'value*',
+              },
+              {
+                key: 'x-test-3',
+                value: ':value?',
+              },
+              {
+                key: 'x-test-4',
+                value: ':value+',
+              },
+              {
+                key: 'x-test-5',
+                value: 'something https:',
+              },
+              {
+                key: 'x-test-6',
+                value: ':hello(world)',
+              },
+              {
+                key: 'x-test-7',
+                value: 'hello(world)',
+              },
+              {
+                key: 'x-test-8',
+                value: 'hello{1,}',
+              },
+              {
+                key: 'x-test-9',
+                value: ':hello{1,2}',
+              },
+              {
+                key: 'content-security-policy',
+                value:
+                  "default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com/:path",
+              },
             ],
             regex: normalizeRegEx('^\\/my-other-header(?:\\/([^\\/]+?))$'),
             source: '/my-other-header/:path',
@@ -737,6 +862,11 @@ const runTests = (isDev = false) => {
           },
         ],
         rewrites: [
+          {
+            destination: '/auto-export/hello',
+            regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
+            source: '/rewriting-to-auto-export',
+          },
           {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
@@ -885,6 +1015,14 @@ const runTests = (isDev = false) => {
             },
           },
           {
+            namedRegex: '^/auto\\-export/(?<slug>[^/]+?)(?:/)?$',
+            page: '/auto-export/[slug]',
+            regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
             namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
@@ -896,7 +1034,7 @@ const runTests = (isDev = false) => {
       })
     })
 
-    it('should have redirects/rewrites in build output', async () => {
+    it('should have redirects/rewrites in build output with debug flag', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
@@ -920,13 +1058,6 @@ const runTests = (isDev = false) => {
           expect(cleanStdout).toContain(header.value)
         }
       }
-    })
-  } else {
-    it('should show error for dynamic auto export rewrite', async () => {
-      const html = await renderViaHTTP(appPort, '/to-another')
-      expect(html).toContain(
-        `Rewrites don't support auto-exported dynamic pages yet`
-      )
     })
   }
 }
@@ -968,9 +1099,27 @@ describe('Custom routes', () => {
     runTests(true)
   })
 
+  describe('no-op rewrite', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        env: {
+          ADD_NOOP_REWRITE: 'true',
+        },
+      })
+    })
+    afterAll(() => killApp(app))
+
+    it('should not error for no-op rewrite and auto export dynamic route', async () => {
+      const browser = await webdriver(appPort, '/auto-export/my-slug')
+      const html = await browser.eval(() => document.documentElement.innerHTML)
+      expect(html).toContain(`auto-export my-slug`)
+    })
+  })
+
   describe('server mode', () => {
     beforeAll(async () => {
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
@@ -990,7 +1139,7 @@ describe('Custom routes', () => {
         nextConfigContent.replace(/\/\/ target/, 'target'),
         'utf8'
       )
-      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
         stdout: true,
       })
       stdout = buildStdout
@@ -1066,7 +1215,6 @@ describe('Custom routes', () => {
       expect(data).toEqual({
         query: {
           slug: 'first',
-          name: 'first',
           hello: 'first',
         },
       })

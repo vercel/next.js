@@ -38,35 +38,33 @@ import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
-import pathMatch from './lib/path-match'
+import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
-import { getPagePath } from './require'
+import { getPagePath, requireFontManifest } from './require'
 import Router, {
   DynamicRoutes,
   PageChecker,
   Params,
-  prepareDestination,
   route,
   Route,
 } from './router'
-import { sendHTML } from './send-html'
+import prepareDestination from '../lib/router/utils/prepare-destination'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
-import {
-  getFallback,
-  getSprCache,
-  initializeSprCache,
-  setSprCache,
-} from './spr-cache'
+import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
 import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '../../lib/load-env-config'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
+import { FontManifest } from './font-utils'
+import { denormalizePagePath } from './denormalize-page-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -123,15 +121,16 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
+    optimizeFonts: boolean
+    fontManifest: FontManifest
+    optimizeImages: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
+  private incrementalCache: IncrementalCache
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
-  protected staticPathsWorker?: import('jest-worker').default & {
-    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
-  }
 
   public constructor({
     dir = '.',
@@ -171,6 +170,12 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      fontManifest:
+        this.nextConfig.experimental.optimizeFonts && !dev
+          ? requireFontManifest(this.distDir, this._isLikeServerless)
+          : null,
+      optimizeImages: this.nextConfig.experimental.optimizeImages,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -215,7 +220,7 @@ export default class Server {
       initServer()
     }
 
-    initializeSprCache({
+    this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,
       pagesDir: join(
@@ -225,6 +230,19 @@ export default class Server {
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
+
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targetting both serverless and SSR by calling
+     * `process.env.__NEXT_OPTIMIZE_FONTS`.
+     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+     */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeImages) {
+      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
   }
 
   protected currentPhase(): string {
@@ -236,7 +254,6 @@ export default class Server {
       this.onErrorMiddleware({ err })
     }
     if (this.quiet) return
-    // tslint:disable-next-line
     console.error(err)
   }
 
@@ -258,13 +275,11 @@ export default class Server {
 
     const { basePath } = this.nextConfig
 
-    // if basePath is set require it be present
-    if (basePath && !req.url!.startsWith(basePath)) {
-      return this.render404(req, res, parsedUrl)
-    } else {
-      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      parsedUrl.pathname = parsedUrl.pathname!.replace(basePath, '') || '/'
-      req.url = req.url!.replace(basePath, '')
+    if (basePath && req.url?.startsWith(basePath)) {
+      // store original URL to allow checking if basePath was
+      // provided or not
+      ;(req as any)._nextHadBasePath = true
+      req.url = req.url!.replace(basePath, '') || '/'
     }
 
     res.statusCode = 200
@@ -313,6 +328,7 @@ export default class Server {
   }
 
   protected generateRoutes(): {
+    basePath: string
     headers: Route[]
     rewrites: Route[]
     fsRoutes: Route[]
@@ -411,13 +427,14 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = `/${params.path
-            // we need to re-encode the params since they are decoded
-            // by path-match and we are re-building the URL
-            .map((param: string) => encodeURIComponent(param))
-            .join('/')}`
-            .replace(/\.json$/, '')
-            .replace(/\/index$/, '/')
+          const pathname = getRouteFromAssetPath(
+            `/${params.path
+              // we need to re-encode the params since they are decoded
+              // by path-match and we are re-building the URL
+              .map((param: string) => encodeURIComponent(param))
+              .join('/')}`,
+            '.json'
+          )
 
           const parsedUrl = parseUrl(pathname, true)
 
@@ -449,11 +466,17 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
+    const getCustomRouteBasePath = (r: { basePath?: false }) => {
+      return r.basePath !== false && this.renderOpts.dev
+        ? this.nextConfig.basePath
+        : ''
+    }
+
     const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
       ({
         ...r,
         type,
-        match: getCustomRouteMatcher(r.source),
+        match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
       } as Route & Rewrite & Header)
@@ -462,19 +485,40 @@ export default class Server {
       if (!value.includes(':')) {
         return value
       }
-      const { parsedDestination } = prepareDestination(value, params, {})
 
-      if (
-        !parsedDestination.pathname ||
-        !parsedDestination.pathname.startsWith('/')
-      ) {
-        // the value needs to start with a forward-slash to be compiled
-        // correctly
-        return compilePathToRegex(`/${value}`, { validate: false })(
-          params
-        ).substr(1)
+      for (const key of Object.keys(params)) {
+        if (value.includes(`:${key}`)) {
+          value = value
+            .replace(
+              new RegExp(`:${key}\\*`, 'g'),
+              `:${key}--ESCAPED_PARAM_ASTERISKS`
+            )
+            .replace(
+              new RegExp(`:${key}\\?`, 'g'),
+              `:${key}--ESCAPED_PARAM_QUESTION`
+            )
+            .replace(
+              new RegExp(`:${key}\\+`, 'g'),
+              `:${key}--ESCAPED_PARAM_PLUS`
+            )
+            .replace(
+              new RegExp(`:${key}(?!\\w)`, 'g'),
+              `--ESCAPED_PARAM_COLON${key}`
+            )
+        }
       }
-      return formatUrl(parsedDestination)
+      value = value
+        .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+        .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+        .replace(/--ESCAPED_PARAM_COLON/g, ':')
+        .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+        .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+      // the value needs to start with a forward-slash to be compiled
+      // correctly
+      return compilePathToRegex(`/${value}`, { validate: false })(
+        params
+      ).substr(1)
     }
 
     // Headers come very first
@@ -511,7 +555,9 @@ export default class Server {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
             params,
-            parsedUrl.query
+            parsedUrl.query,
+            false,
+            getCustomRouteBasePath(redirectRoute)
           )
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -535,6 +581,7 @@ export default class Server {
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
+        ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
         name: `Rewrite route`,
@@ -544,7 +591,8 @@ export default class Server {
             rewriteRoute.destination,
             params,
             parsedUrl.query,
-            true
+            true,
+            getCustomRouteBasePath(rewriteRoute)
           )
 
           // external rewrite, proxy it
@@ -564,8 +612,9 @@ export default class Server {
               finished: true,
             }
           }
-          ;(req as any)._nextDidRewrite = true
           ;(req as any)._nextRewroteUrl = newUrl
+          ;(req as any)._nextDidRewrite =
+            (req as any)._nextRewroteUrl !== req.url
 
           return {
             finished: false,
@@ -581,10 +630,13 @@ export default class Server {
       type: 'route',
       name: 'Catchall render',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
+
+        // next.js core assumes page path without trailing slash
+        pathname = removePathTrailingSlash(pathname)
 
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
@@ -619,6 +671,7 @@ export default class Server {
       catchAllRoute,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
+      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
     }
   }
@@ -731,6 +784,14 @@ export default class Server {
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
+          const { basePath } = this.nextConfig
+
+          // if basePath is defined require it be present
+          if (basePath) {
+            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
+            pathParts.shift()
+          }
+
           const path = `/${pathParts.join('/')}`
 
           if (publicFiles.has(path)) {
@@ -797,7 +858,10 @@ export default class Server {
     html: string
   ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+    return sendPayload(req, res, html, 'html', {
+      generateEtags,
+      poweredByHeader,
+    })
   }
 
   public async render(
@@ -883,44 +947,29 @@ export default class Server {
     return null
   }
 
-  private async getStaticPaths(
+  protected async getStaticPaths(
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
-    hasStaticFallback: boolean
+    fallbackMode: 'static' | 'blocking' | false
   }> {
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-    let staticPaths: string[] | undefined
-    let hasStaticFallback = false
+    // `staticPaths` is intentionally set to `undefined` as it should've
+    // been caught when checking disk data.
+    const staticPaths = undefined
 
-    if (!this.renderOpts.dev) {
-      // `staticPaths` is intentionally set to `undefined` as it should've
-      // been caught when checking disk data.
-      staticPaths = undefined
+    // Read whether or not fallback should exist from the manifest.
+    const fallbackField = this.getPrerenderManifest().dynamicRoutes[pathname]
+      .fallback
 
-      // Read whether or not fallback should exist from the manifest.
-      hasStaticFallback =
-        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
-        'string'
-    } else {
-      const __getStaticPaths = async () => {
-        const paths = await this.staticPathsWorker!.loadStaticPaths(
-          this.distDir,
-          pathname,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return paths
-      }
-      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-        await withCoalescedInvoke(__getStaticPaths)(
-          `staticPaths-${pathname}`,
-          []
-        )
-      ).value)
+    return {
+      staticPaths,
+      fallbackMode:
+        typeof fallbackField === 'string'
+          ? 'static'
+          : fallbackField === null
+          ? 'blocking'
+          : false,
     }
-
-    return { staticPaths, hasStaticFallback }
   }
 
   private async renderToHTMLWithComponents(
@@ -967,28 +1016,40 @@ export default class Server {
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = (req as any)._nextRewroteUrl
-      ? (req as any)._nextRewroteUrl
-      : `${parseUrl(req.url || '').pathname!}`
+    let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    // remove trailing slash
-    urlPathname = urlPathname.replace(/(?!^)\/$/, '')
+    let resolvedUrlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : urlPathname
+
+    resolvedUrlPathname = removePathTrailingSlash(resolvedUrlPathname)
+    urlPathname = removePathTrailingSlash(urlPathname)
+
+    const stripNextDataPath = (path: string) => {
+      if (path.includes(this.buildId)) {
+        path = denormalizePagePath(
+          (path.split(this.buildId).pop() || '/').replace(/\.json$/, '')
+        )
+      }
+      return path
+    }
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
-    if (isDataReq && urlPathname.includes(this.buildId)) {
-      urlPathname = (urlPathname.split(this.buildId).pop() || '/')
-        .replace(/\.json$/, '')
-        .replace(/\/index$/, '/')
+    if (isDataReq) {
+      resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
+      urlPathname = stripNextDataPath(urlPathname)
     }
 
     const ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${urlPathname}${query.amp ? '.amp' : ''}`
+        : `${resolvedUrlPathname}${query.amp ? '.amp' : ''}`
 
     // Complete the response with cached data if its present
-    const cachedData = ssgCacheKey ? await getSprCache(ssgCacheKey) : undefined
+    const cachedData = ssgCacheKey
+      ? await this.incrementalCache.get(ssgCacheKey)
+      : undefined
 
     if (cachedData) {
       const data = isDataReq
@@ -996,9 +1057,14 @@ export default class Server {
         : cachedData.html
 
       sendPayload(
+        req,
         res,
         data,
         isDataReq ? 'json' : 'html',
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev
           ? {
               private: isPreviewMode,
@@ -1025,59 +1091,89 @@ export default class Server {
           return { isOrigin: true, value }
         }
 
-    const doRender = maybeCoalesceInvoke(async function (): Promise<{
-      html: string | null
-      pageData: any
-      sprRevalidate: number | false
-    }> {
-      let pageData: any
-      let html: string | null
-      let sprRevalidate: number | false
+    const doRender = maybeCoalesceInvoke(
+      async (): Promise<{
+        html: string | null
+        pageData: any
+        sprRevalidate: number | false
+      }> => {
+        let pageData: any
+        let html: string | null
+        let sprRevalidate: number | false
 
-      let renderResult
-      // handle serverless
-      if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          'passthrough'
-        )
+        let renderResult
+        // handle serverless
+        if (isLikeServerless) {
+          renderResult = await (components.Component as any).renderReqToHTML(
+            req,
+            res,
+            'passthrough',
+            {
+              fontManifest: this.renderOpts.fontManifest,
+            }
+          )
 
-        html = renderResult.html
-        pageData = renderResult.renderOpts.pageData
-        sprRevalidate = renderResult.renderOpts.revalidate
-      } else {
-        const renderOpts: RenderOpts = {
-          ...components,
-          ...opts,
-          isDataReq,
+          html = renderResult.html
+          pageData = renderResult.renderOpts.pageData
+          sprRevalidate = renderResult.renderOpts.revalidate
+        } else {
+          const origQuery = parseUrl(req.url || '', true).query
+          const resolvedUrl = formatUrl({
+            pathname: resolvedUrlPathname,
+            // make sure to only add query values from original URL
+            query: origQuery,
+          })
+
+          const renderOpts: RenderOpts = {
+            ...components,
+            ...opts,
+            isDataReq,
+            resolvedUrl,
+            // For getServerSideProps we need to ensure we use the original URL
+            // and not the resolved URL to prevent a hydration mismatch on
+            // asPath
+            resolvedAsPath: isServerProps
+              ? formatUrl({
+                  // we use the original URL pathname less the _next/data prefix if
+                  // present
+                  pathname: urlPathname,
+                  query: origQuery,
+                })
+              : resolvedUrl,
+          }
+
+          renderResult = await renderToHTML(
+            req,
+            res,
+            pathname,
+            query,
+            renderOpts
+          )
+
+          html = renderResult
+          // TODO: change this to a different passing mechanism
+          pageData = (renderOpts as any).pageData
+          sprRevalidate = (renderOpts as any).revalidate
         }
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
-        html = renderResult
-        // TODO: change this to a different passing mechanism
-        pageData = (renderOpts as any).pageData
-        sprRevalidate = (renderOpts as any).revalidate
+        return { html, pageData, sprRevalidate }
       }
-
-      return { html, pageData, sprRevalidate }
-    })
+    )
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
 
-    const { staticPaths, hasStaticFallback } = hasStaticPaths
+    const { staticPaths, fallbackMode } = hasStaticPaths
       ? await this.getStaticPaths(pathname)
-      : { staticPaths: undefined, hasStaticFallback: false }
-
-    // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
+      : { staticPaths: undefined, fallbackMode: false }
 
     // When we did not respond from cache, we need to choose to block on
     // rendering or return a skeleton.
     //
     // * Data requests always block.
+    //
+    // * Blocking mode fallback always blocks.
     //
     // * Preview mode toggles all pages to be resolved in a blocking manner.
     //
@@ -1088,43 +1184,50 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      fallbackMode !== 'blocking' &&
       ssgCacheKey &&
       !didRespond &&
-      !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
       // Development should trigger fallback when the path is not in
       // `getStaticPaths`
-      (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
+      (isProduction ||
+        !staticPaths ||
+        !staticPaths.includes(resolvedUrlPathname))
     ) {
       if (
         // In development, fall through to render to handle missing
         // getStaticPaths.
         (isProduction || staticPaths) &&
         // When fallback isn't present, abort this render so we 404
-        !hasStaticFallback
+        fallbackMode !== 'static'
       ) {
         throw new NoFallbackError()
       }
 
-      let html: string
+      if (!isDataReq) {
+        let html: string
 
-      // Production already emitted the fallback as static HTML.
-      if (isProduction) {
-        html = await getFallback(pathname)
-      }
-      // We need to generate the fallback on-demand for development.
-      else {
-        query.__nextFallback = 'true'
-        if (isLikeServerless) {
-          prepareServerlessUrl(req, query)
+        // Production already emitted the fallback as static HTML.
+        if (isProduction) {
+          html = await this.incrementalCache.getFallback(pathname)
         }
-        const { value: renderResult } = await doRender()
-        html = renderResult.html
-      }
+        // We need to generate the fallback on-demand for development.
+        else {
+          query.__nextFallback = 'true'
+          if (isLikeServerless) {
+            prepareServerlessUrl(req, query)
+          }
+          const { value: renderResult } = await doRender()
+          html = renderResult.html
+        }
 
-      sendPayload(res, html, 'html')
-      return null
+        sendPayload(req, res, html, 'html', {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        })
+        return null
+      }
     }
 
     const {
@@ -1134,9 +1237,14 @@ export default class Server {
     let resHtml = html
     if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
       sendPayload(
+        req,
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'json' : 'html',
+        {
+          generateEtags: this.renderOpts.generateEtags,
+          poweredByHeader: this.renderOpts.poweredByHeader,
+        },
         !this.renderOpts.dev || (isServerProps && !isDataReq)
           ? {
               private: isPreviewMode,
@@ -1148,9 +1256,13 @@ export default class Server {
       resHtml = null
     }
 
-    // Update the SPR cache if the head request and cacheable
+    // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
+      await this.incrementalCache.set(
+        ssgCacheKey,
+        { html: html!, pageData },
+        sprRevalidate
+      )
     }
 
     return resHtml
@@ -1433,7 +1545,7 @@ export default class Server {
     }
   }
 
-  private get _isLikeServerless(): boolean {
+  protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
 }

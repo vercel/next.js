@@ -1,12 +1,6 @@
 /* eslint-env jest */
 
-import {
-  nextBuild,
-  nextServer,
-  startApp,
-  stopApp,
-  waitFor,
-} from 'next-test-utils'
+import { nextBuild, nextServer, startApp, stopApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -46,12 +40,11 @@ describe('Query String with Encoding', () => {
     it('should have correct query on Router#push', async () => {
       const browser = await webdriver(appPort, '/')
       try {
-        await waitFor(2000)
+        await browser.waitForCondition('!!window.next.router')
         await browser.eval(
           `window.next.router.push({pathname:'/',query:{abc:'def\\n'}})`
         )
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"abc":"def\\n"}')
       } finally {
         await browser.close()
@@ -61,10 +54,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on simple client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/newline')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-lf').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-lf').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"another":"hello\\n"}')
       } finally {
         await browser.close()
@@ -74,10 +65,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on complex client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/newline')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-complex').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-complex').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"complex":"yes\\n"}')
       } finally {
         await browser.close()
@@ -99,12 +88,11 @@ describe('Query String with Encoding', () => {
     it('should have correct query on Router#push', async () => {
       const browser = await webdriver(appPort, '/')
       try {
-        await waitFor(2000)
+        await browser.waitForCondition('!!window.next.router')
         await browser.eval(
           `window.next.router.push({pathname:'/',query:{abc:'def '}})`
         )
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"abc":"def "}')
       } finally {
         await browser.close()
@@ -114,10 +102,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on simple client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/space')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-space').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-space').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"another":"hello "}')
       } finally {
         await browser.close()
@@ -127,10 +113,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on complex client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/space')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-complex').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-complex').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"complex":"yes "}')
       } finally {
         await browser.close()
@@ -152,12 +136,11 @@ describe('Query String with Encoding', () => {
     it('should have correct query on Router#push', async () => {
       const browser = await webdriver(appPort, '/')
       try {
-        await waitFor(2000)
+        await browser.waitForCondition('!!window.next.router')
         await browser.eval(
           `window.next.router.push({pathname:'/',query:{abc:'def%'}})`
         )
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"abc":"def%"}')
       } finally {
         await browser.close()
@@ -167,10 +150,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on simple client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/percent')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-percent').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-percent').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"another":"hello%"}')
       } finally {
         await browser.close()
@@ -180,10 +161,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on complex client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/percent')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-complex').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-complex').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"complex":"yes%"}')
       } finally {
         await browser.close()
@@ -205,12 +184,11 @@ describe('Query String with Encoding', () => {
     it('should have correct query on Router#push', async () => {
       const browser = await webdriver(appPort, '/')
       try {
-        await waitFor(2000)
+        await browser.waitForCondition('!!window.next.router')
         await browser.eval(
           `window.next.router.push({pathname:'/',query:{abc:'def+'}})`
         )
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"abc":"def+"}')
       } finally {
         await browser.close()
@@ -220,10 +198,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on simple client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/plus')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-plus').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-plus').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"another":"hello+"}')
       } finally {
         await browser.close()
@@ -233,10 +209,8 @@ describe('Query String with Encoding', () => {
     it('should have correct query on complex client-side <Link>', async () => {
       const browser = await webdriver(appPort, '/plus')
       try {
-        await waitFor(2000)
-        await browser.elementByCss('#hello-complex').click()
-        await waitFor(1000)
-        const text = await browser.elementByCss('#query-content').text()
+        await browser.waitForElementByCss('#hello-complex').click()
+        const text = await browser.waitForElementByCss('#query-content').text()
         expect(text).toBe('{"complex":"yes+"}')
       } finally {
         await browser.close()

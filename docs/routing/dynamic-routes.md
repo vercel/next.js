@@ -54,7 +54,37 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 { "pid": "abc", "comment": "a-comment" }
 ```
 
-Client-side navigations to a dynamic route can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes).
+Client-side navigations to dynamic routes are handled with [`next/link`](/docs/api-reference/next/link.md). If we wanted to have links to the routes used above it will look like this:
+
+```jsx
+import Link from 'next/link'
+
+function Home() {
+  return (
+    <ul>
+      <li>
+        <Link href="/post/abc">
+          <a>Go to pages/post/[pid].js</a>
+        </Link>
+      </li>
+      <li>
+        <Link href="/post/abc?foo=bar">
+          <a>Also goes to pages/post/[pid].js</a>
+        </Link>
+      </li>
+      <li>
+        <Link href="/post/abc/a-comment">
+          <a>Go to pages/post/[pid]/[comment].js</a>
+        </Link>
+      </li>
+    </ul>
+  )
+}
+
+export default Home
+```
+
+Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-between-pages) to learn more.
 
 ### Catch all routes
 
@@ -83,16 +113,13 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 { "slug": ["a", "b"] }
 ```
 
-> A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
-
 ### Optional catch all routes
-
-> **Warning**: This feature is **experimental and may not work as expected**.
-> You must enable the `optionalCatchAll` experimental option to try it.
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
 For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
+
+The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/post` in the example above).
 
 The `query` objects are as follows:
 
@@ -101,6 +128,8 @@ The `query` objects are as follows:
 { "slug": ["a"] } // `GET /post/a` (single-element array)
 { "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
 ```
+
+> A good example of optional catch all routes is the Next.js docs, a single page called [pages/docs/[[...slug]].js](https://github.com/vercel/next-site/blob/master/pages/docs/%5B%5B...slug%5D%5D.js) takes care of all the docs you're currently looking at.
 
 ## Caveats
 
@@ -111,3 +140,21 @@ The `query` objects are as follows:
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/api-reference/next/link.md">
+    <b>Pages:</b>
+    <small>Enable client-side transitions with next/link.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/routing/introduction.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js.</small>
+  </a>
+</div>

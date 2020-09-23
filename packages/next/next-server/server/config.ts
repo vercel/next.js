@@ -2,10 +2,9 @@ import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
-
+import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
-import * as Log from '../../build/output/log'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -37,8 +36,8 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   basePath: '',
-  exportTrailingSlash: false,
   sassOptions: {},
+  trailingSlash: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -53,7 +52,9 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
-    optionalCatchAll: false,
+    optimizeFonts: false,
+    optimizeImages: false,
+    scrollRestoration: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -73,6 +74,17 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+    )
+    if (typeof userConfig.trailingSlash === 'undefined') {
+      userConfig.trailingSlash = userConfig.exportTrailingSlash
+    }
+    delete userConfig.exportTrailingSlash
+  }
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = userConfig[key]
@@ -188,6 +200,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (result.assetPrefix === '') {
           result.assetPrefix = result.basePath
         }
+
+        if (result.amp.canonicalBase === '') {
+          result.amp.canonicalBase = result.basePath
+        }
       }
     }
   }
@@ -228,9 +244,8 @@ export default function loadConfig(
     )
 
     if (Object.keys(userConfig).length === 0) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          'Detected next.config.js, no exported configuration found. https://err.sh/vercel/next.js/empty-configuration'
+      Log.warn(
+        'Detected next.config.js, no exported configuration found. https://err.sh/vercel/next.js/empty-configuration'
       )
     }
 
@@ -262,7 +277,11 @@ export default function loadConfig(
       )
     }
 
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+    return assignDefaults({
+      configOrigin: CONFIG_FILE,
+      configFile: path,
+      ...userConfig,
+    })
   } else {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(

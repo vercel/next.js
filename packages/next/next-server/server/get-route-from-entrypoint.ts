@@ -1,7 +1,5 @@
-import { denormalizePagePath } from './normalize-page-path'
+import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 
-// matches static/<buildid>/pages/:page*.js
-// const SERVER_ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)$/
 // matches pages/:page*.js
 const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
 // matches static/pages/:page*.js
@@ -14,7 +12,7 @@ function matchBundle(regex: RegExp, input: string): string | null {
     return null
   }
 
-  return denormalizePagePath(`/${result[1]}`)
+  return getRouteFromAssetPath(`/${result[1]}`)
 }
 
 export default function getRouteFromEntrypoint(

@@ -12,7 +12,7 @@ The reason this is going away is that we want to make things very predictable an
 
 https://github.com/zeit/next-codemod#url-to-withrouter
 
-Since Next 5 we provide a way to explicitly inject the Next.js router object into pages and all their decending components.
+Since Next 5 we provide a way to explicitly inject the Next.js router object into pages and all their descending components.
 The `router` property that is injected will hold the same values as `url`, like `pathname`, `asPath`, and `query`.
 
 Here's an example of using `withRouter`:
