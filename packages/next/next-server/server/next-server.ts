@@ -4,7 +4,11 @@ import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+import {
+  parse as parseQs,
+  stringify as stringifyQs,
+  ParsedUrlQuery,
+} from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { PrerenderManifest } from '../../build'
 import {
@@ -551,6 +555,14 @@ export default class Server {
             false,
             getCustomRouteBasePath(redirectRoute)
           )
+
+          const { query } = parsedDestination
+          delete parsedDestination.query
+
+          parsedDestination.search = stringifyQs(query, undefined, undefined, {
+            encodeURIComponent: (str: string) => str,
+          } as any)
+
           const updatedDestination = formatUrl(parsedDestination)
 
           res.setHeader('Location', updatedDestination)
@@ -589,6 +601,15 @@ export default class Server {
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
+            const { query } = parsedDestination
+            delete parsedDestination.query
+            parsedDestination.search = stringifyQs(
+              query,
+              undefined,
+              undefined,
+              { encodeURIComponent: (str) => str }
+            )
+
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
               target,
@@ -1316,6 +1337,11 @@ export default class Server {
       }
     } catch (err) {
       this.logError(err)
+
+      if (err.code === 'DECODE_FAILED') {
+        res.statusCode = 400
+        return await this.renderErrorToHTML(err, req, res, pathname, query)
+      }
       res.statusCode = 500
       return await this.renderErrorToHTML(err, req, res, pathname, query)
     }

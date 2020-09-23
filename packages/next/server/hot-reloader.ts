@@ -215,7 +215,9 @@ export default class HotReloader {
         return {}
       }
 
-      const page = denormalizePagePath(`/${params.path.join('/')}`)
+      const page = denormalizePagePath(
+        `/${params.path.map((param) => decodeURIComponent(param)).join('/')}`
+      )
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
