@@ -1129,7 +1129,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     })
   } else {
     if (!isEmulatedServerless) {
-      it('should should use correct caching headers for a no-revalidate page', async () => {
+      it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
           's-maxage=31536000, stale-while-revalidate'
