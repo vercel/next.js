@@ -1,12 +1,12 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module '@babel/plugin-transform-modules-commonjs'
+declare module '@babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
   import { Plugin } from 'postcss'
   const cssnanoSimple: Plugin<{}>
   export = cssnanoSimple
 }
-declare module 'launch-editor'
 declare module 'styled-jsx/server'
 declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
@@ -130,10 +130,6 @@ declare module 'next/dist/compiled/jsonwebtoken' {
   import m from 'jsonwebtoken'
   export = m
 }
-declare module 'next/dist/compiled/launch-editor' {
-  import m from 'launch-editor'
-  export = m
-}
 declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
   export = m
@@ -190,6 +186,10 @@ declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
 }
+declare module 'next/dist/compiled/semver' {
+  import m from 'semver'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -207,10 +207,7 @@ declare module 'next/dist/compiled/unistore' {
   export = m
 }
 
-declare module 'next/dist/compiled/terser-webpack-plugin' {
-  import m from 'terser-webpack-plugin'
-  export = m
-}
+declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m

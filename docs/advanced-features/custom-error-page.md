@@ -2,6 +2,8 @@
 description: Override and extend the built-in Error page to handle custom errors.
 ---
 
+# Custom Error Page
+
 ## 404 Page
 
 A 404 page may be accessed very often. Server-rendering an error page for every visit increases the load of the Next.js server. This can result in increased costs and slow experiences.
@@ -75,3 +77,5 @@ export default function Page({ errorCode, stars }) {
 ```
 
 The `Error` component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.
+
+If you have a custom `Error` component be sure to import that one instead. `next/error` exports the default component used by Next.js.

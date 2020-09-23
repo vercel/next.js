@@ -9,7 +9,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "aws-amplify": "2.1.0",
     "immer": "3.1.3",
@@ -22,6 +22,6 @@
     "@types/node": "12.6.8",
     "@types/react": "16.9.36",
     "@types/react-dom": "16.9.8",
-    "typescript": "3.9.5"
+    "typescript": "4.0"
   }
 }

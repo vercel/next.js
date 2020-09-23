@@ -2,7 +2,7 @@
 
 [Reason Relay](https://reason-relay-documentation.zth.now.sh/)
 
-This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
+This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.
 
 ## Deploy your own
 
@@ -12,8 +12,6 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -22,24 +20,7 @@ npx create-next-app --example with-reason-relay with-reason-relay
 yarn create next-app --example with-reason-relay with-reason-relay
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-reason-relay
-cd with-reason-relay
-```
-
-Install it:
-
-```bash
-npm install
-# or
-yarn
-```
-
-Download schema introspection data from configured Relay endpoint
+Download schema introspection data from configured Relay endpoint:
 
 ```bash
 npm run schema
@@ -55,19 +36,13 @@ npm run relay
 yarn relay
 ```
 
-Build the project
+Build and run the Relay project
 
 ```bash
 npm run build
-# or
-yarn build
-```
-
-Run the project
-
-```bash
 npm run dev
 # or
+yarn build
 yarn dev
 ```
 

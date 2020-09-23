@@ -16,7 +16,11 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  CLIENT_STATIC_FILES_PATH,
+  DEV_CLIENT_PAGES_MANIFEST,
+} from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -46,6 +50,8 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  protected sortedRoutes?: string[]
+
   protected staticPathsWorker: import('jest-worker').default & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
@@ -206,8 +212,22 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
         try {
-          this.dynamicRoutes = getSortedRoutes(routedPages)
+          // we serve a separate manifest with all pages for the client in
+          // dev mode so that we can match a page after a rewrite on the client
+          // before it has been built and is populated in the _buildManifest
+          const sortedRoutes = getSortedRoutes(routedPages)
+
+          if (
+            !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            // emit the change so clients fetch the update
+            this.hotReloader!.send(undefined, { devPagesManifest: true })
+          }
+          this.sortedRoutes = sortedRoutes
+
+          this.dynamicRoutes = this.sortedRoutes
             .filter(isDynamicRoute)
             .map((page) => ({
               page,
@@ -257,6 +277,7 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
+      rewrites: this.customRoutes.rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -277,6 +298,7 @@ export default class DevServer extends Server {
 
   protected async close(): Promise<void> {
     await this.stopWatcher()
+    await this.staticPathsWorker.end()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -336,6 +358,17 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
+
+    const { basePath } = this.nextConfig
+    let originalPathname: string | null = null
+
+    if (basePath && parsedUrl.pathname?.startsWith(basePath)) {
+      // strip basePath before handling dev bundles
+      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      originalPathname = parsedUrl.pathname
+      parsedUrl.pathname = parsedUrl.pathname!.slice(basePath.length) || '/'
+    }
+
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
@@ -344,11 +377,20 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
-      finished: false,
-    }
+    const { finished = false } = await this.hotReloader!.run(
+      req,
+      res,
+      parsedUrl
+    )
+
     if (finished) {
       return
+    }
+
+    if (originalPathname) {
+      // restore the path before continuing so that custom-routes can accurately determine
+      // if they should match against the basePath or not
+      parsedUrl.pathname = originalPathname
     }
 
     return super.run(req, res, parsedUrl)
@@ -390,10 +432,31 @@ export default class DevServer extends Server {
       },
     })
 
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            pages: this.sortedRoutes,
+          })
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
+
     fsRoutes.push({
       match: route('/:path*'),
       type: 'route',
-      name: 'Catchall public directory route',
+      requireBasePath: false,
+      name: 'catchall public directory route',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl
         if (!pathname) {
@@ -454,24 +517,38 @@ export default class DevServer extends Server {
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
-    hasStaticFallback: boolean
+    fallbackMode: false | 'static' | 'blocking'
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
+      const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
         pathname,
-        !this.renderOpts.dev && this._isLikeServerless
+        !this.renderOpts.dev && this._isLikeServerless,
+        {
+          publicRuntimeConfig,
+          serverRuntimeConfig,
+        }
       )
       return paths
     }
-    const { paths: staticPaths, fallback: hasStaticFallback } = (
+    const { paths: staticPaths, fallback } = (
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
     ).value
 
-    return { staticPaths, hasStaticFallback }
+    return {
+      staticPaths,
+      fallbackMode:
+        fallback === 'unstable_blocking'
+          ? 'blocking'
+          : fallback === true
+          ? 'static'
+          : false,
+    }
   }
 
   protected async ensureApiPage(pathname: string) {

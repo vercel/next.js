@@ -19,67 +19,88 @@ describe('no anonymous default export warning', () => {
   })
 
   it('show correct warnings for page', async () => {
-    let stdout = ''
+    let stderr = ''
 
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: true },
-      onStdout(msg) {
-        stdout += msg || ''
+      onStderr(msg) {
+        stderr += msg || ''
       },
     })
 
     const browser = await webdriver(appPort, '/page')
 
-    const found = await check(() => stdout, /anonymous/i, false)
+    const found = await check(() => stderr, /anonymous/i, false)
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(1)
+    expect(
+      getRegexCount(
+        stderr,
+        /page.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
 
     await killApp(app)
   })
 
   it('show correct warnings for child', async () => {
-    let stdout = ''
+    let stderr = ''
 
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: true },
-      onStdout(msg) {
-        stdout += msg || ''
+      onStderr(msg) {
+        stderr += msg || ''
       },
     })
 
     const browser = await webdriver(appPort, '/child')
 
-    const found = await check(() => stdout, /anonymous/i, false)
+    const found = await check(() => stderr, /anonymous/i, false)
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(1)
+    expect(
+      getRegexCount(
+        stderr,
+        /Child.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
 
     await killApp(app)
   })
 
   it('show correct warnings for both', async () => {
-    let stdout = ''
+    let stderr = ''
 
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: true },
-      onStdout(msg) {
-        stdout += msg || ''
+      onStderr(msg) {
+        stderr += msg || ''
       },
     })
 
     const browser = await webdriver(appPort, '/both')
 
-    const found = await check(() => stdout, /anonymous/i, false)
+    const found = await check(() => stderr, /anonymous/i, false)
     expect(found).toBeTruthy()
     await browser.close()
 
-    expect(getRegexCount(stdout, /not preserve local component state/g)).toBe(2)
+    expect(
+      getRegexCount(
+        stderr,
+        /Child.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
+    expect(
+      getRegexCount(
+        stderr,
+        /both.js\r?\n.*not preserve local component state\./g
+      )
+    ).toBe(1)
 
     await killApp(app)
   })

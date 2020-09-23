@@ -1,7 +1,8 @@
+# import Partial from './partial.graphql'
+
 query Viewer {
   viewer {
-    id
-    name
+    ...Partial
     status
   }
 }

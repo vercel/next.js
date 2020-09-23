@@ -31,7 +31,7 @@ Now, a request to `/api/post/abc` will respond with the text: `Post: abc`.
 
 A very common RESTful pattern is to set up routes like this:
 
-- `GET api/posts/` - gets a list of posts, probably paginated
+- `GET api/posts` - gets a list of posts, probably paginated
 - `GET api/posts/12345` - gets post id 12345
 
 We can model this in two ways:
@@ -40,11 +40,10 @@ We can model this in two ways:
   - `/api/posts.js`
   - `/api/posts/[postId].js`
 - Option 2:
-
   - `/api/posts/index.js`
   - `/api/posts/[postId].js`
 
-Both are equivalent. A third option of only using `/api/posts/[postId].js` is not valid because Dynamic Routes (including Catch-all routes - see below) do not have an `undefined` state and `GET api/posts/` will not match `/api/posts/[postId].js` under any circumstances.
+Both are equivalent. A third option of only using `/api/posts/[postId].js` is not valid because Dynamic Routes (including Catch-all routes - see below) do not have an `undefined` state and `GET api/posts` will not match `/api/posts/[postId].js` under any circumstances.
 
 ### Catch all API routes
 
@@ -85,6 +84,8 @@ Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
 For example, `pages/api/post/[[...slug]].js` will match `/api/post`, `/api/post/a`, `/api/post/a/b`, and so on.
+
+The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/api/post` in the example above).
 
 The `query` objects are as follows:
 

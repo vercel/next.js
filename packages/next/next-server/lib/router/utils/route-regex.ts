@@ -107,7 +107,7 @@ export function getRouteRegex(
       .join('')
 
     return {
-      re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
+      re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
       groups,
       routeKeys,
       namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
@@ -115,7 +115,7 @@ export function getRouteRegex(
   }
 
   return {
-    re: new RegExp(`^${parameterizedRoute}(?:/)?$`, 'i'),
+    re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
     groups,
   }
 }

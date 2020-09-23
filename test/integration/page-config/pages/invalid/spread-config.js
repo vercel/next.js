@@ -2,4 +2,4 @@ const props = { amp: true }
 
 // export const config = { ...props }
 
-export default () => <p>{props}</p>
+export default () => <p>{JSON.stringify(props)}</p>
