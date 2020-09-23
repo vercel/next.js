@@ -6,7 +6,14 @@ const Page = () => {
   return (
     <div>
       <p>Hello World</p>
-      <Image src="foo.jpg" />
+      <Image id="basic-image" src="foo.jpg"></Image>
+      <Image id="attribute-test" data-demo="demo-value" src="bar.jpg" />
+      <Image
+        id="secondary-image"
+        data-demo="demo-value"
+        host="secondary"
+        src="foo2.jpg"
+      />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>

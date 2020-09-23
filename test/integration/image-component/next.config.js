@@ -4,6 +4,9 @@ module.exports = {
       default: {
         path: 'https://example.com/myaccount/',
       },
+      secondary: {
+        path: 'https://examplesecondary.com/images/',
+      },
     },
   },
 }

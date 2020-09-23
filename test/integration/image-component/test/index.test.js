@@ -22,10 +22,23 @@ function runTests() {
     await waitFor(1000)
     expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
   })
+  it('should support passing through arbitrary attributes', async () => {
+    expect(
+      await browser.hasElementByCssSelector('img#attribute-test')
+    ).toBeTruthy()
+    expect(
+      await browser.elementByCss('img#attribute-test').getAttribute('data-demo')
+    ).toBe('demo-value')
+  })
   it('should pass through src from component attributes', async () => {
-    expect(await browser.elementByCss('img').getAttribute('src')).toBe(
+    expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
       'https://example.com/myaccount/foo.jpg'
     )
+  })
+  it('should support manually selecting a different host', async () => {
+    expect(
+      await browser.elementById('secondary-image').getAttribute('src')
+    ).toBe('https://examplesecondary.com/images/foo2.jpg')
   })
 }
 

@@ -1,7 +1,5 @@
 import React from 'react'
-export type ImageProps = {
-  src: string
-}
+
 let imageData: any
 if (typeof window === 'undefined') {
   // Rendering on a server, get image data from env
@@ -11,14 +9,34 @@ if (typeof window === 'undefined') {
   imageData = JSON.parse((window as any).__NEXT_DATA__.images)
 }
 
-function computeSrc(props: ImageProps): string {
-  return imageData.hosts?.default?.path + props.src
+function computeSrc(src: string, host: string): string {
+  if (!host) {
+    // No host provided, use default
+    return imageData.hosts.default.path + src
+  } else {
+    let selectedHost = imageData.hosts[host]
+    if (!selectedHost) {
+      console.error(
+        `Image tag is used specifying host ${host}, but that host is not defined in next.config`
+      )
+      return src
+    }
+    return imageData.hosts[host].path + src
+  }
 }
 
-function Image(props: React.PropsWithChildren<ImageProps>) {
+function Image({
+  src,
+  host,
+  ...rest
+}: {
+  src: string
+  host: string
+  rest: any[]
+}) {
   return (
     <div>
-      <img src={computeSrc(props)} />
+      <img {...rest} src={computeSrc(src, host)} />
     </div>
   )
 }
