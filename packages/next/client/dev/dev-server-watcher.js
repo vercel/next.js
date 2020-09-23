@@ -87,8 +87,8 @@ function createCss(prefix) {
       width: 100%;
 
       border-radius: 3px;
-      background: #f55;
-      color: #fff;
+      background: #FDE8E8;
+      color: #9B1C1C;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
       cursor: initial;
       letter-spacing: initial;
@@ -117,7 +117,7 @@ function createCss(prefix) {
       font-size: 32px;
       cursor: pointer;
       background: transparent;
-      color: #fff;
+      color: #9B1C1C;
     }
 
     #${prefix}wrapper {
