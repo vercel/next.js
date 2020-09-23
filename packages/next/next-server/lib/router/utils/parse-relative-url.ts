@@ -21,7 +21,10 @@ export function parseRelativeUrl(url: string, base?: string) {
     href,
     origin,
     protocol,
-  } = new URL(url, resolvedBase)
+  } = new URL(
+    url.startsWith('/') ? resolvedBase.origin + url : url,
+    resolvedBase
+  )
   if (
     origin !== DUMMY_BASE.origin ||
     (protocol !== 'http:' && protocol !== 'https:')

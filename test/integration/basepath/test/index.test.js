@@ -507,6 +507,14 @@ const runTests = (context, dev = false) => {
     expect(asPath).toBe('/')
   })
 
+  it('should load root correctly with query params', async () => {
+    const browser = await webdriver(context.appPort, '/docs?foo=bar')
+    await browser.waitForElementByCss('#pathname')
+    expect(await browser.eval(() => window.location.pathname)).toBe('/docs')
+    const pathname = await browser.elementByCss('#pathname').text()
+    expect(pathname).toBe('/')
+  })
+
   it('should have correct router paths on first load of /hello', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     await browser.waitForElementByCss('#pathname')
