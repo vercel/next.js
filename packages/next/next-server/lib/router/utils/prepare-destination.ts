@@ -54,16 +54,15 @@ export default function prepareDestination(
 
   const destPathParams = destPathParamKeys.map((key) => key.name)
 
-  let destinationCompiler = pathToRegexp.compile(
-    destPath,
+  let destinationCompiler = pathToRegexp.compile(destPath, {
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
     // breaks compiling destinations with named pattern params from the source
     // e.g. /something:hello(.*) -> /another/:hello is broken with validation
     // since compile validation is meant for reversing and not for inserting
     // params from a separate path-regex into another
-    { validate: false }
-  )
+    validate: false,
+  })
   let newUrl
 
   // update any params in query values
@@ -97,8 +96,8 @@ export default function prepareDestination(
   const shouldAddBasePath = destination.startsWith('/') && basePath
 
   try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${encodeURI(
-      destinationCompiler(params)
+    newUrl = `${shouldAddBasePath ? basePath : ''}${destinationCompiler(
+      params
     )}`
 
     const [pathname, hash] = newUrl.split('#')
