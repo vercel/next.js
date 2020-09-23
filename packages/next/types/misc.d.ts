@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module '@babel/plugin-transform-modules-commonjs'
+declare module '@babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
   import { Plugin } from 'postcss'

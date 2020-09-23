@@ -1,1 +1,3 @@
-export default () => 'hello from another!'
+export default function Another() {
+  return 'hello from another!'
+}

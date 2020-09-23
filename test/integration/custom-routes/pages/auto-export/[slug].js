@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router'
 
 export default function Page() {
-  return `auto-export ${useRouter().query.slug}`
+  return <p id="auto-export">auto-export {useRouter().query.slug}</p>
 }

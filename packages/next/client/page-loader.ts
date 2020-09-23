@@ -3,14 +3,15 @@ import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import mitt from '../next-server/lib/mitt'
 import type { MittEmitter } from '../next-server/lib/mitt'
-import { addBasePath, markLoadingError } from '../next-server/lib/router/router'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+import {
+  addBasePath,
+  markLoadingError,
+  interpolateAs,
+} from '../next-server/lib/router/router'
+
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import { searchParamsToUrlQuery } from '../next-server/lib/router/utils/querystring'
-import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
@@ -202,10 +203,7 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   getDataHref(href: string, asPath: string, ssg: boolean) {
-    const { pathname: hrefPathname, searchParams, search } = parseRelativeUrl(
-      href
-    )
-    const query = searchParamsToUrlQuery(searchParams)
+    const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
@@ -216,51 +214,10 @@ export default class PageLoader {
       )
     }
 
-    let isDynamic: boolean = isDynamicRoute(route),
-      interpolatedRoute: string | undefined
-    if (isDynamic) {
-      const dynamicRegex = getRouteRegex(route)
-      const dynamicGroups = dynamicRegex.groups
-      const dynamicMatches =
-        // Try to match the dynamic route against the asPath
-        getRouteMatcher(dynamicRegex)(asPathname) ||
-        // Fall back to reading the values from the href
-        // TODO: should this take priority; also need to change in the router.
-        query
-
-      interpolatedRoute = route
-      if (
-        !Object.keys(dynamicGroups).every((param) => {
-          let value = dynamicMatches[param] || ''
-          const { repeat, optional } = dynamicGroups[param]
-
-          // support single-level catch-all
-          // TODO: more robust handling for user-error (passing `/`)
-          let replaced = `[${repeat ? '...' : ''}${param}]`
-          if (optional) {
-            replaced = `${!value ? '/' : ''}[${replaced}]`
-          }
-          if (repeat && !Array.isArray(value)) value = [value]
-
-          return (
-            (optional || param in dynamicMatches) &&
-            // Interpolate group into data URL if present
-            (interpolatedRoute =
-              interpolatedRoute!.replace(
-                replaced,
-                repeat
-                  ? (value as string[]).map(escapePathDelimiters).join('/')
-                  : escapePathDelimiters(value as string)
-              ) || '/')
-          )
-        })
-      ) {
-        interpolatedRoute = '' // did not satisfy all requirements
-
-        // n.b. We ignore this error because we handle warning for this case in
-        // development in the `<Link>` component directly.
-      }
-    }
+    const isDynamic: boolean = isDynamicRoute(route)
+    const interpolatedRoute = isDynamic
+      ? interpolateAs(hrefPathname, asPathname, query).result
+      : ''
 
     return isDynamic
       ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
