@@ -518,7 +518,7 @@ export class Head extends Component<
   }
 }
 
-export function Main() {
+export function Main(props: { className?: string }) {
   const { inAmpMode, html, docComponentsRendered } = useContext(
     DocumentComponentContext
   )
@@ -526,7 +526,7 @@ export function Main() {
   docComponentsRendered.Main = true
 
   if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  return <div id="__next" className={props.className} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 export class NextScript extends Component<OriginProps> {
