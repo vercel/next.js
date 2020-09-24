@@ -1338,7 +1338,7 @@ export default class Server {
     } catch (err) {
       this.logError(err)
 
-      if (err.code === 'DECODE_FAILED') {
+      if (err && err.code === 'DECODE_FAILED') {
         res.statusCode = 400
         return await this.renderErrorToHTML(err, req, res, pathname, query)
       }
