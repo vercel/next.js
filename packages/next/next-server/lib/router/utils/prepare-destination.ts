@@ -13,6 +13,7 @@ function parseUrl(url: string) {
     hostname,
     port,
     protocol,
+    search,
   } = url.startsWith('/') ? new RelativeURL(url) : new URL(url)
 
   return {
@@ -22,6 +23,7 @@ function parseUrl(url: string) {
     protocol,
     hostname,
     port,
+    search,
   }
 }
 
