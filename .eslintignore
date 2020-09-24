@@ -7,6 +7,7 @@ examples/with-kea/**
 packages/next/compiled/**/*
 packages/react-refresh-utils/**/*.js
 packages/react-dev-overlay/lib/**
+test/integration/eslint-loader/**/*.js*
 **/__tmp__/**
 .github/actions/next-stats-action/.work
 packages/next-codemod/transforms/__testfixtures__/**/*

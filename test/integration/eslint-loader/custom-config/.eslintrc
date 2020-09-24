@@ -1,5 +1,12 @@
 {
-  "extends": ["eslint:recommended"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@next/next/recommended"
+  ],
+  "rules": {
+    "@next/next/no-html-link-for-pages": ["error", "./"],
+    "no-undef": "warn"
+  },
   "env": {
     "es6": true
   },

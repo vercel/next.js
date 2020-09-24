@@ -1,3 +1,3 @@
-export default function index() {
-  return <h1 id="text">Hello World</h1>
+export default function Index() {
+  return <h1>Hello {f}</h1>
 }
