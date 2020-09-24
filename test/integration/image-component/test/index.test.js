@@ -30,7 +30,7 @@ function runTests() {
       await browser.elementByCss('img#attribute-test').getAttribute('data-demo')
     ).toBe('demo-value')
   })
-  it('should pass through src from component attributes', async () => {
+  it('should modify src with the loader', async () => {
     expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
       'https://example.com/myaccount/foo.jpg'
     )
@@ -40,10 +40,22 @@ function runTests() {
       await browser.elementById('secondary-image').getAttribute('src')
     ).toBe('https://examplesecondary.com/images/foo2.jpg')
   })
+  it('should add a srcset based on the loader', async () => {
+    expect(
+      await browser.elementById('basic-image').getAttribute('srcset')
+    ).toBe(
+      'https://example.com/myaccount/foo.jpg?w=480 480w, https://example.com/myaccount/foo.jpg?w=1024 1024w, https://example.com/myaccount/foo.jpg?w=1600 1600w'
+    )
+  })
   it('should support the unoptimized attribute', async () => {
     expect(
       await browser.elementById('unoptimized-image').getAttribute('src')
     ).toBe('https://arbitraryurl.com/foo.jpg')
+  })
+  it('should not add a srcset if unoptimized attribute present', async () => {
+    expect(
+      await browser.elementById('unoptimized-image').getAttribute('srcset')
+    ).toBeFalsy()
   })
 }
 
