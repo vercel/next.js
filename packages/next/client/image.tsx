@@ -12,17 +12,17 @@ type ImageData = {
       loader: string
     }
   }
+  breakpoints?: number[]
 }
 type ImageProps = {
   src: string
   host: string
   sizes: string
-  breakpoints: any
+  breakpoints: number[]
   unoptimized: boolean
   rest: any[]
 }
 
-const bps = [480, 1024, 1600]
 let imageData: ImageData
 if (typeof window === 'undefined') {
   // Rendering on a server, get image data from env
@@ -31,6 +31,7 @@ if (typeof window === 'undefined') {
   // Rendering on a client, get image data from window
   imageData = JSON.parse((window as any).__NEXT_DATA__.images)
 }
+const breakpoints = imageData.breakpoints || [640, 1024, 1600]
 
 function computeSrc(src: string, host: string, unoptimized: boolean): string {
   if (unoptimized) {
@@ -53,25 +54,20 @@ function computeSrc(src: string, host: string, unoptimized: boolean): string {
 
 function callLoader(src: string, host: string, width?: number): string {
   let loader = loaders[imageData.hosts[host].loader || 'default']
-  // return JSON.stringify(imageData.hosts[host].loader || 'default')
   return loader({ root: imageData.hosts[host].path, filename: src, width })
-  // return JSON.stringify(imageData.hosts[host].loader)
 }
 
 type SrcSetData = {
   src: string
   host: string
-  breakpoints: number[]
+  widths: number[]
 }
 
-function generateSrcSet({ src, host, breakpoints }: SrcSetData): string {
+function generateSrcSet({ src, host, widths }: SrcSetData): string {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
-  return breakpoints
-    .map(
-      (breakpoint: number) =>
-        `${callLoader(src, host, breakpoint)} ${breakpoint}w`
-    )
+  return widths
+    .map((width: number) => `${callLoader(src, host, width)} ${width}w`)
     .join(', ')
 }
 
@@ -88,7 +84,7 @@ function Image({ src, host, sizes, unoptimized, ...rest }: ImageProps) {
     imgAttributes.srcSet = generateSrcSet({
       src,
       host: host || 'default',
-      breakpoints: bps,
+      widths: breakpoints,
     })
   }
   return (

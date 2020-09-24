@@ -10,5 +10,6 @@ module.exports = {
         loader: 'cloudinary',
       },
     },
+    breakpoints: [480, 1024, 1600],
   },
 }
