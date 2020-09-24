@@ -336,7 +336,17 @@ export default class DevServer extends Server {
     const path = `/${pathParts.join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
-    if (await this.hasPublicFile(decodeURIComponent(path))) {
+    let decodedPath: string
+
+    try {
+      decodedPath = decodeURIComponent(path)
+    } catch (_) {
+      const err: Error & { code?: string } = new Error('failed to decode param')
+      err.code = 'DECODE_FAILED'
+      throw err
+    }
+
+    if (await this.hasPublicFile(decodedPath)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/vercel/next.js/conflicting-public-file-page`
