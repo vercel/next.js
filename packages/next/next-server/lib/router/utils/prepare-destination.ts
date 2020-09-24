@@ -13,11 +13,15 @@ export default function prepareDestination(
   basePath: string
 ) {
   let parsedDestination: {
-    query?: ParsedUrlQuery
+    pathname: string
+    query: ParsedUrlQuery
     protocol?: string
     hostname?: string
     port?: string
-  } & ReturnType<typeof parseRelativeUrl> = {} as any
+    hash: string
+    search?: string
+    href: string
+  } = {} as any
 
   if (destination.startsWith('/')) {
     parsedDestination = parseRelativeUrl(destination)
@@ -103,7 +107,7 @@ export default function prepareDestination(
 
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
-    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
+    parsedDestination.hash = hash ? `#${hash}` : ''
     delete parsedDestination.search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
