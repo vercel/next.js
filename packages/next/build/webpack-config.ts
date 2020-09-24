@@ -3,6 +3,7 @@ import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWeb
 import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
+import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import webpack from 'webpack'
@@ -14,6 +15,8 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { getPackageVersion } from '../lib/get-package-version'
+import { Rewrite } from '../lib/load-custom-routes'
 import { resolveRequest } from '../lib/resolve-request'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
@@ -54,7 +57,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { Rewrite } from '../lib/load-custom-routes'
+
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
@@ -226,7 +229,13 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasReactRefresh = dev && !isServer
+  const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
+  const hasReactRefresh: boolean = dev && !isServer
+  const hasJsxRuntime: boolean =
+    Boolean(reactVersion) &&
+    // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
+    // fixed in rc.1.
+    semver.gte(reactVersion!, '17.0.0-rc.1')
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -238,11 +247,12 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         // Webpack 5 has a built-in loader cache
-        cache: !config.experimental.unstable_webpack5cache,
+        cache: !isWebpack5,
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
+        hasJsxRuntime,
       },
     },
     // Backwards compat
@@ -780,7 +790,19 @@ export default async function getBaseWebpackConfig(
       ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
     },
     output: {
-      ...(isWebpack5 ? { ecmaVersion: 5 } : {}),
+      ...(isWebpack5
+        ? {
+            environment: {
+              arrowFunction: false,
+              bigIntLiteral: false,
+              const: false,
+              destructuring: false,
+              dynamicImport: false,
+              forOf: false,
+              module: false,
+            },
+          }
+        : {}),
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
@@ -830,6 +852,18 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(isWebpack5
+          ? [
+              // TODO: FIXME: do NOT webpack 5 support with this
+              // x-ref: https://github.com/webpack/webpack/issues/11467
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
@@ -1107,9 +1141,9 @@ export default async function getBaseWebpackConfig(
   }
 
   if (isWebpack5) {
-    // On by default:
+    // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
-    // No longer polyfills Node.js modules:
+    // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
 
     if (dev) {
@@ -1119,13 +1153,65 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    // Enable webpack 5 caching
-    if (config.experimental.unstable_webpack5cache) {
-      webpackConfig.cache = {
-        type: 'filesystem',
-        cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+    const nextPublicVariables = Object.keys(process.env).reduce(
+      (prev: string, key: string) => {
+        if (key.startsWith('NEXT_PUBLIC_')) {
+          return `${prev}|${key}=${process.env[key]}`
+        }
+        return prev
+      },
+      ''
+    )
+    const nextEnvVariables = Object.keys(config.env).reduce(
+      (prev: string, key: string) => {
+        return `${prev}|${key}=${config.env[key]}`
+      },
+      ''
+    )
+
+    const configVars = JSON.stringify({
+      crossOrigin: config.crossOrigin,
+      pageExtensions: config.pageExtensions,
+      trailingSlash: config.trailingSlash,
+      modern: config.experimental.modern,
+      buildActivity: config.devIndicators.buildActivity,
+      autoPrerender: config.devIndicators.autoPrerender,
+      plugins: config.experimental.plugins,
+      reactStrictMode: config.reactStrictMode,
+      reactMode: config.experimental.reactMode,
+      optimizeFonts: config.experimental.optimizeFonts,
+      optimizeImages: config.experimental.optimizeImages,
+      scrollRestoration: config.experimental.scrollRestoration,
+      basePath: config.basePath,
+      pageEnv: config.experimental.pageEnv,
+      excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
+      assetPrefix: config.assetPrefix,
+      target,
+      reactProductionProfiling,
+    })
+
+    const cache: any = {
+      type: 'filesystem',
+      // Includes:
+      //  - Next.js version
+      //  - NEXT_PUBLIC_ variable values (they affect caching) TODO: make this module usage only
+      //  - next.config.js `env` key
+      //  - next.config.js keys that affect compilation
+      version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
+      cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+    }
+
+    // Adds `next.config.js` as a buildDependency when custom webpack config is provided
+    if (config.webpack && config.configFile) {
+      cache.buildDependencies = {
+        config: [config.configFile],
       }
     }
+
+    webpackConfig.cache = cache
+
+    // @ts-ignore TODO: remove ignore when webpack 5 is stable
+    webpackConfig.optimization.realContentHash = false
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {

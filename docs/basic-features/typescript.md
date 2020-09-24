@@ -23,7 +23,7 @@ Next.js will automatically configure this file with default values. Providing yo
 
 > Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 
-Then, run `next` (normally `npm run dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
+Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
 
 ```bash
 npm run dev
@@ -97,7 +97,7 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 
 ## Custom `App`
 
-If you have a [custom `App`](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
+If you have a [custom `App`](/docs/advanced-features/custom-app.md), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
 // import App from "next/app";
