@@ -1,12 +1,12 @@
-const babel = require("@babel/core");
+const babel = require('@babel/core')
 
 module.exports = function injectCaller(opts, target) {
-  if (!supportsCallerOption()) return opts;
+  if (!supportsCallerOption()) return opts
 
   return Object.assign({}, opts, {
     caller: Object.assign(
       {
-        name: "babel-loader",
+        name: 'babel-loader',
 
         // Provide plugins with insight into webpack target.
         // https://github.com/babel/babel-loader/issues/787
@@ -21,15 +21,15 @@ module.exports = function injectCaller(opts, target) {
         // flag isn't enabled.
         supportsTopLevelAwait: true,
       },
-      opts.caller,
+      opts.caller
     ),
-  });
-};
+  })
+}
 
 // TODO: We can remove this eventually, I'm just adding it so that people have
 // a little time to migrate to the newer RCs of @babel/core without getting
 // hard-to-diagnose errors about unknown 'caller' options.
-let supportsCallerOptionFlag = undefined;
+let supportsCallerOptionFlag = undefined
 function supportsCallerOption() {
   if (supportsCallerOptionFlag === undefined) {
     try {
@@ -39,12 +39,12 @@ function supportsCallerOption() {
         caller: undefined,
         babelrc: false,
         configFile: false,
-      });
-      supportsCallerOptionFlag = true;
+      })
+      supportsCallerOptionFlag = true
     } catch (err) {
-      supportsCallerOptionFlag = false;
+      supportsCallerOptionFlag = false
     }
   }
 
-  return supportsCallerOptionFlag;
+  return supportsCallerOptionFlag
 }

@@ -1,28 +1,28 @@
 module.exports = {
-  "type": "object",
-  "properties": {
-    "cacheDirectory": {
-      "oneOf": [
+  type: 'object',
+  properties: {
+    cacheDirectory: {
+      oneOf: [
         {
-          "type": "boolean"
+          type: 'boolean',
         },
         {
-          "type": "string"
-        }
+          type: 'string',
+        },
       ],
-      "default": false
+      default: false,
     },
-    "cacheIdentifier": {
-      "type": "string"
+    cacheIdentifier: {
+      type: 'string',
     },
-    "cacheCompression": {
-      "type": "boolean",
-      "default": true
+    cacheCompression: {
+      type: 'boolean',
+      default: true,
     },
-    "customize": {
-      "type": "string",
-      "default": null
-    }
+    customize: {
+      type: 'string',
+      default: null,
+    },
   },
-  "additionalProperties": true
+  additionalProperties: true,
 }

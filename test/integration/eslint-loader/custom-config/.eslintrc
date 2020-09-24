@@ -1,8 +1,5 @@
 {
-  "extends": [
-    "eslint:recommended",
-    "plugin:@next/next/recommended"
-  ],
+  "extends": ["eslint:recommended", "plugin:@next/next/recommended"],
   "rules": {
     "@next/next/no-html-link-for-pages": ["error", "./"],
     "no-undef": "warn"

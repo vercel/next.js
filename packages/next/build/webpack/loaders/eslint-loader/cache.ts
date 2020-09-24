@@ -1,5 +1,3 @@
-
-
 /**
  * Original Filesystem Cache implementation by babel-loader
  * Licensed under the MIT License
@@ -17,52 +15,53 @@
  * @see https://github.com/babel/babel-loader/issues/34
  * @see https://github.com/babel/babel-loader/pull/41
  */
-import fs from 'fs';
-import os from 'os';
-import { join } from 'path';
-import { promisify } from 'util';
-import zlib from 'zlib';
-import { createHash } from 'crypto';
+import fs from 'fs'
+import os from 'os'
+import { join } from 'path'
+import { promisify } from 'util'
+import zlib from 'zlib'
+import { createHash } from 'crypto'
 
 // @ts-ignore
-import findCacheDir from 'find-cache-dir';
-import { NextLintResult } from './linter';
+import findCacheDir from 'find-cache-dir'
+import { NextLintResult } from './linter'
 
 // Lazily instantiated when needed
-let defaultCacheDirectory: string | null = null;
+let defaultCacheDirectory: string | null = null
 
-const readFile = promisify(fs.readFile);
-const writeFile = promisify(fs.writeFile);
-const gunzip = promisify(zlib.gunzip);
-const gzip = promisify(zlib.gzip);
+const readFile = promisify(fs.readFile)
+const writeFile = promisify(fs.writeFile)
+const gunzip = promisify(zlib.gunzip)
+const gzip = promisify(zlib.gzip)
 
-const read = async (filename:string, compress: Boolean) => {
-  const data = await readFile(filename + (compress ? '.gz' : ''));
-  const content = (compress ? await gunzip(data) : data) as Buffer;
+const read = async (filename: string, compress: Boolean) => {
+  const data = await readFile(filename + (compress ? '.gz' : ''))
+  const content = (compress ? await gunzip(data) : data) as Buffer
 
-  return JSON.parse(content.toString());
-};
+  return JSON.parse(content.toString())
+}
 
+const write = async (filename: string, compress: boolean, result: string) => {
+  const content = JSON.stringify(result)
 
-const write = async (filename:string, compress: boolean, result: string) => {
-  const content = JSON.stringify(result);
+  const data = compress ? await gzip(content) : content
+  return writeFile(filename + (compress ? '.gz' : ''), data)
+}
 
-  const data = compress ? await gzip(content) : content;
-  return writeFile(filename + (compress ? '.gz' : ''), data);
-};
+const filename = (source: string, identifier: string, options: any) => {
+  const hash = createHash('md4')
 
-const filename = (source:string, identifier:string , options:any) => {
-  const hash = createHash('md4');
+  const contents = JSON.stringify({ source, options, identifier })
 
-  const contents = JSON.stringify({ source, options, identifier });
+  hash.update(contents)
 
-  hash.update(contents);
+  return `${hash.digest('hex')}.json`
+}
 
-  return `${hash.digest('hex')}.json`;
-};
-
-
-const handleCache = async (directory:string, params: any): Promise<NextLintResult> => {
+const handleCache = async (
+  directory: string,
+  params: any
+): Promise<NextLintResult> => {
   const {
     source,
     options = {},
@@ -70,49 +69,49 @@ const handleCache = async (directory:string, params: any): Promise<NextLintResul
     cacheIdentifier,
     cacheDirectory,
     cacheCompression,
-  } = params;
+  } = params
 
-  const file = join(directory, filename(source, cacheIdentifier, options));
+  const file = join(directory, filename(source, cacheIdentifier, options))
 
   try {
     // No errors mean that the file was previously cached
     // we just need to return it
-    const report = await read(file, cacheCompression);
+    const report = await read(file, cacheCompression)
 
     return { report }
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
   const fallback =
-    typeof cacheDirectory !== 'string' && directory !== os.tmpdir();
+    typeof cacheDirectory !== 'string' && directory !== os.tmpdir()
 
   // Make sure the directory exists.
   try {
-    fs.mkdirSync(directory, { recursive: true });
+    fs.mkdirSync(directory, { recursive: true })
   } catch (err) {
     if (fallback) {
-      return handleCache(os.tmpdir(), params);
+      return handleCache(os.tmpdir(), params)
     }
 
-    throw err;
+    throw err
   }
 
   // Otherwise just transform the file
   // return it to the user asap and write it in cache
-  const { report, ast } = await transform(source, options);
+  const { report, ast } = await transform(source, options)
 
   try {
-    await write(file, cacheCompression, report);
+    await write(file, cacheCompression, report)
   } catch (err) {
     if (fallback) {
       // Fallback to tmpdir if node_modules folder not writable
-      return handleCache(os.tmpdir(), params);
+      return handleCache(os.tmpdir(), params)
     }
 
-    throw err;
+    throw err
   }
-  return { report, ast};
-};
+  return { report, ast }
+}
 
 /**
  * Retrieve file from cache, or create a new one for future reads
@@ -147,18 +146,18 @@ const handleCache = async (directory:string, params: any): Promise<NextLintResul
  */
 
 export default async (params: any) => {
-  let directory;
+  let directory
 
   if (typeof params.cacheDirectory === 'string') {
-    directory = params.cacheDirectory;
+    directory = params.cacheDirectory
   } else {
     if (defaultCacheDirectory === null) {
       defaultCacheDirectory =
-        findCacheDir({ name: 'eslint-loader' }) || os.tmpdir();
+        findCacheDir({ name: 'eslint-loader' }) || os.tmpdir()
     }
 
-    directory = defaultCacheDirectory;
+    directory = defaultCacheDirectory
   }
 
-  return handleCache(directory, params);
-};
+  return handleCache(directory, params)
+}

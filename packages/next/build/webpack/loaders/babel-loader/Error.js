@@ -1,35 +1,35 @@
-const STRIP_FILENAME_RE = /^[^:]+: /;
+const STRIP_FILENAME_RE = /^[^:]+: /
 
-const format = err => {
+const format = (err) => {
   if (err instanceof SyntaxError) {
-    err.name = "SyntaxError";
-    err.message = err.message.replace(STRIP_FILENAME_RE, "");
+    err.name = 'SyntaxError'
+    err.message = err.message.replace(STRIP_FILENAME_RE, '')
 
-    err.hideStack = true;
+    err.hideStack = true
   } else if (err instanceof TypeError) {
-    err.name = null;
-    err.message = err.message.replace(STRIP_FILENAME_RE, "");
+    err.name = null
+    err.message = err.message.replace(STRIP_FILENAME_RE, '')
 
-    err.hideStack = true;
+    err.hideStack = true
   }
 
-  return err;
-};
+  return err
+}
 
 class LoaderError extends Error {
   constructor(err) {
-    super();
+    super()
 
-    const { name, message, codeFrame, hideStack } = format(err);
+    const { name, message, codeFrame, hideStack } = format(err)
 
-    this.name = "BabelLoaderError";
+    this.name = 'BabelLoaderError'
 
-    this.message = `${name ? `${name}: ` : ""}${message}\n\n${codeFrame}\n`;
+    this.message = `${name ? `${name}: ` : ''}${message}\n\n${codeFrame}\n`
 
-    this.hideStack = hideStack;
+    this.hideStack = hideStack
 
-    Error.captureStackTrace(this, this.constructor);
+    Error.captureStackTrace(this, this.constructor)
   }
 }
 
-module.exports = LoaderError;
+module.exports = LoaderError
