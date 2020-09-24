@@ -1,12 +1,9 @@
-import { ParsedUrlQuery } from 'querystring'
 import { getLocationOrigin } from '../../utils'
-import { searchParamsToUrlQuery, urlQueryToSearchParams } from './querystring'
+import { searchParamsToUrlQuery } from './querystring'
 
 const DUMMY_BASE = new URL(
   typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
 )
-
-const URL_PROPERTY = Symbol()
 
 /**
  * Parses path-relative urls (e.g. `/hello/world?foo=bar`). If url isn't path-relative
@@ -14,67 +11,58 @@ const URL_PROPERTY = Symbol()
  * Absolute urls are rejected with one exception, in the browser, absolute urls that are on
  * the current origin will be parsed as relative
  */
-export class RelativeURL {
-  private readonly [URL_PROPERTY]: URL
-
+export class RelativeURL extends URL {
   constructor(url: string, base?: string) {
     const resolvedBase = base ? new URL(base, DUMMY_BASE) : DUMMY_BASE
-    this[URL_PROPERTY] = new URL(
+    super(
       // avoid URL parsing errors with //. WHATWG URL will try to parse this as
       // a protocol-relative url, which we don't want
       url.startsWith('/') ? resolvedBase.origin + url : url,
       resolvedBase
     )
     if (
-      this[URL_PROPERTY].origin !== DUMMY_BASE.origin ||
-      (this[URL_PROPERTY].protocol !== 'http:' &&
-        this[URL_PROPERTY].protocol !== 'https:')
+      super.origin !== DUMMY_BASE.origin ||
+      (super.protocol !== 'http:' && super.protocol !== 'https:')
     ) {
       throw new Error('invariant: invalid relative URL')
     }
   }
 
-  get pathname() {
-    return this[URL_PROPERTY].pathname
+  get host() {
+    return ''
   }
 
-  set pathname(value: string) {
-    this[URL_PROPERTY].pathname = value
+  get hostname() {
+    return ''
   }
 
-  get search() {
-    return this[URL_PROPERTY].search
+  get protocol() {
+    return ''
   }
 
-  set search(value: string) {
-    this[URL_PROPERTY].search = value
+  get port() {
+    return ''
   }
 
-  get searchParams() {
-    return this[URL_PROPERTY].searchParams
-  }
-
-  get hash() {
-    return this[URL_PROPERTY].hash
-  }
-
-  set hash(value: string) {
-    this[URL_PROPERTY].hash = value
-  }
-
-  get query() {
-    return searchParamsToUrlQuery(this.searchParams)
-  }
-
-  set query(value: ParsedUrlQuery) {
-    this[URL_PROPERTY].search = urlQueryToSearchParams(value).toString()
+  get origin() {
+    return ''
   }
 
   get href() {
-    return this[URL_PROPERTY].href.slice(this[URL_PROPERTY].origin.length)
+    return super.href.slice(super.origin.length)
   }
 }
 
 export function parseRelativeUrl(url: string, base?: string) {
-  return new RelativeURL(url, base)
+  const { pathname, searchParams, search, hash, href } = new RelativeURL(
+    url,
+    base
+  )
+  return {
+    pathname,
+    query: searchParamsToUrlQuery(searchParams),
+    search,
+    hash,
+    href,
+  }
 }
