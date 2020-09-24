@@ -90,8 +90,8 @@ export default function prepareDestination(
   const shouldAddBasePath = destination.startsWith('/') && basePath
 
   try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${encodeURI(
-      destinationCompiler(params)
+    newUrl = `${shouldAddBasePath ? basePath : ''}${destinationCompiler(
+      params
     )}`
 
     const [pathname, hash] = newUrl.split('#')
