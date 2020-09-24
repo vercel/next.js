@@ -2,13 +2,14 @@ import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 
 export { pathToRegexp }
 
-export const matcherOptions = {
+export const matcherOptions: pathToRegexp.TokensToRegexpOptions &
+  pathToRegexp.ParseOptions = {
   sensitive: false,
   delimiter: '/',
-  decode: decodeParam,
 }
 
-export const customRouteMatcherOptions = {
+export const customRouteMatcherOptions: pathToRegexp.TokensToRegexpOptions &
+  pathToRegexp.ParseOptions = {
   ...matcherOptions,
   strict: true,
 }
@@ -21,11 +22,7 @@ export default (customRoute = false) => {
       keys,
       customRoute ? customRouteMatcherOptions : matcherOptions
     )
-    const matcher = pathToRegexp.regexpToFunction(
-      matcherRegex,
-      keys,
-      matcherOptions
-    )
+    const matcher = pathToRegexp.regexpToFunction(matcherRegex, keys)
 
     return (pathname: string | null | undefined, params?: any) => {
       const res = pathname == null ? false : matcher(pathname)
@@ -45,15 +42,5 @@ export default (customRoute = false) => {
 
       return { ...params, ...res.params }
     }
-  }
-}
-
-function decodeParam(param: string) {
-  try {
-    return decodeURIComponent(param)
-  } catch (_) {
-    const err: Error & { code?: string } = new Error('failed to decode param')
-    err.code = 'DECODE_FAILED'
-    throw err
   }
 }
