@@ -14,7 +14,9 @@ function parseUrl(url: string) {
     port,
     protocol,
     search,
-  } = url.startsWith('/') ? new RelativeURL(url) : new URL(url)
+  } = url.startsWith('/')
+    ? (new RelativeURL(url) as RelativeURL & Partial<URL>)
+    : new URL(url)
 
   return {
     pathname,
@@ -95,6 +97,7 @@ export default function prepareDestination(
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = hash ? `#${hash}` : ''
+    parsedDestination.search = ''
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
