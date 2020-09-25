@@ -1,11 +1,11 @@
-import postcss from 'postcss'
+import { AcceptedPlugin } from 'postcss'
 import webpack from 'webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly postcss.AcceptedPlugin[],
+  postCssPlugins: readonly AcceptedPlugin[],
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
