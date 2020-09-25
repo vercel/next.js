@@ -169,43 +169,43 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://err.sh/vercel/next.js/invalid-assetprefix`
     )
   }
-  if (result.experimental) {
-    if (typeof result.basePath !== 'string') {
+
+  if (typeof result.basePath !== 'string') {
+    throw new Error(
+      `Specified basePath is not a string, found type "${typeof result.basePath}"`
+    )
+  }
+
+  if (result.basePath !== '') {
+    if (result.basePath === '/') {
       throw new Error(
-        `Specified basePath is not a string, found type "${typeof result.basePath}"`
+        `Specified basePath /. basePath has to be either an empty string or a path prefix"`
       )
     }
 
-    if (result.basePath !== '') {
-      if (result.basePath === '/') {
+    if (!result.basePath.startsWith('/')) {
+      throw new Error(
+        `Specified basePath has to start with a /, found "${result.basePath}"`
+      )
+    }
+
+    if (result.basePath !== '/') {
+      if (result.basePath.endsWith('/')) {
         throw new Error(
-          `Specified basePath /. basePath has to be either an empty string or a path prefix"`
+          `Specified basePath should not end with /, found "${result.basePath}"`
         )
       }
 
-      if (!result.basePath.startsWith('/')) {
-        throw new Error(
-          `Specified basePath has to start with a /, found "${result.basePath}"`
-        )
+      if (result.assetPrefix === '') {
+        result.assetPrefix = result.basePath
       }
 
-      if (result.basePath !== '/') {
-        if (result.basePath.endsWith('/')) {
-          throw new Error(
-            `Specified basePath should not end with /, found "${result.basePath}"`
-          )
-        }
-
-        if (result.assetPrefix === '') {
-          result.assetPrefix = result.basePath
-        }
-
-        if (result.amp.canonicalBase === '') {
-          result.amp.canonicalBase = result.basePath
-        }
+      if (result.amp.canonicalBase === '') {
+        result.amp.canonicalBase = result.basePath
       }
     }
   }
+
   return result
 }
 
