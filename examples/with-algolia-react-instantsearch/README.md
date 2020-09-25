@@ -1,6 +1,6 @@
 # With Algolia React InstantSearch example
 
-The goal of this example is to illustrate how you can use [Algolia React InstantSearch](https://community.algolia.com/react-instantsearch/) to perform your search with a Server-rendered application developed with Next.js. It also illustrates how you can keep in sync the Url with the search.
+The goal of this example is to illustrate how you can use [Algolia React InstantSearch](https://community.algolia.com/react-instantsearch/) to perform your search in an application developed with Next.js. It also illustrates how you can keep in sync the Url with the search.
 
 ## How to use
 
