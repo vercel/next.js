@@ -3,6 +3,7 @@ import cache from './cache'
 import { RawSourceMap } from 'source-map'
 import { Linter, NextLintResult } from './linter'
 import { ESLint } from 'eslint'
+import { join } from 'path'
 
 const { version } = require('next/package.json')
 
@@ -19,7 +20,7 @@ export default function cacheLoader(
     eslint: ESLint.version,
   })
   cache({
-    cacheDirectory: options.cache,
+    cacheDirectory: join(options.distDir, 'cache', 'eslint-loader'),
     cacheIdentifier,
     cacheCompression: true,
     options,

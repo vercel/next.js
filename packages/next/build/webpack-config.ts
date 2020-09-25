@@ -875,6 +875,7 @@ export default async function getBaseWebpackConfig(
             use: [
               {
                 options: {
+                  distDir,
                   cache: true,
                   parser: 'babel-eslint',
                   failOnWarning: false,

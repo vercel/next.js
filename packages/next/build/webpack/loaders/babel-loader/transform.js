@@ -9,7 +9,7 @@ module.exports = async function (source, options, precompiledAST) {
   let result
   try {
     if (precompiledAST) {
-      result = await transformFromAst(precompiledAST, options)
+      result = await transformFromAst(precompiledAST, source, options)
     } else {
       result = await transform(source, options)
     }
