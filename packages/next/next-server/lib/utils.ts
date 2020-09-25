@@ -5,7 +5,7 @@ import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
-import { Env } from '../../lib/load-env-config'
+import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
 
 /**

@@ -1,8 +1,8 @@
-import fs from 'fs'
-import path from 'path'
-import * as log from '../build/output/log'
-import dotenvExpand from 'next/dist/compiled/dotenv-expand'
-import dotenv, { DotenvConfigOutput } from 'next/dist/compiled/dotenv'
+/* eslint-disable import/no-extraneous-dependencies */
+import * as fs from 'fs'
+import * as path from 'path'
+import * as dotenv from 'dotenv'
+import dotenvExpand from 'dotenv-expand'
 
 export type Env = { [key: string]: string }
 export type LoadedEnvFiles = Array<{
@@ -13,14 +13,19 @@ export type LoadedEnvFiles = Array<{
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 
-export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
+type Log = {
+  info: (...args: any[]) => void
+  error: (...args: any[]) => void
+}
+
+export function processEnv(
+  loadedEnvFiles: LoadedEnvFiles,
+  dir?: string,
+  log: Log = console
+) {
   // don't reload env if we already have since this breaks escaped
   // environment values e.g. \$ENV_FILE_KEY
-  if (
-    combinedEnv ||
-    process.env.__NEXT_PROCESSED_ENV ||
-    !loadedEnvFiles.length
-  ) {
+  if (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0) {
     return process.env as Env
   }
   // flag that we processed the environment values in case a serverless
@@ -32,7 +37,7 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
 
   for (const envFile of loadedEnvFiles) {
     try {
-      let result: DotenvConfigOutput = {}
+      let result: dotenv.DotenvConfigOutput = {}
       result.parsed = dotenv.parse(envFile.contents)
 
       result = dotenvExpand(result)
@@ -62,7 +67,8 @@ export function processEnv(loadedEnvFiles: LoadedEnvFiles, dir?: string) {
 
 export function loadEnvConfig(
   dir: string,
-  dev?: boolean
+  dev?: boolean,
+  log: Log = console
 ): {
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
