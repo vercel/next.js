@@ -163,6 +163,33 @@ const runTests = (isDev = false) => {
     expect(query).toEqual({})
   })
 
+  it('should redirect successfully with special chars in destination URL', async () => {
+    const res = await fetchViaHTTP(appPort, '/special-chars', undefined, {
+      redirect: 'manual',
+    })
+    const { query, href } = url.parse(res.headers.get('location'), true)
+    expect(res.status).toBe(307)
+    expect(href).toBe('http://somewhere/with%20special%20chars')
+    expect(query).toEqual({})
+  })
+
+  it('should redirect catchall successfully with special chars in destination URL', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/special-chars-catchall/hell o/wo%20rld',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { query, href } = url.parse(res.headers.get('location'), true)
+    expect(res.status).toBe(307)
+    expect(href).toBe(
+      'http://somewhere/with%20special%20chars/hell%20o/wo%20rld'
+    )
+    expect(query).toEqual({})
+  })
+
   it('should server static files through a rewrite', async () => {
     const text = await renderViaHTTP(appPort, '/hello-world')
     expect(text).toBe('hello world!')
@@ -701,6 +728,20 @@ const runTests = (isDev = false) => {
               '^\\/catchall-redirect(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/catchall-redirect/:path*',
+            statusCode: 307,
+          },
+          {
+            source: '/special-chars',
+            destination: 'http://somewhere/with%20special chars',
+            regex: normalizeRegEx('^\\/special-chars$'),
+            statusCode: 307,
+          },
+          {
+            regex: normalizeRegEx(
+              '^\\/special-chars-catchall(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/special-chars-catchall/:path*',
+            destination: 'http://somewhere/with%20special chars/:path*',
             statusCode: 307,
           },
         ],

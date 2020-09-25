@@ -205,6 +205,16 @@ module.exports = {
         destination: '/somewhere',
         permanent: false,
       },
+      {
+        source: '/special-chars',
+        destination: 'http://somewhere/with%20special chars',
+        permanent: false,
+      },
+      {
+        source: '/special-chars-catchall/:path*',
+        destination: 'http://somewhere/with%20special chars/:path*',
+        permanent: false,
+      },
     ]
   },
 
