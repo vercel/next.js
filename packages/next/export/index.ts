@@ -57,7 +57,7 @@ function divideSegments(number: number, segments: number): number[] {
   return result
 }
 
-const createProgress = (total: number, label = 'Exporting') => {
+const createProgress = (total: number, label: string) => {
   const segments = divideSegments(total, 4)
 
   let currentSegmentTotal = segments.shift()
@@ -381,7 +381,7 @@ export default async function exportApp(
     !options.silent &&
     createProgress(
       filteredPaths.length,
-      `${Log.prefixes.info} ${options.statusMessage}`
+      `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
     )
   const pagesDataDir = options.buildExport
     ? outDir

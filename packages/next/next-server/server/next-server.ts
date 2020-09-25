@@ -4,7 +4,11 @@ import chalk from 'next/dist/compiled/chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+import {
+  parse as parseQs,
+  stringify as stringifyQs,
+  ParsedUrlQuery,
+} from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { PrerenderManifest } from '../../build'
 import {
@@ -353,11 +357,7 @@ export default class Server {
             match: route('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
-              const p = join(
-                this.dir,
-                'static',
-                ...(params.path || []).map(encodeURIComponent)
-              )
+              const p = join(this.dir, 'static', ...params.path)
               await this.serveStatic(req, res, p, parsedUrl)
               return {
                 finished: true,
@@ -429,11 +429,7 @@ export default class Server {
 
           // re-create page's pathname
           const pathname = getRouteFromAssetPath(
-            `/${params.path
-              // we need to re-encode the params since they are decoded
-              // by path-match and we are re-building the URL
-              .map((param: string) => encodeURIComponent(param))
-              .join('/')}`,
+            `/${params.path.join('/')}`,
             '.json'
           )
 
@@ -560,6 +556,14 @@ export default class Server {
             false,
             getCustomRouteBasePath(redirectRoute)
           )
+
+          const { query } = parsedDestination
+          delete parsedDestination.query
+
+          parsedDestination.search = stringifyQs(query, undefined, undefined, {
+            encodeURIComponent: (str: string) => str,
+          } as any)
+
           const updatedDestination = formatUrl(parsedDestination)
 
           res.setHeader('Location', updatedDestination)
@@ -598,6 +602,15 @@ export default class Server {
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
+            const { query } = parsedDestination
+            delete parsedDestination.query
+            parsedDestination.search = stringifyQs(
+              query,
+              undefined,
+              undefined,
+              { encodeURIComponent: (str) => str }
+            )
+
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
               target,
@@ -776,7 +789,9 @@ export default class Server {
 
   protected generatePublicRoutes(): Route[] {
     const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map((p) => p.replace(/\\/g, '/'))
+      recursiveReadDirSync(this.publicDir).map((p) =>
+        encodeURI(p.replace(/\\/g, '/'))
+      )
     )
 
     return [
@@ -799,8 +814,7 @@ export default class Server {
             await this.serveStatic(
               req,
               res,
-              // we need to re-encode it since send decodes it
-              join(this.publicDir, ...pathParts.map(encodeURIComponent)),
+              join(this.publicDir, ...pathParts),
               parsedUrl
             )
             return {
@@ -1324,6 +1338,11 @@ export default class Server {
       }
     } catch (err) {
       this.logError(err)
+
+      if (err && err.code === 'DECODE_FAILED') {
+        res.statusCode = 400
+        return await this.renderErrorToHTML(err, req, res, pathname, query)
+      }
       res.statusCode = 500
       return await this.renderErrorToHTML(err, req, res, pathname, query)
     }
