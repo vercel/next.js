@@ -56,8 +56,8 @@ jobs:
       HEADLESS: true
     strategy:
       fail-fast: false
-    #      matrix:
-    #        group: [1, 2, 3, 4, 5, 6]
+      matrix:
+        group: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/cache@v2
         id: restore-build
@@ -69,33 +69,28 @@ jobs:
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 
       - run: |
-          sudo apt-get update &&
-          sudo apt-get install -qy libasound2 libgconf-2-4 libgtk2.0-0 libnss3 libxss1 libxtst6 xvfb
-
-      - run: |
           export DISPLAY=':99.0' &&
           Xvfb :99 -screen 0 1024x600x24 > /dev/null 2>&1 &
+          node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
 
-      - run: node run-tests.js --timings test/integration/parse-relative-url/test/index.test.js
+  testYarnPnP:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: '--unhandled-rejections=strict'
+    steps:
+      - uses: actions/checkout@v2
 
-  #  testYarnPnP:
-  #    runs-on: ubuntu-latest
-  #    env:
-  #      NODE_OPTIONS: '--unhandled-rejections=strict'
-  #    steps:
-  #      - uses: actions/checkout@v2
-  #
-  #      - run: yarn install --frozen-lockfile --check-files
-  #
-  #      - run: |
-  #          mkdir -p ./e2e-tests/next-pnp
-  #          cp -r ./examples/with-typescript/. ./e2e-tests/next-pnp
-  #          cd ./e2e-tests/next-pnp
-  #          touch yarn.lock
-  #          yarn set version berry
-  #          yarn config set pnpFallbackMode none
-  #          yarn link --all --private ../..
-  #          yarn build
+      - run: yarn install --frozen-lockfile --check-files
+
+      - run: |
+          mkdir -p ./e2e-tests/next-pnp
+          cp -r ./examples/with-typescript/. ./e2e-tests/next-pnp
+          cd ./e2e-tests/next-pnp
+          touch yarn.lock
+          yarn set version berry
+          yarn config set pnpFallbackMode none
+          yarn link --all --private ../..
+          yarn build
 
   testsPass:
     name: thank you, next

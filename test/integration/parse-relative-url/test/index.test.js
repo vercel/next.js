@@ -20,12 +20,12 @@ describe('Parse Relative Url', () => {
 
       app = new Application({
         path: electron,
-        args: [appdir],
-        chromeDriverArgs: [
+        args: [
           '--no-sandbox',
-          '--headless',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--enable-logging',
+          appdir,
         ],
       })
       await app.start()
