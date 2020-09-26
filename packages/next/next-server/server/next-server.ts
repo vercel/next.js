@@ -65,6 +65,9 @@ import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
+import accept from '@hapi/accept'
+import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
+import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -124,6 +127,8 @@ export default class Server {
     optimizeFonts: boolean
     fontManifest: FontManifest
     optimizeImages: boolean
+    locale?: string
+    locales?: string[]
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -176,6 +181,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
+      locales: this.nextConfig.experimental.i18n?.locales,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -274,12 +280,56 @@ export default class Server {
     }
 
     const { basePath } = this.nextConfig
+    const { i18n } = this.nextConfig.experimental
 
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
       // provided or not
       ;(req as any)._nextHadBasePath = true
       req.url = req.url!.replace(basePath, '') || '/'
+    }
+
+    if (i18n) {
+      // get pathname from URL with basePath stripped for locale detection
+      const { pathname, ...parsed } = parseUrl(req.url || '/')
+      let detectedLocale = detectLocaleCookie(req, i18n.locales)
+
+      if (!detectedLocale) {
+        detectedLocale = accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        )
+      }
+
+      if (
+        i18n.localeDetection !== false &&
+        denormalizePagePath(pathname || '/') === '/'
+      ) {
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsed,
+            pathname: `/${detectedLocale}`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+      }
+
+      // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
+      const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
+
+      if (localePathResult.detectedLocale) {
+        detectedLocale = localePathResult.detectedLocale
+        req.url = formatUrl({
+          ...parsed,
+          pathname: localePathResult.pathname,
+        })
+        parsedUrl.pathname = localePathResult.pathname
+      }
+
+      ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
     }
 
     res.statusCode = 200
@@ -427,14 +477,22 @@ export default class Server {
           }
 
           // re-create page's pathname
-          const pathname = getRouteFromAssetPath(
-            `/${params.path
-              // we need to re-encode the params since they are decoded
-              // by path-match and we are re-building the URL
-              .map((param: string) => encodeURIComponent(param))
-              .join('/')}`,
-            '.json'
+          let pathname = `/${params.path
+            // we need to re-encode the params since they are decoded
+            // by path-match and we are re-building the URL
+            .map((param: string) => encodeURIComponent(param))
+            .join('/')}`
+
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.renderOpts.locales
           )
+
+          if (localePathResult.detectedLocale) {
+            ;(req as any)._nextLocale = localePathResult.detectedLocale
+            pathname = localePathResult.pathname
+          }
+          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const parsedUrl = parseUrl(pathname, true)
 
@@ -1031,7 +1089,7 @@ export default class Server {
           (path.split(this.buildId).pop() || '/').replace(/\.json$/, '')
         )
       }
-      return path
+      return normalizeLocalePath(path, this.renderOpts.locales).pathname
     }
 
     // remove /_next/data prefix from urlPathname so it matches
@@ -1041,10 +1099,14 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
+    const locale = (req as any)._nextLocale
+
     const ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${resolvedUrlPathname}${query.amp ? '.amp' : ''}`
+        : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
+            query.amp ? '.amp' : ''
+          }`
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
@@ -1110,6 +1172,7 @@ export default class Server {
             'passthrough',
             {
               fontManifest: this.renderOpts.fontManifest,
+              locale: (req as any)._nextLocale,
             }
           )
 
@@ -1129,6 +1192,7 @@ export default class Server {
             ...opts,
             isDataReq,
             resolvedUrl,
+            locale: (req as any)._nextLocale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath

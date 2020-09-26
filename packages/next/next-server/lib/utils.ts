@@ -101,6 +101,8 @@ export type NEXT_DATA = {
   gip?: boolean
   appGip?: boolean
   head: HeadEntry[]
+  locale?: string
+  locales?: string[]
 }
 
 /**

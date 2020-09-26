@@ -3,6 +3,7 @@ import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
 import type Router from '../next-server/lib/router/router'
@@ -11,7 +12,11 @@ import type {
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
+import {
+  delBasePath,
+  hasBasePath,
+  delLocale,
+} from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
@@ -60,7 +65,10 @@ const {
   dynamicIds,
   isFallback,
   head: initialHeadData,
+  locales,
 } = data
+
+let { locale } = data
 
 const prefix = assetPrefix || ''
 
@@ -78,6 +86,17 @@ let asPath = getURL()
 // make sure not to attempt stripping basePath for 404s
 if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
+}
+
+asPath = delLocale(asPath, locale)
+
+if (isFallback && locales) {
+  const localePathResult = normalizeLocalePath(asPath, locales)
+
+  if (localePathResult.detectedLocale) {
+    asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
+    locale = localePathResult.detectedLocale
+  }
 }
 
 type RegisterFn = (input: [string, () => void]) => void
@@ -291,6 +310,8 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isFallback: Boolean(isFallback),
     subscription: ({ Component, styleSheets, props, err }, App) =>
       render({ App, Component, styleSheets, props, err }),
+    locale,
+    locales,
   })
 
   // call init-client middleware
