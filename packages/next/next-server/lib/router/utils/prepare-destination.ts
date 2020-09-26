@@ -1,33 +1,9 @@
 import { ParsedUrlQuery } from 'querystring'
 import { searchParamsToUrlQuery } from './querystring'
-import { RelativeURL } from './parse-relative-url'
+import { parseRelativeUrl } from './parse-relative-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 
 type Params = { [param: string]: any }
-
-function parseUrl(url: string) {
-  const {
-    pathname,
-    searchParams,
-    hash,
-    hostname,
-    port,
-    protocol,
-    search,
-  } = url.startsWith('/')
-    ? (new RelativeURL(url) as RelativeURL & Partial<URL>)
-    : new URL(url)
-
-  return {
-    pathname,
-    query: searchParamsToUrlQuery(searchParams),
-    hash,
-    protocol,
-    hostname,
-    port,
-    search,
-  }
-}
 
 export default function prepareDestination(
   destination: string,
@@ -36,7 +12,38 @@ export default function prepareDestination(
   appendParamsToQuery: boolean,
   basePath: string
 ) {
-  const parsedDestination = parseUrl(destination)
+  let parsedDestination: {
+    query?: ParsedUrlQuery
+    protocol?: string
+    hostname?: string
+    port?: string
+  } & ReturnType<typeof parseRelativeUrl> = {} as any
+
+  if (destination.startsWith('/')) {
+    parsedDestination = parseRelativeUrl(destination)
+  } else {
+    const {
+      pathname,
+      searchParams,
+      hash,
+      hostname,
+      port,
+      protocol,
+      search,
+      href,
+    } = new URL(destination)
+
+    parsedDestination = {
+      pathname,
+      query: searchParamsToUrlQuery(searchParams),
+      hash,
+      protocol,
+      hostname,
+      port,
+      search,
+      href,
+    }
+  }
 
   const destQuery = parsedDestination.query
   const destPath = `${parsedDestination.pathname!}${
@@ -90,14 +97,14 @@ export default function prepareDestination(
   const shouldAddBasePath = destination.startsWith('/') && basePath
 
   try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${destinationCompiler(
-      params
+    newUrl = `${shouldAddBasePath ? basePath : ''}${encodeURI(
+      destinationCompiler(params)
     )}`
 
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
-    parsedDestination.hash = hash ? `#${hash}` : ''
-    parsedDestination.search = ''
+    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
+    delete parsedDestination.search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(

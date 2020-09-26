@@ -12,8 +12,9 @@ import type {
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
 import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
+import { formatUrl } from '../next-server/lib/router/utils/format-url'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { RelativeURL } from '../next-server/lib/router/utils/parse-relative-url'
+import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
 import type { NEXT_DATA } from '../next-server/lib/utils'
@@ -74,13 +75,11 @@ envConfig.setConfig({
   publicRuntimeConfig: runtimeConfig || {},
 })
 
-// make sure not to attempt stripping basePath for 404s outside the basePath
 function getAsPath(relativePath: string) {
-  const url = new RelativeURL(relativePath)
-  url.pathname = hasBasePath(url.pathname)
-    ? delBasePath(url.pathname)
-    : url.pathname
-  return url.href
+  const url = parseRelativeUrl(relativePath)
+  const { pathname } = url
+  url.pathname = hasBasePath(pathname) ? delBasePath(pathname) : pathname
+  return formatUrl(url)
 }
 
 const asPath = getAsPath(getURL())
