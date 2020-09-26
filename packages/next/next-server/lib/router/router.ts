@@ -47,11 +47,17 @@ function buildCancellationError() {
   })
 }
 
+function addPathPrefix(path: string, prefix?: string) {
+  return prefix && path.startsWith('/')
+    ? path === '/'
+      ? normalizePathTrailingSlash(prefix)
+      : `${prefix}${path}`
+    : path
+}
+
 export function addLocale(path: string, locale?: string) {
-  return path.startsWith('/')
-    ? normalizePathTrailingSlash(
-        `${locale && !path.startsWith('/' + locale) ? `/${locale}` : ''}${path}`
-      )
+  return locale && !path.startsWith('/' + locale)
+    ? addPathPrefix(path, '/' + locale)
     : path
 }
 
@@ -67,11 +73,7 @@ export function hasBasePath(path: string): boolean {
 
 export function addBasePath(path: string): string {
   // we only add the basepath on relative urls
-  return basePath && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(basePath)
-      : basePath + path
-    : path
+  return addPathPrefix(path, basePath)
 }
 
 export function delBasePath(path: string): string {
