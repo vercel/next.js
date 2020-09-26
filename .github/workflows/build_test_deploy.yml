@@ -54,6 +54,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       HEADLESS: true
+      DISPLAY: ':99.0'
     strategy:
       fail-fast: false
       matrix:
@@ -68,10 +69,7 @@ jobs:
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 
-      - run: |
-          export DISPLAY=':99.0' &&
-          Xvfb :99 -screen 0 1024x600x24 > /dev/null 2>&1 &
-          node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
 
   testYarnPnP:
     runs-on: ubuntu-latest

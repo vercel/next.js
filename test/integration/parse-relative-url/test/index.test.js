@@ -24,7 +24,6 @@ describe('Parse Relative Url', () => {
           '--no-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          '--enable-logging',
           appdir,
         ],
       })
