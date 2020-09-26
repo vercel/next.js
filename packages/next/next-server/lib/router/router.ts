@@ -20,8 +20,12 @@ import {
   ST,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
-import { parseRelativeUrl } from './utils/parse-relative-url'
-import { searchParamsToUrlQuery } from './utils/querystring'
+import { RelativeURL } from './utils/parse-relative-url'
+import {
+  assign,
+  searchParamsToUrlQuery,
+  urlQueryToSearchParams,
+} from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
@@ -81,11 +85,17 @@ export function isLocalURL(url: string): boolean {
 
 type Url = UrlObject | string
 
+interface InterpolationResult {
+  params: string[]
+  result: string
+}
+
 export function interpolateAs(
   route: string,
   asPathname: string,
-  query: ParsedUrlQuery
-) {
+  searchParams: URLSearchParams
+): InterpolationResult {
+  const query = searchParamsToUrlQuery(searchParams)
   let interpolatedRoute = ''
 
   const dynamicRegex = getRouteRegex(route)
@@ -137,14 +147,13 @@ export function interpolateAs(
   }
 }
 
-function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
-  const filteredQuery: ParsedUrlQuery = {}
-
-  Object.keys(query).forEach((key) => {
-    if (!params.includes(key)) {
-      filteredQuery[key] = query[key]
-    }
-  })
+// TODO: might want to put this also under ./utils/querystring
+function omitFromSearchParams(
+  query: URLSearchParams,
+  params: string[]
+): URLSearchParams {
+  const filteredQuery = new URLSearchParams(query)
+  params.forEach((param) => filteredQuery.delete(param))
   return filteredQuery
 }
 
@@ -171,19 +180,20 @@ export function resolveHref(
       finalUrl.searchParams &&
       resolveAs
     ) {
-      const query = searchParamsToUrlQuery(finalUrl.searchParams)
-
       const { result, params } = interpolateAs(
         finalUrl.pathname,
         finalUrl.pathname,
-        query
+        finalUrl.searchParams
       )
 
       if (result) {
         interpolatedAs = formatWithValidation({
           pathname: result,
           hash: finalUrl.hash,
-          query: omitParmsFromQuery(query, params),
+          search: omitFromSearchParams(
+            finalUrl.searchParams,
+            params
+          ).toString(),
         })
       }
     }
@@ -481,7 +491,7 @@ export default class Router implements BaseRouter {
 
     const { url, as, options } = state
 
-    const { pathname } = parseRelativeUrl(url)
+    const { pathname } = new RelativeURL(url)
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
@@ -587,11 +597,11 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
 
-    let parsed = parseRelativeUrl(url)
+    let parsed = new RelativeURL(url)
 
-    let { pathname, query } = parsed
+    let { pathname, searchParams } = parsed
 
-    parsed = this._resolveHref(parsed, pages) as typeof parsed
+    parsed = this._resolveHref(parsed, pages)
 
     if (parsed.pathname !== pathname) {
       pathname = parsed.pathname
@@ -623,18 +633,20 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        parseRelativeUrl(as).pathname,
+        new RelativeURL(as).pathname,
         pages,
         basePath,
         rewrites,
-        query,
-        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+        searchParams,
+        (p: string) => this._resolveHref(new RelativeURL(p), pages).pathname!
       )
 
       if (resolvedAs !== as) {
         const potentialHref = removePathTrailingSlash(
           this._resolveHref(
-            Object.assign({}, parsed, { pathname: resolvedAs }),
+            Object.assign(new RelativeURL(parsed.href), {
+              pathname: resolvedAs,
+            }),
             pages,
             false
           ).pathname!
@@ -653,19 +665,19 @@ export default class Router implements BaseRouter {
     resolvedAs = delBasePath(resolvedAs)
 
     if (isDynamicRoute(route)) {
-      const parsedAs = parseRelativeUrl(resolvedAs)
+      const parsedAs = new RelativeURL(resolvedAs)
       const asPathname = parsedAs.pathname
 
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
       const shouldInterpolate = route === asPathname
       const interpolatedAs = shouldInterpolate
-        ? interpolateAs(route, asPathname, query)
+        ? interpolateAs(route, asPathname, searchParams)
         : ({} as { result: undefined; params: undefined })
 
       if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
         const missingParams = Object.keys(routeRegex.groups).filter(
-          (param) => !query[param]
+          (param) => !searchParams.has(param)
         )
 
         if (missingParams.length > 0) {
@@ -699,12 +711,15 @@ export default class Router implements BaseRouter {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
             pathname: interpolatedAs.result,
-            query: omitParmsFromQuery(query, interpolatedAs.params!),
+            search: omitFromSearchParams(
+              searchParams,
+              interpolatedAs.params!
+            ).toString(),
           })
         )
       } else {
         // Merge params into `query`, overwriting any specified in search
-        Object.assign(query, routeMatch)
+        assign(searchParams, urlQueryToSearchParams(routeMatch))
       }
     }
 
@@ -714,7 +729,7 @@ export default class Router implements BaseRouter {
       const routeInfo = await this.getRouteInfo(
         route,
         pathname,
-        query,
+        searchParamsToUrlQuery(searchParams),
         as,
         shallow
       )
@@ -733,7 +748,7 @@ export default class Router implements BaseRouter {
         // client-navigation if it is falling back to hard navigation if
         // it's not
         if (destination.startsWith('/')) {
-          const parsedHref = parseRelativeUrl(destination)
+          const parsedHref = new RelativeURL(destination)
           this._resolveHref(parsedHref, pages)
 
           if (pages.includes(parsedHref.pathname)) {
@@ -760,12 +775,16 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
-        (e) => {
-          if (e.cancelled) error = error || e
-          else throw e
-        }
-      )
+      await this.set(
+        route,
+        pathname!,
+        searchParamsToUrlQuery(searchParams),
+        cleanedAs,
+        routeInfo
+      ).catch((e) => {
+        if (e.cancelled) error = error || e
+        else throw e
+      })
 
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs)
@@ -1020,7 +1039,11 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
-  _resolveHref(parsedHref: UrlObject, pages: string[], applyBasePath = true) {
+  _resolveHref(
+    parsedHref: RelativeURL,
+    pages: string[],
+    applyBasePath = true
+  ): RelativeURL {
     const { pathname } = parsedHref
     const cleanPathname = removePathTrailingSlash(
       denormalizePagePath(applyBasePath ? delBasePath(pathname!) : pathname!)
@@ -1057,13 +1080,13 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    let parsed = parseRelativeUrl(url)
+    let parsed = new RelativeURL(url)
 
     let { pathname } = parsed
 
     const pages = await this.pageLoader.getPageList()
 
-    parsed = this._resolveHref(parsed, pages) as typeof parsed
+    parsed = this._resolveHref(parsed, pages)
 
     if (parsed.pathname !== pathname) {
       pathname = parsed.pathname

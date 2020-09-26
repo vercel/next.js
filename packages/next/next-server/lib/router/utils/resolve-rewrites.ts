@@ -1,8 +1,12 @@
-import { ParsedUrlQuery } from 'querystring'
 import pathMatch from './path-match'
 import prepareDestination from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
+import {
+  assign,
+  searchParamsToUrlQuery,
+  urlQueryToSearchParams,
+} from './querystring'
 
 const customRouteMatcher = pathMatch(true)
 
@@ -11,7 +15,7 @@ export default function resolveRewrites(
   pages: string[],
   basePath: string,
   rewrites: Rewrite[],
-  query: ParsedUrlQuery,
+  searchParams: URLSearchParams,
   resolveHref: (path: string) => string
 ) {
   if (!pages.includes(asPath)) {
@@ -27,12 +31,15 @@ export default function resolveRewrites(
         const destRes = prepareDestination(
           rewrite.destination,
           params,
-          query,
+          searchParamsToUrlQuery(searchParams),
           true,
           rewrite.basePath === false ? '' : basePath
         )
         asPath = destRes.parsedDestination.pathname!
-        Object.assign(query, destRes.parsedDestination.query)
+        assign(
+          searchParams,
+          urlQueryToSearchParams(destRes.parsedDestination.query)
+        )
 
         if (pages.includes(removePathTrailingSlash(asPath))) {
           // check if we now match a page as this means we are done

@@ -11,7 +11,7 @@ import {
 
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
+import { RelativeURL } from '../next-server/lib/router/utils/parse-relative-url'
 
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
@@ -203,8 +203,10 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   getDataHref(href: string, asPath: string, ssg: boolean) {
-    const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
-    const { pathname: asPathname } = parseRelativeUrl(asPath)
+    const { pathname: hrefPathname, searchParams, search } = new RelativeURL(
+      href
+    )
+    const { pathname: asPathname } = new RelativeURL(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
@@ -216,7 +218,7 @@ export default class PageLoader {
 
     const isDynamic: boolean = isDynamicRoute(route)
     const interpolatedRoute = isDynamic
-      ? interpolateAs(hrefPathname, asPathname, query).result
+      ? interpolateAs(hrefPathname, asPathname, searchParams).result
       : ''
 
     return isDynamic
@@ -229,7 +231,7 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   prefetchData(href: string, asPath: string) {
-    const { pathname: hrefPathname } = parseRelativeUrl(href)
+    const { pathname: hrefPathname } = new RelativeURL(href)
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest!.then(
       (s: ClientSsgManifest, _dataHref?: string) =>
