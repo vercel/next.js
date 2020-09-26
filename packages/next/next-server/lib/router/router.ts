@@ -48,9 +48,11 @@ function buildCancellationError() {
 }
 
 export function addLocale(path: string, locale?: string) {
-  return normalizePathTrailingSlash(
-    `${locale && !path.startsWith('/' + locale) ? `/${locale}` : ''}${path}`
-  )
+  return path.startsWith('/')
+    ? normalizePathTrailingSlash(
+        `${locale && !path.startsWith('/' + locale) ? `/${locale}` : ''}${path}`
+      )
+    : path
 }
 
 export function delLocale(path: string, locale?: string) {
