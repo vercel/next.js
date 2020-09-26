@@ -21,6 +21,13 @@ export class RelativeURL {
       url.startsWith('/') ? resolvedBase.origin + url : url,
       resolvedBase
     )
+    Object.defineProperty(
+      this,
+      '_u',
+      Object.assign(Object.getOwnPropertyDescriptor(this, '_u'), {
+        enumerable: false,
+      })
+    )
     if (
       this._u.origin !== DUMMY_BASE.origin ||
       (this._u.protocol !== 'http:' && this._u.protocol !== 'https:')

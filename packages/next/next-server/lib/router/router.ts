@@ -637,6 +637,8 @@ export default class Router implements BaseRouter {
         pages,
         basePath,
         rewrites,
+        // careful: searchParams is being mutated by `resolveRewrites`, should probably
+        // rather make this immutable to avoid confusion.
         searchParams,
         (p: string) => this._resolveHref(new RelativeURL(p), pages).pathname!
       )
