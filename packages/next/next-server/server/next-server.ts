@@ -803,18 +803,17 @@ export default class Server {
           const { basePath } = this.nextConfig
 
           // if basePath is defined require it be present
-          if (basePath) {
-            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
-            pathParts.shift()
-          }
+          const path = `${
+            basePath
+              ? pathParts.join('/').slice(basePath.length)
+              : pathParts.join('/')
+          }`
 
-          const path = `/${pathParts.join('/')}`
-
-          if (publicFiles.has(path)) {
+          if (publicFiles.has(`/${path}`)) {
             await this.serveStatic(
               req,
               res,
-              join(this.publicDir, ...pathParts),
+              join(this.publicDir, path),
               parsedUrl
             )
             return {
