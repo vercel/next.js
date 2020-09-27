@@ -54,7 +54,6 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       HEADLESS: true
-      DISPLAY: ':99.0'
     strategy:
       fail-fast: false
       matrix:
