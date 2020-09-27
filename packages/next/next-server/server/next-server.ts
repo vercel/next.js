@@ -1291,6 +1291,11 @@ export default class Server {
   ): Promise<string | null> {
     try {
       const result = await this.findPageComponents(pathname, query)
+      const renderOptions = {
+        ...this.renderOpts,
+        runtimeConfig: envConfig.default().publicRuntimeConfig,
+      }
+
       if (result) {
         try {
           return await this.renderToHTMLWithComponents(
@@ -1298,7 +1303,7 @@ export default class Server {
             res,
             pathname,
             result,
-            { ...this.renderOpts }
+            renderOptions
           )
         } catch (err) {
           if (!(err instanceof NoFallbackError)) {
@@ -1326,7 +1331,7 @@ export default class Server {
                 res,
                 dynamicRoute.page,
                 dynamicRouteResult,
-                { ...this.renderOpts, params }
+                { ...renderOptions, params }
               )
             } catch (err) {
               if (!(err instanceof NoFallbackError)) {
@@ -1419,6 +1424,7 @@ export default class Server {
           result!,
           {
             ...this.renderOpts,
+            runtimeConfig: envConfig.default().publicRuntimeConfig,
             err,
           }
         )
