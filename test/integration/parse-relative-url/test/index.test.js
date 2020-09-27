@@ -26,6 +26,11 @@ describe('Parse Relative Url', () => {
           '--disable-gpu',
           appdir,
         ],
+        chromeDriverArgs: [
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+        ],
       })
       await app.start()
     })
