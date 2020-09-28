@@ -139,7 +139,14 @@ export default function Script(props: Props) {
     }
   } else if (priority === 'beforeHydrate') {
     if (updateScripts) {
-      scripts.beforeHydrate = (scripts.beforeHydrate || []).concat([src])
+      scripts.beforeHydrate = (scripts.beforeHydrate || []).concat([
+        {
+          src,
+          onLoad,
+          onError,
+          ...restProps,
+        },
+      ])
       updateScripts(scripts)
     }
   }

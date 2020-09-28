@@ -264,10 +264,10 @@ export class Head extends Component<
     return [
       ...(scriptLoader.beforeHydrate || []).map((file: string) => (
         <link
-          key={file}
+          key={file.src}
           nonce={this.props.nonce}
           rel="preload"
-          href={file}
+          href={file.src}
           as="script"
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
@@ -613,8 +613,7 @@ export class NextScript extends Component<OriginProps> {
     return (scriptLoader.beforeHydrate || []).map((file: string) => {
       return (
         <script
-          key={file}
-          src={file}
+          {...file}
           nonce={this.props.nonce}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
