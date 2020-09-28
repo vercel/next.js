@@ -81,7 +81,6 @@ export default async function exportPage({
   outDir,
   pagesDataDir,
   renderOpts,
-  buildExport,
   serverRuntimeConfig,
   subFolders,
   serverless,
@@ -173,10 +172,6 @@ export default async function exportPage({
     let curRenderOpts: RenderOpts = {}
     let renderMethod = renderToHTML
 
-    const renderedDuringBuild = (getStaticProps: any) => {
-      return !buildExport && getStaticProps && !isDynamicRoute(path)
-    }
-
     if (serverless) {
       const curUrl = url.parse(req.url!, true)
       req.url = url.format({
@@ -201,11 +196,6 @@ export default async function exportPage({
         html = mod
         queryWithAutoExportWarn()
       } else {
-        // for non-dynamic SSG pages we should have already
-        // prerendered the file
-        if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
-          return results
-
         if (
           (mod as ComponentModule).getStaticProps &&
           !htmlFilepath.endsWith('.html')
@@ -245,12 +235,6 @@ export default async function exportPage({
 
       if (components.getServerSideProps) {
         throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
-      }
-
-      // for non-dynamic SSG pages we should have already
-      // prerendered the file
-      if (renderedDuringBuild(components.getStaticProps)) {
-        return results
       }
 
       // TODO: de-dupe the logic here between serverless and server mode
