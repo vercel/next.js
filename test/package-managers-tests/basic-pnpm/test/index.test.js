@@ -6,7 +6,6 @@ import path from 'path'
 jest.setTimeout(100 * 1000)
 
 beforeAll(async () => {
-  exec('npm i -g pnpm')
   await clean()
 })
 
@@ -15,14 +14,16 @@ afterAll(async () => {
 })
 
 test('pnpm installs', async () => {
-  exec('pnpm init -y')
-  exec('pnpm add next react react-dom')
+  const pnpm = getStdout('yarn bin pnpm')
+  exec(pnpm + ' init -y')
+  exec(pnpm + ' add next react react-dom')
   await useLocalNextjs()
   // exec('pnpm install')
 })
 
 test('nextjs builds with pnpm', () => {
-  exec('pnpx next build')
+  const pnpx = getStdout(`yarn bin pnpx`)
+  exec(pnpx + ' next build')
 })
 
 const exec = (cmd) => {
@@ -32,6 +33,16 @@ const exec = (cmd) => {
     stdio: 'inherit',
     cwd: path.resolve(__dirname, '..'),
   })
+}
+
+const getStdout = (cmd) => {
+  return execSync(cmd, {
+    env: process.env,
+    shell: true,
+    stdio: 'pipe',
+  })
+    .toString()
+    .trim()
 }
 
 async function useLocalNextjs() {
