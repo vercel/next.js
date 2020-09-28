@@ -68,14 +68,6 @@ jobs:
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 
-      - run: |
-          sudo apt-get update && 
-          sudo apt-get install -qy libasound2 libgconf-2-4 libgtk2.0-0 libnss3 libxss1 libxtst6 xvfb
-
-      - run: |
-          export DISPLAY=':99.0' &&
-          Xvfb :99 -screen 0 1024x600x24 > /dev/null 2>&1 &
-
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
 
   testYarnPnP:
