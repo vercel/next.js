@@ -5,11 +5,12 @@ import {
   AppContextType,
   AppInitialProps,
   AppPropsType,
+  AppType,
   NextWebVitalsMetric,
 } from '../next-server/lib/utils'
 import { Router } from '../client/router'
 
-export { AppInitialProps }
+export { AppInitialProps, AppType }
 
 export { NextWebVitalsMetric }
 
