@@ -249,7 +249,11 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      scriptLoader,
+    } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       // `dynamicImports` will contain both `.js` and `.module.js` when
       // the feature is enabled. This clause will filter down to the
@@ -257,22 +261,46 @@ export class Head extends Component<
       return file.endsWith(getOptionalModernScriptVariant('.js'))
     })
 
-    return !preloadFiles.length
-      ? null
-      : preloadFiles.map((file: string) => (
-          <link
-            key={file}
-            nonce={this.props.nonce}
-            rel="preload"
-            href={`${assetPrefix}/_next/${encodeURI(
-              file
-            )}${devOnlyCacheBusterQueryString}`}
-            as="script"
-            crossOrigin={
-              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-            }
-          />
-        ))
+    return [
+      ...(scriptLoader.beforeHydrate || []).map((file: string) => (
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={file}
+          as="script"
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )),
+      ...preloadFiles.map((file: string) => (
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${devOnlyCacheBusterQueryString}`}
+          as="script"
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )),
+      ...(scriptLoader.default || []).map((file: string) => (
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={file}
+          as="script"
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )),
+    ]
   }
 
   makeStylesheetInert(node: ReactNode): ReactNode {
@@ -579,6 +607,23 @@ export class NextScript extends Component<OriginProps> {
     })
   }
 
+  getScriptLoaderScripts() {
+    const { scriptLoader } = this.context
+
+    return (scriptLoader.beforeHydrate || []).map((file: string) => {
+      return (
+        <script
+          key={file}
+          src={file}
+          nonce={this.props.nonce}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )
+    })
+  }
+
   getScripts(files: DocumentFiles) {
     const {
       assetPrefix,
@@ -766,6 +811,7 @@ export class NextScript extends Component<OriginProps> {
           />
         ) : null}
         {!disableRuntimeJS && this.getPolyfillScripts()}
+        {!disableRuntimeJS && this.getScriptLoaderScripts()}
         {disableRuntimeJS ? null : this.getDynamicChunks(files)}
         {disableRuntimeJS ? null : this.getScripts(files)}
       </>
