@@ -1272,7 +1272,11 @@ export default class Server {
       // `getStaticPaths`
       (isProduction ||
         !staticPaths ||
-        !staticPaths.includes(resolvedUrlPathname))
+        // static paths always includes locale so make sure it's prefixed
+        // with it
+        !staticPaths.includes(
+          `${locale ? '/' + locale : ''}${resolvedUrlPathname}`
+        ))
     ) {
       if (
         // In development, fall through to render to handle missing

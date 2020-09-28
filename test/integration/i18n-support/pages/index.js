@@ -9,10 +9,16 @@ export default function Page(props) {
       <p id="index">index page</p>
       <p id="props">{JSON.stringify(props)}</p>
       <p id="router-locale">{router.locale}</p>
-      <p id="router-locale">{JSON.stringify(router.locales)}</p>
+      <p id="router-locales">{JSON.stringify(router.locales)}</p>
       <p id="router-query">{JSON.stringify(router.query)}</p>
+      <p id="router-pathname">{router.pathname}</p>
+      <p id="router-as-path">{router.asPath}</p>
       <Link href="/another">
         <a id="to-another">to /another</a>
+      </Link>
+      <br />
+      <Link href="/gsp">
+        <a id="to-gsp">to /gsp</a>
       </Link>
       <br />
       <Link href="/gsp/fallback/first">

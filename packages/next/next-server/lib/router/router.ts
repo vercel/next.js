@@ -63,7 +63,7 @@ export function addLocale(path: string, locale?: string) {
 
 export function delLocale(path: string, locale?: string) {
   return locale && path.startsWith('/' + locale)
-    ? path.substr(locale.length + 1)
+    ? path.substr(locale.length + 1) || '/'
     : path
 }
 
@@ -588,7 +588,10 @@ export default class Router implements BaseRouter {
     }
 
     as = addLocale(as, this.locale)
-    const cleanedAs = hasBasePath(as) ? delBasePath(as) : as
+    const cleanedAs = delLocale(
+      hasBasePath(as) ? delBasePath(as) : as,
+      this.locale
+    )
     this._inFlightRoute = as
 
     // If the url change is only related to a hash change

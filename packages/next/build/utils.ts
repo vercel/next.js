@@ -604,6 +604,8 @@ export async function buildStaticPaths(
 
       if (localePathResult.detectedLocale) {
         cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+      } else if (defaultLocale) {
+        entry = `/${defaultLocale}${entry}`
       }
 
       const result = _routeMatcher(cleanedEntry)
