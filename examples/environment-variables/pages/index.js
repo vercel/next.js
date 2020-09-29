@@ -17,7 +17,7 @@ const IndexPage = () => (
       <p>
         In general only <Code>.env.local</Code> or <Code>.env</Code> are needed
         for this, but the table also features the usage of{' '}
-        <Code>.env.develoment</Code> and <Code>.env.production</Code>.
+        <Code>.env.development</Code> and <Code>.env.production</Code>.
       </p>
       <table className={styles.table}>
         <thead>
@@ -47,7 +47,7 @@ const IndexPage = () => (
 
             <td>{process.env.NEXT_PUBLIC_DEVELOPMENT_ENV_VARIABLE}</td>
             <td>
-              <Code>.env.develoment</Code>
+              <Code>.env.development</Code>
             </td>
           </tr>
           <tr>
@@ -75,7 +75,7 @@ const IndexPage = () => (
         <code>npm run dev</code>
       </pre>
       <p>
-        Similarly, variables in <Code>.env.develoment</Code> won't be available
+        Similarly, variables in <Code>.env.development</Code> won't be available
         if the app is running on production:
       </p>
       <pre>
