@@ -75,10 +75,7 @@ export class FontStylesheetGatheringPlugin {
                 result.setExpression(node)
                 result.setIdentifier('__jsx')
 
-                /**
-                 * This was added webpack 5, and did not broke webpack 4
-                 * so left as is.
-                 */
+                // This was added webpack 5.
                 result.getMembers = () => []
               }
               return result
