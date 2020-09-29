@@ -158,6 +158,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -195,7 +196,6 @@ function renderDocument(
     appGip,
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
-    optimizeCss,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -265,7 +265,6 @@ function renderDocument(
           canonicalBase,
           ampPath,
           inAmpMode,
-          optimizeCss,
           isDevelopment: !!dev,
           hybridAmp,
           dynamicImports,

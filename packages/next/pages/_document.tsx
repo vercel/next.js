@@ -156,10 +156,7 @@ export class Head extends Component<
 
   context!: React.ContextType<typeof DocumentComponentContext>
 
-  getCssLinks(
-    files: DocumentFiles,
-    optimizeCss: Boolean
-  ): JSX.Element[] | null {
+  getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
       assetPrefix,
       devOnlyCacheBusterQueryString,
@@ -183,7 +180,7 @@ export class Head extends Component<
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
 
-      if (!optimizeCss) {
+      if (!process.env.__NEXT_OPTIMIZE_CSS) {
         cssLinkElements.push(
           <link
             key={`${file}-preload`}
@@ -312,7 +309,6 @@ export class Head extends Component<
       dangerousAsPath,
       headTags,
       unstable_runtimeJS,
-      optimizeCss,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
@@ -507,8 +503,8 @@ export class Head extends Component<
               />
             )}
             {process.env.__NEXT_OPTIMIZE_FONTS
-              ? this.makeStylesheetInert(this.getCssLinks(files, optimizeCss))
-              : this.getCssLinks(files, optimizeCss)}
+              ? this.makeStylesheetInert(this.getCssLinks(files))
+              : this.getCssLinks(files)}
             <noscript data-n-css />
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
