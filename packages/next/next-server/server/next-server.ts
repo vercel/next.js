@@ -280,6 +280,16 @@ export default class Server {
 
     const { basePath } = this.nextConfig
 
+    if (true) {
+      parsedUrl.protocol = 'https'
+      res.statusCode = 302
+      console.dir(parsedUrl)
+      console.dir(req.url)
+      res.setHeader('Location', parsedUrl.toString())
+      res.end()
+      return
+    }
+
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
       // provided or not
