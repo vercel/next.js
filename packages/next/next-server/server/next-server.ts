@@ -55,13 +55,14 @@ import Router, {
   route,
   Route,
 } from './router'
-import prepareDestination from '../lib/router/utils/prepare-destination'
+import prepareDestination, {
+  compileNonPath,
+} from '../lib/router/utils/prepare-destination'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
-import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
@@ -478,46 +479,6 @@ export default class Server {
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
       } as Route & Rewrite & Header)
 
-    const updateHeaderValue = (value: string, params: Params): string => {
-      if (!value.includes(':')) {
-        return value
-      }
-
-      for (const key of Object.keys(params)) {
-        if (value.includes(`:${key}`)) {
-          value = value
-            .replace(
-              new RegExp(`:${key}\\*`, 'g'),
-              `:${key}--ESCAPED_PARAM_ASTERISKS`
-            )
-            .replace(
-              new RegExp(`:${key}\\?`, 'g'),
-              `:${key}--ESCAPED_PARAM_QUESTION`
-            )
-            .replace(
-              new RegExp(`:${key}\\+`, 'g'),
-              `:${key}--ESCAPED_PARAM_PLUS`
-            )
-            .replace(
-              new RegExp(`:${key}(?!\\w)`, 'g'),
-              `--ESCAPED_PARAM_COLON${key}`
-            )
-        }
-      }
-      value = value
-        .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
-        .replace(/--ESCAPED_PARAM_PLUS/g, '+')
-        .replace(/--ESCAPED_PARAM_COLON/g, ':')
-        .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
-        .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
-
-      // the value needs to start with a forward-slash to be compiled
-      // correctly
-      return compilePathToRegex(`/${value}`, { validate: false })(
-        params
-      ).substr(1)
-    }
-
     // Headers come very first
     const headers = this.customRoutes.headers.map((r) => {
       const headerRoute = getCustomRoute(r, 'header')
@@ -531,8 +492,8 @@ export default class Server {
           for (const header of (headerRoute as Header).headers) {
             let { key, value } = header
             if (hasParams) {
-              key = updateHeaderValue(key, params)
-              value = updateHeaderValue(value, params)
+              key = compileNonPath(key, params)
+              value = compileNonPath(value, params)
             }
             res.setHeader(key, value)
           }
