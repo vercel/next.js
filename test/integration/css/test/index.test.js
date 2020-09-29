@@ -287,6 +287,35 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Valid Global CSS from npm', () => {
+    const appDir = join(fixturesDir, 'import-global-from-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".red-text{color:\\"red\\"}"`)
+    })
+  })
+
   describe('Invalid Global CSS with Custom App', () => {
     const appDir = join(fixturesDir, 'invalid-global-with-app')
 
@@ -737,7 +766,7 @@ describe('CSS Support', () => {
     })
   })
 
-  describe('Bad CSS Import from node_modules', () => {
+  describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
     beforeAll(async () => {
@@ -747,9 +776,9 @@ describe('CSS Support', () => {
     it('should fail the build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).not.toBe(0)
-      expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).toMatch(/Build error occurred/)
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).not.toMatch(/Build error occurred/)
     })
   })
 
@@ -1133,15 +1162,29 @@ describe('CSS Support', () => {
             await browser.waitForElementByCss('#link-other').click()
             await checkRedTitle(browser)
 
-            const newPrevSiblingHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
             )
             const newPageHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
+            expect(newPrevSibling).toBeTruthy()
             expect(newPageHref).toBeDefined()
-            expect(newPrevSiblingHref).toBe(prevSiblingHref)
             expect(newPageHref).not.toBe(currentPageHref)
+
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkBlackTitle(browser)
+
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBeTruthy()
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
           } finally {
             await browser.close()
           }

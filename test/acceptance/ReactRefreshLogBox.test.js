@@ -238,6 +238,7 @@ test('render error not shown right after syntax error', async () => {
   await session.patch(
     'index.js',
     `
+      import * as React from 'react';
       class ClassDefault extends React.Component {
         render() {
           return <h1>Default Export</h1>;
@@ -576,6 +577,7 @@ test('boundaries', async () => {
     'index.js',
     `
       import FunctionDefault from './FunctionDefault.js'
+      import * as React from 'react'
       class ErrorBoundary extends React.Component {
         constructor() {
           super()
@@ -827,7 +829,7 @@ test('css syntax errors', async () => {
     Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
     > 1 | button {}
-        | ^"
+        |         ^"
   `)
 
   await cleanup()

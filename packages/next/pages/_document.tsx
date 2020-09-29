@@ -450,10 +450,6 @@ export class Head extends Component<
         )}
         {children}
         {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
         {inAmpMode && (
           <>
             <meta
@@ -513,6 +509,7 @@ export class Head extends Component<
             {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks(files, optimizeCss))
               : this.getCssLinks(files, optimizeCss)}
+            <noscript data-n-css />
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {this.context.isDevelopment && (
