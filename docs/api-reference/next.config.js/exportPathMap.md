@@ -4,6 +4,8 @@ description: Customize the pages that will be exported as HTML files when using 
 
 # exportPathMap
 
+`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export.
+
 > This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
 
 <details>
