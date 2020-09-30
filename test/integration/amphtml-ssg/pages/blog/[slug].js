@@ -4,9 +4,10 @@ export const config = {
   amp: 'hybrid',
 }
 
-export const getStaticProps = () => {
+export const getStaticProps = (ctx) => {
   return {
     props: {
+      slug: (ctx && ctx.params && ctx.params.slug) || null,
       hello: 'hello',
       random: Math.random(),
     },
@@ -18,10 +19,11 @@ export const getStaticPaths = () => ({
   fallback: false,
 })
 
-export default ({ hello, random }) => (
+export default ({ hello, random, slug }) => (
   <>
     <p id="use-amp">useAmp: {useAmp() ? 'yes' : 'no'}</p>
     <p id="hello">{hello}</p>
     <p id="random">{random}</p>
+    <p id="slug">{slug}</p>
   </>
 )
