@@ -20,7 +20,7 @@ yarn add next
 
 ## Serving Files
 
-The `public` folder holds static assets in Next, instead of containing the compiled output. Update your `.gitignore` file to ensure `public` is tracked with source control and delete your existing Gatsby output. You can now move files from Gatsby's `static` folder to `public`.
+The `public/` folder holds static assets in Next.js, instead of containing the compiled output. Update your `.gitignore` file to ensure `public/` is tracked in source control and delete your existing Gatsby output. You can now move files from Gatsby's `static/` folder to `public/`.
 
 ## Creating Routes
 
