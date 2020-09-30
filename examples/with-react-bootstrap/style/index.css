@@ -2,7 +2,7 @@
 @import '~bootstrap/dist/css/bootstrap.min.css';
 
 .md-container {
-  max-width: 800px;
+  max-width: 750px;
   padding-top: 2rem;
 }
 
@@ -12,11 +12,11 @@
 }
 
 .cntr-footer {
+  display: flex;
+  justify-content: center;
   height: 80px;
   margin-top: 20px;
-  display: flex;
   align-items: center;
-  justify-content: center;
   border-top: 1px solid #ccc;
 }
 
