@@ -4,12 +4,12 @@ export class Store {
   lastUpdate = 0
   light = false
 
-  constructor(){
-    makeObservable(this,{
-      lastUpdate:observable,
-      light:observable,
-      start:action,
-      timeString:computed
+  constructor() {
+    makeObservable(this, {
+      lastUpdate: observable,
+      light: observable,
+      start: action,
+      timeString: computed,
     })
   }
 
