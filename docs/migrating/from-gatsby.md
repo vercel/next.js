@@ -12,10 +12,21 @@ Gatsby applications start using `gatsby develop` and run at `localhost:8000`. To
 
 Next applications start using `next dev` and run at `localhost:3000`. To create a start a production build, run `next build && next start`. Your compiled code is located at `.next/`.
 
-The first step towards migrating to Next.js is to uninstall all related Gatsby packages and install `next`. Do not remove `react` or `react-dom` from your `package.json`.
+The first step towards migrating to Next.js is to uninstall all related Gatsby packages and install `next`. Do not remove `react` or `react-dom` from your `package.json`. Here's an example `package.json`:
 
-```bash
-yarn add next
+```json
+{
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  }
+}
 ```
 
 ## Serving Files
@@ -24,7 +35,7 @@ The `public/` folder holds static assets in Next.js, instead of containing the c
 
 ## Creating Routes
 
-Both Gatsby and Next support a `pages` folder, which uses [file-system based routing](/docs/routing/introduction). Gatsby's directory is `src/pages`, while Next can support `pages` with or without [src](/docs/advanced-features/src-directory).
+Both Gatsby and Next support a `pages` folder, which uses [file-system based routing](/docs/routing/introduction). Gatsby's directory is `src/pages`, which is also [supported by Next.js](/docs/advanced-features/src-directory).
 
 Gatsby creates dynamic routes using the `createPages` API inside of `gatsby-node.js`. With Next, we can use [Dynamic Routes](/docs/routing/dynamic-routes) inside of `pages` to achieve the same effect. Rather than having a `template` folder, you can use the React component inside your dynamic route file. For example:
 
@@ -132,7 +143,7 @@ export default {
 
 ## Search Engine Optimization
 
-Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we recommend using [`next/head`](</docs/api-reference/next/head>) to add `meta` tags to your `<head />` element. For example, here's part of an SEO component with Gatsby:
+Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we recommend using [`next/head`](/docs/api-reference/next/head) to add `meta` tags to your `<head />` element. For example, here's part of an SEO component with Gatsby:
 
 ```js
 // src/components/seo.js
