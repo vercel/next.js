@@ -18,7 +18,9 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     if (props[p] === undefined) continue
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    el.setAttribute(attr, props[p])
+    const value = typeof props[p] === 'boolean' ? '' : props[p]
+
+    el.setAttribute(attr, value)
   }
 
   const { children, dangerouslySetInnerHTML } = props
