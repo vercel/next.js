@@ -1,4 +1,4 @@
-# MobX example
+# MobX V6 With Mobx React Lite
 
 Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach.
 
@@ -20,16 +20,16 @@ Both components are using a custom hook `useStore` to pull in the `Store` from t
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mobx)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-v6-react-lite)
 
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mobx with-mobx-app
+npx create-next-app --example with-mobx-v6-react-lite with-mobx-app
 # or
-yarn create next-app --example with-mobx with-mobx-app
+yarn create next-app --example with-mobx-v6-react-lite with-mobx-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
