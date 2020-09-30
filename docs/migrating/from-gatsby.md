@@ -10,7 +10,7 @@ This guide will help you understand how to transition from an existing Gatsby pr
 
 Gatsby applications start using `gatsby develop` and run at `localhost:8000`. To create and start a production build, you run `gatsby build && gatsby serve`. Your compiled code is located at `public`.
 
-Next applications start using `next` (typically scripted as `yarn dev`) and run at `localhost:3000`. To create a start a production build, run `next build && next start`. Your compiled code is located at `.next`. You are free to change `package.json` script names as you like.
+Next applications start using `next dev` and run at `localhost:3000`. To create a start a production build, run `next build && next start`. Your compiled code is located at `.next/`.
 
 The first step towards migrating to Next.js is to uninstall all related Gatsby packages and install `next`. Do not remove `react` or `react-dom` from your `package.json`.
 
