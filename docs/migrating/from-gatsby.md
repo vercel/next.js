@@ -8,7 +8,7 @@ This guide will help you understand how to transition from an existing Gatsby pr
 
 ## Local Development
 
-Gatsby applications start using `gatsby develop` and run at `localhost:8000`. To create and start a production build, you run `gatsby build && gatsby serve`. Your compiled code is located at `public`.
+Gatsby applications start using `gatsby develop` and run at `localhost:8000`. To create and start a production build, you run `gatsby build && gatsby serve`. Your compiled code is located at `public/`.
 
 Next applications start using `next dev` and run at `localhost:3000`. To create a start a production build, run `next build && next start`. Your compiled code is located at `.next/`.
 
