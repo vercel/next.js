@@ -81,15 +81,6 @@ declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
 }
-declare module 'next/dist/compiled/dotenv' {
-  import m from 'dotenv'
-  export = m
-}
-
-declare module 'next/dist/compiled/dotenv-expand' {
-  import m from 'dotenv-expand'
-  export = m
-}
 declare module 'next/dist/compiled/escape-string-regexp' {
   import m from 'escape-string-regexp'
   export = m
