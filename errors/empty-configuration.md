@@ -14,6 +14,6 @@ module.exports = {
 }
 ```
 
-### Useful Links
+### Useful Links link
 
 - [Introduction to next.config.js](https://nextjs.org/docs/api-reference/next.config.js/introduction)
