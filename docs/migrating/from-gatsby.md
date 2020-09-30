@@ -4,7 +4,13 @@ description: Learn how to transition an existing Gatsby project to Next.js.
 
 # Migrating from Gatsby
 
-This guide will help you understand how to transition from an existing Gatsby project to Next.js. Since both frameworks are built on top of React and share similar ideas, the transition can be broken down into a series of steps. First, let's talk about running the application.
+This guide will help you understand how to transition from an existing Gatsby project to Next.js. Since both frameworks are built on top of React, the transition can be broken down into a series of steps. Migrating to Next.js will allow you to:
+
+- Choose which [data fetching](/docs/basic-features/data-fetching) strategy you want on a per-page basis (instead of only SSG)
+- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching#incremental-static-regeneration) to update _existing_ pages by re-rendering them in the background as traffic comes in
+- Use [API Routes](/docs/api-routes/introduction)
+
+And more! First, let's talk about running a Next.js application.
 
 ## Local Development
 
