@@ -2,7 +2,6 @@ import { enableStaticRendering } from 'mobx-react-lite'
 import { createContext, useContext } from 'react'
 import { Store } from '../store'
 
-// eslint-disable-next-line react-hooks/rules-of-hooks
 enableStaticRendering(typeof window === 'undefined')
 
 let store
