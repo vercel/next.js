@@ -4,8 +4,7 @@ import { useEffect } from 'react'
 import Clock from './Clock'
 import { useStore } from './StoreProvider'
 
-const Page = observer(function Page(props){
-
+const Page = observer(function Page(props) {
   // use store from the store context
   const store = useStore()
 
@@ -14,15 +13,15 @@ const Page = observer(function Page(props){
     store.start()
 
     // stop the clock when the component unmounts
-    return ()=>{
+    return () => {
       store.stop()
     }
-  },[])
+  }, [store])
 
   return (
     <div>
       <h1>{props.title}</h1>
-      <Clock/>
+      <Clock />
       <nav>
         <Link href={props.linkTo}>
           <a>Navigate</a>
@@ -30,7 +29,6 @@ const Page = observer(function Page(props){
       </nav>
     </div>
   )
-
 })
 
 export default Page

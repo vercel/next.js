@@ -1,5 +1,5 @@
 import { enableStaticRendering } from 'mobx-react-lite'
-import { createContext, useContext} from 'react'
+import { createContext, useContext } from 'react'
 import { Store } from '../store'
 
 // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -17,10 +17,7 @@ export function useStore() {
   return context
 }
 
-export function StoreProvider({
-  children,
-  initialState: initialData
-}){
+export function StoreProvider({ children, initialState: initialData }) {
   const store = initializeStore(initialData)
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
