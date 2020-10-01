@@ -29,13 +29,14 @@ export default function cacheLoader(
       return linter.lint(stringContent)
     },
   })
-    .then(({ report, ast }: NextLintResult) => {
+    .then(({ report }: NextLintResult) => {
       try {
         report && linter.printOutput(report)
       } catch (error) {
         if (callback) {
-          // @ts-ignore
-          return callback(error, stringContent, map, { sharedBabelAST: ast })
+          // TODO: enable the following AST sharing in future.
+          // return callback(error, stringContent, map, { sharedBabelAST: ast })
+          return callback(error, stringContent, map)
         }
       }
       if (callback) {
