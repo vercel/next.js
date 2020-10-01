@@ -188,7 +188,7 @@
           "path": "/docs/upgrading.md"
         },
         {
-          "title": "Migrating",
+          "title": "Migrating to Next.js",
           "routes": [
             {
               "title": "Migrating from Gatsby",
