@@ -35,10 +35,9 @@ const defaultConfig: { [key: string]: any } = {
     canonicalBase: '',
   },
   basePath: '',
-  exportTrailingSlash: false,
   sassOptions: {},
+  trailingSlash: false,
   experimental: {
-    trailingSlash: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -52,6 +51,8 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
+    optimizeFonts: false,
+    optimizeImages: false,
     scrollRestoration: false,
   },
   future: {
@@ -72,6 +73,17 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+    )
+    if (typeof userConfig.trailingSlash === 'undefined') {
+      userConfig.trailingSlash = userConfig.exportTrailingSlash
+    }
+    delete userConfig.exportTrailingSlash
+  }
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = userConfig[key]
@@ -157,39 +169,43 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://err.sh/vercel/next.js/invalid-assetprefix`
     )
   }
-  if (result.experimental) {
-    if (typeof result.basePath !== 'string') {
+
+  if (typeof result.basePath !== 'string') {
+    throw new Error(
+      `Specified basePath is not a string, found type "${typeof result.basePath}"`
+    )
+  }
+
+  if (result.basePath !== '') {
+    if (result.basePath === '/') {
       throw new Error(
-        `Specified basePath is not a string, found type "${typeof result.basePath}"`
+        `Specified basePath /. basePath has to be either an empty string or a path prefix"`
       )
     }
 
-    if (result.basePath !== '') {
-      if (result.basePath === '/') {
+    if (!result.basePath.startsWith('/')) {
+      throw new Error(
+        `Specified basePath has to start with a /, found "${result.basePath}"`
+      )
+    }
+
+    if (result.basePath !== '/') {
+      if (result.basePath.endsWith('/')) {
         throw new Error(
-          `Specified basePath /. basePath has to be either an empty string or a path prefix"`
+          `Specified basePath should not end with /, found "${result.basePath}"`
         )
       }
 
-      if (!result.basePath.startsWith('/')) {
-        throw new Error(
-          `Specified basePath has to start with a /, found "${result.basePath}"`
-        )
+      if (result.assetPrefix === '') {
+        result.assetPrefix = result.basePath
       }
 
-      if (result.basePath !== '/') {
-        if (result.basePath.endsWith('/')) {
-          throw new Error(
-            `Specified basePath should not end with /, found "${result.basePath}"`
-          )
-        }
-
-        if (result.assetPrefix === '') {
-          result.assetPrefix = result.basePath
-        }
+      if (result.amp.canonicalBase === '') {
+        result.amp.canonicalBase = result.basePath
       }
     }
   }
+
   return result
 }
 
@@ -227,9 +243,8 @@ export default function loadConfig(
     )
 
     if (Object.keys(userConfig).length === 0) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          'Detected next.config.js, no exported configuration found. https://err.sh/vercel/next.js/empty-configuration'
+      Log.warn(
+        'Detected next.config.js, no exported configuration found. https://err.sh/vercel/next.js/empty-configuration'
       )
     }
 
@@ -261,7 +276,11 @@ export default function loadConfig(
       )
     }
 
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+    return assignDefaults({
+      configOrigin: CONFIG_FILE,
+      configFile: path,
+      ...userConfig,
+    })
   } else {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(

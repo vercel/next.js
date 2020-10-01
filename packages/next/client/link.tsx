@@ -1,22 +1,21 @@
-declare const __NEXT_DATA__: any
-
 import React, { Children } from 'react'
 import { UrlObject } from 'url'
-import { PrefetchOptions, NextRouter } from '../next-server/lib/router/router'
-import { execOnce, getLocationOrigin } from '../next-server/lib/utils'
+import {
+  addBasePath,
+  isLocalURL,
+  NextRouter,
+  PrefetchOptions,
+  resolveHref,
+} from '../next-server/lib/router/router'
 import { useRouter } from './router'
-import { addBasePath, resolveHref } from '../next-server/lib/router/router'
-
-/**
- * Detects whether a given url is from the same origin as the current page (browser only).
- */
-function isLocal(url: string): boolean {
-  const locationOrigin = getLocationOrigin()
-  const resolved = new URL(url, locationOrigin)
-  return resolved.origin === locationOrigin
-}
 
 type Url = string | UrlObject
+type RequiredKeys<T> = {
+  [K in keyof T]-?: {} extends Pick<T, K> ? never : K
+}[keyof T]
+type OptionalKeys<T> = {
+  [K in keyof T]-?: {} extends Pick<T, K> ? K : never
+}[keyof T]
 
 export type LinkProps = {
   href: Url
@@ -27,6 +26,8 @@ export type LinkProps = {
   passHref?: boolean
   prefetch?: boolean
 }
+type LinkPropsRequired = RequiredKeys<LinkProps>
+type LinkPropsOptional = OptionalKeys<LinkProps>
 
 let cachedObserver: IntersectionObserver
 const listeners = new Map<Element, () => void>()
@@ -89,6 +90,7 @@ function prefetch(
   options?: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') return
+  if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
@@ -103,6 +105,18 @@ function prefetch(
   prefetched[href + '%' + as] = true
 }
 
+function isModifiedEvent(event: React.MouseEvent) {
+  const { target } = event.currentTarget as HTMLAnchorElement
+  return (
+    (target && target !== '_self') ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey || // triggers resource download
+    (event.nativeEvent && event.nativeEvent.which === 2)
+  )
+}
+
 function linkClicked(
   e: React.MouseEvent,
   router: NextRouter,
@@ -112,21 +126,10 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean
 ): void {
-  const { nodeName, target } = e.currentTarget as HTMLAnchorElement
-  if (
-    nodeName === 'A' &&
-    ((target && target !== '_self') ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      (e.nativeEvent && e.nativeEvent.which === 2))
-  ) {
-    // ignore click for new tab / new window behavior
-    return
-  }
+  const { nodeName } = e.currentTarget
 
-  if (!isLocal(href)) {
-    // ignore click if it's outside our scope (e.g. https://google.com)
+  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+    // ignore click for browser’s default behavior
     return
   }
 
@@ -151,6 +154,91 @@ function linkClicked(
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
   if (process.env.NODE_ENV !== 'production') {
+    function createPropError(args: {
+      key: string
+      expected: string
+      actual: string
+    }) {
+      return new Error(
+        `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
+          (typeof window !== 'undefined'
+            ? "\nOpen your browser's console to view the Component stack trace."
+            : '')
+      )
+    }
+
+    // TypeScript trick for type-guarding:
+    const requiredPropsGuard: Record<LinkPropsRequired, true> = {
+      href: true,
+    } as const
+    const requiredProps: LinkPropsRequired[] = Object.keys(
+      requiredPropsGuard
+    ) as LinkPropsRequired[]
+    requiredProps.forEach((key: LinkPropsRequired) => {
+      if (key === 'href') {
+        if (
+          props[key] == null ||
+          (typeof props[key] !== 'string' && typeof props[key] !== 'object')
+        ) {
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: props[key] === null ? 'null' : typeof props[key],
+          })
+        }
+      } else {
+        // TypeScript trick for type-guarding:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _: never = key
+      }
+    })
+
+    // TypeScript trick for type-guarding:
+    const optionalPropsGuard: Record<LinkPropsOptional, true> = {
+      as: true,
+      replace: true,
+      scroll: true,
+      shallow: true,
+      passHref: true,
+      prefetch: true,
+    } as const
+    const optionalProps: LinkPropsOptional[] = Object.keys(
+      optionalPropsGuard
+    ) as LinkPropsOptional[]
+    optionalProps.forEach((key: LinkPropsOptional) => {
+      if (key === 'as') {
+        if (
+          props[key] &&
+          typeof props[key] !== 'string' &&
+          typeof props[key] !== 'object'
+        ) {
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: typeof props[key],
+          })
+        }
+      } else if (
+        key === 'replace' ||
+        key === 'scroll' ||
+        key === 'shallow' ||
+        key === 'passHref' ||
+        key === 'prefetch'
+      ) {
+        if (props[key] != null && typeof props[key] !== 'boolean') {
+          throw createPropError({
+            key,
+            expected: '`boolean`',
+            actual: typeof props[key],
+          })
+        }
+      } else {
+        // TypeScript trick for type-guarding:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _: never = key
+      }
+    })
+
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hasWarned = React.useRef(false)
@@ -166,17 +254,26 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const [childElm, setChildElm] = React.useState<Element>()
 
   const router = useRouter()
+  const pathname = (router && router.pathname) || '/'
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(router.pathname, props.href)
+    const [resolvedHref, resolvedAs] = resolveHref(pathname, props.href, true)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(router.pathname, props.as) : resolvedHref,
+      as: props.as
+        ? resolveHref(pathname, props.as)
+        : resolvedAs || resolvedHref,
     }
-  }, [router.pathname, props.href, props.as])
+  }, [pathname, props.href, props.as])
 
   React.useEffect(() => {
-    if (p && IntersectionObserver && childElm && childElm.tagName) {
+    if (
+      p &&
+      IntersectionObserver &&
+      childElm &&
+      childElm.tagName &&
+      isLocalURL(href)
+    ) {
       // Join on an invalid URI character
       const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
@@ -223,6 +320,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   if (p) {
     childProps.onMouseEnter = (e: React.MouseEvent) => {
+      if (!isLocalURL(href)) return
       if (child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }
@@ -236,53 +334,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     childProps.href = addBasePath(as)
   }
 
-  // Add the ending slash to the paths. So, we can serve the
-  // "<page>/index.html" directly.
-  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-    const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
-      .rewriteUrlForNextExport
-    if (
-      childProps.href &&
-      typeof __NEXT_DATA__ !== 'undefined' &&
-      __NEXT_DATA__.nextExport
-    ) {
-      childProps.href = rewriteUrlForNextExport(childProps.href)
-    }
-  }
-
   return React.cloneElement(child, childProps)
-}
-
-if (process.env.NODE_ENV === 'development') {
-  const warn = execOnce(console.error)
-
-  // This module gets removed by webpack.IgnorePlugin
-  const PropTypes = require('prop-types')
-  const exact = require('prop-types-exact')
-  // @ts-ignore the property is supported, when declaring it on the class it outputs an extra bit of code which is not needed.
-  Link.propTypes = exact({
-    href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
-    as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    prefetch: PropTypes.bool,
-    replace: PropTypes.bool,
-    shallow: PropTypes.bool,
-    passHref: PropTypes.bool,
-    scroll: PropTypes.bool,
-    children: PropTypes.oneOfType([
-      PropTypes.element,
-      (props: any, propName: string) => {
-        const value = props[propName]
-
-        if (typeof value === 'string') {
-          warn(
-            `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
-          )
-        }
-
-        return null
-      },
-    ]).isRequired,
-  })
 }
 
 export default Link

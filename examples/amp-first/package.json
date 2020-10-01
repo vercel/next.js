@@ -11,5 +11,5 @@
     "react": "^16.10.2",
     "react-dom": "^16.10.2"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

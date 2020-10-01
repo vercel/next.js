@@ -13,7 +13,7 @@ description: Extend the PostCSS config and plugins added by Next.js with your ow
 
 ## Default Behavior
 
-Next.js compiles CSS for its [built-in CSS support](/docs/basic-features/built-in-css-support) using PostCSS.
+Next.js compiles CSS for its [built-in CSS support](/docs/basic-features/built-in-css-support.md) using PostCSS.
 
 Out of the box, with no configuration, Next.js compiles CSS with the following transformations:
 
@@ -26,12 +26,47 @@ Out of the box, with no configuration, Next.js compiles CSS with the following t
    - [Gap Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/gap)
    - [Media Query Ranges](https://developer.mozilla.org/en-US/docs/Web/CSS/Media_Queries/Using_media_queries#Syntax_improvements_in_Level_4)
 
-By default, [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
+By default, [CSS Grid](https://www.w3.org/TR/css-grid-1/) and [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
+
+To compile [CSS Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid) for IE11, you can place the following comment at the top of your CSS file:
+
+```css
+/* autoprefixer grid: autoplace */
+```
+
+You can also enable IE11 support for [CSS Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid)
+in your entire project by configuring autoprefixer with the configuration shown below (collapsed).
+See ["Customizing Plugins"](#customizing-plugins) below for more information.
+
+<details>
+<summary><strong>Click to view the configuration to enable CSS Grid Layout</strong></summary>
+
+```json
+{
+  "plugins": [
+    "postcss-flexbugs-fixes",
+    [
+      "postcss-preset-env",
+      {
+        "autoprefixer": {
+          "flexbox": "no-2009",
+          "grid": "autoplace"
+        },
+        "stage": 3,
+        "features": {
+          "custom-properties": false
+        }
+      }
+    ]
+  ]
+}
+```
+
+</details>
+<br/>
 
 CSS variables are not compiled because it is [not possible to safely do so](https://github.com/MadLittleMods/postcss-css-variables#caveats).
 If you must use variables, consider using something like [Sass variables](https://sass-lang.com/documentation/variables) which are compiled away by [Sass](https://sass-lang.com/).
-
-> **Note**: To support [Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid), you need to enable `grid: "autoplace"` for Autoprefixer. See ["Customizing Plugins"](#customizing-plugins) below.
 
 ## Customizing Target Browsers
 
@@ -51,7 +86,7 @@ You can use the [browserl.ist](https://browserl.ist/?q=%3E0.3%25%2C+not+ie+11%2C
 
 No configuration is needed to support CSS Modules. To enable CSS Modules for a file, rename the file to have the extension `.module.css`.
 
-You can learn more about [Next.js' CSS Module support here](/docs/basic-features/built-in-css-support).
+You can learn more about [Next.js' CSS Module support here](/docs/basic-features/built-in-css-support.md).
 
 ## Customizing Plugins
 

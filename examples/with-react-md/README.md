@@ -1,20 +1,30 @@
-# Example app with react-md
+# ReactMD and Next.js Example
 
-This example features how you use [react-md](https://react-md.mlaursen.com/) (React Material Design) with Next.js.
+This example sets up a simple [ReactMD](https://github.com/mlaursen/react-md) and Next.js
+app featuring:
 
-I recommend reading [layout-component](../layout-component) example next to learn how to reuse the layout across the pages.
+- [\_variables.scss](./styles/_variables.scss) to override the default
+  `react-md` theme and feature toggles
+- [app.scss](./styles/app.scss) global styles that conditionally apply the dark theme
+  based on the user's OS preferences
+- a custom [\_app.jsx](./pages/_app.jsx) that uses a persistent layout
+- a reusable [Layout.jsx](./components/Layout/Layout.jsx) that:
+  - updates all the icons to use `SVGIcon`s instead of `FontIcon`s
+  - initializes the `Layout` component from `react-md` with navigation items
 
-![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
+For more information about ReactMD's features, styling, components, and API, check out
+the [main documentation](https://react-md.dev). You can also view the
+[documentation site's source code](https://github.com/mlaursen/react-md/tree/master/packages/documentation)
+for a more complex example of using ReactMD + Next.js or the [with-react-md-typescript](../with-react-md-typescript)
+example for Typescript support.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com/now):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-md)
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -22,27 +32,6 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-react-md with-react-md-app
 # or
 yarn create next-app --example with-react-md with-react-md-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-md
-cd with-react-md
-```
-
-Install it and run:
-
-```bash
-npm install
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css public/react-md.light_blue-yellow.min.css
-npm run dev
-# or
-yarn
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css public/react-md.light_blue-yellow.min.css
-yarn dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

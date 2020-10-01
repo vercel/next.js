@@ -4,6 +4,8 @@ description: Add custom HTTP headers to your Next.js app.
 
 # Headers
 
+> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+
 Headers allow you to set custom HTTP headers for an incoming request path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
@@ -25,7 +27,6 @@ module.exports = {
           },
         ],
       },
-      ,
     ]
   },
 }
@@ -35,6 +36,37 @@ module.exports = {
 
 - `source` is the incoming request path pattern.
 - `headers` is an array of header objects with the `key` and `value` properties.
+
+## Header Overriding Behavior
+
+If two headers match the same path and set the same header key, the last header key will override the first. Using the below headers, the path `/hello` will result in the header `x-hello` being `world` due to the last header value set being `world`.
+
+```js
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'there',
+          },
+        ],
+      },
+      {
+        source: '/hello',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world',
+          },
+        ],
+      },
+    ],
+  },
+}
+```
 
 ## Path Matching
 
@@ -57,8 +89,7 @@ module.exports = {
           },
         ],
       },
-      ,
-    ]
+    ],
   },
 }
 ```
@@ -84,8 +115,29 @@ module.exports = {
           },
         ],
       },
-      ,
-    ]
+    ],
+  },
+}
+```
+
+### Regex Path Matching
+
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/blog/:post(\\d{1,})',
+        headers: [
+          {
+            key: 'x-post',
+            value: ':post',
+          },
+        ],
+      },
+    ],
   },
 }
 ```
@@ -105,19 +157,19 @@ module.exports = {
         headers: [
           {
             key: 'x-hello',
-            value: 'world'
-          }
-        ]
+            value: 'world',
+          },
+        ],
       },
       {
         source: '/without-basePath', // is not modified since basePath: false is set
         headers: [
           {
             key: 'x-hello',
-            value: 'world'
-          }
-        ]
-        basePath: false
+            value: 'world',
+          },
+        ],
+        basePath: false,
       },
     ]
   },

@@ -30,6 +30,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Graphql
+# vercel
+.vercel
+
+# graphql-let
+__generated__
 *.graphql.d.ts
 *.graphqls.d.ts

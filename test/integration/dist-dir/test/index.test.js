@@ -17,7 +17,7 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
-describe('Production Usage', () => {
+describe('distDir', () => {
   describe('With basic usage', () => {
     beforeAll(async () => {
       await nextBuild(appDir)

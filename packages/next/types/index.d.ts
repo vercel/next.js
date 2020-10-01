@@ -72,6 +72,11 @@ export {
   NextApiHandler,
 }
 
+type Redirect = {
+  permanent: boolean
+  destination: string
+}
+
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
@@ -79,8 +84,9 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 }
 
 export type GetStaticPropsResult<P> = {
-  props: P
-  unstable_revalidate?: number | boolean
+  props?: P
+  revalidate?: number | boolean
+  unstable_redirect?: Redirect
 }
 
 export type GetStaticProps<
@@ -96,12 +102,14 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
+export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
+  paths: Array<string | { params: P }>
+  fallback: boolean | 'unstable_blocking'
+}
+
 export type GetStaticPaths<
   P extends ParsedUrlQuery = ParsedUrlQuery
-> = () => Promise<{
-  paths: Array<string | { params: P }>
-  fallback: boolean
-}>
+> = () => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
@@ -112,10 +120,12 @@ export type GetServerSidePropsContext<
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
+  resolvedUrl: string
 }
 
 export type GetServerSidePropsResult<P> = {
-  props: P
+  props?: P
+  unstable_redirect?: Redirect
 }
 
 export type GetServerSideProps<
