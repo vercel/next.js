@@ -153,7 +153,7 @@ export default async (params: any) => {
   } else {
     if (defaultCacheDirectory === null) {
       defaultCacheDirectory =
-        findCacheDir({ name: 'eslint-loader' }) || os.tmpdir()
+        findCacheDir({ name: 'next-eslint-loader' }) || os.tmpdir()
     }
 
     directory = defaultCacheDirectory
