@@ -607,7 +607,7 @@ export class NextScript extends Component<OriginProps> {
     })
   }
 
-  getScriptLoaderScripts() {
+  getPreNextScripts() {
     const { scriptLoader } = this.context
 
     return (scriptLoader.beforeHydrate || []).map((file: string) => {
@@ -810,7 +810,7 @@ export class NextScript extends Component<OriginProps> {
           />
         ) : null}
         {!disableRuntimeJS && this.getPolyfillScripts()}
-        {!disableRuntimeJS && this.getScriptLoaderScripts()}
+        {!disableRuntimeJS && this.getPreNextScripts()}
         {disableRuntimeJS ? null : this.getDynamicChunks(files)}
         {disableRuntimeJS ? null : this.getScripts(files)}
       </>

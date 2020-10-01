@@ -38,24 +38,28 @@ describe('Script Loader', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      const preloads = await browser.elementsByCss('link[rel=preload]')
-      const preloadEndHref = await preloads[preloads.length - 1].getAttribute(
-        'href'
-      )
-
       await waitFor(1000)
 
       const script = await browser.elementById('script')
       const src = await script.getAttribute('src')
-      const scripts = await browser.elementsByCss('script')
-      const scriptEnd = await scripts[scripts.length - 1].getAttribute('id')
+      const scriptPreload = await browser.elementsByCss(
+        `link[rel=preload][href="${src}"]`
+      )
+      const endScripts = await browser.elementsByCss(
+        '#script ~ script[src^="/_next/static/"]'
+      )
+      const endPreloads = await browser.elementsByCss(
+        `link[rel=preload][href="${src}"] ~ link[rel=preload][href^="/_next/static/"]`
+      )
 
       // Renders script tag
       expect(script).toBeDefined()
       // Renders preload
-      expect(preloadEndHref).toBe(src)
+      expect(scriptPreload).toBeDefined()
       // Script is inserted at the end
-      expect(scriptEnd).toBe('script')
+      expect(endScripts.length).toBe(0)
+      //Preload is defined at the end
+      expect(endPreloads.length).toBe(0)
     } finally {
       if (browser) await browser.close()
     }
@@ -65,10 +69,20 @@ describe('Script Loader', () => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
-    const preloads = $('link[rel=preload]').toArray()
+    const script = $('#script')
+    const src = script.attr('src')
 
+    // Renders script tag
+    expect(script).toBeDefined()
     // Preload is inserted at the beginning
-    expect(preloads[0].attribs.href).toMatch(/beforeHydrate/)
+    expect(
+      $(
+        `link[rel=preload][href="${src}"] ~ link[rel=preload][href^="/_next/static/"]`
+      ).length &&
+        !$(
+          `link[rel=preload][href^="/_next/static/chunks/main"] ~ link[rel=preload][href="${src}"]`
+        ).length
+    ).toBeTruthy()
     // Script is inserted before NextScripts
     expect(
       $('#__NEXT_DATA__ ~ #script ~ script[src^="/_next/static/chunks/main"]')

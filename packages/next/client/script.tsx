@@ -12,7 +12,7 @@ const DOMAttributeNames: Record<string, string> = {
 }
 
 interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  priority?: string
+  strategy?: 'default' | 'lazy' | 'renderBlocking' | 'beforeHydrate'
   key?: string
   onLoad?: () => void
   onError?: () => void
@@ -83,7 +83,7 @@ export default function Script(props: Props) {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    priority = 'default',
+    strategy = 'default',
     key,
     onError,
     preload = true,
@@ -94,9 +94,9 @@ export default function Script(props: Props) {
   const { updateScripts, scripts } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    if (priority === 'default') {
+    if (strategy === 'default') {
       loadScript(props)
-    } else if (priority === 'lazy') {
+    } else if (strategy === 'lazy') {
       window.addEventListener('load', () => {
         if ('requestIdleCallback' in window) {
           ;(window as any).requestIdleCallback(() => loadScript(props), {
@@ -107,9 +107,9 @@ export default function Script(props: Props) {
         }
       })
     }
-  }, [priority, props])
+  }, [strategy, props])
 
-  if (priority === 'renderBlocking') {
+  if (strategy === 'renderBlocking') {
     const syncProps: Props = { ...restProps }
 
     for (const [k, value] of Object.entries({
@@ -132,12 +132,12 @@ export default function Script(props: Props) {
     }
 
     return <script {...syncProps} />
-  } else if (priority === 'default') {
+  } else if (strategy === 'default') {
     if (updateScripts && preload) {
       scripts.default = (scripts.default || []).concat([src])
       updateScripts(scripts)
     }
-  } else if (priority === 'beforeHydrate') {
+  } else if (strategy === 'beforeHydrate') {
     if (updateScripts) {
       scripts.beforeHydrate = (scripts.beforeHydrate || []).concat([
         {
