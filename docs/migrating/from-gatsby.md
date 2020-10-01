@@ -72,7 +72,7 @@ Next, you can find and replace usages of `to="/route"` with `href="/route"`.
 
 The largest difference between Gatsby and Next.js is how data fetching is implemented. Gatsby is opinionated with GraphQL being the default strategy for retrieving data across your application. With Next.js, you get to choose which strategy you want (GraphQL is one supported option).
 
-Gatsby uses the `graphql` tag to query data in the pages of your site. This may include local data, remote data, or information about your site configuration. Gatsby only allows the creation of static pages. With Next.js, you can choose on a [per-page basis](/docs/basic-features/pages) which [data fetching strategy](/docs/basic-features/data-fetching) you want. For example, `getServerSideProps` allows you to do server-side rendering. If you wanted to generate a static site, you'd export `getStaticProps` / `getStaticPaths` inside the page, rather than using `pageQuery`. For example:
+Gatsby uses the `graphql` tag to query data in the pages of your site. This may include local data, remote data, or information about your site configuration. Gatsby only allows the creation of static pages. With Next.js, you can choose on a [per-page basis](/docs/basic-features/pages.md) which [data fetching strategy](/docs/basic-features/data-fetching.md) you want. For example, `getServerSideProps` allows you to do server-side rendering. If you wanted to generate a static page, you'd export `getStaticProps` / `getStaticPaths` inside the page, rather than using `pageQuery`. For example:
 
 ```js
 import { getPostBySlug, getAllPosts } from '../lib/blog'
