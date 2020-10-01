@@ -233,7 +233,6 @@ Instead you can use `process.cwd()` which gives you the directory where Next.js 
 ```jsx
 import { promises as fs } from 'fs'
 import path from 'path'
-import util from 'util'
 
 // posts will be populated at build time by getStaticProps()
 function Blog({ posts }) {
