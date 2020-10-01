@@ -900,6 +900,7 @@ export default class Server {
               target,
               changeOrigin: true,
               ignorePath: true,
+              xfwd: true,
             })
             proxy.web(req, res)
 
