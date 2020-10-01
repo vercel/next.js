@@ -1,0 +1,45 @@
+#main {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px!important;
+}
+
+.spinner {
+    position: relative;
+}
+.spinner:before, .spinner:after {
+    content: "";
+    position: relative;
+    display: block;
+}
+.spinner:before {
+    animation: spinner 1.5s cubic-bezier(0.75, 0, 0.5, 1) infinite normal;
+    width: 1em;
+    height: 1em;
+    background-color: #598bff;
+}
+.spinner:after {
+    animation: shadow 1.5s cubic-bezier(0.75, 0, 0.5, 1) infinite normal;
+    bottom: -.5em;
+    height: .25em;
+    border-radius: 50%;
+    background-color: #598bff20;
+}
+
+@keyframes spinner {
+    50% {
+        border-radius: 50%;
+        transform: scale(0.5) rotate(360deg);
+    }
+    100% {
+        transform: scale(1) rotate(720deg);
+    }
+}
+@keyframes shadow {
+    50% {
+        transform: scale(0.5);
+        background-color: #598bff10;
+    }
+}
