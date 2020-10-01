@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "cookies": "0.8.0",
-    "firebase": "^7.15.5",
-    "firebase-admin": "^8.12.1",
-    "lodash": "4.17.19",
-    "next": "latest",
+    "firebase": "^7.22.0",
+    "firebase-admin": "^9.2.0",
+    "lodash": "4.17.20",
+    "next": "9.5.3",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-firebaseui": "4.1.0",
-    "swr": "0.2.3"
+    "swr": "0.3.5"
   }
 }
