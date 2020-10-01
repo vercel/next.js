@@ -60,7 +60,7 @@ With Gatsby, global CSS imports are included in `gatsby-browser.js`. With Next, 
 
 ## Links
 
-The Gatsby `Link` and Next.js [`Link`](/docs/api-reference/next/link>) component have a slightly different API. First, you will need to update any import statements referencing `Link` from Gatsby to:
+The Gatsby `Link` and Next.js [`Link`](/docs/api-reference/next/link.md) component have a slightly different API. First, you will need to update any import statements referencing `Link` from Gatsby to:
 
 ```js
 import Link from 'next/link'
