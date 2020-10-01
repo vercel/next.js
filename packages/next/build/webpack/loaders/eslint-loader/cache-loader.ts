@@ -16,11 +16,11 @@ export default function cacheLoader(
   const { loaderContext, options } = linter
   const callback = loaderContext.async()
   const cacheIdentifier = JSON.stringify({
-    'eslint-loader': version,
+    'next-eslint-loader': version,
     eslint: ESLint.version,
   })
   cache({
-    cacheDirectory: join(options.distDir, 'cache', 'eslint-loader'),
+    cacheDirectory: join(options.distDir, 'cache', 'next-eslint-loader'),
     cacheIdentifier,
     cacheCompression: true,
     options,
@@ -43,10 +43,14 @@ export default function cacheLoader(
         if (report && report?.errorCount > 0) {
           compilationError = new Error(`Build failed due to ESLint errors.`)
         }
-        // @ts-ignore
-        return callback(compilationError, stringContent, map, {
-          sharedBabelAST: ast,
-        })
+        /**
+         * We are not sharing the AST right now because they are not compatible
+         * with babel transform but this is the plan for near future.
+         */
+        // return callback(compilationError, stringContent, map, {
+        //   sharedBabelAST: ast,
+        // })
+        return callback(compilationError, stringContent, map)
       }
     })
     .catch((err: any) => {

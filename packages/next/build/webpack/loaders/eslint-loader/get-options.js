@@ -16,31 +16,11 @@ export default function getOptions(loaderContext) {
 
   const { CLIEngine } = require(options.eslintPath)
 
-  options.formatter = getFormatter(CLIEngine, options.formatter)
+  options.formatter = CLIEngine.getFormatter('stylish')
 
   if (options.outputReport && options.outputReport.formatter) {
-    options.outputReport.formatter = getFormatter(
-      CLIEngine,
-      options.outputReport.formatter
-    )
+    options.outputReport.formatter = CLIEngine.getFormatter('stylish')
   }
 
   return options
-}
-
-function getFormatter(CLIEngine, formatter) {
-  if (typeof formatter === 'function') {
-    return formatter
-  }
-
-  // Try to get oficial formatter
-  if (typeof formatter === 'string') {
-    try {
-      return CLIEngine.getFormatter(formatter)
-    } catch (e) {
-      // ignored
-    }
-  }
-
-  return CLIEngine.getFormatter('stylish')
 }
