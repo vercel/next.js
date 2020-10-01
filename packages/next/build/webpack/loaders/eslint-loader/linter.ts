@@ -4,15 +4,14 @@ import { isAbsolute, join } from 'path'
 import { writeFileSync, ensureFileSync } from 'fs-extra'
 import { interpolateName } from 'loader-utils'
 import ESLintError from './es-lint-error'
-import { CLIEngine, Linter as ESLinter, ESLint, SourceCode } from 'eslint'
+import { CLIEngine, Linter as ESLinter, ESLint } from 'eslint'
 import { loader } from 'webpack'
-import parse from './parser'
 import { createConfigDataFromOptions } from './utils'
 import { ParseResult } from '@babel/core'
 const {
   CascadingConfigArrayFactory,
 } = require('eslint/lib/cli-engine/cascading-config-array-factory')
-// const BabelParser = require('babel-eslint')
+const BabelParser = require('babel-eslint')
 
 export interface NextLintResult {
   report?: CLIEngine.LintReport
@@ -95,12 +94,12 @@ export class Linter {
     const linterConfig: ESLinter.Config<ESLinter.RulesRecord> = this.getConfigForFile(
       resourcePath
     )
-    // linterConfig.parser &&
-    //   this.linter.defineParser(linterConfig.parser, BabelParser)
-    const { babelAST, espreeTree } = parse(content.toString())
+    linterConfig.parser &&
+      this.linter.defineParser(linterConfig.parser, BabelParser)
+    // const { babelAST, espreeTree } = parse(content.toString())
     try {
       const messages = this.linter.verify(
-        new SourceCode(content.toString(), espreeTree),
+        content.toString(),
         linterConfig,
         resourcePath
       )
@@ -116,7 +115,7 @@ export class Linter {
         ...stats,
         usedDeprecatedRules: [],
       }
-      return { report, ast: babelAST }
+      return { report }
     } catch (_) {
       // @ts-ignore
       this.getEmitter(false)(_)

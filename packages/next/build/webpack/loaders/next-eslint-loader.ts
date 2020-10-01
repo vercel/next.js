@@ -23,14 +23,14 @@ const fn: loader.Loader = function (
     cacheLoader(linter, content.toString(), map)
     return
   }
-  const { report, ast } = linter.lint(content)
+  const { report } = linter.lint(content)
   report && linter.printOutput(report)
   let compilationError = null
   if (report && report?.errorCount > 0) {
     compilationError = new Error(`Build failed due to ESLint errors.`)
   }
-  /// @ts-ignore
-  this.callback(compilationError, content, map, { sharedBabelAST: ast })
+  // this.callback(compilationError, content, map, { sharedBabelAST: ast })
+  this.callback(compilationError, content, map)
 }
 
 export default fn
