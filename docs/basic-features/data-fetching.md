@@ -231,7 +231,7 @@ Since Next.js compiles your code into a separate directory you can't use `__dirn
 Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
 
 ```jsx
-import fs from 'fs'
+import { promises as fs } from 'fs'
 import path from 'path'
 import util from 'util'
 
@@ -249,19 +249,16 @@ function Blog({ posts }) {
   )
 }
 
-const readFile = util.promisify(fs.readFile)
-const readdir = util.promisify(fs.readdir)
-
 // This function gets called at build time on server-side.
 // It won't be called on client-side, so you can even do
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
   const postsDirectory = path.join(process.cwd(), 'posts')
-  const filenames = await readdir(postsDirectory)
+  const filenames = await fs.readdir(postsDirectory)
 
   const posts = filenames.map(async (filename) => {
     const filePath = path.join(postsDirectory, filename)
-    const fileContents = await readFile(filePath, 'utf8')
+    const fileContents = await fs.readFile(filePath, 'utf8')
 
     // Generally you would parse/transform the contents
     // For example you can transform markdown to HTML here
