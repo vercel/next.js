@@ -234,6 +234,6 @@ export default function SEO({ description, title }) {
 export default SEO
 ```
 
-## Conclusion
+## Learn more
 
-React frameworks share many core pieces and make it easy to transition between each other. While the APIs and components may vary, the underlying ideas and implementation share similar roots and provide an easy path for migration. To view an example converting a Gatsby project to Next.js, review this [pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1).
+Please take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) to learn more. If you have questions, please ask on [our discussion board](https://github.com/vercel/next.js/discussions).
