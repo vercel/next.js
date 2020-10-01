@@ -13,3 +13,5 @@ npx create-next-app --example custom-server custom-server-app
 # or
 yarn create next-app --example custom-server custom-server-app
 ```
+
+Try to Deploy
