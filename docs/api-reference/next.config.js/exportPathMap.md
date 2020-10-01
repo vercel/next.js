@@ -4,16 +4,16 @@ description: Customize the pages that will be exported as HTML files when using 
 
 # exportPathMap
 
-`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export.
-
-> This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
-
 <details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
   </ul>
 </details>
+
+> This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
+
+`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export.
 
 Let's start with an example, to create a custom `exportPathMap` for an app with the following pages:
 
