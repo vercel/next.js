@@ -75,13 +75,22 @@ The largest difference between Gatsby and Next.js is how data fetching is implem
 Gatsby uses the `graphql` tag to query data in the pages of your site. This may include local data, remote data, or information about your site configuration. Gatsby only allows the creation of static pages. With Next.js, you can choose on a [per-page basis](/docs/basic-features/pages.md) which [data fetching strategy](/docs/basic-features/data-fetching.md) you want. For example, `getServerSideProps` allows you to do server-side rendering. If you wanted to generate a static page, you'd export `getStaticProps` / `getStaticPaths` inside the page, rather than using `pageQuery`. For example:
 
 ```js
+import remark from 'remark'
+import html from 'remark-html'
 import { getPostBySlug, getAllPosts } from '../lib/blog'
 
 export async function getStaticProps({ params }) {
   const post = getPostBySlug(params.slug)
+  const content = await remark()
+    .use(html)
+    .process(post.content || '')
+    .toString()
 
   return {
-    props: post,
+    props: {
+      ...post,
+      content,
+    },
   }
 }
 
