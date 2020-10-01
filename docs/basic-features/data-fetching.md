@@ -235,8 +235,6 @@ import fs from 'fs'
 import path from 'path'
 import util from 'util'
 
-const readFile = util.promisify(fs.readFile)
-
 // posts will be populated at build time by getStaticProps()
 function Blog({ posts }) {
   return (
@@ -251,12 +249,15 @@ function Blog({ posts }) {
   )
 }
 
+const readFile = util.promisify(fs.readFile)
+const readdir = util.promisify(fs.readdir)
+
 // This function gets called at build time on server-side.
 // It won't be called on client-side, so you can even do
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
   const postsDirectory = path.join(process.cwd(), 'posts')
-  const filenames = fs.readdirSync(postsDirectory)
+  const filenames = await readdir(postsDirectory)
 
   const posts = filenames.map(async (filename) => {
     const filePath = path.join(postsDirectory, filename)
