@@ -47,9 +47,9 @@ Gatsby uses the `public` directory for the compiled output, whereas Next.js uses
 
 ## Creating Routes
 
-Both Gatsby and Next support a `pages` folder, which uses [file-system based routing](/docs/routing/introduction). Gatsby's directory is `src/pages`, which is also [supported by Next.js](/docs/advanced-features/src-directory).
+Both Gatsby and Next support a `pages` directory, which uses [file-system based routing](/docs/routing/introduction.md). Gatsby's directory is `src/pages`, which is also [supported by Next.js](/docs/advanced-features/src-directory.md).
 
-Gatsby creates dynamic routes using the `createPages` API inside of `gatsby-node.js`. With Next, we can use [Dynamic Routes](/docs/routing/dynamic-routes) inside of `pages` to achieve the same effect. Rather than having a `template` folder, you can use the React component inside your dynamic route file. For example:
+Gatsby creates dynamic routes using the `createPages` API inside of `gatsby-node.js`. With Next, we can use [Dynamic Routes](/docs/routing/dynamic-routes.md) inside of `pages` to achieve the same effect. Rather than having a `template` directory, you can use the React component inside your dynamic route file. For example:
 
 - **Gatsby:** `createPages` API inside `gatsby-node.js` for each blog post, then have a template file at `src/templates/blog-post.js`.
 - **Next:** Create `pages/blog/[slug].js` which contains the blog post template. The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js`.
