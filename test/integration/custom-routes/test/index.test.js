@@ -1194,7 +1194,7 @@ describe('Custom routes', () => {
 
     it('should show warning for custom routes with next export', async () => {
       expect(exportStderr).toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected (rewrites, redirects, headers)`
+        `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
       )
     })
   })

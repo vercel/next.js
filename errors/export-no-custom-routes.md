@@ -2,9 +2,9 @@
 
 #### Why This Error Occurred
 
-In your `next.config.js` `rewrites`, `redirects`, or `headers` were defined when `next export` was being run.
+In your `next.config.js` `rewrites`, `redirects`, or `headers` were defined while `next export` was being run outside of a platform that supports them.
 
-These do not apply when exporting your Next.js application manually.
+These configs do not apply when exporting your Next.js application manually.
 
 #### Possible Ways to Fix It
 

@@ -175,7 +175,7 @@ export default async function exportApp(
     customRoutesDetected.length > 0
   ) {
     Log.warn(
-      `rewrites, redirects, and headers are not applied when exporting your application detected (${customRoutesDetected.join(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
         ', '
       )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
     )
