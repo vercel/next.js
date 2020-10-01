@@ -4,21 +4,23 @@ description: Learn how to transition an existing Gatsby project to Next.js.
 
 # Migrating from Gatsby
 
-This guide will help you understand how to transition from an existing Gatsby project to Next.js. Since both frameworks are built on top of React, the transition can be broken down into a series of steps. Migrating to Next.js will allow you to:
+This guide will help you understand how to transition from an existing Gatsby project to Next.js. Migrating to Next.js will allow you to:
 
-- Choose which [data fetching](/docs/basic-features/data-fetching) strategy you want on a per-page basis
-- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching#incremental-static-regeneration) to update _existing_ pages by re-rendering them in the background as traffic comes in
-- Use [API Routes](/docs/api-routes/introduction)
+- Choose which [data fetching](/docs/basic-features/data-fetching.md) strategy you want on a per-page basis.
+- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching.md#incremental-static-regeneration) to update _existing_ pages by re-rendering them in the background as traffic comes in.
+- Use [API Routes](/docs/api-routes/introduction.md).
 
-And more! First, let's talk about running a Next.js application.
+And more! Let’s walk through a series of steps to complete the migration.
 
-## Local Development
+## Updating `package.json` and dependencies
 
-Gatsby applications start using `gatsby develop` and run at `localhost:8000`. To create and start a production build, you run `gatsby build && gatsby serve`. Your compiled code is located at `public/`.
+The first step towards migrating to Next.js is to update `package.json` and dependencies. You should:
 
-Next applications start using `next dev` and run at `localhost:3000`. To create a start a production build, run `next build && next start`. Your compiled code is located at `.next/`.
+- Remove all Gatsby-related packages (but keep `react` and `react-dom`).
+- Install `next`.
+- Add Next.js related commands to `scripts`. One is `next dev`, which runs a development server at `localhost:3000`. You should also add `next build` and `next start` for creating and starting a production build.
 
-The first step towards migrating to Next.js is to uninstall all related Gatsby packages and install `next`. Do not remove `react` or `react-dom` from your `package.json`. Here's an example `package.json`:
+Here's an example `package.json` ([view diff](https://github.com/leerob/gatsby-to-nextjs/pull/1/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2)):
 
 ```json
 {
@@ -35,9 +37,13 @@ The first step towards migrating to Next.js is to uninstall all related Gatsby p
 }
 ```
 
-## Serving Files
+## Static Assets and Compiled Output
 
-The `public/` folder holds static assets in Next.js, instead of containing the compiled output. Update your `.gitignore` file to ensure `public/` is tracked in source control and delete your existing Gatsby output. You can now move files from Gatsby's `static/` folder to `public/`.
+Gatsby uses the `public` directory for the compiled output, whereas Next.js uses it for static assets. Here are the steps for migration ([view diff](https://github.com/leerob/gatsby-to-nextjs/pull/1/files#diff-a084b794bc0759e7a6b77810e01874f2)):
+
+- Remove `.cache/` and `public` from `.gitignore` and delete both directories.
+- Rename Gatsby’s `static` directory as `public`.
+- Add `.next` to `.gitignore`.
 
 ## Creating Routes
 
