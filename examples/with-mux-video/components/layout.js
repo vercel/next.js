@@ -6,7 +6,7 @@ export default function Layout({
   description,
   metaTitle = 'Mux + Next.js',
   metaDescription,
-  image = '/mux-nextjs-og-image.png',
+  image = 'https://with-mux-video.vercel.app/mux-nextjs-og-image.png',
   children,
   loadTwitterWidget,
 }) {
