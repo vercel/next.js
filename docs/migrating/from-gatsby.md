@@ -25,7 +25,7 @@ Here's an example `package.json` ([view diff](https://github.com/leerob/gatsby-t
 ```json
 {
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
