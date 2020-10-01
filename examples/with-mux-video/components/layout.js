@@ -4,7 +4,7 @@ import { MUX_HOME_PAGE_URL } from '../constants'
 export default function Layout({
   title,
   description,
-  metaTitle,
+  metaTitle = 'Mux + Next.js',
   metaDescription,
   image = '/mux-nextjs-og-image.png',
   children,
