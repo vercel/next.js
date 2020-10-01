@@ -153,7 +153,7 @@ export default {
 
 ## Search Engine Optimization
 
-Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we recommend using [`next/head`](/docs/api-reference/next/head) to add `meta` tags to your `<head />` element. For example, here's part of an SEO component with Gatsby:
+Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we recommend using [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's part of an SEO component with Gatsby:
 
 ```js
 // src/components/seo.js
