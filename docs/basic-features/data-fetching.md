@@ -233,6 +233,9 @@ Instead you can use `process.cwd()` which gives you the directory where Next.js 
 ```jsx
 import fs from 'fs'
 import path from 'path'
+import util from 'util'
+
+const readFile = util.promisify(fs.readFile)
 
 // posts will be populated at build time by getStaticProps()
 function Blog({ posts }) {
@@ -252,12 +255,12 @@ function Blog({ posts }) {
 // It won't be called on client-side, so you can even do
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
-  const postsDirectory = path.join(process.cwd(), 'posts')
+  const postsDirectory = path.join(process.cwd(), "posts")
   const filenames = fs.readdirSync(postsDirectory)
 
-  const posts = filenames.map((filename) => {
+  const posts = filenames.map(async (filename) => {
     const filePath = path.join(postsDirectory, filename)
-    const fileContents = fs.readFileSync(filePath, 'utf8')
+    const fileContents = await readFile(filePath, "utf8")
 
     // Generally you would parse/transform the contents
     // For example you can transform markdown to HTML here
@@ -271,10 +274,11 @@ export async function getStaticProps() {
   // will receive `posts` as a prop at build time
   return {
     props: {
-      posts,
+      posts: await Promise.all(posts),
     },
-  }
+  };
 }
+
 
 export default Blog
 ```
