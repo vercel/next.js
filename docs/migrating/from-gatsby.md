@@ -160,46 +160,48 @@ Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for pr
 
 import { Helmet } from 'react-helmet'
 
-return (
-  <Helmet
-    title={title}
-    titleTemplate={siteTitle ? `%s | ${siteTitle}` : null}
-    meta={[
-      {
-        name: `description`,
-        content: metaDescription,
-      },
-      {
-        property: `og:title`,
-        content: title,
-      },
-      {
-        property: `og:description`,
-        content: metaDescription,
-      },
-      {
-        property: `og:type`,
-        content: `website`,
-      },
-      {
-        name: `twitter:card`,
-        content: `summary`,
-      },
-      {
-        name: `twitter:creator`,
-        content: twitter,
-      },
-      {
-        name: `twitter:title`,
-        content: title,
-      },
-      {
-        name: `twitter:description`,
-        content: metaDescription,
-      },
-    ]}
-  />
-)
+export default function SEO({ description, title, siteTitle }) {
+  return (
+    <Helmet
+      title={title}
+      titleTemplate={siteTitle ? `%s | ${siteTitle}` : null}
+      meta={[
+        {
+          name: `description`,
+          content: description,
+        },
+        {
+          property: `og:title`,
+          content: title,
+        },
+        {
+          property: `og:description`,
+          content: description,
+        },
+        {
+          property: `og:type`,
+          content: `website`,
+        },
+        {
+          name: `twitter:card`,
+          content: `summary`,
+        },
+        {
+          name: `twitter:creator`,
+          content: twitter,
+        },
+        {
+          name: `twitter:title`,
+          content: title,
+        },
+        {
+          name: `twitter:description`,
+          content: description,
+        },
+      ]}
+    />
+  )
+}
 ```
 
 And here's the same example using Next.js, including reading from a site config file.
@@ -211,27 +213,24 @@ import Head from 'next/head'
 import config from '../config'
 
 export default function SEO({ description, title }) {
-  const metaDescription = description || config.description
   const siteTitle = config.title
 
   return (
     <Head>
       <title>{`${title} | ${siteTitle}`}</title>
       <meta name="robots" content="follow, index" />
-      <meta content={metaDescription} name="description" />
+      <meta content={description} name="description" />
       <meta property="og:type" content="website" />
       <meta property="og:title" content={title} />
-      <meta property="og:description" content={metaDescription} />
+      <meta property="og:description" content={description} />
       <meta property="og:site_name" content={siteTitle} />
       <meta property="twitter:card" content="summary" />
       <meta property="twitter:creator" content={config.social.twitter} />
       <meta property="twitter:title" content={title} />
-      <meta property="twitter:description" content={metaDescription} />
+      <meta property="twitter:description" content={description} />
     </Head>
   )
 }
-
-export default SEO
 ```
 
 ## Learn more
