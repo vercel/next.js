@@ -6,7 +6,7 @@ export default function Layout({
   description,
   metaTitle,
   metaDescription,
-  image,
+  image = '/mux-nextjs-og-image.png',
   children,
   loadTwitterWidget,
 }) {
