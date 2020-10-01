@@ -210,7 +210,7 @@ And here's the same example using Next.js, including reading from a site config 
 import Head from 'next/head'
 import config from '../config'
 
-const SEO = ({ description, title }) => {
+export default function SEO({ description, title }) {
   const metaDescription = description || config.description
   const siteTitle = config.title
 
