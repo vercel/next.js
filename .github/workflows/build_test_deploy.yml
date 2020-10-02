@@ -114,6 +114,7 @@ jobs:
       - run: node run-tests.js test/integration/production/test/index.test.js
       - run: node run-tests.js test/integration/basic/test/index.test.js
       - run: node run-tests.js test/acceptance/*
+      - run: node run-tests.js test/integration/font-optimization/test/index.test.js
 
   testFirefox:
     name: Test Firefox (production)
