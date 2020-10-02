@@ -1,7 +1,7 @@
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const chalk = new Chalk.constructor({ enabled: true })
+const chalk = new Chalk.Instance()
 
 export function getBabelError(
   fileName: string,

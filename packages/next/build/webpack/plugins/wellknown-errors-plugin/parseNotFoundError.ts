@@ -2,7 +2,7 @@ import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
 
-const chalk = new Chalk.constructor({ enabled: true })
+const chalk = new Chalk.Instance()
 
 export async function getNotFoundError(
   compilation: any,

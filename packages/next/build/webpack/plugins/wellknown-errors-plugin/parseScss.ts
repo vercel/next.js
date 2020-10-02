@@ -2,7 +2,7 @@ import { codeFrameColumns } from '@babel/code-frame'
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const chalk = new Chalk.constructor({ enabled: true })
+const chalk = new Chalk.Instance()
 const regexScssError = /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
 
 export function getScssError(
