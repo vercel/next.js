@@ -4,9 +4,9 @@ import { MUX_HOME_PAGE_URL } from '../constants'
 export default function Layout({
   title,
   description,
-  metaTitle,
+  metaTitle = 'Mux + Next.js',
   metaDescription,
-  image,
+  image = 'https://with-mux-video.vercel.app/mux-nextjs-og-image.png',
   children,
   loadTwitterWidget,
 }) {
