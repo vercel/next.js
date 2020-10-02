@@ -187,6 +187,15 @@
           "title": "Upgrade Guide",
           "path": "/docs/upgrading.md"
         },
+        {
+          "title": "Migrating",
+          "routes": [
+            {
+              "title": "Migrating from Create React App",
+              "path": "/docs/migrating/from-create-react-app.md"
+            }
+          ]
+        },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },
