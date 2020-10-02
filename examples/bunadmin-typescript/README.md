@@ -1,6 +1,6 @@
 # Bunadmin TypeScript Next.js example
 
-This is a really simple project that shows the usage of Next.js with (Bunadmin)[https://github.com/bunred/bunadmin] TypeScript.
+This is a really simple project that shows the usage of Next.js with [Bunadmin](https://github.com/bunred/bunadmin) TypeScript.
 
 ## How to use it?
 
@@ -14,17 +14,25 @@ yarn create next-app --example bunadmin-typescript
 
 ## Notes
 
-Login with any user below (different menus)
+Login with any user below
 
 - Username: `admin`, `reviewer`, `user`
 - Password: `bunadmin`
 
+If it shows
+`React Invalid Hook Call Warning`, please delete yarn.lock and execute `yarn install` again. This problem is still waiting to be resolved.
+
+*temporary command*
+```
+yarn run "yarn force"
+```
+
 Includes a sample plugin: `myblog`
 
-To make a detailed plug-in, please refer to:
+To create a more complete plugin, please refer to:
  
-[blog-example code](https://github.com/bunred/bunadmin/tree/master/plugins/bunadmin-plugin-example-blog)
+[blog-example Code](https://github.com/bunred/bunadmin/tree/master/plugins/bunadmin-plugin-example-blog)
 
-[blog-example online](http://blog.eg.bunadmin.com/blog/post)
+[blog-example Online Demo](http://blog.eg.bunadmin.com/blog/post)
 
 [blog-example Docs](http://blog.eg.bunadmin.com/docs/getting-started/remote-data)
