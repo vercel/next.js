@@ -1,9 +1,8 @@
-import React from "react";
-import Heart from "@spectrum-icons/workflow/Heart";
+import React from 'react'
+import Heart from '@spectrum-icons/workflow/Heart'
 
 import {
   Flex,
-  Text,
   View,
   Content,
   Button,
@@ -13,7 +12,7 @@ import {
   Checkbox,
   CheckboxGroup,
   TextArea,
-} from "@adobe/react-spectrum";
+} from '@adobe/react-spectrum'
 
 export default function Home() {
   return (
@@ -68,5 +67,5 @@ export default function Home() {
         <TextArea label="Description" />
       </Flex>
     </View>
-  );
+  )
 }

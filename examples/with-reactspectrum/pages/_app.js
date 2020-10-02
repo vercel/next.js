@@ -1,5 +1,5 @@
-import { Provider, defaultTheme } from "@adobe/react-spectrum";
-import { SSRProvider } from "@react-aria/ssr";
+import { Provider, defaultTheme } from '@adobe/react-spectrum'
+import { SSRProvider } from '@react-aria/ssr'
 
 export default function App({ Component, pageProps }) {
   return (
@@ -8,5 +8,5 @@ export default function App({ Component, pageProps }) {
         <Component {...pageProps} />
       </Provider>
     </SSRProvider>
-  );
+  )
 }
