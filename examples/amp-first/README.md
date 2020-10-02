@@ -60,7 +60,7 @@ Things you need to do after installing the boilerplate:
       ```
 
 - **amp-list & amp-mustache:** mustache templates conflict with JSX and it's template literals need to be escaped. A simple approach is to escape them via back ticks: `` src={`{{imageUrl}}`} ``.
-- **amp-script:** you can use [amp-script](https://amp.dev/documentation/components/amp-script/) to add custom JavaScript to your AMP pages. The boilerplate includes a helper [`components/amp/AmpScript.js`](components/amp/AmpScript.js) to simplify using amp-script. The helper also supports embedding inline scripts. Good to know: Next.js uses [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer) under the hood, which automatically adds the needed script hashes for [inline amp-scripts](https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element).
+- **amp-script:** you can use [amp-script](https://amp.dev/documentation/components/amp-script/) to add custom JavaScript to your AMP pages. The boilerplate includes a helper [`components/amp/AmpScript.js`](components/amp/AmpScript.js) to simplify using `amp-script`. The helper also supports embedding inline scripts. Good to know: Next.js uses [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer) under the hood, which automatically adds the needed script hashes for [inline amp-scripts](https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element).
 
 ## Deployment
 
