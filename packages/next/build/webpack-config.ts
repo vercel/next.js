@@ -842,9 +842,6 @@ export default async function getBaseWebpackConfig(
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
-        // if (loader === 'next-eslint-loader') {
-        // alias[loader] = require.resolve('eslint-loader');
-        // }
         return alias
       }, {} as Record<string, string>),
       modules: [
@@ -876,6 +873,7 @@ export default async function getBaseWebpackConfig(
               {
                 options: {
                   distDir,
+                  dev,
                   cache: true,
                   parser: 'babel-eslint',
                   failOnWarning: false,

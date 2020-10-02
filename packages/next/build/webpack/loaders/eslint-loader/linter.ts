@@ -32,7 +32,9 @@ export class Linter {
     this.linter = new ESLinter({ cwd: options.cwd })
     this.config = new CascadingConfigArrayFactory({
       additionalPluginPool: new Map(),
-      baseConfig: options.baseConfig || null,
+      baseConfig: {
+        extends: ['eslint:recommended', 'plugin:@next/next/recommended'],
+      },
       cliConfig: createConfigDataFromOptions(options),
       cwd: options.cwd,
       ignorePath: options.ignorePath,

@@ -41,7 +41,8 @@ export default function cacheLoader(
       }
       if (callback) {
         let compilationError = null
-        if (report && report?.errorCount > 0) {
+        // Do not fail build during dev due to lint errors.
+        if (!options.dev && report && report?.errorCount > 0) {
           compilationError = new Error(`Build failed due to ESLint errors.`)
         }
         /**
