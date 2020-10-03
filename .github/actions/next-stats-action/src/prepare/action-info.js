@@ -57,9 +57,8 @@ module.exports = function actionInfo() {
     commitId: null,
     issueId: ISSUE_ID,
     isRelease:
-      true ||
-      (GITHUB_REPOSITORY === 'vercel/next.js' &&
-        (GITHUB_REF || '').includes('canary')),
+      GITHUB_REPOSITORY === 'vercel/next.js' &&
+      (GITHUB_REF || '').includes('canary'),
   }
 
   // get comment
