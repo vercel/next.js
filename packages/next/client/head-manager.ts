@@ -25,7 +25,12 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
   } else if (children) {
-    el.textContent = typeof children === 'string' ? children : children.join('')
+    el.textContent =
+      typeof children === 'string'
+        ? children
+        : Array.isArray(children)
+        ? children.join('')
+        : ''
   }
   return el
 }
@@ -43,7 +48,12 @@ function updateElements(
       let title = ''
       if (tag) {
         const { children } = tag.props
-        title = typeof children === 'string' ? children : children.join('')
+        title =
+          typeof children === 'string'
+            ? children
+            : Array.isArray(children)
+            ? children.join('')
+            : ''
       }
       if (title !== document.title) document.title = title
       return
