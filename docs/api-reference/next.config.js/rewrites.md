@@ -17,6 +17,8 @@ Rewrites allow you to map an incoming request path to a different destination pa
 
 Rewrites are only available on the Node.js environment and do not affect client-side routing.
 
+Rewrites are not able to override public files or routes in the pages directory as these have higher priority than rewrites. For example, if you have `pages/index.js` you are not able to rewrite `/` to another location unless you rename the `pages/index.js` file.
+
 To use rewrites you can use the `rewrites` key in `next.config.js`:
 
 ```js
