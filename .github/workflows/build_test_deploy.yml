@@ -188,7 +188,7 @@ jobs:
   prStats:
     name: Release Stats
     runs-on: ubuntu-latest
-    needs: [publishRelease]
+    # needs: [publishRelease]
     steps:
       - uses: actions/checkout@v2
       - run: ./release-stats.sh
