@@ -52,9 +52,11 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const DocumentMod = requirePage('/_document', distDir, serverless)
-  const AppMod = requirePage('/_app', distDir, serverless)
-  const ComponentMod = requirePage(pathname, distDir, serverless)
+  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
+    requirePage('/_document', distDir, serverless),
+    requirePage('/_app', distDir, serverless),
+    requirePage(pathname, distDir, serverless),
+  ])
 
   const [
     buildManifest,

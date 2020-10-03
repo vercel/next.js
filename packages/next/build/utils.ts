@@ -679,7 +679,7 @@ export async function isPageStatic(
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-    const mod = require(serverBundle)
+    const mod = await require(serverBundle)
     const Comp = mod.default || mod
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
