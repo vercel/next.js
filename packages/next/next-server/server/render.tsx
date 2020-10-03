@@ -508,10 +508,11 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
-    AppTree: (props: any) => {
+    AppTree: ({ WrapApp, ...props }: any) => {
+      const WrappedApp = WrapApp || App
       return (
         <AppContainer>
-          <App {...props} Component={Component} router={router} />
+          <WrappedApp {...props} Component={Component} router={router} />
         </AppContainer>
       )
     },
@@ -529,7 +530,6 @@ export async function renderToHTML(
   const reactLoadableModules: string[] = []
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
-
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
