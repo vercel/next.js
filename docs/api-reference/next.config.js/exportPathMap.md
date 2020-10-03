@@ -13,6 +13,8 @@ description: Customize the pages that will be exported as HTML files when using 
   </ul>
 </details>
 
+`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export.
+
 Let's start with an example, to create a custom `exportPathMap` for an app with the following pages:
 
 - `pages/index.js`
