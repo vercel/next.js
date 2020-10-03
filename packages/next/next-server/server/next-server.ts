@@ -40,7 +40,13 @@ import {
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
-import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import {
+  apiResolver,
+  setLazyProp,
+  getCookieParser,
+  tryGetPreviewData,
+  __ApiPreviewProps,
+} from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -273,6 +279,8 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
       const url: any = req.url
@@ -480,14 +488,21 @@ export default class Server {
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
 
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.renderOpts.locales
-          )
+          if (this.nextConfig.experimental.i18n) {
+            const localePathResult = normalizeLocalePath(
+              pathname,
+              this.renderOpts.locales
+            )
+            let detectedLocale = detectLocaleCookie(
+              req,
+              this.renderOpts.locales!
+            )
 
-          if (localePathResult.detectedLocale) {
-            ;(req as any)._nextLocale = localePathResult.detectedLocale
-            pathname = localePathResult.pathname
+            if (localePathResult.detectedLocale) {
+              pathname = localePathResult.pathname
+              detectedLocale = localePathResult.detectedLocale
+            }
+            ;(req as any)._nextLocale = detectedLocale
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
@@ -1104,7 +1119,11 @@ export default class Server {
           (path.split(this.buildId).pop() || '/').replace(/\.json$/, '')
         )
       }
-      return normalizeLocalePath(path, this.renderOpts.locales).pathname
+
+      if (this.nextConfig.experimental.i18n) {
+        return normalizeLocalePath(path, this.renderOpts.locales).pathname
+      }
+      return path
     }
 
     // remove /_next/data prefix from urlPathname so it matches
