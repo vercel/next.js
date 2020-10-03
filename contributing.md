@@ -79,7 +79,13 @@ EXAMPLE=./test/integration/basic
 
 ## Running your own app with locally compiled version of Next.js
 
-1. In your app's `package.json`, replace:
+1. In your project [configure yarn](https://yarnpkg.com/getting-started/install#per-project-install) to use berry
+
+   ```
+   yarn set version berry
+   ```
+
+2. In your app's `package.json`, replace:
 
    ```json
    "next": "<next-version>",
@@ -88,14 +94,10 @@ EXAMPLE=./test/integration/basic
    with:
 
    ```json
-   "next": "file:<local-path-to-cloned-nextjs-repo>/packages/next",
+   "next": "portal:<local-path-to-cloned-nextjs-repo>/packages/next",
    ```
 
-2. In your app's root directory, make sure to remove `next` from `node_modules` with:
-
-   ```sh
-   rm -rf ./node_modules/next
-   ```
+   This will [link your local next.js folder](https://yarnpkg.com/features/protocols#whats-the-difference-between-link-and-portal), while still maintaining the correct dependency resolution.
 
 3. In your app's root directory, run:
 
@@ -105,15 +107,15 @@ EXAMPLE=./test/integration/basic
 
    to re-install all of the dependencies.
 
-   Note that Next will be copied from the locally compiled version as opposed to from being downloaded from the NPM registry.
-
-4. Run your application as you normally would.
-
-5. To update your app's dependencies, after you've made changes to your local `next` repository. In your app's root directory, run:
+4. If you're planning to work on next.js, make sure to run
 
    ```sh
-   yarn install --force
+   yarn dev
    ```
+
+   In the next.js project folder.
+
+5. Run your application as you normally would. e.g. `yarn dev`.
 
 ## Adding examples
 
