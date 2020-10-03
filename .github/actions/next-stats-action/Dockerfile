@@ -5,7 +5,6 @@ LABEL com.github.actions.description="Compares stats of a PR with the main branc
 LABEL repository="https://github.com/zeit/next-stats-action"
 
 COPY . /next-stats
-COPY ../../../SKIP_NEXT_STATS.txt /next-stats/SKIP_NEXT_STATS.txt
 
 # Install node_modules
 RUN cd /next-stats && yarn install --production
