@@ -1,6 +1,7 @@
 const path = require('path')
 const logger = require('../util/logger')
 const { execSync } = require('child_process')
+const releaseTypes = new Set(['release', 'published'])
 
 module.exports = function actionInfo() {
   let {
