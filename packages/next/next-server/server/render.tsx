@@ -281,6 +281,7 @@ function renderDocument(
           headTags,
           unstable_runtimeJS,
           devOnlyCacheBusterQueryString,
+          locale,
           ...docProps,
         })}
       </AmpStateContext.Provider>

@@ -3,7 +3,6 @@ import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
 import type Router from '../next-server/lib/router/router'
@@ -90,12 +89,18 @@ if (hasBasePath(asPath)) {
 
 asPath = delLocale(asPath, locale)
 
-if (isFallback && locales) {
-  const localePathResult = normalizeLocalePath(asPath, locales)
+if (process.env.__NEXT_i18n_SUPPORT) {
+  const {
+    normalizeLocalePath,
+  } = require('../next-server/lib/i18n/normalize-locale-path')
 
-  if (localePathResult.detectedLocale) {
-    asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
-    locale = localePathResult.detectedLocale
+  if (isFallback && locales) {
+    const localePathResult = normalizeLocalePath(asPath, locales)
+
+    if (localePathResult.detectedLocale) {
+      asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
+      locale = localePathResult.detectedLocale
+    }
   }
 }
 

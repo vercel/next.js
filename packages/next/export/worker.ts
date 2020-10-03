@@ -239,6 +239,8 @@ export default async function exportPage({
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
+            locale: renderOpts.locale!,
+            locales: renderOpts.locales!,
           },
           // @ts-ignore
           params

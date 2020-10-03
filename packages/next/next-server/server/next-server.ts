@@ -1207,6 +1207,7 @@ export default class Server {
             {
               fontManifest: this.renderOpts.fontManifest,
               locale: (req as any)._nextLocale,
+              locales: this.renderOpts.locales,
             }
           )
 

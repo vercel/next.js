@@ -56,15 +56,21 @@ function addPathPrefix(path: string, prefix?: string) {
 }
 
 export function addLocale(path: string, locale?: string) {
-  return locale && !path.startsWith('/' + locale)
-    ? addPathPrefix(path, '/' + locale)
-    : path
+  if (process.env.__NEXT_i18n_SUPPORT) {
+    return locale && !path.startsWith('/' + locale)
+      ? addPathPrefix(path, '/' + locale)
+      : path
+  }
+  return path
 }
 
 export function delLocale(path: string, locale?: string) {
-  return locale && path.startsWith('/' + locale)
-    ? path.substr(locale.length + 1) || '/'
-    : path
+  if (process.env.__NEXT_i18n_SUPPORT) {
+    return locale && path.startsWith('/' + locale)
+      ? path.substr(locale.length + 1) || '/'
+      : path
+  }
+  return path
 }
 
 export function hasBasePath(path: string): boolean {
@@ -430,8 +436,11 @@ export default class Router implements BaseRouter {
     this.isSsr = true
 
     this.isFallback = isFallback
-    this.locale = locale
-    this.locales = locales
+
+    if (process.env.__NEXT_i18n_SUPPORT) {
+      this.locale = locale
+      this.locales = locales
+    }
 
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can

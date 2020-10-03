@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import url from 'url'
-// import fs from 'fs-extra'
+import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -13,11 +13,13 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  File,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
 // let buildId
@@ -66,6 +68,7 @@ function runTests() {
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect($('html').attr('lang')).toBe('en-US')
   })
 
   it('should load getStaticProps fallback prerender page correctly SSR', async () => {
@@ -84,6 +87,7 @@ function runTests() {
     })
     expect($('#router-locale').text()).toBe('en')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect($('html').attr('lang')).toBe('en')
   })
 
   it('should load getStaticProps fallback non-prerender page correctly', async () => {
@@ -107,6 +111,11 @@ function runTests() {
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
+
+    // TODO: handle updating locale for fallback pages?
+    // expect(
+    //   await browser.elementByCss('html').getAttribute('lang')
+    // ).toBe('en-US')
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {
@@ -153,6 +162,7 @@ function runTests() {
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
   })
 
   it('should load getStaticProps non-fallback correctly another locale', async () => {
@@ -176,6 +186,37 @@ function runTests() {
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'nl-NL'
+    )
+  })
+
+  it('should load getStaticProps non-fallback correctly another locale via cookie', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/gsp/no-fallback/second',
+      {},
+      {
+        headers: {
+          cookie: 'NEXT_LOCALE=nl-NL',
+        },
+      }
+    )
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#props').text())).toEqual({
+      locale: 'nl-NL',
+      locales,
+      params: {
+        slug: 'second',
+      },
+    })
+    expect(JSON.parse($('#router-query').text())).toEqual({
+      slug: 'second',
+    })
+    expect($('#router-locale').text()).toBe('nl-NL')
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect($('html').attr('lang')).toBe('nl-NL')
   })
 
   it('should load getServerSideProps page correctly SSR', async () => {
@@ -189,6 +230,7 @@ function runTests() {
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
     expect(JSON.parse($('#router-query').text())).toEqual({})
+    expect($('html').attr('lang')).toBe('en-US')
 
     const html2 = await renderViaHTTP(appPort, '/nl-NL/gssp')
     const $2 = cheerio.load(html2)
@@ -200,6 +242,7 @@ function runTests() {
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
     expect(JSON.parse($2('#router-query').text())).toEqual({})
+    expect($2('html').attr('lang')).toBe('nl-NL')
   })
 
   it('should load dynamic getServerSideProps page correctly SSR', async () => {
@@ -216,6 +259,7 @@ function runTests() {
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
     expect(JSON.parse($('#router-query').text())).toEqual({ slug: 'first' })
+    expect($('html').attr('lang')).toBe('en-US')
 
     const html2 = await renderViaHTTP(appPort, '/nl-NL/gssp/first')
     const $2 = cheerio.load(html2)
@@ -230,6 +274,7 @@ function runTests() {
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
     expect(JSON.parse($2('#router-query').text())).toEqual({ slug: 'first' })
+    expect($2('html').attr('lang')).toBe('nl-NL')
   })
 
   it('should navigate to another page and back correctly with locale', async () => {
@@ -299,6 +344,7 @@ function runTests() {
 describe('i18n Support', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       // buildId = 'development'
@@ -310,12 +356,31 @@ describe('i18n Support', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
+
+    runTests()
+  })
+
+  describe('serverless mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      nextConfig.replace('// target', 'target')
+
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      await killApp(app)
+    })
 
     runTests()
   })
