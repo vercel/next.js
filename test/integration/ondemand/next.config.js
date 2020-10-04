@@ -1,5 +1,5 @@
 module.exports = {
   onDemandEntries: {
-    maxInactiveAge: 1000 * 5
-  }
+    maxInactiveAge: 1000 * 5,
+  },
 }

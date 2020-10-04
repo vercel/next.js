@@ -1,14 +1,15 @@
 {
+  "name": "with-next-sass",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-sass": "^1.0.0",
     "next": "latest",
-    "node-sass": "^4.7.2",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0"
-  }
+    "react-dom": "^16.7.0",
+    "sass": "1.26.3"
+  },
+  "license": "MIT"
 }

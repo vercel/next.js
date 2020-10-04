@@ -1,0 +1,28 @@
+{
+  "name": "cms-agilitycms",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@agility/content-fetch": "^0.8.1",
+    "classnames": "2.2.6",
+    "date-fns": "2.10.0",
+    "isomorphic-unfetch": "3.0.0",
+    "next": "latest",
+    "react": "^16.13.0",
+    "react-datocms": "1.1.0",
+    "react-dom": "^16.13.0",
+    "react-intersection-observer": "^8.26.1",
+    "remark": "11.0.2",
+    "remark-html": "10.0.0"
+  },
+  "devDependencies": {
+    "@fullhuman/postcss-purgecss": "^2.1.0",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.2.0"
+  },
+  "license": "MIT"
+}

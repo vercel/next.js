@@ -5,21 +5,9 @@ import { Provider } from 'overmind-react'
 import { config } from '../overmind'
 
 class MyApp extends App {
-  // From the documentation of Next
-  // CLIENT: After initial route, on page change
-  // SERVER: On initial route
-  static async getInitialProps ({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
   // CLIENT: On initial route
   // SERVER: On initial route
-  constructor (props) {
+  constructor(props) {
     super(props)
 
     const mutations = props.pageProps.mutations || []
@@ -38,13 +26,13 @@ class MyApp extends App {
   }
   // CLIENT: After initial route, on page change
   // SERVER: never
-  componentDidUpdate () {
+  componentDidUpdate() {
     // This runs whenever the client routes to a new page
     this.overmind.actions.changePage(this.props.pageProps.mutations || [])
   }
   // CLIENT: On every page change
   // SERVER: On initial route
-  render () {
+  render() {
     const { Component } = this.props
 
     return (

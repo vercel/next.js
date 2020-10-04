@@ -1,0 +1,22 @@
+{
+  "name": "with-three-js",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "drei": "0.0.60",
+    "next": "9.4.4",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-three-fiber": "4.2.12",
+    "three": "0.118.3"
+  },
+  "devDependencies": {
+    "next-transpile-modules": "4.0.2"
+  },
+  "license": "MIT"
+}

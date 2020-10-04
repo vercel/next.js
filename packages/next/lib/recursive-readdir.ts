@@ -1,9 +1,5 @@
-import fs from 'fs'
+import { promises } from 'fs'
 import { join } from 'path'
-import { promisify } from 'util'
-
-const readdir = promisify(fs.readdir)
-const stat = promisify(fs.stat)
 
 /**
  * Recursively read directory
@@ -20,14 +16,14 @@ export async function recursiveReadDir(
   arr: string[] = [],
   rootDir: string = dir
 ): Promise<string[]> {
-  const result = await readdir(dir)
+  const result = await promises.readdir(dir)
 
   await Promise.all(
     result.map(async (part: string) => {
       const absolutePath = join(dir, part)
       if (ignore && ignore.test(part)) return
 
-      const pathStat = await stat(absolutePath)
+      const pathStat = await promises.stat(absolutePath)
 
       if (pathStat.isDirectory()) {
         await recursiveReadDir(absolutePath, filter, ignore, arr, rootDir)

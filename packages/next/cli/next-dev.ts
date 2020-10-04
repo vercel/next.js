@@ -1,30 +1,35 @@
 #!/usr/bin/env node
-import { resolve, join } from 'path'
+import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
+import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
-const nextDev: cliCommand = argv => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--port': Number,
-      '--hostname': String,
+const nextDev: cliCommand = (argv) => {
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--port': Number,
+    '--hostname': String,
 
-      // Aliases
-      '-h': '--help',
-      '-p': '--port',
-      '-H': '--hostname',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-p': '--port',
+    '-H': '--hostname',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Starts the application in development mode (hot-code reloading, error
@@ -33,9 +38,8 @@ const nextDev: cliCommand = argv => {
       Usage
         $ next dev <dir> -p <port number>
 
-      <dir> represents where the compiled folder should go.
-      If no directory is provided, the folder will be created in the current directory.
-      You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         --port, -p      A port number on which to start the application
@@ -52,48 +56,90 @@ const nextDev: cliCommand = argv => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (!existsSync(join(dir, 'pages'))) {
-    if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit(
-        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
+  async function preflight() {
+    const { getPackageVersion } = await import('../lib/get-package-version')
+    const semver = await import('next/dist/compiled/semver').then(
+      (res) => res.default
+    )
+
+    const reactVersion: string | null = await getPackageVersion({
+      cwd: dir,
+      name: 'react',
+    })
+    if (
+      reactVersion &&
+      semver.lt(reactVersion, '16.10.0') &&
+      semver.coerce(reactVersion)?.version !== '0.0.0'
+    ) {
+      Log.warn(
+        'Fast Refresh is disabled in your application due to an outdated `react` version. Please upgrade 16.10 or newer!' +
+          ' Read more: https://err.sh/next.js/react-version'
       )
+    } else {
+      const reactDomVersion: string | null = await getPackageVersion({
+        cwd: dir,
+        name: 'react-dom',
+      })
+      if (
+        reactDomVersion &&
+        semver.lt(reactDomVersion, '16.10.0') &&
+        semver.coerce(reactDomVersion)?.version !== '0.0.0'
+      ) {
+        Log.warn(
+          'Fast Refresh is disabled in your application due to an outdated `react-dom` version. Please upgrade 16.10 or newer!' +
+            ' Read more: https://err.sh/next.js/react-version'
+        )
+      }
     }
 
-    printAndExit(
-      "> Couldn't find a `pages` directory. Please create one under the project root"
-    )
+    const [sassVersion, nodeSassVersion] = await Promise.all([
+      getPackageVersion({ cwd: dir, name: 'sass' }),
+      getPackageVersion({ cwd: dir, name: 'node-sass' }),
+    ])
+    if (sassVersion && nodeSassVersion) {
+      Log.warn(
+        'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
+          'Please remove the `node-sass` dependency from your project. ' +
+          ' Read more: https://err.sh/next.js/duplicate-sass'
+      )
+    }
   }
 
   const port = args['--port'] || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
-  startedDevelopmentServer(appUrl)
-
-  startServer({ dir, dev: true }, port, args['--hostname'])
-    .then(async app => {
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    port,
+    args['--hostname']
+  )
+    .then(async (app) => {
+      startedDevelopmentServer(appUrl)
+      // Start preflight after server is listening and ignore errors:
+      preflight().catch(() => {})
+      // Finalize server bootup:
       await app.prepare()
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('find-up').sync('package.json', {
-          cwd: dir,
-        })
+        const pkgAppPath = require('next/dist/compiled/find-up').sync(
+          'package.json',
+          {
+            cwd: dir,
+          }
+        )
         const appPackage = require(pkgAppPath)
         if (appPackage.scripts) {
           const nextScript = Object.entries(appPackage.scripts).find(
-            scriptLine => scriptLine[1] === 'next'
+            (scriptLine) => scriptLine[1] === 'next'
           )
           if (nextScript) {
-            errorMessage += `\nUse \`npm run ${
-              nextScript[0]
-            } -- -p <some other port>\`.`
+            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
           }
         }
-        // tslint:disable-next-line
         console.error(errorMessage)
       } else {
-        // tslint:disable-next-line
         console.error(err)
       }
       process.nextTick(() => process.exit(1))

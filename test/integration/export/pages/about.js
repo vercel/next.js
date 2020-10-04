@@ -3,9 +3,9 @@ import getConfig from 'next/config'
 const { publicRuntimeConfig, serverRuntimeConfig } = getConfig()
 
 const About = ({ bar }) => (
-  <div id='about-page'>
+  <div id="about-page">
     <div>
-      <Link href='/'>
+      <Link href="/">
         <a>Go Back</a>
       </Link>
     </div>
@@ -13,7 +13,7 @@ const About = ({ bar }) => (
   </div>
 )
 
-About.getInitialProps = async ctx => {
+About.getInitialProps = async (ctx) => {
   return { bar: serverRuntimeConfig.bar }
 }
 

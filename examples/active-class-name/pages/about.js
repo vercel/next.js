@@ -1,8 +1,10 @@
 import Nav from '../components/Nav'
 
-export default () => (
-  <div>
+const AboutPage = () => (
+  <>
     <Nav />
-    <p>Hello, I'm About.js</p>
-  </div>
+    <p>Hello, I'm the about page</p>
+  </>
 )
+
+export default AboutPage

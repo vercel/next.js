@@ -1,0 +1,22 @@
+{
+  "name": "cms-graphcms",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "classnames": "2.2.6",
+    "date-fns": "2.10.0",
+    "next": "latest",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0"
+  },
+  "devDependencies": {
+    "postcss-flexbugs-fixes": "^4.2.1",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.4.6"
+  },
+  "license": "MIT"
+}

@@ -12,4 +12,3 @@ This severely degrades your application's performance at runtime. It can also re
 Be sure your `next.config.js` has not modified `optimization.minimize` or `optimization.minimizer`.
 
 You can file an issue on our GitHub if you do not understand why minification is being disabled by your `next.config.js`.
-

@@ -1,7 +1,7 @@
 import {
   RelayNetworkLayer,
   cacheMiddleware,
-  urlMiddleware
+  urlMiddleware,
 } from 'react-relay-network-modern/node8'
 import RelaySSR from 'react-relay-network-modern-ssr/node8/client'
 import { Environment, RecordSource, Store } from 'relay-runtime'
@@ -12,7 +12,7 @@ const store = new Store(source)
 let storeEnvironment = null
 
 export default {
-  createEnvironment: relayData => {
+  createEnvironment: (relayData) => {
     if (storeEnvironment) return storeEnvironment
 
     storeEnvironment = new Environment({
@@ -20,17 +20,17 @@ export default {
       network: new RelayNetworkLayer([
         cacheMiddleware({
           size: 100,
-          ttl: 60 * 1000
+          ttl: 60 * 1000,
         }),
         new RelaySSR(relayData).getMiddleware({
-          lookup: false
+          lookup: false,
         }),
         urlMiddleware({
-          url: req => process.env.RELAY_ENDPOINT
-        })
-      ])
+          url: (req) => process.env.NEXT_PUBLIC_RELAY_ENDPOINT,
+        }),
+      ]),
     })
 
     return storeEnvironment
-  }
+  },
 }

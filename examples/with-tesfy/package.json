@@ -1,0 +1,19 @@
+{
+  "name": "with-tesfy",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "cookie": "0.4.1",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-tesfy": "latest",
+    "tesfy": "latest",
+    "uuid": "8.1.0"
+  },
+  "license": "MIT"
+}

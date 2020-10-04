@@ -1,4 +1,3 @@
-import React from 'react'
 import styled from 'astroturf'
 
 const Button = styled('button')`
@@ -17,7 +16,7 @@ const Button = styled('button')`
 `
 
 const IndexPage = () => (
-  <Button primary color='green'>
+  <Button primary color="green">
     A styled button
   </Button>
 )

@@ -1,32 +1,33 @@
 /* eslint-env jest */
-/* global jasmine, browserName */
-import webdriver from 'next-webdriver'
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+/* global browserName */
+import cheerio from 'cheerio'
+import { existsSync } from 'fs'
 import {
   nextServer,
+  renderViaHTTP,
   runNextCommand,
   startApp,
   stopApp,
-  renderViaHTTP,
-  waitFor
+  waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import {
+  BUILD_MANIFEST,
+  PAGES_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from 'next/constants'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
+import { join } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {
-  BUILD_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
-  PAGES_MANIFEST
-} from 'next-server/constants'
-import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
-let serverDir
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -37,14 +38,11 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
-
-    const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
-    serverDir = join(appDir, '.next/server/static/', buildId, 'pages')
   })
   afterAll(() => stopApp(server))
 
@@ -54,8 +52,62 @@ describe('Production Usage', () => {
       expect(html).toMatch(/Hello World/)
     })
 
+    if (browserName === 'internet explorer') {
+      it('should handle bad Promise polyfill', async () => {
+        const browser = await webdriver(appPort, '/bad-promise')
+        expect(await browser.eval('window.didRender')).toBe(true)
+      })
+
+      it('should polyfill RegExp successfully', async () => {
+        const browser = await webdriver(appPort, '/regexp-polyfill')
+        expect(await browser.eval('window.didRender')).toBe(true)
+        // wait a second for the script to be loaded
+        await waitFor(1000)
+
+        expect(await browser.eval('window.isSticky')).toBe(true)
+        expect(await browser.eval('window.isMatch1')).toBe(true)
+        expect(await browser.eval('window.isMatch2')).toBe(false)
+      })
+    }
+
+    it('should polyfill Node.js modules', async () => {
+      const browser = await webdriver(appPort, '/node-browser-polyfills')
+      await browser.waitForCondition('window.didRender')
+
+      const data = await browser
+        .waitForElementByCss('#node-browser-polyfills')
+        .text()
+      const parsedData = JSON.parse(data)
+
+      expect(parsedData.vm).toBe(105)
+      expect(parsedData.hash).toBe(
+        'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+      )
+      expect(parsedData.path).toBe('/hello/world/test.txt')
+      expect(parsedData.buffer).toBe('hello world')
+      expect(parsedData.stream).toBe(true)
+    })
+
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getStaticProps', async () => {
+      const url = `http://localhost:${appPort}/fully-static`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should allow etag header support with getServerSideProps', async () => {
+      const url = `http://localhost:${appPort}/fully-dynamic`
       const etag = (await fetch(url)).headers.get('ETag')
 
       const headers = { 'If-None-Match': etag }
@@ -80,16 +132,21 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 404 for /_next/static route', async () => {
+      const html = await renderViaHTTP(appPort, '/_next/static')
+      expect(html).toMatch(/This page could not be found/)
+    })
+
     it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
-        method: 'POST'
+        method: 'POST',
       })
       expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
       const res = await fetch(`http://localhost:${appPort}/fake-page`, {
-        method: 'POST'
+        method: 'POST',
       })
       expect(res.status).toBe(404)
     })
@@ -119,7 +176,7 @@ describe('Production Usage', () => {
       const res = await fetch(
         `http://localhost:${appPort}/static/data/item.txt`,
         {
-          method: 'POST'
+          method: 'POST',
         }
       )
       expect(res.headers.get('allow').includes('GET')).toBe(true)
@@ -127,29 +184,37 @@ describe('Production Usage', () => {
     })
 
     it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
-          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' }
-        }
-      )
-      expect(res.status).toBe(412)
+          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
+        })
+        expect(res.status).toBe(412)
+      }
     })
 
     it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join(
+        __dirname,
+        '../.next/build-manifest.json'
+      ))
 
-      const res = await fetch(
-        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
-        {
+      const files = buildManifest.pages['/']
+
+      for (const file of files) {
+        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
           method: 'GET',
-          headers: { 'if-unmodified-since': 'nextjs' }
-        }
-      )
-      expect(res.status).toBe(200)
+          headers: { 'if-unmodified-since': 'nextjs' },
+        })
+        expect(res.status).toBe(200)
+      }
     })
 
     it('should set Content-Length header', async () => {
@@ -159,7 +224,6 @@ describe('Production Usage', () => {
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
       const reactLoadableManifest = require(join(
         '../.next',
@@ -167,26 +231,39 @@ describe('Production Usage', () => {
       ))
       const url = `http://localhost:${appPort}/_next/`
 
-      const resources = []
-
-      // test a regular page
-      resources.push(`${url}static/${buildId}/pages/index.js`)
+      const resources = new Set()
 
       // test dynamic chunk
-      resources.push(
-        url + reactLoadableManifest['../../components/hello1'][0].publicPath
+      resources.add(
+        url + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
-        resources.push(url + item)
+        resources.add(url + item)
       }
 
+      const cssStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.css$/
+      )
+      expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      const mediaStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.svg$/
+      )
+      expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
+        resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
+      })
+
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        [...resources].map((resource) => fetch(resource))
       )
 
-      responses.forEach(res => {
+      responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'public, max-age=31536000, immutable'
@@ -216,6 +293,14 @@ describe('Production Usage', () => {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
       }
+    })
+
+    it('should not contain customServer in NEXT_DATA', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      expect('customServer' in JSON.parse($('#__NEXT_DATA__').text())).toBe(
+        false
+      )
     })
   })
 
@@ -269,10 +354,88 @@ describe('Production Usage', () => {
       expect(text).toBe('Hello World')
       await browser.close()
     })
+
+    it('should set title by routeChangeComplete event', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(function setup() {
+        window.next.router.events.on('routeChangeComplete', function handler(
+          url
+        ) {
+          window.routeChangeTitle = document.title
+          window.routeChangeUrl = url
+        })
+        window.next.router.push('/with-title')
+      })
+      await browser.waitForElementByCss('#with-title')
+
+      const title = await browser.eval(`window.routeChangeTitle`)
+      const url = await browser.eval(`window.routeChangeUrl`)
+      expect(title).toBe('hello from title')
+      expect(url).toBe('/with-title')
+    })
+
+    it('should reload page successfully (on bad link)', async () => {
+      const browser = await webdriver(appPort, '/to-nonexistent')
+      await browser.eval(function setup() {
+        window.__DATA_BE_GONE = 'true'
+      })
+      await browser.waitForElementByCss('#to-nonexistent-page')
+      await browser.click('#to-nonexistent-page')
+      await browser.waitForElementByCss('.about-page')
+
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
+    })
+
+    it('should reload page successfully (on bad data fetch)', async () => {
+      const browser = await webdriver(appPort, '/to-shadowed-page')
+      await browser.eval(function setup() {
+        window.__DATA_BE_GONE = 'true'
+      })
+      await browser.waitForElementByCss('#to-shadowed-page').click()
+      await browser.waitForElementByCss('.about-page')
+
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
+    })
   })
 
   it('should navigate to external site and back', async () => {
     const browser = await webdriver(appPort, '/external-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
+  it('should navigate to page with CSS and back', async () => {
+    const browser = await webdriver(appPort, '/css-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('client')
+  })
+
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -293,18 +456,12 @@ describe('Production Usage', () => {
     let id = await browser.elementByCss('#q0').text()
     expect(id).toBe('0')
 
-    await browser
-      .elementByCss('#first')
-      .click()
-      .waitForElementByCss('#q1')
+    await browser.elementByCss('#first').click().waitForElementByCss('#q1')
 
     id = await browser.elementByCss('#q1').text()
     expect(id).toBe('1')
 
-    await browser
-      .elementByCss('#second')
-      .click()
-      .waitForElementByCss('#q2')
+    await browser.elementByCss('#second').click().waitForElementByCss('#q2')
 
     id = await browser.elementByCss('#q2').text()
     expect(id).toBe('2')
@@ -347,9 +504,9 @@ describe('Production Usage', () => {
     it('should handle already finished responses', async () => {
       const res = {
         finished: false,
-        end () {
+        end() {
           this.finished = true
-        }
+        },
       }
       const html = await app.renderToHTML(
         { method: 'GET' },
@@ -362,7 +519,7 @@ describe('Production Usage', () => {
 
     it('should allow to access /static/ and /_next/', async () => {
       // This is a test case which prevent the following issue happening again.
-      // See: https://github.com/zeit/next.js/issues/2617
+      // See: https://github.com/vercel/next.js/issues/2617
       await renderViaHTTP(appPort, '/_next/')
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
@@ -371,15 +528,11 @@ describe('Production Usage', () => {
 
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
+      const file = await renderViaHTTP(appPort, '/file')
+      const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
       expect(data).toBe('data')
-    })
-
-    it('Should prioritize pages over public files', async () => {
-      const html = await renderViaHTTP(appPort, '/about')
-      const data = await renderViaHTTP(appPort, '/file')
-
-      expect(html).toMatch(/About Page/)
-      expect(data).toBe('test')
+      expect(file).toBe('test')
+      expect(legacy).toMatch(`new static folder`)
     })
 
     it('should reload the page on page script error', async () => {
@@ -422,45 +575,78 @@ describe('Production Usage', () => {
       expect(script).not.toMatch(/runtimeConfig/)
     })
 
-    if (browserName === 'chrome') {
-      it('should add preload tags when Link prefetch prop is used', async () => {
-        const browser = await webdriver(appPort, '/prefetch')
-        await waitFor(2000)
+    it('should add autoExport for auto pre-rendered pages', async () => {
+      for (const page of ['/', '/about']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(data.autoExport).toBe(true)
+      }
+    })
+
+    it('should not add autoExport for non pre-rendered pages', async () => {
+      for (const page of ['/query']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(!!data.autoExport).toBe(false)
+      }
+    })
+
+    it('should add prefetch tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+
+      if (browserName === 'internet explorer') {
+        // IntersectionObserver isn't present so we need to trigger manually
+        await waitFor(1000)
+        await browser.eval(`(function() {
+          window.next.router.prefetch('/')
+          window.next.router.prefetch('/process-env')
+          window.next.router.prefetch('/counter')
+          window.next.router.prefetch('/about')
+        })()`)
+      }
+
+      await waitFor(2000)
+
+      if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
+        // 4 page preloads and 5 existing preloads for _app, commons, main, etc
+        expect(elements.length).toBe(11)
+      } else {
+        const elements = await browser.elementsByCss('link[rel=prefetch]')
+        expect(elements.length).toBe(4)
 
-        expect(elements.length).toBe(9)
-        await Promise.all(
-          elements.map(async element => {
-            const rel = await element.getAttribute('rel')
-            const as = await element.getAttribute('as')
-            expect(rel).toBe('preload')
-            expect(as).toBe('script')
-          })
-        )
-        await browser.close()
-      })
+        for (const element of elements) {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('prefetch')
+          expect(as).toBe('script')
+        }
+      }
+      await browser.close()
+    })
 
-      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      it('It does not add a timestamp to link tags with preload attribute', async () => {
-        const browser = await webdriver(appPort, '/prefetch')
-        const links = await browser.elementsByCss('link[rel=preload]')
-        await Promise.all(
-          links.map(async element => {
-            const href = await element.getAttribute('href')
-            expect(href).not.toMatch(/\?ts=/)
-          })
-        )
-        const scripts = await browser.elementsByCss('script[src]')
-        await Promise.all(
-          scripts.map(async element => {
-            const src = await element.getAttribute('src')
-            expect(src).not.toMatch(/\?ts=/)
-          })
-        )
-        await browser.close()
-      })
+    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('It does not add a timestamp to link tags with prefetch attribute', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
 
+      for (const element of links) {
+        const href = await element.getAttribute('href')
+        expect(href).not.toMatch(/\?ts=/)
+      }
+      const scripts = await browser.elementsByCss('script[src]')
+
+      for (const element of scripts) {
+        const src = await element.getAttribute('src')
+        expect(src).not.toMatch(/\?ts=/)
+      }
+      await browser.close()
+    })
+
+    if (browserName === 'chrome') {
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
         if (global.browserName !== 'chrome') return
@@ -474,16 +660,6 @@ describe('Production Usage', () => {
 
         // Let the browser to prefetch the page and error it on the console.
         await waitFor(3000)
-        const browserLogs = await browser.log('browser')
-        let foundLog = false
-        browserLogs.forEach(log => {
-          if (
-            log.message.match(/\/no-such-page\.js - Failed to load resource/)
-          ) {
-            foundLog = true
-          }
-        })
-        expect(foundLog).toBe(true)
 
         // When we go to the 404 page, it'll do a hard reload.
         // So, it's possible for the front proxy to load a page from another zone.
@@ -524,7 +700,7 @@ describe('Production Usage', () => {
 
   it('should not put backslashes in pages-manifest.json', () => {
     // Whatever platform you build on, pages-manifest.json should use forward slash (/)
-    // See: https://github.com/zeit/next.js/issues/4920
+    // See: https://github.com/vercel/next.js/issues/4920
     const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
 
     for (let key of Object.keys(pagesManifest)) {
@@ -534,30 +710,32 @@ describe('Production Usage', () => {
   })
 
   it('should handle failed param decoding', async () => {
-    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    const html = await renderViaHTTP(appPort, '/invalid-param/%DE~%C7%1fY/')
     expect(html).toMatch(/400/)
     expect(html).toMatch(/Bad Request/)
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['about', 'another', 'counter', 'dynamic', 'prefetch']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(false)
+    const pages = ['/about', '/another', '/counter', '/dynamic', '/prefetch']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['api', 'external-and-back', 'finish-response']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
+    const pages = ['/api', '/external-and-back', '/finish-response']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
 
   it('should handle AMP correctly in IE', async () => {
     const browser = await webdriver(appPort, '/some-amp')
-    await waitFor(1000)
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('Not AMP')
   })
@@ -569,7 +747,7 @@ describe('Production Usage', () => {
       browser = await webdriver(appPort, '/development-logs')
       const browserLogs = await browser.log('browser')
       let found = false
-      browserLogs.forEach(log => {
+      browserLogs.forEach((log) => {
         if (log.message.includes('Next.js auto-prefetches automatically')) {
           found = true
         }
@@ -586,8 +764,87 @@ describe('Production Usage', () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
+  it('should contain the Next.js version in window export', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const version = await browser.eval('window.next.version')
+      expect(version).toBeTruthy()
+      expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should clear all core performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+      const allPerfMarks = [
+        'beforeRender',
+        'afterHydrate',
+        'afterRender',
+        'routeChange',
+      ]
+
+      allPerfMarks.forEach((name) =>
+        expect(currentPerfMarks).not.toContainEqual(
+          expect.objectContaining({ name })
+        )
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not clear custom performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/mark-in-head')
+
+      const customMarkFound = await browser.eval(
+        `window.performance.getEntriesByType('mark').filter(function(e) {
+          return e.name === 'custom-mark'
+        }).length === 1`
+      )
+      expect(customMarkFound).toBe(true)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should have async on all script tags', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    let missing = false
+
+    for (const script of $('script').toArray()) {
+      // application/json doesn't need async
+      if (
+        script.attribs.type === 'application/json' ||
+        script.attribs.src.includes('polyfills')
+      ) {
+        continue
+      }
+
+      if (script.attribs.defer === '' || script.attribs.async !== '') {
+        missing = true
+      }
+    }
+    expect(missing).toBe(false)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
-  if (browserName === 'chrome') security(context)
+  if (browserName !== 'safari') security(context)
 })

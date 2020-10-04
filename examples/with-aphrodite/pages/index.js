@@ -1,18 +1,19 @@
-import React from 'react'
 import { StyleSheet, css } from 'aphrodite'
 
+// Rehydrate to ensure that the client doesn't duplicate styles
+// It has to execute before any code that defines styles
+// '__REHYDRATE_IDS' is set in '_document.js'
 if (typeof window !== 'undefined') {
-  /* StyleSheet.rehydrate takes an array of rendered classnames,
-  and ensures that the client side render doesn't generate
-  duplicate style definitions in the <style data-aphrodite> tag */
-  StyleSheet.rehydrate(window.__NEXT_DATA__.ids)
+  StyleSheet.rehydrate(window.__REHYDRATE_IDS)
 }
 
-export default () => (
-  <div className={css(styles.root)}>
-    <h1 className={css(styles.title)}>My page</h1>
-  </div>
-)
+export default function Home() {
+  return (
+    <div className={css(styles.root)}>
+      <h1 className={css(styles.title)}>My page</h1>
+    </div>
+  )
+}
 
 const styles = StyleSheet.create({
   root: {
@@ -20,8 +21,8 @@ const styles = StyleSheet.create({
     height: 60,
     background: 'white',
     ':hover': {
-      background: 'black'
-    }
+      background: 'black',
+    },
   },
 
   title: {
@@ -29,7 +30,7 @@ const styles = StyleSheet.create({
     color: 'black',
     fontSize: 22,
     ':hover': {
-      color: 'white'
-    }
-  }
+      color: 'white',
+    },
+  },
 })

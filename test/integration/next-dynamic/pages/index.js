@@ -13,13 +13,13 @@ export default () => {
 
   return (
     <>
-      <div id='foo'>
+      <div id="foo">
         Index
         <One />
         <Two />
         <Three />
       </div>
-      <div id='first-render'>{firstRender}</div>
+      <div id="first-render">{firstRender}</div>
     </>
   )
 }

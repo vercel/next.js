@@ -4,12 +4,12 @@ import provider from './provider'
 export default {
   state: {
     lastUpdate: 0,
-    light: false
+    light: false,
   },
   signals: {
     mounted,
     unMounted,
-    secondTicked
+    secondTicked,
   },
-  provider
+  provider,
 }

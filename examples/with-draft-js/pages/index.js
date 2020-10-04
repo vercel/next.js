@@ -1,14 +1,14 @@
-import React from 'react'
+import { Component } from 'react'
 import {
   Editor,
   EditorState,
   RichUtils,
   convertToRaw,
-  convertFromRaw
+  convertFromRaw,
 } from 'draft-js'
 
-export default class App extends React.Component {
-  constructor (props) {
+export default class App extends Component {
+  constructor(props) {
     super(props)
     this.state = {
       editorState: EditorState.createWithContent(convertFromRaw(initialData)),
@@ -16,25 +16,25 @@ export default class App extends React.Component {
       windowWidth: 0,
       toolbarMeasures: {
         w: 0,
-        h: 0
+        h: 0,
       },
       selectionMeasures: {
         w: 0,
-        h: 0
+        h: 0,
       },
       selectionCoordinates: {
         x: 0,
-        y: 0
+        y: 0,
       },
       toolbarCoordinates: {
         x: 0,
-        y: 0
+        y: 0,
       },
-      showRawData: false
+      showRawData: false,
     }
 
     this.focus = () => this.editor.focus()
-    this.onChange = editorState => this.setState({ editorState })
+    this.onChange = (editorState) => this.setState({ editorState })
   }
 
   onClickEditor = () => {
@@ -52,7 +52,7 @@ export default class App extends React.Component {
       } else {
         // Hide the toolbar if nothing is selected
         this.setState({
-          showToolbar: false
+          showToolbar: false,
         })
       }
     }
@@ -60,10 +60,7 @@ export default class App extends React.Component {
 
   // 2- Identify the selection coordinates
   setSelectionXY = () => {
-    var r = window
-      .getSelection()
-      .getRangeAt(0)
-      .getBoundingClientRect()
+    var r = window.getSelection().getRangeAt(0).getBoundingClientRect()
     var relative = document.body.parentNode.getBoundingClientRect()
     // 2-a Set the selection coordinates in the state
     this.setState(
@@ -72,8 +69,8 @@ export default class App extends React.Component {
         windowWidth: relative.width,
         selectionMeasures: {
           w: r.width,
-          h: r.height
-        }
+          h: r.height,
+        },
       },
       () => this.showToolbar()
     )
@@ -83,7 +80,7 @@ export default class App extends React.Component {
   showToolbar = () => {
     this.setState(
       {
-        showToolbar: true
+        showToolbar: true,
       },
       () => this.measureToolbar()
     )
@@ -96,8 +93,8 @@ export default class App extends React.Component {
       {
         toolbarMeasures: {
           w: this.elemWidth,
-          h: this.elemHeight
-        }
+          h: this.elemHeight,
+        },
       },
       () => this.setToolbarXY()
     )
@@ -111,7 +108,7 @@ export default class App extends React.Component {
       selectionMeasures,
       selectionCoordinates,
       toolbarMeasures,
-      windowWidth
+      windowWidth,
     } = this.state
 
     const hiddenTop = selectionCoordinates.y < toolbarMeasures.h
@@ -129,7 +126,7 @@ export default class App extends React.Component {
 
     coordinates = {
       x: normalX,
-      y: normalY
+      y: normalY,
     }
 
     if (hiddenTop) {
@@ -145,11 +142,11 @@ export default class App extends React.Component {
     }
 
     this.setState({
-      toolbarCoordinates: coordinates
+      toolbarCoordinates: coordinates,
     })
   }
 
-  handleKeyCommand = command => {
+  handleKeyCommand = (command) => {
     const { editorState } = this.state
     const newState = RichUtils.handleKeyCommand(editorState, command)
     if (newState) {
@@ -159,13 +156,13 @@ export default class App extends React.Component {
     return false
   }
 
-  toggleToolbar = inlineStyle => {
+  toggleToolbar = (inlineStyle) => {
     this.onChange(
       RichUtils.toggleInlineStyle(this.state.editorState, inlineStyle)
     )
   }
 
-  render () {
+  render() {
     const { editorState } = this.state
     // Make sure we're not on the ssr
     if (typeof window !== 'undefined') {
@@ -182,12 +179,12 @@ export default class App extends React.Component {
       left: this.state.toolbarCoordinates.x,
       top: this.state.toolbarCoordinates.y,
       zIndex: 999,
-      padding: 10
+      padding: 10,
     }
     return (
       <div>
         <div
-          ref={elem => {
+          ref={(elem) => {
             this.elemWidth = elem ? elem.clientWidth : 0
             this.elemHeight = elem ? elem.clientHeight : 0
           }}
@@ -201,9 +198,10 @@ export default class App extends React.Component {
             editorState={editorState}
             handleKeyCommand={this.handleKeyCommand}
             onChange={this.onChange}
-            placeholder='Tell a story...'
+            placeholder="Tell a story..."
+            editorKey="foobar"
             spellCheck={false}
-            ref={element => {
+            ref={(element) => {
               this.editor = element
             }}
           />
@@ -231,29 +229,29 @@ const styleMap = {
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
     fontFamily: '"Inconsolata", "Menlo", "Consolas", monospace',
     fontSize: 16,
-    padding: 4
+    padding: 4,
   },
   BOLD: {
     color: '#395296',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   ANYCUSTOMSTYLE: {
-    color: '#00e400'
-  }
+    color: '#00e400',
+  },
 }
 
-class ToolbarButton extends React.Component {
-  constructor () {
+class ToolbarButton extends Component {
+  constructor() {
     super()
-    this.onToggle = e => {
+    this.onToggle = (e) => {
       e.preventDefault()
       this.props.onToggle(this.props.style)
     }
   }
 
-  render () {
+  render() {
     const buttonStyle = {
-      padding: 10
+      padding: 10,
     }
     return (
       <span onMouseDown={this.onToggle} style={buttonStyle}>
@@ -268,14 +266,14 @@ var toolbarItems = [
   { label: 'Italic', style: 'ITALIC' },
   { label: 'Underline', style: 'UNDERLINE' },
   { label: 'Code', style: 'CODE' },
-  { label: 'Surprise', style: 'ANYCUSTOMSTYLE' }
+  { label: 'Surprise', style: 'ANYCUSTOMSTYLE' },
 ]
 
-const ToolBar = props => {
+const ToolBar = (props) => {
   var currentStyle = props.editorState.getCurrentInlineStyle()
   return (
     <div>
-      {toolbarItems.map(toolbarItem => (
+      {toolbarItems.map((toolbarItem) => (
         <ToolbarButton
           key={toolbarItem.label}
           active={currentStyle.has(toolbarItem.style)}
@@ -297,7 +295,7 @@ const initialData = {
       depth: 0,
       inlineStyleRanges: [{ offset: 0, length: 23, style: 'BOLD' }],
       entityRanges: [],
-      data: {}
+      data: {},
     },
     {
       key: '98peq',
@@ -306,7 +304,7 @@ const initialData = {
       depth: 0,
       inlineStyleRanges: [],
       entityRanges: [],
-      data: {}
+      data: {},
     },
     {
       key: 'ecmnc',
@@ -316,10 +314,10 @@ const initialData = {
       depth: 0,
       inlineStyleRanges: [
         { offset: 0, length: 14, style: 'BOLD' },
-        { offset: 133, length: 9, style: 'BOLD' }
+        { offset: 133, length: 9, style: 'BOLD' },
       ],
       entityRanges: [],
-      data: {}
+      data: {},
     },
     {
       key: 'fe2gn',
@@ -328,7 +326,7 @@ const initialData = {
       depth: 0,
       inlineStyleRanges: [],
       entityRanges: [],
-      data: {}
+      data: {},
     },
     {
       key: '4481k',
@@ -339,11 +337,11 @@ const initialData = {
       inlineStyleRanges: [
         { offset: 34, length: 19, style: 'BOLD' },
         { offset: 117, length: 4, style: 'BOLD' },
-        { offset: 68, length: 10, style: 'ANYCUSTOMSTYLE' }
+        { offset: 68, length: 10, style: 'ANYCUSTOMSTYLE' },
       ],
       entityRanges: [],
-      data: {}
-    }
+      data: {},
+    },
   ],
-  entityMap: {}
+  entityMap: {},
 }

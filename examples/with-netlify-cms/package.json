@@ -1,0 +1,19 @@
+{
+  "name": "with-netlify-cms",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "export": "npm run build && next export"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0"
+  },
+  "devDependencies": {
+    "frontmatter-markdown-loader": "^2.0.0"
+  }
+}

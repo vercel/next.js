@@ -1,25 +1,28 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, readdirSync } from 'fs'
 import {
   killApp,
   findPort,
   nextBuild,
   nextStart,
+  renderViaHTTP,
   fetchViaHTTP,
-  renderViaHTTP
+  readNextBuildClientPageFile,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
+const chunksDir = join(appDir, '.next/static/chunks')
 let appPort
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
-describe('Serverless', () => {
+describe('Serverless Trace', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
@@ -52,6 +55,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/This page could not be found/)
   })
 
+  it('should render 404 for /_next/static', async () => {
+    const html = await renderViaHTTP(appPort, '/_next/static')
+    expect(html).toMatch(/This page could not be found/)
+  })
+
   it('should render an AMP page', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
     expect(html).toMatch(/Hi Im an AMP page/)
@@ -61,11 +69,16 @@ describe('Serverless', () => {
   it('should have correct amphtml rel link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp')
     expect(html).toMatch(/Hi Im an AMP page/)
-    expect(html).toMatch(/rel="amphtml" href="\/some-amp\?amp=1"/)
+    expect(html).toMatch(/rel="amphtml" href="\/some-amp\.amp"/)
   })
 
   it('should have correct canonical link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
+    expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
+  })
+
+  it('should have correct canonical link (auto-export link)', async () => {
+    const html = await renderViaHTTP(appPort, '/some-amp.amp')
     expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
   })
 
@@ -93,27 +106,35 @@ describe('Serverless', () => {
     }
   })
 
+  it('should not have combined client-side chunks', () => {
+    expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
+    const contents = readNextBuildClientPageFile(appDir, '/dynamic')
+    expect(contents).not.toContain('Hello!')
+  })
+
   it('should not output _app.js and _document.js to serverless build', () => {
     expect(existsSync(join(serverlessDir, '_app.js'))).toBeFalsy()
     expect(existsSync(join(serverlessDir, '_document.js'))).toBeFalsy()
   })
 
   it('should replace static pages with HTML files', async () => {
-    const staticFiles = ['abc', 'dynamic', 'dynamic-two', 'some-amp']
-    for (const file of staticFiles) {
-      expect(existsSync(join(serverlessDir, file + '.html'))).toBe(true)
-      expect(existsSync(join(serverlessDir, file + '.js'))).toBe(false)
+    const pages = ['/abc', '/dynamic', '/dynamic-two', '/some-amp']
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.html')).toBe(true)
     }
   })
 
   it('should not replace non-static pages with HTML files', async () => {
-    const nonStaticFiles = ['fetch', '_error']
-    for (const file of nonStaticFiles) {
-      expect(existsSync(join(serverlessDir, file + '.js'))).toBe(true)
-      expect(existsSync(join(serverlessDir, file + '.html'))).toBe(false)
+    const pages = ['/fetch', '/_error']
+
+    for (const page of pages) {
+      const file = getPageFileFromPagesManifest(appDir, page)
+
+      expect(file.endsWith('.js')).toBe(true)
     }
   })
-
   it('should reply on API request successfully', async () => {
     const content = await renderViaHTTP(appPort, '/api/hello')
     expect(content).toMatch(/hello world/)
@@ -121,13 +142,46 @@ describe('Serverless', () => {
 
   it('should reply on dynamic API request successfully', async () => {
     const result = await renderViaHTTP(appPort, '/api/posts/post-1')
-    const { post } = JSON.parse(result)
-    expect(post).toBe('post-1')
+    const { id } = JSON.parse(result)
+    expect(id).toBe('post-1')
   })
 
-  it('should 404 on API request with trailing slash', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/hello/')
-    expect(res.status).toBe(404)
+  it('should reply on dynamic API request successfully with query parameters', async () => {
+    const result = await renderViaHTTP(appPort, '/api/posts/post-1?param=val')
+    const { id, param } = JSON.parse(result)
+    expect(id).toBe('post-1')
+    expect(param).toBe('val')
+  })
+
+  it('should reply on dynamic API index request successfully', async () => {
+    const result = await renderViaHTTP(appPort, '/api/dynamic/post-1')
+    const { path } = JSON.parse(result)
+    expect(path).toBe('post-1')
+  })
+
+  it('should reply on dynamic API index request successfully with query parameters', async () => {
+    const result = await renderViaHTTP(appPort, '/api/dynamic/post-1?param=val')
+    const { path, param } = JSON.parse(result)
+    expect(path).toBe('post-1')
+    expect(param).toBe('val')
+  })
+
+  it('should reply with redirect on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/hello/',
+      {},
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(308)
+    expect(res.headers.get('location')).toBe(
+      `http://localhost:${appPort}/api/hello`
+    )
+  })
+
+  it('should reply on API request with trailing slassh successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello/')
+    expect(content).toMatch(/hello world/)
   })
 
   describe('With basic usage', () => {

@@ -1,14 +1,14 @@
 /* eslint-env jest */
-import { loadGetInitialProps } from 'next-server/dist/lib/utils'
+import { loadGetInitialProps } from 'next/dist/next-server/lib/utils'
 
 describe('loadGetInitialProps', () => {
   it('should throw if getInitialProps is defined as an instance method', () => {
     class TestComponent {
-      getInitialProps () {}
+      getInitialProps() {}
     }
     const rejectPromise = loadGetInitialProps(TestComponent, {})
     const error = new Error(
-      '"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+      '"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
     )
     return expect(rejectPromise).rejects.toEqual(error)
   })
@@ -20,7 +20,7 @@ describe('loadGetInitialProps', () => {
 
   it('should resolve getInitialProps', async () => {
     class TestComponent {
-      static async getInitialProps () {
+      static async getInitialProps() {
         return { foo: 1 }
       }
     }
@@ -30,14 +30,14 @@ describe('loadGetInitialProps', () => {
 
   it('should be able to return an invalid value if the request was already sent', async () => {
     class TestComponent {
-      static async getInitialProps () {
+      static async getInitialProps() {
         return 'invalidValue'
       }
     }
     const ctx = {
       res: {
-        finished: true
-      }
+        finished: true,
+      },
     }
     const result = await loadGetInitialProps(TestComponent, ctx)
     expect(result).toBe('invalidValue')
@@ -45,7 +45,7 @@ describe('loadGetInitialProps', () => {
 
   it("should throw if getInitialProps won't return an object ", () => {
     class TestComponent {
-      static async getInitialProps () {}
+      static async getInitialProps() {}
     }
     const rejectPromise = loadGetInitialProps(TestComponent, {})
     const error = new Error(

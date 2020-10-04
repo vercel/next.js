@@ -1,0 +1,13 @@
+{
+  "name": "with-stencil",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn --cwd packages/web-app dev",
+    "build": "yarn --cwd packages/web-app build",
+    "start": "yarn --cwd packages/web-app start"
+  },
+  "license": "MIT"
+}

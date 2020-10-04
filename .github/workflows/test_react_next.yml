@@ -1,0 +1,53 @@
+on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron: '0 0,12 * * *'
+
+name: Test react@next
+
+jobs:
+  # build:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+
+  #     - run: yarn install --frozen-lockfile --check-files
+  #       env:
+  #         NEXT_TELEMETRY_DISABLED: 1
+
+  #     - run: yarn upgrade react@next react-dom@next -W --dev
+
+  #     - uses: actions/cache@v2
+  #       id: cache-build
+  #       with:
+  #         path: ./*
+  #         key: ${{ github.sha }}
+
+  testAll:
+    name: Test All
+    runs-on: ubuntu-latest
+    # needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      HEADLESS: true
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6]
+    steps:
+      # - uses: actions/cache@v2
+      #   id: restore-build
+      #   with:
+      #     path: ./*
+      #     key: ${{ github.sha }}
+
+      - uses: actions/checkout@v2
+
+      - run: yarn install --frozen-lockfile --check-files
+
+      - run: yarn upgrade react@next react-dom@next -W --dev
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+
+      - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3

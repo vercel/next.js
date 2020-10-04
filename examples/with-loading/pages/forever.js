@@ -1,15 +1,10 @@
-import React, { Component } from 'react'
+const ForeverPage = () => <p>This page was rendered for a while!</p>
 
-export default class Forever extends Component {
-  // Add some delay
-  static async getInitialProps () {
-    await new Promise(resolve => {
-      setTimeout(resolve, 3000)
-    })
-    return {}
-  }
-
-  render () {
-    return <p>This page was rendered for a while!</p>
-  }
+export async function getServerSideProps() {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 3000)
+  })
+  return { props: {} }
 }
+
+export default ForeverPage

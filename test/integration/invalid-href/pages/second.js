@@ -1,16 +1,16 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-const invalidLink = 'https://google.com/another'
+const invalidLink = 'https://vercel.com/solutions/nextjs'
 
-export default () => {
+export default function Page() {
   const { query, ...router } = useRouter()
   const { method } = query
 
   return method ? (
     <a
-      id='click-me'
-      onClick={e => {
+      id="click-me"
+      onClick={(e) => {
         e.preventDefault()
         router[method](invalidLink)
       }}
@@ -21,7 +21,7 @@ export default () => {
     // this should throw an error on load since prefetch
     // receives the invalid href
     <Link href={invalidLink}>
-      <a id='click-me'>invalid link :o</a>
+      <a id="click-me">invalid link :o</a>
     </Link>
   )
 }

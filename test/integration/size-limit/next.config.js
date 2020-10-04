@@ -1,20 +1,20 @@
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 module.exports = {
-  webpack (config, { isServer }) {
+  webpack(config, { isServer }) {
     config.plugins.push(
       new BundleAnalyzerPlugin({
         analyzerMode: 'static',
         reportFilename: `dist/${isServer ? 'server' : 'client'}.html`,
-        openAnalyzer: false
+        openAnalyzer: false,
       })
     )
     return config
   },
   onDemandEntries: {
     // Make sure entries are not getting disposed.
-    maxInactiveAge: 1000 * 60 * 60
+    maxInactiveAge: 1000 * 60 * 60,
   },
   experimental: {
-    modern: true
-  }
+    modern: true,
+  },
 }

@@ -1,0 +1,18 @@
+{
+  "name": "api-routes-apollo-server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "export": "next export",
+    "start": "next start"
+  },
+  "dependencies": {
+    "apollo-server-micro": "2.13.1",
+    "graphql": "15.0.0",
+    "next": "latest",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
+  },
+  "license": "MIT"
+}

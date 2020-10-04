@@ -10,4 +10,4 @@ Look in your \_app.js component's `getInitialProps` function and make sure neith
 
 ### Useful Links
 
-- [The issue this was reported in: #6480](https://github.com/zeit/next.js/issues/6480)
+- [The issue this was reported in: #6480](https://github.com/vercel/next.js/issues/6480)

@@ -3,6 +3,7 @@ function ThrowUndefined(props) {
 }
 
 ThrowUndefined.getInitialProps = () => {
+  // eslint-disable-next-line no-throw-literal
   throw undefined
 }
 

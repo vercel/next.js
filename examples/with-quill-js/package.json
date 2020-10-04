@@ -1,0 +1,17 @@
+{
+  "name": "with-quill-js",
+  "version": "1.0.0",
+  "author": "Arya Sadeghi",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^9.1.8-canary.11",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "react-quill": "^1.3.3"
+  }
+}

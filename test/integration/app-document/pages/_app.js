@@ -1,4 +1,4 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 import { setState } from '../shared-module'
 
@@ -6,21 +6,21 @@ setState(typeof window === 'undefined' ? 'UPDATED' : 'UPDATED CLIENT')
 
 class Layout extends React.Component {
   state = {
-    random: false
+    random: false,
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.setState({ random: Math.random() })
   }
 
-  render () {
+  render() {
     const { children } = this.props
     const { random } = this.state
     return (
       <div>
-        <p id='hello-app'>Hello App</p>
-        <p id='hello-hmr'>Hello HMR</p>
-        <p id='random-number'>{random}</p>
+        <p id="hello-app">Hello App</p>
+        <p id="hello-hmr">Hello HMR</p>
+        <p id="random-number">{random}</p>
         {children}
       </div>
     )
@@ -28,7 +28,7 @@ class Layout extends React.Component {
 }
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
+  static async getInitialProps({ Component, router, ctx }) {
     // throw _app GIP err here
     let pageProps = {}
 
@@ -39,14 +39,12 @@ export default class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
-      </Container>
+      <Layout>
+        <Component {...pageProps} />
+      </Layout>
     )
   }
 }

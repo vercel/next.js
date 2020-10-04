@@ -1,28 +1,17 @@
-import App from 'next/app'
-import React from 'react'
+import { ApolloProvider } from '@apollo/client'
 import { Provider } from 'react-redux'
-import withRedux from 'next-redux-wrapper'
-import { initStore } from '../lib/store'
+import { useStore } from '../lib/redux'
+import { useApollo } from '../lib/apollo'
 
-class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
-    let pageProps = {}
+export default function App({ Component, pageProps }) {
+  const store = useStore(pageProps.initialReduxState)
+  const apolloClient = useApollo(pageProps.initialApolloState)
 
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
-
-  render () {
-    const { Component, pageProps, store } = this.props
-    return (
-      <Provider store={store}>
+  return (
+    <Provider store={store}>
+      <ApolloProvider client={apolloClient}>
         <Component {...pageProps} />
-      </Provider>
-    )
-  }
+      </ApolloProvider>
+    </Provider>
+  )
 }
-
-export default withRedux(initStore)(MyApp)

@@ -1,5 +1,5 @@
 const {
-  WebpackBundleSizeAnalyzerPlugin
+  WebpackBundleSizeAnalyzerPlugin,
 } = require('webpack-bundle-size-analyzer')
 const { ANALYZE } = process.env
 
@@ -10,5 +10,5 @@ module.exports = {
     }
 
     return config
-  }
+  },
 }

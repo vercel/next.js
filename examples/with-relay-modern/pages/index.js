@@ -1,26 +1,29 @@
-import React, { Component } from 'react'
-import { graphql } from 'react-relay'
-import withData from '../lib/withData'
+import Link from 'next/link'
+import { fetchQuery } from 'react-relay'
+import { initEnvironment } from '../lib/relay'
 import BlogPosts from '../components/BlogPosts'
+import indexPageQuery from '../queries/indexPage'
 
-class Index extends Component {
-  static displayName = `Index`
+const Index = ({ viewer }) => (
+  <div>
+    <Link href="/about">
+      <a>About</a>
+    </Link>
+    <BlogPosts viewer={viewer} />
+  </div>
+)
 
-  render (props) {
-    return (
-      <div>
-        <BlogPosts viewer={this.props.viewer} />
-      </div>
-    )
+export async function getStaticProps() {
+  const environment = initEnvironment()
+  const queryProps = await fetchQuery(environment, indexPageQuery)
+  const initialRecords = environment.getStore().getSource().toJSON()
+
+  return {
+    props: {
+      ...queryProps,
+      initialRecords,
+    },
   }
 }
 
-export default withData(Index, {
-  query: graphql`
-    query pages_indexQuery {
-      viewer {
-        ...BlogPosts_viewer
-      }
-    }
-  `
-})
+export default Index

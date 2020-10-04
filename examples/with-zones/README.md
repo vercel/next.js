@@ -1,10 +1,21 @@
 # Using multiple zones
 
+With Next.js you can use multiple apps as a single app using its [multi-zones feature](https://nextjs.org/docs/advanced-features/multi-zones). This is an example showing how to use it.
+
+- All pages should be unique across zones. For example, the `home` app should not have a `pages/blog/index.js` page.
+- The `blog` app sets [`assetPrefix`](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix) so that generated JS bundles are within the `/blog` subfolder.
+  - To also support the plain `next dev` scenario, `assetPrefix` is set dynamically based on the `BUILDING_FOR_NOW` environment variable, see [`vercel.json`](vercel.json) and [`blog/next.config.js`](blog/next.config.js).
+  - Images and other `static` assets have to be prefixed manually, e.g., `` <img src={`${process.env.ASSET_PREFIX}/static/image.png`} /> ``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-zones)
+
 ## How to use
 
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-zones with-zones-app
@@ -12,60 +23,22 @@ npx create-next-app --example with-zones with-zones-app
 yarn create next-app --example with-zones with-zones-app
 ```
 
-### Download manually
-
-Download the example:
+Install the dependencies of every app (`/home` and `/blog`):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-zones
-cd with-zones
+npm install
+# or
+yarn
 ```
 
-## The idea behind this example
-
-With Next.js you can use multiple apps as a single app using it's multi-zones feature.
-This is an example showing how to use it.
-
-In this example, we've two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
-We also have a set of builders and routes defined in `now.json`.
+Install the [Vercel CLI](https://vercel.com/download) if you don't have it already, and then run [`vercel dev`](https://vercel.com/docs/cli?query=dev#commands/dev) in the main directory to start the development server:
 
 ```bash
-now dev
+vercel dev
 ```
 
-Now you can visit http://localhost:3000 and develop for both apps as a single app.
+Your app should be up and running on [http://localhost:3000](http://localhost:3000)!
 
-### Now config
+> We recommend `vercel dev` in this case instead of `next dev`, as it can start both apps at the same time and use the routes defined in [`vercel.json`](vercel.json)
 
-`now.json` allows us to create a single dev server for any builders and routes we add to it, with `now dev` we can easily create a dev server for multiple apps without having to deploy or setup anything else:
-
-```json
-{
-  "name": "with-zones",
-  "version": 2,
-  "builds": [
-    { "src": "blog/next.config.js", "use": "@now/next" },
-    { "src": "home/next.config.js", "use": "@now/next" }
-  ],
-  "routes": [
-    { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
-    { "src": "/blog", "dest": "blog/blog" },
-    { "src": "(.*)", "dest": "home$1" }
-  ]
-}
-```
-
-The previous file is based in the [@now/next](https://zeit.co/docs/v2/deployments/official-builders/next-js-now-next/) builder and [Now Routes](https://zeit.co/docs/v2/deployments/routes/) from Now V2.
-
-## Special Notes
-
-- All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviours in client side navigation.
-  - According to the above example, a page named `blog` should not be exist in the `home` zone.
-
-## Production Deployment
-
-We only need to run `now`, the same `now.json` used for development will be used for the deployment:
-
-```bash
-now
-```
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

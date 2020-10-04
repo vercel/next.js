@@ -1,53 +1,64 @@
-import React from 'react'
-import { bindActionCreators } from 'redux'
-import { connect } from 'react-redux'
-import { startClock, addCount, serverRenderClock } from '../lib/store'
-
-import App from '../components/App'
-import Header from '../components/Header'
-import Page from '../components/Page'
+import { useDispatch } from 'react-redux'
+import { initializeStore } from '../lib/redux'
+import { initializeApollo } from '../lib/apollo'
+import useInterval from '../lib/useInterval'
+import Layout from '../components/Layout'
+import Clock from '../components/Clock'
+import Counter from '../components/Counter'
 import Submit from '../components/Submit'
-import PostList from '../components/PostList'
-import withApollo from '../lib/withApollo'
+import PostList, {
+  ALL_POSTS_QUERY,
+  allPostsQueryVars,
+} from '../components/PostList'
 
-class Index extends React.Component {
-  static getInitialProps ({ store, isServer }) {
-    store.dispatch(serverRenderClock(isServer))
-    store.dispatch(addCount())
+const IndexPage = () => {
+  // Tick the time every second
+  const dispatch = useDispatch()
 
-    return { isServer }
-  }
+  useInterval(() => {
+    dispatch({
+      type: 'TICK',
+      light: true,
+      lastUpdate: Date.now(),
+    })
+  }, 1000)
 
-  componentDidMount () {
-    this.timer = this.props.startClock()
-  }
-
-  componentWillUnmount () {
-    clearInterval(this.timer)
-  }
-
-  render () {
-    return (
-      <App>
-        <Header />
-        <Page title='Index' />
-        <Submit />
-        <PostList />
-      </App>
-    )
-  }
+  return (
+    <Layout>
+      {/* Redux */}
+      <Clock />
+      <Counter />
+      <hr />
+      {/* Apollo */}
+      <Submit />
+      <PostList />
+    </Layout>
+  )
 }
 
-const mapDispatchToProps = dispatch => {
+export async function getStaticProps() {
+  const reduxStore = initializeStore()
+  const apolloClient = initializeApollo()
+  const { dispatch } = reduxStore
+
+  dispatch({
+    type: 'TICK',
+    light: true,
+    lastUpdate: Date.now(),
+  })
+
+  await apolloClient.query({
+    query: ALL_POSTS_QUERY,
+    variables: allPostsQueryVars,
+  })
+
   return {
-    addCount: bindActionCreators(addCount, dispatch),
-    startClock: bindActionCreators(startClock, dispatch)
+    props: {
+      initialReduxState: reduxStore.getState(),
+      initialApolloState: apolloClient.cache.extract(),
+    },
+    revalidate: 1,
   }
 }
 
-export default withApollo(
-  connect(
-    null,
-    mapDispatchToProps
-  )(Index)
-)
+export default IndexPage

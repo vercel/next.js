@@ -17,8 +17,21 @@
     "redux": "^4.0.0",
     "reselect": "^3.0.1"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.1.0"
+  },
+  "babel": {
+    "presets": [
+      "next/babel"
+    ],
+    "plugins": [
+      [
+        "@babel/plugin-proposal-decorators",
+        {
+          "legacy": true
+        }
+      ]
+    ]
   }
 }

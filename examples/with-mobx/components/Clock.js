@@ -1,7 +1,8 @@
-export default props => {
+import { observer } from 'mobx-react'
+const Clock = observer((props) => {
   return (
     <div className={props.light ? 'light' : ''}>
-      {format(new Date(props.lastUpdate))}
+      {props.timeString}
       <style jsx>{`
         div {
           padding: 15px;
@@ -17,9 +18,5 @@ export default props => {
       `}</style>
     </div>
   )
-}
-
-const format = t =>
-  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-
-const pad = n => (n < 10 ? `0${n}` : n)
+})
+export default Clock

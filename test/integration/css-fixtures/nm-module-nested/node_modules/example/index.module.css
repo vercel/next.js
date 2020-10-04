@@ -1,0 +1,6 @@
+@import 'other2.css';
+
+.subClass {
+  composes: className from './other.css';
+  background: blue;
+}

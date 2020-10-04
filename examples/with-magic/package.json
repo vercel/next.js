@@ -1,0 +1,19 @@
+{
+  "name": "with-magic",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@hapi/iron": "6.0.0",
+    "@magic-sdk/admin": "1.0.0",
+    "cookie": "0.4.0",
+    "magic-sdk": "1.0.1",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "swr": "0.1.16"
+  },
+  "license": "MIT"
+}

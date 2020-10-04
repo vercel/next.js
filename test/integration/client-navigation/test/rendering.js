@@ -1,11 +1,14 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
+import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
+import url from 'url'
 
-export default function (render, fetch) {
-  async function get$ (path, query) {
+export default function (render, fetch, ctx) {
+  async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }
@@ -15,6 +18,26 @@ export default function (render, fetch) {
       const html = await render('/stateless')
       expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
       expect(html.includes('My component!')).toBeTruthy()
+    })
+
+    it('should should not contain scripts that are not js', async () => {
+      const $ = await get$('/')
+      $('script[src]').each((_index, element) => {
+        const parsedUrl = url.parse($(element).attr('src'))
+        if (!parsedUrl.pathname.endsWith('.js')) {
+          throw new Error(
+            `Page includes script that is not a javascript file ${parsedUrl.pathname}`
+          )
+        }
+      })
+    })
+
+    it('should handle undefined prop in head server-side', async () => {
+      const html = await render('/head')
+      const $ = cheerio.load(html)
+      const value = 'content' in $('meta[name="empty-content"]').attr()
+
+      expect(value).toBe(false)
     })
 
     test('renders with fragment syntax', async () => {
@@ -44,7 +67,7 @@ export default function (render, fetch) {
     test('header renders default viewport', async () => {
       const html = await render('/default-head')
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>'
+        '<meta name="viewport" content="width=device-width"/>'
       )
     })
 
@@ -80,6 +103,22 @@ export default function (render, fetch) {
       expect(html).not.toContain(
         '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css"/>'
       )
+      expect(html).toContain(
+        '<link rel="alternate" hrefLang="en" href="/last/en"/>'
+      )
+      expect(html).not.toContain(
+        '<link rel="alternate" hrefLang="en" href="/first/en"/>'
+      )
+    })
+
+    test('header helper dedupes tags with the same key as the default', async () => {
+      const html = await render('/head-duplicate-default-keys')
+      // Expect exactly one `charSet`
+      expect((html.match(/charSet=/g) || []).length).toBe(1)
+      // Expect exactly one `viewport`
+      expect((html.match(/name="viewport"/g) || []).length).toBe(1)
+      expect(html).toContain('<meta charSet="iso-8859-1"/>')
+      expect(html).toContain('<meta name="viewport" content="width=500"/>')
     })
 
     test('header helper avoids dedupe of specific tags', async () => {
@@ -178,36 +217,37 @@ export default function (render, fetch) {
     })
 
     test('getInitialProps circular structure', async () => {
-      const $ = await get$('/circular-json-error')
+      const browser = await webdriver(ctx.appPort, '/circular-json-error')
       const expectedErrorMessage =
         'Circular structure in "getInitialProps" result of page "/circular-json-error".'
-      expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
-      ).toBeTruthy()
+
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toContain(expectedErrorMessage)
     })
 
     test('getInitialProps should be class method', async () => {
-      const $ = await get$('/instance-get-initial-props')
+      const browser = await webdriver(
+        ctx.appPort,
+        '/instance-get-initial-props'
+      )
+
       const expectedErrorMessage =
-        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
-      expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
-      ).toBeTruthy()
+        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
+
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toContain(expectedErrorMessage)
     })
 
     test('getInitialProps resolves to null', async () => {
-      const $ = await get$('/empty-get-initial-props')
+      const browser = await webdriver(ctx.appPort, '/empty-get-initial-props')
       const expectedErrorMessage =
         '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-      expect(
-        $('pre')
-          .text()
-          .includes(expectedErrorMessage)
-      ).toBeTruthy()
+
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toContain(expectedErrorMessage)
     })
 
     test('default Content-Type', async () => {
@@ -234,49 +274,35 @@ export default function (render, fetch) {
       expect(res.status).toBe(200)
     })
 
-    test('should expose the compiled page file in development', async () => {
-      await fetch('/stateless') // make sure the stateless page is built
-      const clientSideJsRes = await fetch(
-        '/_next/development/static/development/pages/stateless.js'
-      )
-      expect(clientSideJsRes.status).toBe(200)
-      const clientSideJsBody = await clientSideJsRes.text()
-      expect(clientSideJsBody).toMatch(/My component!/)
-
-      const serverSideJsRes = await fetch(
-        '/_next/development/server/static/development/pages/stateless.js'
-      )
-      expect(serverSideJsRes.status).toBe(200)
-      const serverSideJsBody = await serverSideJsRes.text()
-      expect(serverSideJsBody).toMatch(/My component!/)
-    })
-
     test('allows to import .json files', async () => {
       const html = await render('/json')
-      expect(html.includes('Zeit')).toBeTruthy()
+      expect(html.includes('Vercel')).toBeTruthy()
     })
 
     test('default export is not a React Component', async () => {
-      const $ = await get$('/no-default-export')
-      const pre = $('pre')
-      expect(pre.text()).toMatch(/The default export is not a React Component/)
+      const browser = await webdriver(ctx.appPort, '/no-default-export')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toMatch(/The default export is not a React Component/)
     })
 
     test('error-inside-page', async () => {
-      const $ = await get$('/error-inside-page')
-      expect($('pre').text()).toMatch(/This is an expected error/)
+      const browser = await webdriver(ctx.appPort, '/error-inside-page')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toMatch(/This is an expected error/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('error-in-the-global-scope', async () => {
-      const $ = await get$('/error-in-the-global-scope')
-      expect($('pre').text()).toMatch(/aa is not defined/)
+      const browser = await webdriver(ctx.appPort, '/error-in-the-global-scope')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     it('should set Cache-Control header', async () => {
-      const buildId = 'development'
-
       // build dynamic page
       await fetch('/dynamic/ssr')
 
@@ -287,13 +313,9 @@ export default function (render, fetch) {
       ))
       const resources = []
 
-      // test a regular page
-      resources.push(`/_next/static/${buildId}/pages/index.js`)
-
       // test dynamic chunk
       resources.push(
-        '/_next/' +
-          reactLoadableManifest['../../components/hello1'][0].publicPath
+        '/_next/' + reactLoadableManifest['../../components/hello1'][0].file
       )
 
       // test main.js runtime etc
@@ -306,10 +328,10 @@ export default function (render, fetch) {
       }
 
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        resources.map((resource) => fetch(resource))
       )
 
-      responses.forEach(res => {
+      responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
             'no-store, must-revalidate'
@@ -349,10 +371,15 @@ export default function (render, fetch) {
         expect($('h2').text()).toBe('This page could not be found.')
       })
 
-      it('should 404 for <page>/', async () => {
-        const $ = await get$('/nav/about/')
+      it('should 404 on wrong casing', async () => {
+        const $ = await get$('/NaV/aBoUt')
         expect($('h1').text()).toBe('404')
         expect($('h2').text()).toBe('This page could not be found.')
+      })
+
+      it('should not 404 for <page>/', async () => {
+        const $ = await get$('/nav/about/')
+        expect($('.nav-about p').text()).toBe('This is the about page.')
       })
 
       it('should should not contain a page script in a 404 page', async () => {
@@ -381,8 +408,11 @@ export default function (render, fetch) {
     })
 
     it('should show a valid error when undefined is thrown', async () => {
-      const $ = await get$('/throw-undefined')
-      expect($('body').text()).toMatch(
+      const browser = await webdriver(ctx.appPort, '/throw-undefined')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+
+      expect(text).toContain(
         'An undefined error was thrown sometime during render...'
       )
     })

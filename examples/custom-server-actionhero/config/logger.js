@@ -1,10 +1,8 @@
-'use strict'
-
 const fs = require('fs')
 const cluster = require('cluster')
 
 exports['default'] = {
-  logger: api => {
+  logger: (api) => {
     let logger = { transports: [] }
 
     // console logger
@@ -15,7 +13,7 @@ exports['default'] = {
           level: 'info',
           timestamp: function () {
             return api.id + ' @ ' + new Date().toISOString()
-          }
+          },
         })
       })
     }
@@ -39,7 +37,7 @@ exports['default'] = {
         level: 'info',
         timestamp: function () {
           return api.id + ' @ ' + new Date().toISOString()
-        }
+        },
       })
     })
 
@@ -53,13 +51,13 @@ exports['default'] = {
     // logger.colors = {good: 'blue', bad: 'red'};
 
     return logger
-  }
+  },
 }
 
 exports.test = {
-  logger: api => {
+  logger: (api) => {
     return {
-      transports: null
+      transports: null,
     }
-  }
+  },
 }

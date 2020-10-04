@@ -1,0 +1,16 @@
+{
+  "name": "with-recoil",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "recoil": "0.0.7"
+  },
+  "license": "MIT"
+}

@@ -7,10 +7,10 @@ module.exports = {
       {
         'preset-env': {
           targets: {
-            electron: devDependencies.electron.replace(/^\^|~/, '')
-          }
-        }
-      }
-    ]
-  ]
+            electron: devDependencies.electron.replace(/^\^|~/, ''),
+          },
+        },
+      },
+    ],
+  ],
 }

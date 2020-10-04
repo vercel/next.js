@@ -1,9 +1,11 @@
-import hash from 'string-hash'
-import { join, basename } from 'path'
-import babelLoader from 'babel-loader'
+import babelLoader from 'next/dist/compiled/babel-loader'
+import hash from 'next/dist/compiled/string-hash'
+import { basename, join } from 'path'
+import * as Log from '../../output/log'
 
-// increment 'd' to invalidate cache
-const cacheKey = 'babel-cache-' + 'd' + '-'
+// increment 'n' to invalidate cache
+// eslint-disable-next-line no-useless-concat
+const cacheKey = 'babel-cache-' + 'n' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -15,28 +17,28 @@ const getModernOptions = (babelOptions = {}) => {
   )
 
   presetEnvOptions.targets = {
-    esmodules: true
+    esmodules: true,
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
-    // Blacklist accidental inclusions
+    // Block accidental inclusions
     'transform-regenerator',
-    'transform-async-to-generator'
+    'transform-async-to-generator',
   ]
 
   return {
     ...babelOptions,
     'preset-env': presetEnvOptions,
-    'transform-runtime': transformRuntimeOptions
+    'transform-runtime': transformRuntimeOptions,
   }
 }
 
-const nextBabelPresetModern = presetOptions => context =>
+const nextBabelPresetModern = (presetOptions) => (context) =>
   nextBabelPreset(context, getModernOptions(presetOptions))
 
-module.exports = babelLoader.custom(babel => {
+module.exports = babelLoader.custom((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
-    type: 'preset'
+    type: 'preset',
   })
   const applyCommonJs = babel.createConfigItem(
     require('../../babel/plugins/commonjs'),
@@ -50,34 +52,43 @@ module.exports = babelLoader.custom(babel => {
   const configs = new Set()
 
   return {
-    customOptions (opts) {
+    customOptions(opts) {
       const custom = {
         isServer: opts.isServer,
         isModern: opts.isModern,
-        hasModern: opts.hasModern
+        pagesDir: opts.pagesDir,
+        hasModern: opts.hasModern,
+        babelPresetPlugins: opts.babelPresetPlugins,
+        development: opts.development,
+        hasReactRefresh: opts.hasReactRefresh,
+        hasJsxRuntime: opts.hasJsxRuntime,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
         opts.cache
           ? {
-            cacheCompression: false,
-            cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
-            cacheIdentifier:
+              cacheCompression: false,
+              cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
+              cacheIdentifier:
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
+                '-new-polyfills' +
+                (opts.development ? '-development' : '-production') +
+                (opts.hasReactRefresh ? '-react-refresh' : '') +
+                (opts.hasJsxRuntime ? '-jsx-runtime' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
                     cwd: opts.cwd,
-                    sourceFileName: filename
+                    sourceFileName: filename,
                   }).options
-                )
-          }
+                ),
+            }
           : {
-            cacheDirectory: false
-          },
+              cacheDirectory: false,
+            },
         opts
       )
 
@@ -86,27 +97,39 @@ module.exports = babelLoader.custom(babel => {
       delete loader.distDir
       delete loader.isModern
       delete loader.hasModern
+      delete loader.pagesDir
+      delete loader.babelPresetPlugins
+      delete loader.development
+      delete loader.hasReactRefresh
+      delete loader.hasJsxRuntime
       return { loader, custom }
     },
-    config (
+    config(
       cfg,
       {
         source,
-        customOptions: { isServer, isModern, hasModern }
+        customOptions: {
+          isServer,
+          isModern,
+          hasModern,
+          pagesDir,
+          babelPresetPlugins,
+          development,
+          hasReactRefresh,
+          hasJsxRuntime,
+        },
       }
     ) {
-      const { cwd } = cfg.options
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
-      const isPageFile = filename.startsWith(join(cwd, 'pages'))
+      const isPageFile = filename.startsWith(pagesDir)
 
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
           // We only log for client compilation otherwise there will be double output
           if (file && !isServer && !configs.has(file)) {
             configs.add(file)
-            console.log(`> Using external babel configuration`)
-            console.log(`> Location: "${file}"`)
+            Log.info(`Using external babel configuration from ${file}`)
           }
         }
       } else {
@@ -115,8 +138,38 @@ module.exports = babelLoader.custom(babel => {
       }
 
       options.caller.isServer = isServer
+      options.caller.isModern = isModern
+      options.caller.isDev = development
+      options.caller.hasJsxRuntime = hasJsxRuntime
+
+      const emitWarning = this.emitWarning.bind(this)
+      Object.defineProperty(options.caller, 'onWarning', {
+        enumerable: false,
+        writable: false,
+        value: (options.caller.onWarning = function (reason) {
+          if (!(reason instanceof Error)) {
+            reason = new Error(reason)
+          }
+          emitWarning(reason)
+        }),
+      })
 
       options.plugins = options.plugins || []
+
+      if (hasReactRefresh) {
+        const reactRefreshPlugin = babel.createConfigItem(
+          [require('react-refresh/babel'), { skipEnvCheck: true }],
+          { type: 'plugin' }
+        )
+        options.plugins.unshift(reactRefreshPlugin)
+        if (!isServer) {
+          const noAnonymousDefaultExportPlugin = babel.createConfigItem(
+            [require('../../babel/plugins/no-anonymous-default-export'), {}],
+            { type: 'plugin' }
+          )
+          options.plugins.unshift(noAnonymousDefaultExportPlugin)
+        }
+      }
 
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
@@ -124,13 +177,21 @@ module.exports = babelLoader.custom(babel => {
           { type: 'plugin' }
         )
         options.plugins.push(pageConfigPlugin)
+
+        const diallowExportAll = babel.createConfigItem(
+          [
+            require('../../babel/plugins/next-page-disallow-re-export-all-exports'),
+          ],
+          { type: 'plugin' }
+        )
+        options.plugins.push(diallowExportAll)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {
         const nextDataPlugin = babel.createConfigItem(
           [
             require('../../babel/plugins/next-data'),
-            { key: basename(filename) + '-' + hash(filename) }
+            { key: basename(filename) + '-' + hash(filename) },
           ],
           { type: 'plugin' }
         )
@@ -139,17 +200,17 @@ module.exports = babelLoader.custom(babel => {
 
       if (isModern) {
         const nextPreset = options.presets.find(
-          preset => preset && preset.value === nextBabelPreset
+          (preset) => preset && preset.value === nextBabelPreset
         ) || { options: {} }
 
         const additionalPresets = options.presets.filter(
-          preset => preset !== nextPreset
+          (preset) => preset !== nextPreset
         )
 
         const presetItemModern = babel.createConfigItem(
           nextBabelPresetModern(nextPreset.options),
           {
-            type: 'preset'
+            type: 'preset',
           }
         )
 
@@ -164,24 +225,44 @@ module.exports = babelLoader.custom(babel => {
 
       options.plugins.push([
         require.resolve('babel-plugin-transform-define'),
-        { 'typeof window': isServer ? 'undefined' : 'object' },
-        'next-js-transform-define-instance'
+        {
+          'process.env.NODE_ENV': development ? 'development' : 'production',
+          'typeof window': isServer ? 'undefined' : 'object',
+          'process.browser': isServer ? false : true,
+        },
+        'next-js-transform-define-instance',
       ])
+
+      if (isPageFile) {
+        if (!isServer) {
+          options.plugins.push([
+            require.resolve('../../babel/plugins/next-ssg-transform'),
+            {},
+          ])
+        }
+      }
 
       // As next-server/lib has stateful modules we have to transpile commonjs
       options.overrides = [
         ...(options.overrides || []),
         {
           test: [
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
-            /next[\\/]dist[\\/]pages/
+            /next[\\/]dist[\\/]pages/,
           ],
-          plugins: [commonJsItem]
-        }
+          plugins: [commonJsItem],
+        },
       ]
 
+      for (const plugin of babelPresetPlugins) {
+        require(join(plugin.dir, 'src', 'babel-preset-build.js'))(
+          options,
+          plugin.config || {}
+        )
+      }
+
       return options
-    }
+    },
   }
 })

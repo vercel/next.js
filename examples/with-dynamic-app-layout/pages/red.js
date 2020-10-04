@@ -1,4 +1,3 @@
-import React from 'react'
 import Link from 'next/link'
 
 import RedLayout from '../layouts/RedLayout'
@@ -11,7 +10,7 @@ const RedPage = () => {
       <br />
       <br />
       Go back to the{' '}
-      <Link href='/'>
+      <Link href="/">
         <a>Blue Page</a>
       </Link>
     </p>

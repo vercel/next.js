@@ -3,7 +3,7 @@
 import cheerio from 'cheerio'
 
 export default function ({ app }, suiteName, render, fetch) {
-  async function get$ (path, query) {
+  async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }

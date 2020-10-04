@@ -25,8 +25,8 @@ function styledJsxOptions(options: StyledJsxBabelOptions) {
   options.plugins = options.plugins.map(
     (plugin: StyledJsxPlugin): StyledJsxPlugin => {
       if (Array.isArray(plugin)) {
-        const [name, options] = plugin
-        return [require.resolve(name), options]
+        const [name, pluginOptions] = plugin
+        return [require.resolve(name), pluginOptions]
       }
 
       return require.resolve(plugin)
@@ -41,19 +41,21 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
+  'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
+  'preset-typescript'?: any
 }
 
 type BabelPreset = {
   presets?: PluginItem[] | null
   plugins?: PluginItem[] | null
   sourceType?: 'script' | 'module' | 'unambiguous'
-  overrides?: any[]
+  overrides?: Array<{ test: RegExp } & Omit<BabelPreset, 'overrides'>>
 }
 
 // Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
-function supportsStaticESM(caller: any) {
-  return !!(caller && caller.supportsStaticESM)
+function supportsStaticESM(caller: any): boolean {
+  return !!caller?.supportsStaticESM
 }
 
 module.exports = (
@@ -62,11 +64,25 @@ module.exports = (
 ): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
+  const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+  const hasJsxRuntime = Boolean(
+    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
+  )
+
+  const isLaxModern =
+    isModern ||
+    (options['preset-env']?.targets &&
+      options['preset-env'].targets.esmodules === true)
+
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
+    include: [
+      '@babel/plugin-proposal-optional-chaining',
+      '@babel/plugin-proposal-nullish-coalescing-operator',
+    ],
     ...options['preset-env'],
   }
 
@@ -87,24 +103,34 @@ module.exports = (
     }
   }
 
+  // specify a preset to use instead of @babel/preset-env
+  const customModernPreset =
+    isLaxModern && options['experimental-modern-preset']
+
   return {
     sourceType: 'unambiguous',
     presets: [
-      [require('@babel/preset-env').default, presetEnvConfig],
+      customModernPreset || [
+        require('@babel/preset-env').default,
+        presetEnvConfig,
+      ],
       [
         require('@babel/preset-react'),
         {
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
-          pragma: '__jsx',
+          ...(hasJsxRuntime ? { runtime: 'automatic' } : { pragma: '__jsx' }),
           ...options['preset-react'],
         },
       ],
-      require('@babel/preset-typescript'),
+      [
+        require('@babel/preset-typescript'),
+        { allowNamespaces: true, ...options['preset-typescript'] },
+      ],
     ],
     plugins: [
-      [
+      !hasJsxRuntime && [
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:
@@ -135,14 +161,14 @@ module.exports = (
           useBuiltIns: true,
         },
       ],
-      [
+      !isServer && [
         require('@babel/plugin-transform-runtime'),
         {
-          corejs: 2,
+          corejs: false,
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: (process.versions as any).pnp ? __dirname : undefined,
+          absoluteRuntime: process.versions.pnp ? __dirname : undefined,
           ...options['transform-runtime'],
         },
       ],
@@ -159,6 +185,11 @@ module.exports = (
           removeImport: true,
         },
       ],
+      isServer && require('@babel/plugin-syntax-bigint'),
+      // Always compile numeric separator because the resulting number is
+      // smaller.
+      require('@babel/plugin-proposal-numeric-separator'),
+      require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
   }
 }

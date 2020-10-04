@@ -1,8 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
+import cheerio from 'cheerio'
 import clone from 'clone'
 import {
   initNextServerScript,
@@ -10,7 +11,8 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   check,
-  File
+  File,
+  nextBuild,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -18,11 +20,11 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 
-const startServer = async (optEnv = {}) => {
+const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
   const env = Object.assign(
@@ -36,7 +38,8 @@ const startServer = async (optEnv = {}) => {
     scriptPath,
     /ready on/i,
     env,
-    /ReferenceError: options is not defined/
+    /ReferenceError: options is not defined/,
+    opts
   )
 }
 
@@ -44,6 +47,11 @@ describe('Custom Server', () => {
   describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
+
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
+    })
 
     it('should handle render with undefined query', async () => {
       expect(await renderViaHTTP(appPort, '/no-query')).toMatch(/"query":/)
@@ -72,7 +80,7 @@ describe('Custom Server', () => {
       for (let lc = 0; lc < 1000; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
           await renderViaHTTP(appPort, '/asset'),
-          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
+          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'),
         ])
 
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
@@ -83,6 +91,12 @@ describe('Custom Server', () => {
     it('should render nested index', async () => {
       const html = await renderViaHTTP(appPort, '/dashboard')
       expect(html).toMatch(/made it to dashboard/)
+    })
+
+    it('should contain customServer in NEXT_DATA', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).customServer).toBe(true)
     })
   })
 
@@ -128,6 +142,45 @@ describe('Custom Server', () => {
           await browser.close()
         }
       }
+    })
+  })
+
+  describe('Error when rendering without starting slash', () => {
+    afterEach(() => killApp(server))
+
+    it('should warn in dev mode', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+      const html = await renderViaHTTP(appPort, '/no-slash')
+      expect(html).toContain('made it to dashboard')
+      expect(stderr).toContain('Cannot render page with path "dashboard"')
+    })
+
+    it('should warn in production mode', async () => {
+      const { code } = await nextBuild(appDir)
+      expect(code).toBe(0)
+
+      let stderr = ''
+
+      await startServer(
+        { NODE_ENV: 'production' },
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+
+      const html = await renderViaHTTP(appPort, '/no-slash')
+      expect(html).toContain('made it to dashboard')
+      expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
   })
 })

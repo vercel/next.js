@@ -1,38 +1,5 @@
 # Redux-Observable example
 
-## How to use
-
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
-
-```bash
-npx create-next-app --example with-redux-observable with-redux-observable-app
-# or
-yarn create next-app --example with-redux-observable with-redux-observable-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-observable
-cd with-redux-observable
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-### The idea behind the example
-
 This example is a page that renders information about Star-Wars characters. It
 fetches new character every 3 seconds having the initial character fetched on
 a server.
@@ -41,22 +8,23 @@ Example also uses `redux-logger` to log every action.
 
 ![demo page](demo.png)
 
-The main problem with integrating Redux, Redux-Observable and Next.js is
-probably making initial requests on a server. That's because, the
-`getInitialProps` hook runs on the server-side before epics have been made available by just dispatching actions.
+## Deploy your own
 
-However, we can access and execute epics directly. In order to do so, we need to
-pass them an Observable of an action together with StateObservable and they will return an Observable:
+Deploy the example using [Vercel](https://vercel.com):
 
-```js
-static async getInitialProps({ store, isServer }) {
-  const state$ = new StateObservable(new Subject(), store.getState());
-  const resultAction = await rootEpic(
-    of(actions.fetchCharacter(isServer)),
-    state$
-  ).toPromise(); // we need to convert Observable to Promise
-  store.dispatch(resultAction)};
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-redux-observable)
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
+```bash
+npx create-next-app --example with-redux-observable with-redux-observable-app
+# or
+yarn create next-app --example with-redux-observable with-redux-observable-app
 ```
+
+Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 Note: we are not using `AjaxObservable` from the `rxjs` library; as of rxjs
 v5.5.6, it will not work on both the server- and client-side. Instead we call
@@ -84,5 +52,5 @@ The layout of the redux related functionality is split between:
 and organized in `redux/index.js`.
 
 Excepting in those manners discussed above, the configuration is similar the
-configuration found in [with-redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux)
+configuration found in [with-redux example](https://github.com/vercel/next.js/tree/canary/examples/with-redux)
 and [redux-observable docs](https://redux-observable.js.org/).

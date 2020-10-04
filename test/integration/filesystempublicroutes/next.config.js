@@ -1,12 +1,12 @@
 module.exports = {
   onDemandEntries: {
     // Make sure entries are not getting disposed.
-    maxInactiveAge: 1000 * 60 * 60
+    maxInactiveAge: 1000 * 60 * 60,
   },
   useFileSystemPublicRoutes: false,
-  exportPathMap () {
+  exportPathMap() {
     return {
-      '/exportpathmap-route': { page: '/exportpathmap-route' }
+      '/exportpathmap-route': { page: '/exportpathmap-route' },
     }
-  }
+  },
 }

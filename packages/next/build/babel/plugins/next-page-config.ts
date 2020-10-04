@@ -1,29 +1,18 @@
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
-import * as BabelTypes from '@babel/types'
-import { PageConfig } from 'next-server/types'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import { PageConfig } from 'next/types'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
-export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
-export const sprStatus = { used: false }
-
-const configKeys = new Set(['amp', 'experimentalPrerender'])
-const pageComponentVar = '__NEXT_COMP'
-// this value can't be optimized by terser so the shorter the better
-const prerenderId = '__NEXT_SPR'
+const CONFIG_KEY = 'config'
 
 // replace program path with just a variable with the drop identifier
-function replaceBundle(path: any, t: typeof BabelTypes) {
+function replaceBundle(path: any, t: typeof BabelTypes): void {
   path.parentPath.replaceWith(
     t.program(
       [
         t.variableDeclaration('const', [
           t.variableDeclarator(
-            t.identifier('config'),
-            t.assignmentExpression(
-              '=',
-              t.identifier(dropBundleIdentifier),
-              t.stringLiteral(`${dropBundleIdentifier} ${Date.now()}`)
-            )
+            t.identifier(STRING_LITERAL_DROP_BUNDLE),
+            t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
           ),
         ]),
       ],
@@ -32,11 +21,17 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
   )
 }
 
+function errorMessage(state: any, details: string): string {
+  const pageName =
+    (state.filename || '').split(state.cwd || '').pop() || 'unknown'
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/vercel/next.js/invalid-page-config`
+}
+
 interface ConfigState {
-  isPrerender?: boolean
   bundleDropped?: boolean
 }
 
+// config to parsing pageConfig for client bundles
 export default function nextPageConfig({
   types: t,
 }: {
@@ -48,84 +43,150 @@ export default function nextPageConfig({
         enter(path, state: ConfigState) {
           path.traverse(
             {
+              ExportDeclaration(exportPath, exportState) {
+                if (
+                  BabelTypes.isExportNamedDeclaration(exportPath) &&
+                  (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
+                    (specifier) => {
+                      return specifier.exported.name === CONFIG_KEY
+                    }
+                  ) &&
+                  BabelTypes.isStringLiteral(
+                    (exportPath.node as BabelTypes.ExportNamedDeclaration)
+                      .source
+                  )
+                ) {
+                  throw new Error(
+                    errorMessage(
+                      exportState,
+                      'Expected object but got export from'
+                    )
+                  )
+                }
+              },
               ExportNamedDeclaration(
-                path: NodePath<BabelTypes.ExportNamedDeclaration>,
-                state: any
+                exportPath: NodePath<BabelTypes.ExportNamedDeclaration>,
+                exportState: any
               ) {
                 if (
-                  state.bundleDropped ||
-                  !path.node.declaration ||
-                  !(path.node.declaration as any).declarations
-                )
+                  exportState.bundleDropped ||
+                  (!exportPath.node.declaration &&
+                    exportPath.node.specifiers.length === 0)
+                ) {
                   return
-                const { declarations } = path.node.declaration as any
+                }
+
                 const config: PageConfig = {}
+                const declarations = [
+                  ...(exportPath.node.declaration?.declarations || []),
+                  exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
+                ].filter(Boolean)
+
+                for (const specifier of exportPath.node.specifiers) {
+                  if (specifier.exported.name === CONFIG_KEY) {
+                    // export {} from 'somewhere'
+                    if (BabelTypes.isStringLiteral(exportPath.node.source)) {
+                      throw new Error(
+                        errorMessage(
+                          exportState,
+                          `Expected object but got import`
+                        )
+                      )
+                      // import hello from 'world'
+                      // export { hello as config }
+                    } else if (
+                      BabelTypes.isIdentifier(
+                        (specifier as BabelTypes.ExportSpecifier).local
+                      )
+                    ) {
+                      if (
+                        BabelTypes.isImportSpecifier(
+                          exportPath.scope.getBinding(
+                            (specifier as BabelTypes.ExportSpecifier).local.name
+                          )?.path.node
+                        )
+                      ) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Expected object but got import`
+                          )
+                        )
+                      }
+                    }
+                  }
+                }
 
                 for (const declaration of declarations) {
-                  if (declaration.id.name !== 'config') continue
+                  if (
+                    !BabelTypes.isIdentifier(declaration.id, {
+                      name: CONFIG_KEY,
+                    })
+                  ) {
+                    continue
+                  }
 
-                  if (declaration.init.type !== 'ObjectExpression') {
-                    const pageName =
-                      (state.filename || '').split(state.cwd || '').pop() ||
-                      'unknown'
-
+                  if (!BabelTypes.isObjectExpression(declaration.init)) {
+                    const got = declaration.init
+                      ? declaration.init.type
+                      : 'undefined'
                     throw new Error(
-                      `Invalid page config export found. Expected object but got ${
-                        declaration.init.type
-                      } in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                      errorMessage(
+                        exportState,
+                        `Expected object but got ${got}`
+                      )
                     )
                   }
 
                   for (const prop of declaration.init.properties) {
+                    if (BabelTypes.isSpreadElement(prop)) {
+                      throw new Error(
+                        errorMessage(
+                          exportState,
+                          `Property spread is not allowed`
+                        )
+                      )
+                    }
                     const { name } = prop.key
-                    if (configKeys.has(name)) {
-                      // @ts-ignore
-                      config[name] = prop.value.value
+                    if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
+                      if (!BabelTypes.isObjectProperty(prop)) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Invalid property "${name}"`
+                          )
+                        )
+                      }
+                      if (
+                        !BabelTypes.isBooleanLiteral(prop.value) &&
+                        !BabelTypes.isStringLiteral(prop.value)
+                      ) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Invalid value for "${name}"`
+                          )
+                        )
+                      }
+                      config.amp = prop.value.value as PageConfig['amp']
                     }
                   }
                 }
 
                 if (config.amp === true) {
-                  replaceBundle(path, t)
-                  state.bundleDropped = true
+                  if (!exportState.file?.opts?.caller.isDev) {
+                    // don't replace bundle in development so HMR can track
+                    // dependencies and trigger reload when they are changed
+                    replaceBundle(exportPath, t)
+                  }
+                  exportState.bundleDropped = true
                   return
                 }
-
-                state.isPrerender = config.experimentalPrerender === true
-                sprStatus.used = sprStatus.used || state.isPrerender
               },
             },
             state
           )
         },
-      },
-      ExportDefaultDeclaration(path, state: ConfigState) {
-        if (!state.isPrerender) {
-          return
-        }
-        const prev = t.cloneDeep(path.node.declaration)
-
-        // workaround to allow assigning a ClassDeclaration to a variable
-        // babel throws error without
-        if (prev.type.endsWith('Declaration')) {
-          prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
-        }
-
-        path.insertBefore([
-          t.variableDeclaration('const', [
-            t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
-          ]),
-          t.assignmentExpression(
-            '=',
-            t.memberExpression(
-              t.identifier(pageComponentVar),
-              t.identifier(prerenderId)
-            ),
-            t.booleanLiteral(true)
-          ),
-        ])
-
-        path.node.declaration = t.identifier(pageComponentVar)
       },
     },
   }

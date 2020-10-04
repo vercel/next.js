@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
@@ -7,10 +7,10 @@ import {
   startApp,
   nextBuild,
   nextServer,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
+jest.setTimeout(1000 * 60)
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -22,7 +22,7 @@ describe('Custom Document Fragment Styles', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

@@ -1,7 +1,15 @@
-export default ({ lastUpdate, light }) => {
+import { useSelector } from 'react-redux'
+
+const formatTime = (time) => {
+  return new Date(time).toJSON().slice(11, 19)
+}
+
+const Clock = () => {
+  const lastUpdate = useSelector((state) => state.timer.lastUpdate)
+  const light = useSelector((state) => state.timer.light)
   return (
     <div className={light ? 'light' : ''}>
-      {format(new Date(lastUpdate))}
+      {formatTime(lastUpdate)}
       <style jsx>{`
         div {
           padding: 15px;
@@ -19,7 +27,4 @@ export default ({ lastUpdate, light }) => {
   )
 }
 
-const format = t =>
-  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-
-const pad = n => (n < 10 ? `0${n}` : n)
+export default Clock

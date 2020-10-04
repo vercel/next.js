@@ -1,0 +1,15 @@
+{
+  "name": "with-why-did-you-render",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@welldone-software/why-did-you-render": "^4.0.4",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "license": "MIT"
+}

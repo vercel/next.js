@@ -4,7 +4,7 @@ import Layout from '../components/Layout'
 const AboutPage = () => (
   <Layout>
     <Section>
-      <Title as='h2'>About</Title>
+      <Title as="h2">About</Title>
       <ul>
         <li>Server-rendered by default</li>
         <li>Automatic code splitting for faster page loads</li>

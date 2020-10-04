@@ -1,29 +1,25 @@
-import Head from 'next/head'
-import React from 'react'
 import Player from '../components/Player'
+import PlayerCSS from '../components/PlayerCss'
 
-export default class Index extends React.Component {
-  render () {
-    const videoJsOptions = {
-      techOrder: ['youtube'],
-      autoplay: true,
-      controls: true,
-      sources: [
-        {
-          src: 'https://www.youtube.com/watch?v=jiLkBxw2pbs',
-          type: 'video/youtube'
-        }
-      ]
-    }
-
-    return (
-      <div>
-        <Head>
-          <link rel='stylesheet' href='/_next/static/style.css' />
-        </Head>
-
-        <Player {...videoJsOptions} />
-      </div>
-    )
+const Index = () => {
+  const videoJsOptions = {
+    techOrder: ['youtube'],
+    autoplay: false,
+    controls: true,
+    sources: [
+      {
+        src: 'https://www.youtube.com/watch?v=IxQB14xVas0',
+        type: 'video/youtube',
+      },
+    ],
   }
+
+  return (
+    <>
+      <Player {...videoJsOptions} />
+      <PlayerCSS />
+    </>
+  )
 }
+
+export default Index

@@ -1,0 +1,13 @@
+{
+  "labels": {
+    "type: example": ["examples/**"],
+    "type: documentation": ["docs/**", "errors/**"],
+    "type: create-next-app": ["packages/create-next-app/**"],
+    "type: next": [
+      "packages/next/**",
+      "packages/react-dev-overlay/**",
+      "packages/react-refresh-utils/**",
+      "packages/next-codemod/**"
+    ]
+  }
+}

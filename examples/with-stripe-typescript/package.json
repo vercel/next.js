@@ -1,0 +1,30 @@
+{
+  "name": "with-stripe-typescript",
+  "version": "2.0.0",
+  "description": "Full-stack TypeScript example using Next.js, react-stripe-js, and stripe-node.",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@stripe/react-stripe-js": "1.1.2",
+    "@stripe/stripe-js": "1.5.0",
+    "micro": "^9.3.4",
+    "micro-cors": "^0.1.1",
+    "next": "latest",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "stripe": "8.56.0",
+    "swr": "^0.1.16",
+    "use-shopping-cart": "2.1.0"
+  },
+  "devDependencies": {
+    "@types/micro": "^7.3.3",
+    "@types/micro-cors": "^0.1.0",
+    "@types/node": "^13.1.2",
+    "@types/react": "^16.9.17",
+    "typescript": "^3.7.4"
+  }
+}

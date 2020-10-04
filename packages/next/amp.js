@@ -1,1 +1,1 @@
-module.exports = require('next-server/amp')
+module.exports = require('./dist/next-server/lib/amp')

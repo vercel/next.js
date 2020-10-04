@@ -1,0 +1,1 @@
+{"name":"terser","main":"bundle.min.js","author":"Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)","license":"BSD-2-Clause"}

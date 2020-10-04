@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "target": "es2015",
+    "lib": ["dom"],
+    "downlevelIteration": true,
+    "preserveWatchOutput": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 
 export default class AlsoValid extends Component {
-  render () {
+  render() {
     return <div>Hi there</div>
   }
 }

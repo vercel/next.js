@@ -1,1 +1,3 @@
-export default () => <p>This is the CONTACT page.</p>
+export default function Contact() {
+  return <h1>This is the CONTACT page.</h1>
+}

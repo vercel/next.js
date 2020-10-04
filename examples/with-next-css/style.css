@@ -1,16 +1,7 @@
-.example {
-  font-size: 50px;
-  color: papayawhip;
-}
-
-/* Post-CSS */
-/*
 :root {
   --some-color: red;
 }
 
-.example {
+body {
   color: var(--some-color);
 }
-
-*/

@@ -1,0 +1,24 @@
+{
+  "name": "with-emotion-11",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "Thomas Greco",
+  "license": "MIT",
+  "dependencies": {
+    "@emotion/cache": "11.0.0-next.12",
+    "@emotion/css": "11.0.0-next.12",
+    "@emotion/react": "11.0.0-next.12",
+    "@emotion/server": "11.0.0-next.12",
+    "@emotion/styled": "11.0.0-next.12",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  }
+}

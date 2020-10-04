@@ -1,3 +1,0 @@
-### Other `awesome`
-
-file

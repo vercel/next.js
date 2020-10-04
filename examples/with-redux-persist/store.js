@@ -1,14 +1,17 @@
+import { useMemo } from 'react'
 import { createStore, applyMiddleware } from 'redux'
 import { composeWithDevTools } from 'redux-devtools-extension'
 import { persistReducer } from 'redux-persist'
 import storage from 'redux-persist/lib/storage'
+
+let store
 
 const exampleInitialState = {
   lastUpdate: 0,
   light: false,
   count: 0,
   exampleData: [],
-  error: null
+  error: null,
 }
 
 export const actionTypes = {
@@ -17,37 +20,40 @@ export const actionTypes = {
   DECREMENT: 'DECREMENT',
   RESET: 'RESET',
   LOAD_EXAMPLE_DATA: 'LOAD_EXAMPLE_DATA',
-  LOADING_DATA_FAILURE: 'LOADING_DATA_FAILURE'
+  LOADING_DATA_FAILURE: 'LOADING_DATA_FAILURE',
 }
 
 // REDUCERS
 export const reducer = (state = exampleInitialState, action) => {
   switch (action.type) {
     case actionTypes.TICK:
-      return Object.assign({}, state, {
+      return {
+        ...state,
         lastUpdate: action.ts,
-        light: !!action.light
-      })
+        light: !!action.light,
+      }
     case actionTypes.INCREMENT:
-      return Object.assign({}, state, {
-        count: state.count + 1
-      })
+      return {
+        ...state,
+        count: state.count + 1,
+      }
     case actionTypes.DECREMENT:
-      return Object.assign({}, state, {
-        count: state.count - 1
-      })
+      return {
+        ...state,
+        count: state.count - 1,
+      }
     case actionTypes.RESET:
-      return Object.assign({}, state, {
-        count: exampleInitialState.count
-      })
+      return {
+        ...state,
+        count: exampleInitialState.count,
+      }
     case actionTypes.LOAD_EXAMPLE_DATA:
-      return Object.assign({}, state, {
-        exampleData: action.data
-      })
+      return {
+        ...state,
+        exampleData: action.data,
+      }
     case actionTypes.LOADING_DATA_FAILURE:
-      return Object.assign({}, state, {
-        error: true
-      })
+      return { ...state, error: true }
     default:
       return state
   }
@@ -73,7 +79,7 @@ export const resetCount = () => {
   return { type: actionTypes.RESET }
 }
 
-export const loadExampleData = data => {
+export const loadExampleData = (data) => {
   return { type: actionTypes.LOAD_EXAMPLE_DATA, data }
 }
 
@@ -84,15 +90,42 @@ export const loadingExampleDataFailure = () => {
 const persistConfig = {
   key: 'primary',
   storage,
-  whitelist: ['exampleData'] // place to select which state you want to persist
+  whitelist: ['exampleData'], // place to select which state you want to persist
 }
 
 const persistedReducer = persistReducer(persistConfig, reducer)
 
-export function initializeStore (initialState = exampleInitialState) {
+function makeStore(initialState = exampleInitialState) {
   return createStore(
     persistedReducer,
     initialState,
     composeWithDevTools(applyMiddleware())
   )
+}
+
+export const initializeStore = (preloadedState) => {
+  let _store = store ?? makeStore(preloadedState)
+
+  // After navigating to a page with an initial Redux state, merge that state
+  // with the current state in the store, and create a new store
+  if (preloadedState && store) {
+    _store = makeStore({
+      ...store.getState(),
+      ...preloadedState,
+    })
+    // Reset the current store
+    store = undefined
+  }
+
+  // For SSG and SSR always create a new store
+  if (typeof window === 'undefined') return _store
+  // Create the store once in the client
+  if (!store) store = _store
+
+  return _store
+}
+
+export function useStore(initialState) {
+  const store = useMemo(() => initializeStore(initialState), [initialState])
+  return store
 }

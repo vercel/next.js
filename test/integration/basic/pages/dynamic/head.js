@@ -6,7 +6,7 @@ const Test = dynamic({
     // component
     return () => {
       return (
-        <div className='dynamic-style'>
+        <div className="dynamic-style">
           <Head>
             <style
               dangerouslySetInnerHTML={{
@@ -15,7 +15,7 @@ const Test = dynamic({
               background-color: green;
               height: 200px;
             }
-          `
+          `,
               }}
             />
           </Head>
@@ -24,7 +24,7 @@ const Test = dynamic({
       )
     }
   },
-  ssr: false
+  ssr: false,
 })
 
 export default Test

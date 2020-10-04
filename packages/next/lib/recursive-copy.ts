@@ -1,57 +1,59 @@
 import path from 'path'
-import fs from 'fs'
-import { promisify } from 'util'
-import { Sema } from 'async-sema'
+import { promises, constants } from 'fs'
+import { Sema } from 'next/dist/compiled/async-sema'
 
-const mkdir = promisify(fs.mkdir)
-const stat = promisify(fs.stat)
-const readdir = promisify(fs.readdir)
-const copyFile = promisify(fs.copyFile)
-
-const COPYFILE_EXCL = fs.constants.COPYFILE_EXCL
+const COPYFILE_EXCL = constants.COPYFILE_EXCL
 
 export async function recursiveCopy(
   source: string,
   dest: string,
   {
-    concurrency = 255,
+    concurrency = 32,
+    overwrite = false,
     filter = () => true,
-  }: { concurrency?: number; filter?(path: string): boolean } = {}
-) {
+  }: {
+    concurrency?: number
+    overwrite?: boolean
+    filter?(path: string): boolean
+  } = {}
+): Promise<void> {
   const cwdPath = process.cwd()
   const from = path.resolve(cwdPath, source)
   const to = path.resolve(cwdPath, dest)
 
   const sema = new Sema(concurrency)
 
-  async function _copy(item: string) {
+  async function _copy(item: string): Promise<void> {
     const target = item.replace(from, to)
-    const stats = await stat(item)
+    const stats = await promises.stat(item)
 
     await sema.acquire()
 
     if (stats.isDirectory()) {
       try {
-        await mkdir(target)
+        await promises.mkdir(target)
       } catch (err) {
         // do not throw `folder already exists` errors
         if (err.code !== 'EEXIST') {
           throw err
         }
       }
-      const files = await readdir(item)
-      await Promise.all(files.map(file => _copy(path.join(item, file))))
+      sema.release()
+      const files = await promises.readdir(item)
+      await Promise.all(files.map((file) => _copy(path.join(item, file))))
     } else if (
       stats.isFile() &&
       // before we send the path to filter
       // we remove the base path (from) and replace \ by / (windows)
       filter(item.replace(from, '').replace(/\\/g, '/'))
     ) {
-      await copyFile(item, target, COPYFILE_EXCL)
+      await promises.copyFile(
+        item,
+        target,
+        overwrite ? undefined : COPYFILE_EXCL
+      )
+      sema.release()
     }
-
-    sema.release()
-    return
   }
 
   await _copy(from)

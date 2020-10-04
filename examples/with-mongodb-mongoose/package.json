@@ -1,0 +1,17 @@
+{
+  "name": "with-mongodb-mongoose",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "mongoose": "^5.9.13",
+    "next": "^9.4.2",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "swr": "0.2.2"
+  },
+  "license": "MIT"
+}

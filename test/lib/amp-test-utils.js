@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import amphtmlValidator from 'amphtml-validator'
 
-export async function validateAMP (html) {
+export async function validateAMP(html) {
   const validator = await amphtmlValidator.getInstance()
   const result = validator.validateString(html)
   if (result.status !== 'PASS') {

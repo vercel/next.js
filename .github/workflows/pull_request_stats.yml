@@ -1,0 +1,13 @@
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+name: Generate Pull Request Stats
+
+jobs:
+  stats:
+    name: PR Stats
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/next-stats-action

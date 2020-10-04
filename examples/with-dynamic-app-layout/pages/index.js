@@ -1,4 +1,3 @@
-import React from 'react'
 import Link from 'next/link'
 
 import BlueLayout from '../layouts/BlueLayout'
@@ -11,13 +10,13 @@ const BluePage = () => {
       <br />
       <br />
       Go to the{' '}
-      <Link href='/red'>
+      <Link href="/red">
         <a style={{ color: 'red' }}>Red Page</a>
       </Link>
       <br />
       <br />
       Go to the{' '}
-      <Link href='/green'>
+      <Link href="/green">
         <a style={{ color: 'green' }}>Green Page</a>
       </Link>
     </p>

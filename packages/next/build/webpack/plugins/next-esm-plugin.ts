@@ -31,7 +31,8 @@
  */
 import {
   Compiler,
-  compilation,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  compilation as CompilationType,
   Plugin,
   RuleSetRule,
   RuleSetLoader,
@@ -44,9 +45,21 @@ const JsonpTemplatePlugin = require('webpack/lib/web/JsonpTemplatePlugin')
 const SplitChunksPlugin = require('webpack/lib/optimize/SplitChunksPlugin')
 const RuntimeChunkPlugin = require('webpack/lib/optimize/RuntimeChunkPlugin')
 
+type BabelConfigItem = string | [string] | [string, any]
+
 const PLUGIN_NAME = 'NextEsmPlugin'
 
-export default class NextEsmPlugin implements Plugin {
+// Matches all variations of preset-env as a filepath.
+// Example: /project/foo/node_modules/babel-preset-react-app/dependencies.js
+const IS_PRESET_ENV = /(^|[\\/])(babel-preset-react-app\/dependencies(\.js)?|@babel\/(preset-)?env)([\\/]|$)/
+
+// Matches Babel preset paths that support the useBuiltIns option
+const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
+
+// Matches Babel plugin paths that support the useBuiltIns option
+const PLUGINS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/
+
+export class NextEsmPlugin implements Plugin {
   options: {
     filename: any
     chunkFilename: any
@@ -61,42 +74,42 @@ export default class NextEsmPlugin implements Plugin {
     additionalPlugins?: any
   }) {
     this.options = Object.assign(
-      {
-        excludedPlugins: [PLUGIN_NAME],
-        additionalPlugins: [],
-      },
+      { excludedPlugins: [], additionalPlugins: [] },
       options
     )
   }
 
   apply(compiler: Compiler) {
-    compiler.hooks.make.tapAsync(
-      PLUGIN_NAME,
-      (compilation: compilation.Compilation, callback) => {
-        this.runBuild(compiler, compilation).then(callback)
-      }
-    )
+    compiler.hooks.make.tapAsync(PLUGIN_NAME, (compilation, callback) => {
+      this.runBuild(compiler, compilation).then(callback)
+    })
   }
 
-  getBabelLoader(rules: RuleSetRule[]) {
+  getLoaders(rules: RuleSetRule[], predicate: (loader: string) => boolean) {
+    const results = []
     for (let rule of rules) {
-      if (!rule.use) continue
-
       if (Array.isArray(rule.use)) {
-        return (rule.use as RuleSetLoader[]).find(
-          r => r.loader && r.loader.includes('next-babel-loader')
+        const matches = (rule.use as RuleSetLoader[]).filter(
+          (r) => r.loader && predicate(r.loader)
         )
+        if (matches.length > 0) {
+          results.push(...matches)
+        }
       }
 
       const ruleUse = rule.use as RuleSetLoader
-      const ruleLoader = rule.loader as string
+      let ruleLoader = rule.loader
+      if (typeof ruleLoader === 'object' && 'loader' in ruleLoader) {
+        ruleLoader = ruleLoader.loader
+      }
       if (
-        (ruleUse.loader && ruleUse.loader.includes('next-babel-loader')) ||
-        (ruleLoader && ruleLoader.includes('next-babel-loader'))
+        (ruleUse?.loader && predicate(ruleUse.loader)) ||
+        (ruleLoader && predicate(ruleLoader as string))
       ) {
-        return ruleUse || rule
+        results.push(ruleUse || rule)
       }
     }
+    return results
   }
 
   updateOptions(childCompiler: Compiler) {
@@ -104,7 +117,10 @@ export default class NextEsmPlugin implements Plugin {
       throw new Error('Webpack.options.module not found!')
     }
 
-    let babelLoader = this.getBabelLoader(childCompiler.options.module.rules)
+    let babelLoader = this.getLoaders(
+      childCompiler.options.module.rules,
+      (loader) => loader.includes('next-babel-loader')
+    )[0]
 
     if (!babelLoader) {
       throw new Error('Babel-loader config not found!')
@@ -113,11 +129,73 @@ export default class NextEsmPlugin implements Plugin {
     babelLoader.options = Object.assign({}, babelLoader.options, {
       isModern: true,
     })
+    if (typeof babelLoader.options !== 'string') {
+      this.ensureModernBabelOptions(babelLoader.options)
+    }
+
+    const additionalBabelLoaders = this.getLoaders(
+      childCompiler.options.module.rules,
+      (loader) => /(^|[\\/])babel-loader([\\/]|$)/.test(loader)
+    )
+    for (const loader of additionalBabelLoaders) {
+      // @TODO support string options?
+      if (!loader.options || typeof loader.options === 'string') continue
+      this.ensureModernBabelOptions(loader.options)
+    }
+  }
+
+  ensureModernBabelOptions(options: {
+    presets?: BabelConfigItem[]
+    plugins?: BabelConfigItem[]
+  }) {
+    // find and remove known ES2017-to-ES5 transforms
+    if (options.presets) {
+      options.presets = options.presets.reduce(
+        (presets: BabelConfigItem[], preset) => {
+          const name = Array.isArray(preset) ? preset[0] : preset
+          const opts = Object.assign(
+            {},
+            (Array.isArray(preset) && preset[1]) || {}
+          )
+
+          if (PRESETS_WITH_USEBUILTINS.test(name)) {
+            opts.useBuiltIns = true
+          }
+
+          if (IS_PRESET_ENV.test(name)) {
+            presets.push([
+              require.resolve('@babel/preset-modules'),
+              { loose: true },
+            ])
+          } else {
+            presets.push([name, opts])
+          }
+          return presets
+        },
+        []
+      )
+    }
+
+    if (options.plugins) {
+      options.plugins = options.plugins.map((plugin) => {
+        const name = Array.isArray(plugin) ? plugin[0] : plugin
+        const opts = Object.assign(
+          {},
+          (Array.isArray(plugin) && plugin[1]) || {}
+        )
+
+        if (PLUGINS_WITH_USEBUILTINS.test(name)) {
+          opts.useBuiltIns = true
+        }
+
+        return [name, opts]
+      })
+    }
   }
 
   updateAssets(
-    compilation: compilation.Compilation,
-    childCompilation: compilation.Compilation
+    compilation: CompilationType.Compilation,
+    childCompilation: CompilationType.Compilation
   ) {
     compilation.assets = Object.assign(
       childCompilation.assets,
@@ -129,22 +207,30 @@ export default class NextEsmPlugin implements Plugin {
       compilation.namedChunkGroups
     )
 
+    const unnamedChunks: CompilationType.Chunk[] = []
     const childChunkFileMap = childCompilation.chunks.reduce(
       (
-        chunkMap: { [key: string]: compilation.Chunk },
-        chunk: compilation.Chunk
+        chunkMap: { [key: string]: CompilationType.Chunk },
+        chunk: CompilationType.Chunk
       ) => {
-        chunkMap[chunk.name] = chunk
+        // Dynamic chunks may not have a name. It'll be null in such cases
+        if (chunk.name === null) {
+          unnamedChunks.push(chunk)
+        } else {
+          chunkMap[chunk.name] = chunk
+        }
+
         return chunkMap
       },
       {}
     )
 
-    // Merge files from similar chunks
-    compilation.chunks.forEach((chunk: compilation.Chunk) => {
+    // Merge chunks - merge the files of chunks with the same name
+    compilation.chunks.forEach((chunk: CompilationType.Chunk) => {
       const childChunk = childChunkFileMap[chunk.name]
 
-      if (childChunk && childChunk.files) {
+      // Do not merge null named chunks since they are different
+      if (chunk.name !== null && childChunk?.files) {
         delete childChunkFileMap[chunk.name]
         chunk.files.push(
           ...childChunk.files.filter((v: any) => !chunk.files.includes(v))
@@ -152,22 +238,29 @@ export default class NextEsmPlugin implements Plugin {
       }
     })
 
-    // Add modern only chunks
-    compilation.chunks.push(...Object.values(childChunkFileMap))
+    // Add modern only chunks into the main compilation
+    compilation.chunks.push(
+      ...Object.values(childChunkFileMap),
+      ...unnamedChunks
+    )
 
-    // Place modern only chunk inside the right entry point
+    // Place modern only (unmerged) chunks inside the right entry point
     compilation.entrypoints.forEach((entryPoint, entryPointName) => {
       const childEntryPoint = childCompilation.entrypoints.get(entryPointName)
 
-      childEntryPoint.chunks.forEach((chunk: compilation.Chunk) => {
-        if (childChunkFileMap.hasOwnProperty(chunk.name)) {
+      childEntryPoint.chunks.forEach((chunk: CompilationType.Chunk) => {
+        if (
+          // Add null named dynamic chunks since they weren't merged
+          chunk.name === null ||
+          childChunkFileMap.hasOwnProperty(chunk.name)
+        ) {
           entryPoint.chunks.push(chunk)
         }
       })
     })
   }
 
-  async runBuild(compiler: Compiler, compilation: compilation.Compilation) {
+  async runBuild(compiler: Compiler, compilation: CompilationType.Compilation) {
     const outputOptions: Output = { ...compiler.options.output }
 
     if (typeof this.options.filename === 'function') {
@@ -185,14 +278,18 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     let plugins = (compiler.options.plugins || []).filter(
-      c => !this.options.excludedPlugins.includes(c.constructor.name)
+      (c) =>
+        !(
+          this.options.excludedPlugins.includes(c.constructor.name) ||
+          c.constructor.name === PLUGIN_NAME
+        )
     )
 
     // Add the additionalPlugins
     plugins = plugins.concat(this.options.additionalPlugins)
 
     /**
-     * We are deliberatly not passing plugins in createChildCompiler.
+     * We are deliberately not passing plugins in createChildCompiler.
      * All webpack does with plugins is to call `apply` method on them
      * with the childCompiler.
      * But by then we haven't given childCompiler a fileSystem or other options
@@ -223,7 +320,7 @@ export default class NextEsmPlugin implements Plugin {
       compilerEntries = { index: compilerEntries }
     }
 
-    Object.keys(compilerEntries).forEach(entry => {
+    Object.keys(compilerEntries).forEach((entry) => {
       const entryFiles = compilerEntries[entry]
       if (Array.isArray(entryFiles)) {
         new MultiEntryPlugin(compiler.context, entryFiles, entry).apply(
@@ -254,24 +351,36 @@ export default class NextEsmPlugin implements Plugin {
       }
     }
 
-    compilation.hooks.additionalAssets.tapAsync(
-      PLUGIN_NAME,
-      childProcessDone => {
-        this.updateOptions(childCompiler)
+    // Hold back the main compilation until our Child Compiler has completed so its assets get optimized
+    const child = new Promise((resolve, reject) => {
+      // Defer the child compiler until known main thread "dead time" (while Terser is doing minification in the background)
+      let started = false
+      compilation.hooks.optimizeChunkAssets.intercept({
+        call: () => {
+          // only run the first time optimizeChunkAssets is called
+          if (started) return
+          started = true
 
-        childCompiler.runAsChild((err, entries, childCompilation) => {
-          if (err) {
-            return childProcessDone(err)
-          }
+          // Delay the Child Compiler until optimizeChunkAssets has had time to send work to the Terser pool
+          setTimeout(() => {
+            this.updateOptions(childCompiler)
 
-          if (childCompilation.errors.length > 0) {
-            return childProcessDone(childCompilation.errors[0])
-          }
+            childCompiler.runAsChild((err, _entries, childCompilation) => {
+              if (err) {
+                return reject(err)
+              }
 
-          this.updateAssets(compilation, childCompilation)
-          childProcessDone()
-        })
-      }
-    )
+              if (childCompilation.errors.length > 0) {
+                return reject(childCompilation.errors[0])
+              }
+
+              this.updateAssets(compilation, childCompilation)
+              resolve()
+            })
+          }, 500)
+        },
+      })
+    })
+    compilation.hooks.optimizeAssets.tapPromise(PLUGIN_NAME, () => child)
   }
 }

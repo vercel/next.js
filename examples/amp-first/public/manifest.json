@@ -1,0 +1,20 @@
+{
+  "short_name": "My page",
+  "name": "My fantastic page",
+  "icons": [
+    {
+      "src": "/static/images/icons-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/static/images/icons-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#005af0",
+  "background_color": "#ffffff"
+}

@@ -1,13 +1,32 @@
-import App from '../components/App'
-import Header from '../components/Header'
+import { initializeApollo } from '../lib/apollo'
+import Layout from '../components/Layout'
 import Submit from '../components/Submit'
-import PostList from '../components/PostList'
-import withApollo from '../lib/withApollo'
+import PostList, {
+  ALL_POSTS_QUERY,
+  allPostsQueryVars,
+} from '../components/PostList'
 
-export default withApollo(() => (
-  <App>
-    <Header />
+const ApolloPage = () => (
+  <Layout>
     <Submit />
     <PostList />
-  </App>
-))
+  </Layout>
+)
+
+export async function getStaticProps() {
+  const apolloClient = initializeApollo()
+
+  await apolloClient.query({
+    query: ALL_POSTS_QUERY,
+    variables: allPostsQueryVars,
+  })
+
+  return {
+    props: {
+      initialApolloState: apolloClient.cache.extract(),
+    },
+    revalidate: 1,
+  }
+}
+
+export default ApolloPage

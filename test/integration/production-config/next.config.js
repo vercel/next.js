@@ -6,25 +6,25 @@ module.exports = withCSS(
     env: {
       ...(process.env.ENABLE_ENV_FAIL_UNDERSCORE
         ? {
-          __NEXT_MY_VAR: 'test'
-        }
+            __NEXT_MY_VAR: 'test',
+          }
         : {}),
       ...(process.env.ENABLE_ENV_FAIL_NODE
         ? {
-          NODE_ENV: 'abc'
-        }
+            NODE_ENV: 'abc',
+          }
         : {}),
       ...(process.env.ENABLE_ENV_WITH_UNDERSCORES
         ? {
-          SOME__ENV__VAR: '123'
-        }
-        : {})
+            SOME__ENV__VAR: '123',
+          }
+        : {}),
     },
     onDemandEntries: {
       // Make sure entries are not getting disposed.
-      maxInactiveAge: 1000 * 60 * 60
+      maxInactiveAge: 1000 * 60 * 60,
     },
-    webpack (config) {
+    webpack(config) {
       // When next-css is `npm link`ed we have to solve loaders from the project root
       const nextLocation = path.join(
         require.resolve('next/package.json'),
@@ -41,8 +41,8 @@ module.exports = withCSS(
 
       return config
     },
-    async generateBuildId () {
+    async generateBuildId() {
       return 'custom-buildid'
-    }
+    },
   })
 )
