@@ -74,6 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
+      YARN_COMPRESSION_LEVEL: '0'
     steps:
       - uses: actions/checkout@v2
 
