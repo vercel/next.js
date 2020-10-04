@@ -163,34 +163,6 @@ function parseJson(str: string): object {
 }
 
 /**
- * Parsing query arguments from request `url` string
- * @param url of request
- * @returns Object with key name of query argument and its value
- */
-export function getQueryParser({ url }: IncomingMessage) {
-  return function parseQuery(): NextApiRequestQuery {
-    const { URL } = require('url')
-    // we provide a placeholder base url because we only want searchParams
-    const params = new URL(url, 'https://n').searchParams
-
-    const query: { [key: string]: string | string[] } = {}
-    for (const [key, value] of params) {
-      if (query[key]) {
-        if (Array.isArray(query[key])) {
-          ;(query[key] as string[]).push(value)
-        } else {
-          query[key] = [query[key], value]
-        }
-      } else {
-        query[key] = value
-      }
-    }
-
-    return query
-  }
-}
-
-/**
  * Parse cookies from `req` header
  * @param req request object
  */
