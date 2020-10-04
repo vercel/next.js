@@ -79,7 +79,7 @@ jobs:
 
       - run: yarn install --frozen-lockfile --check-files
 
-      - run: sh ./test-pnp.sh
+      - run: bash ./test-pnp.sh
 
   testsPass:
     name: thank you, next
