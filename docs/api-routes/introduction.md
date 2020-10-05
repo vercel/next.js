@@ -22,7 +22,7 @@ Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated
 For example, the following API route `pages/api/user.js` handles a `json` response:
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/json')
   res.end(JSON.stringify({ name: 'John Doe' }))
@@ -37,7 +37,7 @@ For an API route to work, you need to export as default a function (a.k.a **requ
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   if (req.method === 'POST') {
     // Process a POST request
   } else {

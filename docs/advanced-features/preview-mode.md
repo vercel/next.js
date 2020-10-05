@@ -39,7 +39,7 @@ First, create a **preview API route**. It can have any name - e.g. `pages/api/pr
 In this API route, you need to call `setPreviewData` on the response object. The argument for `setPreviewData` should be an object, and this can be used by `getStaticProps` (more on this later). For now, we’ll use `{}`.
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   // ...
   res.setPreviewData({})
   // ...
@@ -54,7 +54,7 @@ You can test this manually by creating an API route like below and accessing it 
 // A simple example for testing it manually from your browser.
 // If this is located at pages/api/preview.js, then
 // open /api/preview from your browser.
-export default (req, res) => {
+export default function handler(req, res) {
   res.setPreviewData({})
   res.end('Preview mode enabled')
 }
@@ -175,7 +175,7 @@ By default, no expiration date is set for the preview mode cookies, so the previ
 To clear the preview cookies manually, you can create an API route which calls `clearPreviewData` and then access this API route.
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   // Clears the preview mode cookies.
   // This function accepts no arguments.
   res.clearPreviewData()
