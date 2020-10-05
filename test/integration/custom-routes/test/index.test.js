@@ -19,6 +19,7 @@ import {
   waitFor,
   normalizeRegEx,
   initNextServerScript,
+  nextExport,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -31,6 +32,7 @@ let nextConfigContent
 let externalServerPort
 let externalServer
 let stdout = ''
+let stderr = ''
 let buildId
 let appPort
 let app
@@ -316,11 +318,13 @@ const runTests = (isDev = false) => {
 
   it('should work with rewrite when manually specifying href/as', async () => {
     const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
     await browser
       .elementByCss('#to-params-manual')
       .click()
       .waitForElementByCss('#query')
 
+    expect(await browser.eval('window.beforeNav')).toBe(1)
     const query = JSON.parse(await browser.elementByCss('#query').text())
     expect(query).toEqual({
       something: '1',
@@ -330,16 +334,32 @@ const runTests = (isDev = false) => {
 
   it('should work with rewrite when only specifying href', async () => {
     const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
     await browser
       .elementByCss('#to-params')
       .click()
       .waitForElementByCss('#query')
 
+    expect(await browser.eval('window.beforeNav')).toBe(1)
     const query = JSON.parse(await browser.elementByCss('#query').text())
     expect(query).toEqual({
       something: '1',
       another: 'value',
     })
+  })
+
+  it('should work with rewrite when only specifying href and ends in dynamic route', async () => {
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-rewritten-dynamic')
+      .click()
+      .waitForElementByCss('#auto-export')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    const text = await browser.eval(() => document.documentElement.innerHTML)
+    expect(text).toContain('auto-export hello')
   })
 
   it('should match a page after a rewrite', async () => {
@@ -1101,16 +1121,82 @@ describe('Custom routes', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
-        stdout: true,
-      })
+      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+        appDir,
+        ['-d'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
       stdout = buildStdout
+      stderr = buildStderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
     runTests()
+
+    it('should not show warning for custom routes when not next export', async () => {
+      expect(stderr).not.toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
+  })
+
+  describe('export', () => {
+    let exportStderr = ''
+    let exportVercelStderr = ''
+
+    beforeAll(async () => {
+      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+        appDir,
+        ['-d'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+      const exportResult = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        { stderr: true }
+      )
+      const exportVercelResult = await nextExport(
+        appDir,
+        { outdir: join(appDir, 'out') },
+        {
+          stderr: true,
+          env: {
+            NOW_BUILDER: '1',
+          },
+        }
+      )
+
+      stdout = buildStdout
+      stderr = buildStderr
+      exportStderr = exportResult.stderr
+      exportVercelStderr = exportVercelResult.stderr
+    })
+
+    it('should not show warning for custom routes when not next export', async () => {
+      expect(stderr).not.toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
+
+    it('should not show warning for custom routes when next export on Vercel', async () => {
+      expect(exportVercelStderr).not.toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
+
+    it('should show warning for custom routes with next export', async () => {
+      expect(exportStderr).toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
+      )
+    })
   })
 
   describe('serverless mode', () => {

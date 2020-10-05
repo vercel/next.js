@@ -94,17 +94,17 @@ describe('Build Output', () => {
       expect(parseFloat(indexSize) - 265).toBeLessThanOrEqual(0)
       expect(indexSize.endsWith('B')).toBe(true)
 
-      // should be no bigger than 60.2 kb
-      expect(parseFloat(indexFirstLoad) - 60.4).toBeLessThanOrEqual(0)
+      // should be no bigger than 60.8 kb
+      expect(parseFloat(indexFirstLoad) - 60.8).toBeLessThanOrEqual(0)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
       expect(parseFloat(err404Size) - 3.5).toBeLessThanOrEqual(0)
       expect(err404Size.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404FirstLoad) - 63.6).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404FirstLoad) - 63.8).toBeLessThanOrEqual(0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll) - 60.1).toBeLessThanOrEqual(0)
+      expect(parseFloat(sharedByAll) - 60.4).toBeLessThanOrEqual(0)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
@@ -118,7 +118,7 @@ describe('Build Output', () => {
       expect(parseFloat(webpackSize) - 752).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
-      expect(parseFloat(mainSize) - 7.1).toBeLessThanOrEqual(0)
+      expect(parseFloat(mainSize) - 7.44).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
       expect(parseFloat(frameworkSize) - 41).toBeLessThanOrEqual(0)

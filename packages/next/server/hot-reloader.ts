@@ -215,7 +215,22 @@ export default class HotReloader {
         return {}
       }
 
-      const page = denormalizePagePath(`/${params.path.join('/')}`)
+      let decodedPagePath: string
+
+      try {
+        decodedPagePath = `/${params.path
+          .map((param) => decodeURIComponent(param))
+          .join('/')}`
+      } catch (_) {
+        const err: Error & { code?: string } = new Error(
+          'failed to decode param'
+        )
+        err.code = 'DECODE_FAILED'
+        throw err
+      }
+
+      const page = denormalizePagePath(decodedPagePath)
+
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
@@ -417,7 +432,9 @@ export default class HotReloader {
         if (serverOnlyChanges.length > 0) {
           this.send({
             event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) => pg.substr('pages'.length)),
+            pages: serverOnlyChanges.map((pg) =>
+              denormalizePagePath(pg.substr('pages'.length))
+            ),
           })
         }
 

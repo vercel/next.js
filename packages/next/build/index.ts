@@ -21,7 +21,7 @@ import loadCustomRoutes, {
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
@@ -112,7 +112,7 @@ export default async function build(
   }
 
   // attempt to load global env values so they are available in next.config.js
-  const { loadedEnvFiles } = loadEnvConfig(dir)
+  const { loadedEnvFiles } = loadEnvConfig(dir, false, Log)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -523,7 +523,9 @@ export default async function build(
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
 
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+      const nonReservedPage = !page.match(
+        /^\/(_app|_error|_document|api(\/|$))/
+      )
 
       if (nonReservedPage) {
         const serverBundle = getPagePath(page, distDir, isLikeServerless)
