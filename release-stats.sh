@@ -4,7 +4,7 @@ git describe --exact-match
 
 if [[ ! $? -eq 0 ]];then
   echo "Nothing to publish, exiting.."
-  touch SKIP_NEXT_STATS.txt
+  touch .github/actions/next-stats-action/SKIP_NEXT_STATS.txt
   exit 0;
 fi
 

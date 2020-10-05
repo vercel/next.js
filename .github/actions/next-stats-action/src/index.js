@@ -27,7 +27,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
 ;(async () => {
   try {
-    if (await fs.pathExists(path.join(process.cwd(), 'SKIP_NEXT_STATS.txt'))) {
+    if (await fs.pathExists(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
       console.log(
         'SKIP_NEXT_STATS.txt file present, exiting stats generation..'
       )
