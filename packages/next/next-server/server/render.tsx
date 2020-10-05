@@ -140,7 +140,6 @@ export type RenderOptsPartial = {
   ampMode?: any
   ampPath?: string
   inAmpMode?: boolean
-  images: string
   hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
@@ -185,7 +184,6 @@ function renderDocument(
     ampState,
     inAmpMode,
     hybridAmp,
-    images,
     dynamicImports,
     headTags,
     gsp,
@@ -207,7 +205,6 @@ function renderDocument(
     inAmpMode: boolean
     hybridAmp: boolean
     dynamicImportsIds: string[]
-    images: string
     dynamicImports: ManifestItem[]
     headTags: any
     isFallback?: boolean
@@ -234,7 +231,6 @@ function renderDocument(
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
             isFallback,
-            images,
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML

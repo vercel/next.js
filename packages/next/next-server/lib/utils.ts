@@ -94,7 +94,6 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: string[]
-  images: string
   err?: Error & { statusCode?: number }
   gsp?: boolean
   gssp?: boolean

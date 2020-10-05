@@ -26,14 +26,7 @@ type ImageProps = {
   rest: any[]
 }
 
-let imageData: ImageData
-if (typeof window === 'undefined') {
-  // Rendering on a server, get image data from env
-  imageData = JSON.parse(process.env.__NEXT_IMAGE_OPTS || '')
-} else {
-  // Rendering on a client, get image data from window
-  imageData = JSON.parse((window as any).__NEXT_DATA__.images)
-}
+let imageData: any = process.env.__NEXT_IMAGE_OPTS
 const breakpoints = imageData.breakpoints || [640, 1024, 1600]
 
 function computeSrc(src: string, host: string, unoptimized: boolean): string {
