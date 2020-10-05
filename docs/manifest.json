@@ -187,6 +187,15 @@
           "title": "Upgrade Guide",
           "path": "/docs/upgrading.md"
         },
+        {
+          "title": "Migrating to Next.js",
+          "routes": [
+            {
+              "title": "Migrating from Gatsby",
+              "path": "/docs/migrating/from-gatsby.md"
+            }
+          ]
+        },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },
