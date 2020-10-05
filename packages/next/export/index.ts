@@ -171,7 +171,7 @@ export default async function exportApp(
   )
 
   if (
-    hasNextSupport &&
+    !hasNextSupport &&
     !options.buildExport &&
     customRoutesDetected.length > 0
   ) {
