@@ -89,7 +89,12 @@ const nextServerlessLoader: loader.Loader = function () {
               (!value || (
                 Array.isArray(value) &&
                 value.length === 1 &&
-                value[0] === 'index'
+                ${
+                  ''
+                  // fallback optional catch-all SSG pages have
+                  // [[...paramName]] for the root path on Vercel
+                }
+                (value[0] === 'index' || value[0] === \`[[...\${key}]]\`)
               ))
             ) {
               value = undefined
