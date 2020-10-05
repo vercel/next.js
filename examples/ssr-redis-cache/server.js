@@ -9,7 +9,6 @@ const client = redis.createClient()
 const port = process.env.PORT || 3000
 const development = process.env.NODE_ENV !== 'production'
 const app = next({ dev: development })
-const handler = app.getRequestHandler()
 
 const redisCache = new NextCache(client, app, {
   includes: ['/'],
@@ -22,17 +21,16 @@ app
   .then(() => {
     const server = express()
 
-    server.get(
-      '*',
-      (request, response) => redisCache.handler(request, response)
+    server.get('*', (request, response) =>
+      redisCache.handler(request, response)
     )
 
     /* starting server */
-    return server.listen(port, error => {
+    return server.listen(port, (error) => {
       if (error) throw error
 
       // eslint-disable-next-line no-console
       console.log(`> Ready on http://localhost:${port}`)
     })
   })
-  .catch(error => new Error("Server isn't responded", error))
+  .catch((error) => new Error("Server isn't responded", error))

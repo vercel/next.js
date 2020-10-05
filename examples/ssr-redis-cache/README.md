@@ -20,7 +20,7 @@ Here, server.js is defined as custom server to serve app. to start server:
 
 ```bash
 npm run start:server
-# or 
+# or
 yarn start:server
 ```
 
