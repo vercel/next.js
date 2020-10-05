@@ -33,6 +33,7 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
@@ -170,7 +171,7 @@ export default async function exportApp(
   )
 
   if (
-    !process.env.NOW_BUILDER &&
+    !hasNextSupport &&
     !options.buildExport &&
     customRoutesDetected.length > 0
   ) {
