@@ -250,4 +250,4 @@ export default function SEO({ description, title }) {
 
 ## Learn more
 
-Take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) for more details on how an app can be migrated from Gatsby to Next.js. If you have questions or this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
+Take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) for more details on how an app can be migrated from Gatsby to Next.js. If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
