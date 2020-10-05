@@ -12,6 +12,8 @@ import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
 const { RawSource } = webpack.sources || sources
 
+console.log({ v: webpack.version })
+
 const isWebpack5 = parseInt(webpack.version!) === 5
 
 let BasicEvaluatedExpression: any
