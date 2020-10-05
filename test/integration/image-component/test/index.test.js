@@ -126,5 +126,24 @@ describe('Image Component Tests', () => {
         )
       ).toBe(false)
     })
+    describe('Client-side Errors', () => {
+      beforeAll(async () => {
+        await browser.eval(`(function() {
+          window.gotHostError = false
+          const origError = console.error
+          window.console.error = function () {
+            if (arguments[0].match(/Image host identifier/)) {
+              window.gotHostError = true
+            }
+            origError.apply(this, arguments)
+          }
+        })()`)
+        await browser.waitForElementByCss('#errorslink').click()
+      })
+      it('Should log an error when an unregistered host is used', async () => {
+        const foundError = await browser.eval('window.gotHostError')
+        expect(foundError).toBe(true)
+      })
+    })
   })
 })

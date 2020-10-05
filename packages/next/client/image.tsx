@@ -120,6 +120,12 @@ export default function Image({
     console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
         With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
   }
+  if (host && !imageData.hosts[host]) {
+    // If unregistered host is selected, log an error and use the default instead
+    console.error(`Image host identifier ${host} could not be resolved.`)
+    host = 'default'
+  }
+
   host = host || 'default'
   // Generate attribute values
   const imgSrc = computeSrc(src, host, unoptimized)

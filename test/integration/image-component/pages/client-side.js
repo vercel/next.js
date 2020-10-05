@@ -1,5 +1,6 @@
 import React from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 const ClientSide = () => {
   return (
@@ -19,6 +20,9 @@ const ClientSide = () => {
         src="https://arbitraryurl.com/foo.jpg"
       />
       <Image id="priority-image-client" priority src="withpriorityclient.png" />
+      <Link href="/errors">
+        <a id="errorslink">Errors</a>
+      </Link>
     </div>
   )
 }
