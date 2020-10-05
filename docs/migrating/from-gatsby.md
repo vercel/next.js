@@ -52,7 +52,7 @@ Both Gatsby and Next support a `pages` directory, which uses [file-system based 
 Gatsby creates dynamic routes using the `createPages` API inside of `gatsby-node.js`. With Next, we can use [Dynamic Routes](/docs/routing/dynamic-routes.md) inside of `pages` to achieve the same effect. Rather than having a `template` directory, you can use the React component inside your dynamic route file. For example:
 
 - **Gatsby:** `createPages` API inside `gatsby-node.js` for each blog post, then have a template file at `src/templates/blog-post.js`.
-- **Next:** Create `pages/blog/[slug].js` which contains the blog post template. The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation`)).
+- **Next:** Create `pages/blog/[slug].js` which contains the blog post template. The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation)).
 
 ## Styling
 
@@ -113,7 +113,7 @@ export async function getStaticPaths() {
 }
 ```
 
-You'll commonly see Gatsby plugins used for reading the file system (`gatsby-source-filesystem`), handling markdown files (`gatsby-transformer-remark`), and so on. For example, the popular starter blog example has [15 Gatsby specific packages](https://github.com/gatsbyjs/gatsby-starter-blog/blob/master/package.json). Next takes a different approach. It includes common features like [image optimization](https://github.com/vercel/next.js/discussions/17141) directly inside the framework, and gives the user full control over integrations with external packages. For example, rather than abstracting reading from the file system to a plugin, you can use the native Node.js `fs` package inside `getStaticProps` / `getStaticPaths` to read from the file system.
+You'll commonly see Gatsby plugins used for reading the file system (`gatsby-source-filesystem`), handling markdown files (`gatsby-transformer-remark`), and so on. For example, the popular starter blog example has [15 Gatsby specific packages](https://github.com/gatsbyjs/gatsby-starter-blog/blob/master/package.json). Next takes a different approach. It includes common features directly inside the framework, and gives the user full control over integrations with external packages. For example, rather than abstracting reading from the file system to a plugin, you can use the native Node.js `fs` package inside `getStaticProps` / `getStaticPaths` to read from the file system.
 
 ```js
 // src/lib/blog.js
@@ -169,7 +169,7 @@ export default {
 
 ## Search Engine Optimization
 
-Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we recommend using [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's part of an SEO component with Gatsby:
+Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we use [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's an SEO component with Gatsby:
 
 ```js
 // src/components/seo.js
@@ -250,4 +250,4 @@ export default function SEO({ description, title }) {
 
 ## Learn more
 
-Please take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) to learn more. If you have questions, please ask on [our discussion board](https://github.com/vercel/next.js/discussions).
+Take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) for more details on how an app can be migrated from Gatsby to Next.js. If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
