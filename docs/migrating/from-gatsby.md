@@ -113,7 +113,7 @@ export async function getStaticPaths() {
 }
 ```
 
-You'll commonly see Gatsby plugins used for reading the file system (`gatsby-source-filesystem`), handling markdown files (`gatsby-transformer-remark`), and so on. For example, the popular starter blog example has [15 Gatsby specific packages](https://github.com/gatsbyjs/gatsby-starter-blog/blob/master/package.json). Next takes a different approach. It includes common features like [image optimization](https://github.com/vercel/next.js/discussions/17141) directly inside the framework, and gives the user full control over integrations with external packages. For example, rather than abstracting reading from the file system to a plugin, you can use the native Node.js `fs` package inside `getStaticProps` / `getStaticPaths` to read from the file system.
+You'll commonly see Gatsby plugins used for reading the file system (`gatsby-source-filesystem`), handling markdown files (`gatsby-transformer-remark`), and so on. For example, the popular starter blog example has [15 Gatsby specific packages](https://github.com/gatsbyjs/gatsby-starter-blog/blob/master/package.json). Next takes a different approach. It includes common features directly inside the framework, and gives the user full control over integrations with external packages. For example, rather than abstracting reading from the file system to a plugin, you can use the native Node.js `fs` package inside `getStaticProps` / `getStaticPaths` to read from the file system.
 
 ```js
 // src/lib/blog.js
@@ -169,7 +169,7 @@ export default {
 
 ## Search Engine Optimization
 
-Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we recommend using [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's part of an SEO component with Gatsby:
+Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we use [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's an SEO component with Gatsby:
 
 ```js
 // src/components/seo.js
