@@ -485,9 +485,6 @@ export default async function build(
   let namedExports: Array<string> | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
-  if (config.images) {
-    process.env.__NEXT_IMAGE_OPTS = JSON.stringify(config.images)
-  }
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,

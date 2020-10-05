@@ -245,9 +245,6 @@ export default class Server {
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
-    if (this.nextConfig.images) {
-      process.env.__NEXT_IMAGE_OPTS = JSON.stringify(this.nextConfig.images)
-    }
   }
 
   protected currentPhase(): string {

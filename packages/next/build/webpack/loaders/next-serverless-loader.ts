@@ -540,9 +540,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
-        if (process.env.__NEXT_IMAGE_OPTS) {
-          renderOpts.images = process.env.__NEXT_IMAGE_OPTS
-        }
         if (process.env.__NEXT_OPTIMIZE_FONTS) {
           renderOpts.optimizeFonts = true
           /**
