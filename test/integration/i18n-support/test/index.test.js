@@ -58,6 +58,31 @@ function runTests() {
     expect(parsedUrl2.query).toEqual({ hello: 'world' })
   })
 
+  it('should redirect to default locale route for / without accept-language', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(307)
+
+    const parsedUrl = url.parse(res.headers.get('location'), true)
+    expect(parsedUrl.pathname).toBe('/en')
+    expect(parsedUrl.query).toEqual({})
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      '/',
+      { hello: 'world' },
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(307)
+
+    const parsedUrl2 = url.parse(res2.headers.get('location'), true)
+    expect(parsedUrl2.pathname).toBe('/en')
+    expect(parsedUrl2.query).toEqual({ hello: 'world' })
+  })
+
   it('should load getStaticProps page correctly SSR', async () => {
     const html = await renderViaHTTP(appPort, '/en-US/gsp')
     const $ = cheerio.load(html)

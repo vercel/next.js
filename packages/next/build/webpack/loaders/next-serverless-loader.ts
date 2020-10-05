@@ -229,7 +229,7 @@ const nextServerlessLoader: loader.Loader = function () {
         detectedLocale = accept.language(
           req.headers['accept-language'],
           i18n.locales
-        )
+        ) || i18n.defaultLocale
       }
 
       if (

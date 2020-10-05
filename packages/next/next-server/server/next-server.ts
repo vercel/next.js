@@ -308,10 +308,9 @@ export default class Server {
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
 
       if (!detectedLocale) {
-        detectedLocale = accept.language(
-          req.headers['accept-language'],
-          i18n.locales
-        )
+        detectedLocale =
+          accept.language(req.headers['accept-language'], i18n.locales) ||
+          i18n.defaultLocale
       }
 
       if (
