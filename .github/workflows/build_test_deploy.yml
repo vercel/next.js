@@ -184,3 +184,14 @@ jobs:
           key: ${{ github.sha }}
 
       - run: ./publish-release.sh
+
+  prStats:
+    name: Release Stats
+    runs-on: ubuntu-latest
+    needs: [publishRelease]
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./release-stats.sh
+      - uses: ./.github/actions/next-stats-action
+        env:
+          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
