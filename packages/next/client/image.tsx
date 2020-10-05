@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { ReactElement } from 'react'
+import Head from '../next-server/lib/head'
 
 const loaders: { [key: string]: (props: LoaderProps) => string } = {
   imgix: imgixLoader,
@@ -14,11 +15,13 @@ type ImageData = {
   }
   breakpoints?: number[]
 }
+
 type ImageProps = {
   src: string
   host: string
   sizes: string
   breakpoints: number[]
+  priority: boolean
   unoptimized: boolean
   rest: any[]
 }
@@ -71,24 +74,78 @@ function generateSrcSet({ src, host, widths }: SrcSetData): string {
     .join(', ')
 }
 
-function Image({ src, host, sizes, unoptimized, ...rest }: ImageProps) {
+type PreloadData = {
+  src: string
+  host: string
+  widths: number[]
+  sizes: string
+  unoptimized: boolean
+}
+
+function generatePreload({
+  src,
+  host,
+  widths,
+  unoptimized,
+  sizes,
+}: PreloadData): ReactElement {
+  // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
+  // attributes for preloading responsive images. They're still experimental, but fully backward
+  // compatible, as the link tag includes all necessary attributes, even if the final two are ignored.
+  // See: https://web.dev/preload-responsive-images/
+  return (
+    <Head>
+      <link
+        rel="preload"
+        as="image"
+        href={computeSrc(src, host, unoptimized)}
+        // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
+        imagesrcset={generateSrcSet({ src, host, widths })}
+        imagesizes={sizes}
+      />
+    </Head>
+  )
+}
+
+export default function Image({
+  src,
+  host,
+  sizes,
+  unoptimized,
+  priority,
+  ...rest
+}: ImageProps) {
   // Sanity Checks:
   if (unoptimized && host) {
     console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
         With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
   }
+  host = host || 'default'
   // Generate attribute values
-  const imgSrc = computeSrc(src, host || 'default', unoptimized)
+  const imgSrc = computeSrc(src, host, unoptimized)
   const imgAttributes: { src: string; srcSet?: string } = { src: imgSrc }
   if (!unoptimized) {
     imgAttributes.srcSet = generateSrcSet({
       src,
-      host: host || 'default',
+      host: host,
       widths: breakpoints,
     })
   }
+  // No need to add preloads on the client side--by the time the application is hydrated,
+  // it's too late for preloads
+  const shouldPreload = priority && typeof window === 'undefined'
+
   return (
     <div>
+      {shouldPreload
+        ? generatePreload({
+            src,
+            host,
+            widths: breakpoints,
+            unoptimized,
+            sizes,
+          })
+        : ''}
       <img {...rest} {...imgAttributes} sizes={sizes} />
     </div>
   )
@@ -113,5 +170,3 @@ function cloudinaryLoader({ root, filename, width }: LoaderProps): string {
 function defaultLoader({ root, filename }: LoaderProps): string {
   return `${root}${filename}`
 }
-
-export default Image

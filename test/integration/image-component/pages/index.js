@@ -19,6 +19,19 @@ const Page = () => {
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
       />
+      <Image id="priority-image" priority src="withpriority.png" />
+      <Image
+        id="priority-image"
+        priority
+        host="secondary"
+        src="withpriority2.png"
+      />
+      <Image
+        id="priority-image"
+        priority
+        unoptimized
+        src="https://arbitraryurl.com/withpriority3.png"
+      />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>

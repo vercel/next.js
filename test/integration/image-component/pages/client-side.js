@@ -18,6 +18,7 @@ const ClientSide = () => {
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
       />
+      <Image id="priority-image-client" priority src="withpriorityclient.png" />
     </div>
   )
 }

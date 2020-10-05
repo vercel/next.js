@@ -59,6 +59,20 @@ function runTests() {
   })
 }
 
+async function hasPreloadLinkMatchingUrl(url) {
+  const links = await browser.elementsByCss('link')
+  let foundMatch = false
+  for (const link of links) {
+    const rel = await link.getAttribute('rel')
+    const href = await link.getAttribute('href')
+    if (rel === 'preload' && href === url) {
+      foundMatch = true
+      break
+    }
+  }
+  return foundMatch
+}
+
 describe('Image Component Tests', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
@@ -74,6 +88,27 @@ describe('Image Component Tests', () => {
       browser = null
     })
     runTests()
+    it('should add a preload tag for a priority image', async () => {
+      expect(
+        await hasPreloadLinkMatchingUrl(
+          'https://example.com/myaccount/withpriority.png'
+        )
+      ).toBe(true)
+    })
+    it('should add a preload tag for a priority image, with secondary host', async () => {
+      expect(
+        await hasPreloadLinkMatchingUrl(
+          'https://examplesecondary.com/images/withpriority2.png'
+        )
+      ).toBe(true)
+    })
+    it('should add a preload tag for a priority image, with arbitrary host', async () => {
+      expect(
+        await hasPreloadLinkMatchingUrl(
+          'https://arbitraryurl.com/withpriority3.png'
+        )
+      ).toBe(true)
+    })
   })
   describe('Client-side Image Component Tests', () => {
     beforeAll(async () => {
@@ -84,5 +119,12 @@ describe('Image Component Tests', () => {
       browser = null
     })
     runTests()
+    it('should NOT add a preload tag for a priority image', async () => {
+      expect(
+        await hasPreloadLinkMatchingUrl(
+          'https://example.com/myaccount/withpriorityclient.png'
+        )
+      ).toBe(false)
+    })
   })
 })
