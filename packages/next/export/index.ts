@@ -165,6 +165,22 @@ export default async function exportApp(
     )
   }
 
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !process.env.NOW_BUILDER &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+    )
+  }
+
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages &&
