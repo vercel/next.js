@@ -52,7 +52,7 @@ Both Gatsby and Next support a `pages` directory, which uses [file-system based 
 Gatsby creates dynamic routes using the `createPages` API inside of `gatsby-node.js`. With Next, we can use [Dynamic Routes](/docs/routing/dynamic-routes.md) inside of `pages` to achieve the same effect. Rather than having a `template` directory, you can use the React component inside your dynamic route file. For example:
 
 - **Gatsby:** `createPages` API inside `gatsby-node.js` for each blog post, then have a template file at `src/templates/blog-post.js`.
-- **Next:** Create `pages/blog/[slug].js` which contains the blog post template. The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation`)).
+- **Next:** Create `pages/blog/[slug].js` which contains the blog post template. The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation)).
 
 ## Styling
 
@@ -169,7 +169,7 @@ export default {
 
 ## Search Engine Optimization
 
-Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we use [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's an SEO component with Gatsby:
+Most Gatsby examples use `react-helmet` to assist with adding `meta` tags for proper SEO. With Next.js, we use [`next/head`](/docs/api-reference/next/head.md) to add `meta` tags to your `<head />` element. For example, here's how a SEO component with Gatsby looks like:
 
 ```js
 // src/components/seo.js
@@ -250,4 +250,4 @@ export default function SEO({ description, title }) {
 
 ## Learn more
 
-Please take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) to learn more. If you have questions, please ask on [our discussion board](https://github.com/vercel/next.js/discussions).
+Take a look at [this pull request](https://github.com/leerob/gatsby-to-nextjs/pull/1) for more details on how an app can be migrated from Gatsby to Next.js. If you have questions or this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
