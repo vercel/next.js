@@ -75,6 +75,9 @@ The largest difference between Gatsby and Next.js is how data fetching is implem
 Gatsby uses the `graphql` tag to query data in the pages of your site. This may include local data, remote data, or information about your site configuration. Gatsby only allows the creation of static pages. With Next.js, you can choose on a [per-page basis](/docs/basic-features/pages.md) which [data fetching strategy](/docs/basic-features/data-fetching.md) you want. For example, `getServerSideProps` allows you to do server-side rendering. If you wanted to generate a static page, you'd export `getStaticProps` / `getStaticPaths` inside the page, rather than using `pageQuery`. For example:
 
 ```js
+// src/pages/[slug].js
+
+// Install remark and remark-html
 import remark from 'remark'
 import html from 'remark-html'
 import { getPostBySlug, getAllPosts } from '../lib/blog'
@@ -113,12 +116,16 @@ export async function getStaticPaths() {
 You'll commonly see Gatsby plugins used for reading the file system (`gatsby-source-filesystem`), handling markdown files (`gatsby-transformer-remark`), and so on. For example, the popular starter blog example has [15 Gatsby specific packages](https://github.com/gatsbyjs/gatsby-starter-blog/blob/master/package.json). Next takes a different approach. It includes common features like [image optimization](https://github.com/vercel/next.js/discussions/17141) directly inside the framework, and gives the user full control over integrations with external packages. For example, rather than abstracting reading from the file system to a plugin, you can use the native Node.js `fs` package inside `getStaticProps` / `getStaticPaths` to read from the file system.
 
 ```js
-import fs from 'fs'
-import { join } from 'path'
+// src/lib/blog.js
+
+// Install gray-matter and date-fns
 import matter from 'gray-matter'
 import { parseISO, format } from 'date-fns'
+import fs from 'fs'
+import { join } from 'path'
 
-const postsDirectory = join(process.cwd(), 'content', 'blog')
+// Add markdown files in `src/content/blog`
+const postsDirectory = join(process.cwd(), 'src', 'content', 'blog')
 
 export function getPostBySlug(slug) {
   const realSlug = slug.replace(/\\.md$/, '')
