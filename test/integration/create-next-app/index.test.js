@@ -275,4 +275,16 @@ describe('create next app', () => {
       }
     }, 0o500)
   })
+
+  it('should create a project in the current directory', async () => {
+    await usingTempDir(async (cwd) => {
+      const res = await run(cwd, '.')
+      expect(res.exitCode).toBe(0)
+
+      const files = ['package.json', 'pages/index.js', '.gitignore']
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, file))).toBeTruthy()
+      )
+    })
+  })
 })
