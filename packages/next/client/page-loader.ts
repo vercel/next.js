@@ -224,6 +224,23 @@ export default class PageLoader {
       : getHrefForSlug(route)
   }
 
+  getCustomFetcher(route: string): Promise<typeof fetch | undefined> {
+    return new Promise((resolve, reject) => {
+      // If there's a cached version of the page, let's use it.
+      const cachedPage = this.pageCache[route]
+      if (cachedPage) {
+        if ('error' in cachedPage) {
+          reject(undefined)
+        } else {
+          const customFetcher = cachedPage.mod.serverSidePropsFetcher
+          // Returns a custom fetcher defined.
+          resolve(customFetcher)
+        }
+        return
+      }
+    })
+  }
+
   /**
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
