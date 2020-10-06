@@ -231,7 +231,7 @@ export default async function getBaseWebpackConfig(
 
   if (config.images?.hosts) {
     if (!config.images.hosts.default) {
-      // If the image component is being used, a default host must be provide
+      // If the image component is being used, a default host must be provided
       throw new Error(
         'If the image configuration property is present in next.config.js, it must have a host named "default"'
       )
