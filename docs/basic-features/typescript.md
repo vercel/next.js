@@ -41,7 +41,7 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 
 > A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
 
-> Next.js `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
+> TypeScript `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
 
 By default, Next.js will do type checking as part of `next build`. We recommend using code editor type checking during development.
 
