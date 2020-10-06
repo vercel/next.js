@@ -38,6 +38,7 @@ interface NextHistoryState {
 }
 
 type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
+type Fetch = typeof fetch
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -269,8 +270,13 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
-function fetchRetry(url: string, attempts: number): Promise<any> {
-  return fetch(url, {
+function fetchRetry(
+  url: string,
+  attempts: number,
+  customFetcher?: Fetch
+): Promise<any> {
+  const fetcher = typeof customFetcher === 'function' ? customFetcher : fetch
+  return fetcher(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
     // Cookies may also be required for `getServerSideProps`.
     //
@@ -286,7 +292,7 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
   }).then((res) => {
     if (!res.ok) {
       if (attempts > 1 && res.status >= 500) {
-        return fetchRetry(url, attempts - 1)
+        return fetchRetry(url, attempts - 1, customFetcher)
       }
       throw new Error(`Failed to load static props`)
     }
@@ -295,16 +301,22 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
   })
 }
 
-function fetchNextData(dataHref: string, isServerRender: boolean) {
-  return fetchRetry(dataHref, isServerRender ? 3 : 1).catch((err: Error) => {
-    // We should only trigger a server-side transition if this was caused
-    // on a client-side transition. Otherwise, we'd get into an infinite
-    // loop.
-    if (!isServerRender) {
-      markLoadingError(err)
+function fetchNextData(
+  dataHref: string,
+  isServerRender: boolean,
+  customFetcher?: Fetch
+) {
+  return fetchRetry(dataHref, isServerRender ? 3 : 1, customFetcher).catch(
+    (err: Error) => {
+      // We should only trigger a server-side transition if this was caused
+      // on a client-side transition. Otherwise, we'd get into an infinite
+      // loop.
+      if (!isServerRender) {
+        markLoadingError(err)
+      }
+      throw err
     }
-    throw err
-  })
+  )
 }
 
 export default class Router implements BaseRouter {
@@ -915,6 +927,7 @@ export default class Router implements BaseRouter {
       }
 
       let dataHref: string | undefined
+      let customFetcher: Fetch | undefined
 
       if (__N_SSG || __N_SSP) {
         dataHref = this.pageLoader.getDataHref(
@@ -922,13 +935,14 @@ export default class Router implements BaseRouter {
           delBasePath(as),
           __N_SSG
         )
+        customFetcher = await this.pageLoader.getCustomFetcher(route)
       }
 
       const props = await this._getData<PrivateRouteInfo>(() =>
         __N_SSG
-          ? this._getStaticData(dataHref!)
+          ? this._getStaticData(dataHref!, customFetcher)
           : __N_SSP
-          ? this._getServerData(dataHref!)
+          ? this._getServerData(dataHref!, customFetcher)
           : this.getInitialProps(
               Component,
               // we provide AppTree later so this needs to be `any`
@@ -1126,19 +1140,19 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData(dataHref: string): Promise<object> {
+  _getStaticData(dataHref: string, customFetcher?: Fetch): Promise<object> {
     const { href: cacheKey } = new URL(dataHref, window.location.href)
     if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
       return Promise.resolve(this.sdc[cacheKey])
     }
-    return fetchNextData(dataHref, this.isSsr).then((data) => {
+    return fetchNextData(dataHref, this.isSsr, customFetcher).then((data) => {
       this.sdc[cacheKey] = data
       return data
     })
   }
 
-  _getServerData(dataHref: string): Promise<object> {
-    return fetchNextData(dataHref, this.isSsr)
+  _getServerData(dataHref: string, customFetcher?: Fetch): Promise<object> {
+    return fetchNextData(dataHref, this.isSsr, customFetcher)
   }
 
   getInitialProps(
