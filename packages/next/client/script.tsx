@@ -12,7 +12,7 @@ const DOMAttributeNames: Record<string, string> = {
 }
 
 interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'default' | 'lazy' | 'renderBlocking' | 'beforeHydrate'
+  strategy?: 'after1P' | 'lazy' | 'renderBlocking' | 'before1P'
   key?: string
   onLoad?: () => void
   onError?: () => void
@@ -83,7 +83,7 @@ export default function Script(props: Props) {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    strategy = 'default',
+    strategy = 'after1P',
     key,
     onError,
     preload = true,
@@ -94,7 +94,7 @@ export default function Script(props: Props) {
   const { updateScripts, scripts } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    if (strategy === 'default') {
+    if (strategy === 'after1P') {
       loadScript(props)
     } else if (strategy === 'lazy') {
       window.addEventListener('load', () => {
@@ -132,14 +132,14 @@ export default function Script(props: Props) {
     }
 
     return <script {...syncProps} />
-  } else if (strategy === 'default') {
+  } else if (strategy === 'after1P') {
     if (updateScripts && preload) {
-      scripts.default = (scripts.default || []).concat([src])
+      scripts.after1P = (scripts.after1P || []).concat([src])
       updateScripts(scripts)
     }
-  } else if (strategy === 'beforeHydrate') {
+  } else if (strategy === 'before1P') {
     if (updateScripts) {
-      scripts.beforeHydrate = (scripts.beforeHydrate || []).concat([
+      scripts.before1P = (scripts.before1P || []).concat([
         {
           src,
           onLoad,
