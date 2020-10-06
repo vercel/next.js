@@ -12,8 +12,6 @@ import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
 const { RawSource } = webpack.sources || sources
 
-console.log({ v: webpack.version })
-
 const isWebpack5 = parseInt(webpack.version!) === 5
 
 let BasicEvaluatedExpression: any
@@ -53,7 +51,6 @@ export class FontStylesheetGatheringPlugin {
       factory.hooks.parser
         .for('javascript/' + type)
         .tap(this.constructor.name, (parser: any) => {
-          console.log('got the parser')
           /**
            * Webpack fun facts:
            * `parser.hooks.call.for` cannot catch calls for user defined identifiers like `__jsx`
@@ -72,7 +69,6 @@ export class FontStylesheetGatheringPlugin {
               }
               let result
               if (node.name === '__jsx') {
-                console.log('Found JSX')
                 result = new BasicEvaluatedExpression()
                 // @ts-ignore
                 result.setRange(node.range)
@@ -80,7 +76,9 @@ export class FontStylesheetGatheringPlugin {
                 result.setIdentifier('__jsx')
 
                 // This was added webpack 5.
-                result.getMembers = () => []
+                if (isWebpack5) {
+                  result.getMembers = () => []
+                }
               }
               return result
             })
@@ -120,7 +118,7 @@ export class FontStylesheetGatheringPlugin {
               ) {
                 return false
               }
-              console.log(`Found URL: ${props.href}`)
+
               this.gatheredStylesheets.push(props.href)
             })
         })
