@@ -53,6 +53,7 @@ export class FontStylesheetGatheringPlugin {
       factory.hooks.parser
         .for('javascript/' + type)
         .tap(this.constructor.name, (parser: any) => {
+          console.log('got the parser')
           /**
            * Webpack fun facts:
            * `parser.hooks.call.for` cannot catch calls for user defined identifiers like `__jsx`
