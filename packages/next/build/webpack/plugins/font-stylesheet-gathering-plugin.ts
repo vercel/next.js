@@ -71,6 +71,7 @@ export class FontStylesheetGatheringPlugin {
               }
               let result
               if (node.name === '__jsx') {
+                console.log('Found JSX')
                 result = new BasicEvaluatedExpression()
                 // @ts-ignore
                 result.setRange(node.range)
@@ -118,7 +119,7 @@ export class FontStylesheetGatheringPlugin {
               ) {
                 return false
               }
-
+              console.log(`Found URL: ${props.href}`)
               this.gatheredStylesheets.push(props.href)
             })
         })
