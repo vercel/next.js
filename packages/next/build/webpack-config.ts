@@ -229,6 +229,21 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  if (config.images?.hosts) {
+    if (!config.images.hosts.default) {
+      // If the image component is being used, a default host must be provide
+      throw new Error(
+        'If the image configuration property is present in next.config.js, it must have a host named "default"'
+      )
+    }
+    Object.values(config.images.hosts).forEach((host: any) => {
+      if (!host.path) {
+        throw new Error(
+          'All hosts defined in the image configuration property of next.config.js must define a path'
+        )
+      }
+    })
+  }
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
