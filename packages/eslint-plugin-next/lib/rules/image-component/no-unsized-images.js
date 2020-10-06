@@ -1,3 +1,5 @@
+const createImageRule = require('../../utils/imageComponentRule.js')
+
 module.exports = {
   meta: {
     messages: {
@@ -8,30 +10,14 @@ module.exports = {
         'More info: https://web.dev/optimize-cls/#images-without-dimensions',
     },
   },
-  create(context) {
-    let imageComponent = null
-    return {
-      ImportDeclaration(node) {
-        if (node.source.value === 'next/image') {
-          imageComponent = node.specifiers[0].local.name
-        }
-      },
-      JSXOpeningElement(node) {
-        if (!imageComponent) {
-          return
-        }
-        if (node.name.name === imageComponent) {
-          //Image Component rules here
-          if (!imageValidSize(node)) {
-            context.report({
-              node,
-              messageId: 'unsizedImages',
-            })
-          }
-        }
-      },
+  create: createImageRule((context, node) => {
+    if (!imageValidSize(node)) {
+      context.report({
+        node,
+        messageId: 'unsizedImages',
+      })
     }
-  },
+  }),
 }
 
 function imageValidSize(node) {

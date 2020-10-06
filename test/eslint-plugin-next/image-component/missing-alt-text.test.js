@@ -16,33 +16,33 @@ var ruleTester = new RuleTester()
 ruleTester.run('missing-alt-text', rule, {
   valid: [
     `
-        import Image from 'next/image'
-        export default function Page() {
-            return <div>
-                <Image height="150" width="100" src="foo.jpg" alt="A picture of foo" />
-            </div>
-        }
-	`,
+      import Image from 'next/image'
+      export default function Page() {
+        return <div>
+          <Image height="150" width="100" src="foo.jpg" alt="A picture of foo" />
+        </div>
+      }
+    `,
     `
-        import MyImageName from 'next/image'
-        import Image from 'otherImage'
-        export default function Page() {
-            return <div>
-                <Image src="foo.jpg" />
-            </div>
-        }
+      import MyImageName from 'next/image'
+      import Image from 'otherImage'
+      export default function Page() {
+        return <div>
+          <Image src="foo.jpg" />
+        </div>
+      }
     `,
   ],
   invalid: [
     {
       code: `
-                import Image from 'next/image'
-                export default function Page() {
-                    return <div>
-                        <Image src="foo.jpg" />
-                    </div>
-                }
-            `,
+        import Image from 'next/image'
+        export default function Page() {
+          return <div>
+            <Image src="foo.jpg" />
+          </div>
+        }
+      `,
       errors: [
         {
           messageId: 'missingAltText',
@@ -51,14 +51,14 @@ ruleTester.run('missing-alt-text', rule, {
     },
     {
       code: `
-			import MyImageName from 'next/image'
-			import Image from 'otherImage'
-			export default function Page() {
-				return <div>
-					<MyImageName src="foo.jpg" />
-				</div>
-			}
-		`,
+        import MyImageName from 'next/image'
+        import Image from 'otherImage'
+        export default function Page() {
+          return <div>
+            <MyImageName src="foo.jpg" />
+          </div>
+        }
+		  `,
       errors: [
         {
           messageId: 'missingAltText',
