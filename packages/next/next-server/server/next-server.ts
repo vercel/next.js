@@ -70,6 +70,7 @@ import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import * as Log from '../../build/output/log'
+const originalUrl = require('original-url')
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -106,6 +107,7 @@ export type ServerConstructor = {
 export default class Server {
   dir: string
   quiet: boolean
+  forceSsl: boolean 
   nextConfig: NextConfig
   distDir: string
   pagesDir?: string
@@ -162,9 +164,12 @@ export default class Server {
       assetPrefix,
       generateEtags,
       compress,
+      forceSsl
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
+
+    this.forceSsl = forceSsl 
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -279,15 +284,15 @@ export default class Server {
     }
 
     const { basePath } = this.nextConfig
-
-    if (true) {
-      parsedUrl.protocol = 'https'
-      res.statusCode = 302
-      console.dir(parsedUrl)
-      console.dir(req.url)
-      res.setHeader('Location', parsedUrl.toString())
-      res.end()
-      return
+    
+    if(this.forceSsl) {
+      const checkUrl = originalUrl(req)
+      if (checkUrl.protocol !== 'https') {
+        res.statusCode = 301
+        res.setHeader('Location', checkUrl.full.replace('http:','https:'))
+        res.end()
+        return
+      }
     }
 
     if (basePath && req.url?.startsWith(basePath)) {
