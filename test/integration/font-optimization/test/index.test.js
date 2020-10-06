@@ -115,11 +115,7 @@ describe('Font optimization for SSR apps', () => {
     if (fs.pathExistsSync(join(appDir, '.next'))) {
       await fs.remove(join(appDir, '.next'))
     }
-    const { stdout } = await nextBuild(appDir, [], {
-      stderr: true,
-      stdout: true,
-    })
-    console.log({ stdout })
+    await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
     builtServerPagesDir = join(appDir, '.next', 'server')
@@ -136,11 +132,7 @@ describe('Font optimization for serverless apps', () => {
       `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
       'utf8'
     )
-    const { stdout } = await nextBuild(appDir, [], {
-      stderr: true,
-      stdout: true,
-    })
-    console.log({ stdout })
+    await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
     builtServerPagesDir = join(appDir, '.next', 'serverless')
@@ -157,11 +149,7 @@ describe('Font optimization for emulated serverless apps', () => {
       `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
       'utf8'
     )
-    const { stdout } = await nextBuild(appDir, [], {
-      stderr: true,
-      stdout: true,
-    })
-    console.log({ stdout })
+    await nextBuild(appDir)
     appPort = await findPort()
     await startServerlessEmulator(appDir, appPort)
     builtServerPagesDir = join(appDir, '.next', 'serverless')
