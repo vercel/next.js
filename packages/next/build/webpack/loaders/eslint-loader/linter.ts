@@ -33,7 +33,11 @@ export class Linter {
     this.config = new CascadingConfigArrayFactory({
       additionalPluginPool: new Map(),
       baseConfig: {
-        extends: ['eslint:recommended', 'plugin:@next/next/recommended'],
+        extends: [
+          'eslint:recommended',
+          'plugin:@next/next/recommended',
+          'plugin:react-hooks/recommended',
+        ],
       },
       cliConfig: createConfigDataFromOptions(options),
       cwd: options.cwd,

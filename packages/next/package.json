@@ -94,6 +94,7 @@
     "css-loader": "4.3.0",
     "cssnano-simple": "1.2.0",
     "eslint": "7.9.0",
+    "eslint-plugin-react-hooks": "4.1.2",
     "find-cache-dir": "3.3.1",
     "jest-worker": "24.9.0",
     "loader-utils": "2.0.0",
