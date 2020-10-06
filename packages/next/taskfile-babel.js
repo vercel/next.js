@@ -32,12 +32,6 @@ const babelClientOpts = {
     '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
   ],
-  overrides: [
-    {
-      test: /\.tsx?$/,
-      plugins: [require('@babel/plugin-proposal-numeric-separator').default],
-    },
-  ],
 }
 
 const babelServerOpts = {
@@ -64,12 +58,6 @@ const babelServerOpts = {
   plugins: [
     'babel-plugin-dynamic-import-node',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
-  ],
-  overrides: [
-    {
-      test: /\.tsx?$/,
-      plugins: [require('@babel/plugin-proposal-numeric-separator').default],
-    },
   ],
 }
 

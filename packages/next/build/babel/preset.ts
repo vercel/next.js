@@ -82,6 +82,10 @@ module.exports = (
     include: [
       '@babel/plugin-proposal-optional-chaining',
       '@babel/plugin-proposal-nullish-coalescing-operator',
+      // Always compile numeric separator because the resulting number is
+      // smaller.
+      '@babel/plugin-proposal-numeric-separator',
+      '@babel/plugin-proposal-export-namespace-from',
     ],
     ...options['preset-env'],
   }
@@ -186,10 +190,6 @@ module.exports = (
         },
       ],
       isServer && require('@babel/plugin-syntax-bigint'),
-      // Always compile numeric separator because the resulting number is
-      // smaller.
-      require('@babel/plugin-proposal-numeric-separator'),
-      require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
   }
 }
