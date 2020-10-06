@@ -10,6 +10,7 @@ import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
+  NEXT_DATA,
 } from '../next-server/lib/utils'
 import {
   BuildManifest,
@@ -494,7 +495,10 @@ export class Head extends Component<
             {!hasAmphtmlRel && hybridAmp && (
               <link
                 rel="amphtml"
-                href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
+                href={
+                  canonicalBase +
+                  getAmpPath(ampPath, dangerousAsPath, __NEXT_DATA__)
+                }
               />
             )}
             {process.env.__NEXT_OPTIMIZE_FONTS
@@ -773,6 +777,23 @@ export class NextScript extends Component<OriginProps> {
   }
 }
 
-function getAmpPath(ampPath: string, asPath: string): string {
+function getAmpPath(
+  ampPath: string,
+  asPath: string,
+  __NEXT_DATA__?: NEXT_DATA
+): string {
+  if (!ampPath && asPath.split('?')[0].endsWith('.json') && __NEXT_DATA__) {
+    const { buildId } = __NEXT_DATA__
+    const queryString = asPath.split('?')[1] || ''
+    const pagePath = asPath
+      .split('?')[0]
+      // Remove static prefix
+      .substring(`/_next/data/${buildId}`.length)
+      // Remove .json extension
+      .slice(0, -5)
+
+    ampPath = pagePath + (queryString ? `?amp=1&${queryString}` : '?amp=1')
+  }
+
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
