@@ -62,6 +62,17 @@ export default function Post() {
               content: oldData
             })
         }}
+        actions={[
+          {
+            tooltip: "Remove All Selected Rows",
+            icon: "delete",
+            onClick: async (_evt, data) =>
+              await notice({
+                title: "test bulk delete",
+                content: data
+              })
+          }
+        ]}
       />
     </>
   )
