@@ -534,6 +534,7 @@ export default class DevServer extends Server {
 
     const __getStaticPaths = async () => {
       const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+      const { locales, defaultLocale } = this.nextConfig.experimental.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
@@ -542,7 +543,9 @@ export default class DevServer extends Server {
         {
           publicRuntimeConfig,
           serverRuntimeConfig,
-        }
+        },
+        locales,
+        defaultLocale
       )
       return paths
     }

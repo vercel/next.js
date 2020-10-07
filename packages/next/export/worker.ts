@@ -15,6 +15,7 @@ import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../next-server/server/require'
 import { FontManifest } from '../next-server/server/font-utils'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -69,6 +70,8 @@ interface RenderOpts {
   optimizeImages?: boolean
   optimizeCss?: boolean
   fontManifest?: FontManifest
+  locales?: string[]
+  locale?: string
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -102,6 +105,13 @@ export default async function exportPage({
     const ampPath = `${filePath}.amp`
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined
+
+    const localePathResult = normalizeLocalePath(path, renderOpts.locales)
+
+    if (localePathResult.detectedLocale) {
+      path = localePathResult.pathname
+      renderOpts.locale = localePathResult.detectedLocale
+    }
 
     // We need to show a warning if they try to provide query values
     // for an auto-exported page since they won't be available
@@ -234,6 +244,8 @@ export default async function exportPage({
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
+            locale: renderOpts.locale!,
+            locales: renderOpts.locales!,
           },
           // @ts-ignore
           params
