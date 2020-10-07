@@ -33,12 +33,13 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -133,7 +134,7 @@ export default async function exportApp(
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  loadEnvConfig(dir, false, Log)
 
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
@@ -162,6 +163,22 @@ export default async function exportApp(
   if (!existsSync(distDir)) {
     throw new Error(
       `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
+  }
+
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !hasNextSupport &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
     )
   }
 
