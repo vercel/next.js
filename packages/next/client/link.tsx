@@ -2,6 +2,7 @@ import React, { Children } from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
+  addLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
@@ -331,7 +332,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = addBasePath(as)
+    childProps.href = addBasePath(addLocale(as, router && router.locale))
   }
 
   return React.cloneElement(child, childProps)

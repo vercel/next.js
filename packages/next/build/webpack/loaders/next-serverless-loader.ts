@@ -28,6 +28,7 @@ export type ServerlessLoaderQuery = {
   runtimeConfig: string
   previewProps: string
   loadedEnvFiles: string
+  i18n: string
 }
 
 const vercelHeader = 'x-vercel-id'
@@ -49,6 +50,7 @@ const nextServerlessLoader: loader.Loader = function () {
     runtimeConfig,
     previewProps,
     loadedEnvFiles,
+    i18n,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -65,6 +67,8 @@ const nextServerlessLoader: loader.Loader = function () {
   const encodedPreviewProps = devalue(
     JSON.parse(previewProps) as __ApiPreviewProps
   )
+
+  const i18nEnabled = !!i18n
 
   const defaultRouteRegex = pageIsDynamicRoute
     ? `
@@ -212,6 +216,58 @@ const nextServerlessLoader: loader.Loader = function () {
   `
     : ''
 
+  const handleLocale = i18nEnabled
+    ? `
+      // get pathname from URL with basePath stripped for locale detection
+      const i18n = ${i18n}
+      const accept = require('@hapi/accept')
+      const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
+      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+      let detectedLocale = detectLocaleCookie(req, i18n.locales)
+
+      if (!detectedLocale) {
+        detectedLocale = accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        ) || i18n.defaultLocale
+      }
+
+      if (
+        !nextStartMode &&
+        i18n.localeDetection !== false &&
+        denormalizePagePath(parsedUrl.pathname || '/') === '/'
+      ) {
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsedUrl,
+            pathname: \`/\${detectedLocale}\`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+      }
+
+      // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
+      const localePathResult = normalizeLocalePath(parsedUrl.pathname, i18n.locales)
+
+      if (localePathResult.detectedLocale) {
+        detectedLocale = localePathResult.detectedLocale
+        req.url = formatUrl({
+          ...parsedUrl,
+          pathname: localePathResult.pathname,
+        })
+        parsedUrl.pathname = localePathResult.pathname
+      }
+
+      detectedLocale = detectedLocale || i18n.defaultLocale
+    `
+    : `
+      const i18n = {}
+      const detectedLocale = undefined
+    `
+
   if (page.match(API_ROUTE)) {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
@@ -305,6 +361,7 @@ const nextServerlessLoader: loader.Loader = function () {
     const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
+    const { setLazyProp, getCookieParser } = require('next/dist/next-server/server/api-utils')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -338,6 +395,9 @@ const nextServerlessLoader: loader.Loader = function () {
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
+      const nextStartMode = renderMode === 'passthrough'
+
+      setLazyProp({ req }, 'cookies', getCookieParser(req))
 
       const options = {
         App,
@@ -388,12 +448,16 @@ const nextServerlessLoader: loader.Loader = function () {
           routeNoAssetPath = parsedUrl.pathname
         }
 
+        ${handleLocale}
+
         const renderOpts = Object.assign(
           {
             Component,
             pageConfig: config,
             nextExport: fromExport,
             isDataReq: _nextData,
+            locale: detectedLocale,
+            locales: i18n.locales,
           },
           options,
         )

@@ -986,6 +986,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+        'process.env.__NEXT_i18n_SUPPORT': JSON.stringify(
+          !!config.experimental.i18n
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
