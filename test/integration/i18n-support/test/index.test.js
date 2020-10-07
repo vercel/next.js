@@ -24,9 +24,82 @@ let app
 let appPort
 // let buildId
 
-const locales = ['nl-NL', 'nl-BE', 'nl', 'en-US', 'en']
+const locales = ['en', 'nl-NL', 'nl-BE', 'nl', 'en-US']
 
 function runTests() {
+  it('should remove un-necessary locale prefix for default locale', async () => {
+    const res = await fetchViaHTTP(appPort, '/en', undefined, {
+      redirect: 'manual',
+      headers: {
+        'Accept-Language': 'en;q=0.9',
+      },
+    })
+
+    expect(res.status).toBe(307)
+
+    const parsedUrl = url.parse(res.headers.get('location'), true)
+
+    expect(parsedUrl.pathname).toBe('/')
+    expect(parsedUrl.query).toEqual({})
+  })
+
+  it('should load getStaticProps page correctly SSR (default locale no prefix)', async () => {
+    const html = await renderViaHTTP(appPort, '/gsp')
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#props').text())).toEqual({
+      locale: 'en',
+      locales,
+    })
+    expect($('#router-locale').text()).toBe('en')
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect($('html').attr('lang')).toBe('en')
+  })
+
+  it('should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)', async () => {
+    const html = await renderViaHTTP(appPort, '/gsp/fallback/first')
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#props').text())).toEqual({
+      locale: 'en',
+      locales,
+      params: {
+        slug: 'first',
+      },
+    })
+    expect(JSON.parse($('#router-query').text())).toEqual({
+      slug: 'first',
+    })
+    expect($('#router-locale').text()).toBe('en')
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect($('html').attr('lang')).toBe('en')
+  })
+
+  it('should load getStaticProps fallback non-prerender page correctly (default locale no prefix', async () => {
+    const browser = await webdriver(appPort, '/gsp/fallback/another')
+
+    await browser.waitForElementByCss('#props')
+
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      locale: 'en',
+      locales,
+      params: {
+        slug: 'another',
+      },
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({
+      slug: 'another',
+    })
+    // TODO: this will be fixed after the fallback is generated for all locales
+    // instead of delaying populating the locale on the client
+    // expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+  })
+
   it('should redirect to locale prefixed route for /', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       redirect: 'manual',
@@ -142,6 +215,22 @@ function runTests() {
     //   await browser.elementByCss('html').getAttribute('lang')
     // ).toBe('en-US')
   })
+
+  it('should load getServerSideProps page correctly SSR (default locale no prefix)', async () => {
+    const html = await renderViaHTTP(appPort, '/gssp')
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#props').text())).toEqual({
+      locale: 'en',
+      locales,
+    })
+    expect($('#router-locale').text()).toBe('en')
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect(JSON.parse($('#router-query').text())).toEqual({})
+    expect($('html').attr('lang')).toBe('en')
+  })
+
+  // TODO: client navigation tests for default locale with no prefix
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {
     const browser = await webdriver(appPort, '/nl-NL/gsp/fallback/another')
