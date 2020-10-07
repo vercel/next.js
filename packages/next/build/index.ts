@@ -563,7 +563,9 @@ export default async function build(
           let workerResult = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
-            runtimeEnvConfig
+            runtimeEnvConfig,
+            config.experimental.i18n?.locales,
+            config.experimental.i18n?.defaultLocale
           )
 
           if (workerResult.isHybridAmp) {
