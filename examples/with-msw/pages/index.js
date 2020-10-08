@@ -1,21 +1,23 @@
 import { useState } from 'react'
 
-export default function Home({ book, error }) {
+export default function Home({ book, inProduction }) {
   const [reviews, setReviews] = useState(null)
 
   const handleGetReviews = () => {
     // Client-side request are mocked by `mocks/browser.js`.
-    // This request will fail in production, as MSW is only run in development.
-    // In a real-world app this request would hit the actual backend.
     fetch('/reviews')
       .then((res) => res.json())
       .then(setReviews)
   }
 
-  if (error) {
+  if (inProduction) {
     return (
       <div>
-        <p>Failed to fetch book</p>
+        <p>
+          This example does not work in production, as MSW is not intended for
+          use in production. In a real-world app, your request will hit the
+          actual backend instead.
+        </p>
       </div>
     )
   }
@@ -42,7 +44,6 @@ export default function Home({ book, error }) {
 
 export async function getServerSideProps() {
   // Server-side requests are mocked by `mocks/server.js`.
-  // This request will fail in production, as MSW is only run in development.
   // In a real-world app this request would hit the actual backend.
   try {
     const res = await fetch('https://my.backend/book')
@@ -56,7 +57,7 @@ export async function getServerSideProps() {
   } catch (error) {
     return {
       props: {
-        error: true,
+        inProduction: true,
       },
     }
   }
