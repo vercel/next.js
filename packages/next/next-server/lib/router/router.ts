@@ -55,9 +55,13 @@ function addPathPrefix(path: string, prefix?: string) {
     : path
 }
 
-export function addLocale(path: string, locale?: string) {
+export function addLocale(
+  path: string,
+  locale?: string,
+  defaultLocale?: string
+) {
   if (process.env.__NEXT_i18n_SUPPORT) {
-    return locale && !path.startsWith('/' + locale)
+    return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -246,6 +250,7 @@ export type BaseRouter = {
   basePath: string
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 }
 
 export type NextRouter = BaseRouter &
@@ -356,6 +361,7 @@ export default class Router implements BaseRouter {
   _shallow?: boolean
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 
   static events: MittEmitter = mitt()
 
@@ -375,6 +381,7 @@ export default class Router implements BaseRouter {
       isFallback,
       locale,
       locales,
+      defaultLocale,
     }: {
       subscription: Subscription
       initialProps: any
@@ -387,6 +394,7 @@ export default class Router implements BaseRouter {
       isFallback: boolean
       locale?: string
       locales?: string[]
+      defaultLocale?: string
     }
   ) {
     // represents the current component key
@@ -440,6 +448,7 @@ export default class Router implements BaseRouter {
     if (process.env.__NEXT_i18n_SUPPORT) {
       this.locale = locale
       this.locales = locales
+      this.defaultLocale = defaultLocale
     }
 
     if (typeof window !== 'undefined') {
@@ -596,7 +605,7 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    as = addLocale(as, this.locale)
+    as = addLocale(as, this.locale, this.defaultLocale)
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       this.locale
@@ -790,7 +799,12 @@ export default class Router implements BaseRouter {
       }
 
       Router.events.emit('beforeHistoryChange', as)
-      this.changeState(method, url, addLocale(as, this.locale), options)
+      this.changeState(
+        method,
+        url,
+        addLocale(as, this.locale, this.defaultLocale),
+        options
+      )
 
       if (process.env.NODE_ENV !== 'production') {
         const appComp: any = this.components['/_app'].Component
@@ -960,7 +974,8 @@ export default class Router implements BaseRouter {
           formatWithValidation({ pathname, query }),
           delBasePath(as),
           __N_SSG,
-          this.locale
+          this.locale,
+          this.defaultLocale
         )
       }
 
@@ -1117,7 +1132,12 @@ export default class Router implements BaseRouter {
 
     const route = removePathTrailingSlash(pathname)
     await Promise.all([
-      this.pageLoader.prefetchData(url, asPath),
+      this.pageLoader.prefetchData(
+        url,
+        asPath,
+        this.locale,
+        this.defaultLocale
+      ),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
     ])
   }

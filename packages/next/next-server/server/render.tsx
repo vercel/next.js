@@ -69,6 +69,7 @@ class ServerRouter implements NextRouter {
   isFallback: boolean
   locale?: string
   locales?: string[]
+  defaultLocale?: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -79,7 +80,8 @@ class ServerRouter implements NextRouter {
     { isFallback }: { isFallback: boolean },
     basePath: string,
     locale?: string,
-    locales?: string[]
+    locales?: string[],
+    defaultLocale?: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -89,6 +91,7 @@ class ServerRouter implements NextRouter {
     this.basePath = basePath
     this.locale = locale
     this.locales = locales
+    this.defaultLocale = defaultLocale
   }
   push(): any {
     noRouter()
@@ -164,6 +167,7 @@ export type RenderOptsPartial = {
   resolvedAsPath?: string
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -203,6 +207,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString,
     locale,
     locales,
+    defaultLocale,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -251,6 +256,7 @@ function renderDocument(
             appGip, // whether the _app has getInitialProps
             locale,
             locales,
+            defaultLocale,
             head: React.Children.toArray(docProps.head || [])
               .map((elem) => {
                 const { children } = elem?.props
@@ -517,7 +523,8 @@ export async function renderToHTML(
     },
     basePath,
     renderOpts.locale,
-    renderOpts.locales
+    renderOpts.locales,
+    renderOpts.defaultLocale
   )
   const ctx = {
     err,
