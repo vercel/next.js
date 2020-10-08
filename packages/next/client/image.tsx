@@ -39,9 +39,11 @@ function computeSrc(src: string, host: string, unoptimized: boolean): string {
   } else {
     let selectedHost = imageData.hosts[host]
     if (!selectedHost) {
-      console.error(
-        `Image tag is used specifying host ${host}, but that host is not defined in next.config`
-      )
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(
+          `Image tag is used specifying host ${host}, but that host is not defined in next.config`
+        )
+      }
       return src
     }
     return callLoader(src, host)
@@ -109,13 +111,17 @@ export default function Image({
   ...rest
 }: ImageProps) {
   // Sanity Checks:
-  if (unoptimized && host) {
-    console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
-        With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
+  if (process.env.NODE_ENV !== 'production') {
+    if (unoptimized && host) {
+      console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
+          With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
+    }
   }
   if (host && !imageData.hosts[host]) {
     // If unregistered host is selected, log an error and use the default instead
-    console.error(`Image host identifier ${host} could not be resolved.`)
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`Image host identifier ${host} could not be resolved.`)
+    }
     host = 'default'
   }
 

@@ -1,6 +1,6 @@
-import React from '../integration/image-component/basic/pages/react'
-import Image from '../integration/image-component/basic/pages/next/image'
-import Link from '../integration/image-component/basic/pages/next/link'
+import React from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 
 const ClientSide = () => {
   return (

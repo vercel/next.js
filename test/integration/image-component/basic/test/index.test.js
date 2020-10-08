@@ -140,9 +140,9 @@ describe('Image Component Tests', () => {
         })()`)
         await browser.waitForElementByCss('#errorslink').click()
       })
-      it('Should log an error when an unregistered host is used', async () => {
+      it('Should not log an error when an unregistered host is used in production', async () => {
         const foundError = await browser.eval('window.gotHostError')
-        expect(foundError).toBe(true)
+        expect(foundError).toBe(false)
       })
     })
   })

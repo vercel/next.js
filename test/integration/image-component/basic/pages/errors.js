@@ -1,5 +1,5 @@
-import React from '../integration/image-component/basic/pages/react'
-import Image from '../integration/image-component/basic/pages/next/image'
+import React from 'react'
+import Image from 'next/image'
 
 const Errors = () => {
   return (
