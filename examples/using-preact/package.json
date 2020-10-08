@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@prefresh/next": "^0.3.0",
-    "next": "^9.4.0",
-    "preact": "^10.4.4",
-    "preact-render-to-string": "^5.1.9",
+    "next": "9.5.4",
+    "preact": "10.5.4",
+    "preact-render-to-string": "5.1.10",
     "react": "github:preact-compat/react#1.0.0",
     "react-dom": "github:preact-compat/react-dom#1.0.0",
     "react-ssr-prepass": "npm:preact-ssr-prepass@^1.0.1"

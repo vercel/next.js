@@ -26,7 +26,7 @@ module.exports = withPrefresh({
     aliases.react = aliases['react-dom'] = 'preact/compat'
 
     // Automatically inject Preact DevTools:
-    if (dev && !isServer) {
+    if (process.env.NODE_ENV === 'development' && dev && !isServer) {
       const entry = config.entry
       config.entry = () =>
         entry().then((entries) => {
