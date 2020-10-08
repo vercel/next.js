@@ -242,6 +242,7 @@ const nextServerlessLoader: loader.Loader = function () {
       detectedLocale = detectedLocale || i18n.defaultLocale
 
       if (
+        !fromExport &&
         !nextStartMode &&
         i18n.localeDetection !== false &&
         (shouldAddLocalePrefix || shouldStripDefaultLocale)

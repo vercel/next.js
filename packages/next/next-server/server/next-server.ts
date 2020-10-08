@@ -354,7 +354,7 @@ export default class Server {
         parsedUrl.pathname = localePathResult.pathname
       }
 
-      ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
+      parsedUrl.query.__nextLocale = detectedLocale || i18n.defaultLocale
     }
 
     res.statusCode = 200
@@ -510,7 +510,7 @@ export default class Server {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
-            ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
+            _parsedUrl.query.__nextLocale = detectedLocale || i18n.defaultLocale
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
@@ -1015,11 +1015,21 @@ export default class Server {
     query: ParsedUrlQuery = {},
     params: Params | null = null
   ): Promise<FindComponentsResult | null> {
-    const paths = [
+    let paths = [
       // try serving a static AMP version first
       query.amp ? normalizePagePath(pathname) + '.amp' : null,
       pathname,
     ].filter(Boolean)
+
+    if (query.__nextLocale) {
+      paths = [
+        ...paths.map(
+          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+        ),
+        ...paths,
+      ]
+    }
+
     for (const pagePath of paths) {
       try {
         const components = await loadComponents(
@@ -1031,7 +1041,11 @@ export default class Server {
           components,
           query: {
             ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq, amp: query.amp }
+              ? {
+                  amp: query.amp,
+                  _nextDataReq: query._nextDataReq,
+                  __nextLocale: query.__nextLocale,
+                }
               : query),
             ...(params || {}),
           },
@@ -1141,7 +1155,8 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const locale = (req as any)._nextLocale
+    const locale = query.__nextLocale as string
+    delete query.__nextLocale
 
     const ssgCacheKey =
       isPreviewMode || !isSSG
@@ -1214,7 +1229,7 @@ export default class Server {
             'passthrough',
             {
               fontManifest: this.renderOpts.fontManifest,
-              locale: (req as any)._nextLocale,
+              locale,
               locales: this.renderOpts.locales,
             }
           )
@@ -1235,7 +1250,7 @@ export default class Server {
             ...opts,
             isDataReq,
             resolvedUrl,
-            locale: (req as any)._nextLocale,
+            locale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath
@@ -1321,7 +1336,9 @@ export default class Server {
 
         // Production already emitted the fallback as static HTML.
         if (isProduction) {
-          html = await this.incrementalCache.getFallback(pathname)
+          html = await this.incrementalCache.getFallback(
+            locale ? `/${locale}${pathname}` : pathname
+          )
         }
         // We need to generate the fallback on-demand for development.
         else {
@@ -1442,7 +1459,6 @@ export default class Server {
       res.statusCode = 500
       return await this.renderErrorToHTML(err, req, res, pathname, query)
     }
-
     res.statusCode = 404
     return await this.renderErrorToHTML(null, req, res, pathname, query)
   }
@@ -1488,7 +1504,7 @@ export default class Server {
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      result = await this.findPageComponents('/404')
+      result = await this.findPageComponents('/404', query)
       using404Page = result !== null
     }
 
