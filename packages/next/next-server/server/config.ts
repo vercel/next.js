@@ -227,11 +227,34 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       throw new Error(`Specified i18n.defaultLocale should be a string`)
     }
 
+    if (!Array.isArray(i18n.locales)) {
+      throw new Error(
+        `Specified i18n.locales must be an array of locale strings e.g. ["en-US", "nl-NL"] received ${typeof i18n.locales}`
+      )
+    }
+
+    const invalidLocales = i18n.locales.filter(
+      (locale: any) => typeof locale !== 'string'
+    )
+
+    if (invalidLocales.length > 0) {
+      throw new Error(
+        `Specified i18n.locales contains invalid values, locales must be valid locale tags provided as strings e.g. "en-US".\n` +
+          `See here for list of valid language sub-tags: http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry`
+      )
+    }
+
     if (!i18n.locales.includes(i18n.defaultLocale)) {
       throw new Error(
         `Specified i18n.defaultLocale should be included in i18n.locales`
       )
     }
+
+    // make sure default Locale is at the front
+    i18n.locales = [
+      i18n.defaultLocale,
+      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
+    ]
 
     const localeDetectionType = typeof i18n.locales.localeDetection
 

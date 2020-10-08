@@ -140,6 +140,7 @@ export default class Server {
     optimizeImages: boolean
     locale?: string
     locales?: string[]
+    defaultLocale?: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -193,6 +194,7 @@ export default class Server {
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       locales: this.nextConfig.experimental.i18n?.locales,
+      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -302,31 +304,42 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n) {
+    if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
 
       if (!detectedLocale) {
-        detectedLocale =
-          accept.language(req.headers['accept-language'], i18n.locales) ||
-          i18n.defaultLocale
+        detectedLocale = accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        )
       }
+
+      const denormalizedPagePath = denormalizePagePath(pathname || '/')
+      const detectedDefaultLocale = detectedLocale === i18n.defaultLocale
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath === `/${i18n.defaultLocale}`
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+      detectedLocale = detectedLocale || i18n.defaultLocale
 
       if (
         i18n.localeDetection !== false &&
-        denormalizePagePath(pathname || '/') === '/'
+        (shouldAddLocalePrefix || shouldStripDefaultLocale)
       ) {
         res.setHeader(
           'Location',
           formatUrl({
             // make sure to include any query values when redirecting
             ...parsed,
-            pathname: `/${detectedLocale}`,
+            pathname: shouldStripDefaultLocale ? '/' : `/${detectedLocale}`,
           })
         )
         res.statusCode = 307
         res.end()
+        return
       }
 
       // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
@@ -487,21 +500,17 @@ export default class Server {
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
 
-          if (this.nextConfig.experimental.i18n) {
-            const localePathResult = normalizeLocalePath(
-              pathname,
-              this.renderOpts.locales
-            )
-            let detectedLocale = detectLocaleCookie(
-              req,
-              this.renderOpts.locales!
-            )
+          const { i18n } = this.nextConfig.experimental
+
+          if (i18n) {
+            const localePathResult = normalizeLocalePath(pathname, i18n.locales)
+            let detectedLocale = detectLocaleCookie(req, i18n.locales)
 
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
-            ;(req as any)._nextLocale = detectedLocale
+            ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
