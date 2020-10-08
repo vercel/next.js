@@ -260,7 +260,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles.module.css')
       expect(stderr).toMatch(
-        /CSS.*cannot.*be imported within.*pages[f/]_document\.js/
+        /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
     })
