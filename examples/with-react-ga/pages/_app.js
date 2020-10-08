@@ -1,16 +1,29 @@
 import App from 'next/app'
-import Router from 'next/router'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { initGA, logPageView } from '../utils/analytics'
 
-export default class MyApp extends App {
-  componentDidMount() {
-    initGA()
-    logPageView()
-    Router.events.on('routeChangeComplete', logPageView)
-  }
+const App = ({ Component, pageProps }) => {
+  const router = useRouter()
 
-  render() {
-    const { Component, pageProps } = this.props
-    return <Component {...pageProps} />
-  }
+  useEffect(() => {
+    initGA()
+
+    // workaround for the issue #11639
+    if (!router.asPath.includes('?')) {      
+      logPageView()
+    }
+  }, [])
+
+  useEffect(() => {
+    router.events.on('routeChangeComplete', logPageView)
+
+    return () => {
+      router.events.off('routeChangeComplete', logPageView)
+    }
+  }, [router.events])
+
+  return <Component {...pageProps} />
 }
+
+export default App
