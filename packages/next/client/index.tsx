@@ -65,6 +65,7 @@ const {
   isFallback,
   head: initialHeadData,
   locales,
+  defaultLocale,
 } = data
 
 let { locale } = data
@@ -317,6 +318,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       render({ App, Component, styleSheets, props, err }),
     locale,
     locales,
+    defaultLocale,
   })
 
   // call init-client middleware

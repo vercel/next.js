@@ -283,6 +283,8 @@ export default async function exportApp(
     }
   }
 
+  const { i18n } = nextConfig.experimental
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -298,8 +300,9 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
-    locales: nextConfig.experimental.i18n?.locales,
-    locale: nextConfig.experimental.i18n?.defaultLocale,
+    locales: i18n?.locales,
+    locale: i18n.defaultLocale,
+    defaultLocale: i18n.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

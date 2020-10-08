@@ -229,24 +229,34 @@ const nextServerlessLoader: loader.Loader = function () {
         detectedLocale = accept.language(
           req.headers['accept-language'],
           i18n.locales
-        ) || i18n.defaultLocale
+        )
       }
+
+      const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
+      const detectedDefaultLocale = detectedLocale === i18n.defaultLocale
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath === \`/\${i18n.defaultLocale}\`
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+      detectedLocale = detectedLocale || i18n.defaultLocale
 
       if (
         !nextStartMode &&
         i18n.localeDetection !== false &&
-        denormalizePagePath(parsedUrl.pathname || '/') === '/'
+        (shouldAddLocalePrefix || shouldStripDefaultLocale)
       ) {
         res.setHeader(
           'Location',
           formatUrl({
             // make sure to include any query values when redirecting
             ...parsedUrl,
-            pathname: \`/\${detectedLocale}\`,
+            pathname: shouldStripDefaultLocale ? '/' : \`/\${detectedLocale}\`,
           })
         )
         res.statusCode = 307
         res.end()
+        return
       }
 
       // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
@@ -458,6 +468,7 @@ const nextServerlessLoader: loader.Loader = function () {
             isDataReq: _nextData,
             locale: detectedLocale,
             locales: i18n.locales,
+            defaultLocale: i18n.defaultLocale,
           },
           options,
         )

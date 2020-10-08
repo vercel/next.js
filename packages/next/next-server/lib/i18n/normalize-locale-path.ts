@@ -6,10 +6,14 @@ export function normalizeLocalePath(
   pathname: string
 } {
   let detectedLocale: string | undefined
+  // first item will be empty string from splitting at first char
+  const pathnameParts = pathname.split('/')
+
   ;(locales || []).some((locale) => {
-    if (pathname.startsWith(`/${locale}`)) {
+    if (pathnameParts[1] === locale) {
       detectedLocale = locale
-      pathname = pathname.replace(new RegExp(`^/${locale}`), '') || '/'
+      pathnameParts.splice(1, 1)
+      pathname = pathnameParts.join('/') || '/'
       return true
     }
     return false
