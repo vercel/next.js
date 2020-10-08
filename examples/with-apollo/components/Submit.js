@@ -1,5 +1,4 @@
 import { gql, useMutation } from '@apollo/client'
-import { ALL_POSTS_QUERY, allPostsQueryVars } from './PostList'
 
 const CREATE_POST_MUTATION = gql`
   mutation createPost($title: String!, $url: String!) {
@@ -26,19 +25,22 @@ export default function Submit() {
 
     createPost({
       variables: { title, url },
-      update: (proxy, { data: { createPost } }) => {
-        const data = proxy.readQuery({
-          query: ALL_POSTS_QUERY,
-          variables: allPostsQueryVars,
-        })
-        // Update the cache with the new post at the top of the list
-        proxy.writeQuery({
-          query: ALL_POSTS_QUERY,
-          data: {
-            ...data,
-            allPosts: [createPost, ...data.allPosts],
+      update: (cache, { data: { createPost } }) => {
+        cache.modify({
+          fields: {
+            allPosts(existingPosts = []) {
+              const newPostRef = cache.writeFragment({
+                data: createPost,
+                fragment: gql`
+                  fragment NewPost on allPosts {
+                    id
+                    type
+                  }
+                `,
+              })
+              return [newPostRef, ...existingPosts]
+            },
           },
-          variables: allPostsQueryVars,
         })
       },
     })
