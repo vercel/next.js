@@ -140,6 +140,7 @@ export default class Server {
     optimizeImages: boolean
     locale?: string
     locales?: string[]
+    defaultLocale?: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -193,6 +194,7 @@ export default class Server {
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       locales: this.nextConfig.experimental.i18n?.locales,
+      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

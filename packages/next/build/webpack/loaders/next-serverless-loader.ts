@@ -468,6 +468,7 @@ const nextServerlessLoader: loader.Loader = function () {
             isDataReq: _nextData,
             locale: detectedLocale,
             locales: i18n.locales,
+            defaultLocale: i18n.defaultLocale,
           },
           options,
         )

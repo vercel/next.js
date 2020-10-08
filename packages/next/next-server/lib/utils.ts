@@ -103,6 +103,7 @@ export type NEXT_DATA = {
   head: HeadEntry[]
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 }
 
 /**
