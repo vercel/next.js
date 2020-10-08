@@ -79,6 +79,7 @@ import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
+import { imageOptimizer } from './image-optimizer'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -527,6 +528,12 @@ export default class Server {
             finished: true,
           }
         },
+      },
+      {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: imageOptimizer,
       },
       {
         match: route('/_next/:path*'),
