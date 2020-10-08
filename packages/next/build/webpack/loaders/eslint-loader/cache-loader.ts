@@ -2,7 +2,7 @@ import cache from './cache'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { RawSourceMap } from 'source-map'
 import { Linter, NextLintResult } from './linter'
-import { ESLint } from 'eslint'
+import { CLIEngine } from 'eslint'
 import { join } from 'path'
 
 const { version } = require('next/package.json')
@@ -17,7 +17,7 @@ export default function cacheLoader(
   const callback = loaderContext.async()
   const cacheIdentifier = JSON.stringify({
     'next-eslint-loader': version,
-    eslint: ESLint.version,
+    eslint: CLIEngine.version,
   })
   cache({
     cacheDirectory: join(options.distDir, 'cache', 'next-eslint-loader'),
