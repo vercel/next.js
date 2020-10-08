@@ -1559,7 +1559,7 @@ describe('CSS Support', () => {
         const howMany = content.includes('p{') ? 4 : 2
 
         expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-        expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
+        // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
         expect(content.match(/\(\/_next\/static\/media/g).length).toBe(2)
         expect(content.match(/\(https:\/\//g).length).toBe(howMany)
       }
