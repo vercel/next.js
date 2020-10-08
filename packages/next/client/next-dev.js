@@ -37,7 +37,9 @@ initNext({ webpackHMR })
 
     function devPagesManifestListener(event) {
       if (event.data.indexOf('devPagesManifest') !== -1) {
-        fetch(`${prefix}/_next/static/development/_devPagesManifest.json`)
+        fetch(`${prefix}/_next/static/development/_devPagesManifest.json`, {
+          credentials: 'same-origin',
+        })
           .then((res) => res.json())
           .then((manifest) => {
             window.__DEV_PAGES_MANIFEST = manifest

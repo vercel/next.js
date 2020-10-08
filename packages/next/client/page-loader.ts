@@ -174,7 +174,8 @@ export default class PageLoader {
       } else {
         if (!this.promisedDevPagesManifest) {
           this.promisedDevPagesManifest = fetch(
-            `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+            `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`,
+            { credentials: 'same-origin' }
           )
             .then((res) => res.json())
             .then((manifest) => {
