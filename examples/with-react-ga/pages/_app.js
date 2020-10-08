@@ -10,7 +10,7 @@ const App = ({ Component, pageProps }) => {
     initGA()
 
     // workaround for the issue #11639
-    if (!router.asPath.includes('?')) {      
+    if (!router.asPath.includes('?')) {
       logPageView()
     }
   }, [])
