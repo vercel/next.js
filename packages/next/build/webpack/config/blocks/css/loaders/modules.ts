@@ -2,6 +2,7 @@ import postcss from 'postcss'
 import webpack from 'webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
+import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
@@ -30,6 +31,9 @@ export function getCssModuleLoader(
       sourceMap: true,
       // Use CJS mode for backwards compatibility:
       esModule: false,
+      url: cssFileResolve,
+      import: (url: string, _: any, resourcePath: string) =>
+        cssFileResolve(url, resourcePath),
       modules: {
         // Do not transform class names (CJS mode backwards compatibility):
         exportLocalsConvention: 'asIs',
