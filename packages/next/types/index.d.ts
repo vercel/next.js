@@ -81,6 +81,8 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
   previewData?: any
+  locale?: string
+  locales?: string[]
 }
 
 export type GetStaticPropsResult<P> = {
@@ -103,7 +105,7 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   : never
 
 export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P }>
+  paths: Array<string | { params: P; locale?: string }>
   fallback: boolean | 'unstable_blocking'
 }
 
@@ -121,6 +123,8 @@ export type GetServerSidePropsContext<
   preview?: boolean
   previewData?: any
   resolvedUrl: string
+  locale?: string
+  locales?: string[]
 }
 
 export type GetServerSidePropsResult<P> = {

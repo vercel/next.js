@@ -54,6 +54,7 @@ const defaultConfig: { [key: string]: any } = {
     optimizeFonts: false,
     optimizeImages: false,
     scrollRestoration: false,
+    i18n: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -203,6 +204,44 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       if (result.amp.canonicalBase === '') {
         result.amp.canonicalBase = result.basePath
       }
+    }
+  }
+
+  if (result.experimental?.i18n) {
+    const { i18n } = result.experimental
+    const i18nType = typeof i18n
+
+    if (i18nType !== 'object') {
+      throw new Error(`Specified i18n should be an object received ${i18nType}`)
+    }
+
+    if (!Array.isArray(i18n.locales)) {
+      throw new Error(
+        `Specified i18n.locales should be an Array received ${typeof i18n.lcoales}`
+      )
+    }
+
+    const defaultLocaleType = typeof i18n.defaultLocale
+
+    if (!i18n.defaultLocale || defaultLocaleType !== 'string') {
+      throw new Error(`Specified i18n.defaultLocale should be a string`)
+    }
+
+    if (!i18n.locales.includes(i18n.defaultLocale)) {
+      throw new Error(
+        `Specified i18n.defaultLocale should be included in i18n.locales`
+      )
+    }
+
+    const localeDetectionType = typeof i18n.locales.localeDetection
+
+    if (
+      localeDetectionType !== 'boolean' &&
+      localeDetectionType !== 'undefined'
+    ) {
+      throw new Error(
+        `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}`
+      )
     }
   }
 
