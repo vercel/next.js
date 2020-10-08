@@ -44,7 +44,7 @@ const styles = css`
   [data-nextjs-codeframe] > p > svg {
     width: auto;
     height: 1em;
-    margin-left: 0.5rem;
+    margin-left: 8px;
   }
 `
 

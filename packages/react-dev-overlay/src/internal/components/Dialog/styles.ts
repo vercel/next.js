@@ -12,7 +12,7 @@ const styles = css`
     border-radius: var(--size-gap);
     box-shadow: 0 var(--size-gap-half) var(--size-gap-double)
       rgba(0, 0, 0, 0.25);
-    max-height: calc(100% - 3.5rem);
+    max-height: calc(100% - 56px);
     overflow-y: hidden;
   }
 

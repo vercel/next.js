@@ -7,15 +7,15 @@ export function Base() {
       dangerouslySetInnerHTML={{
         __html: css`
           :host {
-            --size-gap-half: 0.25rem; /* 4px */
-            --size-gap: 0.5rem; /* 8px */
-            --size-gap-double: 1rem; /* 16px */
-            --size-gap-quad: 2rem; /* 32px */
+            --size-gap-half: 4px;
+            --size-gap: 8px;
+            --size-gap-double: 16px;
+            --size-gap-quad: 32px;
 
-            --size-font-small: 0.875rem; /* 14px */
-            --size-font: 1rem; /* 16px */
-            --size-font-big: 1.25rem; /* 20px */
-            --size-font-bigger: 1.5rem; /* 24px */
+            --size-font-small: 14px;
+            --size-font: 16px;
+            --size-font-big: 20px;
+            --size-font-bigger: 24px;
 
             --color-accents-1: #808080;
             --color-accents-2: #222222;
@@ -62,22 +62,22 @@ export function Base() {
           }
 
           h1 {
-            font-size: 2.5rem;
+            font-size: 40px;
           }
           h2 {
-            font-size: 2rem;
+            font-size: 32px;
           }
           h3 {
-            font-size: 1.75rem;
+            font-size: 28px;
           }
           h4 {
-            font-size: 1.5rem;
+            font-size: 24px;
           }
           h5 {
-            font-size: 1.25rem;
+            font-size: 20px;
           }
           h6 {
-            font-size: 1rem;
+            font-size: 16px;
           }
         `,
       }}
