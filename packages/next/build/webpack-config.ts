@@ -242,6 +242,10 @@ export default async function getBaseWebpackConfig(
           'All hosts defined in the image configuration property of next.config.js must define a path'
         )
       }
+      // Normalize hosts so all paths have trailing slash
+      if (host.path[host.path.length - 1] !== '/') {
+        host.path += '/'
+      }
     })
   }
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })

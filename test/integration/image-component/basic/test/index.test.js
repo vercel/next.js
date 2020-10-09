@@ -35,6 +35,11 @@ function runTests() {
       'https://example.com/myaccount/foo.jpg'
     )
   })
+  it('should correctly generate src even if preceding slash is included in prop', async () => {
+    expect(
+      await browser.elementById('preceding-slash-image').getAttribute('src')
+    ).toBe('https://example.com/myaccount/fooslash.jpg')
+  })
   it('should support manually selecting a different host', async () => {
     expect(
       await browser.elementById('secondary-image').getAttribute('src')
@@ -45,6 +50,13 @@ function runTests() {
       await browser.elementById('basic-image').getAttribute('srcset')
     ).toBe(
       'https://example.com/myaccount/foo.jpg?w=480 480w, https://example.com/myaccount/foo.jpg?w=1024 1024w, https://example.com/myaccount/foo.jpg?w=1600 1600w'
+    )
+  })
+  it('should add a srcset even with preceding slash in prop', async () => {
+    expect(
+      await browser.elementById('preceding-slash-image').getAttribute('srcset')
+    ).toBe(
+      'https://example.com/myaccount/fooslash.jpg?w=480 480w, https://example.com/myaccount/fooslash.jpg?w=1024 1024w, https://example.com/myaccount/fooslash.jpg?w=1600 1600w'
     )
   })
   it('should support the unoptimized attribute', async () => {
@@ -92,6 +104,13 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://example.com/myaccount/withpriority.png'
+        )
+      ).toBe(true)
+    })
+    it('should add a preload tag for a priority image with preceding slash', async () => {
+      expect(
+        await hasPreloadLinkMatchingUrl(
+          'https://example.com/myaccount/fooslash.jpg'
         )
       ).toBe(true)
     })

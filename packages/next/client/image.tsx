@@ -126,6 +126,12 @@ export default function Image({
   }
 
   host = host || 'default'
+
+  // Normalize provided src
+  if (src[0] === '/') {
+    src = src.slice(1)
+  }
+
   // Generate attribute values
   const imgSrc = computeSrc(src, host, unoptimized)
   const imgAttributes: { src: string; srcSet?: string } = { src: imgSrc }

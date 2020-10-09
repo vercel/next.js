@@ -32,6 +32,7 @@ const Page = () => {
         unoptimized
         src="https://arbitraryurl.com/withpriority3.png"
       />
+      <Image id="preceding-slash-image" src="/fooslash.jpg" priority />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>

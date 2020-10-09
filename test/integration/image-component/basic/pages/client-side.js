@@ -20,6 +20,7 @@ const ClientSide = () => {
         src="https://arbitraryurl.com/foo.jpg"
       />
       <Image id="priority-image-client" priority src="withpriorityclient.png" />
+      <Image id="preceding-slash-image" src="/fooslash.jpg" priority />
       <Link href="/errors">
         <a id="errorslink">Errors</a>
       </Link>
