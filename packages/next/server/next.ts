@@ -1,6 +1,5 @@
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import * as log from '../build/output/log'
 
 type NextServerConstructor = ServerConstructor & {
   /**
