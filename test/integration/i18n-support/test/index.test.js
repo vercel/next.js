@@ -298,8 +298,8 @@ function runTests() {
   it('should navigate client side for default locale with no prefix', async () => {
     const browser = await webdriver(appPort, '/')
     // make sure default locale is used in case browser isn't set to
-    // favor en-US by default
-    await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'en-US' })
+    // favor en-US by default, (we use all caps to ensure it's case-insensitive)
+    await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
     await browser.get(browser.initUrl)
 
     const checkIndexValues = async () => {
