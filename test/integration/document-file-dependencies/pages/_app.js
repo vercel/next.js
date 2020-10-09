@@ -1,11 +1,7 @@
-import '../css/app.css'
+import '../css/global.css'
 
 function App({ Component, pageProps }) {
-  return (
-    <div className="global">
-      <Component {...pageProps} />
-    </div>
-  )
+  return <Component {...pageProps} />
 }
 
 export default App

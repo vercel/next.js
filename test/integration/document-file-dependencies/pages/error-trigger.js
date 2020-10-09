@@ -1,7 +1,5 @@
-import style from '../css/index.module.css'
-
 function ErrorTrigger() {
-  return <div className={style.index}>error-trigger</div>
+  return <div>error-trigger</div>
 }
 
 ErrorTrigger.getInitialProps = () => {
