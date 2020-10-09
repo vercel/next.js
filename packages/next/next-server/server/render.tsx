@@ -413,6 +413,7 @@ export async function renderToHTML(
 
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
+  delete query.__nextLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -506,9 +507,6 @@ export async function renderToHTML(
   }
   if (isAutoExport) renderOpts.autoExport = true
   if (isSSG) renderOpts.nextExport = false
-  // don't set default locale for fallback pages since this needs to be
-  // handled at request time
-  if (isFallback) renderOpts.locale = undefined
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 

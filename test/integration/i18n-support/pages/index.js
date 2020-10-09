@@ -44,12 +44,3 @@ export default function Page(props) {
     </>
   )
 }
-
-export const getServerSideProps = ({ locale, locales }) => {
-  return {
-    props: {
-      locale,
-      locales,
-    },
-  }
-}
