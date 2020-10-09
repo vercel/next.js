@@ -67,6 +67,15 @@ function runTests() {
       expect($('#router-as-path').text()).toBe('/gsp')
       expect($('#router-pathname').text()).toBe('/gsp')
       expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+
+      // make sure locale is case-insensitive
+      const html2 = await renderViaHTTP(appPort, `/${locale.toUpperCase()}/gsp`)
+      const $2 = cheerio.load(html2)
+      expect($2('html').attr('lang')).toBe(locale)
+      expect($2('#router-locale').text()).toBe(locale)
+      expect($2('#router-as-path').text()).toBe('/gsp')
+      expect($2('#router-pathname').text()).toBe('/gsp')
+      expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
     }
   })
 
@@ -87,6 +96,21 @@ function runTests() {
 
     expect(parsedUrl.pathname).toBe('/')
     expect(parsedUrl.query).toEqual({})
+
+    // make sure locale is case-insensitive
+    const res2 = await fetchViaHTTP(appPort, '/eN-Us', undefined, {
+      redirect: 'manual',
+      headers: {
+        'Accept-Language': 'en-US;q=0.9',
+      },
+    })
+
+    expect(res2.status).toBe(307)
+
+    const parsedUrl2 = url.parse(res.headers.get('location'), true)
+
+    expect(parsedUrl2.pathname).toBe('/')
+    expect(parsedUrl2.query).toEqual({})
   })
 
   it('should load getStaticProps page correctly SSR (default locale no prefix)', async () => {
