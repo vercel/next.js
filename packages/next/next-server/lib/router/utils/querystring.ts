@@ -16,7 +16,7 @@ export function searchParamsToUrlQuery(
   return query
 }
 
-function stringifyUrlQueryParam(param: string): string {
+function stringifyUrlQueryParam(param: string | number | boolean): string {
   if (
     typeof param === 'string' ||
     (typeof param === 'number' && !isNaN(param)) ||
@@ -39,6 +39,9 @@ export function urlQueryToSearchParams(
       result.set(key, stringifyUrlQueryParam(value))
     }
   })
+
+  result.sort()
+
   return result
 }
 
@@ -50,5 +53,8 @@ export function assign(
     Array.from(searchParams.keys()).forEach((key) => target.delete(key))
     searchParams.forEach((value, key) => target.append(key, value))
   })
+
+  target.sort()
+
   return target
 }
