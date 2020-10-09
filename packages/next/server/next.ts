@@ -24,7 +24,7 @@ function createServer(options: NextServerConstructor): Server {
     process.env.NODE_ENV &&
     !standardEnv.includes(process.env.NODE_ENV)
   ) {
-    log.warn(NON_STANDARD_NODE_ENV)
+    throw new Error(NON_STANDARD_NODE_ENV)
   }
 
   if (options.dev) {

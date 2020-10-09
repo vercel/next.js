@@ -89,7 +89,7 @@ const defaultEnv = command === 'dev' ? 'development' : 'production'
 const standardEnv = ['production', 'development', 'test']
 
 if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
-  log.warn(NON_STANDARD_NODE_ENV)
+  throw new Error(NON_STANDARD_NODE_ENV)
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
