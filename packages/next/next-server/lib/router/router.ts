@@ -317,9 +317,13 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
       if (attempts > 1 && res.status >= 500) {
         return fetchRetry(url, attempts - 1)
       }
+      if (res.status === 404) {
+        // TODO: handle reloading in development from fallback returning 200
+        // to on-demand-entry-handler causing it to reload periodically
+        throw new Error('NOT_FOUND')
+      }
       throw new Error(`Failed to load static props`)
     }
-
     return res.json()
   })
 }
@@ -329,7 +333,8 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // We should only trigger a server-side transition if this was caused
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
-    if (!isServerRender) {
+
+    if (!isServerRender || err.message === 'NOT_FOUND') {
       markLoadingError(err)
     }
     throw err

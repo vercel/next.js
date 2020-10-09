@@ -622,7 +622,10 @@ export async function renderToHTML(
 
       const invalidKeys = Object.keys(data).filter(
         (key) =>
-          key !== 'revalidate' && key !== 'props' && key !== 'unstable_redirect'
+          key !== 'revalidate' &&
+          key !== 'props' &&
+          key !== 'unstable_redirect' &&
+          key !== 'unstable_notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -631,6 +634,11 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+      }
+
+      if (data.unstable_notFound) {
+        ;(renderOpts as any).ssgNotFound = true
+        return null
       }
 
       if (

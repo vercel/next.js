@@ -22,11 +22,12 @@ const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
+let buildPagesDir
 // let buildId
 
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'en']
 
-function runTests() {
+function runTests(isDev) {
   it('should generate fallbacks with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(
@@ -58,7 +59,7 @@ function runTests() {
     }
   })
 
-  it('should generate non-dynamic SSG page with all locales', async () => {
+  it('should generate non-dynamic GSP page with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(appPort, `/${locale}/gsp`)
       const $ = cheerio.load(html)
@@ -70,8 +71,30 @@ function runTests() {
     }
   })
 
-  // TODO: SSG 404 behavior to opt-out of generating specific locale
-  // for non-dynamic SSG pages
+  if (!isDev) {
+    it('should not output GSP pages that returned notFound', async () => {
+      const skippedLocales = ['en', 'nl']
+
+      for (const locale of locales) {
+        const pagePath = join(buildPagesDir, locale, 'not-found.html')
+        const dataPath = join(buildPagesDir, locale, 'not-found.json')
+        console.log(pagePath)
+        expect(await fs.exists(pagePath)).toBe(!skippedLocales.includes(locale))
+        expect(await fs.exists(dataPath)).toBe(!skippedLocales.includes(locale))
+      }
+    })
+  }
+
+  it('should 404 for GSP pages that returned notFound', async () => {
+    const skippedLocales = ['en', 'nl']
+
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(appPort, `/${locale}/not-found`)
+      expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
+    }
+  })
+
+  // TODO: tests for notFound with fallback GSP pages
 
   it('should remove un-necessary locale prefix for default locale', async () => {
     const res = await fetchViaHTTP(appPort, '/en-US', undefined, {
@@ -588,7 +611,7 @@ describe('i18n Support', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {
@@ -597,6 +620,7 @@ describe('i18n Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/server/pages')
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
@@ -612,6 +636,7 @@ describe('i18n Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/serverless/pages')
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
