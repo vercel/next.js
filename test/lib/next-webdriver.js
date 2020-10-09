@@ -167,6 +167,7 @@ export default async (appPort, path, waitHydration = true) => {
   }
 
   const url = `http://${deviceIP}:${appPort}${path}`
+  browser.initUrl = url
   console.log(`\n> Loading browser with ${url}\n`)
 
   await browser.get(url)

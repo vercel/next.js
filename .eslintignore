@@ -13,3 +13,4 @@ packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
+packages/next-env/**/*.d.ts
