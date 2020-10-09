@@ -108,6 +108,7 @@ export async function imageOptimizer(
   const cacheFile = join(imageDir, fileName)
 
   if (await fileExists(cacheFile)) {
+    res.setHeader('Content-Type', mediaType)
     createReadStream(cacheFile).pipe(res)
     return { finished: true }
   }
