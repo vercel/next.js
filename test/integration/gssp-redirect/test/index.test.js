@@ -123,6 +123,10 @@ const runTests = () => {
       window.next.router.push('/gssp-blog/redirect-dest-_another')
     })()`)
     await browser.waitForElementByCss('#another')
+
+    const text = await browser.elementByCss('#another').text()
+
+    expect(text).toEqual('another Page')
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (external)', async () => {
@@ -149,6 +153,10 @@ const runTests = () => {
       window.next.router.push('/gsp-blog/redirect-dest-_another')
     })()`)
     await browser.waitForElementByCss('#another')
+
+    const text = await browser.elementByCss('#another').text()
+
+    expect(text).toEqual('another Page')
   })
 
   it('should apply redirect when GSP page is navigated to client-side (external)', async () => {
