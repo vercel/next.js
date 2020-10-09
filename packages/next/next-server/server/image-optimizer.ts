@@ -22,7 +22,8 @@ export async function imageOptimizer(
   const { url: reqUrl = '/', headers } = req
   const { query } = parse(reqUrl, true)
   const { url, w, q } = query
-  const { host } = headers
+  const proto = headers['x-forwarded-proto'] || 'http'
+  const host = headers['x-forwarded-host'] || headers.host
   const mediaType = accept.mediaType(req.headers.accept, MEDIA_TYPES)
 
   if (!url) {
@@ -51,7 +52,7 @@ export async function imageOptimizer(
   } catch (_error) {
     // url was not absolute so assuming relative url
     try {
-      absoluteUrl = new URL(url, `https://${host}`)
+      absoluteUrl = new URL(url, `${proto}://${host}`)
     } catch (__error) {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
@@ -140,6 +141,7 @@ export async function imageOptimizer(
   const body = (fetchResponse.body as any) as NodeJS.ReadableStream
   const imageTransform = body.pipe(transformer)
   imageTransform.pipe(createWriteStream(cacheFile))
+  res.setHeader('Content-Type', mediaType)
   imageTransform.pipe(res)
   return { finished: true }
 }
@@ -155,6 +157,5 @@ function getFileName(items: (string | number | undefined)[]) {
   }
   // See https://en.wikipedia.org/wiki/Base64#Filenames
   const digest = hash.digest('base64').replace(/\//g, '-')
-  console.log(items, digest)
   return digest
 }
