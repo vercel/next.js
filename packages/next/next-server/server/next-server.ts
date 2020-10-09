@@ -414,6 +414,7 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
+    const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
@@ -533,7 +534,7 @@ export default class Server {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: imageOptimizer,
+        fn: (req, res) => imageOptimizer(server, req, res),
       },
       {
         match: route('/_next/:path*'),

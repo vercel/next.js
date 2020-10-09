@@ -1,12 +1,11 @@
-import { parse, UrlWithParsedQuery } from 'url'
+import { parse } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
 import accept from '@hapi/accept'
-import fs from 'fs'
-import crypto from 'crypto'
+import { createReadStream, createWriteStream, promises } from 'fs'
+import { createHash } from 'crypto'
 import Server from './next-server'
 import { fileExists } from '../../lib/file-exists'
-import { Params } from './router'
 
 let sharp: typeof import('sharp')
 const AVIF = 'image/avif'
@@ -14,16 +13,12 @@ const WEBP = 'image/webp'
 const MEDIA_TYPES = [/* AVIF, */ WEBP]
 
 export async function imageOptimizer(
-  this: Server,
+  server: Server,
   req: IncomingMessage,
-  res: ServerResponse,
-  _params: Params,
-  _parsedUrl: UrlWithParsedQuery
+  res: ServerResponse
 ) {
-  const { nextConfig, distDir } = this
-  const { images = {} } = nextConfig.experimental || {}
-  const { sizes = [], domains = [] } = images
-
+  const { nextConfig, distDir } = server
+  const { sizes = [], domains = [] } = nextConfig?.experimental?.images || {}
   const { url: reqUrl = '/', headers } = req
   const { query } = parse(reqUrl, true)
   const { url, w, q } = query
@@ -106,17 +101,13 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const hash = crypto.createHash('sha256')
-  hash.update(url)
-  hash.update(w)
-  hash.update(q)
-  hash.update(mediaType)
-
-  const cacheKey = hash.digest('base64')
-  const cacheFile = join(distDir, 'cache', 'images', cacheKey)
+  const { href } = absoluteUrl
+  const fileName = getFileName([href, width, quality, mediaType])
+  const imageDir = join(distDir, 'cache', 'images')
+  const cacheFile = join(imageDir, fileName)
 
   if (await fileExists(cacheFile)) {
-    fs.createReadStream(cacheFile).pipe(res)
+    createReadStream(cacheFile).pipe(res)
     return { finished: true }
   }
 
@@ -134,21 +125,36 @@ export async function imageOptimizer(
     transformer.webp({ quality })
   }
 
-  const fetchResponse = await fetch(absoluteUrl.href)
+  const fetchResponse = await fetch(href)
 
   if (!fetchResponse.ok) {
-    throw new Error(
-      `Unexpected status ${fetchResponse.status} from ${absoluteUrl.href}`
-    )
+    throw new Error(`Unexpected status ${fetchResponse.status} from ${href}`)
   }
   if (!fetchResponse.body) {
-    throw new Error(`No body from ${absoluteUrl.href}`)
+    throw new Error(`No body from ${href}`)
   }
+
+  await promises.mkdir(imageDir, { recursive: true })
 
   // We know this code only runs server-side so use Node Streams
   const body = (fetchResponse.body as any) as NodeJS.ReadableStream
   const imageTransform = body.pipe(transformer)
-  imageTransform.pipe(fs.createWriteStream(cacheFile))
+  imageTransform.pipe(createWriteStream(cacheFile))
   imageTransform.pipe(res)
   return { finished: true }
+}
+
+function getFileName(items: (string | number | undefined)[]) {
+  const hash = createHash('sha256')
+  for (let item of items) {
+    if (typeof item === 'string') {
+      hash.update(item)
+    } else {
+      hash.update(String(item))
+    }
+  }
+  // See https://en.wikipedia.org/wiki/Base64#Filenames
+  const digest = hash.digest('base64').replace(/\//g, '-')
+  console.log(items, digest)
+  return digest
 }
