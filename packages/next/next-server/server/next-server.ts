@@ -141,6 +141,7 @@ export default class Server {
     optimizeCss: boolean
     locale?: string
     locales?: string[]
+    defaultLocale?: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -195,6 +196,7 @@ export default class Server {
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       locales: this.nextConfig.experimental.i18n?.locales,
+      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -307,31 +309,42 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n) {
+    if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
 
       if (!detectedLocale) {
-        detectedLocale =
-          accept.language(req.headers['accept-language'], i18n.locales) ||
-          i18n.defaultLocale
+        detectedLocale = accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        )
       }
+
+      const denormalizedPagePath = denormalizePagePath(pathname || '/')
+      const detectedDefaultLocale = detectedLocale === i18n.defaultLocale
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath === `/${i18n.defaultLocale}`
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+      detectedLocale = detectedLocale || i18n.defaultLocale
 
       if (
         i18n.localeDetection !== false &&
-        denormalizePagePath(pathname || '/') === '/'
+        (shouldAddLocalePrefix || shouldStripDefaultLocale)
       ) {
         res.setHeader(
           'Location',
           formatUrl({
             // make sure to include any query values when redirecting
             ...parsed,
-            pathname: `/${detectedLocale}`,
+            pathname: shouldStripDefaultLocale ? '/' : `/${detectedLocale}`,
           })
         )
         res.statusCode = 307
         res.end()
+        return
       }
 
       // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
@@ -346,7 +359,7 @@ export default class Server {
         parsedUrl.pathname = localePathResult.pathname
       }
 
-      ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
+      parsedUrl.query.__nextLocale = detectedLocale || i18n.defaultLocale
     }
 
     res.statusCode = 200
@@ -492,21 +505,17 @@ export default class Server {
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
 
-          if (this.nextConfig.experimental.i18n) {
-            const localePathResult = normalizeLocalePath(
-              pathname,
-              this.renderOpts.locales
-            )
-            let detectedLocale = detectLocaleCookie(
-              req,
-              this.renderOpts.locales!
-            )
+          const { i18n } = this.nextConfig.experimental
+
+          if (i18n) {
+            const localePathResult = normalizeLocalePath(pathname, i18n.locales)
+            let detectedLocale = detectLocaleCookie(req, i18n.locales)
 
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
-            ;(req as any)._nextLocale = detectedLocale
+            _parsedUrl.query.__nextLocale = detectedLocale || i18n.defaultLocale
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
@@ -1011,11 +1020,21 @@ export default class Server {
     query: ParsedUrlQuery = {},
     params: Params | null = null
   ): Promise<FindComponentsResult | null> {
-    const paths = [
+    let paths = [
       // try serving a static AMP version first
       query.amp ? normalizePagePath(pathname) + '.amp' : null,
       pathname,
     ].filter(Boolean)
+
+    if (query.__nextLocale) {
+      paths = [
+        ...paths.map(
+          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+        ),
+        ...paths,
+      ]
+    }
+
     for (const pagePath of paths) {
       try {
         const components = await loadComponents(
@@ -1027,7 +1046,11 @@ export default class Server {
           components,
           query: {
             ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq, amp: query.amp }
+              ? {
+                  amp: query.amp,
+                  _nextDataReq: query._nextDataReq,
+                  __nextLocale: query.__nextLocale,
+                }
               : query),
             ...(params || {}),
           },
@@ -1137,7 +1160,8 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const locale = (req as any)._nextLocale
+    const locale = query.__nextLocale as string
+    delete query.__nextLocale
 
     const ssgCacheKey =
       isPreviewMode || !isSSG
@@ -1210,7 +1234,7 @@ export default class Server {
             'passthrough',
             {
               fontManifest: this.renderOpts.fontManifest,
-              locale: (req as any)._nextLocale,
+              locale,
               locales: this.renderOpts.locales,
             }
           )
@@ -1231,7 +1255,7 @@ export default class Server {
             ...opts,
             isDataReq,
             resolvedUrl,
-            locale: (req as any)._nextLocale,
+            locale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath
@@ -1317,7 +1341,9 @@ export default class Server {
 
         // Production already emitted the fallback as static HTML.
         if (isProduction) {
-          html = await this.incrementalCache.getFallback(pathname)
+          html = await this.incrementalCache.getFallback(
+            locale ? `/${locale}${pathname}` : pathname
+          )
         }
         // We need to generate the fallback on-demand for development.
         else {
@@ -1438,7 +1464,6 @@ export default class Server {
       res.statusCode = 500
       return await this.renderErrorToHTML(err, req, res, pathname, query)
     }
-
     res.statusCode = 404
     return await this.renderErrorToHTML(null, req, res, pathname, query)
   }
@@ -1484,7 +1509,7 @@ export default class Server {
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      result = await this.findPageComponents('/404')
+      result = await this.findPageComponents('/404', query)
       using404Page = result !== null
     }
 

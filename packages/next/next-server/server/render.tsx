@@ -70,6 +70,7 @@ class ServerRouter implements NextRouter {
   isFallback: boolean
   locale?: string
   locales?: string[]
+  defaultLocale?: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -80,7 +81,8 @@ class ServerRouter implements NextRouter {
     { isFallback }: { isFallback: boolean },
     basePath: string,
     locale?: string,
-    locales?: string[]
+    locales?: string[],
+    defaultLocale?: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -90,6 +92,7 @@ class ServerRouter implements NextRouter {
     this.basePath = basePath
     this.locale = locale
     this.locales = locales
+    this.defaultLocale = defaultLocale
   }
   push(): any {
     noRouter()
@@ -167,6 +170,7 @@ export type RenderOptsPartial = {
   distDir?: string
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -206,6 +210,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString,
     locale,
     locales,
+    defaultLocale,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -254,6 +259,7 @@ function renderDocument(
             appGip, // whether the _app has getInitialProps
             locale,
             locales,
+            defaultLocale,
             head: React.Children.toArray(docProps.head || [])
               .map((elem) => {
                 const { children } = elem?.props
@@ -410,6 +416,7 @@ export async function renderToHTML(
 
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
+  delete query.__nextLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -503,9 +510,6 @@ export async function renderToHTML(
   }
   if (isAutoExport) renderOpts.autoExport = true
   if (isSSG) renderOpts.nextExport = false
-  // don't set default locale for fallback pages since this needs to be
-  // handled at request time
-  if (isFallback) renderOpts.locale = undefined
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -520,7 +524,8 @@ export async function renderToHTML(
     },
     basePath,
     renderOpts.locale,
-    renderOpts.locales
+    renderOpts.locales,
+    renderOpts.defaultLocale
   )
   const ctx = {
     err,
