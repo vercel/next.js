@@ -12,7 +12,7 @@ import {
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
-const warningText = `You are using a non-standard "NODE_ENV" value in your environment`
+const warningText = `Error: You are using a non-standard "NODE_ENV" value in your environment`
 
 let appPort
 let app
@@ -91,7 +91,6 @@ describe('Non-Standard NODE_ENV', () => {
       },
     })
     await waitFor(2000)
-    await killApp(app)
     expect(output).toContain(warningText)
   })
 
