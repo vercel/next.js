@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import React, { Component, ReactNode, useContext } from 'react'
+import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
@@ -216,7 +216,9 @@ export class Head extends Component<
     })
 
     if (process.env.__NEXT_OPTIMIZE_FONTS) {
-      cssLinkElements = this.makeStylesheetInert(cssLinkElements)
+      cssLinkElements = this.makeStylesheetInert(
+        cssLinkElements
+      ) as ReactElement[]
     }
 
     return cssLinkElements.length === 0 ? null : cssLinkElements
@@ -286,7 +288,7 @@ export class Head extends Component<
         ))
   }
 
-  makeStylesheetInert(node: ReactNode): ReactNode {
+  makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
         c.type === 'link' &&
