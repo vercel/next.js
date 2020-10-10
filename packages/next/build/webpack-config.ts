@@ -575,6 +575,10 @@ export default async function getBaseWebpackConfig(
   )
 
   function handleExternals(context: any, request: any, callback: any) {
+    if (request === 'next') {
+      return callback(undefined, `commonjs ${request}`)
+    }
+
     const notExternalModules = [
       'next/app',
       'next/document',
