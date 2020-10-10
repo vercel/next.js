@@ -177,7 +177,7 @@ export class Head extends Component<
       cssFiles.push(...dynamicCssFiles)
     }
 
-    const cssLinkElements: JSX.Element[] = []
+    let cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
 
@@ -214,6 +214,11 @@ export class Head extends Component<
         />
       )
     })
+
+    if (process.env.__NEXT_OPTIMIZE_FONTS) {
+      cssLinkElements = this.makeStylesheetInert(cssLinkElements)
+    }
+
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
@@ -503,21 +508,18 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {process.env.__NEXT_OPTIMIZE_FONTS
-              ? this.makeStylesheetInert(this.getCssLinks(files))
-              : this.getCssLinks(files)}
-            <noscript data-n-css />
+            {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
+            {!process.env.__NEXT_OPTIMIZE_CSS && <noscript data-n-css />}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
+            {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
+            {process.env.__NEXT_OPTIMIZE_CSS && <noscript data-n-css />}
             {this.context.isDevelopment && (
               // this element is used to mount development styles so the
               // ordering matches production
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
-            {process.env.__NEXT_OPTIMIZE_CSS ? (
-              <style id="next-critical-css"></style>
-            ) : null}
             {styles || null}
           </>
         )}
