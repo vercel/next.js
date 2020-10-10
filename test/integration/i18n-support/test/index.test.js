@@ -27,6 +27,52 @@ let appPort
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'en']
 
 function runTests() {
+  it('should generate fallbacks with all locales', async () => {
+    for (const locale of locales) {
+      const html = await renderViaHTTP(
+        appPort,
+        `/${locale}/gsp/fallback/${Math.random()}`
+      )
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+    }
+  })
+
+  it('should generate auto-export page with all locales', async () => {
+    for (const locale of locales) {
+      const html = await renderViaHTTP(appPort, `/${locale}`)
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#router-locale').text()).toBe(locale)
+      expect($('#router-as-path').text()).toBe('/')
+      expect($('#router-pathname').text()).toBe('/')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+
+      const html2 = await renderViaHTTP(appPort, `/${locale}/auto-export`)
+      const $2 = cheerio.load(html2)
+      expect($2('html').attr('lang')).toBe(locale)
+      expect($2('#router-locale').text()).toBe(locale)
+      expect($2('#router-as-path').text()).toBe('/auto-export')
+      expect($2('#router-pathname').text()).toBe('/auto-export')
+      expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
+    }
+  })
+
+  it('should generate non-dynamic SSG page with all locales', async () => {
+    for (const locale of locales) {
+      const html = await renderViaHTTP(appPort, `/${locale}/gsp`)
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#router-locale').text()).toBe(locale)
+      expect($('#router-as-path').text()).toBe('/gsp')
+      expect($('#router-pathname').text()).toBe('/gsp')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    }
+  })
+
+  // TODO: SSG 404 behavior to opt-out of generating specific locale
+  // for non-dynamic SSG pages
+
   it('should remove un-necessary locale prefix for default locale', async () => {
     const res = await fetchViaHTTP(appPort, '/en-US', undefined, {
       redirect: 'manual',
@@ -92,9 +138,7 @@ function runTests() {
     ).toEqual({
       slug: 'another',
     })
-    // TODO: this will be fixed after the fallback is generated for all locales
-    // instead of delaying populating the locale on the client
-    // expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
@@ -189,12 +233,12 @@ function runTests() {
   })
 
   it('should load getStaticProps fallback non-prerender page correctly', async () => {
-    const browser = await webdriver(appPort, '/en-US/gsp/fallback/another')
+    const browser = await webdriver(appPort, '/en/gsp/fallback/another')
 
     await browser.waitForElementByCss('#props')
 
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-      locale: 'en-US',
+      locale: 'en',
       locales,
       params: {
         slug: 'another',
@@ -205,16 +249,12 @@ function runTests() {
     ).toEqual({
       slug: 'another',
     })
-    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en')
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
 
-    // TODO: this will be fixed after fallback pages are generated
-    // for all locales
-    // expect(
-    //   await browser.elementByCss('html').getAttribute('lang')
-    // ).toBe('en-US')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
   })
 
   it('should load getServerSideProps page correctly SSR (default locale no prefix)', async () => {
@@ -239,10 +279,6 @@ function runTests() {
     await browser.get(browser.initUrl)
 
     const checkIndexValues = async () => {
-      expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-        locale: 'en-US',
-        locales,
-      })
       expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
       expect(
         JSON.parse(await browser.elementByCss('#router-locales').text())
@@ -542,6 +578,7 @@ function runTests() {
 }
 
 describe('i18n Support', () => {
+  // TODO: test with next export?
   describe('dev mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
