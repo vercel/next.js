@@ -24,9 +24,115 @@ let app
 let appPort
 // let buildId
 
-const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'en']
+const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 
 function runTests() {
+  it('should use correct default locale for locale domains', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        host: 'example.fr',
+      },
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('html').attr('lang')).toBe('fr')
+    expect($('#router-locale').text()).toBe('fr')
+    expect($('#router-as-path').text()).toBe('/')
+    expect($('#router-pathname').text()).toBe('/')
+    // expect(JSON.parse($('#router-locales').text())).toEqual(['fr','fr-BE'])
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+
+    const res2 = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        host: 'example.be',
+      },
+    })
+
+    expect(res2.status).toBe(200)
+
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+
+    expect($2('html').attr('lang')).toBe('nl-BE')
+    expect($2('#router-locale').text()).toBe('nl-BE')
+    expect($2('#router-as-path').text()).toBe('/')
+    expect($2('#router-pathname').text()).toBe('/')
+    // expect(JSON.parse($2('#router-locales').text())).toEqual(['nl-BE','fr-BE'])
+    expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
+  })
+
+  it('should strip locale prefix for default locale with locale domains', async () => {
+    const res = await fetchViaHTTP(appPort, '/fr', undefined, {
+      headers: {
+        host: 'example.fr',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+
+    const result = url.parse(res.headers.get('location'), true)
+    expect(result.pathname).toBe('/')
+    expect(result.query).toEqual({})
+
+    const res2 = await fetchViaHTTP(appPort, '/nl-BE', undefined, {
+      headers: {
+        host: 'example.be',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res2.status).toBe(307)
+
+    const result2 = url.parse(res2.headers.get('location'), true)
+    expect(result2.pathname).toBe('/')
+    expect(result2.query).toEqual({})
+  })
+
+  it('should only handle the domain specific locales', async () => {
+    const checkDomainLocales = async (
+      domainLocales = [],
+      domainDefault = '',
+      domain = ''
+    ) => {
+      for (const locale of locales) {
+        const res = await fetchViaHTTP(
+          appPort,
+          `/${locale === domainDefault ? '' : locale}`,
+          undefined,
+          {
+            headers: {
+              host: domain,
+            },
+            redirect: 'manual',
+          }
+        )
+
+        const isDomainLocale = domainLocales.includes(locale)
+
+        expect(res.status).toBe(isDomainLocale ? 200 : 404)
+
+        if (isDomainLocale) {
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          expect($('html').attr('lang')).toBe(locale)
+          expect($('#router-locale').text()).toBe(locale)
+          // expect(JSON.parse($('#router-locales').text())).toEqual(domainLocales)
+          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+        }
+      }
+    }
+
+    await checkDomainLocales(['nl-BE', 'fr-BE'], 'nl-BE', 'example.be')
+
+    await checkDomainLocales(['fr', 'fr-BE'], 'fr', 'example.fr')
+  })
+
   it('should generate fallbacks with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(
@@ -175,15 +281,20 @@ function runTests() {
     expect(parsedUrl2.query).toEqual({ hello: 'world' })
   })
 
-  it('should redirect to default locale route for / without accept-language', async () => {
+  it('should use default locale for / without accept-language', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       redirect: 'manual',
     })
-    expect(res.status).toBe(307)
+    expect(res.status).toBe(200)
 
-    const parsedUrl = url.parse(res.headers.get('location'), true)
-    expect(parsedUrl.pathname).toBe('/en-US')
-    expect(parsedUrl.query).toEqual({})
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#router-locale').text()).toBe('en-US')
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect(JSON.parse($('#router-query').text())).toEqual({})
+    expect($('#router-pathname').text()).toBe('/')
+    expect($('#router-as-path').text()).toBe('/')
 
     const res2 = await fetchViaHTTP(
       appPort,
@@ -193,11 +304,17 @@ function runTests() {
         redirect: 'manual',
       }
     )
-    expect(res2.status).toBe(307)
+    expect(res2.status).toBe(200)
 
-    const parsedUrl2 = url.parse(res2.headers.get('location'), true)
-    expect(parsedUrl2.pathname).toBe('/en-US')
-    expect(parsedUrl2.query).toEqual({ hello: 'world' })
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+
+    expect($2('#router-locale').text()).toBe('en-US')
+    expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
+    // page is auto-export so query isn't hydrated until client
+    expect(JSON.parse($2('#router-query').text())).toEqual({})
+    expect($2('#router-pathname').text()).toBe('/')
+    expect($2('#router-as-path').text()).toBe('/')
   })
 
   it('should load getStaticProps page correctly SSR', async () => {
