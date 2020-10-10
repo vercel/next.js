@@ -138,7 +138,7 @@ export default class Server {
     optimizeFonts: boolean
     fontManifest: FontManifest
     optimizeImages: boolean
-    optimizeCss: boolean
+    optimizeCss: any
     locale?: string
     locales?: string[]
     defaultLocale?: string

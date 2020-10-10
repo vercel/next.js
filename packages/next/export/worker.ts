@@ -49,7 +49,7 @@ interface ExportPageInput {
   serverless: boolean
   optimizeFonts: boolean
   optimizeImages: boolean
-  optimizeCss: boolean
+  optimizeCss: any
 }
 
 interface ExportPageResults {
@@ -68,7 +68,7 @@ interface RenderOpts {
   inAmpMode?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
-  optimizeCss?: boolean
+  optimizeCss?: any
   fontManifest?: FontManifest
   locales?: string[]
   locale?: string

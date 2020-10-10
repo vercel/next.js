@@ -163,7 +163,7 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
-  optimizeCss: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
@@ -988,6 +988,8 @@ export async function renderToHTML(
       publicPath: '/_next/',
       preload: 'media',
       fonts: false,
+      container: 'next-critical-css',
+      ...renderOpts.optimizeCss,
     })
 
     html = await cssOptimizer.process(html)

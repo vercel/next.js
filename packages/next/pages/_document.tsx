@@ -515,6 +515,9 @@ export class Head extends Component<
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
+            {process.env.__NEXT_OPTIMIZE_CSS ? (
+              <style id="next-critical-css"></style>
+            ) : null}
             {styles || null}
           </>
         )}
