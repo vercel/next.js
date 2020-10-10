@@ -82,7 +82,6 @@ import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocales } from '../lib/i18n/detect-domain-locales'
 
-
 const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
