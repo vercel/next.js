@@ -780,7 +780,6 @@ export default async function build(
             const isFallback = isSsg && ssgStaticFallbackPages.has(page)
 
             for (const locale of i18n.locales) {
-              if (!isSsg && locale === i18n.defaultLocale) continue
               // skip fallback generation for SSG pages without fallback mode
               if (isSsg && isDynamic && !isFallback) continue
               const outputPath = `/${locale}${page === '/' ? '' : page}`
@@ -869,22 +868,19 @@ export default async function build(
       // for SSG files with i18n the non-prerendered variants are
       // output with the locale prefixed so don't attempt moving
       // without the prefix
-      if (!i18n || !isSsg || additionalSsgFile) {
+      if (!i18n || additionalSsgFile) {
         await promises.mkdir(path.dirname(dest), { recursive: true })
         await promises.rename(orig, dest)
+      } else if (i18n && !isSsg) {
+        // this will be updated with the locale prefixed variant
+        // since all files are output with the locale prefix
+        delete pagesManifest[page]
       }
 
       if (i18n) {
         if (additionalSsgFile) return
 
         for (const locale of i18n.locales) {
-          // auto-export default locale files exist at root
-          // TODO: should these always be prefixed with locale
-          // similar to SSG prerender/fallback files?
-          if (!isSsg && locale === i18n.defaultLocale) {
-            continue
-          }
-
           const localeExt = page === '/' ? path.extname(file) : ''
           const relativeDestNoPages = relativeDest.substr('pages/'.length)
 

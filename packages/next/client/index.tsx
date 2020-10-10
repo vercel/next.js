@@ -11,11 +11,7 @@ import type {
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
-import {
-  delBasePath,
-  hasBasePath,
-  delLocale,
-} from '../next-server/lib/router/router'
+import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
@@ -65,10 +61,9 @@ const {
   isFallback,
   head: initialHeadData,
   locales,
-  defaultLocale,
 } = data
 
-let { locale } = data
+let { locale, defaultLocale } = data
 
 const prefix = assetPrefix || ''
 
@@ -88,19 +83,21 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
-asPath = delLocale(asPath, locale)
-
 if (process.env.__NEXT_i18n_SUPPORT) {
   const {
     normalizeLocalePath,
   } = require('../next-server/lib/i18n/normalize-locale-path')
 
-  if (isFallback && locales) {
+  if (locales) {
     const localePathResult = normalizeLocalePath(asPath, locales)
 
     if (localePathResult.detectedLocale) {
       asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
-      locale = localePathResult.detectedLocale
+    } else {
+      // derive the default locale if it wasn't detected in the asPath
+      // since we don't prerender static pages with all possible default
+      // locales
+      defaultLocale = locale
     }
   }
 }
