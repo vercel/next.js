@@ -222,26 +222,36 @@ const nextServerlessLoader: loader.Loader = function () {
       const i18n = ${i18n}
       const accept = require('@hapi/accept')
       const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
+      const { detectDomainLocales } = require('next/dist/next-server/lib/i18n/detect-domain-locales')
       const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+
+      const { defaultLocale, locales } = detectDomainLocales(
+        req,
+        i18n.domains,
+        i18n.locales,
+        i18n.defaultLocale,
+      )
 
       if (!detectedLocale) {
         detectedLocale = accept.language(
           req.headers['accept-language'],
-          i18n.locales
+          locales
         )
       }
 
       const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
-      const detectedDefaultLocale = detectedLocale === i18n.defaultLocale
+      const detectedDefaultLocale = !detectedLocale || detectedLocale === defaultLocale
       const shouldStripDefaultLocale =
         detectedDefaultLocale &&
-        denormalizedPagePath === \`/\${i18n.defaultLocale}\`
+        denormalizedPagePath === \`/\${defaultLocale}\`
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
-      detectedLocale = detectedLocale || i18n.defaultLocale
+
+      detectedLocale = detectedLocale || defaultLocale
 
       if (
+        !fromExport &&
         !nextStartMode &&
         i18n.localeDetection !== false &&
         (shouldAddLocalePrefix || shouldStripDefaultLocale)
@@ -259,8 +269,7 @@ const nextServerlessLoader: loader.Loader = function () {
         return
       }
 
-      // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
-      const localePathResult = normalizeLocalePath(parsedUrl.pathname, i18n.locales)
+      const localePathResult = normalizeLocalePath(parsedUrl.pathname, locales)
 
       if (localePathResult.detectedLocale) {
         detectedLocale = localePathResult.detectedLocale
@@ -271,11 +280,13 @@ const nextServerlessLoader: loader.Loader = function () {
         parsedUrl.pathname = localePathResult.pathname
       }
 
-      detectedLocale = detectedLocale || i18n.defaultLocale
+      detectedLocale = detectedLocale || defaultLocale
     `
     : `
       const i18n = {}
       const detectedLocale = undefined
+      const defaultLocale = undefined
+      const locales = undefined
     `
 
   if (page.match(API_ROUTE)) {
@@ -467,8 +478,8 @@ const nextServerlessLoader: loader.Loader = function () {
             nextExport: fromExport,
             isDataReq: _nextData,
             locale: detectedLocale,
-            locales: i18n.locales,
-            defaultLocale: i18n.defaultLocale,
+            locales,
+            defaultLocale,
           },
           options,
         )

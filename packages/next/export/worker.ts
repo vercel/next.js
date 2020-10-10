@@ -100,14 +100,21 @@ export default async function exportPage({
     const { page } = pathMap
     const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
+    const isDynamic = isDynamicRoute(page)
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined
 
-    const localePathResult = normalizeLocalePath(path, renderOpts.locales)
+    let updatedPath = path
+    let locale = query.__nextLocale || renderOpts.locale
+    delete query.__nextLocale
 
-    if (localePathResult.detectedLocale) {
-      path = localePathResult.pathname
-      renderOpts.locale = localePathResult.detectedLocale
+    if (renderOpts.locale) {
+      const localePathResult = normalizeLocalePath(path, renderOpts.locales)
+
+      if (localePathResult.detectedLocale) {
+        updatedPath = localePathResult.pathname
+        locale = localePathResult.detectedLocale
+      }
     }
 
     // We need to show a warning if they try to provide query values
@@ -122,8 +129,8 @@ export default async function exportPage({
     }
 
     // Check if the page is a specified dynamic route
-    if (isDynamicRoute(page) && page !== path) {
-      params = getRouteMatcher(getRouteRegex(page))(path) || undefined
+    if (isDynamic && page !== path) {
+      params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
       if (params) {
         // we have to pass these separately for serverless
         if (!serverless) {
@@ -134,7 +141,7 @@ export default async function exportPage({
         }
       } else {
         throw new Error(
-          `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
+          `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
         )
       }
     }
@@ -149,7 +156,7 @@ export default async function exportPage({
     }
 
     const req = ({
-      url: path,
+      url: updatedPath,
       ...headerMocks,
     } as unknown) as IncomingMessage
     const res = ({
@@ -239,7 +246,7 @@ export default async function exportPage({
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
-            locale: renderOpts.locale!,
+            locale: locale!,
             locales: renderOpts.locales!,
           },
           // @ts-ignore
@@ -298,6 +305,7 @@ export default async function exportPage({
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
             : null,
+          locale: locale as string,
         }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
