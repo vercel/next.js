@@ -58,6 +58,9 @@ function updateElements(
       if (title !== document.title) document.title = title
       return
     }
+    if (typeof tag.type === 'function') {
+      return
+    }
 
     const newTag = reactElementToDOM(tag)
     const elementIter = elements.values()
@@ -93,7 +96,9 @@ export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
 
   updateElements(
     elements,
-    initialHeadEntries.map(([type, props]) => createElement(type, props)),
+    initialHeadEntries
+      .filter(([type]) => type)
+      .map(([type, props]) => createElement(type, props)),
     false
   )
 
