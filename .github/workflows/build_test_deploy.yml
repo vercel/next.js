@@ -190,7 +190,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [publishRelease]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
       - run: ./release-stats.sh
       - uses: ./.github/actions/next-stats-action
         env:
