@@ -269,7 +269,6 @@ const nextServerlessLoader: loader.Loader = function () {
         return
       }
 
-      // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
       const localePathResult = normalizeLocalePath(parsedUrl.pathname, locales)
 
       if (localePathResult.detectedLocale) {
