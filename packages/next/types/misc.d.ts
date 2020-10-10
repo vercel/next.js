@@ -58,7 +58,7 @@ declare module 'next/dist/compiled/ci-info' {
   export = m
 }
 declare module 'next/dist/compiled/compression' {
-  import m from 'compression'
+  import m from '@nicksrandall/compression'
   export = m
 }
 declare module 'next/dist/compiled/conf' {
