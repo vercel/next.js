@@ -8,9 +8,10 @@ import Server from './next-server'
 import { fileExists } from '../../lib/file-exists'
 
 let sharp: typeof import('sharp')
-const AVIF = 'image/avif'
+//const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const MEDIA_TYPES = [/* AVIF, */ WEBP]
+const CACHE_VERSION = 1
 
 export async function imageOptimizer(
   server: Server,
@@ -103,7 +104,7 @@ export async function imageOptimizer(
   }
 
   const { href } = absoluteUrl
-  const fileName = getFileName([href, width, quality, mediaType])
+  const fileName = getFileName([CACHE_VERSION, href, width, quality, mediaType])
   const imageDir = join(distDir, 'cache', 'images')
   const cacheFile = join(imageDir, fileName)
 
@@ -114,15 +115,15 @@ export async function imageOptimizer(
   }
 
   if (!sharp) {
-    // Lazy load sharp per RFC 17141
+    // Lazy load per https://github.com/vercel/next.js/discussions/17141
     // eslint-disable-next-line import/no-extraneous-dependencies
     sharp = require('sharp')
   }
   const transformer = sharp().resize(width)
 
-  if (mediaType === AVIF) {
-    // Soon https://github.com/lovell/sharp/issues/2289
-  }
+  //if (mediaType === AVIF) {
+  // Soon https://github.com/lovell/sharp/issues/2289
+  //}
   if (mediaType === WEBP) {
     transformer.webp({ quality })
   }
@@ -150,13 +151,8 @@ export async function imageOptimizer(
 function getFileName(items: (string | number | undefined)[]) {
   const hash = createHash('sha256')
   for (let item of items) {
-    if (typeof item === 'string') {
-      hash.update(item)
-    } else {
-      hash.update(String(item))
-    }
+    hash.update(String(item))
   }
   // See https://en.wikipedia.org/wiki/Base64#Filenames
-  const digest = hash.digest('base64').replace(/\//g, '-')
-  return digest
+  return hash.digest('base64').replace(/\//g, '-')
 }
