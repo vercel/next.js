@@ -70,6 +70,43 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 `next build` builds the production application in the `.next` folder. After building, `next start` starts a Node.js server that supports [hybrid pages](/docs/basic-features/pages.md), serving both statically generated and server-side rendered pages.
 
+### Docker Image
+
+Next.js can be deployed to any hosting provider that supports Docker containers. This is the approach you should use when you're deploying to container orchestrators such as Kubernetes or Hashicorp Nomad.
+
+Here is a multi-stage `Dockerfile` using `node:alpine` that you can use:
+
+```Dockerfile
+FROM node:alpine AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json yarn.lock ./
+RUN yarn
+COPY . .
+RUN yarn build
+
+FROM node:alpine
+WORKDIR /app
+
+ENV NODE_ENV production
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+USER nextjs
+EXPOSE 3000
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+
+# Uncomment this in case you want to disable telemetry.
+# RUN npx next telemetry disable
+
+CMD ["node_modules/.bin/next", "start"]
+```
+
+Make sure to place this in the root folder of your project.
+
+You can build this with `docker build . -t my-next-js-app` and run with `docker run -p 3000:3000 my-next-js-app`.
+
 ### Static HTML Export
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md).
