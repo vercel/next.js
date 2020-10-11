@@ -241,10 +241,10 @@ const nextServerlessLoader: loader.Loader = function () {
       }
 
       const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
-      const detectedDefaultLocale = !detectedLocale || detectedLocale === defaultLocale
+      const detectedDefaultLocale = !detectedLocale || detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
       const shouldStripDefaultLocale =
         detectedDefaultLocale &&
-        denormalizedPagePath === \`/\${defaultLocale}\`
+        denormalizedPagePath.toLowerCase() === \`/\${defaultLocale.toLowerCase()}\`
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
 

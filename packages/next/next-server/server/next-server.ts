@@ -324,9 +324,11 @@ export default class Server {
 
       const denormalizedPagePath = denormalizePagePath(pathname || '/')
       const detectedDefaultLocale =
-        !detectedLocale || detectedLocale === defaultLocale
+        !detectedLocale ||
+        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
       const shouldStripDefaultLocale =
-        detectedDefaultLocale && denormalizedPagePath === `/${defaultLocale}`
+        detectedDefaultLocale &&
+        denormalizedPagePath.toLowerCase() === `/${defaultLocale.toLowerCase()}`
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
 
