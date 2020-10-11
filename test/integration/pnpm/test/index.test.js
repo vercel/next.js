@@ -27,6 +27,7 @@ const appDir = path.join(__dirname, '..', 'app')
 
 jest.setTimeout(1000 * 60 * 5)
 
+const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
 const runPnpm = (cwd, ...args) => execa(pnpmExecutable, [...args], { cwd })
 
 async function usingTempDir(fn) {
@@ -39,10 +40,13 @@ async function usingTempDir(fn) {
   }
 }
 
-async function packNextTarball(fn) {
-  const { stdout } = await execa(pnpmExecutable, ['pack'], {
-    cwd: nextPackageDir,
-  })
+async function packNextTarball(cwd) {
+  const { stdout } = await runNpm(
+    cwd,
+    'pack',
+    '--ignore-scripts', // Skip the prepublish script
+    nextPackageDir
+  )
   const tarballFilename = stdout.match(/.*\.tgz/)[0]
 
   if (!tarballFilename) {
@@ -51,12 +55,7 @@ async function packNextTarball(fn) {
     )
   }
 
-  const tarballPath = path.join(nextPackageDir, tarballFilename)
-  try {
-    return await fn(tarballPath)
-  } finally {
-    await fs.unlink(tarballPath)
-  }
+  return path.join(cwd, tarballFilename)
 }
 
 describe('pnpm support', () => {
@@ -67,22 +66,23 @@ describe('pnpm support', () => {
     // 'app/node_modules/next' -> 'path/to/next.js/packages/next'. This is undesired since modules
     // inside "next" would be resolved to the next.js monorepo 'node_modules'; installing from a
     // tarball avoids this issue.
-    await usingTempDir(async (cwd) => {
-      await packNextTarball(async (nextTarballPath) => {
-        await fs.copy(appDir, cwd)
-        await runPnpm(cwd, 'install')
-        await runPnpm(cwd, 'add', nextTarballPath)
+    await usingTempDir(async (tempDir) => {
+      const nextTarballPath = await packNextTarball(tempDir)
 
-        expect(
-          require(path.join(cwd, 'package.json')).dependencies['next']
-        ).toBe(`file:${nextTarballPath}`)
-        expect(
-          await fs.pathExists(path.join(cwd, 'pnpm-lock.yaml'))
-        ).toBeTruthy()
+      const tempAppDir = path.join(tempDir, 'app')
+      await fs.copy(appDir, tempAppDir)
+      await runPnpm(tempAppDir, 'install')
+      await runPnpm(tempAppDir, 'add', nextTarballPath)
 
-        const { stdout } = await runPnpm(cwd, 'run', 'build')
-        expect(stdout).toMatch(/Compiled successfully/)
-      })
+      expect(
+        require(path.join(tempAppDir, 'package.json')).dependencies['next']
+      ).toBe(`file:${nextTarballPath}`)
+      expect(
+        await fs.pathExists(path.join(tempAppDir, 'pnpm-lock.yaml'))
+      ).toBeTruthy()
+
+      const { stdout } = await runPnpm(tempAppDir, 'run', 'build')
+      expect(stdout).toMatch(/Compiled successfully/)
     })
   })
 })
