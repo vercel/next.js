@@ -75,11 +75,11 @@ describe('pnpm support', () => {
       await runPnpm(tempAppDir, 'add', nextTarballPath)
 
       expect(
-        require(path.join(tempAppDir, 'package.json')).dependencies['next']
-      ).toMatch(/^file:/)
-      expect(
         await fs.pathExists(path.join(tempAppDir, 'pnpm-lock.yaml'))
       ).toBeTruthy()
+      expect(
+        require(path.join(tempAppDir, 'package.json')).dependencies['next']
+      ).toMatch(/^file:/)
 
       const { stdout, stderr } = await runPnpm(tempAppDir, 'run', 'build')
       console.log(stdout, stderr)
