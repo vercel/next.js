@@ -76,7 +76,7 @@ describe('pnpm support', () => {
 
       expect(
         require(path.join(tempAppDir, 'package.json')).dependencies['next']
-      ).toBe(`file:${nextTarballPath}`)
+      ).toMatch(/^file:/)
       expect(
         await fs.pathExists(path.join(tempAppDir, 'pnpm-lock.yaml'))
       ).toBeTruthy()
