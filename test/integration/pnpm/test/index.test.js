@@ -81,7 +81,8 @@ describe('pnpm support', () => {
         await fs.pathExists(path.join(tempAppDir, 'pnpm-lock.yaml'))
       ).toBeTruthy()
 
-      const { stdout } = await runPnpm(tempAppDir, 'run', 'build')
+      const { stdout, stderr } = await runPnpm(tempAppDir, 'run', 'build')
+      console.log(stdout, stderr)
       expect(stdout).toMatch(/Compiled successfully/)
     })
   })
