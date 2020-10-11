@@ -43,7 +43,7 @@ function runTests() {
     }
   })
 
-  it('works on api routes', async () => {
+  it('works on async api routes', async () => {
     const res = await fetchViaHTTP(appPort, '/api/hello')
     expect(res.status).toBe(200)
     const result = await res.json()
@@ -51,11 +51,7 @@ function runTests() {
   })
 }
 
-describe('Async modules', () => {
-  if (!isWebpack5) {
-    return
-  }
-
+;(isWebpack5 ? describe : describe.skip)('Async modules', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -83,7 +79,7 @@ describe('Async modules', () => {
 
   describe.skip('serverless mode', () => {
     beforeAll(async () => {
-      nextConfig.replace(`// target:`, 'target:')
+      nextConfig.replace('// target:', 'target:')
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
